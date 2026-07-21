@@ -1,0 +1,141 @@
+/** Core project data model. Everything here is plain serializable data. */
+
+export const SCHEMA_VERSION = 1;
+
+export type TrackType = 'audio' | 'instrument' | 'drum' | 'bus';
+
+export type Waveform = 'sawtooth' | 'square' | 'triangle' | 'sine';
+
+export interface SynthParams {
+  waveform: Waveform;
+  /** Filter cutoff in Hz (20..18000) */
+  cutoff: number;
+  /** Filter resonance Q (0.1..20) */
+  resonance: number;
+  /** ADSR in seconds / sustain 0..1 */
+  attack: number;
+  decay: number;
+  sustain: number;
+  release: number;
+  /** Instrument output level, linear 0..1 */
+  volume: number;
+  presetName: string;
+}
+
+export interface Track {
+  id: string;
+  type: TrackType;
+  name: string;
+  /** hex color used across arrangement + mixer */
+  color: string;
+  /** linear gain, 1 = unity, max 1.5 */
+  volume: number;
+  /** -1 (L) .. 1 (R) */
+  pan: number;
+  mute: boolean;
+  solo: boolean;
+  armed: boolean;
+  collapsed: boolean;
+  /** 'master' or the id of a bus track */
+  output: string;
+  /** present on instrument/drum tracks */
+  synth?: SynthParams;
+}
+
+export interface Note {
+  id: string;
+  /** beats relative to clip start */
+  start: number;
+  /** beats */
+  length: number;
+  /** MIDI note number */
+  pitch: number;
+  /** 1..127 */
+  velocity: number;
+}
+
+interface ClipBase {
+  id: string;
+  trackId: string;
+  name: string;
+  /** absolute timeline position in beats */
+  start: number;
+  /** beats */
+  length: number;
+  muted: boolean;
+}
+
+export interface AudioClip extends ClipBase {
+  type: 'audio';
+  /** id into the procedural media registry */
+  mediaId: string;
+  /** seconds into the media the clip starts from */
+  offset: number;
+  /** clip gain, linear */
+  gain: number;
+}
+
+export interface MidiClip extends ClipBase {
+  type: 'midi';
+  notes: Note[];
+}
+
+export type Clip = AudioClip | MidiClip;
+
+export interface LoopRegion {
+  enabled: boolean;
+  /** beats */
+  start: number;
+  end: number;
+}
+
+export interface TimeSignature {
+  num: number;
+  den: number;
+}
+
+export interface WorkspaceState {
+  /** arrangement zoom */
+  pxPerBeat: number;
+  /** grid snap in beats */
+  snap: number;
+}
+
+export interface ProjectData {
+  schemaVersion: number;
+  id: string;
+  name: string;
+  createdAt: number;
+  modifiedAt: number;
+  bpm: number;
+  timeSig: TimeSignature;
+  loop: LoopRegion;
+  metronome: boolean;
+  /** linear master gain 0..1.5 */
+  masterVolume: number;
+  tracks: Track[];
+  clips: Clip[];
+  workspace: WorkspaceState;
+}
+
+export interface ProjectMeta {
+  id: string;
+  name: string;
+  createdAt: number;
+  modifiedAt: number;
+  trackCount: number;
+  clipCount: number;
+}
+
+export const TRACK_COLORS = [
+  '#37b89a',
+  '#4a90c4',
+  '#9070c9',
+  '#d9a13c',
+  '#d97455',
+  '#6aa84f',
+  '#7f93a8',
+  '#c96f9b',
+];
+
+export const MASTER_ID = 'master';
