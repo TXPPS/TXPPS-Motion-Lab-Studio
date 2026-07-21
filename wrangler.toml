@@ -1,0 +1,5 @@
+# Cloudflare Pages project configuration for TXPPS MotionLab Studio.
+# Used by `wrangler pages deploy` and by the Cloudflare dashboard Git integration.
+name = "txpps-motionlab-studio"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-07-21"
