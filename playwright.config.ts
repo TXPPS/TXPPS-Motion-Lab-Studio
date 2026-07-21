@@ -22,6 +22,11 @@ export default defineConfig({
     baseURL: externalBase ?? 'http://localhost:4173',
     trace: 'retain-on-failure',
     permissions: ['clipboard-read', 'clipboard-write'],
+    // External origins must go through the environment's egress proxy;
+    // localhost runs bypass it.
+    ...(externalBase && process.env.HTTPS_PROXY
+      ? { proxy: { server: process.env.HTTPS_PROXY } }
+      : {}),
     launchOptions: {
       executablePath,
       args: ['--autoplay-policy=no-user-gesture-required'],
