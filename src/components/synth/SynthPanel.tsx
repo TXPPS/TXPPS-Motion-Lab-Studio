@@ -71,7 +71,12 @@ function Keyboard({ track, octaves = 2 }: { track: Track; octaves?: number }) {
   const keyHandlers = (pitch: number) => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
-      (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+      // Release any implicit capture so gliding fires pointerenter on other keys.
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {
+        /* no capture to release */
+      }
       press(pitch, e.pointerId);
     },
     onPointerEnter: (e: React.PointerEvent) => {

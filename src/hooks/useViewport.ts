@@ -3,9 +3,11 @@ import { useUiStore } from '../state/uiStore';
 
 export type Layout = 'desktop' | 'tablet' | 'phone';
 
-function compute(width: number): Layout {
-  if (width < 700) return 'phone';
-  if (width < 1024) return 'tablet';
+function compute(width: number, height: number): Layout {
+  // A phone in landscape is wide but very short, so key off height too:
+  // short viewports and narrow viewports both get the dedicated phone UI.
+  if (height < 500 || width < 700) return 'phone';
+  if (width <= 1024) return 'tablet';
   return 'desktop';
 }
 
@@ -25,7 +27,7 @@ export function useViewport(): { layout: Layout; width: number; height: number }
     };
   }, []);
   return {
-    layout: forced === 'phone' ? 'phone' : compute(size.width),
+    layout: forced === 'phone' ? 'phone' : compute(size.width, size.height),
     width: size.width,
     height: size.height,
   };
