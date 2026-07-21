@@ -136,12 +136,7 @@ export class PolySynth implements Instrument {
     private registry: SourceRegistry,
   ) {}
 
-  private spawn(
-    pitch: number,
-    velocity: number,
-    when: number,
-    clipId?: string,
-  ): Voice | null {
+  private spawn(pitch: number, velocity: number, when: number, clipId?: string): Voice | null {
     if (!this.registry.canAllocate()) return null;
     if (this.voices.size >= MAX_VOICES) {
       // steal the oldest voice
@@ -170,7 +165,13 @@ export class PolySynth implements Instrument {
     return v;
   }
 
-  scheduleNote(pitch: number, velocity: number, when: number, durSec: number, clipId?: string): void {
+  scheduleNote(
+    pitch: number,
+    velocity: number,
+    when: number,
+    durSec: number,
+    clipId?: string,
+  ): void {
     const v = this.spawn(pitch, velocity, when, clipId);
     v?.release(when + Math.max(0.02, durSec));
   }
@@ -259,7 +260,13 @@ export class DrumKit implements Instrument {
     src.start(when);
   }
 
-  scheduleNote(pitch: number, velocity: number, when: number, _durSec: number, clipId?: string): void {
+  scheduleNote(
+    pitch: number,
+    velocity: number,
+    when: number,
+    _durSec: number,
+    clipId?: string,
+  ): void {
     this.trigger(pitch, velocity, when, clipId);
   }
 

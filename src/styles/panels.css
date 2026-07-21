@@ -1,0 +1,237 @@
+/* ===== Browser panel ===== */
+.browser-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px 0;
+}
+.browser-tabs button {
+  flex: 1;
+  padding: 5px 4px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-dim);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: transparent;
+}
+.browser-tabs button.on {
+  background: var(--bg-panel-2);
+  color: var(--text);
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  user-select: none;
+}
+.list-item:hover {
+  background: var(--bg-hover);
+}
+.list-item.on {
+  background: var(--accent-bg);
+}
+.list-item .li-main {
+  flex: 1;
+  min-width: 0;
+}
+.list-item .li-title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.list-item .li-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  margin-top: 1px;
+}
+.list-item .li-actions {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+
+.panel-section {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.panel-section .ps-title {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+}
+
+/* ===== Inspector ===== */
+.insp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: var(--fs-md);
+}
+.insp-row .k {
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  flex: none;
+}
+.insp-row .v {
+  min-width: 0;
+  text-align: right;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.insp-row input[type='range'] {
+  flex: 1;
+}
+.insp-row input[type='text'],
+.insp-row input[type='number'],
+.insp-row select {
+  width: 120px;
+  height: 26px;
+  font-size: var(--fs-sm);
+}
+
+.color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 4px 0;
+}
+.color-swatches button {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 2px solid transparent;
+}
+.color-swatches button.on {
+  border-color: #fff;
+}
+
+/* ===== Diagnostics ===== */
+.diag {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+}
+.diag-actions {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-soft);
+}
+.diag-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 10px;
+}
+.diag-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 4px 14px;
+  margin-bottom: 12px;
+}
+.diag-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  padding: 3px 0;
+  border-bottom: 1px dotted var(--border-soft);
+}
+.diag-kv .k {
+  color: var(--text-dim);
+  flex: none;
+}
+.diag-kv .v {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diag-kv .v.ok {
+  color: var(--accent);
+}
+.diag-kv .v.warn {
+  color: var(--warm);
+}
+.diag-kv .v.err {
+  color: var(--danger);
+}
+
+.diag-log {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+.diag-log .row {
+  display: flex;
+  gap: 8px;
+  padding: 1.5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+.diag-log .t {
+  color: var(--text-faint);
+  flex: none;
+}
+.diag-log .m {
+  word-break: break-word;
+}
+.diag-log .row.warn .m {
+  color: var(--warm);
+}
+.diag-log .row.error .m {
+  color: var(--danger);
+}
+
+.smoke-results {
+  margin: 8px 0 12px;
+  font-size: var(--fs-sm);
+}
+.smoke-results .row {
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px dotted var(--border-soft);
+}
+.smoke-results .badge {
+  flex: none;
+  width: 44px;
+  text-align: center;
+  border-radius: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1.5px 0;
+}
+.smoke-results .badge.pass {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.smoke-results .badge.fail {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* Browse page (phone) */
+.browse-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

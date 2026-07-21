@@ -44,9 +44,16 @@ export interface ProjectStore {
 
   // Clip ops
   addMidiClip: (trackId: string, start: number, length: number) => string;
+  addAudioClip: (
+    trackId: string,
+    mediaId: string,
+    start: number,
+    length: number,
+    name: string,
+  ) => string;
   moveClip: (id: string, start: number, trackId?: string) => void;
   resizeClip: (id: string, start: number, length: number) => void;
-  duplicateClip: (id: string) => string | null;
+  duplicateClip: (id: string, samePos?: boolean) => string | null;
   deleteClip: (id: string) => void;
   setClip: (id: string, patch: Partial<Clip>) => void;
 
@@ -259,6 +266,25 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       return id;
     },
 
+    addAudioClip: (trackId, mediaId, start, length, name) => {
+      const id = newId('c');
+      update((d) => {
+        d.clips.push({
+          id,
+          trackId,
+          type: 'audio',
+          name,
+          start: Math.max(0, start),
+          length: Math.max(0.25, length),
+          muted: false,
+          mediaId,
+          offset: 0,
+          gain: 1,
+        });
+      });
+      return id;
+    },
+
     moveClip: (id, start, trackId) =>
       update(
         (d) => {
@@ -294,14 +320,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         { undoable: false },
       ),
 
-    duplicateClip: (srcId) => {
+    duplicateClip: (srcId, samePos = false) => {
       const src = get().project.clips.find((c) => c.id === srcId);
       if (!src) return null;
       const id = newId('c');
       update((d) => {
         const copy = structuredClone(d.clips.find((c) => c.id === srcId)!);
         copy.id = id;
-        copy.start = src.start + src.length;
+        copy.start = samePos ? src.start : src.start + src.length;
         if (copy.type === 'midi') for (const n of copy.notes) n.id = newId('n');
         d.clips.push(copy);
       });
@@ -365,7 +391,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
 
     setTimeSig: (num, den) =>
       update((d) => {
-        d.timeSig = { num: clamp(Math.round(num), 1, 16), den: [1, 2, 4, 8, 16].includes(den) ? den : 4 };
+        d.timeSig = {
+          num: clamp(Math.round(num), 1, 16),
+          den: [1, 2, 4, 8, 16].includes(den) ? den : 4,
+        };
       }),
 
     setLoop: (patch) =>

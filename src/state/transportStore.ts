@@ -2,12 +2,7 @@ import { create } from 'zustand';
 
 export type PlayState = 'stopped' | 'playing';
 export type AudioLifecycle =
-  | 'uninitialized'
-  | 'starting'
-  | 'running'
-  | 'suspended'
-  | 'interrupted'
-  | 'error';
+  'uninitialized' | 'starting' | 'running' | 'suspended' | 'interrupted' | 'error';
 
 export interface MidiInputInfo {
   id: string;

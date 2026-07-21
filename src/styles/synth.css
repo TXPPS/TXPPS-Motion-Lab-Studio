@@ -1,0 +1,182 @@
+.syn {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  overflow: hidden;
+}
+
+.syn-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.syn-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-dim);
+  padding: 18px;
+  text-align: center;
+}
+
+.syn-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 4px;
+  flex-wrap: wrap;
+}
+.syn-title {
+  font-weight: 700;
+  font-size: var(--fs-md);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.syn-title .swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.syn-controls {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 6px 10px 10px;
+  flex-wrap: wrap;
+}
+
+.syn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+}
+.syn-group .g-title {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-faint);
+}
+.syn-knobs {
+  display: flex;
+  gap: 10px;
+}
+.syn-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.syn-knob .kv {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-dim);
+}
+
+/* On-screen keyboard */
+.kbd {
+  flex: none;
+  position: relative;
+  height: 130px;
+  display: flex;
+  background: #0a0c10;
+  border-top: 1px solid var(--border);
+  padding: 6px 8px calc(8px + var(--sab));
+  gap: 0;
+  touch-action: none;
+  user-select: none;
+}
+.kbd-inner {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+.kbd-white {
+  flex: 1;
+  background: linear-gradient(#f7f4ec, #e5e0d4);
+  border: 1px solid #999;
+  border-radius: 0 0 4px 4px;
+  position: relative;
+  min-width: 24px;
+}
+.kbd-white.pressed {
+  background: linear-gradient(var(--accent-hi), var(--accent));
+}
+.kbd-white .kn {
+  position: absolute;
+  bottom: 3px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 8.5px;
+  color: #555;
+}
+.kbd-black {
+  position: absolute;
+  top: 0;
+  width: 8%;
+  height: 58%;
+  background: linear-gradient(#30343c, #14171c);
+  border: 1px solid #000;
+  border-radius: 0 0 3px 3px;
+  z-index: 2;
+}
+.kbd-black.pressed {
+  background: linear-gradient(var(--accent), var(--accent-dim));
+}
+
+.perform-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.perform-page .kbd {
+  height: 190px;
+}
+.perform-page .syn-scroll {
+  flex: 1;
+}
+
+/* Drum pads */
+.pads {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(56px, 86px));
+  gap: 8px;
+  padding: 10px;
+}
+.pad {
+  aspect-ratio: 1;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(#242b34, #171c23);
+  border: 1px solid var(--border-strong);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-dim);
+  user-select: none;
+  touch-action: none;
+}
+.pad:active,
+.pad.hit {
+  background: linear-gradient(var(--accent), var(--accent-dim));
+  color: #06120e;
+}

@@ -1,0 +1,150 @@
+.pr {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-deep);
+}
+
+.pr-toolbar {
+  height: 34px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-soft);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pr-toolbar::-webkit-scrollbar {
+  display: none;
+}
+.pr-toolbar label {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.pr-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-dim);
+  padding: 18px;
+  text-align: center;
+}
+
+.pr-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+  overscroll-behavior: contain;
+}
+
+.pr-inner {
+  position: relative;
+}
+
+.pr-keys {
+  position: sticky;
+  left: 0;
+  z-index: 8;
+  width: 52px;
+  float: left;
+}
+.pr-key {
+  position: relative;
+  border-bottom: 1px solid var(--border-soft);
+  background: #f2efe8;
+  color: #333;
+  font-size: 8.5px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 4px;
+  user-select: none;
+  cursor: pointer;
+}
+.pr-key.black {
+  background: #23272e;
+  color: #aaa;
+}
+.pr-key.playing {
+  background: var(--accent) !important;
+  color: #06120e;
+}
+.pr-key.c-note {
+  font-weight: 700;
+}
+
+.pr-grid-area {
+  position: relative;
+  overflow: hidden;
+}
+
+.pr-grid-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.pr-note {
+  position: absolute;
+  border-radius: 2.5px;
+  background: linear-gradient(#48c9a9, #2f9d84);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  cursor: grab;
+  touch-action: none;
+  min-width: 5px;
+  z-index: 3;
+}
+.pr-note.selected {
+  background: linear-gradient(var(--warm-hi), var(--warm));
+  outline: 1px solid #fff3;
+  z-index: 4;
+}
+.pr-note .pr-note-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 7px;
+  cursor: ew-resize;
+}
+@media (pointer: coarse) {
+  .pr-note .pr-note-edge {
+    width: 14px;
+  }
+}
+
+.pr-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--warm);
+  z-index: 6;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.pr-loop-hint {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(55, 184, 154, 0.05);
+  border-left: 1px dashed rgba(55, 184, 154, 0.5);
+  border-right: 1px dashed rgba(55, 184, 154, 0.5);
+  pointer-events: none;
+  z-index: 1;
+}

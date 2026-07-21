@@ -266,7 +266,9 @@ class AudioEngine {
           ch.analyser.disconnect();
         } catch {}
         const target =
-          dest !== 'master' && this.channels.has(dest) && p.tracks.find((x) => x.id === dest)?.type === 'bus'
+          dest !== 'master' &&
+          this.channels.has(dest) &&
+          p.tracks.find((x) => x.id === dest)?.type === 'bus'
             ? this.channels.get(dest)!.input
             : this.masterInput;
         ch.analyser.connect(target);
@@ -587,4 +589,16 @@ if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') engine.handleVisibilityResume();
   });
+}
+
+// Minimal probe for automated tests to read real signal levels & source counts.
+// Read-only; exposes no ability to mutate the project or graph.
+if (typeof window !== 'undefined') {
+  (window as unknown as { __ml?: unknown }).__ml = {
+    getMeter: (id: string) => engine.getMeter(id),
+    activeSources: () => engine.activeSourceCount(),
+    position: () => engine.getPositionBeats(),
+    isPlaying: () => engine.isPlaying(),
+    isRunning: () => engine.isRunning(),
+  };
 }

@@ -76,7 +76,8 @@ function requestToPromise<T>(req: IDBRequest<T>): Promise<T> {
 export async function idbPut(store: string, value: unknown, key?: IDBValidKey): Promise<void> {
   const db = await openDb();
   const tx = db.transaction(store, 'readwrite');
-  const req = key !== undefined ? tx.objectStore(store).put(value, key) : tx.objectStore(store).put(value);
+  const req =
+    key !== undefined ? tx.objectStore(store).put(value, key) : tx.objectStore(store).put(value);
   await requestToPromise(req);
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
