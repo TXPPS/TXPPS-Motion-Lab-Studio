@@ -33,21 +33,21 @@ npm run format     # Prettier
 
 ## Architecture
 
-| Boundary | Location |
-| --- | --- |
-| Application shell | `src/App.tsx`, `src/components/shell/` |
-| Project state | `src/state/projectStore.ts` (zustand, undo/redo) |
-| Audio engine | `src/audio/engine.ts` (single AudioContext owner) |
-| Transport & scheduling | `src/audio/scheduler.ts`, `src/state/transportStore.ts` |
-| Timeline / tracks / clips | `src/components/arrangement/` |
-| Mixer | `src/components/mixer/` |
-| Instrument engine | `src/audio/synth.ts` (MotionSynth + drum kit) |
-| Piano roll | `src/components/pianoroll/` |
-| Persistence | `src/persistence/` (IndexedDB) |
-| Diagnostics | `src/state/diagnostics.ts`, `src/components/diagnostics/` |
-| Responsive layouts | `src/components/shell/`, `src/styles/` |
-| PWA behavior | `vite.config.ts` (vite-plugin-pwa), `src/pwa/` |
-| Testing | `tests/` (Vitest), `e2e/` (Playwright) |
+| Boundary                  | Location                                                  |
+| ------------------------- | --------------------------------------------------------- |
+| Application shell         | `src/App.tsx`, `src/components/shell/`                    |
+| Project state             | `src/state/projectStore.ts` (zustand, undo/redo)          |
+| Audio engine              | `src/audio/engine.ts` (single AudioContext owner)         |
+| Transport & scheduling    | `src/audio/scheduler.ts`, `src/state/transportStore.ts`   |
+| Timeline / tracks / clips | `src/components/arrangement/`                             |
+| Mixer                     | `src/components/mixer/`                                   |
+| Instrument engine         | `src/audio/synth.ts` (MotionSynth + drum kit)             |
+| Piano roll                | `src/components/pianoroll/`                               |
+| Persistence               | `src/persistence/` (IndexedDB)                            |
+| Diagnostics               | `src/state/diagnostics.ts`, `src/components/diagnostics/` |
+| Responsive layouts        | `src/components/shell/`, `src/styles/`                    |
+| PWA behavior              | `vite.config.ts` (vite-plugin-pwa), `src/pwa/`            |
+| Testing                   | `tests/` (Vitest), `e2e/` (Playwright)                    |
 
 Audio rule: exactly one `AudioContext`, owned by `AudioEngine`. UI components never touch
 audio nodes directly — they act on stores; the engine reacts to store changes.
@@ -59,6 +59,16 @@ percussion and texture loops) — no third-party or copyrighted material is incl
 
 ## Deployment
 
-Built as a static site (`dist/`) for Cloudflare Pages, project `txpps-motionlab-studio`.
-`public/_redirects` provides the SPA fallback; `public/_headers` keeps the service worker
-and app shell revalidated.
+Built as a static site (`dist/`). Two supported Cloudflare targets, both named
+`txpps-motionlab-studio`:
+
+- **Workers Static Assets** (`wrangler deploy -c wrangler.workers.toml`) — SPA fallback
+  via `not_found_handling = "single-page-application"`. Also works with the no-login
+  `wrangler deploy --temporary` claim-deployment flow.
+- **Cloudflare Pages** (`wrangler pages deploy dist`, or the GitHub Actions workflow in
+  `.github/workflows/deploy.yml` once `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`
+  repo secrets exist) — Pages serves the SPA fallback automatically because the build
+  has no top-level `404.html`.
+
+`public/_headers` keeps the service worker and app shell revalidated. Run the e2e suite
+against a deployed origin with `E2E_BASE_URL=https://<host> npx playwright test`.

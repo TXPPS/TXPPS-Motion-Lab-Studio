@@ -1,0 +1,9 @@
+# Workers Static Assets deployment (used for `wrangler deploy`, including the
+# no-login `--temporary` claim-deployment flow). The classic Pages direct-upload
+# path uses ./wrangler.toml instead.
+name = "txpps-motionlab-studio"
+compatibility_date = "2026-07-21"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
