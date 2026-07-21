@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dev-dist/
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Editor / OS
+.DS_Store
+*.local
+.vscode/
+.idea/
+
+# Env / secrets — never commit credentials
+.env
+.env.*
+!.env.example
+.wrangler/
+.dev.vars
+
+# Logs
+*.log
+npm-debug.log*
