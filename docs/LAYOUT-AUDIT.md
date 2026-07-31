@@ -124,3 +124,51 @@ buttons and readouts sit at different heights than their neighbours
 | dnd-kit                    | Reject           | Timeline clip drag/resize is measured working and needs scroll-aware absolute coordinate math. dnd-kit's transform model would add risk with no benefit, and the brief says not to replace working low-level timeline interactions. |
 | TanStack Virtual           | Reject (for now) | 24 tracks / 24 strips render fine. Virtualization complicates the sticky-header and shared-coordinate model and risks the playhead mapping. Revisit past ~200 tracks.                                                               |
 | Dockview                   | Reject           | A docking migration would destabilize the audio/timeline systems for no gain at this checkpoint; the brief prefers a simpler resizable workstation shell.                                                                           |
+
+---
+
+# Post-repair verification (commit `5200e60`)
+
+Re-measured with `scripts/audit-stress.mjs` against the **QA stress fixture**
+(`#/qa`: 26 tracks, 133 clips, 72 bars, 27 mixer strips) in real Chromium.
+
+| Viewport | Arr. h-range | Arr. v-range | Mixer h-range | Headers pinned | Ruler pinned | Page overflow | Min strip w |
+| -------- | ------------ | ------------ | ------------- | -------------- | ------------ | ------------- | ----------- |
+| 1440x900 | 11100        | 1188         | 1564          | yes            | yes          | 0 / 0         | 88px        |
+| 1280x800 | 11207        | 1250         | 1671          | yes            | yes          | 0 / 0         | 88px        |
+| 1024x768 | 11034        | 1255         | 2008          | yes            | yes          | 0 / 0         | 104px       |
+| 768x1024 | 11290        | 1150         | 2264          | yes            | yes          | 0 / 0         | 104px       |
+| 390x844  | 11668        | 968          | 2642          | yes            | yes          | 0 / 0         | 104px       |
+| 844x390  | 11214        | 1422         | 2188          | yes            | yes          | 0 / 0         | 104px       |
+
+Before the repair, tablet horizontal range was **0** and mixer horizontal range was
+**0 at every viewport**. No control escapes its strip at any viewport, before or
+after scrolling.
+
+## Defects found _during_ the repair (by measurement, not inspection)
+
+1. **A CSS grid item cannot stick beyond its own grid area.** The first rebuild used
+   `grid-template-columns: header timeline` with a sticky header cell; measured
+   `headerLeft` moved from 234 to -1984 at `scrollLeft = 3000`. Replaced with a flex
+   two-column model whose containing block spans the whole scroll area.
+2. **A flex container sizes to its parent, not its children.** With `.arr-content`
+   at auto width the sticky range was capped to roughly one screen (~782px of 3000).
+   Fixed with `width: max-content; min-width: 100%`.
+3. **Panels did not fill their resizable panes.** `.editor-panel` measured 219px
+   inside a 295px pane, leaving dead space and squeezing the fader row to its 44px
+   minimum. Adding `flex: 1` to `.editor-panel` and `.side-panel` raised the fader
+   row to 120px.
+4. **A sticky master strip permanently hides a channel on narrow mixers.** Made
+   static on touch layouts.
+5. **The panel library derives `data-testid` from `id`**, which collided with the
+   app's own `data-testid="arrangement"`. Panel ids namespaced to `pane-*`.
+
+## Test coverage added
+
+`e2e/layout.spec.ts` — 70 geometry tests across the six viewports, all against the
+stress fixture: page-overflow, overflow-element detection, fixed-chrome stability
+during scroll, dual-axis scroll range, sticky header/ruler pinning, clip-over-header
+z-order via `elementFromPoint`, strip minimum width, strip containment (no descendant
+may leave its strip), mixer scroll range and page isolation, phone single-workspace
+enforcement, bottom-nav reachability, transport containment and pairwise
+non-overlap, region disjointness, and single-application of the bottom safe area.
