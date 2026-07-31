@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Group, Panel, Separator } from 'react-resizable-panels';
+import { useViewport } from '../../hooks/useViewport';
 import { Arrangement } from '../arrangement/Arrangement';
 import { BrowserPanel } from '../browser/BrowserPanel';
 import { Inspector } from '../inspector/Inspector';
@@ -8,27 +10,26 @@ import { SynthPanel } from '../synth/SynthPanel';
 import { TransportBar } from '../transport/TransportBar';
 import { Icon } from '../common/Icon';
 
-type Combo = 'arr-mixer' | 'arr-piano' | 'arr-synth' | 'browse-insp';
+type Combo = 'mixer' | 'piano' | 'synth';
 
 const COMBOS: { id: Combo; label: string }[] = [
-  { id: 'arr-mixer', label: 'Arrange + Mix' },
-  { id: 'arr-piano', label: 'Arrange + Piano' },
-  { id: 'arr-synth', label: 'Instrument' },
-  { id: 'browse-insp', label: 'Browse + Edit' },
+  { id: 'mixer', label: 'Mixer' },
+  { id: 'piano', label: 'Piano Roll' },
+  { id: 'synth', label: 'Instrument' },
 ];
 
+/**
+ * Tablet: the arrangement is always primary, paired with exactly one bottom
+ * panel. Side panels are drawers (one at a time) rather than persistent columns,
+ * so browser + inspector + arrangement + editor never compete for width.
+ */
 export function TabletLayout() {
-  const [combo, setCombo] = useState<Combo>('arr-mixer');
+  const [combo, setCombo] = useState<Combo>('mixer');
   const [drawer, setDrawer] = useState<null | 'browser' | 'inspector'>(null);
-
-  const bottom =
-    combo === 'arr-mixer' ? (
-      <Mixer faderHeight={110} />
-    ) : combo === 'arr-piano' ? (
-      <PianoRoll />
-    ) : (
-      <SynthPanel />
-    );
+  const { height } = useViewport();
+  // On short tablet landscape the bottom panel starts smaller so the
+  // arrangement keeps a usable number of visible lanes.
+  const defaultBottom = height < 820 ? 32 : 40;
 
   return (
     <>
@@ -37,11 +38,12 @@ export function TabletLayout() {
         <button className="btn" onClick={() => setDrawer('browser')} data-testid="tablet-browser">
           <Icon name="folder" size={13} /> Browser
         </button>
-        <div className="seg" role="group" aria-label="View combination" style={{ marginLeft: 4 }}>
+        <div className="seg" role="group" aria-label="Bottom panel" style={{ marginLeft: 4 }}>
           {COMBOS.map((c) => (
             <button
               key={c.id}
               className={combo === c.id ? 'on' : ''}
+              aria-pressed={combo === c.id}
               onClick={() => setCombo(c.id)}
               data-testid={`combo-${c.id}`}
             >
@@ -49,7 +51,7 @@ export function TabletLayout() {
             </button>
           ))}
         </div>
-        <span className="spacer" style={{ flex: 1 }} />
+        <span className="spacer" style={{ flex: '1 1 auto' }} />
         <button
           className="btn"
           onClick={() => setDrawer('inspector')}
@@ -59,33 +61,32 @@ export function TabletLayout() {
         </button>
       </div>
 
-      <div className="app-main">
-        {combo === 'browse-insp' ? (
-          <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-            <aside className="side-panel left" style={{ width: '45%' }}>
-              <div className="panel-title">Browser</div>
-              <BrowserPanel />
-            </aside>
-            <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
-              <Inspector />
+      <div className="workspace" data-testid="workspace">
+        <Group
+          orientation="vertical"
+          id="pane-tablet-stack"
+          style={{ width: '100%', height: '100%' }}
+        >
+          <Panel id="pane-arrangement" minSize="160px" className="pane">
+            <Arrangement />
+          </Panel>
+          <Separator className="resize-handle v" />
+          <Panel
+            id="pane-bottom"
+            defaultSize={`${defaultBottom}%`}
+            minSize="140px"
+            maxSize="62%"
+            className="pane"
+          >
+            <div className="editor-panel" data-testid="bottom-editor">
+              <div className="editor-body">
+                {combo === 'mixer' && <Mixer touch />}
+                {combo === 'piano' && <PianoRoll />}
+                {combo === 'synth' && <SynthPanel />}
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="center-col">
-            <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-              <Arrangement />
-            </div>
-            <div
-              className="editor-panel"
-              style={{
-                height: combo === 'arr-synth' ? 'auto' : '46%',
-                flex: combo === 'arr-synth' ? '0 0 auto' : undefined,
-              }}
-            >
-              <div className="editor-body">{bottom}</div>
-            </div>
-          </div>
-        )}
+          </Panel>
+        </Group>
 
         {drawer && (
           <>
@@ -93,8 +94,12 @@ export function TabletLayout() {
             <aside className={`drawer side-panel ${drawer === 'browser' ? 'left' : 'right'}`}>
               <div className="panel-title">
                 {drawer === 'browser' ? 'Browser' : 'Inspector'}
-                <span className="spacer" style={{ flex: 1 }} />
-                <button className="icon-btn" onClick={() => setDrawer(null)} aria-label="Close">
+                <span className="spacer" style={{ flex: '1 1 auto' }} />
+                <button
+                  className="icon-btn"
+                  onClick={() => setDrawer(null)}
+                  aria-label="Close panel"
+                >
                   <Icon name="x" size={15} />
                 </button>
               </div>

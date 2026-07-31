@@ -1,37 +1,94 @@
+/* ============================================================
+   Mixer: a single horizontal strip row inside one horizontal
+   scroller. No wrap, no auto-fit — strips are fixed-width and
+   never shrink, so the row simply scrolls when it exceeds the
+   panel.
+
+   Each strip is a CSS grid of bounded rows. Exactly one row (the
+   fader/meter row) is flexible; everything else is intrinsic.
+   `overflow: hidden` on the strip is a hard guarantee that no
+   absolutely-positioned internal can ever paint over a neighbour
+   again (the original defect).
+   ============================================================ */
+
 .mixer {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
+  align-items: stretch;
   overflow-x: auto;
   overflow-y: hidden;
   background: var(--bg-panel);
-  padding: 6px 8px 4px;
+  padding: 6px 8px;
   gap: 5px;
   overscroll-behavior-x: contain;
+  overscroll-behavior-y: none;
+  touch-action: pan-x;
+  scrollbar-width: auto;
+  scrollbar-color: #3a4552 var(--bg-deep);
+}
+.mixer::-webkit-scrollbar {
+  height: 11px;
+}
+.mixer::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+  border-radius: 6px;
+}
+.mixer::-webkit-scrollbar-thumb {
+  background: #3a4552;
+  border-radius: 6px;
+  border: 3px solid var(--bg-deep);
+}
+.mixer::-webkit-scrollbar-thumb:hover {
+  background: #4a5765;
 }
 
+/* Strip -------------------------------------------------------------------- */
 .strip {
-  width: 84px;
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  /* fixed width: never shrinks below a usable size */
+  flex: 0 0 var(--strip-w);
+  width: var(--strip-w);
+  min-width: var(--strip-w);
+  display: grid;
+  grid-template-rows:
+    auto /* name          */
+    auto /* pan           */
+    minmax(var(--fader-min-h), 1fr) /* fader + meter */
+    auto /* mute/solo/arm */
+    auto /* dB + peak     */
+    auto; /* routing       */
+  row-gap: 4px;
+  align-content: stretch;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   background: var(--bg-panel-2);
   border: 1px solid var(--border-soft);
   border-radius: 5px;
   padding: 6px 6px 7px;
-  gap: 5px;
   user-select: none;
 }
 .strip.selected {
   border-color: rgba(217, 161, 60, 0.55);
 }
+.strip.bus {
+  background: #181e19;
+}
 .strip.master {
   background: var(--bg-raised);
   border-color: var(--border-strong);
+  position: sticky;
+  right: 0;
+  /* lift above neighbours so the row scrolls underneath it cleanly */
+  z-index: 3;
+  box-shadow: -10px 0 14px -8px rgba(0, 0, 0, 0.7);
 }
-.strip.bus {
-  background: #181e19;
+/* On narrow/touch mixers a sticky master permanently hides a channel, so it
+   scrolls with the row instead. */
+.mixer.touch .strip.master {
+  position: static;
+  box-shadow: none;
 }
 
 .strip-name {
@@ -43,60 +100,116 @@
   text-overflow: ellipsis;
   padding-bottom: 3px;
   border-bottom: 2px solid var(--strip-color, var(--accent));
+  min-width: 0;
 }
 
 .strip-pan {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 1px;
+  justify-content: center;
+  gap: 5px;
+  min-height: 0;
+}
+.strip-pan .pan-val {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-faint);
+  min-width: 26px;
+  text-align: left;
 }
 
+/* The only flexible row. Fader and meter FILL it — they are never
+   given a pixel height, which is what previously broke the layout. */
 .strip-mid {
-  flex: 1;
   min-height: 0;
   display: flex;
   justify-content: center;
+  align-items: stretch;
   gap: 7px;
-  padding: 2px 0;
+  overflow: hidden;
 }
 
 .strip-btns {
   display: flex;
   justify-content: center;
   gap: 3px;
+  min-height: 0;
 }
 
-.strip-db {
+.strip-readout {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--text-dim);
-  text-align: center;
+  min-width: 0;
+}
+.strip-readout .rd-db {
+  font-weight: 600;
+  color: var(--text);
+}
+.strip-readout .rd-pk {
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* Fader */
+.strip-route {
+  height: 20px;
+  min-width: 0;
+  font-size: 9.5px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  text-overflow: ellipsis;
+}
+.strip-route.static {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+  letter-spacing: 0.04em;
+}
+
+/* Fader -------------------------------------------------------------------- */
 .fader {
   position: relative;
   width: 30px;
+  flex: none;
+  height: 100%;
+  min-height: 0;
   touch-action: none;
   cursor: ns-resize;
+}
+.fader:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
 }
 .fader .fader-track {
   position: absolute;
   left: 50%;
-  top: 6px;
-  bottom: 6px;
+  top: 7px;
+  bottom: 7px;
   width: 4px;
   transform: translateX(-50%);
   background: var(--bg-deep);
   border-radius: 2px;
   border: 1px solid var(--border-soft);
 }
+/* Fill and thumb are positioned in PERCENT of the track, so they follow
+   the container height automatically with no measurement. */
 .fader .fader-fill {
   position: absolute;
   left: 50%;
-  bottom: 6px;
+  bottom: 7px;
   width: 4px;
   transform: translateX(-50%);
   background: linear-gradient(to top, var(--accent-dim), var(--accent));
@@ -107,8 +220,9 @@
   position: absolute;
   left: 50%;
   width: 26px;
-  height: 15px;
-  transform: translate(-50%, 50%);
+  height: 14px;
+  margin-bottom: -7px;
+  transform: translateX(-50%);
   background: linear-gradient(#3a4450, #232b35 45%, #1a2028);
   border: 1px solid var(--border-strong);
   border-radius: 3px;
@@ -125,9 +239,12 @@
   background: var(--accent);
 }
 
-/* Meter */
+/* Meter -------------------------------------------------------------------- */
 .meter {
-  width: 12px;
+  width: var(--meter-w);
+  flex: none;
+  height: 100%;
+  min-height: 0;
   position: relative;
   background: var(--bg-deep);
   border: 1px solid var(--border-soft);
@@ -135,13 +252,14 @@
   overflow: hidden;
 }
 .meter.wide {
-  width: 18px;
+  width: 17px;
 }
 .meter .meter-fill {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
+  height: 100%;
   background: linear-gradient(
     to top,
     var(--meter-lo) 0%,
@@ -149,18 +267,18 @@
     var(--meter-hot) 84%,
     var(--meter-clip) 97%
   );
-  background-size: 100% var(--meter-h, 100px);
-  background-position: bottom;
   transform-origin: bottom;
+  transform: scaleY(0);
   will-change: transform;
 }
 .meter .meter-hold {
   position: absolute;
   left: 0;
   right: 0;
+  top: 0;
   height: 1.5px;
   background: #fff;
-  opacity: 0.75;
+  opacity: 0;
   will-change: transform;
 }
 .meter .meter-clip-led {
@@ -171,23 +289,28 @@
   height: 4px;
   background: #2a1210;
   cursor: pointer;
+  z-index: 2;
 }
 .meter .meter-clip-led.on {
   background: var(--danger);
   box-shadow: 0 0 6px rgba(216, 74, 68, 0.8);
 }
 
-/* Pan knob */
+/* Pan knob ----------------------------------------------------------------- */
 .knob {
   position: relative;
-  width: 30px;
-  height: 30px;
   touch-action: none;
   cursor: ns-resize;
   user-select: none;
+  flex: none;
 }
 .knob svg {
   display: block;
+}
+.knob:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 50%;
 }
 .knob-label {
   font-size: 9px;
@@ -195,16 +318,28 @@
   text-align: center;
   user-select: none;
 }
-.knob.lg {
-  width: 44px;
-  height: 44px;
-}
 
-/* Phone mix mode */
-.mix-page .mixer {
-  padding: 10px;
+/* Touch-first mixer (phone / coarse pointers) ------------------------------- */
+.mixer.touch {
+  --strip-w: var(--strip-w-touch);
+  padding: 8px;
   gap: 8px;
 }
-.mix-page .strip {
-  width: 96px;
+.mixer.touch .strip {
+  row-gap: 6px;
+  padding: 8px 7px 9px;
+}
+.mixer.touch .fader {
+  width: 40px;
+}
+.mixer.touch .fader .fader-thumb {
+  width: 34px;
+  height: 20px;
+  margin-bottom: -10px;
+}
+.mixer.touch .meter {
+  width: 16px;
+}
+.mixer.touch .strip-readout {
+  font-size: 10.5px;
 }

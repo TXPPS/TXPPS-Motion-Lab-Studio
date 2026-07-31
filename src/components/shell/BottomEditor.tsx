@@ -1,5 +1,5 @@
-import { useRef } from 'react';
 import { useUiStore, type EditorTab } from '../../state/uiStore';
+import { useWorkspaceStore } from '../../state/workspaceStore';
 import { Mixer } from '../mixer/Mixer';
 import { PianoRoll } from '../pianoroll/PianoRoll';
 import { SynthPanel } from '../synth/SynthPanel';
@@ -13,42 +13,23 @@ const TABS: { id: EditorTab; label: string }[] = [
   { id: 'diagnostics', label: 'Diagnostics' },
 ];
 
-export function BottomEditor({
-  height,
-  onResize,
-}: {
-  height: number;
-  onResize: (h: number) => void;
-}) {
+/**
+ * Bottom editor. Sizing is owned entirely by the surrounding resizable panel —
+ * this component only fills the height it is given, so its content can never
+ * push the panel beyond its bounds.
+ */
+export function BottomEditor() {
   const tab = useUiStore((s) => s.editorTab);
-  const startRef = useRef<{ y: number; h: number } | null>(null);
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    startRef.current = { y: e.clientY, h: height };
-    const el = e.currentTarget as HTMLElement;
-    el.setPointerCapture(e.pointerId);
-    const move = (ev: PointerEvent) => {
-      if (!startRef.current) return;
-      const dy = startRef.current.y - ev.clientY;
-      onResize(Math.max(150, Math.min(window.innerHeight * 0.7, startRef.current.h + dy)));
-    };
-    const up = () => {
-      startRef.current = null;
-      el.removeEventListener('pointermove', move);
-      el.removeEventListener('pointerup', up);
-    };
-    el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
-  };
 
   return (
-    <div className="editor-panel" style={{ height }} data-testid="bottom-editor">
-      <div className="editor-resize" onPointerDown={onPointerDown} title="Drag to resize" />
-      <div className="editor-tabs">
+    <div className="editor-panel" data-testid="bottom-editor">
+      <div className="editor-tabs" role="tablist" aria-label="Editor">
         {TABS.map((t) => (
           <button
             key={t.id}
             className={`tab${tab === t.id ? ' on' : ''}`}
+            role="tab"
+            aria-selected={tab === t.id}
             onClick={() => useUiStore.getState().set({ editorTab: t.id })}
             data-testid={`editor-tab-${t.id}`}
           >
@@ -58,15 +39,15 @@ export function BottomEditor({
         <div className="tab-actions">
           <button
             className="icon-btn"
-            onClick={() => useUiStore.getState().set({ panelEditor: false })}
-            title="Hide editor"
-            aria-label="Hide editor"
+            onClick={() => useWorkspaceStore.getState().toggle('showEditor')}
+            title="Hide editor panel"
+            aria-label="Hide editor panel"
           >
             <Icon name="chevron-down" size={15} />
           </button>
         </div>
       </div>
-      <div className="editor-body">
+      <div className="editor-body" role="tabpanel">
         {tab === 'mixer' && <Mixer />}
         {tab === 'piano' && <PianoRoll />}
         {tab === 'synth' && <SynthPanel />}

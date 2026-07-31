@@ -24,4 +24,10 @@ export default tseslint.config(
     files: ['scripts/**/*.mjs', '*.config.{ts,js}', 'playwright.config.ts'],
     languageOptions: { globals: { ...globals.node } },
   },
+  {
+    // QA/audit scripts are Node programs that also contain browser code inside
+    // page.evaluate() callbacks, so they legitimately reference both.
+    files: ['scripts/audit-*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
 );

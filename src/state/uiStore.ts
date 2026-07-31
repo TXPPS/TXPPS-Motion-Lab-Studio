@@ -42,6 +42,8 @@ interface UiState {
   phoneMode: PhoneMode;
   /** Forced layout via #/phone test route */
   forcedLayout: 'phone' | null;
+  /** QA layout overlay via #/qa or #/debug — off in normal production use */
+  debugOverlay: boolean;
   diagnosticsOpen: boolean;
 
   selectedTrackId: string | null;
@@ -83,6 +85,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   browserTab: 'projects',
   phoneMode: 'arrange',
   forcedLayout: null,
+  debugOverlay: false,
   diagnosticsOpen: false,
 
   selectedTrackId: null,

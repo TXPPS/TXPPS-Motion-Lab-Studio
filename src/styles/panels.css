@@ -229,9 +229,24 @@
   color: var(--danger);
 }
 
-/* Browse page (phone) */
+/* Browse page (phone): one scrolling column, browser above inspector */
 .browse-page {
   flex: 1;
   min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+.browse-page .panel-body {
+  overflow: visible;
+  flex: none;
+}
+.browse-page .panel-title {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-panel);
 }

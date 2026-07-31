@@ -88,6 +88,7 @@ interface ClipViewProps {
   laneHeight: number;
   pxPerBeat: number;
   laneAt: (clientY: number) => Track | null;
+  onEdgeScroll?: (clientX: number, clientY: number) => void;
 }
 
 export const ClipView = memo(function ClipView({
@@ -96,6 +97,7 @@ export const ClipView = memo(function ClipView({
   laneHeight,
   pxPerBeat,
   laneAt,
+  onEdgeScroll,
 }: ClipViewProps) {
   const selected = useUiStore((s) => s.selectedClipId === clip.id);
   const snap = useUiStore((s) => s.snap);
@@ -156,6 +158,7 @@ export const ClipView = memo(function ClipView({
       const beats = snapBeat(d.start + dx / pxPerBeat, snap);
       const targetTrack = laneAt(e.clientY);
       store.getState().moveClip(d.id, Math.max(0, beats), targetTrack?.id);
+      onEdgeScroll?.(e.clientX, e.clientY);
     },
     onEnd: () => store.getState().endGesture(),
   });

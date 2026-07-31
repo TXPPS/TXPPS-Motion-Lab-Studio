@@ -3,6 +3,7 @@
  * The report is designed to be copy-pasted into another AI conversation.
  */
 import { engine } from '../audio/engine';
+import { layoutReportLines } from './layout';
 import { getDbStatus } from '../persistence/db';
 import { loadProject, saveProject } from '../persistence/projectRepo';
 import { useDiagnosticsStore, type SmokeResult } from '../state/diagnostics';
@@ -105,6 +106,10 @@ export function buildReport(): string {
   lines.push('');
   for (const f of fields) lines.push(`${f.key.padEnd(22)}: ${f.value}`);
   lines.push('');
+  if (typeof document !== 'undefined') {
+    for (const line of layoutReportLines()) lines.push(line);
+    lines.push('');
+  }
   lines.push(`Smoke test status: ${diag.smokeStatus}`);
   for (const r of diag.smokeResults) {
     lines.push(`  [${r.pass ? 'PASS' : 'FAIL'}] ${r.name}${r.detail ? ` — ${r.detail}` : ''}`);

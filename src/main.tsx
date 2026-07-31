@@ -22,9 +22,12 @@ diagLog('info', `TXPPS MotionLab Studio v${APP_VERSION} (${GIT_COMMIT}) starting
 midi.reportSupport();
 
 // Boot: restore last project / seed demo, then wire autosave.
-const forceDemo = window.location.hash.includes('demo');
-void bootProject(forceDemo).then(() => {
-  installAutosave();
+// #/qa loads the layout stress fixture and deliberately skips autosave so QA
+// runs can never overwrite a real project.
+const hash = window.location.hash;
+const qaFixture = hash.includes('qa');
+void bootProject(hash.includes('demo'), qaFixture).then(() => {
+  if (!qaFixture) installAutosave();
 });
 
 registerPwa();

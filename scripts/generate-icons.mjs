@@ -59,16 +59,25 @@ const AMBER = [0xd9, 0xa1, 0x3c];
 
 // Waveform polyline in 0..1 unit space (same shape as favicon.svg)
 const WAVE = [
-  [0.125, 0.5], [0.25, 0.5], [0.3125, 0.28], [0.40625, 0.72], [0.5, 0.375],
-  [0.59375, 0.625], [0.65625, 0.47], [0.75, 0.5], [0.875, 0.5],
+  [0.125, 0.5],
+  [0.25, 0.5],
+  [0.3125, 0.28],
+  [0.40625, 0.72],
+  [0.5, 0.375],
+  [0.59375, 0.625],
+  [0.65625, 0.47],
+  [0.75, 0.5],
+  [0.875, 0.5],
 ];
 
 function distToSegment(px, py, ax, ay, bx, by) {
-  const dx = bx - ax, dy = by - ay;
+  const dx = bx - ax,
+    dy = by - ay;
   const l2 = dx * dx + dy * dy;
   let t = l2 === 0 ? 0 : ((px - ax) * dx + (py - ay) * dy) / l2;
   t = Math.max(0, Math.min(1, t));
-  const qx = ax + t * dx, qy = ay + t * dy;
+  const qx = ax + t * dx,
+    qy = ay + t * dy;
   return Math.hypot(px - qx, py - qy);
 }
 
@@ -78,7 +87,8 @@ function drawIcon(size, { maskable = false } = {}) {
   const radius = maskable ? 0 : size * 0.19;
   const stroke = size * 0.055;
   const dotR = size * 0.06;
-  const dotX = 0.78 * size, dotY = 0.235 * size;
+  const dotX = 0.78 * size,
+    dotY = 0.235 * size;
   // Content scale: maskable icons keep artwork inside the 80% safe zone
   const cs = maskable ? 0.72 : 1;
   const off = (1 - cs) / 2;
@@ -101,7 +111,8 @@ function drawIcon(size, { maskable = false } = {}) {
       let g = BG[1] + (BG_EDGE[1] - BG[1]) * t;
       let b = BG[2] + (BG_EDGE[2] - BG[2]) * t;
       // waveform stroke
-      const ux = (x / size - off) / cs, uy = (y / size - off) / cs;
+      const ux = (x / size - off) / cs,
+        uy = (y / size - off) / cs;
       let dMin = Infinity;
       for (let s = 0; s < WAVE.length - 1; s++) {
         const [ax, ay] = WAVE[s];

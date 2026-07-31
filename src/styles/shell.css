@@ -1,27 +1,95 @@
-/* ===== App frame ===== */
+/* ============================================================
+   Viewport-bound application shell.
+
+   The document never scrolls. The app root is a grid of fixed
+   rows plus exactly one flexible row (.workspace) that owns all
+   internal scrolling. Every descendant that contains a scroller
+   is given min-width/min-height: 0 explicitly — overflow is never
+   inherited by accident.
+   ============================================================ */
+
 .app {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  /* project bar | everything the active layout owns | status bar or bottom nav */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100%;
+  /* dvh tracks mobile browser chrome; the 100% above is the fallback */
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg-app);
+  /* Safe areas are owned here for the top and horizontal edges only.
+     The bottom inset belongs to whichever element is bottom-most
+     (.statusbar on desktop/tablet, .bottomnav on phone). */
   padding-top: var(--sat);
   padding-left: var(--sal);
   padding-right: var(--sar);
-  background: var(--bg-app);
 }
 
-.app-main {
-  flex: 1;
-  display: flex;
+/* Holds whatever the active layout renders: its transport, any layout-level
+   toolbars, and the single flexible .workspace region. */
+.app-body {
+  min-width: 0;
   min-height: 0;
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.center-col {
+.workspace {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+}
+
+/* Resizable panel primitives ------------------------------------------------ */
+
+.pane {
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
+}
+
+.resize-handle {
+  flex: none;
+  position: relative;
+  background: var(--border-soft);
+  transition: background 120ms ease;
+}
+.resize-handle.h {
+  width: 5px;
+  cursor: col-resize;
+}
+.resize-handle.v {
+  height: 5px;
+  cursor: row-resize;
+}
+.resize-handle:hover,
+.resize-handle[data-active],
+.resize-handle:active {
+  background: var(--accent-dim);
+}
+.resize-handle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+/* Bigger hit area without changing layout size */
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+}
+@media (pointer: coarse) {
+  .resize-handle.h {
+    width: 9px;
+  }
+  .resize-handle.v {
+    height: 9px;
+  }
 }
 
 /* ===== Top bar ===== */
@@ -31,20 +99,19 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 10px;
+  padding: 0 8px;
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border-soft);
+  overflow: hidden;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 7px;
+  flex: none;
   user-select: none;
   white-space: nowrap;
-}
-.brand svg {
-  flex: none;
 }
 .brand .brand-name {
   font-weight: 700;
@@ -60,14 +127,21 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  max-width: 220px;
+  /* shrinkable and truncating: never pushes the toolbars out of view */
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 260px;
   overflow: hidden;
   padding: 4px 9px;
   border-radius: var(--radius);
   font-weight: 600;
   font-size: var(--fs-md);
   white-space: nowrap;
+}
+.project-name .pname {
+  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .project-name:hover {
   background: var(--bg-hover);
@@ -80,14 +154,17 @@
   flex: none;
 }
 
-.topbar .spacer {
-  flex: 1;
+.topbar .spacer,
+.transport .spacer {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .topbar-group {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  flex: none;
 }
 
 /* ===== Transport ===== */
@@ -107,11 +184,13 @@
   display: flex;
   align-items: center;
   gap: 3px;
+  flex: none;
 }
 
 .t-btn {
   width: 34px;
   height: 34px;
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -135,22 +214,25 @@
   border-color: rgba(55, 184, 154, 0.4);
 }
 
+/* Readouts have stable widths so changing digits never reflow neighbours. */
 .t-display {
   display: flex;
-  align-items: center;
-  gap: 0;
+  align-items: stretch;
+  flex: none;
   background: var(--bg-deep);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 3px 10px;
-  min-width: 0;
+  padding: 3px 4px;
+  overflow: hidden;
 }
 .t-cell {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0 9px;
+  justify-content: center;
+  padding: 0 8px;
   border-right: 1px solid var(--border-soft);
+  flex: none;
 }
 .t-cell:last-child {
   border-right: none;
@@ -169,9 +251,23 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
+  white-space: nowrap;
 }
-.t-cell input {
-  width: 56px;
+.t-cell.pos {
+  min-width: 80px;
+}
+.t-cell.time {
+  min-width: 70px;
+}
+.t-cell.tempo {
+  min-width: 64px;
+}
+.t-cell.sig {
+  min-width: 54px;
+}
+.t-cell input,
+.t-cell select {
+  width: 100%;
   text-align: center;
   background: transparent;
   border: none;
@@ -179,39 +275,47 @@
   font-size: 15px;
   font-weight: 600;
   padding: 0;
+  height: 18px;
 }
-.t-cell select {
-  background: transparent;
-  border: none;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 600;
-  padding: 0;
-  text-align: center;
+.t-cell input::-webkit-outer-spin-button,
+.t-cell input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .t-master {
   display: flex;
   align-items: center;
   gap: 7px;
-  min-width: 130px;
+  flex: 0 1 190px;
+  min-width: 110px;
 }
 .t-master input[type='range'] {
   flex: 1;
+  min-width: 40px;
+}
+/* The meter fills its container by design; give it a bounded box here. */
+.t-master .meter {
+  height: 32px;
+  align-self: center;
+  flex: none;
 }
 
 .audio-chip {
   cursor: pointer;
+  flex: none;
 }
 
 /* ===== Status bar ===== */
 .statusbar {
-  height: var(--statusbar-h);
+  height: calc(var(--statusbar-h) + var(--sab));
+  padding-bottom: var(--sab);
   flex: none;
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 10px;
+  padding-left: 10px;
+  padding-right: 10px;
   background: var(--bg-panel);
   border-top: 1px solid var(--border-soft);
   font-size: var(--fs-xs);
@@ -223,26 +327,30 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  flex: none;
 }
-.statusbar .spacer {
-  flex: 1;
+.statusbar .sb-item.shrink {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ===== Side panels ===== */
 .side-panel {
-  flex: none;
+  /* fills the resizable pane it is mounted in */
+  flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
   background: var(--bg-panel);
   overflow: hidden;
 }
 .side-panel.left {
-  width: 224px;
   border-right: 1px solid var(--border-soft);
 }
 .side-panel.right {
-  width: 240px;
   border-left: 1px solid var(--border-soft);
 }
 .panel-title {
@@ -262,11 +370,14 @@
 }
 .panel-body {
   flex: 1;
-  overflow-y: auto;
   min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
-/* Tablet drawers */
+/* Tablet/phone drawers */
 .drawer-overlay {
   position: absolute;
   inset: 0;
@@ -278,7 +389,7 @@
   top: 0;
   bottom: 0;
   z-index: 41;
-  width: min(300px, 82vw);
+  width: min(320px, 84vw);
   box-shadow: 0 0 34px rgba(0, 0, 0, 0.5);
 }
 .drawer.left {
@@ -290,12 +401,15 @@
 
 /* ===== Bottom editor ===== */
 .editor-panel {
-  flex: none;
+  /* fills the resizable pane it is mounted in */
+  flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   background: var(--bg-panel);
   border-top: 1px solid var(--border);
+  overflow: hidden;
 }
 .editor-tabs {
   height: 32px;
@@ -306,6 +420,7 @@
   padding: 3px 8px 0;
   background: var(--bg-panel-2);
   border-bottom: 1px solid var(--border-soft);
+  overflow: hidden;
 }
 .editor-tabs .tab {
   padding: 0 13px;
@@ -315,6 +430,8 @@
   border-radius: var(--radius) var(--radius) 0 0;
   border: 1px solid transparent;
   border-bottom: none;
+  white-space: nowrap;
+  flex: none;
   user-select: none;
 }
 .editor-tabs .tab.on {
@@ -327,32 +444,22 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: none;
 }
 .editor-body {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.editor-resize {
-  height: 5px;
-  flex: none;
-  cursor: ns-resize;
-  background: transparent;
-  margin-top: -5px;
-  position: relative;
-  z-index: 5;
-}
-.editor-resize:hover {
-  background: rgba(55, 184, 154, 0.3);
 }
 
 /* ===== Phone shell ===== */
 .phone-main {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -367,6 +474,7 @@
 }
 .bottomnav button {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -381,26 +489,51 @@
 .bottomnav button.on {
   color: var(--accent);
 }
+.bottomnav button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
 
+/* Compact transport: reduced control set, no wrapping, no overlap. */
 .transport.compact {
-  height: 44px;
+  height: 46px;
   gap: 6px;
   padding: 0 8px;
 }
 .transport.compact .t-btn {
-  width: 38px;
-  height: 34px;
+  width: 40px;
+  height: 36px;
 }
 .transport.compact .t-display {
-  padding: 2px 4px;
-  flex: 1;
+  /* may shrink, but its cells keep legible minimums; the reduced control set
+     is what guarantees everything fits rather than clipping */
+  flex: 0 1 auto;
+  min-width: 0;
   justify-content: center;
 }
 .transport.compact .t-cell {
-  padding: 0 7px;
+  padding: 0 5px;
+}
+.transport.compact .t-cell.pos {
+  min-width: 62px;
+}
+.transport.compact .t-cell.tempo {
+  min-width: 46px;
 }
 .transport.compact .t-cell .v {
   font-size: 13px;
+}
+.transport.compact .t-cell input {
+  font-size: 13px;
+}
+/* Very narrow phones: position readout only, tempo moves to the overflow menu */
+@media (max-width: 400px) {
+  .transport.compact .t-cell.tempo {
+    display: none;
+  }
+  .transport.compact .t-btn {
+    width: 36px;
+  }
 }
 
 /* ===== Dialogs / menus / toasts ===== */
@@ -445,7 +578,9 @@
 .ctx-menu {
   position: fixed;
   z-index: 120;
-  min-width: 160px;
+  min-width: 168px;
+  max-height: 70vh;
+  overflow-y: auto;
   background: var(--bg-raised);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
@@ -459,6 +594,7 @@
   padding: 7px 11px;
   border-radius: var(--radius);
   font-size: var(--fs-md);
+  white-space: nowrap;
 }
 .ctx-menu button:hover {
   background: var(--bg-hover);
@@ -473,8 +609,8 @@
 
 .toasts {
   position: fixed;
-  right: 12px;
-  bottom: calc(var(--statusbar-h) + var(--sab) + 12px);
+  right: calc(12px + var(--sar));
+  bottom: calc(12px + var(--sab));
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -494,7 +630,7 @@
   border-left-color: var(--danger);
 }
 
-/* ===== Overlay sheet (diagnostics on phone/tablet) ===== */
+/* ===== Overlay sheet (diagnostics) ===== */
 .sheet-overlay {
   position: fixed;
   inset: 0;
@@ -505,8 +641,8 @@
   justify-content: center;
 }
 .sheet {
-  width: min(720px, 100vw);
-  height: min(86vh, 640px);
+  width: min(760px, 100vw);
+  height: min(88vh, 660px);
   background: var(--bg-panel);
   border: 1px solid var(--border-strong);
   border-bottom: none;
@@ -515,4 +651,45 @@
   flex-direction: column;
   min-height: 0;
   padding-bottom: var(--sab);
+  overflow: hidden;
+}
+
+/* ===== Layout debug overlay (QA route only) ===== */
+.debug-hud {
+  position: fixed;
+  right: 8px;
+  top: calc(var(--sat) + 8px);
+  z-index: 200;
+  background: rgba(8, 11, 15, 0.93);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text);
+  max-width: 280px;
+  max-height: 60vh;
+  overflow: auto;
+  pointer-events: auto;
+}
+.debug-hud .hud-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.debug-hud .hud-row .k {
+  color: var(--text-faint);
+}
+.debug-hud .bad {
+  color: var(--danger);
+}
+.debug-outline .clip,
+.debug-outline .strip,
+.debug-outline .th,
+.debug-outline .arr-lane {
+  outline: 1px solid rgba(217, 161, 60, 0.6);
+}
+.debug-overflow-marker {
+  outline: 2px solid var(--danger) !important;
 }

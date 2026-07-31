@@ -1,15 +1,30 @@
+/* ============================================================
+   Arrangement: ONE authoritative scroll container.
+
+   .arr-viewport is the only scroller. Inside it a CSS grid holds
+   four regions that share a single scrollLeft and scrollTop:
+
+     corner  (sticky top + left)  |  ruler   (sticky top)
+     headers (sticky left)        |  lanes
+
+   Because ruler, grid, clips, playhead and loop all live in the
+   lanes column of that one grid, they cannot desynchronise.
+   Sticky headers paint above the lanes with an opaque background,
+   so clips slide underneath them instead of over them.
+   ============================================================ */
+
 .arr {
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   background: var(--bg-deep);
-  position: relative;
+  overflow: hidden;
 }
 
 .arr-toolbar {
-  height: 32px;
-  flex: none;
+  height: var(--toolbar-h);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -17,78 +32,132 @@
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border-soft);
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
   scrollbar-width: none;
 }
 .arr-toolbar::-webkit-scrollbar {
   display: none;
 }
-
-.arr-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-}
-
-.arr-headers {
-  width: var(--header-w);
+.arr-toolbar > * {
   flex: none;
-  overflow: hidden;
-  background: var(--bg-panel);
-  border-right: 1px solid var(--border);
-  position: relative;
-}
-.arr-headers-inner {
-  position: absolute;
-  left: 0;
-  right: 0;
 }
 
-.arr-ruler-corner {
-  height: 30px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  font-size: var(--fs-xs);
-  color: var(--text-faint);
-  background: var(--bg-panel-2);
-  user-select: none;
-}
-
-.arr-scroll {
-  flex: 1;
+/* The one scroller ---------------------------------------------------------- */
+.arr-viewport {
   min-width: 0;
+  min-height: 0;
   overflow: auto;
   position: relative;
   overscroll-behavior: contain;
+  /* native two-axis panning; clip drags use their own pointer capture */
+  touch-action: pan-x pan-y;
+  /* Scrollbars stay visible: a clipped timeline must read as "scrollable",
+     not "broken". */
+  scrollbar-width: auto;
+  scrollbar-color: #3a4552 var(--bg-deep);
+}
+.arr-viewport::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+.arr-viewport::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+}
+.arr-viewport::-webkit-scrollbar-thumb {
+  background: #3a4552;
+  border-radius: 6px;
+  border: 3px solid var(--bg-deep);
+}
+.arr-viewport::-webkit-scrollbar-thumb:hover {
+  background: #4a5765;
+}
+.arr-viewport::-webkit-scrollbar-corner {
+  background: var(--bg-deep);
 }
 
-.arr-canvas-wrap {
+/* Two flex columns whose containing block spans the ENTIRE scrollable width and
+   height. That is what lets `position: sticky` work across the full scroll
+   range — a CSS grid item can only stick within its own grid area, which is why
+   a grid layout cannot pin the header column here. */
+.arr-content {
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  /* Must size to its children, not to the viewport: a sticky child can only
+     stick within its containing block, so an auto-width container would cap the
+     sticky range to one screen. */
+  width: max-content;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.arr-header-col {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  width: var(--header-w);
+  flex: none;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+}
+
+.arr-corner {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: var(--ruler-h);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: var(--bg-panel-2);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.arr-timeline-col {
+  flex: none;
   position: relative;
 }
 
 .arr-ruler {
   position: sticky;
   top: 0;
-  z-index: 12;
-  height: 30px;
+  z-index: 10;
+  height: var(--ruler-h);
   background: var(--bg-panel-2);
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   touch-action: none;
 }
-
-.arr-grid {
+.arr-ruler canvas {
+  display: block;
+}
+.arr-ruler .ruler-playhead {
   position: absolute;
-  top: 30px;
-  left: 0;
-  right: 0;
+  top: 0;
   bottom: 0;
+  width: 1px;
+  background: var(--warm);
   pointer-events: none;
+  will-change: transform;
 }
 
 .arr-lanes {
   position: relative;
+}
+
+.arr-grid-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .arr-lane {
@@ -96,7 +165,7 @@
   border-bottom: 1px solid var(--border-soft);
 }
 .arr-lane.selected {
-  background: rgba(55, 184, 154, 0.045);
+  background: rgba(55, 184, 154, 0.05);
 }
 
 .arr-playhead {
@@ -106,7 +175,7 @@
   width: 1px;
   background: var(--warm);
   box-shadow: 0 0 6px rgba(217, 161, 60, 0.55);
-  z-index: 10;
+  z-index: 8;
   pointer-events: none;
   will-change: transform;
 }
@@ -123,16 +192,16 @@
 .arr-loop {
   position: absolute;
   top: 0;
-  height: 30px;
+  bottom: 0;
   background: var(--accent-bg);
   border-left: 2px solid var(--accent);
   border-right: 2px solid var(--accent);
-  z-index: 9;
   pointer-events: none;
-  opacity: 0.9;
+  z-index: 1;
+  opacity: 0.95;
 }
 .arr-loop.off {
-  opacity: 0.28;
+  opacity: 0.25;
 }
 
 /* ===== Clips ===== */
@@ -148,17 +217,17 @@
   user-select: none;
   touch-action: none;
   min-width: 6px;
+  z-index: 2;
 }
 .clip:active {
   cursor: grabbing;
 }
 .clip.selected {
   outline: 1.5px solid var(--warm);
-  outline-offset: 0;
   z-index: 5;
 }
 .clip.muted {
-  opacity: 0.38;
+  opacity: 0.4;
 }
 .clip .clip-name {
   position: absolute;
@@ -198,7 +267,7 @@
 }
 @media (pointer: coarse) {
   .clip .clip-edge {
-    width: 16px;
+    width: 15px;
   }
 }
 
@@ -210,6 +279,7 @@
   border-bottom: 1px solid var(--border-soft);
   background: var(--bg-panel);
   position: relative;
+  overflow: hidden;
   user-select: none;
 }
 .th.selected {
@@ -224,6 +294,10 @@
   width: 3px;
   background: var(--th-color, var(--accent));
 }
+.th:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
 .th-row {
   display: flex;
   align-items: center;
@@ -231,7 +305,7 @@
   min-width: 0;
 }
 .th-name {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   font-size: var(--fs-sm);
   font-weight: 600;
@@ -249,10 +323,12 @@
   align-items: center;
   gap: 3px;
   margin-top: 3px;
+  min-width: 0;
 }
 .th-mini {
   width: 22px;
   height: 18px;
+  flex: none;
   border-radius: 3px;
   border: 1px solid var(--border);
   font-size: 9.5px;
@@ -262,6 +338,10 @@
   align-items: center;
   justify-content: center;
   user-select: none;
+}
+.th-mini:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .th-mini.m-on {
   background: var(--warm-bg);
@@ -279,14 +359,14 @@
   border-color: rgba(216, 74, 68, 0.55);
 }
 .th-vol {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: 4px;
   min-width: 0;
 }
 .th-vol input[type='range'] {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 20px;
 }
 

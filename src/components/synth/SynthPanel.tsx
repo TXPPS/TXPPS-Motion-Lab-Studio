@@ -256,9 +256,11 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
     <div className={`syn${performMode ? ' perform-page' : ''}`} data-testid="synth-panel">
       <div className="syn-scroll">
         <div className="syn-head">
-          <span className="syn-title">
+          <span className="syn-title" title={track.name}>
             <span className="swatch" style={{ background: track.color }} />
-            {isDrum ? 'TX Drum Kit' : 'MotionSynth'} — {track.name}
+            <span className="syn-title-text">
+              {isDrum ? 'TX Drum Kit' : 'MotionSynth'} — {track.name}
+            </span>
           </span>
           {!isDrum && (
             <select

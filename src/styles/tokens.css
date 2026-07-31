@@ -36,8 +36,7 @@
   --meter-clip: #d84a44;
 
   /* Typography */
-  --font:
-    'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font: 'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
   --fs-xs: 10px;
   --fs-sm: 11px;
@@ -52,8 +51,20 @@
   --statusbar-h: 24px;
   --track-h: 64px;
   --track-h-collapsed: 30px;
-  --header-w: 172px;
+  --header-w: 176px;
   --bottomnav-h: 54px;
+  --ruler-h: 30px;
+  --toolbar-h: 34px;
+
+  /* Mixer strip geometry — strips are fixed-width and never shrink. */
+  --strip-w: 88px;
+  --strip-w-touch: 104px;
+  --fader-min-h: 44px;
+  --meter-w: 12px;
+
+  /* Panel minimums, enforced by the resizable panel system. */
+  --panel-min-side: 180px;
+  --panel-min-center: 320px;
 
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);

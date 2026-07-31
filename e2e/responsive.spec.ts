@@ -90,8 +90,8 @@ test.describe('responsive layouts', () => {
   test('tablet offers two-panel combinations', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await boot(page);
-    await expect(page.locator('[data-testid="combo-arr-mixer"]')).toBeVisible();
-    await page.click('[data-testid="combo-arr-piano"]');
+    await expect(page.locator('[data-testid="combo-mixer"]')).toBeVisible();
+    await page.click('[data-testid="combo-piano"]');
     await expect(page.locator('[data-testid="piano-roll"]')).toBeVisible();
     await expect(page.locator('[data-testid="arrangement"]')).toBeVisible();
   });

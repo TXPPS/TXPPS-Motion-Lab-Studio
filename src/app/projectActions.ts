@@ -108,8 +108,18 @@ export async function deleteById(id: string): Promise<void> {
   }
 }
 
-/** Boot: restore last project, else seed + save the demo. */
-export async function bootProject(forceDemo: boolean): Promise<void> {
+/**
+ * Boot: restore last project, else seed + save the demo.
+ * The QA layout fixture is loaded in-memory only and never autosaved over a
+ * real project.
+ */
+export async function bootProject(forceDemo: boolean, qaFixture = false): Promise<void> {
+  if (qaFixture) {
+    const { createStressProject } = await import('../model/stressProject');
+    useProjectStore.getState().setProject(createStressProject(), { markClean: true });
+    diagLog('info', 'Loaded QA layout stress fixture (not persisted)');
+    return;
+  }
   try {
     if (!forceDemo) {
       const prefs = await loadPrefs();

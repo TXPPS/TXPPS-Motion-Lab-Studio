@@ -32,7 +32,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px 4px;
-  flex-wrap: wrap;
+  min-width: 0;
 }
 .syn-title {
   font-weight: 700;
@@ -40,11 +40,32 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  /* long track names truncate rather than pushing the preset/panic controls
+     off the edge */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.syn-head > select {
+  flex: 0 1 auto;
+  min-width: 90px;
+}
+.syn-head > .btn {
+  flex: none;
+  margin-left: auto;
 }
 .syn-title .swatch {
   width: 10px;
   height: 10px;
   border-radius: 3px;
+  flex: none;
+}
+.syn-title .syn-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .syn-controls {
@@ -88,14 +109,17 @@
 }
 
 /* On-screen keyboard */
+/* The keyboard sits above the bottom navigation, which already owns the bottom
+   safe-area inset — applying it here too would double-count it. */
 .kbd {
   flex: none;
   position: relative;
   height: 130px;
+  min-height: 0;
   display: flex;
   background: #0a0c10;
   border-top: 1px solid var(--border);
-  padding: 6px 8px calc(8px + var(--sab));
+  padding: 6px 8px 8px;
   gap: 0;
   touch-action: none;
   user-select: none;
@@ -145,11 +169,14 @@
   display: flex;
   flex-direction: column;
 }
+/* Perform mode: the keyboard takes a share of the available height rather than
+   a fixed size, so controls above it can never be pushed below the fold. */
 .perform-page .kbd {
-  height: 190px;
+  height: clamp(120px, 42%, 220px);
 }
 .perform-page .syn-scroll {
   flex: 1;
+  min-height: 0;
 }
 
 /* Drum pads */
