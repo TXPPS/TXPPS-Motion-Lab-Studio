@@ -91,7 +91,7 @@ export function RecordWorkspace() {
 
       <div className="rec-big">
         <InputMeter trackId={activeId ?? null} tall />
-        <RecordButton />
+        <RecordButton big />
       </div>
 
       <TakeReview />

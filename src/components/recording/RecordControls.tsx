@@ -34,8 +34,11 @@ export function InputMeter({ trackId, tall }: { trackId: string | null; tall?: b
   );
 }
 
-/** Record button + count-in state, used by the desktop and phone transports. */
-export function RecordButton({ compact }: { compact?: boolean }) {
+/**
+ * Record button + count-in state, used by the desktop and phone transports.
+ * `big` is the phone workspace's primary control and carries a text label.
+ */
+export function RecordButton({ compact, big }: { compact?: boolean; big?: boolean }) {
   const phase = useInputStore((s) => s.phase);
   const seconds = useInputStore((s) => s.recordSeconds);
   const countIn = useInputStore((s) => s.countInBeatsLeft);
@@ -69,7 +72,17 @@ export function RecordButton({ compact }: { compact?: boolean }) {
       data-testid="btn-record"
       data-phase={phase}
     >
-      {isCountIn ? <span className="count-in-num">{countIn}</span> : <Icon name="record" size={16} />}
+      {isCountIn ? (
+        <span className="count-in-num">{countIn}</span>
+      ) : (
+        <Icon name="record" size={big ? 22 : 16} />
+      )}
+      {/* The oversized phone control carries a word: a bare dot on a 66px
+          button reads as decoration rather than the primary action. */}
+      {big && !isCountIn && (
+        <span className="rec-word">{isRecording ? 'Stop' : busy ? 'Please wait' : 'Record'}</span>
+      )}
+      {big && isCountIn && <span className="rec-word">Cancel</span>}
       {!compact && isRecording && <span className="rec-time">{seconds.toFixed(1)}s</span>}
     </button>
   );

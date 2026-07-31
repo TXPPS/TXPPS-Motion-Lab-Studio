@@ -225,6 +225,11 @@
 .rec-big .count-in-num {
   font-size: 26px;
 }
+.rec-word {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
 
 /* Take review -------------------------------------------------------------- */
 .take-review {
