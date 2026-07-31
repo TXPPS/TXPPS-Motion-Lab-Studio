@@ -1,5 +1,20 @@
-# Cloudflare Pages project configuration for TXPPS MotionLab Studio.
-# Used by `wrangler pages deploy` and by the Cloudflare dashboard Git integration.
+# TXPPS MotionLab Studio — Cloudflare Workers Static Assets configuration.
+#
+# This is the config Wrangler picks up when no `-c` flag is passed. It is kept
+# equivalent to wrangler.workers.toml so that both
+#   npx wrangler deploy
+#   npx wrangler deploy -c wrangler.workers.toml
+# target the same existing Worker.
+#
+# This file previously held a Cloudflare *Pages* config, whose
+# `pages_build_output_dir` key is invalid for a Workers deploy and would break
+# any build that fell back to the default config.
+#
+# `name` must match the Worker name in the Cloudflare dashboard, otherwise
+# Workers Builds refuses to deploy.
 name = "txpps-motionlab-studio"
-pages_build_output_dir = "dist"
 compatibility_date = "2026-07-21"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"

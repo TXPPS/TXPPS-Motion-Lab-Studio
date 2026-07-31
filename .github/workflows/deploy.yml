@@ -1,24 +1,22 @@
-name: Deploy to Cloudflare
+name: Deploy to Cloudflare (manual fallback)
 
-# Builds the production bundle and deploys the Worker `txpps-motionlab-studio`
-# (Workers Static Assets) — the same Worker created by the claimed deployment,
-# now living in the claimed Cloudflare account (account id f28564ec53838541afae4ab618bb0977).
+# PRIMARY DEPLOYMENT PATH IS CLOUDFLARE WORKERS BUILDS, not this workflow.
+# The Worker `txpps-motionlab-studio` is connected to this repository from the
+# Cloudflare dashboard (Workers & Pages → the Worker → Settings → Build) and
+# deploys automatically on every push to the production branch. Nothing needs to
+# be configured in GitHub for that to work.
 #
-# Requires two repository secrets (Settings → Secrets and variables → Actions):
-#   CLOUDFLARE_API_TOKEN  — token created IN THE CLAIMED ACCOUNT with permission
-#                           "Workers Scripts: Edit" (Account-scoped)
-#   CLOUDFLARE_ACCOUNT_ID — f28564ec53838541afae4ab618bb0977 (the claimed account)
+# This workflow is kept only as a manual fallback for the case where the Workers
+# Builds connection is unavailable. It is intentionally NOT triggered on push:
+# without the two secrets below it fails on the deploy step and would report a
+# misleading failure on every commit.
 #
-# Alternative with zero GitHub secrets: connect this repo to Cloudflare
-# "Workers Builds" from the Cloudflare dashboard (Workers & Pages → the Worker →
-# Settings → Build) — build command `npm ci && npm run build`, deploy command
-# `npx wrangler deploy -c wrangler.workers.toml`.
+# To use it, add these repository secrets and run it from the Actions tab:
+#   CLOUDFLARE_API_TOKEN  — token created in the account that owns the Worker,
+#                           permission "Workers Scripts: Edit" (account-scoped)
+#   CLOUDFLARE_ACCOUNT_ID — the account id that owns the Worker
 
 on:
-  push:
-    branches:
-      - claude/motionlab-studio-poc-3l1gwa
-      - main
   workflow_dispatch:
 
 permissions:
