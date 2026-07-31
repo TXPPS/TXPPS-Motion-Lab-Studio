@@ -71,6 +71,15 @@ export function installConsoleCapture(): void {
     origError(...args);
   };
   window.addEventListener('error', (e) => {
+    // "ResizeObserver loop completed with undelivered notifications" is a
+    // browser notice, not an application fault: it means observations were
+    // still pending when the frame ended, which is normal when many canvases
+    // mount at once. Recording it as an error would make the error count —
+    // the thing someone reads first in a bug report — cry wolf.
+    if (/ResizeObserver loop/i.test(e.message)) {
+      diagLog('warn', `Benign: ${e.message}`);
+      return;
+    }
     diagLog('error', `Uncaught: ${e.message} (${e.filename}:${e.lineno})`);
   });
   window.addEventListener('unhandledrejection', (e) => {

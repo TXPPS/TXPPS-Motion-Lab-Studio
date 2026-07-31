@@ -116,6 +116,14 @@ export async function deleteById(id: string): Promise<void> {
  */
 export async function bootProject(forceDemo: boolean, qaFixture = false): Promise<void> {
   if (qaFixture) {
+    // #/qa-audio loads the audio-editing fixture; #/qa the layout stress one.
+    // Neither is persisted, so a QA run can never overwrite a real project.
+    if (window.location.hash.includes('qa-audio')) {
+      const { createAudioQaProject } = await import('../model/audioQaProject');
+      useProjectStore.getState().setProject(createAudioQaProject(), { markClean: true });
+      diagLog('info', 'Loaded QA audio-editing fixture (not persisted)');
+      return;
+    }
     const { createStressProject } = await import('../model/stressProject');
     useProjectStore.getState().setProject(createStressProject(), { markClean: true });
     diagLog('info', 'Loaded QA layout stress fixture (not persisted)');

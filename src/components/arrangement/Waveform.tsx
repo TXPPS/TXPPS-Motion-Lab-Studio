@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { engine } from '../../audio/engine';
-import { getPeaksSync, isMissing, loadPeaks } from '../../audio/mediaLibrary';
+import { getPeaksSync, isMissing, loadPeaks, mediaExists } from '../../audio/mediaLibrary';
 import { sampleWindow } from '../../audio/peaks';
 import type { PeakData } from '../../model/media';
 
@@ -49,8 +49,14 @@ export function Waveform({
     }
     const ctx = engine.context;
     if (!ctx) {
-      setMissing(isMissing(mediaId));
-      return;
+      // Audio has not started, so nothing can be decoded yet — but absence is
+      // still knowable, and an absent clip must not look like a silent one.
+      void mediaExists(mediaId).then((exists) => {
+        if (!cancelled) setMissing(!exists);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
     void loadPeaks(mediaId, ctx).then((p) => {
       if (cancelled) return;
@@ -135,9 +141,23 @@ export function Waveform({
     };
 
     draw();
-    const ro = new ResizeObserver(draw);
+    // Resizing the canvas backing store inside the observer callback would
+    // invalidate layout and re-enter the observer, which the browser reports as
+    // "ResizeObserver loop completed with undelivered notifications". Deferring
+    // to the next frame breaks that cycle; coalescing keeps it to one redraw.
+    let frame = 0;
+    const ro = new ResizeObserver(() => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        draw();
+      });
+    });
     ro.observe(canvas);
-    return () => ro.disconnect();
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      ro.disconnect();
+    };
   }, [peaks, offsetSec, durationSec, color, gain, fadeIn, fadeOut]);
 
   if (missing) {

@@ -51,7 +51,11 @@ void (async () => {
     import('./audio/exportMix'),
     import('./model/demoProject'),
   ]);
-  (window as unknown as Record<string, unknown>).__ml = {
+  const w = window as unknown as { __ml?: Record<string, unknown> };
+  // Merge: the engine already publishes meter/transport probes on this handle,
+  // and replacing it wholesale would break every test that reads them.
+  w.__ml = {
+    ...(w.__ml ?? {}),
     exportMix,
     demoProject,
     engine,

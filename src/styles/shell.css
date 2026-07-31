@@ -658,7 +658,10 @@
 .debug-hud {
   position: fixed;
   right: 8px;
-  top: calc(var(--sat) + 8px);
+  /* Clear the top bar: overlapping it made the QA overlay swallow clicks on the
+     diagnostics and overflow buttons, so the QA route could not reach the very
+     panel it exists to exercise. */
+  top: calc(var(--sat) + var(--topbar-h) + 8px);
   z-index: 200;
   background: rgba(8, 11, 15, 0.93);
   border: 1px solid var(--accent-dim);
@@ -671,6 +674,13 @@
   max-width: 280px;
   max-height: 60vh;
   overflow: auto;
+  /* Read-only readout: it must never intercept a click meant for the app
+     underneath. Only its own controls take pointer events. */
+  pointer-events: none;
+}
+.debug-hud button,
+.debug-hud select,
+.debug-hud input {
   pointer-events: auto;
 }
 .debug-hud .hud-row {

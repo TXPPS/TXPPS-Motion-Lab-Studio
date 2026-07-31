@@ -264,3 +264,59 @@ test.describe('offline export', () => {
     expect(r.clips).toBe(0);
   });
 });
+
+test.describe('audio QA fixture', () => {
+  test('surfaces missing media before audio has started', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/#/qa-audio');
+    await page.waitForSelector('[data-testid="app-root"]');
+    await page.waitForTimeout(1500);
+
+    // Deliberately do NOT start audio: absent media must still be visible as
+    // absent, otherwise it is indistinguishable from a silent clip.
+    const state = await page.evaluate(() => ({
+      audio: document.body.textContent?.includes('Audio: uninitialized') ?? false,
+      missing: document.querySelectorAll('[data-testid="clip-missing"]').length,
+      canvases: document.querySelectorAll('canvas.clip-wave').length,
+    }));
+
+    expect(state.missing, 'missing media not surfaced on the clip').toBeGreaterThan(0);
+    expect(state.canvases, 'real clips should still render waveforms').toBeGreaterThan(0);
+  });
+
+  test('renders edited clips and routing without layout escape', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/#/qa-audio');
+    await page.waitForSelector('[data-testid="app-root"]');
+    await page.waitForTimeout(1500);
+
+    const info = await page.evaluate(() => {
+      const lanes = document.querySelector('[data-testid="arr-lanes"]')!.getBoundingClientRect();
+      const clips = [...document.querySelectorAll<HTMLElement>('[data-testid^="clip-"]')];
+      const escaping = clips.filter((c) => {
+        const b = c.getBoundingClientRect();
+        return b.width > 0 && (b.left < lanes.left - 1 || b.top < lanes.top - 1);
+      }).length;
+      return {
+        clips: clips.length,
+        escaping,
+        docOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      };
+    });
+
+    expect(info.clips, 'fixture should mount many clips').toBeGreaterThan(30);
+    expect(info.escaping, 'clips escaping the lane area').toBe(0);
+    expect(info.docOverflow, 'fixture caused page overflow').toBeLessThanOrEqual(1);
+  });
+
+  test('the QA debug overlay does not swallow top bar clicks', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/#/qa-audio');
+    await page.waitForSelector('[data-testid="debug-hud"]');
+    await page.waitForTimeout(900);
+    // Regression guard: the overlay used to cover the diagnostics button, so a
+    // QA route could not open the panel it exists to exercise.
+    await page.click('[data-testid="open-diagnostics"]', { timeout: 8000 });
+    await expect(page.locator('[data-testid="diagnostics-panel"]')).toBeVisible();
+  });
+});

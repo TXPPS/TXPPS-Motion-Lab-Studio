@@ -41,6 +41,25 @@ export function isMissing(id: string): boolean {
   return missing.has(id);
 }
 
+/**
+ * Does this media exist at all? Answers without an AudioContext and without
+ * decoding, so a clip can show its missing state before the user has started
+ * audio — otherwise absent media is indistinguishable from silence.
+ */
+export async function mediaExists(id: string): Promise<boolean> {
+  if (isProceduralMediaId(id)) return true;
+  if (buffers.has(id) || peaks.has(id)) return true;
+  if (missing.has(id)) return false;
+  try {
+    const stored = await getMediaBlob(id);
+    const found = !!stored?.blob;
+    if (!found) missing.add(id);
+    return found;
+  } catch {
+    return false;
+  }
+}
+
 export function knownMediaIds(): string[] {
   return [...buffers.keys()];
 }
