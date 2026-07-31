@@ -27,6 +27,10 @@
   touch-action: pan-x;
   scrollbar-width: auto;
   scrollbar-color: #3a4552 var(--bg-deep);
+  /* Height query source for the strip's optional rows. Safe to declare: the
+     mixer's height comes from flex, never from its contents. */
+  container-type: size;
+  container-name: mixer;
 }
 .mixer::-webkit-scrollbar {
   height: 11px;
@@ -53,6 +57,7 @@
   display: grid;
   grid-template-rows:
     auto /* name          */
+    auto /* inserts/sends */
     auto /* pan           */
     minmax(var(--fader-min-h), 1fr) /* fader + meter */
     auto /* mute/solo/arm */
@@ -91,6 +96,31 @@
   box-shadow: none;
 }
 
+/* Rows are placed explicitly, not by auto-flow, so hiding an optional row
+   cannot shift every following row up one track (which would put the fader in
+   the pan row and the buttons in the flexible one). */
+.strip-name {
+  grid-row: 1;
+}
+.strip-fx {
+  grid-row: 2;
+}
+.strip-pan {
+  grid-row: 3;
+}
+.strip-mid {
+  grid-row: 4;
+}
+.strip-btns {
+  grid-row: 5;
+}
+.strip-readout {
+  grid-row: 6;
+}
+.strip-route {
+  grid-row: 7;
+}
+
 .strip-name {
   font-size: var(--fs-xs);
   font-weight: 700;
@@ -101,6 +131,49 @@
   padding-bottom: 3px;
   border-bottom: 2px solid var(--strip-color, var(--accent));
   min-width: 0;
+}
+
+/* Insert/send status row. Two equal chips that never wrap and never widen the
+   strip — the strip's fixed width is what keeps the mixer row predictable. */
+.strip-fx {
+  display: flex;
+  gap: 3px;
+  min-width: 0;
+  min-height: 0;
+}
+.strip-fx:empty {
+  /* master placeholder: reserve the same height so rows stay aligned */
+  height: 17px;
+}
+.fx-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 17px;
+  border-radius: 3px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-soft);
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.fx-chip.on {
+  background: var(--accent-bg);
+  border-color: rgba(55, 184, 154, 0.45);
+  color: var(--accent);
+}
+/* Every insert bypassed reads as "present but doing nothing", not as active. */
+.fx-chip.on.bypassed {
+  background: var(--bg-deep);
+  border-color: var(--border-soft);
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+.fx-chip:hover {
+  border-color: var(--border-strong);
 }
 
 .strip-pan {
@@ -342,4 +415,157 @@
 }
 .mixer.touch .strip-readout {
   font-size: 10.5px;
+}
+
+/* Insert rack + sends (inspector) ------------------------------------------ */
+.fx-rack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.fx-slot {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  background: var(--bg-panel-2);
+  overflow: hidden;
+}
+.fx-slot.open {
+  border-color: var(--border-strong);
+}
+.fx-slot.bypassed .fx-name,
+.fx-slot.bypassed .fx-sum {
+  color: var(--text-faint);
+}
+.fx-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 6px;
+  min-width: 0;
+}
+.fx-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  text-align: left;
+  color: var(--text);
+}
+.fx-name {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.fx-sum {
+  font-size: 9.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.fx-body {
+  border-top: 1px solid var(--border-soft);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.fx-param {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) 58px;
+  align-items: center;
+  gap: 6px;
+}
+.fx-param .k {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fx-param .v {
+  font-size: 9.5px;
+  color: var(--text-dim);
+  text-align: right;
+}
+.fx-param input[type='range'] {
+  min-width: 0;
+  width: 100%;
+}
+.fx-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-top: 2px;
+}
+.fx-actions .btn {
+  height: 24px;
+  padding: 0 8px;
+}
+.fx-add select {
+  width: 100%;
+}
+
+.send-row {
+  display: grid;
+  grid-template-columns: auto minmax(48px, 1fr) minmax(0, 1.6fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.send-row .send-name {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.send-row input[type='range'] {
+  min-width: 0;
+  width: 100%;
+}
+.send-row .th-mini {
+  font-size: 8.5px;
+}
+
+/* Short-mixer strip layout -------------------------------------------------
+   Declared last so it wins over the base .strip-* rules at equal specificity.
+
+   On a short mixer there is not enough height for every row, and squeezing
+   them all makes the whole strip unreadable. The insert/send chips are the one
+   row with a full equivalent elsewhere (the inspector rack), so they are what
+   goes. The template drops to six tracks and the rows are re-mapped, rather
+   than leaving a collapsed track behind — a zero-height row still costs a
+   row-gap, which is exactly the space a cramped strip cannot spare. */
+@container mixer (max-height: 229px) {
+  .strip {
+    grid-template-rows:
+      auto
+      auto
+      minmax(var(--fader-min-h), 1fr)
+      auto
+      auto
+      auto;
+  }
+  .strip-fx {
+    display: none;
+  }
+  .strip-pan {
+    grid-row: 2;
+  }
+  .strip-mid {
+    grid-row: 3;
+  }
+  .strip-btns {
+    grid-row: 4;
+  }
+  .strip-readout {
+    grid-row: 5;
+  }
+  .strip-route {
+    grid-row: 6;
+  }
 }

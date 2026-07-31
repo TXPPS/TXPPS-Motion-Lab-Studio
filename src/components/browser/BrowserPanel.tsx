@@ -17,6 +17,7 @@ import {
 } from '../../app/projectActions';
 import { Icon } from '../common/Icon';
 import { engine } from '../../audio/engine';
+import { pickAndImport } from '../../app/importActions';
 
 function fmtWhen(ts: number): string {
   if (!ts) return '—';
@@ -209,8 +210,62 @@ function LoopsTab() {
   const addAudioClip = useProjectStore((s) => s.addAudioClip);
   const addTrack = useProjectStore((s) => s.addTrack);
   const bpm = useProjectStore((s) => s.project.bpm);
+  const media = useProjectStore((s) => s.project.media);
+  const imported = (media ?? []).filter((m) => m.kind !== 'procedural');
+
   return (
     <>
+      <div className="panel-section">
+        <button
+          className="btn primary full"
+          data-testid="import-audio"
+          onClick={() => pickAndImport({})}
+        >
+          <Icon name="plus" size={13} />
+          Import audio file
+        </button>
+        <div className="hint">
+          Or drag files onto a track. Decoding is the browser&apos;s — WAV, MP3 and M4A work
+          everywhere.
+        </div>
+      </div>
+
+      {imported.length > 0 && (
+        <>
+          <div className="panel-section hint">In this project</div>
+          {imported.map((m) => (
+            <button
+              key={m.id}
+              className="list-item"
+              data-testid={`media-item-${m.id}`}
+              onClick={() => {
+                const trackId = addTrack('audio');
+                const start = snapBeatFloor(engine.getPositionBeats(), 4);
+                addAudioClip(
+                  trackId,
+                  m.id,
+                  start,
+                  Math.max(0.25, (m.duration * bpm) / 60),
+                  m.name,
+                  m.duration,
+                );
+                useUiStore.getState().selectTrack(trackId);
+                useUiStore.getState().toast('info', `Added "${m.name}" on a new audio track`);
+              }}
+            >
+              <div className="li-main">
+                <div className="li-title">{m.name}</div>
+                <div className="li-sub">
+                  {m.kind === 'recording' ? 'Recording' : 'Imported'} · {m.duration.toFixed(1)}s ·{' '}
+                  {m.channels === 1 ? 'mono' : `${m.channels}ch`} @ {(m.sampleRate / 1000).toFixed(1)}k
+                </div>
+              </div>
+              <Icon name="plus" size={14} />
+            </button>
+          ))}
+        </>
+      )}
+
       <div className="panel-section hint">
         Generated royalty-free loops (rendered at 110 BPM{bpm !== 110 ? `, project is ${bpm}` : ''}
         ).

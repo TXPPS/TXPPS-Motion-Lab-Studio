@@ -4,6 +4,7 @@ import { getClip, getTrack, useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { PanKnob } from '../common/widgets';
 import { TrackInputControls } from '../recording/RecordControls';
+import { InsertRack, SendRack } from '../mixer/InsertRack';
 
 export function Inspector() {
   const project = useProjectStore((s) => s.project);
@@ -219,6 +220,12 @@ export function Inspector() {
             <TrackInputControls trackId={track.id} />
           </div>
         )}
+        <div className="panel-section">
+          <InsertRack track={track} />
+        </div>
+        <div className="panel-section">
+          <SendRack track={track} buses={buses} />
+        </div>
       </div>
     );
   }

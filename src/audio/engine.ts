@@ -13,6 +13,7 @@ import { getBufferSync } from './mediaLibrary';
 import { audioInput } from './inputManager';
 import { useInputStore } from '../state/inputStore';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
+import { InsertChain } from './effectChain';
 import { Scheduler } from './scheduler';
 
 const MAX_ACTIVE_SOURCES = 128;
@@ -28,6 +29,8 @@ export interface MeterData {
 interface Channel {
   trackId: string;
   input: GainNode;
+  /** insert effects, between the input and the fader */
+  inserts: InsertChain;
   muteGain: GainNode;
   volGain: GainNode;
   panner: StereoPannerNode;
@@ -261,6 +264,7 @@ class AudioEngine {
           }
         }
         ch.sends.clear();
+        ch.inserts.dispose();
         try {
           ch.input.disconnect();
           ch.muteGain.disconnect();
@@ -279,6 +283,7 @@ class AudioEngine {
       const ch = this.channels.get(track.id)!;
       const audible = this.isAudible(track, p.tracks, soloActive);
       const smooth = initial ? 0.001 : PARAM_TAU;
+      ch.inserts.sync(track.effects ?? [], p.bpm);
       ch.muteGain.gain.setTargetAtTime(audible ? 1 : 0, t, smooth);
       ch.volGain.gain.setTargetAtTime(track.volume, t, smooth);
       ch.panner.pan.setTargetAtTime(track.pan, t, smooth);
@@ -319,7 +324,9 @@ class AudioEngine {
         if (!node) {
           node = ctx.createGain();
           node.gain.value = 0;
-          const tap = send.preFader ? ch.input : ch.panner;
+          // Pre-fader still means post-insert: a send should carry the sound
+          // the channel actually makes, just not its fader move.
+          const tap: AudioNode = send.preFader ? ch.inserts.exit : ch.panner;
           tap.connect(node);
           node.connect(this.channels.get(busId)!.input);
           ch.sends.set(busId, node);
@@ -346,12 +353,17 @@ class AudioEngine {
   private buildChannel(trackId: string): Channel {
     const ctx = this.ctx!;
     const input = ctx.createGain();
+    const inserts = new InsertChain(ctx);
     const muteGain = ctx.createGain();
     const volGain = ctx.createGain();
     const panner = ctx.createStereoPanner();
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 1024;
-    input.connect(muteGain);
+    // input → inserts → mute → volume → pan → analyser → destination.
+    // Inserts sit ahead of the fader so moving the fader does not change how
+    // hard a compressor works, which is what a mixing engineer expects.
+    input.connect(inserts.entry);
+    inserts.exit.connect(muteGain);
     muteGain.connect(volGain);
     volGain.connect(panner);
     panner.connect(analyser);
@@ -359,6 +371,7 @@ class AudioEngine {
     return {
       trackId,
       input,
+      inserts,
       muteGain,
       volGain,
       panner,

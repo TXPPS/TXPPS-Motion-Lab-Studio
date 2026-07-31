@@ -53,6 +53,8 @@ export interface Track {
   monitoring?: boolean;
   /** effect-bus sends */
   sends?: Send[];
+  /** insert chain, applied in order between the channel input and the fader */
+  effects?: Effect[];
 }
 
 export interface Note {
@@ -132,6 +134,25 @@ export interface Send {
   enabled: boolean;
   /** post-fader is the default; pre-fader taps before volume/pan */
   preFader: boolean;
+}
+
+/**
+ * Insert effects.
+ *
+ * Every effect is the same shape — a kind plus a flat number map — so the
+ * engine builds, updates and tears down any of them through one code path, and
+ * an unknown kind loaded from an older or newer project degrades to a bypassed
+ * slot instead of breaking the channel.
+ */
+export type EffectKind = 'trim' | 'eq3' | 'compressor' | 'delay' | 'reverb';
+
+export interface Effect {
+  id: string;
+  kind: EffectKind;
+  /** Bypassed effects stay in the chain (and in the project) but pass audio through. */
+  bypass: boolean;
+  /** Parameter values by name; see EFFECT_SPECS for ranges and defaults. */
+  params: Record<string, number>;
 }
 
 export interface ProjectData {

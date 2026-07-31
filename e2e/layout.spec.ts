@@ -222,12 +222,27 @@ test.describe('mixer geometry', () => {
             escaping.push(`${s.dataset.testid}:outside-mixer-row`);
           }
         }
+        // Strips clip their own overflow, so a row added to the grid would hide
+        // content rather than escape. Measure the flexible row and the last row
+        // directly: if either is squeezed out, the strip is over-subscribed.
+        const first = strips[0];
+        const rowOf = (sel: string) => {
+          const el = first?.querySelector<HTMLElement>(sel);
+          return el ? el.getBoundingClientRect().height : -1;
+        };
+        const lastRow = first?.querySelector<HTMLElement>('.strip-route');
+        const firstBox = first?.getBoundingClientRect();
+
         return {
           count: strips.length,
           minW,
           escaping: escaping.slice(0, 5),
           hRange: mixer.scrollWidth - mixer.clientWidth,
           contentFits: mixer.scrollHeight <= mixer.clientHeight + 1,
+          faderRowH: rowOf('.strip-mid'),
+          fxRowH: rowOf('.strip-fx'),
+          lastRowVisible:
+            !!lastRow && !!firstBox && lastRow.getBoundingClientRect().bottom <= firstBox.bottom + 1,
         };
       });
 
@@ -236,6 +251,14 @@ test.describe('mixer geometry', () => {
       expect(info.escaping, `${vp.name} controls escaping their strip`).toEqual([]);
       expect(info.hRange, `${vp.name} mixer horizontal scroll range`).toBeGreaterThan(0);
       expect(info.contentFits, `${vp.name} mixer forced vertical overflow`).toBe(true);
+      // The fader must keep its declared minimum even with the insert row present.
+      expect(info.faderRowH, `${vp.name} fader row squeezed`).toBeGreaterThanOrEqual(44);
+      // The insert row is dropped on short mixers by design; when it is shown it
+      // must be at full height rather than squeezed to an unreadable sliver.
+      if (info.fxRowH > 0) {
+        expect(info.fxRowH, `${vp.name} insert row squeezed`).toBeGreaterThanOrEqual(15);
+      }
+      expect(info.lastRowVisible, `${vp.name} routing row clipped off the strip`).toBe(true);
     });
 
     test(`${vp.name}: mixer scrolling does not move the page`, async ({ page }) => {

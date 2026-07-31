@@ -5,6 +5,7 @@ import { getPreset, DRUM_KIT_PARAMS, SYNTH_PRESETS } from '../model/presets';
 import { TRACK_COLORS } from '../model/types';
 import type {
   Clip,
+  EffectKind,
   MidiClip,
   Note,
   ProjectData,
@@ -13,6 +14,7 @@ import type {
   Track,
   TrackType,
 } from '../model/types';
+import { defaultParams, effectSpec, MAX_INSERTS } from '../model/effects';
 import type { MediaRef } from '../model/media';
 import { createDemoProject } from '../model/demoProject';
 
@@ -52,6 +54,8 @@ export interface ProjectStore {
     start: number,
     length: number,
     name: string,
+    /** Source length in seconds — required for trimming and fades to stay bounded. */
+    sourceDuration?: number,
   ) => string;
   moveClip: (id: string, start: number, trackId?: string) => void;
   resizeClip: (id: string, start: number, length: number) => void;
@@ -82,6 +86,14 @@ export interface ProjectStore {
   // Sends
   setSend: (trackId: string, busId: string, patch: Partial<Send>) => void;
   removeSend: (trackId: string, busId: string) => void;
+
+  // Insert effects. Returns null when the slot cap is reached.
+  addEffect: (trackId: string, kind: EffectKind) => string | null;
+  removeEffect: (trackId: string, effectId: string) => void;
+  setEffectParam: (trackId: string, effectId: string, key: string, value: number) => void;
+  setEffectBypass: (trackId: string, effectId: string, bypass: boolean) => void;
+  /** Reorder within the chain; delta is -1 (earlier) or +1 (later). */
+  moveEffect: (trackId: string, effectId: string, delta: number) => void;
 
   // Note ops (within a MIDI clip)
   addNote: (clipId: string, note: Omit<Note, 'id'>) => string;
@@ -312,7 +324,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       return id;
     },
 
-    addAudioClip: (trackId, mediaId, start, length, name) => {
+    addAudioClip: (trackId, mediaId, start, length, name, sourceDuration) => {
       const id = newId('c');
       update((d) => {
         d.clips.push({
@@ -325,6 +337,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
           muted: false,
           mediaId,
           offset: 0,
+          ...(sourceDuration ? { sourceDuration } : {}),
           gain: 1,
           fadeIn: 0,
           fadeOut: 0,
@@ -571,6 +584,58 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update((d) => {
         const t = trackById(d, trackId);
         if (t?.sends) t.sends = t.sends.filter((s) => s.busId !== busId);
+      }),
+
+    addEffect: (trackId, kind) => {
+      const id = newId('fx');
+      let added = false;
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t) return;
+        if (!t.effects) t.effects = [];
+        // A hard slot cap keeps a channel's CPU cost predictable.
+        if (t.effects.length >= MAX_INSERTS) return;
+        t.effects.push({ id, kind, bypass: false, params: defaultParams(kind) });
+        added = true;
+      });
+      return added ? id : null;
+    },
+
+    removeEffect: (trackId, effectId) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (t?.effects) t.effects = t.effects.filter((e) => e.id !== effectId);
+      }),
+
+    setEffectParam: (trackId, effectId, key, value) =>
+      update(
+        (d) => {
+          const fx = trackById(d, trackId)?.effects?.find((e) => e.id === effectId);
+          if (!fx) return;
+          const spec = effectSpec(fx.kind)?.params.find((p) => p.key === key);
+          if (!spec || !Number.isFinite(value)) return;
+          fx.params[key] = Math.min(spec.max, Math.max(spec.min, value));
+        },
+        // Continuous control, same as synth params: dragging must not fill the
+        // undo stack with one entry per pixel.
+        { undoable: false },
+      ),
+
+    setEffectBypass: (trackId, effectId, bypass) =>
+      update((d) => {
+        const fx = trackById(d, trackId)?.effects?.find((e) => e.id === effectId);
+        if (fx) fx.bypass = bypass;
+      }),
+
+    moveEffect: (trackId, effectId, delta) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t?.effects) return;
+        const i = t.effects.findIndex((e) => e.id === effectId);
+        const j = i + delta;
+        if (i < 0 || j < 0 || j >= t.effects.length) return;
+        const [moved] = t.effects.splice(i, 1);
+        t.effects.splice(j, 0, moved);
       }),
 
     addNote: (clipId, n) => {

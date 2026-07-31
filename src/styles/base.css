@@ -115,6 +115,9 @@ select:focus {
   opacity: 0.45;
   pointer-events: none;
 }
+.btn.full {
+  width: 100%;
+}
 
 .icon-btn {
   display: inline-flex;

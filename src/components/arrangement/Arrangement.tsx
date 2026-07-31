@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { engine } from '../../audio/engine';
+import { dragHasFiles, importDrop } from '../../app/importActions';
 import { beatsPerBar, clamp, snapBeat, snapBeatFloor } from '../../model/music';
 import type { Track } from '../../model/types';
 import { projectEndBeat, useProjectStore } from '../../state/projectStore';
@@ -34,6 +35,9 @@ export function Arrangement() {
   const pxPerBeat = useUiStore((s) => s.pxPerBeat);
   const snap = useUiStore((s) => s.snap);
   const selectedTrackId = useUiStore((s) => s.selectedTrackId);
+
+  /** Lane currently under a file drag, for the drop affordance. */
+  const [dropLane, setDropLane] = useState<string | null>(null);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -368,10 +372,32 @@ export function Arrangement() {
               {tracks.map((t, i) => (
                 <div
                   key={t.id}
-                  className={`arr-lane${selectedTrackId === t.id ? ' selected' : ''}`}
+                  className={`arr-lane${selectedTrackId === t.id ? ' selected' : ''}${
+                    dropLane === t.id ? ' drop-target' : ''
+                  }`}
                   style={{ height: heights[i] }}
                   data-testid={`lane-${t.name}`}
                   onPointerDown={() => useUiStore.getState().selectTrack(t.id)}
+                  onDragOver={(e) => {
+                    // Only audio tracks can hold a file; anything else keeps the
+                    // default "no drop" cursor rather than accepting and failing.
+                    if (t.type !== 'audio' || !dragHasFiles(e.dataTransfer)) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    setDropLane(t.id);
+                  }}
+                  onDragLeave={() => setDropLane((cur) => (cur === t.id ? null : cur))}
+                  onDrop={(e) => {
+                    if (t.type !== 'audio' || !dragHasFiles(e.dataTransfer)) return;
+                    e.preventDefault();
+                    setDropLane(null);
+                    const lanes = viewportRef.current?.querySelector('.arr-lanes');
+                    if (!lanes) return;
+                    const rect = lanes.getBoundingClientRect();
+                    const beat = snapBeatFloor((e.clientX - rect.left) / pxPerBeat, Math.max(snap, 1));
+                    useUiStore.getState().selectTrack(t.id);
+                    importDrop(e.dataTransfer, { trackId: t.id, startBeat: beat });
+                  }}
                   onDoubleClick={(e) => {
                     if (t.type !== 'instrument' && t.type !== 'drum') return;
                     const lanes = viewportRef.current?.querySelector('.arr-lanes');

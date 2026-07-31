@@ -4,7 +4,8 @@
  */
 import { newId } from '../model/ids';
 import { SCHEMA_VERSION } from '../model/types';
-import type { ProjectData, ProjectMeta } from '../model/types';
+import type { EffectKind, ProjectData, ProjectMeta } from '../model/types';
+import { isKnownEffect, MAX_INSERTS, normaliseParams } from '../model/effects';
 import { diagLog } from '../state/diagnostics';
 import { idbDelete, idbGet, idbGetAll, idbPut, STORE_PREFS, STORE_PROJECTS } from './db';
 
@@ -96,6 +97,31 @@ export function validateProject(raw: unknown): ProjectData {
     if (tr.monitoring !== undefined && typeof tr.monitoring !== 'boolean') delete tr.monitoring;
     if (tr.inputDeviceId !== undefined && typeof tr.inputDeviceId !== 'string') {
       delete tr.inputDeviceId;
+    }
+    // Inserts: drop anything malformed or of an unknown kind, and clamp every
+    // surviving parameter into its spec range so a corrupt value cannot reach
+    // an AudioParam.
+    if (tr.effects !== undefined && !Array.isArray(tr.effects)) delete tr.effects;
+    if (Array.isArray(tr.effects)) {
+      tr.effects = (tr.effects as unknown[])
+        .filter(
+          (e) =>
+            isRecord(e) &&
+            typeof e.id === 'string' &&
+            typeof e.kind === 'string' &&
+            isKnownEffect(e.kind),
+        )
+        .slice(0, MAX_INSERTS)
+        .map((e) => {
+          const rec = e as Record<string, unknown>;
+          const kind = rec.kind as EffectKind;
+          return {
+            id: rec.id as string,
+            kind,
+            bypass: rec.bypass === true,
+            params: normaliseParams(kind, isRecord(rec.params) ? rec.params : undefined),
+          };
+        });
     }
   }
   const media = Array.isArray(raw.media)

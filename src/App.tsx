@@ -12,6 +12,7 @@ import { DialogHost, ContextMenuHost, ToastHost } from './components/common/over
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LayoutDebugHud } from './components/diagnostics/LayoutDebugHud';
 import { RecordingBanner } from './components/recording/RecordControls';
+import { dragHasFiles } from './app/importActions';
 
 /**
  * App shell. Exactly three grid rows: the project bar, the active layout, and
@@ -36,6 +37,24 @@ export function App() {
     apply();
     window.addEventListener('hashchange', apply);
     return () => window.removeEventListener('hashchange', apply);
+  }, []);
+
+  // A file dropped anywhere but a track lane would otherwise make the browser
+  // navigate to it, discarding unsaved work. Swallow those drops instead.
+  useEffect(() => {
+    const swallow = (e: DragEvent) => {
+      // A lane that accepted the drag already called preventDefault; leave its
+      // dropEffect alone so the copy cursor survives the bubble to window.
+      if (e.defaultPrevented || !dragHasFiles(e.dataTransfer)) return;
+      if (e.type === 'dragover' && e.dataTransfer) e.dataTransfer.dropEffect = 'none';
+      e.preventDefault();
+    };
+    window.addEventListener('dragover', swallow);
+    window.addEventListener('drop', swallow);
+    return () => {
+      window.removeEventListener('dragover', swallow);
+      window.removeEventListener('drop', swallow);
+    };
   }, []);
 
   return (

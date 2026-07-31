@@ -1,4 +1,5 @@
 import { newId } from './ids';
+import { defaultParams } from './effects';
 import { getPreset, DRUM_KIT_PARAMS } from './presets';
 import { SCHEMA_VERSION } from './types';
 import type { MidiClip, AudioClip, Note, ProjectData, Track } from './types';
@@ -201,8 +202,44 @@ export function createDemoProject(id?: string): ProjectData {
     collapsed: false,
     output: 'master',
   };
+  const reverbBus: Track = {
+    id: newId('t'),
+    type: 'bus',
+    name: 'Reverb Bus',
+    color: '#6f8bb8',
+    volume: 0.9,
+    pan: 0,
+    mute: false,
+    solo: false,
+    armed: false,
+    collapsed: false,
+    output: 'master',
+    // Fully wet on the bus: the dry signal already reaches master through each
+    // channel's own output, so mixing it again here would double it.
+    effects: [
+      {
+        id: newId('fx'),
+        kind: 'reverb',
+        bypass: false,
+        params: { ...defaultParams('reverb'), size: 2.4, mix: 1 },
+      },
+    ],
+  };
+
   drums.output = drumBus.id;
   perc.output = drumBus.id;
+  // Glue on the drum bus, and a little shared space on the melodic parts, so
+  // the demo shows inserts and sends actually doing something.
+  drumBus.effects = [
+    {
+      id: newId('fx'),
+      kind: 'compressor',
+      bypass: false,
+      params: { ...defaultParams('compressor'), threshold: -18, ratio: 3, makeupDb: 2 },
+    },
+  ];
+  keys.sends = [{ busId: reverbBus.id, amount: 0.35, enabled: true, preFader: false }];
+  lead.sends = [{ busId: reverbBus.id, amount: 0.22, enabled: true, preFader: false }];
 
   const clips: (MidiClip | AudioClip)[] = [];
 
@@ -325,7 +362,7 @@ export function createDemoProject(id?: string): ProjectData {
     loop: { enabled: true, start: 0, end: 32 },
     metronome: false,
     masterVolume: 0.9,
-    tracks: [drums, perc, bass, keys, lead, texture, drumBus],
+    tracks: [drums, perc, bass, keys, lead, texture, drumBus, reverbBus],
     clips,
     workspace: { pxPerBeat: 26, snap: 0.25 },
   };

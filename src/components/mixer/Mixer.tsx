@@ -23,6 +23,10 @@ function ChannelStrip({
   const selected = useUiStore((s) => s.selectedTrackId === track.id);
   const store = useProjectStore;
   const isBus = track.type === 'bus';
+  const effects = track.effects ?? [];
+  const fxCount = effects.length;
+  const allBypassed = fxCount > 0 && effects.every((e) => e.bypass);
+  const sendCount = (track.sends ?? []).filter((s) => s.enabled && s.amount > 0).length;
 
   return (
     <div
@@ -34,6 +38,38 @@ function ChannelStrip({
     >
       <div className="strip-name" title={track.name}>
         {track.name}
+      </div>
+
+      {/* Compact insert/send status. Editing happens in the inspector, which has
+          the room for it; the strip keeps its bounded six-row geometry. */}
+      <div className="strip-fx">
+        <button
+          className={`fx-chip${fxCount ? ' on' : ''}${allBypassed ? ' bypassed' : ''}`}
+          title={
+            fxCount
+              ? `${fxCount} insert${fxCount === 1 ? '' : 's'}${allBypassed ? ' (all bypassed)' : ''}`
+              : 'No inserts'
+          }
+          aria-label={`${track.name} inserts: ${fxCount}`}
+          data-testid={`strip-fx-${track.name}`}
+          onClick={() => {
+            useUiStore.getState().selectTrack(track.id);
+            useUiStore.getState().set({ panelInspector: true, phoneMode: 'browse' });
+          }}
+        >
+          FX {fxCount || '–'}
+        </button>
+        <button
+          className={`fx-chip${sendCount ? ' on' : ''}`}
+          title={sendCount ? `${sendCount} active send${sendCount === 1 ? '' : 's'}` : 'No sends'}
+          aria-label={`${track.name} sends: ${sendCount}`}
+          onClick={() => {
+            useUiStore.getState().selectTrack(track.id);
+            useUiStore.getState().set({ panelInspector: true, phoneMode: 'browse' });
+          }}
+        >
+          SND {sendCount || '–'}
+        </button>
       </div>
 
       <div className="strip-pan">
@@ -138,6 +174,8 @@ function MasterStrip() {
       style={{ ['--strip-color' as string]: 'var(--warm)' }}
     >
       <div className="strip-name">Master</div>
+      {/* Placeholder keeps the master strip's rows aligned with the channels. */}
+      <div className="strip-fx" aria-hidden="true" />
       <div className="strip-pan">
         <span className="knob-label">STEREO OUT</span>
       </div>
