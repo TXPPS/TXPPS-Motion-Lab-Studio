@@ -13,6 +13,8 @@ import './styles/recording.css';
 import { installConsoleCapture, diagLog } from './state/diagnostics';
 import { bootProject, installAutosave } from './app/projectActions';
 import { midi } from './audio/midi';
+import { engine } from './audio/engine';
+import { useProjectStore } from './state/projectStore';
 import { registerPwa } from './pwa/registerPwa';
 import { APP_VERSION, GIT_COMMIT } from './diagnostics/report';
 
@@ -32,6 +34,30 @@ void bootProject(hash.includes('demo'), qaFixture).then(() => {
 });
 
 registerPwa();
+
+/**
+ * Test handle for automated audio verification.
+ *
+ * The offline renderer cannot be driven from jsdom (no Web Audio) and cannot be
+ * driven through the UI either, since a download dialog is not assertable. This
+ * exposes the render path so `e2e/export.spec.ts` can prove the bounce actually
+ * contains the project's clips, notes, effects and sends.
+ *
+ * Read-only module references — no privileged action is reachable through it
+ * that the UI does not already offer.
+ */
+void (async () => {
+  const [exportMix, demoProject] = await Promise.all([
+    import('./audio/exportMix'),
+    import('./model/demoProject'),
+  ]);
+  (window as unknown as Record<string, unknown>).__ml = {
+    exportMix,
+    demoProject,
+    engine,
+    projectStore: useProjectStore,
+  };
+})();
 
 const rootEl = document.getElementById('root');
 if (rootEl) {

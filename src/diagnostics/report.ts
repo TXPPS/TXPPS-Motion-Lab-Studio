@@ -4,6 +4,7 @@
  */
 import { engine } from '../audio/engine';
 import { audioInput } from '../audio/inputManager';
+import { exportState } from '../app/exportActions';
 import { cacheStats, isMissing } from '../audio/mediaLibrary';
 import { pickMimeType, recorderSupported } from '../audio/recorder';
 import { layoutReportLines } from './layout';
@@ -98,6 +99,7 @@ function m2Fields(): DiagField[] {
   const effects = tracks.flatMap((t) => t.effects ?? []);
   const sends = tracks.flatMap((t) => t.sends ?? []).filter((s) => s.enabled);
   const streams = audioInput.activeTrackStates();
+  const exp = exportState();
 
   // A clip whose media never resolved is the failure users actually notice.
   const audioClips = p.clips.filter((c) => c.type === 'audio');
@@ -191,6 +193,18 @@ function m2Fields(): DiagField[] {
         : 'none',
     },
     { key: 'Active sends', value: String(sends.length) },
+    {
+      key: 'Audio graph',
+      value: `${tracks.length} channels, ${tracks.filter((t) => t.type === 'bus').length} buses, ${
+        effects.length
+      } inserts, ${sends.length} sends`,
+    },
+    {
+      key: 'Export status',
+      value: exp.stage === 'idle' ? 'idle' : `${exp.stage}${exp.message ? ` — ${exp.message}` : ''}`,
+      status: exp.stage === 'error' ? 'err' : undefined,
+    },
+    { key: 'Last export', value: exp.lastResult ?? 'none this session' },
   ];
 }
 

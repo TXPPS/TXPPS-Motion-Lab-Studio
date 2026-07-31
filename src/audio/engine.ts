@@ -14,6 +14,7 @@ import { audioInput } from './inputManager';
 import { useInputStore } from '../state/inputStore';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
 import { InsertChain } from './effectChain';
+import { applyEnvelope, computeClipSchedule } from './clipSchedule';
 import { Scheduler } from './scheduler';
 
 const MAX_ACTIVE_SOURCES = 128;
@@ -515,39 +516,16 @@ class AudioEngine {
     if (!buffer) return;
     const p = useProjectStore.getState().project;
     const spb = secondsPerBeat(p.bpm);
-    // How much source is left in this clip, honouring an explicit trim length.
-    const intoClipSec = Math.max(0, offsetSec - clip.offset);
-    const clipSourceSec = clip.sourceDuration ?? clip.length * spb;
-    const clipRemainSec = clipSourceSec - intoClipSec;
-    const mediaRemainSec = buffer.duration - offsetSec;
-    const durSec = Math.min(clipRemainSec, mediaRemainSec, clip.length * spb - intoClipSec);
-    if (durSec <= 0.001 || offsetSec >= buffer.duration) return;
+    // Duration and gain envelope come from the shared scheduler so that an
+    // exported bounce is sample-for-sample the same decision as live playback.
+    const plan = computeClipSchedule(clip, offsetSec, buffer.duration, spb);
+    if (!plan) return;
+    const durSec = plan.durSec;
 
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     const g = ctx.createGain();
-    const peak = Math.max(0, clip.gain);
-    const fadeIn = Math.max(0, clip.fadeIn ?? 0);
-    const fadeOut = Math.max(0, clip.fadeOut ?? 0);
-    const end = when + durSec;
-
-    // Fades are expressed against the clip, so a clip entered mid-way (loop
-    // wrap, mid-clip play) starts at the level the envelope had already reached.
-    if (fadeIn > 0 && intoClipSec < fadeIn) {
-      const startLevel = peak * (intoClipSec / fadeIn);
-      g.gain.setValueAtTime(startLevel, when);
-      g.gain.linearRampToValueAtTime(peak, when + (fadeIn - intoClipSec));
-    } else {
-      g.gain.setValueAtTime(peak, when);
-    }
-    if (fadeOut > 0) {
-      const fadeStartInClip = Math.max(0, clipSourceSec - fadeOut);
-      const fadeStartAt = when + Math.max(0, fadeStartInClip - intoClipSec);
-      if (fadeStartAt < end) {
-        g.gain.setValueAtTime(g.gain.value, Math.max(when, fadeStartAt));
-        g.gain.linearRampToValueAtTime(0.0001, end);
-      }
-    }
+    applyEnvelope(g.gain, plan.envelope, when);
 
     src.connect(g);
     g.connect(ch.input);

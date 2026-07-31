@@ -50,7 +50,7 @@ class Voice {
   readonly startedAt: number;
 
   constructor(
-    private ctx: AudioContext,
+    private ctx: BaseAudioContext,
     out: AudioNode,
     params: SynthParams,
     readonly pitch: number,
@@ -129,7 +129,7 @@ export class PolySynth implements Instrument {
   private sustained = new Set<Voice>();
 
   constructor(
-    private ctx: AudioContext,
+    private ctx: BaseAudioContext,
     private out: AudioNode,
     private trackId: string,
     private getParams: () => SynthParams,
@@ -215,7 +215,7 @@ export class DrumKit implements Instrument {
   private active = new Set<{ src: AudioBufferSourceNode; g: GainNode; handle: ActiveHandle }>();
 
   constructor(
-    private ctx: AudioContext,
+    private ctx: BaseAudioContext,
     private out: AudioNode,
     private trackId: string,
     private getParams: () => SynthParams,

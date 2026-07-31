@@ -2,6 +2,7 @@ import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import { renameCurrent, saveCurrent } from '../../app/projectActions';
+import { exportLoopRegion, exportWav } from '../../app/exportActions';
 import { Icon } from '../common/Icon';
 import type { Layout } from '../../hooks/useViewport';
 
@@ -40,6 +41,8 @@ export function TopBar({ layout }: { layout: Layout }) {
               { label: 'Reset layout', action: () => ws.reset() },
             ]
           : []),
+        { label: 'Export mix as WAV…', action: () => void exportWav() },
+        { label: 'Export loop region as WAV…', action: () => void exportLoopRegion() },
         { label: 'Diagnostics…', action: () => ui.getState().set({ diagnosticsOpen: true }) },
       ],
     });

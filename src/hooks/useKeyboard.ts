@@ -5,6 +5,23 @@ import { clamp } from '../model/music';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { saveCurrent } from '../app/projectActions';
+import { recording } from '../audio/recordingController';
+
+/**
+ * Split the selected clip at the playhead. Does nothing when the playhead is
+ * outside the clip, which the store already enforces, so a mistimed press is a
+ * no-op rather than an edit in the wrong place.
+ */
+function splitSelectedAtPlayhead(): void {
+  const ui = useUiStore.getState();
+  const id = ui.selectedClipId;
+  if (!id) {
+    ui.toast('info', 'Select a clip to split.');
+    return;
+  }
+  const newId = useProjectStore.getState().splitClip(id, engine.getPositionBeats());
+  if (!newId) ui.toast('info', 'The playhead is not inside the selected clip.');
+}
 
 /** Computer-keyboard → note mapping (two rows, like a tracker/DAW virtual keys). */
 const KEY_TO_SEMITONE: Record<string, number> = {
@@ -72,13 +89,33 @@ export function useGlobalKeyboard(): void {
         void saveCurrent();
         return;
       }
+      // Split at playhead. Bare "S" is the virtual keyboard's D natural, so the
+      // split binding takes a modifier rather than stealing a musical key.
+      if ((e.ctrlKey || e.metaKey) && k === 'e') {
+        e.preventDefault();
+        splitSelectedAtPlayhead();
+        return;
+      }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      // Record toggle. "R" is not part of the virtual keyboard layout.
+      if (k === 'r') {
+        e.preventDefault();
+        void recording.toggle();
+        return;
+      }
 
       if (k === 'enter') {
         engine.returnToStart();
         return;
       }
       if (k === 'escape') {
+        // While capturing, Escape means "abandon this take" — and the take is
+        // stashed for recovery, not thrown away. Panic would be too blunt here.
+        if (recording.isActive()) {
+          void recording.cancel();
+          return;
+        }
         engine.panic();
         midi.panic();
         return;

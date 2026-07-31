@@ -62,6 +62,18 @@ class RecordingController {
     return p === 'arming' || p === 'countIn' || p === 'recording' || p === 'finalizing';
   }
 
+  /** Capturing or counting in — the states Escape should abandon. */
+  isActive(): boolean {
+    const p = useInputStore.getState().phase;
+    return p === 'countIn' || p === 'recording';
+  }
+
+  /** Keyboard-friendly single entry point: start if idle, stop if capturing. */
+  async toggle(): Promise<void> {
+    if (this.isActive()) await this.stop();
+    else if (!this.isBusy) await this.start();
+  }
+
   /**
    * Begin a take. Opens the input, runs the count-in (if any) with the
    * metronome, starts the transport, then starts capturing.

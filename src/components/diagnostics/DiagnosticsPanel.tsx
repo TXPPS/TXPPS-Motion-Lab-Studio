@@ -11,6 +11,7 @@ import {
 } from '../../diagnostics/report';
 import { Icon } from '../common/Icon';
 import { RecoveryPanel } from '../recording/RecoveryPanel';
+import { DiagnosticCommands } from './DiagnosticCommands';
 
 export function DiagnosticsPanel() {
   const entries = useDiagnosticsStore((s) => s.entries);
@@ -100,6 +101,7 @@ export function DiagnosticsPanel() {
       </div>
       <div className="diag-scroll">
         <RecoveryPanel />
+        <DiagnosticCommands />
         <div className="diag-grid">
           {fields.map((f) => (
             <div className="diag-kv" key={f.key}>
