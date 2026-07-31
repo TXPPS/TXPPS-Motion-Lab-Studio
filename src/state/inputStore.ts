@@ -24,6 +24,8 @@ export interface TakeSummary {
   durationSec: number;
   bytes: number;
   mimeType: string;
+  /** peak envelope never rose above the silence floor — surfaced, not hidden */
+  silent: boolean;
 }
 
 interface InputState {

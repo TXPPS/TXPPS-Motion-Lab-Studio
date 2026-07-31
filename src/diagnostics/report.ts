@@ -3,10 +3,15 @@
  * The report is designed to be copy-pasted into another AI conversation.
  */
 import { engine } from '../audio/engine';
+import { audioInput } from '../audio/inputManager';
+import { cacheStats, isMissing } from '../audio/mediaLibrary';
+import { pickMimeType, recorderSupported } from '../audio/recorder';
 import { layoutReportLines } from './layout';
 import { getDbStatus } from '../persistence/db';
+import { listRecoveries, mediaStorageStats, storageEstimate } from '../persistence/mediaStore';
 import { loadProject, saveProject } from '../persistence/projectRepo';
-import { useDiagnosticsStore, type SmokeResult } from '../state/diagnostics';
+import { diagLog, useDiagnosticsStore, type SmokeResult } from '../state/diagnostics';
+import { permissionLabel, useInputStore } from '../state/inputStore';
 import { useProjectStore } from '../state/projectStore';
 import { useTransportStore } from '../state/transportStore';
 
@@ -36,6 +41,157 @@ function displayMode(): string {
   if (window.matchMedia('(display-mode: fullscreen)').matches) return 'fullscreen';
   if (window.matchMedia('(display-mode: minimal-ui)').matches) return 'minimal-ui';
   return 'browser';
+}
+
+/**
+ * Storage figures need IndexedDB and `navigator.storage`, both async, while the
+ * report is built synchronously. The sheet refreshes this snapshot when it
+ * opens; until then the fields say so rather than reporting a stale zero.
+ */
+interface StorageSnapshot {
+  at: number;
+  mediaCount: number;
+  mediaBytes: number;
+  usage: number;
+  quota: number;
+  recoveries: number;
+}
+let storageSnapshot: StorageSnapshot | null = null;
+
+export async function refreshStorageDiagnostics(): Promise<void> {
+  try {
+    const [stats, est, recs] = await Promise.all([
+      mediaStorageStats(),
+      storageEstimate(),
+      listRecoveries(),
+    ]);
+    storageSnapshot = {
+      at: Date.now(),
+      mediaCount: stats.count,
+      mediaBytes: stats.bytes,
+      usage: est?.usage ?? 0,
+      quota: est?.quota ?? 0,
+      recoveries: recs.length,
+    };
+    useInputStore.getState().set({ pendingRecoveries: recs.length });
+  } catch (e) {
+    diagLog('warn', `Could not read storage diagnostics: ${String(e)}`);
+  }
+}
+
+function mb(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Milestone 2 fields: input, recording, media and mixer processing. */
+function m2Fields(): DiagField[] {
+  const inp = useInputStore.getState();
+  const p = useProjectStore.getState().project;
+  const cache = cacheStats();
+  const tracks = p.tracks;
+
+  const audioTracks = tracks.filter((t) => t.type === 'audio');
+  const armed = audioTracks.filter((t) => t.armed);
+  const monitoring = tracks.filter((t) => t.monitoring);
+  const effects = tracks.flatMap((t) => t.effects ?? []);
+  const sends = tracks.flatMap((t) => t.sends ?? []).filter((s) => s.enabled);
+  const streams = audioInput.activeTrackStates();
+
+  // A clip whose media never resolved is the failure users actually notice.
+  const audioClips = p.clips.filter((c) => c.type === 'audio');
+  const missing = [...new Set(audioClips.map((c) => c.mediaId))].filter((id) => isMissing(id));
+
+  const snap = storageSnapshot;
+  const quotaPct =
+    snap && snap.quota > 0 ? ` (${((snap.usage / snap.quota) * 100).toFixed(1)}% of quota)` : '';
+
+  return [
+    {
+      key: 'Mic permission',
+      value: permissionLabel(inp.permission),
+      status: inp.permission === 'granted' ? 'ok' : inp.permission === 'denied' ? 'err' : 'warn',
+    },
+    {
+      key: 'Input devices',
+      // Labels are only populated once the browser allows them.
+      value: inp.devices.length
+        ? `${inp.devices.length}${inp.devices.some((d) => d.label) ? '' : ' (labels withheld)'}`
+        : 'none enumerated',
+    },
+    {
+      key: 'Recorder support',
+      value: recorderSupported() ? (pickMimeType() ?? 'browser default') : 'unsupported',
+      status: recorderSupported() ? 'ok' : 'err',
+    },
+    {
+      key: 'Recording state',
+      value:
+        inp.phase === 'recording'
+          ? `recording ${inp.recordSeconds.toFixed(1)}s${
+              inp.recorderMimeType ? ` (${inp.recorderMimeType})` : ''
+            }`
+          : inp.phase,
+      status: inp.phase === 'error' ? 'err' : 'ok',
+    },
+    { key: 'Last record error', value: inp.lastRecordError ?? 'none' },
+    {
+      key: 'Last take',
+      value: inp.lastTake
+        ? `${inp.lastTake.durationSec.toFixed(2)}s, ${mb(inp.lastTake.bytes)}, ${
+            inp.lastTake.mimeType
+          }${inp.lastTake.silent ? ' — SILENT' : ''}`
+        : 'none this session',
+      status: inp.lastTake?.silent ? 'warn' : undefined,
+    },
+    {
+      key: 'Open input streams',
+      value: streams.length
+        ? streams.map((s) => `${s.device.slice(0, 10)}:${s.readyState}${s.muted ? ':muted' : ''}`).join(', ')
+        : 'none',
+      status: streams.some((s) => s.muted) ? 'warn' : undefined,
+    },
+    {
+      key: 'Monitoring',
+      value: monitoring.length
+        ? `${monitoring.length} track(s), engine reports ${engine.monitoringCount()}`
+        : 'off',
+      status: monitoring.length !== engine.monitoringCount() ? 'warn' : undefined,
+    },
+    { key: 'Armed audio tracks', value: `${armed.length} of ${audioTracks.length}` },
+    { key: 'Project media refs', value: String((p.media ?? []).length) },
+    {
+      key: 'Stored media',
+      value: snap ? `${snap.mediaCount} items, ${mb(snap.mediaBytes)}` : 'not sampled yet',
+    },
+    {
+      key: 'Storage used',
+      value: snap ? `${mb(snap.usage)} of ${mb(snap.quota)}${quotaPct}` : 'not sampled yet',
+      status: snap && snap.quota > 0 && snap.usage / snap.quota > 0.9 ? 'warn' : undefined,
+    },
+    {
+      key: 'Unrecovered takes',
+      value: snap ? String(snap.recoveries) : 'not sampled yet',
+      status: snap && snap.recoveries > 0 ? 'warn' : undefined,
+    },
+    {
+      key: 'Decoded buffers',
+      value: `${cache.buffers} buffers, ${cache.peaks} peak sets`,
+    },
+    {
+      key: 'Missing media',
+      value: missing.length ? `${missing.length}: ${missing.slice(0, 3).join(', ')}` : 'none',
+      status: missing.length ? 'err' : 'ok',
+    },
+    {
+      key: 'Insert effects',
+      value: effects.length
+        ? `${effects.length} (${effects.filter((e) => e.bypass).length} bypassed)`
+        : 'none',
+    },
+    { key: 'Active sends', value: String(sends.length) },
+  ];
 }
 
 export function collectFields(): DiagField[] {
@@ -92,6 +248,7 @@ export function collectFields(): DiagField[] {
       value: `${db.status} (${db.detail})`,
       status: db.status === 'ok' ? 'ok' : db.status === 'error' ? 'err' : 'warn',
     },
+    ...m2Fields(),
   ];
 }
 

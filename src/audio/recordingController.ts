@@ -273,6 +273,7 @@ class RecordingController {
             durationSec: result.durationSec,
             bytes: result.mediaRef.byteSize,
             mimeType: result.mediaRef.mimeType ?? 'unknown',
+            silent: result.silent,
           },
         });
         useUiStore.getState().selectClip(result.clipId, trackId);

@@ -260,3 +260,44 @@
   flex: 1 1 auto;
   min-width: 76px;
 }
+
+/* Interrupted-take recovery ------------------------------------------------ */
+.recovery-panel {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-lg);
+  background: var(--warm-bg);
+  border: 1px solid rgba(217, 161, 60, 0.4);
+}
+.recovery-panel .ps-title {
+  color: var(--warm);
+}
+.recovery-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px;
+  border-radius: var(--radius);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+  min-width: 0;
+}
+.recovery-row .rr-meta {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recovery-row .rr-actions {
+  display: flex;
+  gap: 6px;
+}
+.recovery-row .rr-actions .btn {
+  flex: 1 1 auto;
+  min-width: 82px;
+}

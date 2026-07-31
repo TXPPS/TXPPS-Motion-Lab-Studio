@@ -12,6 +12,7 @@ import {
   TakeReview,
   TrackInputControls,
 } from './RecordControls';
+import { RecoveryPanel } from './RecoveryPanel';
 
 /**
  * Phone Record workspace.
@@ -94,6 +95,7 @@ export function RecordWorkspace() {
       </div>
 
       <TakeReview />
+      <RecoveryPanel />
     </div>
   );
 }

@@ -3,8 +3,14 @@ import { engine } from '../../audio/engine';
 import { midi } from '../../audio/midi';
 import { useDiagnosticsStore } from '../../state/diagnostics';
 import { useTransportStore } from '../../state/transportStore';
-import { buildReport, collectFields, runSmokeTest } from '../../diagnostics/report';
+import {
+  buildReport,
+  collectFields,
+  refreshStorageDiagnostics,
+  runSmokeTest,
+} from '../../diagnostics/report';
 import { Icon } from '../common/Icon';
+import { RecoveryPanel } from '../recording/RecoveryPanel';
 
 export function DiagnosticsPanel() {
   const entries = useDiagnosticsStore((s) => s.entries);
@@ -16,6 +22,13 @@ export function DiagnosticsPanel() {
   useTransportStore((s) => s.activeSources);
   useEffect(() => {
     const id = setInterval(() => force((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  // Storage figures need async reads, so they are sampled when the panel opens
+  // and on a slow interval rather than on every render.
+  useEffect(() => {
+    void refreshStorageDiagnostics();
+    const id = setInterval(() => void refreshStorageDiagnostics(), 10000);
     return () => clearInterval(id);
   }, []);
 
@@ -86,6 +99,7 @@ export function DiagnosticsPanel() {
         </button>
       </div>
       <div className="diag-scroll">
+        <RecoveryPanel />
         <div className="diag-grid">
           {fields.map((f) => (
             <div className="diag-kv" key={f.key}>

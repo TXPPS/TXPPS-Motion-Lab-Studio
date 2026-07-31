@@ -4,6 +4,7 @@
  * silent.
  */
 import { createDemoProject, createEmptyProject } from '../model/demoProject';
+import { scanRecoveries } from './recoveryActions';
 import type { ProjectData } from '../model/types';
 import {
   deleteProject as repoDelete,
@@ -147,6 +148,10 @@ export async function bootProject(forceDemo: boolean, qaFixture = false): Promis
       `Boot persistence failed: ${e instanceof Error ? e.message : e}. Running in-memory.`,
     );
     useProjectStore.getState().setProject(createDemoProject(), { markClean: false });
+  } finally {
+    // Report interrupted takes whichever path the boot took, but never act on
+    // them — the user chooses which project they belong in.
+    void scanRecoveries();
   }
 }
 
