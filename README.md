@@ -18,6 +18,31 @@ deployable to Cloudflare Pages.
 - Offline-ready PWA shell (service worker + manifest)
 - Diagnostics panel with copyable plain-text report and in-app smoke test
 
+## Milestone 2 scope
+
+The first complete audio-recording workflow: input → monitoring → arming →
+count-in → recording → clip → waveform → editing → mixing → save → reload → play.
+
+- Microphone input selection, arming and live monitoring, with permission
+  requested only on a user action — never at startup
+- Count-in recording via MediaRecorder with per-browser format negotiation,
+  chunked so an interrupted take stays recoverable
+- Recorded and imported audio stored as bytes in IndexedDB, separate from the
+  project document, with cached waveform peak envelopes
+- Production waveform rendering that never decodes audio during paint
+- Nondestructive clip editing: trim, split, gain and fades
+- Audio file import by picker or drag-and-drop, with honest per-browser format
+  errors and storage-quota pre-flight
+- Mixer insert effects (gain, EQ, compressor, tempo-synced delay, synthesised
+  reverb) plus sends to effect buses
+- Schema v2 with lossless, defensive v1 migration
+- Interrupted-take recovery, offered rather than applied silently
+- Expanded diagnostics covering input, recording, media, storage and routing
+
+See [`docs/MILESTONE-2-RECORDING.md`](docs/MILESTONE-2-RECORDING.md) for the
+architecture, the design decisions behind it, and a per-area statement of what
+is verified, what is untested, and what is deliberately not offered.
+
 ## Development
 
 ```bash
