@@ -29,11 +29,14 @@ labelling.
 | Schema v1 → v2 migration | Implemented; verified against realistic v1 project fixtures |
 | Interrupted-take recovery | Implemented; **verified by unit-level reasoning and manual code paths only** — no automated crash-simulation test |
 | Storage quota handling | Implemented; pre-flight check tested. **Actual quota exhaustion not simulated** |
+| WAV export (offline bounce) | Implemented; **automated-test verified in a real browser** — nine tests prove clips, instrument notes, mute, inserts, bypass and sends each reach the output |
+| Export file validity | Implemented; every bounce is decoded and checked before it is offered to the user |
+| Diagnostic commands | Implemented; run manually from the panel. The storage, export, missing-media, recorder and waveform checks are deterministic; the two microphone checks need real input to be meaningful |
 | Real microphone hardware | **Not verified.** No physical audio input device was available in this environment |
 | Real MIDI hardware | **Not verified.** No physical MIDI device was available |
 | iOS / Safari behaviour | **Not verified.** No Apple device or Safari build was available |
 
-Test totals: **120 unit tests**, **98 end-to-end tests**, strict TypeScript, ESLint
+Test totals: **147 unit tests**, **110 end-to-end tests**, strict TypeScript, ESLint
 clean, production build succeeding.
 
 ---
@@ -295,6 +298,64 @@ genuinely pending.
 
 ---
 
+## 9a. Export (offline bounce)
+
+### Signal flow
+
+```mermaid
+flowchart LR
+  CLIP[Audio clip<br/>offset · gain · fades] --> CH
+  MIDI[MIDI notes] --> INST[PolySynth / DrumKit] --> CH
+  CH[Channel input] --> INS[Insert chain]
+  INS --> MUTE[Mute] --> VOL[Fader] --> PAN[Pan] --> OUT{Output}
+  INS -. pre-fader send .-> BUS[Effect bus]
+  PAN -. post-fader send .-> BUS
+  BUS --> MASTER
+  OUT --> MASTER[Master gain]
+  MASTER --> LIM[Limiter] --> DEST[Destination / WAV]
+```
+
+### Why offline
+
+`OfflineAudioContext` renders faster than real time, is deterministic, and is
+unaffected by the page being backgrounded mid-render. The cost is that anything
+requiring live input (monitoring) is by definition excluded — which is correct
+for a mixdown.
+
+### How it avoids lying
+
+The obvious failure mode for a bounce is that it quietly omits something — a
+send, an effect, an instrument — and the user only discovers it after sharing
+the file. Two things guard against that:
+
+1. **Shared primitives.** The offline graph is built from the same
+   `InsertChain`, `PolySynth`/`DrumKit`, and `computeClipSchedule` the live
+   engine uses, rather than a parallel implementation that can drift.
+   `computeClipSchedule` was extracted from the engine for this milestone and is
+   now the single source of truth for clip duration and gain envelopes; live
+   playback calls it too.
+2. **Element-by-element tests.** `e2e/export.spec.ts` isolates one element per
+   test — audio clip, instrument note, mute, insert effect, insert bypass, bus
+   send, range, encoding, empty range — and asserts its presence or its
+   measurable effect on the rendered peak. A renderer that dropped sends would
+   fail rather than ship.
+
+### Encoding and validation
+
+Output is **16-bit PCM WAV**: it is what every consumer application, phone and
+DAW opens without question, and the limiter already keeps the signal in range.
+Samples are clamped before conversion so an overshoot saturates instead of
+wrapping into full-polarity noise, and non-finite samples become silence.
+
+Every bounce is **decoded and checked before it is offered**: duration greater
+than zero, finite peak, non-silent, correct channel count and sample rate. A
+render that fails any of those is reported as a failure rather than downloaded.
+Missing media is counted and named in the completion toast rather than silently
+rendered as a gap.
+
+Available as full-mix and loop-region bounces from the overflow menu, and as a
+non-downloading smoke test in the diagnostics panel.
+
 ## 10. Diagnostics
 
 Eighteen Milestone 2 fields were added to the copyable report: mic permission,
@@ -323,8 +384,14 @@ misleading zero.
 - **Quota exhaustion is not simulated.** The pre-flight check and error handling
   are implemented and unit-tested, but a genuinely full origin has not been
   exercised.
-- **No WAV export yet.** Deferred; the `OfflineAudioContext` foundation is not in
-  this milestone.
+- **Clip looping is deferred.** Repeating a source region beyond its own length
+  would need the scheduler to emit several sources per clip and to handle a
+  transport loop landing mid-repeat. The brief says to leave it deferred rather
+  than ship an unreliable version, and that is what was done.
+- **No MP3 export.** The brief gates it behind a complete WAV path; WAV is
+  complete, but MP3 needs an encoder this app does not ship.
+- **Export is single-threaded.** A long project blocks briefly during peak
+  measurement. It is not run in a worker.
 - Not started, per the milestone constraints: cloud collaboration, accounts,
   subscriptions, marketplace, AI generation, video, external plugin hosting,
   time-stretching, pitch correction, comping lanes, advanced automation, and full

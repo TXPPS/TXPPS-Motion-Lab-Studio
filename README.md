@@ -37,7 +37,10 @@ count-in → recording → clip → waveform → editing → mixing → save →
   reverb) plus sends to effect buses
 - Schema v2 with lossless, defensive v1 migration
 - Interrupted-take recovery, offered rather than applied silently
-- Expanded diagnostics covering input, recording, media, storage and routing
+- Offline WAV bounce of the full mix or the loop region, decoded and validated
+  before it is offered
+- Expanded diagnostics covering input, recording, media, storage and routing,
+  plus eight one-shot checks
 
 See [`docs/MILESTONE-2-RECORDING.md`](docs/MILESTONE-2-RECORDING.md) for the
 architecture, the design decisions behind it, and a per-area statement of what
@@ -56,6 +59,18 @@ npm run lint       # ESLint
 npm run format     # Prettier
 ```
 
+## QA routes
+
+Fixtures are never autosaved, so a QA run cannot overwrite a real project.
+
+| Route            | Loads                                                                     |
+| ---------------- | ------------------------------------------------------------------------- |
+| `#/qa`           | Layout stress fixture: 26 tracks, 133 clips, 27 mixer strips              |
+| `#/qa-audio`     | Audio editing & routing: trims, splits, fades, clip gains, missing media, three buses with sends |
+| `#/phone`        | Forces the phone layout on any screen size                                |
+| `#/diagnostics`  | Opens the diagnostics panel on load                                       |
+| `#/demo`         | Reseeds the demo project                                                  |
+
 ## Architecture
 
 | Boundary                  | Location                                                  |
@@ -67,6 +82,10 @@ npm run format     # Prettier
 | Timeline / tracks / clips | `src/components/arrangement/`                             |
 | Mixer                     | `src/components/mixer/`                                   |
 | Instrument engine         | `src/audio/synth.ts` (MotionSynth + drum kit)             |
+| Recording                 | `src/audio/inputManager.ts`, `recorder.ts`, `recordingController.ts` |
+| Clip scheduling maths     | `src/audio/clipSchedule.ts` (shared by playback and export) |
+| Insert effects            | `src/model/effects.ts`, `src/audio/effectChain.ts`        |
+| Import / export           | `src/audio/importAudio.ts`, `src/audio/exportMix.ts`      |
 | Piano roll                | `src/components/pianoroll/`                               |
 | Persistence               | `src/persistence/` (IndexedDB)                            |
 | Diagnostics               | `src/state/diagnostics.ts`, `src/components/diagnostics/` |
