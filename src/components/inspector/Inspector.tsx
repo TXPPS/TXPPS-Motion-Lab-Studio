@@ -3,6 +3,7 @@ import { TRACK_COLORS } from '../../model/types';
 import { getClip, getTrack, useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { PanKnob } from '../common/widgets';
+import { TrackInputControls } from '../recording/RecordControls';
 
 export function Inspector() {
   const project = useProjectStore((s) => s.project);
@@ -213,6 +214,11 @@ export function Inspector() {
             </button>
           </div>
         </div>
+        {track.type === 'audio' && (
+          <div className="panel-section">
+            <TrackInputControls trackId={track.id} />
+          </div>
+        )}
       </div>
     );
   }

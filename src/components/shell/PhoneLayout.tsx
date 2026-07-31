@@ -6,10 +6,12 @@ import { Mixer } from '../mixer/Mixer';
 import { PianoRoll } from '../pianoroll/PianoRoll';
 import { SynthPanel } from '../synth/SynthPanel';
 import { TransportBar } from '../transport/TransportBar';
+import { RecordWorkspace } from '../recording/RecordWorkspace';
 import { Icon, type IconName } from '../common/Icon';
 
 const NAV: { id: PhoneMode; label: string; icon: IconName }[] = [
   { id: 'arrange', label: 'Arrange', icon: 'wave' },
+  { id: 'record', label: 'Record', icon: 'record' },
   { id: 'perform', label: 'Perform', icon: 'piano' },
   { id: 'edit', label: 'Edit', icon: 'note' },
   { id: 'mix', label: 'Mix', icon: 'mixer' },
@@ -33,6 +35,7 @@ export function PhoneLayout() {
         data-phone-mode={mode}
       >
         {mode === 'arrange' && <Arrangement />}
+        {mode === 'record' && <RecordWorkspace />}
         {mode === 'perform' && <SynthPanel performMode />}
         {mode === 'edit' && <PianoRoll />}
         {mode === 'mix' && <Mixer touch />}

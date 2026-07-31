@@ -1,47 +1,11 @@
-import { memo, useEffect, useMemo, useRef } from 'react';
-import { getMediaPeaks } from '../../audio/demoAudio';
+import { memo, useMemo } from 'react';
 import { usePointerDrag, longPress } from '../../hooks/usePointerDrag';
-import { snapBeat } from '../../model/music';
+import { Waveform } from './Waveform';
+import { clamp, secondsPerBeat, snapBeat } from '../../model/music';
 import type { Clip, Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
+import { engine } from '../../audio/engine';
 import { useUiStore } from '../../state/uiStore';
-
-function AudioWaveform({ mediaId, color }: { mediaId: string; color: string }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = ref.current;
-    if (!canvas) return;
-    const peaks = getMediaPeaks(mediaId);
-    const draw = () => {
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      if (w === 0 || h === 0) return;
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.scale(dpr, dpr);
-      ctx.clearRect(0, 0, w, h);
-      if (!peaks) return;
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.85;
-      const mid = h / 2;
-      const n = peaks.max.length;
-      for (let x = 0; x < w; x++) {
-        const b = Math.floor((x / w) * n);
-        const hi = peaks.max[b] * mid * 0.92;
-        const lo = peaks.min[b] * mid * 0.92;
-        ctx.fillRect(x, mid - hi, 1, Math.max(1, hi - lo));
-      }
-    };
-    draw();
-    const ro = new ResizeObserver(draw);
-    ro.observe(canvas);
-    return () => ro.disconnect();
-  }, [mediaId, color]);
-  return <canvas ref={ref} />;
-}
 
 function MidiPreview({ clip, height }: { clip: Extract<Clip, { type: 'midi' }>; height: number }) {
   const { notes } = clip;
@@ -101,6 +65,7 @@ export const ClipView = memo(function ClipView({
 }: ClipViewProps) {
   const selected = useUiStore((s) => s.selectedClipId === clip.id);
   const snap = useUiStore((s) => s.snap);
+  const bpm = useProjectStore((s) => s.project.bpm);
   const store = useProjectStore;
   const ui = useUiStore;
 
@@ -130,6 +95,38 @@ export const ClipView = memo(function ClipView({
             }),
         },
         { label: 'Duplicate', action: () => store.getState().duplicateClip(clip.id) },
+        ...(clip.type === 'audio'
+          ? [
+              {
+                label: 'Split at playhead',
+                action: () => {
+                  const at = engine.getPositionBeats();
+                  if (!store.getState().splitClip(clip.id, at)) {
+                    ui.getState().toast('info', 'Move the playhead inside the clip to split it.');
+                  }
+                },
+              },
+              {
+                label: 'Clip gain…',
+                action: () =>
+                  ui.getState().showDialog({
+                    kind: 'prompt',
+                    title: 'Clip gain',
+                    message: 'Linear gain (1 = unity, 0.5 = -6 dB, 2 = +6 dB).',
+                    initialValue: String(clip.gain),
+                    confirmLabel: 'Apply',
+                    onSubmit: (v) => {
+                      const n = Number(v);
+                      if (Number.isFinite(n)) store.getState().setClipGain(clip.id, n);
+                    },
+                  }),
+              },
+              {
+                label: 'Clear fades',
+                action: () => store.getState().setClipFades(clip.id, 0, 0),
+              },
+            ]
+          : []),
         {
           label: clip.muted ? 'Unmute' : 'Mute',
           action: () => store.getState().setClip(clip.id, { muted: !clip.muted }),
@@ -170,7 +167,8 @@ export const ClipView = memo(function ClipView({
     },
     onMove: (dx, _dy, _e, d) => {
       const len = Math.max(snap || 0.25, snapBeat(d.len + dx / pxPerBeat, snap));
-      store.getState().resizeClip(clip.id, clip.start, len);
+      if (clip.type === 'audio') store.getState().trimClipEnd(clip.id, len);
+      else store.getState().resizeClip(clip.id, clip.start, len);
     },
     onEnd: () => store.getState().endGesture(),
   });
@@ -183,7 +181,39 @@ export const ClipView = memo(function ClipView({
     onMove: (dx, _dy, _e, d) => {
       let start = snapBeat(d.start + dx / pxPerBeat, snap);
       start = Math.min(Math.max(0, start), d.end - (snap || 0.25));
-      store.getState().resizeClip(clip.id, start, d.end - start);
+      if (clip.type === 'audio') store.getState().trimClipStart(clip.id, start);
+      else store.getState().resizeClip(clip.id, start, d.end - start);
+    },
+    onEnd: () => store.getState().endGesture(),
+  });
+
+  const spb = secondsPerBeat(bpm);
+  const widthPx = Math.max(6, clip.length * pxPerBeat);
+  const srcSec = clip.type === 'audio' ? (clip.sourceDuration ?? clip.length * spb) : 0;
+  const pxPerSec = srcSec > 0 ? widthPx / srcSec : 0;
+  const fadeInPx = clip.type === 'audio' ? clip.fadeIn * pxPerSec : 0;
+  const fadeOutPx = clip.type === 'audio' ? clip.fadeOut * pxPerSec : 0;
+
+  const dragFadeIn = usePointerDrag<number>({
+    onStart: () => {
+      store.getState().beginGesture();
+      return clip.type === 'audio' ? clip.fadeIn : 0;
+    },
+    onMove: (dx, _dy, _e, startFade) => {
+      if (pxPerSec <= 0) return;
+      store.getState().setClipFades(clip.id, clamp(startFade + dx / pxPerSec, 0, srcSec), undefined);
+    },
+    onEnd: () => store.getState().endGesture(),
+  });
+
+  const dragFadeOut = usePointerDrag<number>({
+    onStart: () => {
+      store.getState().beginGesture();
+      return clip.type === 'audio' ? clip.fadeOut : 0;
+    },
+    onMove: (dx, _dy, _e, startFade) => {
+      if (pxPerSec <= 0) return;
+      store.getState().setClipFades(clip.id, undefined, clamp(startFade - dx / pxPerSec, 0, srcSec));
     },
     onEnd: () => store.getState().endGesture(),
   });
@@ -194,7 +224,7 @@ export const ClipView = memo(function ClipView({
       className={`clip${selected ? ' selected' : ''}${clip.muted ? ' muted' : ''}`}
       style={{
         left: clip.start * pxPerBeat,
-        width: Math.max(6, clip.length * pxPerBeat),
+        width: widthPx,
         ['--clip-bg' as string]: `color-mix(in srgb, ${color} 30%, #10151b)`,
       }}
       data-testid={`clip-${clip.name}`}
@@ -212,7 +242,15 @@ export const ClipView = memo(function ClipView({
       }}
     >
       {clip.type === 'audio' ? (
-        <AudioWaveform mediaId={clip.mediaId} color={color} />
+        <Waveform
+          mediaId={clip.mediaId}
+          offsetSec={clip.offset}
+          durationSec={clip.sourceDuration ?? clip.length * secondsPerBeat(bpm)}
+          color={color}
+          gain={clip.gain}
+          fadeIn={clip.fadeIn}
+          fadeOut={clip.fadeOut}
+        />
       ) : (
         <MidiPreview clip={clip} height={laneHeight - 6} />
       )}
@@ -220,6 +258,22 @@ export const ClipView = memo(function ClipView({
         {clip.muted ? '◇ ' : ''}
         {clip.name}
       </span>
+      {clip.type === 'audio' && (
+        <>
+          <div
+            className="fade-handle in"
+            title="Drag to set the fade in"
+            style={{ left: Math.min(fadeInPx, widthPx - 8) }}
+            onPointerDown={dragFadeIn}
+          />
+          <div
+            className="fade-handle out"
+            title="Drag to set the fade out"
+            style={{ right: Math.min(fadeOutPx, widthPx - 8) }}
+            onPointerDown={dragFadeOut}
+          />
+        </>
+      )}
       <div className="clip-edge l" onPointerDown={dragLeft} />
       <div className="clip-edge r" onPointerDown={dragRight} />
     </div>

@@ -271,7 +271,7 @@ test.describe('phone workspaces', () => {
     await page.setViewportSize(PHONE);
     await bootQa(page);
 
-    const modes = ['arrange', 'perform', 'edit', 'mix', 'browse'] as const;
+    const modes = ['arrange', 'record', 'perform', 'edit', 'mix', 'browse'] as const;
     for (const mode of modes) {
       await page.click(`[data-testid="nav-${mode}"]`);
       await page.waitForTimeout(250);
@@ -281,6 +281,7 @@ test.describe('phone workspaces', () => {
         mixer: !!document.querySelector('[data-testid="mixer"]'),
         pianoRoll: !!document.querySelector('[data-testid="piano-roll"]'),
         synth: !!document.querySelector('[data-testid="synth-panel"]'),
+        record: !!document.querySelector('[data-testid="record-workspace"]'),
         browser: !!document.querySelector('[data-testid="browser-panel"]'),
         // desktop side panels must never appear on phone
         desktopSides:
@@ -294,6 +295,7 @@ test.describe('phone workspaces', () => {
         present.mixer,
         present.pianoRoll,
         present.synth,
+        present.record,
       ].filter(Boolean).length;
       // browse mode intentionally stacks browser + inspector inside one workspace
       if (mode !== 'browse') {
@@ -311,12 +313,15 @@ test.describe('phone workspaces', () => {
     expect(nav!.y).toBeGreaterThan(0);
     // every nav item must be clickable within the viewport
     const items = await page.locator('[data-testid="bottomnav"] button').count();
-    expect(items).toBe(5);
+    // arrange, record, perform, edit, mix, browse
+    expect(items).toBe(6);
     for (let i = 0; i < items; i++) {
       const b = await page.locator('[data-testid="bottomnav"] button').nth(i).boundingBox();
       expect(b!.x).toBeGreaterThanOrEqual(-1);
       expect(b!.x + b!.width).toBeLessThanOrEqual(PHONE.width + 1);
       expect(b!.height).toBeGreaterThanOrEqual(40);
+      // adding modes must never squeeze a tab below a usable tap target
+      expect(b!.width, `nav item ${i} too narrow to tap`).toBeGreaterThanOrEqual(44);
     }
   });
 

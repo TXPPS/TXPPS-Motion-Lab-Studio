@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 export type EditorTab = 'mixer' | 'piano' | 'synth' | 'diagnostics';
-export type PhoneMode = 'arrange' | 'perform' | 'edit' | 'mix' | 'browse';
+export type PhoneMode = 'arrange' | 'record' | 'perform' | 'edit' | 'mix' | 'browse';
 export type BrowserTab = 'projects' | 'presets' | 'loops';
 
 export interface DialogState {

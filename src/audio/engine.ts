@@ -9,7 +9,9 @@ import type { AudioClip, ProjectData, SynthParams, Track } from '../model/types'
 import { useProjectStore } from '../state/projectStore';
 import { useTransportStore } from '../state/transportStore';
 import { diagLog } from '../state/diagnostics';
-import { getMediaBuffer } from './demoAudio';
+import { getBufferSync } from './mediaLibrary';
+import { audioInput } from './inputManager';
+import { useInputStore } from '../state/inputStore';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
 import { Scheduler } from './scheduler';
 
@@ -31,6 +33,16 @@ interface Channel {
   panner: StereoPannerNode;
   analyser: AnalyserNode;
   routedTo: string;
+  /** per-target send gains, keyed by bus id */
+  sends: Map<string, GainNode>;
+}
+
+/** Live input monitoring for one track. */
+interface Monitor {
+  deviceId: string;
+  source: MediaStreamAudioSourceNode;
+  gain: GainNode;
+  analyser: AnalyserNode;
 }
 
 const FALLBACK_SYNTH: SynthParams = {
@@ -55,6 +67,7 @@ class AudioEngine {
   private metroGain: GainNode | null = null;
 
   private channels = new Map<string, Channel>();
+  private monitors = new Map<string, Monitor>();
   private instruments = new Map<string, Instrument>();
   private activeSources = new Set<ActiveHandle>();
   private scheduler: Scheduler;
@@ -237,8 +250,17 @@ class AudioEngine {
     for (const [id, ch] of this.channels) {
       if (!liveIds.has(id)) {
         this.stopSourcesWhere((h) => h.trackId === id, true);
+        this.stopMonitoring(id);
         this.instruments.get(id)?.dispose();
         this.instruments.delete(id);
+        for (const node of ch.sends.values()) {
+          try {
+            node.disconnect();
+          } catch {
+            /* already gone */
+          }
+        }
+        ch.sends.clear();
         try {
           ch.input.disconnect();
           ch.muteGain.disconnect();
@@ -274,6 +296,37 @@ class AudioEngine {
         ch.analyser.connect(target);
         ch.routedTo = dest;
       }
+
+      // Sends: post-fader taps the panner output, pre-fader taps the channel
+      // input. Buses never send onward, which keeps the graph acyclic.
+      const wanted = new Map(
+        (track.type === 'bus' ? [] : (track.sends ?? []))
+          .filter((s) => this.channels.has(s.busId) && s.busId !== track.id)
+          .map((s) => [s.busId, s]),
+      );
+      for (const [busId, node] of [...ch.sends]) {
+        if (!wanted.has(busId)) {
+          try {
+            node.disconnect();
+          } catch {
+            /* already gone */
+          }
+          ch.sends.delete(busId);
+        }
+      }
+      for (const [busId, send] of wanted) {
+        let node = ch.sends.get(busId);
+        if (!node) {
+          node = ctx.createGain();
+          node.gain.value = 0;
+          const tap = send.preFader ? ch.input : ch.panner;
+          tap.connect(node);
+          node.connect(this.channels.get(busId)!.input);
+          ch.sends.set(busId, node);
+        }
+        const level = send.enabled && audible ? Math.max(0, send.amount) : 0;
+        node.gain.setTargetAtTime(level, t, initial ? 0.001 : PARAM_TAU);
+      }
     }
     this.masterGain.gain.setTargetAtTime(p.masterVolume, t, initial ? 0.001 : PARAM_TAU);
 
@@ -303,7 +356,90 @@ class AudioEngine {
     volGain.connect(panner);
     panner.connect(analyser);
     analyser.connect(this.masterInput!);
-    return { trackId, input, muteGain, volGain, panner, analyser, routedTo: 'master' };
+    return {
+      trackId,
+      input,
+      muteGain,
+      volGain,
+      panner,
+      analyser,
+      routedTo: 'master',
+      sends: new Map(),
+    };
+  }
+
+  // ---------- input monitoring ----------
+
+  /**
+   * Route a track's selected input into its own channel, so monitored audio is
+   * shaped by that track's volume, pan, mute/solo and bus routing exactly like
+   * recorded material will be.
+   */
+  async startMonitoring(trackId: string, deviceId: string): Promise<boolean> {
+    const ok = await this.start();
+    const ctx = this.ctx;
+    if (!ok || !ctx) return false;
+    const ch = this.channels.get(trackId);
+    if (!ch) return false;
+    // Toggling repeatedly must not stack nodes: always tear down first.
+    if (this.monitors.has(trackId)) this.stopMonitoring(trackId);
+
+    const source = await audioInput.acquire(deviceId, `monitor:${trackId}`, ctx);
+    if (!source) return false;
+    const gain = ctx.createGain();
+    gain.gain.value = 1;
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 1024;
+    source.connect(gain);
+    gain.connect(analyser);
+    analyser.connect(ch.input);
+    this.monitors.set(trackId, { deviceId, source, gain, analyser });
+    useInputStore.getState().set({ activeStreams: audioInput.activeStreamCount() });
+    diagLog('info', `Monitoring started on track ${trackId} (${deviceId})`);
+    return true;
+  }
+
+  stopMonitoring(trackId: string): void {
+    const m = this.monitors.get(trackId);
+    if (!m) return;
+    try {
+      m.source.disconnect(m.gain);
+      m.gain.disconnect();
+      m.analyser.disconnect();
+    } catch {
+      /* already torn down */
+    }
+    this.monitors.delete(trackId);
+    audioInput.release(m.deviceId, `monitor:${trackId}`);
+    useInputStore.getState().set({ activeStreams: audioInput.activeStreamCount() });
+    diagLog('info', `Monitoring stopped on track ${trackId}`);
+  }
+
+  isMonitoring(trackId: string): boolean {
+    return this.monitors.has(trackId);
+  }
+
+  monitoringCount(): number {
+    return this.monitors.size;
+  }
+
+  /** Peak level of a monitored input, 0..1, for the input meter. */
+  inputLevel(trackId: string): number {
+    const m = this.monitors.get(trackId);
+    if (!m) return 0;
+    const n = m.analyser.fftSize;
+    const buf = this.scratch.subarray(0, n);
+    m.analyser.getFloatTimeDomainData(buf);
+    let peak = 0;
+    for (let i = 0; i < n; i++) {
+      const v = Math.abs(buf[i]);
+      if (v > peak) peak = v;
+    }
+    return peak;
+  }
+
+  stopAllMonitoring(): void {
+    for (const id of [...this.monitors.keys()]) this.stopMonitoring(id);
   }
 
   private isAudible(track: Track, tracks: Track[], soloActive: boolean): boolean {
@@ -350,22 +486,56 @@ class AudioEngine {
 
   // ---------- scheduling callbacks ----------
 
+  /**
+   * Schedule one audio clip.
+   *
+   * Clip gain and the fade envelopes are applied here, on a per-source gain
+   * node, ahead of the track channel — so editing them is nondestructive and
+   * never touches the stored media. `offsetSec` is an absolute position into
+   * the source, already including the clip's own trim offset.
+   */
   private scheduleClip(clip: AudioClip, when: number, offsetSec: number): void {
     const ctx = this.ctx;
     const ch = this.channels.get(clip.trackId);
     if (!ctx || !ch || !this.canAllocate()) return;
-    const buffer = getMediaBuffer(clip.mediaId);
+    const buffer = getBufferSync(clip.mediaId);
     if (!buffer) return;
     const p = useProjectStore.getState().project;
     const spb = secondsPerBeat(p.bpm);
-    const clipRemainSec = clip.length * spb - Math.max(0, offsetSec - clip.offset);
+    // How much source is left in this clip, honouring an explicit trim length.
+    const intoClipSec = Math.max(0, offsetSec - clip.offset);
+    const clipSourceSec = clip.sourceDuration ?? clip.length * spb;
+    const clipRemainSec = clipSourceSec - intoClipSec;
     const mediaRemainSec = buffer.duration - offsetSec;
-    const durSec = Math.min(clipRemainSec, mediaRemainSec);
+    const durSec = Math.min(clipRemainSec, mediaRemainSec, clip.length * spb - intoClipSec);
     if (durSec <= 0.001 || offsetSec >= buffer.duration) return;
+
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     const g = ctx.createGain();
-    g.gain.value = clip.gain;
+    const peak = Math.max(0, clip.gain);
+    const fadeIn = Math.max(0, clip.fadeIn ?? 0);
+    const fadeOut = Math.max(0, clip.fadeOut ?? 0);
+    const end = when + durSec;
+
+    // Fades are expressed against the clip, so a clip entered mid-way (loop
+    // wrap, mid-clip play) starts at the level the envelope had already reached.
+    if (fadeIn > 0 && intoClipSec < fadeIn) {
+      const startLevel = peak * (intoClipSec / fadeIn);
+      g.gain.setValueAtTime(startLevel, when);
+      g.gain.linearRampToValueAtTime(peak, when + (fadeIn - intoClipSec));
+    } else {
+      g.gain.setValueAtTime(peak, when);
+    }
+    if (fadeOut > 0) {
+      const fadeStartInClip = Math.max(0, clipSourceSec - fadeOut);
+      const fadeStartAt = when + Math.max(0, fadeStartInClip - intoClipSec);
+      if (fadeStartAt < end) {
+        g.gain.setValueAtTime(g.gain.value, Math.max(when, fadeStartAt));
+        g.gain.linearRampToValueAtTime(0.0001, end);
+      }
+    }
+
     src.connect(g);
     g.connect(ch.input);
     const handle: ActiveHandle = {
@@ -389,6 +559,13 @@ class AudioEngine {
     };
     this.registerSource(handle);
     src.start(when, offsetSec, durSec);
+  }
+
+  /** Immediate metronome click, used by the recording count-in. */
+  playMetronomeClick(accent: boolean): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    this.scheduleMetronomeClick(ctx.currentTime + 0.01, accent);
   }
 
   private scheduleMetronomeClick(when: number, accent: boolean): void {
@@ -487,8 +664,11 @@ class AudioEngine {
       this.playing = false;
     }
     this.stopAllSources(true);
+    this.stopAllMonitoring();
+    audioInput.stopAll();
     useTransportStore.getState().set({ playState: 'stopped' });
-    diagLog('warn', `Panic: all audio stopped${wasPlaying ? ' (transport was playing)' : ''}`);
+    useInputStore.getState().set({ activeStreams: 0, activeTracks: 0, inputLevel: 0 });
+    diagLog('warn', `Panic: all audio and input stopped${wasPlaying ? ' (transport was playing)' : ''}`);
   }
 
   getPositionBeats(): number {

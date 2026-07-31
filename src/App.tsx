@@ -11,6 +11,7 @@ import { DiagnosticsSheet } from './components/diagnostics/DiagnosticsSheet';
 import { DialogHost, ContextMenuHost, ToastHost } from './components/common/overlays';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LayoutDebugHud } from './components/diagnostics/LayoutDebugHud';
+import { RecordingBanner } from './components/recording/RecordControls';
 
 /**
  * App shell. Exactly three grid rows: the project bar, the active layout, and
@@ -41,6 +42,7 @@ export function App() {
     <div className="app" data-layout={layout} data-testid="app-root">
       <TopBar layout={layout} />
       <div className="app-body">
+        {layout !== 'phone' && <RecordingBanner />}
         <ErrorBoundary label="workspace">
           {layout === 'desktop' ? (
             <DesktopLayout />

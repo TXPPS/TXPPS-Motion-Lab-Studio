@@ -1,0 +1,262 @@
+/* ============================================================
+   Recording UI: transport record control, per-track input,
+   the phone Record workspace, and take review.
+   ============================================================ */
+
+/* Record button ------------------------------------------------------------ */
+.t-btn.rec {
+  color: var(--danger);
+  gap: 5px;
+  width: auto;
+  min-width: 34px;
+  padding: 0 8px;
+}
+.t-btn.rec:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.t-btn.rec-on {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+  /* state is never signalled by colour alone — the label carries it too */
+  animation: rec-pulse 1.6s ease-in-out infinite;
+}
+.t-btn.rec-count {
+  background: var(--warm-bg);
+  border-color: rgba(217, 161, 60, 0.5);
+  color: var(--warm);
+}
+.t-btn .rec-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+.count-in-num {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+}
+@keyframes rec-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(216, 74, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(216, 74, 68, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-btn.rec-on {
+    animation: none;
+  }
+}
+
+/* Recording banner --------------------------------------------------------- */
+.rec-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  background: var(--warm-bg);
+  border-bottom: 1px solid rgba(217, 161, 60, 0.35);
+  color: var(--warm);
+  min-height: 30px;
+}
+.rec-banner.live {
+  background: var(--danger-bg);
+  border-bottom-color: rgba(216, 74, 68, 0.4);
+  color: var(--danger);
+}
+.rec-banner.error {
+  background: var(--danger-bg);
+  border-bottom-color: rgba(216, 74, 68, 0.4);
+  color: var(--danger);
+}
+.rec-banner .btn {
+  margin-left: auto;
+  height: 24px;
+}
+.rec-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.rec-banner.live .rec-dot {
+  animation: rec-pulse 1.2s ease-in-out infinite;
+}
+
+/* Input meter -------------------------------------------------------------- */
+.input-meter {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+  position: relative;
+}
+.input-meter.tall {
+  height: 14px;
+}
+.input-meter .im-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  transform: scaleX(0);
+  background: linear-gradient(to right, var(--meter-lo), var(--meter-mid) 70%, var(--meter-hot));
+  will-change: transform;
+}
+.input-meter .im-fill[data-hot='true'] {
+  background: var(--meter-clip);
+}
+
+/* Track input controls ----------------------------------------------------- */
+.rec-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.rec-permission {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: var(--radius);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+}
+.warn-text {
+  color: var(--warm);
+}
+.rec-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.rec-buttons .btn {
+  flex: 1 1 auto;
+  min-width: 92px;
+}
+.rec-buttons .btn.armed {
+  background: var(--danger-bg);
+  border-color: rgba(216, 74, 68, 0.55);
+  color: var(--danger);
+}
+.rec-buttons .btn.monitoring {
+  background: var(--accent-bg);
+  border-color: rgba(55, 184, 154, 0.5);
+  color: var(--accent);
+}
+.arm-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  flex: none;
+}
+.btn.armed .arm-dot {
+  background: currentColor;
+}
+
+/* Phone Record workspace --------------------------------------------------- */
+.record-page {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  gap: 10px;
+  padding: 10px;
+}
+.rec-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.rec-track-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.rec-track-picker select {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  font-size: var(--fs-lg);
+}
+.rec-panel {
+  flex: none;
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+}
+/* Oversized capture control: the primary action on a phone. */
+.rec-big {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 4px 0 8px;
+}
+.rec-big .t-btn.rec {
+  height: 66px;
+  width: 100%;
+  border-radius: var(--radius-lg);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+}
+.rec-big .count-in-num {
+  font-size: 26px;
+}
+
+/* Take review -------------------------------------------------------------- */
+.take-review {
+  flex: none;
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.take-review .tr-title {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.take-review .tr-meta {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.take-review .tr-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.take-review .tr-actions .btn {
+  flex: 1 1 auto;
+  min-width: 76px;
+}

@@ -5,6 +5,7 @@ import { useTransportStore } from '../../state/transportStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
 import { Meter } from '../common/widgets';
+import { RecordButton } from '../recording/RecordControls';
 
 export function AudioStatusChip({ compact }: { compact?: boolean }) {
   const audioState = useTransportStore((s) => s.audioState);
@@ -116,6 +117,7 @@ export function TransportBar({ compact }: { compact?: boolean }) {
         >
           <Icon name="stop" size={16} />
         </button>
+        <RecordButton compact={compact} />
         {!compact && (
           <button
             className={`t-btn${loop.enabled ? ' loop-on' : ''}`}

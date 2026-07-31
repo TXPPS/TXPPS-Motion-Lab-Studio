@@ -9,6 +9,7 @@ import './styles/mixer.css';
 import './styles/pianoroll.css';
 import './styles/synth.css';
 import './styles/panels.css';
+import './styles/recording.css';
 import { installConsoleCapture, diagLog } from './state/diagnostics';
 import { bootProject, installAutosave } from './app/projectActions';
 import { midi } from './audio/midi';
