@@ -1,0 +1,166 @@
+/**
+ * One resolver for every kind of audio media.
+ *
+ * Procedural demo loops, recorded takes and imported files all reach the
+ * scheduler and the waveform renderer through this module, so nothing else
+ * needs to know where the bytes came from.
+ *
+ * Decoded AudioBuffers and peak envelopes are cached in memory; decoding is
+ * asynchronous and never happens on the audio scheduling path (the scheduler
+ * only ever asks for an already-resolved buffer).
+ */
+import { isProceduralMediaId, type MediaRef, type PeakData } from '../model/media';
+import { diagLog } from '../state/diagnostics';
+import {
+  getMediaBuffer as getProceduralBuffer,
+  getMediaPeaks as getProceduralPeaks,
+} from './demoAudio';
+import { peaksFromAudioBuffer } from './peaks';
+import { getMediaBlob, getPeaks, putPeaks } from '../persistence/mediaStore';
+
+const buffers = new Map<string, AudioBuffer>();
+const peaks = new Map<string, PeakData>();
+const inflight = new Map<string, Promise<AudioBuffer | null>>();
+/** ids that failed to resolve — surfaced as "missing media" in the UI */
+const missing = new Set<string>();
+
+/** Register a freshly created buffer (recording/import) without a round-trip. */
+export function cacheBuffer(id: string, buffer: AudioBuffer, peakData?: PeakData): void {
+  buffers.set(id, buffer);
+  missing.delete(id);
+  if (peakData) peaks.set(id, peakData);
+}
+
+/** Synchronous lookup used by the audio scheduler. Never decodes. */
+export function getBufferSync(id: string): AudioBuffer | null {
+  if (isProceduralMediaId(id)) return getProceduralBuffer(id);
+  return buffers.get(id) ?? null;
+}
+
+export function isMissing(id: string): boolean {
+  return missing.has(id);
+}
+
+export function knownMediaIds(): string[] {
+  return [...buffers.keys()];
+}
+
+/**
+ * Resolve a media id to a decoded buffer, loading from IndexedDB and decoding
+ * on first use. Concurrent callers share one in-flight promise.
+ */
+export async function loadBuffer(id: string, ctx: BaseAudioContext): Promise<AudioBuffer | null> {
+  if (isProceduralMediaId(id)) return getProceduralBuffer(id);
+  const cached = buffers.get(id);
+  if (cached) return cached;
+  const running = inflight.get(id);
+  if (running) return running;
+
+  const task = (async (): Promise<AudioBuffer | null> => {
+    try {
+      const stored = await getMediaBlob(id);
+      if (!stored?.blob) {
+        missing.add(id);
+        diagLog('warn', `Media "${id}" not found in storage — clip will show as missing`);
+        return null;
+      }
+      const bytes = await stored.blob.arrayBuffer();
+      const buf = await ctx.decodeAudioData(bytes);
+      buffers.set(id, buf);
+      missing.delete(id);
+      if (!peaks.has(id)) {
+        const cachedPeaks = await getPeaks(id);
+        if (cachedPeaks) peaks.set(id, cachedPeaks);
+        else {
+          const p = peaksFromAudioBuffer(buf);
+          peaks.set(id, p);
+          void putPeaks(id, p);
+        }
+      }
+      return buf;
+    } catch (e) {
+      missing.add(id);
+      diagLog('error', `Failed to decode media "${id}": ${e instanceof Error ? e.message : e}`);
+      return null;
+    } finally {
+      inflight.delete(id);
+    }
+  })();
+
+  inflight.set(id, task);
+  return task;
+}
+
+/** Peaks for waveform drawing. Synchronous; returns null until loaded. */
+export function getPeaksSync(id: string): PeakData | null {
+  if (isProceduralMediaId(id)) {
+    const p = getProceduralPeaks(id);
+    if (!p) return null;
+    // adapt the demo generator's mono envelope to the shared PeakData shape
+    const existing = peaks.get(id);
+    if (existing) return existing;
+    const adapted: PeakData = {
+      version: 1,
+      buckets: p.max.length,
+      channels: 1,
+      duration: getProceduralBuffer(id)?.duration ?? 0,
+      min: p.min,
+      max: p.max,
+    };
+    peaks.set(id, adapted);
+    return adapted;
+  }
+  return peaks.get(id) ?? null;
+}
+
+/** Load peaks without decoding the whole file when a cached envelope exists. */
+export async function loadPeaks(id: string, ctx: BaseAudioContext): Promise<PeakData | null> {
+  const have = getPeaksSync(id);
+  if (have) return have;
+  const cached = await getPeaks(id);
+  if (cached) {
+    peaks.set(id, cached);
+    return cached;
+  }
+  const buf = await loadBuffer(id, ctx);
+  return buf ? (getPeaksSync(id) ?? peaksFromAudioBuffer(buf)) : null;
+}
+
+/**
+ * Warm the caches for every media id a project references. Runs in the
+ * background after load so the first play does not stall, and records which
+ * ids are missing.
+ */
+export async function preloadProjectMedia(
+  refs: MediaRef[],
+  usedIds: string[],
+  ctx: BaseAudioContext,
+): Promise<{ loaded: number; missing: string[] }> {
+  const ids = [...new Set(usedIds)].filter((id) => !isProceduralMediaId(id));
+  let loaded = 0;
+  for (const id of ids) {
+    const buf = await loadBuffer(id, ctx);
+    if (buf) loaded++;
+  }
+  void refs;
+  return { loaded, missing: ids.filter((id) => missing.has(id)) };
+}
+
+/** Drop cached decode results (used when media is deleted). */
+export function evict(id: string): void {
+  buffers.delete(id);
+  peaks.delete(id);
+  missing.delete(id);
+}
+
+export function cacheStats(): { buffers: number; peaks: number; missing: number } {
+  return { buffers: buffers.size, peaks: peaks.size, missing: missing.size };
+}
+
+/** Test seam. */
+export function resetMediaCaches(): void {
+  buffers.clear();
+  peaks.clear();
+  inflight.clear();
+  missing.clear();
+}

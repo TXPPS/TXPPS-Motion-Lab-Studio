@@ -239,6 +239,8 @@ export function createDemoProject(id?: string): ProjectData {
       mediaId: 'perc-110-2bar',
       offset: 0,
       gain: 1,
+      fadeIn: 0,
+      fadeOut: 0,
     });
   }
 
@@ -306,6 +308,8 @@ export function createDemoProject(id?: string): ProjectData {
       mediaId: 'texture-110-4bar',
       offset: 0,
       gain: 1,
+      fadeIn: 0,
+      fadeOut: 0,
     });
   }
 

@@ -149,6 +149,8 @@ export function createStressProject(): ProjectData {
           mediaId: i % 2 ? 'perc-110-2bar' : 'texture-110-4bar',
           offset: 0,
           gain: 1,
+          fadeIn: 0,
+          fadeOut: 0,
         });
       } else {
         const notes: Note[] = [];

@@ -6,9 +6,19 @@
 import { diagLog } from '../state/diagnostics';
 
 export const DB_NAME = 'txpps-motionlab';
-export const DB_VERSION = 1;
+/**
+ * v2 adds the media stores. Audio bytes and waveform envelopes live here, never
+ * inside the project document.
+ */
+export const DB_VERSION = 2;
 export const STORE_PROJECTS = 'projects';
 export const STORE_PREFS = 'prefs';
+/** { id, blob, mimeType, createdAt } — the captured/imported audio bytes */
+export const STORE_MEDIA = 'media';
+/** { id, version, buckets, channels, duration, min, max } — waveform envelopes */
+export const STORE_PEAKS = 'peaks';
+/** { id, blob, mimeType, startedAt, trackId, projectId, ... } — interrupted takes */
+export const STORE_RECOVERY = 'recovery';
 
 export type DbStatus = 'ok' | 'unavailable' | 'error';
 
@@ -37,6 +47,16 @@ export function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_PREFS)) {
         db.createObjectStore(STORE_PREFS);
+      }
+      // v2 stores — created additively so existing v1 projects survive upgrade.
+      if (!db.objectStoreNames.contains(STORE_MEDIA)) {
+        db.createObjectStore(STORE_MEDIA, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(STORE_PEAKS)) {
+        db.createObjectStore(STORE_PEAKS, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(STORE_RECOVERY)) {
+        db.createObjectStore(STORE_RECOVERY, { keyPath: 'id' });
       }
     };
     req.onsuccess = () => {

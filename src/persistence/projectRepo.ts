@@ -65,10 +65,54 @@ export function validateProject(raw: unknown): ProjectData {
   const dropped = raw.clips.length - clips.length + (raw.tracks.length - tracks.length);
   if (dropped > 0) diagLog('warn', `Project "${raw.name}": dropped ${dropped} invalid entries`);
 
+  // --- v1 → v2 migration -------------------------------------------------
+  // Purely additive: fields that did not exist in v1 get their v1-equivalent
+  // defaults, so a Milestone 1 project keeps sounding exactly the same.
+  for (const c of clips) {
+    if (c.type === 'audio') {
+      const a = c as unknown as Record<string, unknown>;
+      if (typeof a.fadeIn !== 'number' || a.fadeIn < 0) a.fadeIn = 0;
+      if (typeof a.fadeOut !== 'number' || a.fadeOut < 0) a.fadeOut = 0;
+      if (typeof a.gain !== 'number') a.gain = 1;
+      if (typeof a.offset !== 'number') a.offset = 0;
+      if (a.sourceDuration !== undefined && typeof a.sourceDuration !== 'number') {
+        delete a.sourceDuration;
+      }
+    }
+  }
+  for (const t of tracks) {
+    const tr = t as unknown as Record<string, unknown>;
+    if (tr.sends !== undefined && !Array.isArray(tr.sends)) delete tr.sends;
+    if (Array.isArray(tr.sends)) {
+      tr.sends = (tr.sends as unknown[]).filter(
+        (s) =>
+          isRecord(s) &&
+          typeof s.busId === 'string' &&
+          trackIds.has(s.busId) &&
+          s.busId !== tr.id &&
+          typeof s.amount === 'number',
+      );
+    }
+    if (tr.monitoring !== undefined && typeof tr.monitoring !== 'boolean') delete tr.monitoring;
+    if (tr.inputDeviceId !== undefined && typeof tr.inputDeviceId !== 'string') {
+      delete tr.inputDeviceId;
+    }
+  }
+  const media = Array.isArray(raw.media)
+    ? (raw.media as unknown[]).filter(
+        (m): m is ProjectData['media'] extends (infer U)[] | undefined ? U : never =>
+          isRecord(m) && typeof m.id === 'string' && typeof m.duration === 'number',
+      )
+    : [];
+  if (typeof v === 'number' && v < SCHEMA_VERSION) {
+    diagLog('info', `Migrated project "${raw.name}" from schema v${v} to v${SCHEMA_VERSION}`);
+  }
+
   return {
     schemaVersion: SCHEMA_VERSION,
     id: raw.id,
     name: raw.name,
+    media,
     createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : Date.now(),
     modifiedAt: typeof raw.modifiedAt === 'number' ? raw.modifiedAt : Date.now(),
     bpm,

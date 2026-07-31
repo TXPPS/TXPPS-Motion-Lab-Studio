@@ -8,10 +8,12 @@ import type {
   MidiClip,
   Note,
   ProjectData,
+  Send,
   SynthParams,
   Track,
   TrackType,
 } from '../model/types';
+import type { MediaRef } from '../model/media';
 import { createDemoProject } from '../model/demoProject';
 
 const MAX_UNDO = 60;
@@ -57,6 +59,30 @@ export interface ProjectStore {
   deleteClip: (id: string) => void;
   setClip: (id: string, patch: Partial<Clip>) => void;
 
+  // Milestone 2: recorded/imported media + nondestructive audio editing
+  addRecordedClip: (args: {
+    trackId: string;
+    mediaId: string;
+    start: number;
+    lengthBeats: number;
+    name: string;
+    sourceDuration: number;
+    mediaRef: MediaRef;
+  }) => string;
+  registerMedia: (ref: MediaRef) => void;
+  /** Trim the left edge: moves the timeline start and the source offset together. */
+  trimClipStart: (id: string, newStartBeat: number) => void;
+  /** Trim the right edge: changes musical length and source duration together. */
+  trimClipEnd: (id: string, newLengthBeats: number) => void;
+  /** Split an audio or MIDI clip at an absolute beat. Returns the new clip id. */
+  splitClip: (id: string, atBeat: number) => string | null;
+  setClipGain: (id: string, gain: number) => void;
+  setClipFades: (id: string, fadeIn?: number, fadeOut?: number) => void;
+
+  // Sends
+  setSend: (trackId: string, busId: string, patch: Partial<Send>) => void;
+  removeSend: (trackId: string, busId: string) => void;
+
   // Note ops (within a MIDI clip)
   addNote: (clipId: string, note: Omit<Note, 'id'>) => string;
   updateNotes: (clipId: string, ids: string[], patch: (n: Note) => Partial<Note>) => void;
@@ -72,6 +98,26 @@ export interface ProjectStore {
 
 function cloneProject(p: ProjectData): ProjectData {
   return structuredClone(p);
+}
+
+/**
+ * Would sending `from` into `to` create a routing cycle? Walks the graph formed
+ * by track outputs and existing sends. Used to reject invalid routes up front
+ * rather than letting the audio graph feed back on itself.
+ */
+export function createsCycle(p: ProjectData, from: string, to: string): boolean {
+  const seen = new Set<string>();
+  const walk = (id: string): boolean => {
+    if (id === from) return true;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    const t = p.tracks.find((x) => x.id === id);
+    if (!t) return false;
+    if (t.output && t.output !== 'master' && walk(t.output)) return true;
+    for (const s of t.sends ?? []) if (walk(s.busId)) return true;
+    return false;
+  };
+  return walk(to);
 }
 
 export const useProjectStore = create<ProjectStore>((set, get) => {
@@ -280,6 +326,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
           mediaId,
           offset: 0,
           gain: 1,
+          fadeIn: 0,
+          fadeOut: 0,
         });
       });
       return id;
@@ -343,6 +391,186 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update((d) => {
         const c = clipById(d, id);
         if (c) Object.assign(c, patch);
+      }),
+
+    // ---- Milestone 2 -----------------------------------------------------
+
+    addRecordedClip: ({ trackId, mediaId, start, lengthBeats, name, sourceDuration, mediaRef }) => {
+      const id = newId('c');
+      update((d) => {
+        if (!d.media) d.media = [];
+        if (!d.media.some((m) => m.id === mediaRef.id)) d.media.push(mediaRef);
+        d.clips.push({
+          id,
+          trackId,
+          type: 'audio',
+          name,
+          start: Math.max(0, start),
+          length: Math.max(0.25, lengthBeats),
+          muted: false,
+          mediaId,
+          offset: 0,
+          sourceDuration,
+          gain: 1,
+          fadeIn: 0,
+          fadeOut: 0,
+        });
+      });
+      return id;
+    },
+
+    registerMedia: (ref) =>
+      update((d) => {
+        if (!d.media) d.media = [];
+        const i = d.media.findIndex((m) => m.id === ref.id);
+        if (i >= 0) d.media[i] = ref;
+        else d.media.push(ref);
+      }),
+
+    trimClipStart: (id, newStartBeat) =>
+      update(
+        (d) => {
+          const c = clipById(d, id);
+          if (!c) return;
+          const end = c.start + c.length;
+          // never past the clip end, never before the source begins
+          const spb = 60 / d.bpm;
+          let start = Math.max(0, Math.min(newStartBeat, end - 0.125));
+          if (c.type === 'audio') {
+            const deltaBeats = start - c.start;
+            const newOffset = c.offset + deltaBeats * spb;
+            if (newOffset < 0) {
+              // clamp so we cannot scrub before the start of the source
+              start = c.start - c.offset / spb;
+            }
+            c.offset = Math.max(0, c.offset + (start - c.start) * spb);
+            const newLen = end - start;
+            c.sourceDuration = Math.max(0.01, newLen * spb);
+            c.length = newLen;
+            c.start = start;
+            // fades must still fit
+            const durSec = c.sourceDuration;
+            c.fadeIn = Math.min(c.fadeIn, durSec);
+            c.fadeOut = Math.min(c.fadeOut, Math.max(0, durSec - c.fadeIn));
+          } else {
+            c.length = end - start;
+            c.start = start;
+          }
+        },
+        { undoable: false },
+      ),
+
+    trimClipEnd: (id, newLengthBeats) =>
+      update(
+        (d) => {
+          const c = clipById(d, id);
+          if (!c) return;
+          const spb = 60 / d.bpm;
+          const len = Math.max(0.125, newLengthBeats);
+          c.length = len;
+          if (c.type === 'audio') {
+            c.sourceDuration = Math.max(0.01, len * spb);
+            const durSec = c.sourceDuration;
+            c.fadeOut = Math.min(c.fadeOut, durSec);
+            c.fadeIn = Math.min(c.fadeIn, Math.max(0, durSec - c.fadeOut));
+          }
+        },
+        { undoable: false },
+      ),
+
+    splitClip: (id, atBeat) => {
+      const src = get().project.clips.find((c) => c.id === id);
+      if (!src) return null;
+      if (atBeat <= src.start + 1e-6 || atBeat >= src.start + src.length - 1e-6) return null;
+      const rightId = newId('c');
+      update((d) => {
+        const left = clipById(d, id);
+        if (!left) return;
+        const spb = 60 / d.bpm;
+        const leftLen = atBeat - left.start;
+        const rightLen = left.start + left.length - atBeat;
+        const right = structuredClone(left);
+        right.id = rightId;
+        right.start = atBeat;
+        right.length = rightLen;
+        left.length = leftLen;
+
+        if (left.type === 'audio' && right.type === 'audio') {
+          // The right half starts further into the same source media.
+          right.offset = left.offset + leftLen * spb;
+          right.sourceDuration = Math.max(0.01, rightLen * spb);
+          left.sourceDuration = Math.max(0.01, leftLen * spb);
+          // Keep the outer fades, drop the fade at the new cut on each side.
+          right.fadeIn = 0;
+          left.fadeOut = 0;
+          right.fadeOut = Math.min(right.fadeOut, right.sourceDuration);
+          left.fadeIn = Math.min(left.fadeIn, left.sourceDuration);
+          right.name = `${left.name}.2`;
+        } else if (left.type === 'midi' && right.type === 'midi') {
+          // Notes belong to whichever side contains their start.
+          const cut = leftLen;
+          left.notes = left.notes.filter((n) => n.start < cut);
+          right.notes = right.notes
+            .filter((n) => n.start >= cut)
+            .map((n) => ({ ...n, id: newId('n'), start: n.start - cut }));
+          right.name = `${left.name}.2`;
+        }
+        d.clips.push(right);
+      });
+      return rightId;
+    },
+
+    setClipGain: (id, gain) =>
+      update(
+        (d) => {
+          const c = clipById(d, id);
+          if (c?.type === 'audio') c.gain = clamp(gain, 0, 4);
+        },
+        { undoable: false },
+      ),
+
+    setClipFades: (id, fadeIn, fadeOut) =>
+      update(
+        (d) => {
+          const c = clipById(d, id);
+          if (c?.type !== 'audio') return;
+          const spb = 60 / d.bpm;
+          const durSec = c.sourceDuration ?? c.length * spb;
+          if (fadeIn !== undefined) c.fadeIn = clamp(fadeIn, 0, durSec);
+          if (fadeOut !== undefined) c.fadeOut = clamp(fadeOut, 0, durSec);
+          // the two ramps may not overlap
+          if (c.fadeIn + c.fadeOut > durSec) {
+            if (fadeIn !== undefined) c.fadeOut = Math.max(0, durSec - c.fadeIn);
+            else c.fadeIn = Math.max(0, durSec - c.fadeOut);
+          }
+        },
+        { undoable: false },
+      ),
+
+    setSend: (trackId, busId, patch) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        const bus = trackById(d, busId);
+        // Routing validation: only to a real bus, never to itself, never from a
+        // bus that the target already feeds (which would create a cycle).
+        if (!t || !bus || bus.type !== 'bus' || t.id === busId) return;
+        if (createsCycle(d, trackId, busId)) return;
+        if (!t.sends) t.sends = [];
+        const existing = t.sends.find((s) => s.busId === busId);
+        if (existing) Object.assign(existing, patch);
+        else
+          t.sends.push({
+            busId,
+            amount: patch.amount ?? 0.3,
+            enabled: patch.enabled ?? true,
+            preFader: patch.preFader ?? false,
+          });
+      }),
+
+    removeSend: (trackId, busId) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (t?.sends) t.sends = t.sends.filter((s) => s.busId !== busId);
       }),
 
     addNote: (clipId, n) => {

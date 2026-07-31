@@ -1,6 +1,13 @@
+import type { MediaRef } from './media';
+
 /** Core project data model. Everything here is plain serializable data. */
 
-export const SCHEMA_VERSION = 1;
+/**
+ * v2 (Milestone 2) adds recorded/imported media references, nondestructive
+ * audio-clip editing fields, and mixer sends. v1 projects migrate forward
+ * losslessly — see `validateProject` in persistence/projectRepo.ts.
+ */
+export const SCHEMA_VERSION = 2;
 
 export type TrackType = 'audio' | 'instrument' | 'drum' | 'bus';
 
@@ -40,6 +47,12 @@ export interface Track {
   output: string;
   /** present on instrument/drum tracks */
   synth?: SynthParams;
+  /** audio tracks: selected input device id, or 'default' */
+  inputDeviceId?: string;
+  /** audio tracks: monitor the live input through this channel */
+  monitoring?: boolean;
+  /** effect-bus sends */
+  sends?: Send[];
 }
 
 export interface Note {
@@ -67,12 +80,21 @@ interface ClipBase {
 
 export interface AudioClip extends ClipBase {
   type: 'audio';
-  /** id into the procedural media registry */
+  /** procedural generator id, or a MediaRef id backed by IndexedDB */
   mediaId: string;
-  /** seconds into the media the clip starts from */
+  /** seconds into the source where playback starts (trim from the left) */
   offset: number;
+  /**
+   * Seconds of source material this clip plays. Undefined means "derive from
+   * the clip's musical length", which is how v1 clips behaved.
+   */
+  sourceDuration?: number;
   /** clip gain, linear */
   gain: number;
+  /** fade-in length in seconds (0 = none) */
+  fadeIn: number;
+  /** fade-out length in seconds (0 = none) */
+  fadeOut: number;
 }
 
 export interface MidiClip extends ClipBase {
@@ -101,10 +123,23 @@ export interface WorkspaceState {
   snap: number;
 }
 
+/** Per-track send into an effect bus. */
+export interface Send {
+  /** target bus track id */
+  busId: string;
+  /** linear amount 0..1.5 */
+  amount: number;
+  enabled: boolean;
+  /** post-fader is the default; pre-fader taps before volume/pan */
+  preFader: boolean;
+}
+
 export interface ProjectData {
   schemaVersion: number;
   id: string;
   name: string;
+  /** metadata for recorded/imported media; bytes live in IndexedDB */
+  media?: MediaRef[];
   createdAt: number;
   modifiedAt: number;
   bpm: number;
