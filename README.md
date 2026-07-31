@@ -59,16 +59,46 @@ percussion and texture loops) — no third-party or copyrighted material is incl
 
 ## Deployment
 
-Built as a static site (`dist/`). Two supported Cloudflare targets, both named
-`txpps-motionlab-studio`:
+**Production is deployed automatically by Cloudflare Workers Builds.** The Worker
+`txpps-motionlab-studio` is connected to this repository from the Cloudflare
+dashboard; every push to the production branch builds and deploys with no GitHub
+secrets and no manual step.
 
-- **Workers Static Assets** (`wrangler deploy -c wrangler.workers.toml`) — SPA fallback
-  via `not_found_handling = "single-page-application"`. Also works with the no-login
-  `wrangler deploy --temporary` claim-deployment flow.
-- **Cloudflare Pages** (`wrangler pages deploy dist`, or the GitHub Actions workflow in
-  `.github/workflows/deploy.yml` once `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`
-  repo secrets exist) — Pages serves the SPA fallback automatically because the build
-  has no top-level `404.html`.
+| Setting           | Value                                                 |
+| ----------------- | ----------------------------------------------------- |
+| Worker            | `txpps-motionlab-studio`                              |
+| Production URL    | https://txpps-motionlab-studio.roan-crest.workers.dev |
+| Production branch | `claude/motionlab-studio-poc-3l1gwa`                  |
+| Root directory    | repository root                                       |
+| Build command     | `npm run build`                                       |
+| Deploy command    | `npx wrangler deploy -c wrangler.workers.toml`        |
 
-`public/_headers` keeps the service worker and app shell revalidated. Run the e2e suite
-against a deployed origin with `E2E_BASE_URL=https://<host> npx playwright test`.
+Both `wrangler.toml` and `wrangler.workers.toml` are Workers Static Assets configs
+targeting the same Worker, so the deploy works with or without the `-c` flag. SPA
+routing comes from `not_found_handling = "single-page-application"`; there is no
+`_redirects` file (Workers Static Assets rejects a `/*` catch-all as an infinite
+loop). `public/_headers` keeps `sw.js` and the app shell revalidated.
+
+`.github/workflows/deploy.yml` is a **manual fallback only** (`workflow_dispatch`).
+It does not run on push, because without Cloudflare secrets it would report a
+misleading failure on every commit.
+
+Run the e2e suite against a deployed origin with
+`E2E_BASE_URL=https://<host> npx playwright test`.
+
+### Updating an installed PWA
+
+The service worker is built with `registerType: 'autoUpdate'` and emits
+`skipWaiting()` + `clientsClaim()`, and `sw.js` is served with `Cache-Control:
+no-cache`. A returning client therefore revalidates the worker, activates the new
+one immediately, and picks up the new bundle — normally within one reload, with no
+reload loop (the update only fires when the precache revision actually changes).
+
+If a device is still pinned to an old build:
+
+1. **Safari / installed PWA on iOS** — close every tab and window of the app, then
+   reopen. If it persists: Settings → Safari → Advanced → Website Data → search
+   `workers.dev` → swipe to delete that entry. For a home-screen install, delete the
+   icon and re-add it from Safari.
+2. **Any browser** — open `#/diagnostics` and check the reported Git commit; it must
+   read the deployed commit. A hard reload (Cmd/Ctrl+Shift+R) forces a fresh shell.
