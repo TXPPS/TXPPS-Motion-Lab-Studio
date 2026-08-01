@@ -10,6 +10,7 @@ import './styles/pianoroll.css';
 import './styles/synth.css';
 import './styles/panels.css';
 import './styles/recording.css';
+import './styles/automation.css';
 import { installConsoleCapture, diagLog } from './state/diagnostics';
 import { bootProject, installAutosave } from './app/projectActions';
 import { midi } from './audio/midi';
@@ -47,9 +48,10 @@ registerPwa();
  * that the UI does not already offer.
  */
 void (async () => {
-  const [exportMix, demoProject] = await Promise.all([
+  const [exportMix, demoProject, uiStoreMod] = await Promise.all([
     import('./audio/exportMix'),
     import('./model/demoProject'),
+    import('./state/uiStore'),
   ]);
   const w = window as unknown as { __ml?: Record<string, unknown> };
   // Merge: the engine already publishes meter/transport probes on this handle,
@@ -60,6 +62,7 @@ void (async () => {
     demoProject,
     engine,
     projectStore: useProjectStore,
+    uiStore: uiStoreMod.useUiStore,
   };
 })();
 

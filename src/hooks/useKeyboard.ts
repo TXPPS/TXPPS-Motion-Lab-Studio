@@ -11,6 +11,13 @@ import {
   duplicateSelection,
   pasteAtPlayhead,
 } from '../app/clipboardActions';
+import {
+  copyAutomationSelection,
+  deleteAutomationSelection,
+  duplicateAutomationSelection,
+  hasAutomationClipboard,
+  pasteAutomation,
+} from '../app/automationActions';
 import { recording } from '../audio/recordingController';
 import { inScale } from '../model/scales';
 import { repeatNotes } from '../model/midiTools';
@@ -148,6 +155,13 @@ export function useGlobalKeyboard(): void {
       }
       if ((e.ctrlKey || e.metaKey) && k === 'c') {
         e.preventDefault();
+        // An active automation point selection wins over the clip selection —
+        // the user's last selection gesture decides what "copy" means.
+        const asel = useUiStore.getState().autoSel;
+        if (asel && asel.pointIds.length > 0) {
+          copyAutomationSelection();
+          return;
+        }
         copySelection();
         return;
       }
@@ -158,11 +172,21 @@ export function useGlobalKeyboard(): void {
       }
       if ((e.ctrlKey || e.metaKey) && k === 'v') {
         e.preventDefault();
+        const asel = useUiStore.getState().autoSel;
+        if (asel && hasAutomationClipboard()) {
+          pasteAutomation(asel.trackId, asel.laneId);
+          return;
+        }
         pasteAtPlayhead();
         return;
       }
       if ((e.ctrlKey || e.metaKey) && k === 'd') {
         e.preventDefault();
+        const asel = useUiStore.getState().autoSel;
+        if (asel && asel.pointIds.length > 0) {
+          duplicateAutomationSelection();
+          return;
+        }
         const pr = pianoContext();
         if (pr && pr.noteIds.length > 0) {
           const src = pr.clip.notes.filter((n) => pr.noteIds.includes(n.id));
@@ -254,9 +278,13 @@ export function useGlobalKeyboard(): void {
           ui.set({ tool: 'pointer' });
           return;
         }
-        if (ui.selectedClipIds.length > 0 || ui.selectedNoteIds.length > 0) {
+        if (
+          ui.selectedClipIds.length > 0 ||
+          ui.selectedNoteIds.length > 0 ||
+          (ui.autoSel?.pointIds.length ?? 0) > 0
+        ) {
           ui.selectClips([]);
-          ui.set({ selectedNoteIds: [] });
+          ui.set({ selectedNoteIds: [], autoSel: null });
           return;
         }
         engine.panic();
@@ -277,8 +305,12 @@ export function useGlobalKeyboard(): void {
       }
       if (k === 'delete' || k === 'backspace') {
         const ui = useUiStore.getState();
-        // Piano-roll note editing takes priority: deleting notes inside a clip
-        // must never silently delete the clip itself.
+        // Automation points first, then piano-roll notes, then clips — the
+        // narrowest selection wins so Delete never removes more than intended.
+        if (ui.autoSel && ui.autoSel.pointIds.length > 0) {
+          deleteAutomationSelection();
+          return;
+        }
         if (ui.selectedNoteIds.length > 0 && ui.editClipId) {
           useProjectStore.getState().deleteNotes(ui.editClipId, ui.selectedNoteIds);
           ui.set({ selectedNoteIds: [] });

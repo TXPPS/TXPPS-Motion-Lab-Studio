@@ -5,6 +5,7 @@ import type { Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { Fader, Meter, PanKnob, PeakReadout, panText } from '../common/widgets';
+import { captureParamChange, captureParamRelease } from '../../app/automationActions';
 
 /**
  * One channel strip. Geometry is fully bounded by CSS grid rows — the only
@@ -15,10 +16,13 @@ function ChannelStrip({
   track,
   outputName,
   buses,
+  feeds,
 }: {
   track: Track;
   outputName: string;
   buses: Track[];
+  /** For a bus strip: names of the tracks routed or sending into it. */
+  feeds?: string[];
 }) {
   const selected = useUiStore((s) => s.selectedTrackId === track.id);
   const store = useProjectStore;
@@ -27,6 +31,8 @@ function ChannelStrip({
   const fxCount = effects.length;
   const allBypassed = fxCount > 0 && effects.every((e) => e.bypass);
   const sendCount = (track.sends ?? []).filter((s) => s.enabled && s.amount > 0).length;
+  const autoLanes = (track.automation ?? []).filter((l) => l.enabled && l.points.length > 0);
+  const autoMode = track.automationMode ?? 'read';
 
   return (
     <div
@@ -37,7 +43,21 @@ function ChannelStrip({
       data-strip="channel"
     >
       <div className="strip-name" title={track.name}>
+        {isBus && (
+          <span className="strip-bus-tag" title={`Bus · fed by ${feeds?.length ?? 0} source${(feeds?.length ?? 0) === 1 ? '' : 's'}${feeds?.length ? `: ${feeds.join(', ')}` : ''}`}>
+            BUS{feeds?.length ? ` ${feeds.length}` : ''}
+          </span>
+        )}
         {track.name}
+        {autoLanes.length > 0 && autoMode !== 'off' && (
+          <span
+            className="strip-auto-dot"
+            title={`${autoLanes.length} automation lane${autoLanes.length === 1 ? '' : 's'} (${autoMode})`}
+            data-testid={`strip-auto-${track.name}`}
+          >
+            A
+          </span>
+        )}
       </div>
 
       {/* Compact insert/send status. Editing happens in the inspector, which has
@@ -76,9 +96,15 @@ function ChannelStrip({
         <PanKnob
           size={26}
           value={track.pan}
-          onChange={(v) => store.getState().setTrack(track.id, { pan: v })}
+          onChange={(v) => {
+            store.getState().setTrack(track.id, { pan: v });
+            captureParamChange(track.id, 'pan', v);
+          }}
           onGestureStart={() => store.getState().beginGesture()}
-          onGestureEnd={() => store.getState().endGesture()}
+          onGestureEnd={() => {
+            store.getState().endGesture();
+            captureParamRelease(track.id, 'pan');
+          }}
           label={`${track.name} pan`}
         />
         <span className="pan-val">{panText(track.pan)}</span>
@@ -89,8 +115,14 @@ function ChannelStrip({
           value={track.volume}
           label={`${track.name} volume`}
           onGestureStart={() => store.getState().beginGesture()}
-          onGestureEnd={() => store.getState().endGesture()}
-          onChange={(v) => store.getState().setTrack(track.id, { volume: v })}
+          onGestureEnd={() => {
+            store.getState().endGesture();
+            captureParamRelease(track.id, 'volume');
+          }}
+          onChange={(v) => {
+            store.getState().setTrack(track.id, { volume: v });
+            captureParamChange(track.id, 'volume', v);
+          }}
         />
         <Meter meterId={track.id} />
       </div>
@@ -236,6 +268,15 @@ export function Mixer({ touch }: { touch?: boolean }) {
   const channels = tracks.filter((t) => t.type !== 'bus');
   const nameOf = (id: string) =>
     id === 'master' ? 'Master' : (tracks.find((t) => t.id === id)?.name ?? 'Master');
+  /** Which tracks feed each bus (output routing or an enabled send). */
+  const feedsOf = (busId: string) =>
+    channels
+      .filter(
+        (t) =>
+          t.output === busId ||
+          (t.sends ?? []).some((s) => s.busId === busId && s.enabled && s.amount > 0),
+      )
+      .map((t) => t.name);
 
   return (
     <div
@@ -249,7 +290,7 @@ export function Mixer({ touch }: { touch?: boolean }) {
         <ChannelStrip key={t.id} track={t} outputName={nameOf(t.output)} buses={buses} />
       ))}
       {buses.map((t) => (
-        <ChannelStrip key={t.id} track={t} outputName="Master" buses={[]} />
+        <ChannelStrip key={t.id} track={t} outputName="Master" buses={[]} feeds={feedsOf(t.id)} />
       ))}
       <MasterStrip />
     </div>

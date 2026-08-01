@@ -1,10 +1,13 @@
 import { memo } from 'react';
 import type { Track } from '../../model/types';
+import type { AutomationMode } from '../../model/automation';
+import { listAutoParams } from '../../model/paramRegistry';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { longPress } from '../../hooks/usePointerDrag';
 import { Icon, type IconName } from '../common/Icon';
 import { PanKnob } from '../common/widgets';
+import { captureParamChange, captureParamRelease } from '../../app/automationActions';
 
 const TYPE_ICON: Record<Track['type'], IconName> = {
   audio: 'wave',
@@ -33,11 +36,37 @@ export const TrackHeader = memo(function TrackHeader({
       onSubmit: (v) => v && store.getState().setTrack(track.id, { name: v }),
     });
 
+  /** Parameters not yet automated on this track, offered as new lanes. */
+  const openAddLaneMenu = (x: number, y: number) => {
+    const p = useProjectStore.getState().project;
+    const t = p.tracks.find((tr) => tr.id === track.id);
+    if (!t) return;
+    const existing = new Set((t.automation ?? []).map((l) => l.paramId));
+    const candidates = listAutoParams(t, p).filter((param) => !existing.has(param.id));
+    ui.getState().showMenu({
+      x,
+      y,
+      items: candidates.length
+        ? candidates.map((param) => ({
+            label: param.name,
+            action: () => store.getState().addAutomationLane(track.id, param.id),
+          }))
+        : [{ label: 'Every parameter already has a lane', disabled: true, action: () => {} }],
+    });
+  };
+
   const openMenu = (x: number, y: number) => {
     ui.getState().selectTrack(track.id);
     const items = [
       { label: 'Rename…', action: rename },
       { label: 'Duplicate', action: () => store.getState().duplicateTrack(track.id) },
+      {
+        label: track.automationOpen ? 'Hide automation lanes' : 'Show automation lanes',
+        shortcut: 'A btn',
+        action: () =>
+          store.getState().setTrack(track.id, { automationOpen: !track.automationOpen }),
+      },
+      { label: 'Add automation lane…', action: () => openAddLaneMenu(x, y) },
       ...(track.type === 'instrument' || track.type === 'drum'
         ? [
             {
@@ -86,6 +115,28 @@ export const TrackHeader = memo(function TrackHeader({
           <Icon name={TYPE_ICON[track.type]} size={11} />
         </span>
         <span className="th-name">{track.name}</span>
+        <button
+          className={`th-mini th-auto${track.automationOpen ? ' a-on' : ''}`}
+          title={
+            (track.automation ?? []).length
+              ? track.automationOpen
+                ? 'Hide automation lanes'
+                : 'Show automation lanes'
+              : 'Add an automation lane'
+          }
+          aria-pressed={!!track.automationOpen}
+          data-testid={`auto-toggle-${track.name}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if ((track.automation ?? []).length === 0) {
+              openAddLaneMenu(e.clientX, e.clientY);
+            } else {
+              store.getState().setTrack(track.id, { automationOpen: !track.automationOpen });
+            }
+          }}
+        >
+          A
+        </button>
         <button
           className="th-mini"
           title="Collapse/expand"
@@ -147,17 +198,42 @@ export const TrackHeader = memo(function TrackHeader({
               value={track.volume}
               aria-label={`${track.name} volume`}
               data-testid={`vol-${track.name}`}
-              onChange={(e) =>
-                store.getState().setTrack(track.id, { volume: Number(e.target.value) })
-              }
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                store.getState().setTrack(track.id, { volume: v });
+                captureParamChange(track.id, 'volume', v);
+              }}
+              onPointerUp={() => captureParamRelease(track.id, 'volume')}
             />
             <PanKnob
               size={20}
               value={track.pan}
-              onChange={(v) => store.getState().setTrack(track.id, { pan: v })}
+              onChange={(v) => {
+                store.getState().setTrack(track.id, { pan: v });
+                captureParamChange(track.id, 'pan', v);
+              }}
+              onGestureEnd={() => captureParamRelease(track.id, 'pan')}
               label={`${track.name} pan`}
             />
           </div>
+          {track.automationOpen && (
+            <select
+              className="th-automode"
+              value={track.automationMode ?? 'read'}
+              title="Automation mode: Read applies lanes; Touch records while you hold a control; Latch keeps writing after release until stop; Off ignores lanes"
+              aria-label={`${track.name} automation mode`}
+              data-testid={`automode-${track.name}`}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) =>
+                store.getState().setAutomationMode(track.id, e.target.value as AutomationMode)
+              }
+            >
+              <option value="read">Read</option>
+              <option value="touch">Touch</option>
+              <option value="latch">Latch</option>
+              <option value="off">Off</option>
+            </select>
+          )}
         </div>
       )}
     </div>

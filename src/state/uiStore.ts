@@ -65,6 +65,8 @@ interface UiState {
   selectedNoteIds: string[];
   /** Piano roll target clip */
   editClipId: string | null;
+  /** Automation point selection — one lane at a time, like every point tool. */
+  autoSel: { trackId: string; laneId: string; pointIds: string[] } | null;
 
   pxPerBeat: number;
   snap: number;
@@ -118,6 +120,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   selectedClipIds: [],
   selectedNoteIds: [],
   editClipId: null,
+  autoSel: null,
 
   pxPerBeat: 26,
   snap: 0.25,

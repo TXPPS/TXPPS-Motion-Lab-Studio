@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { engine } from '../../audio/engine';
 import { dragHasFiles, importDrop } from '../../app/importActions';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
 import { beatsPerBar, clamp, snapBeat, snapBeatFloor } from '../../model/music';
-import type { Track } from '../../model/types';
+import type { ProjectData, Track } from '../../model/types';
 import { projectEndBeat, useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
+import { findAutoParam, type AutoParam } from '../../model/paramRegistry';
+import type { AutomationLane } from '../../model/automation';
 import { Icon } from '../common/Icon';
 import { ClipView } from './ClipView';
 import { TrackHeader } from './TrackHeader';
+import { AUTO_LANE_H, AutoLaneHeader, AutoLaneRow } from './AutomationLanes';
 
 /** The offered tools. Range/draw/zoom/hand are deferred until fully usable. */
 const TOOLS = [
@@ -24,9 +27,39 @@ const LANE_H_COLLAPSED = 30;
 const EDGE_ZONE = 48;
 const EDGE_MAX = 22;
 
-function laneHeights(tracks: Track[]): { heights: number[]; total: number } {
-  const heights = tracks.map((t) => (t.collapsed ? LANE_H_COLLAPSED : LANE_H));
-  return { heights, total: heights.reduce((a, b) => a + b, 0) };
+const clampLaneH = (h: number | undefined) => clamp(h ?? AUTO_LANE_H, 26, 120);
+
+/**
+ * A track's vertical band: the clip lane plus its expanded automation lanes.
+ * Everything that maps Y to a track (marquee rows, cross-track clip drags)
+ * uses these totals so the two columns can never disagree.
+ */
+function bandHeights(tracks: Track[]): { clip: number; total: number }[] {
+  return tracks.map((t) => {
+    const clip = t.collapsed ? LANE_H_COLLAPSED : LANE_H;
+    const lanes =
+      t.automationOpen && t.automation
+        ? t.automation.reduce((a, l) => a + clampLaneH(l.height), 0)
+        : 0;
+    return { clip, total: clip + lanes };
+  });
+}
+
+interface LaneEntry {
+  lane: AutomationLane;
+  param: AutoParam;
+  h: number;
+}
+
+/** Resolved automation lanes for one track (unresolvable params are hidden). */
+function trackLanes(t: Track, project: ProjectData): LaneEntry[] {
+  if (!t.automationOpen || !t.automation) return [];
+  const out: LaneEntry[] = [];
+  for (const lane of t.automation) {
+    const param = findAutoParam(t, project, lane.paramId);
+    if (param) out.push({ lane, param, h: clampLaneH(lane.height) });
+  }
+  return out;
 }
 
 /**
@@ -36,6 +69,7 @@ function laneHeights(tracks: Track[]): { heights: number[]; total: number } {
  * scrollLeft/scrollTop with no JavaScript synchronisation and no possible drift.
  */
 export function Arrangement() {
+  const project = useProjectStore((s) => s.project);
   const tracks = useProjectStore((s) => s.project.tracks);
   const clips = useProjectStore((s) => s.project.clips);
   const loop = useProjectStore((s) => s.project.loop);
@@ -113,8 +147,14 @@ export function Arrangement() {
   // Always span at least 72 bars so there is real horizontal range to scroll.
   const contentBeats = Math.max(endBeat + bpb * 4, loop.end + bpb, bpb * 72);
   const timelineW = Math.ceil(contentBeats * pxPerBeat);
-  const { heights } = useMemo(() => laneHeights(tracks), [tracks]);
-  /** Cumulative lane tops, for the vertical half of the render window. */
+  const bands = useMemo(() => bandHeights(tracks), [tracks]);
+  const heights = useMemo(() => bands.map((b) => b.total), [bands]);
+  /** Resolved automation lanes per track (only for expanded tracks). */
+  const lanesByTrack = useMemo(
+    () => tracks.map((t) => trackLanes(t, project)),
+    [tracks, project],
+  );
+  /** Cumulative band tops, for the vertical half of the render window. */
   const laneTops = useMemo(() => {
     const tops: number[] = [];
     let y = 0;
@@ -342,11 +382,11 @@ export function Arrangement() {
     const rect = lanes.getBoundingClientRect();
     const y = clientY - rect.top;
     const ts = useProjectStore.getState().project.tracks;
-    const hs = laneHeights(ts).heights;
+    const hs = bandHeights(ts);
     let acc = 0;
     for (let i = 0; i < ts.length; i++) {
-      if (y >= acc && y < acc + hs[i]) return ts[i];
-      acc += hs[i];
+      if (y >= acc && y < acc + hs[i].total) return ts[i];
+      acc += hs[i].total;
     }
     return null;
   }, []);
@@ -513,7 +553,18 @@ export function Arrangement() {
           <div className="arr-header-col" data-testid="track-headers">
             <div className="arr-corner">Tracks</div>
             {tracks.map((t, i) => (
-              <TrackHeader key={t.id} track={t} height={heights[i]} />
+              <Fragment key={t.id}>
+                <TrackHeader track={t} height={bands[i].clip} />
+                {lanesByTrack[i].map((le) => (
+                  <AutoLaneHeader
+                    key={le.lane.id}
+                    track={t}
+                    lane={le.lane}
+                    param={le.param}
+                    height={le.h}
+                  />
+                ))}
+              </Fragment>
             ))}
             <div className="add-track">
               <button className="btn" onClick={(e) => addTrackMenu(e.clientX, e.clientY)}>
@@ -549,12 +600,12 @@ export function Arrangement() {
             >
               <div className="arr-grid-canvas" style={gridStyle} />
               {tracks.map((t, i) => (
+                <Fragment key={t.id}>
                 <div
-                  key={t.id}
                   className={`arr-lane${selectedTrackId === t.id ? ' selected' : ''}${
                     dropLane === t.id ? ' drop-target' : ''
                   }`}
-                  style={{ height: heights[i] }}
+                  style={{ height: bands[i].clip }}
                   data-testid={`lane-${t.name}`}
                   onPointerDown={() => useUiStore.getState().selectTrack(t.id)}
                   onDragOver={(e) => {
@@ -595,13 +646,34 @@ export function Arrangement() {
                         key={c.id}
                         clip={c}
                         track={t}
-                        laneHeight={heights[i]}
+                        laneHeight={bands[i].clip}
                         pxPerBeat={pxPerBeat}
                         laneAt={laneAt}
                         onEdgeScroll={edgeScroll}
                       />
                     ))}
                 </div>
+                {lanesByTrack[i].length > 0 &&
+                  (laneTops[i] > viewWin.bottom || laneTops[i] + heights[i] < viewWin.top ? (
+                    // Off-window: hold the band's height without mounting rows.
+                    <div style={{ height: heights[i] - bands[i].clip }} />
+                  ) : (
+                    lanesByTrack[i].map((le) => (
+                      <AutoLaneRow
+                        key={le.lane.id}
+                        track={t}
+                        lane={le.lane}
+                        param={le.param}
+                        height={le.h}
+                        pxPerBeat={pxPerBeat}
+                        winLeft={viewWin.left}
+                        winRight={viewWin.right}
+                        timelineW={timelineW}
+                        snap={snap}
+                      />
+                    ))
+                  ))}
+                </Fragment>
               ))}
               {marquee && (
                 <div

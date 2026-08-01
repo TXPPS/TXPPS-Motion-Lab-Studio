@@ -2,7 +2,15 @@ import { useEffect } from 'react';
 import { SHORTCUTS } from '../../app/shortcuts';
 import { useUiStore } from '../../state/uiStore';
 
-const CATEGORIES = ['Transport', 'Project', 'Selection', 'Editing', 'Piano roll', 'View'] as const;
+const CATEGORIES = [
+  'Transport',
+  'Project',
+  'Selection',
+  'Editing',
+  'Piano roll',
+  'Automation',
+  'View',
+] as const;
 
 /**
  * Keyboard shortcut reference, opened with "?" or from the overflow menu.

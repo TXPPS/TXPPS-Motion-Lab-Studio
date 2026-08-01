@@ -16,7 +16,7 @@ export interface Shortcut {
   combo: string;
   display: string;
   description: string;
-  category: 'Transport' | 'Editing' | 'Selection' | 'View' | 'Project' | 'Piano roll';
+  category: 'Transport' | 'Editing' | 'Selection' | 'View' | 'Project' | 'Piano roll' | 'Automation';
   /** Context in which the combo applies, when not global. */
   when?: string;
 }
@@ -186,6 +186,72 @@ export const SHORTCUTS: Shortcut[] = [
     display: '?',
     description: 'Show this shortcut list',
     category: 'View',
+  },
+
+  // Automation
+  {
+    id: 'auto-add-point',
+    combo: 'dblclick (automation lane)',
+    display: 'Double-click',
+    description: 'Add a point (Alt bypasses snap)',
+    category: 'Automation',
+    when: 'automation lane',
+  },
+  {
+    id: 'auto-delete-point',
+    combo: 'dblclick (automation point)',
+    display: 'Double-click point',
+    description: 'Delete that point',
+    category: 'Automation',
+    when: 'automation lane',
+  },
+  {
+    id: 'auto-marquee',
+    combo: 'drag (automation lane)',
+    display: 'Drag empty space',
+    description: 'Marquee-select points (Shift adds)',
+    category: 'Automation',
+    when: 'automation lane',
+  },
+  {
+    id: 'auto-drag',
+    combo: 'drag (automation point)',
+    display: 'Drag point',
+    description: 'Move points · Shift = fine values · Alt = no snap',
+    category: 'Automation',
+    when: 'points selected',
+  },
+  {
+    id: 'auto-delete',
+    combo: 'delete (automation)',
+    display: 'Del',
+    description: 'Delete the selected points',
+    category: 'Automation',
+    when: 'points selected',
+  },
+  {
+    id: 'auto-copy',
+    combo: 'mod+c (automation)',
+    display: `${MOD}+C`,
+    description: 'Copy the selected points',
+    category: 'Automation',
+    when: 'points selected',
+  },
+  {
+    id: 'auto-paste',
+    combo: 'mod+v (automation)',
+    display: `${MOD}+V`,
+    description: 'Paste points into the active lane at the playhead',
+    category: 'Automation',
+    when: 'lane active',
+  },
+  {
+    id: 'auto-duplicate',
+    combo: 'mod+d (automation)',
+    display: `${MOD}+D`,
+    description: 'Duplicate the selected points after themselves',
+    category: 'Automation',
+    when: 'points selected',
   },
 ];
 

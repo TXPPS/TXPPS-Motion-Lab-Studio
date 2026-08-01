@@ -1,0 +1,161 @@
+/* Automation lanes (arrangement) + mixer automation affordances. */
+
+.auto-lane {
+  position: relative;
+  border-top: 1px dashed var(--border-soft);
+  background: rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  contain: strict;
+}
+.auto-lane.disabled .auto-line,
+.auto-lane.disabled .auto-fill,
+.auto-lane.disabled .auto-pt {
+  opacity: 0.35;
+}
+
+.auto-svg {
+  position: absolute;
+  top: 0;
+  pointer-events: none;
+}
+.auto-line {
+  fill: none;
+  stroke: var(--al-color, var(--accent));
+  stroke-width: 1.6;
+}
+.auto-fill {
+  fill: var(--al-color, var(--accent));
+  opacity: 0.1;
+  stroke: none;
+}
+.auto-static {
+  stroke: var(--al-color, var(--accent));
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  opacity: 0.5;
+}
+
+.auto-pt {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--bg-panel);
+  border: 1.5px solid var(--al-color, var(--accent));
+  box-sizing: border-box;
+  cursor: grab;
+  touch-action: none;
+  z-index: 2;
+}
+.auto-pt:hover {
+  transform: scale(1.35);
+  background: var(--al-color, var(--accent));
+}
+.auto-pt.selected {
+  background: var(--al-color, var(--accent));
+  border-color: #fff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.22);
+}
+
+.auto-marquee {
+  position: absolute;
+  border: 1px solid var(--al-color, var(--accent));
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Header-column lane rows */
+.alh {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 6px 0 14px;
+  border-top: 1px dashed var(--border-soft);
+  background: var(--bg-panel);
+  position: relative;
+  overflow: hidden;
+  font-size: var(--fs-xs);
+}
+.alh.disabled .alh-name,
+.alh.disabled .alh-dot {
+  opacity: 0.4;
+}
+.alh-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--al-color, var(--accent));
+  flex: none;
+}
+.alh-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-main);
+}
+.alh-val {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.alh-power.on {
+  color: var(--al-color, var(--accent));
+}
+.alh-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 6px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+/* Track header automation controls */
+.th-auto.a-on {
+  color: var(--warm, #d9a13c);
+  border-color: currentColor;
+}
+.th-automode {
+  font-size: 10px;
+  height: 18px;
+  max-width: 58px;
+  background: var(--bg-deep);
+  color: var(--text-faint);
+  border: 1px solid var(--border-soft);
+  border-radius: 3px;
+}
+
+/* Mixer: automation + bus affordances */
+.strip-auto-dot {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 9px;
+  line-height: 12px;
+  color: var(--warm, #d9a13c);
+  border: 1px solid currentColor;
+  vertical-align: 1px;
+}
+.strip-bus-tag {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 8.5px;
+  line-height: 12px;
+  letter-spacing: 0.4px;
+  color: var(--strip-color, var(--accent));
+  border: 1px solid currentColor;
+  vertical-align: 1px;
+}
+.strip.bus {
+  background: rgba(255, 255, 255, 0.025);
+}
+.strip.bus .strip-name {
+  color: var(--strip-color, var(--accent));
+}
