@@ -12,6 +12,10 @@ export type IconName =
   | 'metronome'
   | 'record'
   | 'search'
+  | 'cursor'
+  | 'scissors'
+  | 'eraser'
+  | 'speaker-off'
   | 'plus'
   | 'x'
   | 'chevron-down'
@@ -46,6 +50,10 @@ const FILLED: Partial<Record<IconName, string>> = {
   stop: 'M7 7h10v10H7z',
   record: 'M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10z',
   search: 'M10.5 4a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zm5.9 9 3.6 3.6-1.4 1.4-3.6-3.6z',
+  cursor: 'M6 3l12 9.2-5.3.8 3 5.6-2.3 1.2-3-5.7-3.7 3.9z',
+  scissors: 'M7 5a3 3 0 1 1-.4 5.97L9.4 12l-2.8 1.03A3 3 0 1 1 7 19a3 3 0 0 1 2.5-4.65L12 13.4l6.7 2.46-.7 1.88L12.6 15l.06.16A3 3 0 0 1 7 19m0-12a1.4 1.4 0 1 0 0 2.8A1.4 1.4 0 0 0 7 7zm0 8.2a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8zM18 6.7l.7 1.87L12 11l-1.6-.6z',
+  eraser: 'M15.4 4.6a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L12 18H7.6l-3-3a2 2 0 0 1 0-2.8zM9.8 8.4l-3.8 3.8 2.4 2.4h2.8l3-3z',
+  'speaker-off': 'M4 9h3.5L12 5v14l-4.5-4H4zm12.2-.7 1.4 1.4-1.8 1.8 1.8 1.8-1.4 1.4-1.8-1.8-1.8 1.8-1.4-1.4 1.8-1.8-1.8-1.8 1.4-1.4 1.8 1.8z',
 };
 
 const STROKED: Partial<Record<IconName, string>> = {

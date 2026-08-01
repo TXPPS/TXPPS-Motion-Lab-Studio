@@ -486,3 +486,20 @@
   border: 1px solid rgba(55, 184, 154, 0.55);
   border-radius: 2px;
 }
+
+/* Tool cursors + handle gating --------------------------------------------- */
+.arr[data-tool='split'] .clip {
+  cursor: col-resize;
+}
+.arr[data-tool='erase'] .clip {
+  cursor: not-allowed;
+}
+.arr[data-tool='mute'] .clip {
+  cursor: pointer;
+}
+/* Non-pointer tools act on the whole clip; edge and fade handles would
+   swallow the press near the borders and make the tool feel unreliable. */
+.arr:not([data-tool='pointer']) .clip .clip-edge,
+.arr:not([data-tool='pointer']) .clip .fade-handle {
+  pointer-events: none;
+}

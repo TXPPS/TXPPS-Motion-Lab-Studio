@@ -315,6 +315,24 @@ export const ClipView = memo(function ClipView({
       }}
       data-testid={`clip-${clip.name}`}
       onPointerDown={(e) => {
+        // Non-pointer tools act on press and never start a drag. The action
+        // uses the exact position under the cursor, snapped like any edit.
+        const tool = ui.getState().tool;
+        if (tool !== 'pointer' && e.button === 0) {
+          e.stopPropagation();
+          if (tool === 'erase') {
+            store.getState().deleteClip(clip.id);
+          } else if (tool === 'mute') {
+            store.getState().setClip(clip.id, { muted: !clip.muted });
+          } else if (tool === 'split') {
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            const at = snapBeat(clip.start + (e.clientX - rect.left) / pxPerBeat, snap);
+            if (!store.getState().splitClip(clip.id, at)) {
+              ui.getState().toast('info', 'Click inside the clip, away from its edges.');
+            }
+          }
+          return;
+        }
         longPress((x, y) => openMenu(x, y))(e);
         dragMove(e);
       }}

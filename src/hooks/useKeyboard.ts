@@ -148,6 +148,12 @@ export function useGlobalKeyboard(): void {
         engine.returnToStart();
         return;
       }
+      // Tool selection: 1-4 map to the arrangement tool row.
+      if (k >= '1' && k <= '4') {
+        const tools = ['pointer', 'split', 'erase', 'mute'] as const;
+        useUiStore.getState().set({ tool: tools[Number(k) - 1] });
+        return;
+      }
       if (k === 'escape') {
         // Escalating Escape. Musicians press it casually, so the first press
         // does the gentlest plausible thing and only an "empty" press panics:
@@ -166,6 +172,10 @@ export function useGlobalKeyboard(): void {
         }
         if (ui.contextMenu) {
           ui.closeMenu();
+          return;
+        }
+        if (ui.tool !== 'pointer') {
+          ui.set({ tool: 'pointer' });
           return;
         }
         if (ui.selectedClipIds.length > 0 || ui.selectedNoteIds.length > 0) {

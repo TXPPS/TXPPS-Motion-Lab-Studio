@@ -124,6 +124,12 @@ export async function bootProject(forceDemo: boolean, qaFixture = false): Promis
       diagLog('info', 'Loaded QA audio-editing fixture (not persisted)');
       return;
     }
+    if (window.location.hash.includes('qa-huge')) {
+      const { createHugeProject } = await import('../model/hugeProject');
+      useProjectStore.getState().setProject(createHugeProject(), { markClean: true });
+      diagLog('info', 'Loaded QA huge-scale fixture (not persisted)');
+      return;
+    }
     const { createStressProject } = await import('../model/stressProject');
     useProjectStore.getState().setProject(createStressProject(), { markClean: true });
     diagLog('info', 'Loaded QA layout stress fixture (not persisted)');

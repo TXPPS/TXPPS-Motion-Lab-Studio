@@ -3,6 +3,8 @@ import { create } from 'zustand';
 export type EditorTab = 'mixer' | 'piano' | 'synth' | 'diagnostics';
 export type PhoneMode = 'arrange' | 'record' | 'perform' | 'edit' | 'mix' | 'browse';
 export type BrowserTab = 'projects' | 'presets' | 'loops';
+/** Arrangement editing tools. Only fully-usable tools are offered. */
+export type ArrangeTool = 'pointer' | 'split' | 'erase' | 'mute';
 
 export interface DialogState {
   kind: 'prompt' | 'confirm';
@@ -49,6 +51,8 @@ interface UiState {
   diagnosticsOpen: boolean;
   /** Keyboard shortcut help sheet */
   shortcutsOpen: boolean;
+  /** Active arrangement tool */
+  tool: ArrangeTool;
 
   selectedTrackId: string | null;
   /**
@@ -102,6 +106,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   debugOverlay: false,
   diagnosticsOpen: false,
   shortcutsOpen: false,
+  tool: 'pointer',
 
   selectedTrackId: null,
   selectedClipId: null,

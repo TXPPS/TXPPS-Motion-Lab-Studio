@@ -10,6 +10,14 @@ import { Icon } from '../common/Icon';
 import { ClipView } from './ClipView';
 import { TrackHeader } from './TrackHeader';
 
+/** The offered tools. Range/draw/zoom/hand are deferred until fully usable. */
+const TOOLS = [
+  { id: 'pointer', label: 'Pointer', icon: 'cursor' },
+  { id: 'split', label: 'Split', icon: 'scissors' },
+  { id: 'erase', label: 'Erase', icon: 'eraser' },
+  { id: 'mute', label: 'Mute', icon: 'speaker-off' },
+] as const;
+
 const RULER_H = 30;
 const LANE_H = 64;
 const LANE_H_COLLAPSED = 30;
@@ -36,9 +44,61 @@ export function Arrangement() {
   const pxPerBeat = useUiStore((s) => s.pxPerBeat);
   const snap = useUiStore((s) => s.snap);
   const selectedTrackId = useUiStore((s) => s.selectedTrackId);
+  const tool = useUiStore((s) => s.tool);
 
   /** Lane currently under a file drag, for the drop affordance. */
   const [dropLane, setDropLane] = useState<string | null>(null);
+  /**
+   * Visible window of the lanes area in content px, with one viewport of
+   * overscan on each side. Clips outside it are not mounted at all — at a
+   * thousand clips, painting every canvas made a scroll frame cost ~200ms.
+   * Quantised to 200px steps so scrolling only re-renders when the window
+   * actually moves a meaningful amount.
+   */
+  const [viewWin, setViewWin] = useState({ left: 0, right: 4000, top: 0, bottom: 3000 });
+  const winFrame = useRef(0);
+
+  const updateViewWin = useCallback(() => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    const headerW =
+      (vp.querySelector('.arr-header-col') as HTMLElement | null)?.clientWidth ?? 0;
+    const vw = vp.clientWidth - headerW;
+    const vh = vp.clientHeight;
+    const q = (n: number) => Math.floor(n / 200) * 200;
+    const next = {
+      left: q(Math.max(0, vp.scrollLeft - vw)),
+      right: q(vp.scrollLeft + vw * 2) + 200,
+      top: q(Math.max(0, vp.scrollTop - vh)),
+      bottom: q(vp.scrollTop + vh * 2) + 200,
+    };
+    setViewWin((cur) =>
+      cur.left === next.left &&
+      cur.right === next.right &&
+      cur.top === next.top &&
+      cur.bottom === next.bottom
+        ? cur
+        : next,
+    );
+  }, []);
+
+  useEffect(() => {
+    updateViewWin();
+    const vp = viewportRef.current;
+    if (!vp) return;
+    const ro = new ResizeObserver(() => {
+      if (winFrame.current) return;
+      winFrame.current = requestAnimationFrame(() => {
+        winFrame.current = 0;
+        updateViewWin();
+      });
+    });
+    ro.observe(vp);
+    return () => {
+      if (winFrame.current) cancelAnimationFrame(winFrame.current);
+      ro.disconnect();
+    };
+  }, [updateViewWin]);
   /** Marquee rectangle in lanes-local px, while a rubber-band drag is live. */
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(
     null,
@@ -48,13 +108,53 @@ export function Arrangement() {
   const playheadRef = useRef<HTMLDivElement>(null);
   const rulerHeadRef = useRef<HTMLDivElement>(null);
   const rulerCanvasRef = useRef<HTMLCanvasElement>(null);
-  const gridCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const bpb = beatsPerBar(timeSig);
   // Always span at least 72 bars so there is real horizontal range to scroll.
   const contentBeats = Math.max(endBeat + bpb * 4, loop.end + bpb, bpb * 72);
   const timelineW = Math.ceil(contentBeats * pxPerBeat);
-  const { heights, total } = useMemo(() => laneHeights(tracks), [tracks]);
+  const { heights } = useMemo(() => laneHeights(tracks), [tracks]);
+  /** Cumulative lane tops, for the vertical half of the render window. */
+  const laneTops = useMemo(() => {
+    const tops: number[] = [];
+    let y = 0;
+    for (const h of heights) {
+      tops.push(y);
+      y += h;
+    }
+    return tops;
+  }, [heights]);
+  const selectedClipIds = useUiStore((s) => s.selectedClipIds);
+
+  /**
+   * Visible clips grouped by track, computed in ONE pass over the clip list.
+   * Filtering inside each lane's render was O(tracks × clips) — 100k predicate
+   * calls per render at the huge fixture — and this map is what made the
+   * difference between ~95ms and ~15ms window updates there.
+   *
+   * Selected clips always mount: a drag that edge-scrolls must never unmount
+   * the element holding the pointer capture.
+   */
+  const visibleByTrack = useMemo(() => {
+    const sel = new Set(selectedClipIds);
+    const trackIndex = new Map(tracks.map((t, i) => [t.id, i]));
+    const byTrack = new Map<string, typeof clips>();
+    for (const c of clips) {
+      const ti = trackIndex.get(c.trackId);
+      if (ti === undefined) continue;
+      if (!sel.has(c.id)) {
+        const laneTop = laneTops[ti];
+        if (laneTop > viewWin.bottom || laneTop + heights[ti] < viewWin.top) continue;
+        const x0 = c.start * pxPerBeat;
+        const x1 = (c.start + c.length) * pxPerBeat;
+        if (x0 >= viewWin.right || x1 <= viewWin.left) continue;
+      }
+      const list = byTrack.get(c.trackId);
+      if (list) list.push(c);
+      else byTrack.set(c.trackId, [c]);
+    }
+    return byTrack;
+  }, [clips, tracks, laneTops, heights, viewWin, pxPerBeat, selectedClipIds]);
 
   // One rAF subscription drives the lane playhead, the ruler marker, and follow.
   useEffect(() => {
@@ -116,39 +216,23 @@ export function Arrangement() {
     }
   }, [timelineW, contentBeats, pxPerBeat, bpb]);
 
-  // Lane grid
-  useEffect(() => {
-    const canvas = gridCanvasRef.current;
-    if (!canvas) return;
-    const h = Math.max(total, 1);
-    canvas.width = timelineW;
-    canvas.height = h;
-    canvas.style.width = `${timelineW}px`;
-    canvas.style.height = `${h}px`;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, timelineW, h);
-    const bars = Math.ceil(contentBeats / bpb);
+  // Lane grid: repeating CSS gradients instead of one full-content canvas.
+  // A canvas spanning the whole timeline is a width×height bitmap — at the
+  // 100-track fixture that is a ~5300×5900px surface whose repaints alone made
+  // scrolling cost >170ms a frame. A repeating gradient is resolution-free and
+  // composites on the GPU at any content size.
+  const gridStyle = useMemo(() => {
     const barPx = bpb * pxPerBeat;
-    for (let bar = 0; bar <= bars; bar++) {
-      const x = Math.round(bar * barPx) + 0.5;
-      ctx.strokeStyle = 'rgba(255,255,255,0.075)';
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
-      if (pxPerBeat >= 14) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-        for (let b = 1; b < bpb; b++) {
-          const bx = Math.round(bar * barPx + b * pxPerBeat) + 0.5;
-          ctx.beginPath();
-          ctx.moveTo(bx, 0);
-          ctx.lineTo(bx, h);
-          ctx.stroke();
-        }
-      }
+    const layers = [
+      `repeating-linear-gradient(90deg, rgba(255,255,255,0.075) 0 1px, transparent 1px ${barPx}px)`,
+    ];
+    if (pxPerBeat >= 14) {
+      layers.push(
+        `repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 1px, transparent 1px ${pxPerBeat}px)`,
+      );
     }
-  }, [timelineW, contentBeats, pxPerBeat, bpb, total]);
+    return { backgroundImage: layers.join(', ') } as const;
+  }, [bpb, pxPerBeat]);
 
   const headerWidth = () =>
     (viewportRef.current?.querySelector('.arr-header-col') as HTMLElement | null)?.clientWidth ?? 0;
@@ -350,7 +434,7 @@ export function Arrangement() {
   };
 
   return (
-    <div className="arr" data-testid="arrangement">
+    <div className="arr" data-testid="arrangement" data-tool={tool}>
       <div className="arr-toolbar">
         <button
           className="btn"
@@ -359,6 +443,21 @@ export function Arrangement() {
         >
           <Icon name="plus" size={13} /> Track
         </button>
+        <div className="seg" role="group" aria-label="Editing tool">
+          {TOOLS.map((t, i) => (
+            <button
+              key={t.id}
+              className={tool === t.id ? 'on' : ''}
+              aria-pressed={tool === t.id}
+              title={`${t.label} (${i + 1})`}
+              aria-label={`${t.label} tool`}
+              data-testid={`tool-${t.id}`}
+              onClick={() => useUiStore.getState().set({ tool: t.id })}
+            >
+              <Icon name={t.icon} size={13} />
+            </button>
+          ))}
+        </div>
         <span className="hint">Snap</span>
         <div className="seg" role="group" aria-label="Snap">
           {[
@@ -397,7 +496,19 @@ export function Arrangement() {
         </button>
       </div>
 
-      <div className="arr-viewport" ref={viewportRef} data-testid="arr-scroll">
+      <div
+        className="arr-viewport"
+        ref={viewportRef}
+        data-testid="arr-scroll"
+        onScroll={() => {
+          // rAF-coalesced: one window recalculation per frame at most.
+          if (winFrame.current) return;
+          winFrame.current = requestAnimationFrame(() => {
+            winFrame.current = 0;
+            updateViewWin();
+          });
+        }}
+      >
         <div className="arr-content">
           <div className="arr-header-col" data-testid="track-headers">
             <div className="arr-corner">Tracks</div>
@@ -436,7 +547,7 @@ export function Arrangement() {
                 if (e.pointerType === 'mouse' && e.button === 0) dragMarquee(e);
               }}
             >
-              <canvas ref={gridCanvasRef} className="arr-grid-canvas" />
+              <div className="arr-grid-canvas" style={gridStyle} />
               {tracks.map((t, i) => (
                 <div
                   key={t.id}
@@ -479,9 +590,7 @@ export function Arrangement() {
                     useUiStore.getState().selectClip(id, t.id);
                   }}
                 >
-                  {clips
-                    .filter((c) => c.trackId === t.id)
-                    .map((c) => (
+                  {(visibleByTrack.get(t.id) ?? []).map((c) => (
                       <ClipView
                         key={c.id}
                         clip={c}

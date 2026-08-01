@@ -34,7 +34,7 @@ export const SHORTCUTS: Shortcut[] = [
     id: 'escape',
     combo: 'escape',
     display: 'Esc',
-    description: 'Cancel recording · clear selection · stop all audio',
+    description: 'Cancel recording · pointer tool · clear selection · stop all audio',
     category: 'Transport',
   },
 
@@ -123,6 +123,13 @@ export const SHORTCUTS: Shortcut[] = [
   },
 
   // View
+  {
+    id: 'tools',
+    combo: '1-4',
+    display: '1–4',
+    description: 'Pointer · Split · Erase · Mute tool',
+    category: 'View',
+  },
   { id: 'octave-down', combo: 'z', display: 'Z', description: 'Keyboard octave down', category: 'View' },
   { id: 'octave-up', combo: 'x', display: 'X', description: 'Keyboard octave up', category: 'View' },
   {
