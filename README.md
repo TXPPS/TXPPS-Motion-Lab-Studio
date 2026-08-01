@@ -46,6 +46,28 @@ See [`docs/MILESTONE-2-RECORDING.md`](docs/MILESTONE-2-RECORDING.md) for the
 architecture, the design decisions behind it, and a per-area statement of what
 is verified, what is untested, and what is deliberately not offered.
 
+## Milestone 3 scope
+
+Workflow, not features: the same capabilities made faster, clearer and more
+enjoyable to operate.
+
+- Real multi-selection: shift-click, marquee rubber-band, select-all, group
+  drag with preserved spacing
+- Clip clipboard: copy/cut/paste at the playhead, duplicate-after-selection,
+  Delete key
+- Editing tools: pointer, split, erase, mute (keys 1-4); Escape escalates
+  gently instead of instantly panicking audio
+- A shortcut registry that drives the "?" help sheet and the hints in every
+  context menu, conflict-checked by a unit test
+- Browser search across projects/presets/loops and one-tap audition previews
+- Project notes saved with the project; unused-media scan and confirm-gated
+  cleanup
+- Windowed clip rendering: scrolling a 100-track/1000-clip project went from
+  200-275ms per frame to 28-63ms on the same CI machine (`#/qa-huge` fixture)
+
+See [`docs/MILESTONE-3-WORKFLOW.md`](docs/MILESTONE-3-WORKFLOW.md) for the
+audit findings, measurements, and deferrals.
+
 ## Development
 
 ```bash
@@ -67,6 +89,7 @@ Fixtures are never autosaved, so a QA run cannot overwrite a real project.
 | ---------------- | ------------------------------------------------------------------------- |
 | `#/qa`           | Layout stress fixture: 26 tracks, 133 clips, 27 mixer strips              |
 | `#/qa-audio`     | Audio editing & routing: trims, splits, fades, clip gains, missing media, three buses with sends |
+| `#/qa-huge`      | Extreme scale: 100 tracks, ~1080 clips, for performance QA               |
 | `#/phone`        | Forces the phone layout on any screen size                                |
 | `#/diagnostics`  | Opens the diagnostics panel on load                                       |
 | `#/demo`         | Reseeds the demo project                                                  |
