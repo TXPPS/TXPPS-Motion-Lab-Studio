@@ -71,8 +71,15 @@ export function useGlobalKeyboard(): void {
     const held = new Set<string>();
 
     const down = (e: KeyboardEvent) => {
-      if (isTypingTarget(e.target)) return;
       const k = e.key.toLowerCase();
+      // Save is the one shortcut that must work even while typing in a field —
+      // otherwise the browser's own "save page" dialog steals it mid-edit.
+      if ((e.ctrlKey || e.metaKey) && k === 's' && isTypingTarget(e.target)) {
+        e.preventDefault();
+        void saveCurrent();
+        return;
+      }
+      if (isTypingTarget(e.target)) return;
 
       // Transport / editing shortcuts
       if (e.code === 'Space') {

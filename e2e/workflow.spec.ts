@@ -170,3 +170,66 @@ test.describe('escape and shortcuts sheet', () => {
     expect(await menu.locator('.mi-key').count()).toBeGreaterThan(2);
   });
 });
+
+test.describe('browser and project workflow', () => {
+  test('search filters every browser tab', async ({ page }) => {
+    await boot(page);
+    await page.fill('[data-testid="browser-search"]', 'demo');
+    await expect(page.locator('[data-testid^="proj-item-"]')).toHaveCount(1);
+
+    await page.fill('[data-testid="browser-search"]', 'zzz-no-match');
+    await expect(page.locator('[data-testid^="proj-item-"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="browser-panel"]')).toContainText('No projects match');
+
+    // Loops tab: the two procedural loops filter down to one.
+    await page.fill('[data-testid="browser-search"]', '');
+    await page.click('[data-testid="browser-tab-loops"]');
+    const allLoops = await page.locator('[data-testid="browser-panel"] .list-item').count();
+    await page.fill('[data-testid="browser-search"]', 'texture');
+    const filtered = await page.locator('[data-testid="browser-panel"] .list-item').count();
+    expect(filtered).toBeLessThan(allLoops);
+    expect(filtered).toBeGreaterThan(0);
+  });
+
+  test('audition previews a loop and stops when replaced', async ({ page }) => {
+    await boot(page);
+    await page.click('[data-testid="browser-tab-loops"]');
+    const first = page.locator('[data-testid^="audition-"]').first();
+    await first.click();
+    await page.waitForTimeout(400);
+    const playing = await page.evaluate(() => {
+      const w = window as unknown as { __ml: { engine: { auditioningId(): string | null } } };
+      return w.__ml.engine.auditioningId();
+    });
+    expect(playing, 'audition did not start').not.toBeNull();
+
+    // Starting the second replaces the first rather than stacking.
+    const second = page.locator('[data-testid^="audition-"]').nth(1);
+    await second.click();
+    await page.waitForTimeout(300);
+    const nowPlaying = await page.evaluate(() => {
+      const w = window as unknown as { __ml: { engine: { auditioningId(): string | null } } };
+      return w.__ml.engine.auditioningId();
+    });
+    expect(nowPlaying).not.toBeNull();
+    expect(nowPlaying).not.toBe(playing);
+  });
+
+  test('project notes persist through save and reload', async ({ page }) => {
+    await boot(page);
+    // Deselect so the inspector shows the project section.
+    await page.keyboard.press('Escape');
+    const notes = page.locator('[data-testid="project-notes"]');
+    await expect(notes).toBeVisible();
+    await notes.fill('Chorus needs a darker pad. Verse vocal at -6.');
+    await page.keyboard.press('Control+s');
+    await page.waitForTimeout(700);
+
+    await page.reload();
+    await page.waitForSelector('[data-testid="app-root"]');
+    await page.waitForTimeout(1200);
+    await expect(page.locator('[data-testid="project-notes"]')).toHaveValue(
+      'Chorus needs a darker pad. Verse vocal at -6.',
+    );
+  });
+});

@@ -11,6 +11,7 @@ export type IconName =
   | 'loop'
   | 'metronome'
   | 'record'
+  | 'search'
   | 'plus'
   | 'x'
   | 'chevron-down'
@@ -44,6 +45,7 @@ const FILLED: Partial<Record<IconName, string>> = {
   play: 'M8 5.5v13l10.5-6.5z',
   stop: 'M7 7h10v10H7z',
   record: 'M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10z',
+  search: 'M10.5 4a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zm5.9 9 3.6 3.6-1.4 1.4-3.6-3.6z',
 };
 
 const STROKED: Partial<Record<IconName, string>> = {

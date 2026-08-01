@@ -13,10 +13,14 @@ import { peaksFromAudioBuffer } from '../audio/peaks';
 import {
   deleteMediaBlob,
   getMediaBlob,
+  listMediaIds,
   mediaStorageStats,
+  pruneOrphanedMedia,
   putMediaBlob,
   storageEstimate,
 } from '../persistence/mediaStore';
+import { listProjects, loadProject } from '../persistence/projectRepo';
+import { useUiStore } from '../state/uiStore';
 import { diagLog } from '../state/diagnostics';
 import { permissionLabel, useInputStore } from '../state/inputStore';
 import { useProjectStore } from '../state/projectStore';
@@ -142,6 +146,90 @@ export async function runMediaStorageSmokeTest(): Promise<CommandResult> {
     await deleteMediaBlob(id).catch(() => {});
     await refreshStorageDiagnostics();
   }
+}
+
+/**
+ * Media ids referenced by ANY saved project plus the open one. The open
+ * project matters separately because it may have unsaved changes; scanning
+ * only saved data would call its newest recording "unused".
+ */
+async function collectReferencedMedia(): Promise<Set<string>> {
+  const referenced = new Set<string>();
+  const collect = (p: {
+    clips: { type: string; mediaId?: string }[];
+    media?: { id: string }[];
+  }) => {
+    for (const c of p.clips) if (c.type === 'audio' && c.mediaId) referenced.add(c.mediaId);
+    for (const m of p.media ?? []) referenced.add(m.id);
+  };
+  collect(useProjectStore.getState().project);
+  const metas = await listProjects().catch(() => []);
+  for (const meta of metas) {
+    const p = await loadProject(meta.id).catch(() => null);
+    if (p) collect(p);
+  }
+  return referenced;
+}
+
+/** Report stored media no saved project references. Never deletes. */
+export async function findUnusedMedia(): Promise<CommandResult> {
+  const referenced = await collectReferencedMedia();
+  const ids = await listMediaIds();
+  const unused = ids.filter((id) => !referenced.has(id));
+  let bytes = 0;
+  for (const id of unused) {
+    const m = await getMediaBlob(id).catch(() => undefined);
+    bytes += m?.blob?.size ?? 0;
+  }
+  return {
+    ok: true,
+    title: 'Unused media scan',
+    detail: unused.length
+      ? `${unused.length} item(s), ${(bytes / 1048576).toFixed(1)} MB not referenced by any project. Use "Delete unused media" to reclaim the space.`
+      : 'Every stored media item is referenced by a project.',
+  };
+}
+
+/**
+ * Delete unreferenced media, behind an explicit confirm — the scan itself
+ * never deletes, and the confirm names the exact count.
+ */
+export async function deleteUnusedMedia(): Promise<CommandResult> {
+  const referenced = await collectReferencedMedia();
+  const ids = await listMediaIds();
+  const unused = ids.filter((id) => !referenced.has(id));
+  if (unused.length === 0) {
+    return { ok: true, title: 'Delete unused media', detail: 'Nothing to delete.' };
+  }
+  return new Promise((resolve) => {
+    useUiStore.getState().showDialog({
+      kind: 'confirm',
+      title: `Delete ${unused.length} unused media item(s)?`,
+      message:
+        'These recordings/imports are not referenced by any saved project. This permanently deletes their audio.',
+      confirmLabel: 'Delete',
+      danger: true,
+      onSubmit: () => {
+        void pruneOrphanedMedia(referenced).then((pruned) => {
+          void refreshStorageDiagnostics();
+          resolve({
+            ok: true,
+            title: 'Delete unused media',
+            detail: `Deleted ${pruned.length} item(s).`,
+          });
+        });
+      },
+    });
+    // If the user dismisses the dialog instead, report that honestly after a
+    // beat rather than hanging the command forever.
+    setTimeout(() => {
+      resolve({
+        ok: true,
+        title: 'Delete unused media',
+        detail: `${unused.length} candidate(s) found — confirm the dialog to delete.`,
+      });
+    }, 400);
+  });
 }
 
 /** Report clips whose media cannot be resolved. */

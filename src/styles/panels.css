@@ -369,3 +369,54 @@
 .sc-row .sc-when {
   color: var(--text-faint);
 }
+
+/* Browser search ----------------------------------------------------------- */
+.browser-search {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-faint);
+}
+.browser-search input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  font-size: var(--fs-sm);
+}
+.browser-search .icon-btn {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+}
+
+/* Audition (preview) button in media rows */
+.icon-btn.audition.on {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+.list-item .li-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
+/* Project notes ------------------------------------------------------------ */
+.project-notes {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  padding: 7px 8px;
+}
+.project-notes:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

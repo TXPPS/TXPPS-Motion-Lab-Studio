@@ -260,6 +260,18 @@ export function Inspector() {
           Select a track or clip to edit its properties.
         </div>
       </div>
+      <div className="panel-section">
+        <div className="ps-title">Notes</div>
+        <textarea
+          className="project-notes"
+          value={project.notes ?? ''}
+          placeholder="Lyrics, session to-dos, mix decisions… saved with the project."
+          aria-label="Project notes"
+          data-testid="project-notes"
+          rows={6}
+          onChange={(e) => store.setNotes(e.target.value)}
+        />
+      </div>
     </div>
   );
 }

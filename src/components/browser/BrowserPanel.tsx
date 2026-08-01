@@ -28,7 +28,51 @@ function fmtWhen(ts: number): string {
   return new Date(ts).toLocaleDateString();
 }
 
-function ProjectsTab() {
+/** Case-insensitive substring match against several fields. */
+function matches(query: string, ...fields: (string | undefined)[]): boolean {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  return fields.some((f) => f?.toLowerCase().includes(q));
+}
+
+/**
+ * Audition (preview) button for one media id. Auditioning replaces any running
+ * preview, so tapping down a list never stacks sounds; the active row shows a
+ * stop square. Ended previews clear themselves via a light poll while active.
+ */
+function AuditionButton({ mediaId, name }: { mediaId: string; name: string }) {
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => {
+      if (engine.auditioningId() !== mediaId) setActive(false);
+    }, 250);
+    return () => clearInterval(id);
+  }, [active, mediaId]);
+
+  return (
+    <button
+      className={`icon-btn audition${active ? ' on' : ''}`}
+      title={active ? 'Stop preview' : 'Preview'}
+      aria-label={`${active ? 'Stop preview of' : 'Preview'} ${name}`}
+      data-testid={`audition-${mediaId}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (active) {
+          engine.stopAudition();
+          setActive(false);
+        } else {
+          void engine.audition(mediaId).then((ok) => setActive(ok));
+        }
+      }}
+    >
+      <Icon name={active ? 'stop' : 'play'} size={12} />
+    </button>
+  );
+}
+
+function ProjectsTab({ query }: { query: string }) {
   const current = useProjectStore((s) => s.project);
   const dirty = useProjectStore((s) => s.dirty);
   const lastSavedAt = useProjectStore((s) => s.lastSavedAt);
@@ -83,8 +127,12 @@ function ProjectsTab() {
         <div className="panel-section hint">Loading projects…</div>
       ) : metas.length === 0 ? (
         <div className="panel-section hint">No saved projects yet.</div>
+      ) : metas.filter((m) => matches(query, m.name)).length === 0 ? (
+        <div className="panel-section hint">No projects match “{query}”.</div>
       ) : (
-        metas.map((m) => (
+        metas
+          .filter((m) => matches(query, m.name))
+          .map((m) => (
           <div
             key={m.id}
             className={`list-item${m.id === current.id ? ' on' : ''}`}
@@ -174,7 +222,7 @@ function ProjectsTab() {
   );
 }
 
-function PresetsTab() {
+function PresetsTab({ query }: { query: string }) {
   const applyPreset = useProjectStore((s) => s.applyPreset);
   const tracks = useProjectStore((s) => s.project.tracks);
   const selId = useUiStore((s) => s.selectedTrackId);
@@ -186,7 +234,7 @@ function PresetsTab() {
       <div className="panel-section hint">
         {target ? `Applies to: ${target.name}` : 'Select an instrument track first.'}
       </div>
-      {SYNTH_PRESETS.map((p) => (
+      {SYNTH_PRESETS.filter((p) => matches(query, p.presetName, p.waveform)).map((p) => (
         <button
           key={p.presetName}
           className={`list-item${target?.synth?.presetName === p.presetName ? ' on' : ''}`}
@@ -206,7 +254,7 @@ function PresetsTab() {
   );
 }
 
-function LoopsTab() {
+function LoopsTab({ query }: { query: string }) {
   const addAudioClip = useProjectStore((s) => s.addAudioClip);
   const addTrack = useProjectStore((s) => s.addTrack);
   const bpm = useProjectStore((s) => s.project.bpm);
@@ -230,39 +278,36 @@ function LoopsTab() {
         </div>
       </div>
 
-      {imported.length > 0 && (
+      {imported.filter((m) => matches(query, m.name, m.fileName)).length > 0 && (
         <>
           <div className="panel-section hint">In this project</div>
-          {imported.map((m) => (
-            <button
-              key={m.id}
-              className="list-item"
-              data-testid={`media-item-${m.id}`}
-              onClick={() => {
-                const trackId = addTrack('audio');
-                const start = snapBeatFloor(engine.getPositionBeats(), 4);
-                addAudioClip(
-                  trackId,
-                  m.id,
-                  start,
-                  Math.max(0.25, (m.duration * bpm) / 60),
-                  m.name,
-                  m.duration,
-                );
-                useUiStore.getState().selectTrack(trackId);
-                useUiStore.getState().toast('info', `Added "${m.name}" on a new audio track`);
-              }}
-            >
-              <div className="li-main">
-                <div className="li-title">{m.name}</div>
-                <div className="li-sub">
-                  {m.kind === 'recording' ? 'Recording' : 'Imported'} · {m.duration.toFixed(1)}s ·{' '}
-                  {m.channels === 1 ? 'mono' : `${m.channels}ch`} @ {(m.sampleRate / 1000).toFixed(1)}k
-                </div>
-              </div>
-              <Icon name="plus" size={14} />
-            </button>
-          ))}
+          {imported
+            .filter((m) => matches(query, m.name, m.fileName))
+            .map((m) => (
+              <MediaRow
+                key={m.id}
+                mediaId={m.id}
+                title={m.name}
+                subtitle={`${m.kind === 'recording' ? 'Recording' : 'Imported'} · ${m.duration.toFixed(1)}s · ${
+                  m.channels === 1 ? 'mono' : `${m.channels}ch`
+                } @ ${(m.sampleRate / 1000).toFixed(1)}k`}
+                testid={`media-item-${m.id}`}
+                onAdd={() => {
+                  const trackId = addTrack('audio');
+                  const start = snapBeatFloor(engine.getPositionBeats(), 4);
+                  addAudioClip(
+                    trackId,
+                    m.id,
+                    start,
+                    Math.max(0.25, (m.duration * bpm) / 60),
+                    m.name,
+                    m.duration,
+                  );
+                  useUiStore.getState().selectTrack(trackId);
+                  useUiStore.getState().toast('info', `Added "${m.name}" on a new audio track`);
+                }}
+              />
+            ))}
         </>
       )}
 
@@ -270,33 +315,74 @@ function LoopsTab() {
         Generated royalty-free loops (rendered at 110 BPM{bpm !== 110 ? `, project is ${bpm}` : ''}
         ).
       </div>
-      {listMedia().map((m) => (
-        <button
-          key={m.id}
-          className="list-item"
-          onClick={() => {
-            const trackId = addTrack('audio');
-            const start = snapBeatFloor(engine.getPositionBeats(), 4);
-            addAudioClip(trackId, m.id, start, m.bars * 4, m.name);
-            useUiStore.getState().selectTrack(trackId);
-            useUiStore.getState().toast('info', `Added "${m.name}" on a new audio track`);
-          }}
-        >
-          <div className="li-main">
-            <div className="li-title">{m.name}</div>
-            <div className="li-sub">
-              {m.bars} bars · {m.seconds.toFixed(1)}s · tap to add
-            </div>
-          </div>
-          <Icon name="plus" size={14} />
-        </button>
-      ))}
+      {listMedia()
+        .filter((m) => matches(query, m.name))
+        .map((m) => (
+          <MediaRow
+            key={m.id}
+            mediaId={m.id}
+            title={m.name}
+            subtitle={`${m.bars} bars · ${m.seconds.toFixed(1)}s · tap to add`}
+            onAdd={() => {
+              const trackId = addTrack('audio');
+              const start = snapBeatFloor(engine.getPositionBeats(), 4);
+              addAudioClip(trackId, m.id, start, m.bars * 4, m.name);
+              useUiStore.getState().selectTrack(trackId);
+              useUiStore.getState().toast('info', `Added "${m.name}" on a new audio track`);
+            }}
+          />
+        ))}
     </>
+  );
+}
+
+/**
+ * One media row: tap adds it to the timeline, the side control previews it.
+ * A div with button semantics, because a real <button> cannot nest the
+ * audition <button> inside it.
+ */
+function MediaRow({
+  mediaId,
+  title,
+  subtitle,
+  testid,
+  onAdd,
+}: {
+  mediaId: string;
+  title: string;
+  subtitle: string;
+  testid?: string;
+  onAdd: () => void;
+}) {
+  return (
+    <div
+      className="list-item"
+      role="button"
+      tabIndex={0}
+      data-testid={testid}
+      onClick={onAdd}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onAdd();
+        }
+      }}
+    >
+      <div className="li-main">
+        <div className="li-title">{title}</div>
+        <div className="li-sub">{subtitle}</div>
+      </div>
+      <span className="li-actions" onClick={(e) => e.stopPropagation()}>
+        <AuditionButton mediaId={mediaId} name={title} />
+      </span>
+      <Icon name="plus" size={14} />
+    </div>
   );
 }
 
 export function BrowserPanel() {
   const tab = useUiStore((s) => s.browserTab);
+  const [query, setQuery] = useState('');
   return (
     <>
       <div className="browser-tabs">
@@ -311,8 +397,30 @@ export function BrowserPanel() {
           </button>
         ))}
       </div>
+      <div className="browser-search">
+        <Icon name="search" size={12} />
+        <input
+          type="search"
+          value={query}
+          placeholder="Search…"
+          aria-label="Search the browser"
+          data-testid="browser-search"
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        {query && (
+          <button className="icon-btn" aria-label="Clear search" onClick={() => setQuery('')}>
+            ✕
+          </button>
+        )}
+      </div>
       <div className="panel-body" data-testid="browser-panel">
-        {tab === 'projects' ? <ProjectsTab /> : tab === 'presets' ? <PresetsTab /> : <LoopsTab />}
+        {tab === 'projects' ? (
+          <ProjectsTab query={query} />
+        ) : tab === 'presets' ? (
+          <PresetsTab query={query} />
+        ) : (
+          <LoopsTab query={query} />
+        )}
       </div>
     </>
   );

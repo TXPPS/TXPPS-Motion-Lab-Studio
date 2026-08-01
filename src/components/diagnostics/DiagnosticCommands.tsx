@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import {
   checkMissingMedia,
+  deleteUnusedMedia,
+  findUnusedMedia,
   checkRecorderSupport,
   checkWaveformPath,
   runExportSmokeTest,
@@ -26,6 +28,8 @@ const COMMANDS: Command[] = [
   { id: 'storage', label: 'Media storage smoke test', run: runMediaStorageSmokeTest },
   { id: 'export', label: 'Export smoke test', run: runExportSmokeTest },
   { id: 'missing', label: 'Check missing media', run: checkMissingMedia },
+  { id: 'unused', label: 'Find unused media', run: findUnusedMedia },
+  { id: 'prune', label: 'Delete unused media', run: deleteUnusedMedia },
   { id: 'recorder', label: 'Check recorder support', run: checkRecorderSupport },
   { id: 'waveform', label: 'Check waveform path', run: checkWaveformPath },
   { id: 'streams', label: 'Stop all media streams', run: stopAllMediaStreams },

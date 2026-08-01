@@ -277,6 +277,18 @@
   border-radius: 2px;
   border: 1px solid var(--border-soft);
 }
+/* Unity-gain detent. The fader curve is gain = pos^2.2 × 1.5, so 0 dB sits at
+   (1/1.5)^(1/2.2) ≈ 83.2% of the travel — the same maths the thumb uses. */
+.fader .fader-track::after {
+  content: '';
+  position: absolute;
+  left: -5px;
+  right: -5px;
+  bottom: 83.2%;
+  height: 1px;
+  background: var(--text-faint);
+  opacity: 0.65;
+}
 /* Fill and thumb are positioned in PERCENT of the track, so they follow
    the container height automatically with no measurement. */
 .fader .fader-fill {

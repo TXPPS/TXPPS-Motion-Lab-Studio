@@ -159,6 +159,9 @@ export function validateProject(raw: unknown): ProjectData {
       pxPerBeat: typeof ws.pxPerBeat === 'number' ? ws.pxPerBeat : 26,
       snap: typeof ws.snap === 'number' ? ws.snap : 0.25,
     },
+    // The return is a fresh object, so optional fields must be carried across
+    // explicitly or a save/load cycle would silently drop them.
+    ...(typeof raw.notes === 'string' ? { notes: raw.notes } : {}),
   };
 }
 

@@ -9,7 +9,7 @@ import type { AudioClip, ProjectData, SynthParams, Track } from '../model/types'
 import { useProjectStore } from '../state/projectStore';
 import { useTransportStore } from '../state/transportStore';
 import { diagLog } from '../state/diagnostics';
-import { getBufferSync } from './mediaLibrary';
+import { getBufferSync, loadBuffer } from './mediaLibrary';
 import { audioInput } from './inputManager';
 import { useInputStore } from '../state/inputStore';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
@@ -552,6 +552,61 @@ class AudioEngine {
     src.start(when, offsetSec, durSec);
   }
 
+  private auditionState: { src: AudioBufferSourceNode; g: GainNode; mediaId: string } | null =
+    null;
+
+  /**
+   * Preview a media item from the browser: one shot, straight to the master,
+   * outside the transport. Starting a new audition replaces the running one,
+   * so tapping through a list never stacks sounds.
+   */
+  async audition(mediaId: string): Promise<boolean> {
+    const ok = await this.start();
+    const ctx = this.ctx;
+    if (!ok || !ctx || !this.masterInput) return false;
+    const buffer = getBufferSync(mediaId) ?? (await loadBuffer(mediaId, ctx));
+    if (!buffer) return false;
+
+    this.stopAudition();
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const g = ctx.createGain();
+    g.gain.value = 0.9;
+    src.connect(g);
+    g.connect(this.masterInput);
+    const state = { src, g, mediaId };
+    this.auditionState = state;
+    src.onended = () => {
+      if (this.auditionState === state) this.auditionState = null;
+      try {
+        src.disconnect();
+        g.disconnect();
+      } catch {
+        /* already gone */
+      }
+    };
+    src.start();
+    return true;
+  }
+
+  stopAudition(): void {
+    const a = this.auditionState;
+    if (!a) return;
+    this.auditionState = null;
+    const t = this.ctx?.currentTime ?? 0;
+    a.g.gain.setTargetAtTime(0, t, 0.015);
+    try {
+      a.src.stop(t + 0.06);
+    } catch {
+      /* already stopped */
+    }
+  }
+
+  /** The media id currently auditioning, or null. */
+  auditioningId(): string | null {
+    return this.auditionState?.mediaId ?? null;
+  }
+
   /** Immediate metronome click, used by the recording count-in. */
   playMetronomeClick(accent: boolean): void {
     const ctx = this.ctx;
@@ -655,6 +710,7 @@ class AudioEngine {
       this.playing = false;
     }
     this.stopAllSources(true);
+    this.stopAudition();
     this.stopAllMonitoring();
     audioInput.stopAll();
     useTransportStore.getState().set({ playState: 'stopped' });

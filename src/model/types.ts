@@ -172,6 +172,8 @@ export interface ProjectData {
   tracks: Track[];
   clips: Clip[];
   workspace: WorkspaceState;
+  /** Free-form musician notes: lyrics, session to-dos, mix decisions. */
+  notes?: string;
 }
 
 export interface ProjectMeta {

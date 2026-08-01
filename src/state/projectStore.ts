@@ -119,6 +119,8 @@ export interface ProjectStore {
   setTimeSig: (num: number, den: number) => void;
   setLoop: (patch: Partial<ProjectData['loop']>) => void;
   setMetronome: (on: boolean) => void;
+  /** Free-form project notes. Not undoable: typing is a continuous gesture. */
+  setNotes: (notes: string) => void;
   setMasterVolume: (v: number) => void;
 }
 
@@ -762,6 +764,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         (d) => {
           Object.assign(d.loop, patch);
           if (d.loop.end - d.loop.start < 1) d.loop.end = d.loop.start + 1;
+        },
+        { undoable: false },
+      ),
+
+    setNotes: (notes) =>
+      update(
+        (d) => {
+          if (notes) d.notes = notes;
+          else delete d.notes;
         },
         { undoable: false },
       ),
