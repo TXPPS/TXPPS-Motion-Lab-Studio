@@ -39,6 +39,7 @@ export function collectWindowEvents(
       }
     } else {
       for (const n of clip.notes) {
+        if (n.muted) continue;
         const abs = clip.start + n.start;
         // notes must live inside their clip bounds
         if (n.start >= clip.length) continue;
@@ -80,6 +81,7 @@ export function collectSoundingAt(project: ProjectData, beat: number): WindowEve
       out.push({ kind: 'clipMid', clip, beat, intoBeats: beat - clip.start });
     } else {
       for (const n of clip.notes) {
+        if (n.muted) continue;
         const abs = clip.start + n.start;
         const end = clip.start + Math.min(n.start + n.length, clip.length);
         if (abs < beat && end > beat) {

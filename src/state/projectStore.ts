@@ -111,6 +111,14 @@ export interface ProjectStore {
 
   // Note ops (within a MIDI clip)
   addNote: (clipId: string, note: Omit<Note, 'id'>) => string;
+  /** Insert many notes in one undoable step (chordify, repeat). Returns ids. */
+  addNotes: (clipId: string, notes: Omit<Note, 'id'>[]) => string[];
+  /**
+   * Replace the listed notes with transformed versions in ONE undoable step.
+   * `next` carries the same ids; notes not listed are untouched. This is how
+   * every quantize/humanize/transform commits, so each is one Ctrl+Z.
+   */
+  transformNotes: (clipId: string, next: Note[]) => void;
   updateNotes: (clipId: string, ids: string[], patch: (n: Note) => Partial<Note>) => void;
   deleteNotes: (clipId: string, ids: string[]) => void;
 
@@ -705,6 +713,28 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         if (i < 0 || j < 0 || j >= t.effects.length) return;
         const [moved] = t.effects.splice(i, 1);
         t.effects.splice(j, 0, moved);
+      }),
+
+    addNotes: (clipId, notes) => {
+      const ids: string[] = [];
+      update((d) => {
+        const c = clipById(d, clipId);
+        if (c?.type !== 'midi') return;
+        for (const n of notes) {
+          const nid = newId('n');
+          c.notes.push({ ...n, id: nid });
+          ids.push(nid);
+        }
+      });
+      return ids;
+    },
+
+    transformNotes: (clipId, next) =>
+      update((d) => {
+        const c = clipById(d, clipId);
+        if (c?.type !== 'midi') return;
+        const byId = new Map(next.map((n) => [n.id, n]));
+        c.notes = c.notes.map((n) => byId.get(n.id) ?? n);
       }),
 
     addNote: (clipId, n) => {

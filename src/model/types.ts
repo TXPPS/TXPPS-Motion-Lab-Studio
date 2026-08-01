@@ -67,6 +67,8 @@ export interface Note {
   pitch: number;
   /** 1..127 */
   velocity: number;
+  /** Muted notes stay visible and editable but are never scheduled. */
+  muted?: boolean;
 }
 
 interface ClipBase {

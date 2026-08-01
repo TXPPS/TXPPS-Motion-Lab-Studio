@@ -70,6 +70,11 @@ interface UiState {
   snap: number;
   prPxPerBeat: number;
   prSnap: number;
+  /** Piano roll key (tonic pitch class 0-11) and scale id; 'chromatic' = off */
+  prKey: number;
+  prScale: string;
+  /** Snap added/edited pitches to the scale */
+  prScaleLock: boolean;
 
   keyboardOctave: number;
 
@@ -118,6 +123,9 @@ export const useUiStore = create<UiState>((set, get) => ({
   snap: 0.25,
   prPxPerBeat: 32,
   prSnap: 0.25,
+  prKey: 0,
+  prScale: 'chromatic',
+  prScaleLock: false,
 
   keyboardOctave: 4,
 

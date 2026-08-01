@@ -281,6 +281,7 @@ export async function renderProject(
       const inst = instruments.get(clip.trackId);
       if (!inst) continue;
       for (const note of (clip as MidiClip).notes) {
+        if (note.muted) continue;
         const absBeat = clip.start + note.start;
         if (absBeat < startBeat || absBeat >= endBeat) continue;
         // A note is not retriggered part-way; notes starting before the range
