@@ -21,6 +21,12 @@
 .pr-toolbar::-webkit-scrollbar {
   display: none;
 }
+/* Controls keep their natural width; the toolbar itself scrolls when narrow.
+   Without this, flexbox shrinks the clip and scale selects to unreadable
+   slivers before overflow-x ever engages. */
+.pr-toolbar > * {
+  flex-shrink: 0;
+}
 .pr-toolbar label {
   font-size: var(--fs-xs);
   color: var(--text-faint);
@@ -147,4 +153,96 @@
   border-right: 1px dashed rgba(55, 184, 154, 0.5);
   pointer-events: none;
   z-index: 1;
+}
+
+/* Milestone 4: velocity lane, marquee, scale, labels ------------------------ */
+.pr-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  flex: none;
+  margin: 0 2px;
+}
+.pr-note.muted {
+  border-style: dashed;
+}
+.pr-note-label {
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-52%);
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(8, 12, 10, 0.85);
+  pointer-events: none;
+  line-height: 1;
+}
+.pr-key.oos {
+  opacity: 0.45;
+}
+.pr-beyond {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+.pr-marquee {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+  background: rgba(55, 184, 154, 0.1);
+  border: 1px solid rgba(55, 184, 154, 0.55);
+  border-radius: 2px;
+}
+.hint-btn {
+  color: var(--warm);
+  border-color: rgba(217, 161, 60, 0.4);
+}
+
+/* Velocity lane: sticky to the bottom of the piano-roll scroller. */
+.pr-vel-lane {
+  position: sticky;
+  bottom: 0;
+  z-index: 12;
+  background: var(--bg-panel-2);
+  border-top: 1px solid var(--border);
+}
+.pr-vel-label {
+  position: sticky;
+  left: 0;
+  width: 52px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  float: left;
+}
+.pr-vel-area {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+}
+.pr-vel-bar {
+  position: absolute;
+  bottom: 0;
+  background: var(--accent-dim);
+  border-radius: 1.5px 1.5px 0 0;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.pr-vel-bar.selected {
+  background: var(--warm);
+}
+.pr-vel-bar.muted {
+  opacity: 0.3;
+}
+.pr-vel-bar:hover {
+  background: var(--accent);
 }

@@ -12,6 +12,30 @@ import {
   pasteAtPlayhead,
 } from '../app/clipboardActions';
 import { recording } from '../audio/recordingController';
+import { inScale } from '../model/scales';
+import { repeatNotes } from '../model/midiTools';
+import type { MidiClip } from '../model/types';
+
+/** The piano roll is the active editing surface for note-level shortcuts. */
+function pianoContext(): { clip: MidiClip; noteIds: string[] } | null {
+  const ui = useUiStore.getState();
+  const active = !!ui.editClipId && (ui.editorTab === 'piano' || ui.phoneMode === 'edit');
+  if (!active) return null;
+  const clip = useProjectStore.getState().project.clips.find((c) => c.id === ui.editClipId);
+  if (clip?.type !== 'midi') return null;
+  return { clip, noteIds: ui.selectedNoteIds };
+}
+
+/** Next pitch in `dir` that the active scale admits (or ±1 when unlocked). */
+function stepPitch(pitch: number, dir: 1 | -1): number {
+  const ui = useUiStore.getState();
+  if (!ui.prScaleLock || ui.prScale === 'chromatic') {
+    return Math.min(127, Math.max(0, pitch + dir));
+  }
+  let p = pitch + dir;
+  while (p >= 0 && p <= 127 && !inScale(p, ui.prKey, ui.prScale)) p += dir;
+  return p >= 0 && p <= 127 ? p : pitch;
+}
 
 /**
  * Split the selected clip at the playhead. Does nothing when the playhead is
@@ -111,6 +135,13 @@ export function useGlobalKeyboard(): void {
       }
       if ((e.ctrlKey || e.metaKey) && k === 'a') {
         e.preventDefault();
+        // In the piano roll, select-all means the clip's notes, not the
+        // project's clips — the surface under the musician's hands wins.
+        const pr = pianoContext();
+        if (pr) {
+          useUiStore.getState().set({ selectedNoteIds: pr.clip.notes.map((n) => n.id) });
+          return;
+        }
         const all = useProjectStore.getState().project.clips.map((c) => c.id);
         useUiStore.getState().selectClips(all);
         return;
@@ -132,10 +163,55 @@ export function useGlobalKeyboard(): void {
       }
       if ((e.ctrlKey || e.metaKey) && k === 'd') {
         e.preventDefault();
+        const pr = pianoContext();
+        if (pr && pr.noteIds.length > 0) {
+          const src = pr.clip.notes.filter((n) => pr.noteIds.includes(n.id));
+          const copies = repeatNotes(src, 1).map(({ id: _id, ...rest }) => rest);
+          const ids = useProjectStore.getState().addNotes(pr.clip.id, copies);
+          useUiStore.getState().set({ selectedNoteIds: ids });
+          return;
+        }
         duplicateSelection();
         return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      // Note-level editing: arrows nudge/transpose, M toggles mute. Only when
+      // the piano roll is the active surface and notes are selected, so the
+      // arrangement and page scrolling keep their defaults otherwise.
+      {
+        const pr = pianoContext();
+        if (pr && pr.noteIds.length > 0) {
+          const snapStep = useUiStore.getState().prSnap || 0.25;
+          if (k === 'arrowleft' || k === 'arrowright') {
+            e.preventDefault();
+            const d = (k === 'arrowleft' ? -1 : 1) * (e.shiftKey ? snapStep / 4 : snapStep);
+            useProjectStore.getState().updateNotes(pr.clip.id, pr.noteIds, (n) => ({
+              start: Math.max(0, n.start + d),
+            }));
+            return;
+          }
+          if (k === 'arrowup' || k === 'arrowdown') {
+            e.preventDefault();
+            const dir = k === 'arrowup' ? 1 : -1;
+            useProjectStore.getState().updateNotes(pr.clip.id, pr.noteIds, (n) => ({
+              pitch: e.shiftKey
+                ? Math.min(127, Math.max(0, n.pitch + dir * 12))
+                : stepPitch(n.pitch, dir),
+            }));
+            return;
+          }
+          if (k === 'm') {
+            // Mixed states resolve toward muted, so one press always silences.
+            const notes = pr.clip.notes.filter((n) => pr.noteIds.includes(n.id));
+            const target = notes.some((n) => !n.muted);
+            useProjectStore.getState().updateNotes(pr.clip.id, pr.noteIds, () => ({
+              muted: target,
+            }));
+            return;
+          }
+        }
+      }
 
       // Record toggle. "R" is not part of the virtual keyboard layout.
       if (k === 'r') {

@@ -16,7 +16,7 @@ export interface Shortcut {
   combo: string;
   display: string;
   description: string;
-  category: 'Transport' | 'Editing' | 'Selection' | 'View' | 'Project';
+  category: 'Transport' | 'Editing' | 'Selection' | 'View' | 'Project' | 'Piano roll';
   /** Context in which the combo applies, when not global. */
   when?: string;
 }
@@ -120,6 +120,54 @@ export const SHORTCUTS: Shortcut[] = [
     description: 'Drag a copy instead of the clip',
     category: 'Editing',
     when: 'on a clip',
+  },
+
+  // Piano roll
+  {
+    id: 'pr-nudge',
+    combo: 'arrowleft/right',
+    display: '← →',
+    description: 'Nudge selected notes by the snap (Shift: fine)',
+    category: 'Piano roll',
+    when: 'notes selected',
+  },
+  {
+    id: 'pr-transpose',
+    combo: 'arrowup/down',
+    display: '↑ ↓',
+    description: 'Transpose ±1 semitone (Shift: ±octave; scale lock steps in scale)',
+    category: 'Piano roll',
+    when: 'notes selected',
+  },
+  {
+    id: 'pr-mute',
+    combo: 'm',
+    display: 'M',
+    description: 'Mute / unmute selected notes',
+    category: 'Piano roll',
+    when: 'notes selected',
+  },
+  {
+    id: 'pr-alt-mute',
+    combo: 'alt+click',
+    display: 'Alt+Click',
+    description: 'Toggle mute on one note',
+    category: 'Piano roll',
+    when: 'on a note',
+  },
+  {
+    id: 'pr-select-all',
+    combo: 'mod+a (piano roll)',
+    display: `${MOD}+A`,
+    description: 'Select all notes in the open clip',
+    category: 'Piano roll',
+  },
+  {
+    id: 'pr-duplicate',
+    combo: 'mod+d (piano roll)',
+    display: `${MOD}+D`,
+    description: 'Duplicate selected notes after themselves',
+    category: 'Piano roll',
   },
 
   // View

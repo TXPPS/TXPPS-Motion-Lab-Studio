@@ -10,8 +10,13 @@ import { engine } from '../../audio/engine';
 import { useUiStore } from '../../state/uiStore';
 
 function MidiPreview({ clip, height }: { clip: Extract<Clip, { type: 'midi' }>; height: number }) {
-  const { notes } = clip;
+  const { notes: allNotes } = clip;
   const rects = useMemo(() => {
+    // The preview is a thumbnail, not an editor: past a few hundred notes,
+    // extra rects add DOM weight without adding legibility. Sample evenly so
+    // a 6000-note stack still previews its whole span.
+    const stride = Math.max(1, Math.ceil(allNotes.length / 400));
+    const notes = stride === 1 ? allNotes : allNotes.filter((_, i) => i % stride === 0);
     if (notes.length === 0) return [];
     let lo = 127;
     let hi = 0;
@@ -29,7 +34,7 @@ function MidiPreview({ clip, height }: { clip: Extract<Clip, { type: 'midi' }>; 
       y: ((hi - n.pitch) / span) * (height - 14) + 11,
       o: 0.35 + (n.velocity / 127) * 0.65,
     }));
-  }, [notes, clip.length, height]);
+  }, [allNotes, clip.length, height]);
   return (
     <svg preserveAspectRatio="none">
       {rects.map((r) => (
