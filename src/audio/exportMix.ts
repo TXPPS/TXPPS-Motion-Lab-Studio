@@ -15,12 +15,16 @@
  * which is correct for a mixdown.
  */
 import { beatsToSeconds, secondsPerBeat } from '../model/music';
-import type { AudioClip, MidiClip, ProjectData, Track } from '../model/types';
+import type { AudioClip, MidiClip, ProjectData, SynthParams, Track } from '../model/types';
 import { diagLog } from '../state/diagnostics';
 import { applyEnvelope, computeClipSchedule } from './clipSchedule';
 import { InsertChain } from './effectChain';
 import { getBufferSync, loadBuffer } from './mediaLibrary';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
+import { laneValueAt, sampleSegment } from '../model/automation';
+import type { AutomationLane } from '../model/automation';
+import { denormParam, findAutoParam } from '../model/paramRegistry';
+import type { AutoParam } from '../model/paramRegistry';
 
 /** Guard against a runaway render: two hours is far past any sane project. */
 const MAX_RENDER_SECONDS = 60 * 120;
@@ -81,6 +85,56 @@ const FALLBACK_SYNTH = {
   volume: 0.5,
   presetName: 'Fallback',
 };
+
+/** Lanes the render applies: enabled, non-empty, and the track is not 'off'. */
+function appliedLanes(track: Track): AutomationLane[] {
+  if (!track.automation || track.automationMode === 'off') return [];
+  return track.automation.filter((l) => l.enabled && l.points.length > 0);
+}
+
+/**
+ * Schedule a lane onto an AudioParam as explicit ramps across the render.
+ * Linear segments are single ramps; curved segments are subdivided; stepped
+ * segments hold and jump through a 2ms micro-ramp so the jump cannot click.
+ * Offline scheduling makes these ramps sample-accurate between knots — this is
+ * the strongest guarantee the render path offers.
+ */
+function scheduleLaneOnParam(
+  param: AudioParam,
+  lane: AutomationLane,
+  desc: AutoParam,
+  opts: { startBeat: number; endBeat: number; spb: number; mapValue?: (v: number) => number },
+): void {
+  const { startBeat, endBeat, spb } = opts;
+  const map = opts.mapValue ?? ((v: number) => v);
+  const timeOf = (beat: number) => Math.max(0, (beat - startBeat) * spb);
+  const valueOf = (norm: number) => map(denormParam(desc, norm));
+
+  const startNorm = laneValueAt(lane.points, startBeat);
+  if (startNorm === null) return;
+  param.setValueAtTime(valueOf(startNorm), 0);
+
+  const pts = lane.points;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+    if (b.beat <= startBeat || a.beat >= endBeat) continue;
+    let lastT = timeOf(Math.max(a.beat, startBeat));
+    for (const s of sampleSegment(a, b, 16)) {
+      if (s.beat <= startBeat) continue;
+      if (s.beat > endBeat + 1e-9) break;
+      const t = timeOf(s.beat);
+      if (t <= lastT + 1e-6) {
+        // stepped jump: land the new value over 2ms instead of instantaneously
+        param.setValueAtTime(valueOf(s.value), Math.max(0, t));
+        param.linearRampToValueAtTime(valueOf(s.value), t + 0.002);
+      } else {
+        param.linearRampToValueAtTime(valueOf(s.value), t);
+      }
+      lastT = t;
+    }
+  }
+}
 
 function isAudible(track: Track, tracks: Track[], soloActive: boolean): boolean {
   if (track.mute) return false;
@@ -211,6 +265,7 @@ export async function renderProject(
         : masterInput;
     ch.out.connect(target);
   }
+  const sendGains = new Map<string, GainNode>();
   for (const track of project.tracks) {
     if (track.type === 'bus') continue; // buses never send onward
     const ch = channels.get(track.id)!;
@@ -224,15 +279,112 @@ export async function renderProject(
       // Pre-fader taps the insert output, matching the live graph.
       (send.preFader ? ch.inserts.exit : ch.panner).connect(g);
       g.connect(bus.input);
+      sendGains.set(`${track.id}|${send.busId}`, g);
+    }
+  }
+
+  // ---- automation: fader-domain lanes become scheduled (sample-accurate)
+  // ramps; insert-parameter lanes apply through a suspend/resume control grid;
+  // synth-parameter lanes apply per note at schedule time (below). ----
+  const rampOpts = { startBeat, endBeat: endBeat + tail / spb, spb };
+  interface FxAutoEntry {
+    track: Track;
+    lane: AutomationLane;
+    desc: AutoParam;
+    effectId: string;
+    key: string;
+  }
+  const fxAuto: FxAutoEntry[] = [];
+  const synthAuto = new Map<string, { lane: AutomationLane; desc: AutoParam; key: string }[]>();
+  let automatedLanes = 0;
+
+  for (const track of project.tracks) {
+    const ch = channels.get(track.id)!;
+    const audible = isAudible(track, project.tracks, soloActive);
+    for (const lane of appliedLanes(track)) {
+      const desc = findAutoParam(track, project, lane.paramId);
+      if (!desc) continue;
+      automatedLanes++;
+      const id = lane.paramId;
+      if (id === 'volume') {
+        scheduleLaneOnParam(ch.volGain.gain, lane, desc, rampOpts);
+      } else if (id === 'pan') {
+        scheduleLaneOnParam(ch.panner.pan, lane, desc, {
+          ...rampOpts,
+          mapValue: (v) => Math.max(-1, Math.min(1, v)),
+        });
+      } else if (id === 'mute') {
+        // The mute lane gates the channel; manual mute/solo still wins.
+        if (audible) {
+          scheduleLaneOnParam(ch.muteGain.gain, lane, desc, {
+            ...rampOpts,
+            mapValue: (v) => (v >= 0.5 ? 0 : 1),
+          });
+        }
+      } else if (id.startsWith('send:')) {
+        const g = sendGains.get(`${track.id}|${id.slice(5)}`);
+        const send = (track.sends ?? []).find((s) => s.busId === id.slice(5));
+        if (g && send?.enabled && audible) {
+          scheduleLaneOnParam(g.gain, lane, desc, {
+            ...rampOpts,
+            mapValue: (v) => Math.max(0, v),
+          });
+        }
+      } else if (id.startsWith('fx:')) {
+        const [, effectId, key] = id.split(':');
+        fxAuto.push({ track, lane, desc, effectId, key });
+      } else if (id.startsWith('synth:')) {
+        const list = synthAuto.get(track.id) ?? [];
+        list.push({ lane, desc, key: id.slice(6) });
+        synthAuto.set(track.id, list);
+      }
+    }
+  }
+
+  // Insert-parameter automation: apply merged values at a control-rate grid
+  // via suspend/resume. 25ms grid, capped at 4800 suspensions for very long
+  // renders (the grid widens rather than the render failing).
+  if (fxAuto.length > 0) {
+    let grid = 0.025;
+    const usable = durationSec - 0.001;
+    if (usable / grid > 4800) grid = usable / 4800;
+    const beatAt = (sec: number) => startBeat + sec / spb;
+    for (let t = grid; t < usable; t += grid) {
+      const at = t;
+      void ctx.suspend(at).then(() => {
+        const beat = beatAt(at);
+        const merged = new Map<string, Record<string, number>>();
+        for (const fa of fxAuto) {
+          const n = laneValueAt(fa.lane.points, beat);
+          if (n === null) continue;
+          const params = merged.get(`${fa.track.id}|${fa.effectId}`) ?? {};
+          params[fa.key] = denormParam(fa.desc, n);
+          merged.set(`${fa.track.id}|${fa.effectId}`, params);
+        }
+        for (const [key, params] of merged) {
+          const [trackId, effectId] = key.split('|');
+          const track = project.tracks.find((x) => x.id === trackId);
+          const fx = track?.effects?.find((x) => x.id === effectId);
+          const chan = channels.get(trackId);
+          if (track && fx && chan) chan.inserts.updateOne(fx, project.bpm, params);
+        }
+        void ctx.resume();
+      });
     }
   }
 
   // ---- instruments ----
+  // Each instrument reads through a mutable box so synth-parameter automation
+  // can set the value for the note being scheduled (per-voice application —
+  // the same granularity the live engine has).
   const instruments = new Map<string, Instrument>();
+  const synthBoxes = new Map<string, { params: SynthParams }>();
   for (const track of project.tracks) {
     if (track.type !== 'instrument' && track.type !== 'drum') continue;
     const ch = channels.get(track.id)!;
-    const getParams = () => track.synth ?? FALLBACK_SYNTH;
+    const box = { params: track.synth ?? FALLBACK_SYNTH };
+    synthBoxes.set(track.id, box);
+    const getParams = () => box.params;
     instruments.set(
       track.id,
       track.type === 'drum'
@@ -240,6 +392,18 @@ export async function renderProject(
         : new PolySynth(ctx, ch.input, track.id, getParams, OFFLINE_REGISTRY),
     );
   }
+  const synthParamsAt = (track: Track, beat: number): SynthParams => {
+    const base = track.synth ?? FALLBACK_SYNTH;
+    const lanes = synthAuto.get(track.id);
+    if (!lanes) return base;
+    const merged: SynthParams = { ...base };
+    for (const l of lanes) {
+      const n = laneValueAt(l.lane.points, beat);
+      if (n === null) continue;
+      (merged as unknown as Record<string, number>)[l.key] = denormParam(l.desc, n);
+    }
+    return merged;
+  };
 
   // ---- schedule everything up front ----
   opts.onProgress?.('Scheduling');
@@ -280,6 +444,9 @@ export async function renderProject(
     } else {
       const inst = instruments.get(clip.trackId);
       if (!inst) continue;
+      const track = project.tracks.find((t) => t.id === clip.trackId);
+      const box = synthBoxes.get(clip.trackId);
+      const hasSynthAuto = !!track && synthAuto.has(clip.trackId);
       for (const note of (clip as MidiClip).notes) {
         if (note.muted) continue;
         const absBeat = clip.start + note.start;
@@ -288,6 +455,7 @@ export async function renderProject(
         // are omitted, which is what a range bounce means.
         const when = beatsToSeconds(absBeat, project.bpm) - rangeStartSec;
         if (when < 0) continue;
+        if (hasSynthAuto && box && track) box.params = synthParamsAt(track, absBeat);
         const durSec = beatsToSeconds(note.length, project.bpm);
         inst.scheduleNote(note.pitch, note.velocity, when, durSec, clip.id);
         scheduledNotes++;
@@ -319,8 +487,8 @@ export async function renderProject(
     `Bounce rendered: ${rendered.duration.toFixed(2)}s, ${rendered.numberOfChannels}ch @ ${
       rendered.sampleRate
     }Hz, peak ${peak.toFixed(3)}, ${scheduledClips} clips, ${scheduledNotes} notes${
-      missingMedia.size ? `, ${missingMedia.size} missing media` : ''
-    }`,
+      automatedLanes ? `, ${automatedLanes} automation lane${automatedLanes === 1 ? '' : 's'}` : ''
+    }${missingMedia.size ? `, ${missingMedia.size} missing media` : ''}`,
   );
 
   return {

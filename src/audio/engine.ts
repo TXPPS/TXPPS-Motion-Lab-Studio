@@ -16,9 +16,28 @@ import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth'
 import { InsertChain } from './effectChain';
 import { applyEnvelope, computeClipSchedule } from './clipSchedule';
 import { Scheduler } from './scheduler';
+import { laneValueAt } from '../model/automation';
+import type { AutomationPoint } from '../model/automation';
+import { denormParam, findAutoParam } from '../model/paramRegistry';
+import type { AutoParam } from '../model/paramRegistry';
 
 const MAX_ACTIVE_SOURCES = 128;
 const PARAM_TAU = 0.015;
+/** Automation smoothing: every applied value approaches its target over this
+ *  time constant, so control-rate updates cannot produce zipper steps. */
+const AUTO_TAU = 0.015;
+
+/** One live-applied automation binding, resolved once per project change. */
+interface AutoEntry {
+  trackId: string;
+  laneId: string;
+  points: AutomationPoint[];
+  param: AutoParam;
+  kind: 'volume' | 'pan' | 'mute' | 'send' | 'fx' | 'synth';
+  busId?: string;
+  effectId?: string;
+  paramKey?: string;
+}
 
 export interface MeterData {
   peak: number;
@@ -87,6 +106,20 @@ class AudioEngine {
   private pausedAtBeat = 0;
   private lastBpm = 0;
   private storeUnsub: (() => void) | null = null;
+
+  // ---- automation state ----
+  /** Bindings applied at control rate; rebuilt on every project change. */
+  private autoIndex: AutoEntry[] = [];
+  /** trackId → core param ids the automation engine owns (syncGraph skips them). */
+  private autoOwned = new Map<string, Set<string>>();
+  /** laneId → last applied normalized value (epsilon skip). */
+  private autoApplied = new Map<string, number>();
+  /** trackId → effectId → automated param values (passed into inserts.sync). */
+  private fxOverrides = new Map<string, Map<string, Record<string, number>>>();
+  /** trackId → automated synth params; instruments read through this. */
+  private synthOverrides = new Map<string, Partial<SynthParams>>();
+  private autoDirty = true;
+  private lastAutoPos = -1;
 
   constructor() {
     this.scheduler = new Scheduler({
@@ -224,6 +257,7 @@ class AudioEngine {
     const ctx = this.ctx;
     if (!ctx || !this.masterInput || !this.masterGain) return;
     const t = ctx.currentTime;
+    this.buildAutoIndex(p);
 
     // 1. create channels/instruments for new tracks
     for (const track of p.tracks) {
@@ -233,7 +267,10 @@ class AudioEngine {
         const ch = this.channels.get(track.id)!;
         const getParams = () => {
           const tr = useProjectStore.getState().project.tracks.find((x) => x.id === track.id);
-          return tr?.synth ?? FALLBACK_SYNTH;
+          const base = tr?.synth ?? FALLBACK_SYNTH;
+          // Automated synth parameters apply per voice at schedule time.
+          const ov = this.synthOverrides.get(track.id);
+          return ov ? { ...base, ...ov } : base;
         };
         const registry = {
           register: (h: ActiveHandle) => this.registerSource(h),
@@ -284,10 +321,11 @@ class AudioEngine {
       const ch = this.channels.get(track.id)!;
       const audible = this.isAudible(track, p.tracks, soloActive);
       const smooth = initial ? 0.001 : PARAM_TAU;
-      ch.inserts.sync(track.effects ?? [], p.bpm);
-      ch.muteGain.gain.setTargetAtTime(audible ? 1 : 0, t, smooth);
-      ch.volGain.gain.setTargetAtTime(track.volume, t, smooth);
-      ch.panner.pan.setTargetAtTime(track.pan, t, smooth);
+      const owned = this.autoOwned.get(track.id);
+      ch.inserts.sync(track.effects ?? [], p.bpm, this.fxOverrides.get(track.id));
+      if (!owned?.has('mute')) ch.muteGain.gain.setTargetAtTime(audible ? 1 : 0, t, smooth);
+      if (!owned?.has('volume')) ch.volGain.gain.setTargetAtTime(track.volume, t, smooth);
+      if (!owned?.has('pan')) ch.panner.pan.setTargetAtTime(track.pan, t, smooth);
       const dest = track.type === 'bus' ? 'master' : track.output;
       if (ch.routedTo !== dest) {
         try {
@@ -332,11 +370,17 @@ class AudioEngine {
           node.connect(this.channels.get(busId)!.input);
           ch.sends.set(busId, node);
         }
-        const level = send.enabled && audible ? Math.max(0, send.amount) : 0;
-        node.gain.setTargetAtTime(level, t, initial ? 0.001 : PARAM_TAU);
+        if (!owned?.has(`send:${busId}`)) {
+          const level = send.enabled && audible ? Math.max(0, send.amount) : 0;
+          node.gain.setTargetAtTime(level, t, initial ? 0.001 : PARAM_TAU);
+        }
       }
     }
     this.masterGain.gain.setTargetAtTime(p.masterVolume, t, initial ? 0.001 : PARAM_TAU);
+    // Values at the playhead may have changed with the edit (or a lane may
+    // have just been disabled and released its parameter).
+    this.autoDirty = true;
+    this.applyAutomation();
 
     // 4. stop sources whose clip vanished or got muted
     const clipState = new Map(p.clips.map((c) => [c.id, c.muted]));
@@ -454,6 +498,194 @@ class AudioEngine {
 
   stopAllMonitoring(): void {
     for (const id of [...this.monitors.keys()]) this.stopMonitoring(id);
+  }
+
+  // ---------- automation ----------
+
+  /**
+   * Resolve every applied lane to its target once per project change. A lane
+   * participates when it is enabled, has points, and the track's automation
+   * mode is not 'off'. `autoOwned` records which core parameters the applier
+   * owns so syncGraph leaves them alone.
+   */
+  private buildAutoIndex(p: ProjectData): void {
+    const entries: AutoEntry[] = [];
+    const owned = new Map<string, Set<string>>();
+    const fxOv = new Map<string, Map<string, Record<string, number>>>();
+    const liveLanes = new Set<string>();
+
+    for (const track of p.tracks) {
+      if (!track.automation || track.automationMode === 'off') continue;
+      for (const lane of track.automation) {
+        if (!lane.enabled || lane.points.length === 0) continue;
+        const param = findAutoParam(track, p, lane.paramId);
+        if (!param) continue;
+        const id = lane.paramId;
+        let entry: AutoEntry | null = null;
+        if (id === 'volume' || id === 'pan' || id === 'mute') {
+          entry = { trackId: track.id, laneId: lane.id, points: lane.points, param, kind: id };
+        } else if (id.startsWith('send:')) {
+          entry = {
+            trackId: track.id,
+            laneId: lane.id,
+            points: lane.points,
+            param,
+            kind: 'send',
+            busId: id.slice(5),
+          };
+        } else if (id.startsWith('fx:')) {
+          const [, effectId, paramKey] = id.split(':');
+          entry = {
+            trackId: track.id,
+            laneId: lane.id,
+            points: lane.points,
+            param,
+            kind: 'fx',
+            effectId,
+            paramKey,
+          };
+          if (!fxOv.has(track.id)) fxOv.set(track.id, new Map());
+        } else if (id.startsWith('synth:')) {
+          entry = {
+            trackId: track.id,
+            laneId: lane.id,
+            points: lane.points,
+            param,
+            kind: 'synth',
+            paramKey: id.slice(6),
+          };
+        }
+        if (!entry) continue;
+        entries.push(entry);
+        liveLanes.add(lane.id);
+        if (entry.kind === 'volume' || entry.kind === 'pan' || entry.kind === 'mute') {
+          if (!owned.has(track.id)) owned.set(track.id, new Set());
+          owned.get(track.id)!.add(id);
+        } else if (entry.kind === 'send') {
+          if (!owned.has(track.id)) owned.set(track.id, new Set());
+          owned.get(track.id)!.add(id);
+        }
+      }
+    }
+
+    this.autoIndex = entries;
+    this.autoOwned = owned;
+    // Drop caches/overrides for lanes that no longer apply, so a deleted or
+    // disabled lane releases its parameter back to the static value.
+    for (const key of [...this.autoApplied.keys()]) {
+      if (!liveLanes.has(key)) this.autoApplied.delete(key);
+    }
+    const liveSynthTracks = new Set(
+      entries.filter((e) => e.kind === 'synth').map((e) => e.trackId),
+    );
+    for (const id of [...this.synthOverrides.keys()]) {
+      if (!liveSynthTracks.has(id)) this.synthOverrides.delete(id);
+    }
+    // fx overrides are rebuilt each apply pass; keep only tracks still automated
+    for (const id of [...this.fxOverrides.keys()]) {
+      if (!fxOv.has(id)) this.fxOverrides.delete(id);
+    }
+    for (const [id, m] of fxOv) {
+      if (!this.fxOverrides.has(id)) this.fxOverrides.set(id, m);
+    }
+  }
+
+  /**
+   * Apply automated values at the current position. Runs on the frame loop —
+   * cheap when paused (position unchanged → one comparison), bounded during
+   * playback by an epsilon skip per lane. Every write is a setTargetAtTime
+   * ramp, never a direct value assignment, so there is no zipper stepping.
+   */
+  private applyAutomation(): void {
+    const ctx = this.ctx;
+    if (!ctx || this.autoIndex.length === 0) {
+      this.lastAutoPos = -1;
+      return;
+    }
+    const pos = this.getPositionBeats();
+    if (!this.autoDirty && pos === this.lastAutoPos) return;
+    this.autoDirty = false;
+    this.lastAutoPos = pos;
+
+    const p = useProjectStore.getState().project;
+    const t = ctx.currentTime;
+    const soloActive = p.tracks.some((x) => x.solo);
+    /** effects whose automated params changed this pass */
+    const fxTouched = new Set<string>();
+
+    for (const e of this.autoIndex) {
+      const n = laneValueAt(e.points, pos);
+      if (n === null) continue;
+      const last = this.autoApplied.get(e.laneId);
+      if (last !== undefined && Math.abs(last - n) < 0.0008) continue;
+      this.autoApplied.set(e.laneId, n);
+      const ch = this.channels.get(e.trackId);
+      if (!ch) continue;
+      const track = p.tracks.find((x) => x.id === e.trackId);
+      if (!track) continue;
+      const v = denormParam(e.param, n);
+
+      switch (e.kind) {
+        case 'volume':
+          ch.volGain.gain.setTargetAtTime(Math.max(0, v), t, AUTO_TAU);
+          break;
+        case 'pan':
+          ch.panner.pan.setTargetAtTime(Math.max(-1, Math.min(1, v)), t, AUTO_TAU);
+          break;
+        case 'mute': {
+          const open = this.isAudible(track, p.tracks, soloActive) && v < 0.5;
+          ch.muteGain.gain.setTargetAtTime(open ? 1 : 0, t, 0.008);
+          break;
+        }
+        case 'send': {
+          const node = e.busId ? ch.sends.get(e.busId) : undefined;
+          if (!node) break;
+          const send = track.sends?.find((s) => s.busId === e.busId);
+          const audible = this.isAudible(track, p.tracks, soloActive);
+          const level = send?.enabled && audible ? Math.max(0, v) : 0;
+          node.gain.setTargetAtTime(level, t, AUTO_TAU);
+          break;
+        }
+        case 'fx': {
+          if (!e.effectId || !e.paramKey) break;
+          let m = this.fxOverrides.get(e.trackId);
+          if (!m) {
+            m = new Map();
+            this.fxOverrides.set(e.trackId, m);
+          }
+          const params = m.get(e.effectId) ?? {};
+          params[e.paramKey] = v;
+          m.set(e.effectId, params);
+          fxTouched.add(`${e.trackId}|${e.effectId}`);
+          break;
+        }
+        case 'synth': {
+          if (!e.paramKey) break;
+          const ov = this.synthOverrides.get(e.trackId) ?? {};
+          (ov as Record<string, number>)[e.paramKey] = v;
+          this.synthOverrides.set(e.trackId, ov);
+          break;
+        }
+      }
+    }
+
+    for (const key of fxTouched) {
+      const [trackId, effectId] = key.split('|');
+      const ch = this.channels.get(trackId);
+      const track = p.tracks.find((x) => x.id === trackId);
+      const fx = track?.effects?.find((x) => x.id === effectId);
+      const params = this.fxOverrides.get(trackId)?.get(effectId);
+      if (ch && fx && params) ch.inserts.updateOne(fx, p.bpm, params);
+    }
+  }
+
+  /** Debug/test probe: the value automation resolves for a parameter right now. */
+  automationValueAt(trackId: string, paramId: string): { norm: number; value: number } | null {
+    const entry = this.autoIndex.find((e) => e.trackId === trackId && e.param.id === paramId);
+    if (!entry) return null;
+    const n = laneValueAt(entry.points, this.getPositionBeats());
+    if (n === null) return null;
+    return { norm: n, value: denormParam(entry.param, n) };
   }
 
   private isAudible(track: Track, tracks: Track[], soloActive: boolean): boolean {
@@ -755,6 +987,7 @@ class AudioEngine {
       const dt = this.lastFrameTime ? (time - this.lastFrameTime) / 1000 : 0.016;
       this.lastFrameTime = time;
       this.updateMeters(dt);
+      this.applyAutomation();
       for (const cb of this.frameCbs) cb(dt);
       this.frameCount++;
       if (this.frameCount % 8 === 0) {
@@ -827,5 +1060,7 @@ if (typeof window !== 'undefined') {
     position: () => engine.getPositionBeats(),
     isPlaying: () => engine.isPlaying(),
     isRunning: () => engine.isRunning(),
+    automationValueAt: (trackId: string, paramId: string) =>
+      engine.automationValueAt(trackId, paramId),
   };
 }

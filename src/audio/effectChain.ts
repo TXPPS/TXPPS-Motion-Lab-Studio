@@ -328,8 +328,12 @@ export class InsertChain {
     return this.nodes.map((n) => n.kind);
   }
 
-  /** Rebuild only when the chain's shape changed; otherwise update in place. */
-  sync(effects: Effect[], bpm: number): void {
+  /**
+   * Rebuild only when the chain's shape changed; otherwise update in place.
+   * `overrides` carries automated parameter values (by effect id) so a static
+   * re-sync never stomps a value the automation engine currently owns.
+   */
+  sync(effects: Effect[], bpm: number, overrides?: Map<string, Record<string, number>>): void {
     const sig = effects.map((e) => `${e.id}:${e.kind}`).join('|');
     if (sig !== this.signature) {
       this.rebuild(effects);
@@ -337,8 +341,18 @@ export class InsertChain {
     }
     for (let i = 0; i < this.nodes.length; i++) {
       const e = effects[i];
-      if (e) this.nodes[i].update(e, bpm, e.bypass);
+      if (!e) continue;
+      const ov = overrides?.get(e.id);
+      this.nodes[i].update(ov ? { ...e, params: { ...e.params, ...ov } } : e, bpm, e.bypass);
     }
+  }
+
+  /** Apply one effect's parameters in place (automation tick). No-op when the
+   *  effect is not in the chain — the next sync rebuilds and catches up. */
+  updateOne(effect: Effect, bpm: number, params: Record<string, number>): void {
+    const node = this.nodes.find((n) => n.id === effect.id);
+    if (!node) return;
+    node.update({ ...effect, params: { ...effect.params, ...params } }, bpm, effect.bypass);
   }
 
   private rebuild(effects: Effect[]): void {
