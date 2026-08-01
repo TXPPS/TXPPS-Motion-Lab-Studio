@@ -4,8 +4,10 @@
  */
 import { newId } from '../model/ids';
 import { SCHEMA_VERSION } from '../model/types';
-import type { EffectKind, ProjectData, ProjectMeta } from '../model/types';
+import type { EffectKind, ProjectData, ProjectMeta, Track } from '../model/types';
 import { isKnownEffect, MAX_INSERTS, normaliseParams } from '../model/effects';
+import { isAutomationMode, validateLane } from '../model/automation';
+import { paramIdExists } from '../model/paramRegistry';
 import { diagLog } from '../state/diagnostics';
 import { idbDelete, idbGet, idbGetAll, idbPut, STORE_PREFS, STORE_PROJECTS } from './db';
 
@@ -124,6 +126,33 @@ export function validateProject(raw: unknown): ProjectData {
         });
     }
   }
+  // --- v2 → v3 migration: automation lanes -------------------------------
+  // Additive and defensive: malformed lanes/points are dropped, values are
+  // clamped and re-sorted, and a lane whose parameter no longer exists on the
+  // track (deleted send or insert) is removed rather than left dangling.
+  for (const t of tracks) {
+    const tr = t as unknown as Record<string, unknown>;
+    if (tr.automation !== undefined && !Array.isArray(tr.automation)) delete tr.automation;
+    if (Array.isArray(tr.automation)) {
+      const lanes = (tr.automation as unknown[])
+        .map((l) => validateLane(l))
+        .filter((l): l is NonNullable<ReturnType<typeof validateLane>> => l !== null)
+        .filter((l) => paramIdExists(t as unknown as Track, l.paramId));
+      const droppedLanes = (tr.automation as unknown[]).length - lanes.length;
+      if (droppedLanes > 0) {
+        diagLog('warn', `Project "${raw.name}": dropped ${droppedLanes} invalid automation lane(s)`);
+      }
+      if (lanes.length > 0) tr.automation = lanes;
+      else delete tr.automation;
+    }
+    if (tr.automationMode !== undefined && !isAutomationMode(tr.automationMode)) {
+      delete tr.automationMode;
+    }
+    if (tr.automationOpen !== undefined && typeof tr.automationOpen !== 'boolean') {
+      delete tr.automationOpen;
+    }
+  }
+
   const media = Array.isArray(raw.media)
     ? (raw.media as unknown[]).filter(
         (m): m is ProjectData['media'] extends (infer U)[] | undefined ? U : never =>

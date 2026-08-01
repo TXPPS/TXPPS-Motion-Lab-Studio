@@ -17,6 +17,9 @@ import type {
 import { defaultParams, effectSpec, MAX_INSERTS } from '../model/effects';
 import type { MediaRef } from '../model/media';
 import { createDemoProject } from '../model/demoProject';
+import { makePoint, normalizeLanePoints } from '../model/automation';
+import type { AutomationLane, AutomationMode, AutomationPoint, CurveShape } from '../model/automation';
+import { paramIdExists } from '../model/paramRegistry';
 
 const MAX_UNDO = 60;
 
@@ -121,6 +124,52 @@ export interface ProjectStore {
   transformNotes: (clipId: string, next: Note[]) => void;
   updateNotes: (clipId: string, ids: string[], patch: (n: Note) => Partial<Note>) => void;
   deleteNotes: (clipId: string, ids: string[]) => void;
+
+  // Automation (Milestone 5). Lane values are normalized 0..1.
+  /** Create a lane for a parameter. Returns null for unknown/duplicate params. */
+  addAutomationLane: (trackId: string, paramId: string) => string | null;
+  removeAutomationLane: (trackId: string, laneId: string) => void;
+  /** enabled is undoable; height is a continuous UI adjustment and is not. */
+  setAutomationLane: (
+    trackId: string,
+    laneId: string,
+    patch: Partial<Pick<AutomationLane, 'enabled' | 'height'>>,
+  ) => void;
+  setAutomationMode: (trackId: string, mode: AutomationMode) => void;
+  addAutomationPoint: (
+    trackId: string,
+    laneId: string,
+    beat: number,
+    value: number,
+    curve?: CurveShape,
+  ) => string | null;
+  /** Insert many points as ONE undoable step (paste, duplicate). Returns ids. */
+  insertAutomationPoints: (
+    trackId: string,
+    laneId: string,
+    pts: { beat: number; value: number; curve?: CurveShape }[],
+  ) => string[];
+  /** Continuous drags; non-undoable — wrap with begin/endGesture. */
+  updateAutomationPoints: (
+    trackId: string,
+    laneId: string,
+    ids: string[],
+    patch: (p: AutomationPoint) => Partial<AutomationPoint>,
+  ) => void;
+  deleteAutomationPoints: (trackId: string, laneId: string, ids: string[]) => void;
+  setAutomationCurve: (trackId: string, laneId: string, ids: string[], curve: CurveShape) => void;
+  /**
+   * Touch/latch capture: overwrite the lane between the previous write position
+   * and `beat` with a single point at `beat`. Non-undoable (the surrounding
+   * control gesture owns the undo step).
+   */
+  writeAutomationAt: (
+    trackId: string,
+    laneId: string,
+    beat: number,
+    value: number,
+    sinceBeat: number,
+  ) => void;
 
   // Transport-adjacent settings
   setBpm: (bpm: number) => void;
@@ -302,8 +351,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update((d) => {
         d.tracks = d.tracks.filter((t) => t.id !== id);
         d.clips = d.clips.filter((c) => c.trackId !== id);
-        // Reroute anything that pointed at a deleted bus
-        for (const t of d.tracks) if (t.output === id) t.output = 'master';
+        // Reroute anything that pointed at a deleted bus, and drop sends into
+        // it together with their automation lanes — no orphan bindings.
+        for (const t of d.tracks) {
+          if (t.output === id) t.output = 'master';
+          if (t.sends) t.sends = t.sends.filter((s) => s.busId !== id);
+          if (t.automation) {
+            t.automation = t.automation.filter((l) => l.paramId !== `send:${id}`);
+            if (t.automation.length === 0) delete t.automation;
+          }
+        }
       }),
 
     setTrack: (id, patch) =>
@@ -661,6 +718,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update((d) => {
         const t = trackById(d, trackId);
         if (t?.sends) t.sends = t.sends.filter((s) => s.busId !== busId);
+        // A removed send takes its automation lane with it.
+        if (t?.automation) {
+          t.automation = t.automation.filter((l) => l.paramId !== `send:${busId}`);
+          if (t.automation.length === 0) delete t.automation;
+        }
       }),
 
     addEffect: (trackId, kind) => {
@@ -682,6 +744,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update((d) => {
         const t = trackById(d, trackId);
         if (t?.effects) t.effects = t.effects.filter((e) => e.id !== effectId);
+        // A removed insert takes its parameter lanes with it.
+        if (t?.automation) {
+          t.automation = t.automation.filter((l) => !l.paramId.startsWith(`fx:${effectId}:`));
+          if (t.automation.length === 0) delete t.automation;
+        }
       }),
 
     setEffectParam: (trackId, effectId, key, value) =>
@@ -773,6 +840,121 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         if (c?.type === 'midi') c.notes = c.notes.filter((n) => !ids.includes(n.id));
       }),
 
+    addAutomationLane: (trackId, paramId) => {
+      const t = get().project.tracks.find((x) => x.id === trackId);
+      if (!t || !paramIdExists(t, paramId)) return null;
+      if ((t.automation ?? []).some((l) => l.paramId === paramId)) return null;
+      const id = newId('al');
+      update((d) => {
+        const track = trackById(d, trackId);
+        if (!track) return;
+        if (!track.automation) track.automation = [];
+        track.automation.push({ id, paramId, points: [], enabled: true });
+        track.automationOpen = true;
+      });
+      return id;
+    },
+
+    removeAutomationLane: (trackId, laneId) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t?.automation) return;
+        t.automation = t.automation.filter((l) => l.id !== laneId);
+        if (t.automation.length === 0) delete t.automation;
+      }),
+
+    setAutomationLane: (trackId, laneId, patch) =>
+      update(
+        (d) => {
+          const l = trackById(d, trackId)?.automation?.find((x) => x.id === laneId);
+          if (!l) return;
+          if (patch.enabled !== undefined) l.enabled = patch.enabled;
+          if (patch.height !== undefined) l.height = clamp(patch.height, 26, 120);
+        },
+        // Height drags are continuous; enabled flips are cheap to fold in too —
+        // a lane's on/off is restored by the edits around it.
+        { undoable: patch.enabled !== undefined },
+      ),
+
+    setAutomationMode: (trackId, mode) =>
+      update(
+        (d) => {
+          const t = trackById(d, trackId);
+          if (t) t.automationMode = mode;
+        },
+        { undoable: false },
+      ),
+
+    addAutomationPoint: (trackId, laneId, beat, value, curve) => {
+      let id: string | null = null;
+      update((d) => {
+        const l = trackById(d, trackId)?.automation?.find((x) => x.id === laneId);
+        if (!l) return;
+        const p = makePoint(beat, value, curve ?? 'linear');
+        l.points.push(p);
+        normalizeLanePoints(l.points);
+        id = p.id;
+      });
+      return id;
+    },
+
+    insertAutomationPoints: (trackId, laneId, pts) => {
+      const ids: string[] = [];
+      update((d) => {
+        const l = trackById(d, trackId)?.automation?.find((x) => x.id === laneId);
+        if (!l) return;
+        for (const p of pts) {
+          const made = makePoint(p.beat, p.value, p.curve ?? 'linear');
+          l.points.push(made);
+          ids.push(made.id);
+        }
+        normalizeLanePoints(l.points);
+      });
+      return ids;
+    },
+
+    updateAutomationPoints: (trackId, laneId, ids, patch) =>
+      update(
+        (d) => {
+          const l = trackById(d, trackId)?.automation?.find((x) => x.id === laneId);
+          if (!l) return;
+          for (const p of l.points) {
+            if (ids.includes(p.id)) Object.assign(p, patch(p));
+          }
+          normalizeLanePoints(l.points);
+        },
+        { undoable: false },
+      ),
+
+    deleteAutomationPoints: (trackId, laneId, ids) =>
+      update((d) => {
+        const l = trackById(d, trackId)?.automation?.find((x) => x.id === laneId);
+        if (!l) return;
+        const drop = new Set(ids);
+        l.points = l.points.filter((p) => !drop.has(p.id));
+      }),
+
+    setAutomationCurve: (trackId, laneId, ids, curve) =>
+      update((d) => {
+        const l = trackById(d, trackId)?.automation?.find((x) => x.id === laneId);
+        if (!l) return;
+        for (const p of l.points) if (ids.includes(p.id)) p.curve = curve;
+      }),
+
+    writeAutomationAt: (trackId, laneId, beat, value, sinceBeat) =>
+      update(
+        (d) => {
+          const l = trackById(d, trackId)?.automation?.find((x) => x.id === laneId);
+          if (!l) return;
+          const lo = Math.min(sinceBeat, beat);
+          // Overwrite the pass-through region, then place the new point.
+          l.points = l.points.filter((p) => p.beat <= lo || p.beat > beat + 1e-9);
+          l.points.push(makePoint(beat, value, 'linear'));
+          normalizeLanePoints(l.points);
+        },
+        { undoable: false },
+      ),
+
     setBpm: (bpm) =>
       update(
         (d) => {
@@ -826,9 +1008,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
 });
 
 function isUndoableTrackPatch(patch: Partial<Track>): boolean {
-  // Continuous controls (volume/pan) create undo noise; discrete edits are undoable.
+  // Continuous controls (volume/pan) and view toggles create undo noise;
+  // discrete edits are undoable.
   const keys = Object.keys(patch);
-  return !keys.every((k) => k === 'volume' || k === 'pan' || k === 'collapsed');
+  return !keys.every(
+    (k) => k === 'volume' || k === 'pan' || k === 'collapsed' || k === 'automationOpen',
+  );
 }
 
 export function getTrack(p: ProjectData, id: string): Track | undefined {

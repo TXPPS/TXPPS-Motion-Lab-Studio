@@ -1,13 +1,15 @@
 import type { MediaRef } from './media';
+import type { AutomationLane, AutomationMode } from './automation';
 
 /** Core project data model. Everything here is plain serializable data. */
 
 /**
  * v2 (Milestone 2) adds recorded/imported media references, nondestructive
- * audio-clip editing fields, and mixer sends. v1 projects migrate forward
+ * audio-clip editing fields, and mixer sends. v3 (Milestone 5) adds per-track
+ * automation lanes and the automation mode. Older projects migrate forward
  * losslessly — see `validateProject` in persistence/projectRepo.ts.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export type TrackType = 'audio' | 'instrument' | 'drum' | 'bus';
 
@@ -55,6 +57,12 @@ export interface Track {
   sends?: Send[];
   /** insert chain, applied in order between the channel input and the fader */
   effects?: Effect[];
+  /** automation lanes (v3); values are normalized — see model/automation.ts */
+  automation?: AutomationLane[];
+  /** read (default) applies lanes; touch/latch also record control moves; off ignores lanes */
+  automationMode?: AutomationMode;
+  /** automation lanes expanded beneath the track in the arrangement */
+  automationOpen?: boolean;
 }
 
 export interface Note {
