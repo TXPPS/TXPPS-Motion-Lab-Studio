@@ -476,3 +476,13 @@
     height: 11px;
   }
 }
+
+/* Marquee selection rectangle (mouse rubber-band) -------------------------- */
+.arr-marquee {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  background: rgba(55, 184, 154, 0.1);
+  border: 1px solid rgba(55, 184, 154, 0.55);
+  border-radius: 2px;
+}

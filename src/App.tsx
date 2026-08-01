@@ -13,6 +13,7 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LayoutDebugHud } from './components/diagnostics/LayoutDebugHud';
 import { RecordingBanner } from './components/recording/RecordControls';
 import { dragHasFiles } from './app/importActions';
+import { ShortcutsSheet } from './components/common/ShortcutsSheet';
 
 /**
  * App shell. Exactly three grid rows: the project bar, the active layout, and
@@ -74,6 +75,7 @@ export function App() {
       </div>
       {layout === 'phone' ? <PhoneNav /> : <StatusBar />}
       <DiagnosticsSheet />
+      <ShortcutsSheet />
       <DialogHost />
       <ContextMenuHost />
       <ToastHost />

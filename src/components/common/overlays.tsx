@@ -109,7 +109,8 @@ export function ContextMenuHost() {
           }}
           role="menuitem"
         >
-          {item.label}
+          <span className="mi-label">{item.label}</span>
+          {item.shortcut && <span className="mi-key">{item.shortcut}</span>}
         </button>
       ))}
     </div>

@@ -58,6 +58,20 @@ export interface ProjectStore {
     sourceDuration?: number,
   ) => string;
   moveClip: (id: string, start: number, trackId?: string) => void;
+  /**
+   * Move several clips by one beat delta, keeping their spacing. The delta is
+   * clamped so the earliest clip cannot cross zero — the group compresses
+   * nowhere, it just stops at the wall together.
+   */
+  moveClipsBy: (ids: string[], deltaBeats: number) => void;
+  deleteClips: (ids: string[]) => void;
+  /**
+   * Duplicate a selection as one block placed immediately after it, preserving
+   * internal spacing and track placement. Returns the new ids.
+   */
+  duplicateClips: (ids: string[]) => string[];
+  /** Insert deep-cloned clips (clipboard paste). Returns the new ids. */
+  insertClips: (clips: Clip[]) => string[];
   resizeClip: (id: string, start: number, length: number) => void;
   duplicateClip: (id: string, samePos?: boolean) => string | null;
   deleteClip: (id: string) => void;
@@ -380,6 +394,59 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         },
         { undoable: false },
       ),
+
+    moveClipsBy: (ids, deltaBeats) =>
+      update((d) => {
+        const targets = d.clips.filter((c) => ids.includes(c.id));
+        if (targets.length === 0 || !Number.isFinite(deltaBeats)) return;
+        const minStart = Math.min(...targets.map((c) => c.start));
+        const delta = Math.max(-minStart, deltaBeats);
+        for (const c of targets) c.start += delta;
+      }),
+
+    deleteClips: (ids) =>
+      update((d) => {
+        const set = new Set(ids);
+        d.clips = d.clips.filter((c) => !set.has(c.id));
+      }),
+
+    duplicateClips: (ids) => {
+      const src = get().project.clips.filter((c) => ids.includes(c.id));
+      if (src.length === 0) return [];
+      // The block's span decides the shift, so duplicated material lands
+      // immediately after the selection rather than on top of it.
+      const minStart = Math.min(...src.map((c) => c.start));
+      const span = Math.max(...src.map((c) => c.start + c.length)) - minStart;
+      const newIds: string[] = [];
+      update((d) => {
+        for (const c of src) {
+          const copy = structuredClone(d.clips.find((x) => x.id === c.id)!);
+          copy.id = newId('c');
+          copy.start = c.start + span;
+          if (copy.type === 'midi') for (const n of copy.notes) n.id = newId('n');
+          d.clips.push(copy);
+          newIds.push(copy.id);
+        }
+      });
+      return newIds;
+    },
+
+    insertClips: (clips) => {
+      const newIds: string[] = [];
+      update((d) => {
+        for (const c of clips) {
+          // Skip clips whose track no longer exists rather than inventing one.
+          if (!trackById(d, c.trackId)) continue;
+          const copy = structuredClone(c);
+          copy.id = newId('c');
+          copy.start = Math.max(0, copy.start);
+          if (copy.type === 'midi') for (const n of copy.notes) n.id = newId('n');
+          d.clips.push(copy);
+          newIds.push(copy.id);
+        }
+      });
+      return newIds;
+    },
 
     duplicateClip: (srcId, samePos = false) => {
       const src = get().project.clips.find((c) => c.id === srcId);

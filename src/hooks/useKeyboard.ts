@@ -5,6 +5,12 @@ import { clamp } from '../model/music';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { saveCurrent } from '../app/projectActions';
+import {
+  copySelection,
+  cutSelection,
+  duplicateSelection,
+  pasteAtPlayhead,
+} from '../app/clipboardActions';
 import { recording } from '../audio/recordingController';
 
 /**
@@ -96,6 +102,32 @@ export function useGlobalKeyboard(): void {
         splitSelectedAtPlayhead();
         return;
       }
+      if ((e.ctrlKey || e.metaKey) && k === 'a') {
+        e.preventDefault();
+        const all = useProjectStore.getState().project.clips.map((c) => c.id);
+        useUiStore.getState().selectClips(all);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && k === 'c') {
+        e.preventDefault();
+        copySelection();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && k === 'x') {
+        e.preventDefault();
+        cutSelection();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && k === 'v') {
+        e.preventDefault();
+        pasteAtPlayhead();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && k === 'd') {
+        e.preventDefault();
+        duplicateSelection();
+        return;
+      }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       // Record toggle. "R" is not part of the virtual keyboard layout.
@@ -110,10 +142,28 @@ export function useGlobalKeyboard(): void {
         return;
       }
       if (k === 'escape') {
-        // While capturing, Escape means "abandon this take" — and the take is
-        // stashed for recovery, not thrown away. Panic would be too blunt here.
+        // Escalating Escape. Musicians press it casually, so the first press
+        // does the gentlest plausible thing and only an "empty" press panics:
+        //   recording → abandon the take (stashed for recovery, not discarded)
+        //   overlay open → close it
+        //   selection → clear it
+        //   otherwise → audio panic (the stuck-note rescue)
         if (recording.isActive()) {
           void recording.cancel();
+          return;
+        }
+        const ui = useUiStore.getState();
+        if (ui.dialog) {
+          ui.closeDialog();
+          return;
+        }
+        if (ui.contextMenu) {
+          ui.closeMenu();
+          return;
+        }
+        if (ui.selectedClipIds.length > 0 || ui.selectedNoteIds.length > 0) {
+          ui.selectClips([]);
+          ui.set({ selectedNoteIds: [] });
           return;
         }
         engine.panic();
@@ -132,14 +182,23 @@ export function useGlobalKeyboard(): void {
           .set({ keyboardOctave: clamp(useUiStore.getState().keyboardOctave + 1, 1, 7) });
         return;
       }
-      if (
-        (k === 'delete' || k === 'backspace') &&
-        useUiStore.getState().selectedNoteIds.length > 0 &&
-        useUiStore.getState().editClipId
-      ) {
+      if (k === 'delete' || k === 'backspace') {
         const ui = useUiStore.getState();
-        useProjectStore.getState().deleteNotes(ui.editClipId!, ui.selectedNoteIds);
-        ui.set({ selectedNoteIds: [] });
+        // Piano-roll note editing takes priority: deleting notes inside a clip
+        // must never silently delete the clip itself.
+        if (ui.selectedNoteIds.length > 0 && ui.editClipId) {
+          useProjectStore.getState().deleteNotes(ui.editClipId, ui.selectedNoteIds);
+          ui.set({ selectedNoteIds: [] });
+          return;
+        }
+        if (ui.selectedClipIds.length > 0) {
+          useProjectStore.getState().deleteClips(ui.selectedClipIds);
+          ui.selectClips([]);
+          return;
+        }
+      }
+      if (k === '?') {
+        useUiStore.getState().set({ shortcutsOpen: true });
         return;
       }
 

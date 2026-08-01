@@ -43,6 +43,11 @@ export function TopBar({ layout }: { layout: Layout }) {
           : []),
         { label: 'Export mix as WAV…', action: () => void exportWav() },
         { label: 'Export loop region as WAV…', action: () => void exportLoopRegion() },
+        {
+          label: 'Keyboard shortcuts…',
+          shortcut: '?',
+          action: () => ui.getState().set({ shortcutsOpen: true }),
+        },
         { label: 'Diagnostics…', action: () => ui.getState().set({ diagnosticsOpen: true }) },
       ],
     });

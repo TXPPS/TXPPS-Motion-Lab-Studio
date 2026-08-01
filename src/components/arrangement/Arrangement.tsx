@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { engine } from '../../audio/engine';
 import { dragHasFiles, importDrop } from '../../app/importActions';
+import { usePointerDrag } from '../../hooks/usePointerDrag';
 import { beatsPerBar, clamp, snapBeat, snapBeatFloor } from '../../model/music';
 import type { Track } from '../../model/types';
 import { projectEndBeat, useProjectStore } from '../../state/projectStore';
@@ -38,6 +39,10 @@ export function Arrangement() {
 
   /** Lane currently under a file drag, for the drop affordance. */
   const [dropLane, setDropLane] = useState<string | null>(null);
+  /** Marquee rectangle in lanes-local px, while a rubber-band drag is live. */
+  const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(
+    null,
+  );
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -192,6 +197,61 @@ export function Arrangement() {
   }, [zoomBy]);
 
   /** Which track lane sits under a client Y coordinate (for cross-track drags). */
+  /**
+   * Marquee (rubber-band) selection on empty lane space. Mouse-only: on touch,
+   * a drag on empty space must stay a scroll, and the two cannot coexist on
+   * one gesture. Clip drags stop propagation, so anything reaching the lanes
+   * container started on empty space.
+   */
+  const dragMarquee = usePointerDrag<{
+    x: number;
+    y: number;
+    /** selection to add to when Shift is held, else empty */
+    base: string[];
+  }>({
+    onStart: (e) => {
+      const lanes = viewportRef.current?.querySelector('.arr-lanes');
+      const rect = lanes?.getBoundingClientRect();
+      const additive = e.shiftKey;
+      const base = additive ? [...useUiStore.getState().selectedClipIds] : [];
+      if (!additive) useUiStore.getState().selectClips([]);
+      const x = rect ? e.clientX - rect.left : 0;
+      const y = rect ? e.clientY - rect.top : 0;
+      return { x, y, base };
+    },
+    onMove: (_dx, _dy, e, d) => {
+      const lanes = viewportRef.current?.querySelector('.arr-lanes');
+      const rect = lanes?.getBoundingClientRect();
+      if (!rect) return;
+      // Content-local coordinates survive scrolling because the lanes box
+      // itself moves with the scroll; recompute against a fresh rect each move.
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const x0 = Math.min(d.x, cx);
+      const x1 = Math.max(d.x, cx);
+      const y0 = Math.min(d.y, cy);
+      const y1 = Math.max(d.y, cy);
+      setMarquee({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+
+      const beat0 = x0 / pxPerBeat;
+      const beat1 = x1 / pxPerBeat;
+      // Track rows the rectangle vertically covers.
+      const rows = new Set<string>();
+      let top = 0;
+      for (let i = 0; i < tracks.length; i++) {
+        const bottom = top + heights[i];
+        if (bottom > y0 && top < y1) rows.add(tracks[i].id);
+        top = bottom;
+      }
+      const hits = clips
+        .filter((c) => rows.has(c.trackId) && c.start < beat1 && c.start + c.length > beat0)
+        .map((c) => c.id);
+      useUiStore.getState().selectClips([...new Set([...d.base, ...hits])]);
+      edgeScroll(e.clientX, e.clientY);
+    },
+    onEnd: () => setMarquee(null),
+  });
+
   const laneAt = useCallback((clientY: number): Track | null => {
     const lanes = viewportRef.current?.querySelector('.arr-lanes');
     if (!lanes) return null;
@@ -367,7 +427,15 @@ export function Arrangement() {
               <div ref={rulerHeadRef} className="ruler-playhead" />
             </div>
 
-            <div className="arr-lanes" data-testid="arr-lanes">
+            <div
+              className="arr-lanes"
+              data-testid="arr-lanes"
+              onPointerDown={(e) => {
+                // Mouse only — see dragMarquee. Not invoking the hook for touch
+                // keeps native scroll untouched.
+                if (e.pointerType === 'mouse' && e.button === 0) dragMarquee(e);
+              }}
+            >
               <canvas ref={gridCanvasRef} className="arr-grid-canvas" />
               {tracks.map((t, i) => (
                 <div
@@ -426,6 +494,13 @@ export function Arrangement() {
                     ))}
                 </div>
               ))}
+              {marquee && (
+                <div
+                  className="arr-marquee"
+                  data-testid="marquee"
+                  style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }}
+                />
+              )}
               <div ref={playheadRef} className="arr-playhead" data-testid="playhead" />
             </div>
           </div>

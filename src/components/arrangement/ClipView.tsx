@@ -1,4 +1,6 @@
 import { memo, useMemo } from 'react';
+import { copySelection, cutSelection, duplicateSelection } from '../../app/clipboardActions';
+import { shortcutLabel } from '../../app/shortcuts';
 import { usePointerDrag, longPress } from '../../hooks/usePointerDrag';
 import { Waveform } from './Waveform';
 import { clamp, secondsPerBeat, snapBeat } from '../../model/music';
@@ -63,19 +65,31 @@ export const ClipView = memo(function ClipView({
   laneAt,
   onEdgeScroll,
 }: ClipViewProps) {
-  const selected = useUiStore((s) => s.selectedClipId === clip.id);
+  const selected = useUiStore((s) => s.selectedClipIds.includes(clip.id));
   const snap = useUiStore((s) => s.snap);
   const bpm = useProjectStore((s) => s.project.bpm);
   const store = useProjectStore;
   const ui = useUiStore;
 
   const openMenu = (x: number, y: number) => {
-    ui.getState().selectClip(clip.id, clip.trackId);
+    // Right-clicking inside an existing multi-selection keeps it, so the menu
+    // can act on the whole group; outside it, selection moves to this clip.
+    const uiState = ui.getState();
+    if (!uiState.selectedClipIds.includes(clip.id)) {
+      uiState.selectClip(clip.id, clip.trackId);
+    } else {
+      uiState.set({ selectedClipId: clip.id, selectedTrackId: clip.trackId });
+    }
+    const ids = ui.getState().selectedClipIds;
+    const many = ids.length > 1;
+    const label = (single: string, plural: string) =>
+      many ? `${plural} (${ids.length})` : single;
+
     ui.getState().showMenu({
       x,
       y,
       items: [
-        ...(clip.type === 'midi'
+        ...(clip.type === 'midi' && !many
           ? [
               {
                 label: 'Open in Piano Roll',
@@ -83,22 +97,41 @@ export const ClipView = memo(function ClipView({
               },
             ]
           : []),
+        ...(!many
+          ? [
+              {
+                label: 'Rename…',
+                action: () =>
+                  ui.getState().showDialog({
+                    kind: 'prompt',
+                    title: 'Rename clip',
+                    initialValue: clip.name,
+                    confirmLabel: 'Rename',
+                    onSubmit: (v) => v && store.getState().setClip(clip.id, { name: v }),
+                  }),
+              },
+            ]
+          : []),
         {
-          label: 'Rename…',
-          action: () =>
-            ui.getState().showDialog({
-              kind: 'prompt',
-              title: 'Rename clip',
-              initialValue: clip.name,
-              confirmLabel: 'Rename',
-              onSubmit: (v) => v && store.getState().setClip(clip.id, { name: v }),
-            }),
+          label: label('Copy', 'Copy clips'),
+          shortcut: shortcutLabel('copy'),
+          action: () => copySelection(),
         },
-        { label: 'Duplicate', action: () => store.getState().duplicateClip(clip.id) },
-        ...(clip.type === 'audio'
+        {
+          label: label('Cut', 'Cut clips'),
+          shortcut: shortcutLabel('cut'),
+          action: () => cutSelection(),
+        },
+        {
+          label: label('Duplicate', 'Duplicate clips'),
+          shortcut: shortcutLabel('duplicate'),
+          action: () => duplicateSelection(),
+        },
+        ...(!many
           ? [
               {
                 label: 'Split at playhead',
+                shortcut: shortcutLabel('split'),
                 action: () => {
                   const at = engine.getPositionBeats();
                   if (!store.getState().splitClip(clip.id, at)) {
@@ -106,6 +139,10 @@ export const ClipView = memo(function ClipView({
                   }
                 },
               },
+            ]
+          : []),
+        ...(clip.type === 'audio' && !many
+          ? [
               {
                 label: 'Clip gain…',
                 action: () =>
@@ -128,33 +165,82 @@ export const ClipView = memo(function ClipView({
             ]
           : []),
         {
-          label: clip.muted ? 'Unmute' : 'Mute',
-          action: () => store.getState().setClip(clip.id, { muted: !clip.muted }),
+          label: many ? `Mute/unmute (${ids.length})` : clip.muted ? 'Unmute' : 'Mute',
+          action: () => {
+            const clips = store.getState().project.clips.filter((c) => ids.includes(c.id));
+            // Mixed states resolve toward muted, so one press always silences.
+            const target = clips.some((c) => !c.muted);
+            for (const c of clips) store.getState().setClip(c.id, { muted: target });
+          },
         },
         {
-          label: 'Delete',
+          label: label('Delete', 'Delete clips'),
+          shortcut: shortcutLabel('delete'),
           danger: true,
-          action: () => store.getState().deleteClip(clip.id),
+          action: () => {
+            store.getState().deleteClips(ids);
+            ui.getState().selectClips([]);
+          },
         },
       ],
     });
   };
 
-  const dragMove = usePointerDrag<{ id: string; start: number }>({
+  interface MoveState {
+    id: string;
+    start: number;
+    /** other selected clips moving with this one, with their original starts */
+    group: { id: string; start: number }[];
+  }
+
+  const dragMove = usePointerDrag<MoveState>({
     onStart: (e) => {
       let id = clip.id;
+      const uiState = ui.getState();
       if (e.altKey) {
         const dup = store.getState().duplicateClip(clip.id, true);
         if (dup) id = dup;
+        uiState.selectClip(id, clip.trackId);
+      } else if (e.shiftKey || e.ctrlKey || e.metaKey) {
+        uiState.toggleClipSelection(clip.id, clip.trackId);
+      } else if (!uiState.selectedClipIds.includes(clip.id)) {
+        // Clicking an unselected clip replaces the selection; clicking inside
+        // an existing multi-selection keeps it, so the group can be dragged.
+        uiState.selectClip(clip.id, clip.trackId);
+      } else {
+        uiState.set({ selectedClipId: clip.id, selectedTrackId: clip.trackId });
       }
-      ui.getState().selectClip(id, clip.trackId);
+      const ids = ui.getState().selectedClipIds;
+      const clips = store.getState().project.clips;
+      const group = clips
+        .filter((c) => ids.includes(c.id) && c.id !== id)
+        .map((c) => ({ id: c.id, start: c.start }));
       store.getState().beginGesture();
-      return { id, start: clip.start };
+      return { id, start: clip.start, group };
     },
     onMove: (dx, _dy, e, d) => {
-      const beats = snapBeat(d.start + dx / pxPerBeat, snap);
-      const targetTrack = laneAt(e.clientY);
-      store.getState().moveClip(d.id, Math.max(0, beats), targetTrack?.id);
+      // Shift bypasses snapping for fine placement — checked per move so it
+      // can be pressed and released mid-drag.
+      const raw = d.start + dx / pxPerBeat;
+      const beats = e.shiftKey ? raw : snapBeat(raw, snap);
+      if (d.group.length === 0) {
+        // Single clip: free horizontal + vertical lane moves.
+        const targetTrack = laneAt(e.clientY);
+        store.getState().moveClip(d.id, Math.max(0, beats), targetTrack?.id);
+      } else {
+        // Group: one shared beat delta in one store update. Re-anchoring from
+        // the grabbed clip's *current* position keeps the group drift-free even
+        // after the zero-wall clamp has engaged. Lane changes stay single-clip
+        // only — moving many clips across heterogeneous track types has no
+        // predictable meaning.
+        const grabbed = store.getState().project.clips.find((c) => c.id === d.id);
+        if (grabbed) {
+          const increment = Math.max(0, beats) - grabbed.start;
+          if (increment !== 0) {
+            store.getState().moveClipsBy([d.id, ...d.group.map((g) => g.id)], increment);
+          }
+        }
+      }
       onEdgeScroll?.(e.clientX, e.clientY);
     },
     onEnd: () => store.getState().endGesture(),

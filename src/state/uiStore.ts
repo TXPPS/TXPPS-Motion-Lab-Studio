@@ -16,6 +16,8 @@ export interface DialogState {
 
 export interface MenuItem {
   label: string;
+  /** Keyboard hint rendered right-aligned, e.g. "Ctrl+D". Purely informative. */
+  shortcut?: string;
   danger?: boolean;
   disabled?: boolean;
   action: () => void;
@@ -45,9 +47,17 @@ interface UiState {
   /** QA layout overlay via #/qa or #/debug — off in normal production use */
   debugOverlay: boolean;
   diagnosticsOpen: boolean;
+  /** Keyboard shortcut help sheet */
+  shortcutsOpen: boolean;
 
   selectedTrackId: string | null;
+  /**
+   * Primary selected clip — what the inspector shows. Always the last clip
+   * added to the selection, and always a member of `selectedClipIds`.
+   */
   selectedClipId: string | null;
+  /** Full clip selection, in selection order. */
+  selectedClipIds: string[];
   selectedNoteIds: string[];
   /** Piano roll target clip */
   editClipId: string | null;
@@ -66,6 +76,10 @@ interface UiState {
   set: (patch: Partial<UiState>) => void;
   selectTrack: (id: string | null) => void;
   selectClip: (id: string | null, trackId?: string | null) => void;
+  /** Shift/Ctrl-click: add or remove one clip without dropping the rest. */
+  toggleClipSelection: (id: string, trackId?: string | null) => void;
+  /** Replace the whole selection (marquee, select-all). */
+  selectClips: (ids: string[]) => void;
   openEditorFor: (clipId: string, phone?: boolean) => void;
   showDialog: (d: DialogState) => void;
   closeDialog: () => void;
@@ -87,9 +101,11 @@ export const useUiStore = create<UiState>((set, get) => ({
   forcedLayout: null,
   debugOverlay: false,
   diagnosticsOpen: false,
+  shortcutsOpen: false,
 
   selectedTrackId: null,
   selectedClipId: null,
+  selectedClipIds: [],
   selectedNoteIds: [],
   editClipId: null,
 
@@ -109,13 +125,32 @@ export const useUiStore = create<UiState>((set, get) => ({
   selectClip: (id, trackId) =>
     set({
       selectedClipId: id,
+      selectedClipIds: id ? [id] : [],
       ...(trackId !== undefined ? { selectedTrackId: trackId } : {}),
       ...(id ? {} : { selectedNoteIds: [] }),
+    }),
+  toggleClipSelection: (id, trackId) =>
+    set((s) => {
+      const has = s.selectedClipIds.includes(id);
+      const ids = has ? s.selectedClipIds.filter((x) => x !== id) : [...s.selectedClipIds, id];
+      return {
+        selectedClipIds: ids,
+        // Primary follows the toggle: the clip just added, or the last survivor.
+        selectedClipId: has ? (ids[ids.length - 1] ?? null) : id,
+        ...(trackId !== undefined && !has ? { selectedTrackId: trackId } : {}),
+      };
+    }),
+  selectClips: (ids) =>
+    set({
+      selectedClipIds: ids,
+      selectedClipId: ids[ids.length - 1] ?? null,
+      ...(ids.length === 0 ? { selectedNoteIds: [] } : {}),
     }),
   openEditorFor: (clipId, phone) =>
     set({
       editClipId: clipId,
       selectedClipId: clipId,
+      selectedClipIds: [clipId],
       selectedNoteIds: [],
       panelEditor: true,
       editorTab: 'piano',
