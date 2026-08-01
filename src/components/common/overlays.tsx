@@ -76,7 +76,15 @@ export function ContextMenuHost() {
 
   useEffect(() => {
     if (!menu) return;
-    const off = () => close();
+    // Capture phase so app surfaces that stopPropagation cannot keep a stale
+    // menu open — but a press INSIDE the menu must not close it, or the menu
+    // unmounts between pointerdown and pointerup and the item's click never
+    // fires. That exact bug made every menu action dead to a real mouse press
+    // until the first e2e test actually clicked one.
+    const off = (e: Event) => {
+      if (ref.current && e.target instanceof Node && ref.current.contains(e.target)) return;
+      close();
+    };
     window.addEventListener('pointerdown', off, { capture: true });
     window.addEventListener('blur', off);
     return () => {
