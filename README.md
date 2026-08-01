@@ -68,6 +68,33 @@ enjoyable to operate.
 See [`docs/MILESTONE-3-WORKFLOW.md`](docs/MILESTONE-3-WORKFLOW.md) for the
 audit findings, measurements, and deferrals.
 
+## Milestone 4 scope
+
+Professional MIDI composition: the piano roll rebuilt as a real editing
+surface, backed by a pure, unit-tested musical model layer.
+
+- Piano roll rebuild: windowed note rendering (selected notes always mounted),
+  CSS-gradient grid, marquee selection, click-to-add, drag with pitch
+  audition, resize, note labels, note mute (Alt+click / M), velocity lane with
+  drag editing
+- Quantize with musical grids (including triplets), strength %, swing %, as a
+  single undo step
+- Seeded humanization (timing/velocity/length/probability) — deterministic per
+  seed; probability mutes rather than deletes
+- Chord tools: 14 chordify qualities, inversions, drop-2, spread, octave
+  double; scale system with 12 scales, out-of-scale shading, scale lock, and
+  key/scale suggestions
+- MIDI transforms: transpose, reverse, mirror, double/half length, legato,
+  delete overlaps, thin, repeat
+- Note-level shortcuts (select-all/duplicate/nudge/transpose/mute) that take
+  priority inside the roll, registered in the conflict-checked shortcut sheet
+- Muted notes are skipped by live playback and WAV export alike
+- 11k+-note QA fixture (`#/qa-midi`); a 6,000-note clip stays editable with
+  bounded mounts and budgeted scrolling on CI
+
+See [`docs/MILESTONE-4-MIDI.md`](docs/MILESTONE-4-MIDI.md) for the audit,
+architecture, and honest deferrals.
+
 ## Development
 
 ```bash
@@ -90,6 +117,7 @@ Fixtures are never autosaved, so a QA run cannot overwrite a real project.
 | `#/qa`           | Layout stress fixture: 26 tracks, 133 clips, 27 mixer strips              |
 | `#/qa-audio`     | Audio editing & routing: trims, splits, fades, clip gains, missing media, three buses with sends |
 | `#/qa-huge`      | Extreme scale: 100 tracks, ~1080 clips, for performance QA               |
+| `#/qa-midi`      | Dense MIDI: 11k+ notes across a 6k-note stack, drum groove, and arpeggios |
 | `#/phone`        | Forces the phone layout on any screen size                                |
 | `#/diagnostics`  | Opens the diagnostics panel on load                                       |
 | `#/demo`         | Reseeds the demo project                                                  |
