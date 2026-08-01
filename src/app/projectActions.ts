@@ -130,6 +130,12 @@ export async function bootProject(forceDemo: boolean, qaFixture = false): Promis
       diagLog('info', 'Loaded QA dense-MIDI fixture (not persisted)');
       return;
     }
+    if (window.location.hash.includes('qa-automation')) {
+      const { createHugeAutomationProject } = await import('../model/hugeAutomationProject');
+      useProjectStore.getState().setProject(createHugeAutomationProject(), { markClean: true });
+      diagLog('info', 'Loaded QA automation stress fixture (not persisted)');
+      return;
+    }
     if (window.location.hash.includes('qa-huge')) {
       const { createHugeProject } = await import('../model/hugeProject');
       useProjectStore.getState().setProject(createHugeProject(), { markClean: true });
