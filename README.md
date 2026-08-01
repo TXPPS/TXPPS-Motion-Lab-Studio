@@ -95,6 +95,33 @@ surface, backed by a pure, unit-tested musical model layer.
 See [`docs/MILESTONE-4-MIDI.md`](docs/MILESTONE-4-MIDI.md) for the audit,
 architecture, and honest deferrals.
 
+## Milestone 5 scope
+
+A complete automation system and professional mixing workflow — one unified
+model for every parameter.
+
+- Automation lanes beneath tracks: expandable, resizable, named, color-coded
+  by parameter family, windowed rendering
+- One model for volume, pan, mute, sends, insert-effect parameters and synth
+  parameters — normalized values with per-parameter linear/log mapping
+- Point editing: add, delete, drag (Shift = fine, Alt = no snap), marquee
+  multi-select, copy/paste at the playhead, duplicate, single-step undo
+- Five curve shapes: linear, exponential, logarithmic, S-curve, stepped
+- Playback: control-rate application with ramp smoothing (no direct value
+  assignment anywhere); offline WAV export schedules real ramps for
+  fader-domain lanes and measures as sample-accurate between knots
+- Automation modes: Read, Touch, Latch, Off (Write and Trim honestly
+  deferred); touch-riding a fader during playback writes the lane
+- Mixer: bus tags with feed counts, automation indicators, track color
+  language carried through
+- Schema v3 with defensive lane validation; deleting a send/insert/bus
+  removes its dependent lanes
+- `#/qa-automation`: 100 tracks, exactly 500 lanes and 100,000 points, with a
+  curve-showcase track
+
+See [`docs/MILESTONE-5-AUTOMATION.md`](docs/MILESTONE-5-AUTOMATION.md) for the
+architecture, the honest sample-accuracy statement, and deferrals.
+
 ## Development
 
 ```bash
@@ -118,6 +145,7 @@ Fixtures are never autosaved, so a QA run cannot overwrite a real project.
 | `#/qa-audio`     | Audio editing & routing: trims, splits, fades, clip gains, missing media, three buses with sends |
 | `#/qa-huge`      | Extreme scale: 100 tracks, ~1080 clips, for performance QA               |
 | `#/qa-midi`      | Dense MIDI: 11k+ notes across a 6k-note stack, drum groove, and arpeggios |
+| `#/qa-automation`| Automation stress: 100 tracks, 500 lanes, 100,000 points, curve showcase |
 | `#/phone`        | Forces the phone layout on any screen size                                |
 | `#/diagnostics`  | Opens the diagnostics panel on load                                       |
 | `#/demo`         | Reseeds the demo project                                                  |
@@ -136,6 +164,7 @@ Fixtures are never autosaved, so a QA run cannot overwrite a real project.
 | Recording                 | `src/audio/inputManager.ts`, `recorder.ts`, `recordingController.ts` |
 | Clip scheduling maths     | `src/audio/clipSchedule.ts` (shared by playback and export) |
 | Insert effects            | `src/model/effects.ts`, `src/audio/effectChain.ts`        |
+| Automation                | `src/model/automation.ts`, `src/model/paramRegistry.ts`, `src/components/arrangement/AutomationLanes.tsx` |
 | Import / export           | `src/audio/importAudio.ts`, `src/audio/exportMix.ts`      |
 | Piano roll                | `src/components/pianoroll/`                               |
 | Persistence               | `src/persistence/` (IndexedDB)                            |
