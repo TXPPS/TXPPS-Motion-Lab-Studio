@@ -51,6 +51,8 @@ interface UiState {
   diagnosticsOpen: boolean;
   /** Keyboard shortcut help sheet */
   shortcutsOpen: boolean;
+  /** First-run welcome card */
+  welcomeOpen: boolean;
   /** Active arrangement tool */
   tool: ArrangeTool;
 
@@ -113,6 +115,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   debugOverlay: false,
   diagnosticsOpen: false,
   shortcutsOpen: false,
+  welcomeOpen: false,
   tool: 'pointer',
 
   selectedTrackId: null,

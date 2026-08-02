@@ -208,6 +208,33 @@ function m2Fields(): DiagField[] {
   ];
 }
 
+/**
+ * Honest feature detection for the compatibility matrix and bug reports:
+ * every capability the app uses, detected — never assumed from the UA string.
+ */
+export function featureFields(): DiagField[] {
+  const w = typeof window !== 'undefined' ? (window as unknown as Record<string, unknown>) : {};
+  const nav = typeof navigator !== 'undefined' ? navigator : ({} as Navigator);
+  const has = (ok: boolean, name: string, err = false): DiagField => ({
+    key: name,
+    value: ok ? 'available' : 'not available',
+    status: ok ? 'ok' : err ? 'err' : 'warn',
+  });
+  return [
+    // Hard requirements — the app cannot run without these.
+    has(typeof w.AudioContext === 'function' || typeof w.webkitAudioContext === 'function', 'Web Audio', true),
+    has(typeof structuredClone === 'function', 'structuredClone', true),
+    // Degradable — features that switch off individually when absent.
+    has(typeof w.OfflineAudioContext === 'function', 'Offline render (WAV export)'),
+    has(!!nav.mediaDevices?.getUserMedia, 'Microphone capture'),
+    has(typeof w.MediaRecorder === 'function', 'MediaRecorder'),
+    has(typeof (nav as Navigator & { requestMIDIAccess?: unknown }).requestMIDIAccess === 'function', 'Web MIDI'),
+    has(typeof w.indexedDB !== 'undefined', 'IndexedDB (project storage)'),
+    has(!!nav.storage?.estimate, 'Storage estimate API'),
+    has(typeof w.PointerEvent === 'function', 'Pointer events'),
+  ];
+}
+
 export function collectFields(): DiagField[] {
   const t = useTransportStore.getState();
   const p = useProjectStore.getState().project;
@@ -262,6 +289,7 @@ export function collectFields(): DiagField[] {
       value: `${db.status} (${db.detail})`,
       status: db.status === 'ok' ? 'ok' : db.status === 'error' ? 'err' : 'warn',
     },
+    ...featureFields(),
     ...m2Fields(),
   ];
 }

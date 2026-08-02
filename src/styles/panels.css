@@ -433,3 +433,61 @@ button.li-main {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* Welcome sheet ------------------------------------------------------------- */
+.welcome-sheet {
+  width: min(560px, 100%);
+  max-height: min(86vh, 640px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px;
+  gap: 14px;
+}
+.welcome-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.welcome-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+.welcome-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+.welcome-step {
+  display: flex;
+  gap: 9px;
+  padding: 10px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  align-items: flex-start;
+}
+.welcome-step svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--accent);
+}
+.welcome-step-title {
+  font-weight: 600;
+  font-size: var(--fs-md);
+  margin-bottom: 2px;
+}
+.welcome-step-body {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+.welcome-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

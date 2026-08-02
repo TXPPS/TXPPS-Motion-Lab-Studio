@@ -14,6 +14,7 @@ import { LayoutDebugHud } from './components/diagnostics/LayoutDebugHud';
 import { RecordingBanner } from './components/recording/RecordControls';
 import { dragHasFiles } from './app/importActions';
 import { ShortcutsSheet } from './components/common/ShortcutsSheet';
+import { WelcomeSheet, maybeShowWelcome } from './components/common/WelcomeSheet';
 
 /**
  * App shell. Exactly three grid rows: the project bar, the active layout, and
@@ -36,6 +37,7 @@ export function App() {
       });
     };
     apply();
+    maybeShowWelcome();
     window.addEventListener('hashchange', apply);
     return () => window.removeEventListener('hashchange', apply);
   }, []);
@@ -76,6 +78,7 @@ export function App() {
       {layout === 'phone' ? <PhoneNav /> : <StatusBar />}
       <DiagnosticsSheet />
       <ShortcutsSheet />
+      <WelcomeSheet />
       <DialogHost />
       <ContextMenuHost />
       <ToastHost />

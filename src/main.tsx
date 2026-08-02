@@ -67,11 +67,37 @@ void (async () => {
   };
 })();
 
+/**
+ * Boot guard: without these the store or the audio engine cannot function at
+ * all, and the alternative is a blank white page. Everything else (recording,
+ * MIDI, storage) degrades feature-by-feature with in-app messaging instead.
+ */
+function missingHardRequirements(): string[] {
+  const w = window as unknown as Record<string, unknown>;
+  const out: string[] = [];
+  if (typeof structuredClone !== 'function') out.push('structuredClone');
+  if (typeof w.AudioContext !== 'function' && typeof w.webkitAudioContext !== 'function') {
+    out.push('Web Audio');
+  }
+  return out;
+}
+
 const rootEl = document.getElementById('root');
 if (rootEl) {
-  createRoot(rootEl).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
+  const missing = missingHardRequirements();
+  if (missing.length > 0) {
+    diagLog('error', `Unsupported browser — missing: ${missing.join(', ')}`);
+    rootEl.innerHTML =
+      '<div style="max-width:520px;margin:18vh auto;padding:24px;font-family:system-ui,sans-serif;color:#dfe5ec;background:#171c24;border:1px solid #323b47;border-radius:10px">' +
+      '<h1 style="font-size:18px;margin:0 0 10px">This browser can’t run MotionLab Studio</h1>' +
+      `<p style="line-height:1.5;margin:0 0 8px">It is missing: <strong>${missing.join(', ')}</strong>.</p>` +
+      '<p style="line-height:1.5;margin:0">Please use a current version of Chrome, Edge, Firefox, or Safari 15.4+.</p>' +
+      '</div>';
+  } else {
+    createRoot(rootEl).render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+  }
 }

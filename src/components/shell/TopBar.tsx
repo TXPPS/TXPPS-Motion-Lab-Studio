@@ -48,6 +48,7 @@ export function TopBar({ layout }: { layout: Layout }) {
           shortcut: '?',
           action: () => ui.getState().set({ shortcutsOpen: true }),
         },
+        { label: 'Welcome tour…', action: () => ui.getState().set({ welcomeOpen: true }) },
         { label: 'Diagnostics…', action: () => ui.getState().set({ diagnosticsOpen: true }) },
       ],
     });
