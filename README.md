@@ -122,6 +122,31 @@ model for every parameter.
 See [`docs/MILESTONE-5-AUTOMATION.md`](docs/MILESTONE-5-AUTOMATION.md) for the
 architecture, the honest sample-accuracy statement, and deferrals.
 
+## Milestone 6 scope
+
+Professional audio editing: crossfades, comping, and multitrack safety — all
+non-destructive.
+
+- Fade shapes (linear, equal power, equal gain, S-curve) drawn as real curves
+  and rendered through the shared schedule math
+- Crossfades from the clip menu: real overlap from verifiable trim headroom,
+  complementary shapes, single-step undo
+- Take lanes with swipe comping: pack stacked clips into takes, swipe a lane
+  to comp a range, click to audition, promote/mute/reorder/safe-delete;
+  micro-fades at comp joins; comp indicator bar on the clip
+- Time tools: split/heal (contiguity-checked), slip tool (5), ripple delete,
+  clip nudge with arrows, zoom-to-selection
+- Cleanup: normalize to −0.3 dBFS, phase invert, mono sum, DC/peak analysis,
+  visual silence detection, sample-aware zoom past the peak-cache resolution
+- Multitrack safety: clip and track locks enforced in the store, edit groups
+  with linked selection
+- Render proofs in CI: a phase-inverted duplicate cancels the bounce to
+  silence; comps render take-correct material
+- `#/qa-audio-edit`: 2,020-clip editing stress fixture
+
+See [`docs/MILESTONE-6-AUDIO-EDITING.md`](docs/MILESTONE-6-AUDIO-EDITING.md)
+for the audit, the short manual, and deferrals.
+
 ## Development
 
 ```bash
@@ -146,6 +171,7 @@ Fixtures are never autosaved, so a QA run cannot overwrite a real project.
 | `#/qa-huge`      | Extreme scale: 100 tracks, ~1080 clips, for performance QA               |
 | `#/qa-midi`      | Dense MIDI: 11k+ notes across a 6k-note stack, drum groove, and arpeggios |
 | `#/qa-automation`| Automation stress: 100 tracks, 500 lanes, 100,000 points, curve showcase |
+| `#/qa-audio-edit`| Audio-editing stress: 2,020 clips, crossfade chain, take comps, split run, locks, groups |
 | `#/phone`        | Forces the phone layout on any screen size                                |
 | `#/diagnostics`  | Opens the diagnostics panel on load                                       |
 | `#/demo`         | Reseeds the demo project                                                  |
