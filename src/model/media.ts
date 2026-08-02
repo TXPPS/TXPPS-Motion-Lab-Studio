@@ -72,6 +72,32 @@ export function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * Every media id a project can play: audio clips, their takes, and sampler
+ * zones (including rack children). Used to evict stale decode caches when
+ * switching projects.
+ */
+export function usedMediaIds(p: {
+  clips: { type: string; mediaId?: string; takes?: { mediaId: string }[] }[];
+  tracks: {
+    sampler?: { zones: { mediaId: string }[] };
+    rack?: { items: { sampler?: { zones: { mediaId: string }[] } }[] };
+  }[];
+}): Set<string> {
+  const ids = new Set<string>();
+  for (const c of p.clips) {
+    if (typeof c.mediaId === 'string') ids.add(c.mediaId);
+    for (const t of c.takes ?? []) ids.add(t.mediaId);
+  }
+  for (const t of p.tracks) {
+    for (const z of t.sampler?.zones ?? []) ids.add(z.mediaId);
+    for (const item of t.rack?.items ?? []) {
+      for (const z of item.sampler?.zones ?? []) ids.add(z.mediaId);
+    }
+  }
+  return ids;
+}
+
 /** Human-readable summary used by the browser panel and diagnostics. */
 export function describeMedia(m: MediaRef): string {
   const ch = m.channels === 1 ? 'mono' : m.channels === 2 ? 'stereo' : `${m.channels}ch`;

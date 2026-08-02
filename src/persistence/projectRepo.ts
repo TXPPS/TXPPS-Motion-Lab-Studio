@@ -14,7 +14,7 @@ import type { RackItem, Take } from '../model/types';
 
 const FADE_SHAPES = new Set(['linear', 'equalPower', 'equalGain', 's']);
 import { diagLog } from '../state/diagnostics';
-import { idbDelete, idbGet, idbGetAll, idbPut, STORE_PREFS, STORE_PROJECTS } from './db';
+import { idbDelete, idbGet, idbGetAll, idbPut, openDb, STORE_PREFS, STORE_PROJECTS } from './db';
 
 export class SchemaError extends Error {
   constructor(msg: string) {
@@ -287,9 +287,31 @@ export function validateProject(raw: unknown): ProjectData {
   };
 }
 
+/**
+ * Backups live in the projects store under a suffixed key. Every save keeps
+ * the previously stored version, atomically in the same transaction, so a
+ * corrupted write, a bad migration, or an interrupted save always leaves one
+ * older good copy to fall back to.
+ */
+const BACKUP_SUFFIX = '~~backup';
+export const isBackupId = (id: string): boolean => id.endsWith(BACKUP_SUFFIX);
+
 export async function saveProject(p: ProjectData): Promise<void> {
   try {
-    await idbPut(STORE_PROJECTS, p);
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_PROJECTS, 'readwrite');
+      const store = tx.objectStore(STORE_PROJECTS);
+      const getReq = store.get(p.id);
+      getReq.onsuccess = () => {
+        const prev = getReq.result as ProjectData | undefined;
+        if (prev !== undefined) store.put({ ...prev, id: p.id + BACKUP_SUFFIX });
+        store.put(p);
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error('transaction failed'));
+      tx.onabort = () => reject(tx.error ?? new Error('transaction aborted (storage quota?)'));
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/quota/i.test(msg)) {
@@ -307,11 +329,22 @@ export async function loadProject(id: string): Promise<ProjectData | null> {
   return validateProject(raw);
 }
 
+/** The automatically kept previous version of a project, if any. */
+export async function loadProjectBackup(id: string): Promise<ProjectData | null> {
+  const raw = await idbGet<unknown>(STORE_PROJECTS, id + BACKUP_SUFFIX);
+  if (raw === undefined) return null;
+  const p = validateProject(raw);
+  // A restored backup must save under the real id, not the backup key.
+  p.id = id;
+  return p;
+}
+
 export async function listProjects(): Promise<ProjectMeta[]> {
   const all = await idbGetAll<unknown>(STORE_PROJECTS);
   const metas: ProjectMeta[] = [];
   for (const raw of all) {
     if (!isRecord(raw) || typeof raw.id !== 'string' || typeof raw.name !== 'string') continue;
+    if (isBackupId(raw.id)) continue;
     metas.push({
       id: raw.id,
       name: raw.name,
@@ -327,6 +360,9 @@ export async function listProjects(): Promise<ProjectMeta[]> {
 
 export async function deleteProject(id: string): Promise<void> {
   await idbDelete(STORE_PROJECTS, id);
+  await idbDelete(STORE_PROJECTS, id + BACKUP_SUFFIX).catch(() => {
+    /* no backup to remove */
+  });
 }
 
 export async function duplicateProject(id: string, newName: string): Promise<ProjectData | null> {

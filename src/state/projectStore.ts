@@ -49,7 +49,12 @@ export interface ProjectStore {
   /** Capture state before a continuous drag; endGesture pushes a single undo step. */
   beginGesture: () => void;
   endGesture: () => void;
-  markSaved: () => void;
+  /**
+   * Record a completed save. Pass the exact project object that was written:
+   * dirty only clears when nothing changed while the save was in flight, so
+   * an edit made during an async save is never silently marked as persisted.
+   */
+  markSaved: (saved: ProjectData) => void;
 
   // Track ops
   addTrack: (type: TrackType) => string;
@@ -362,7 +367,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       });
     },
 
-    markSaved: () => set({ dirty: false, lastSavedAt: Date.now() }),
+    markSaved: (saved) =>
+      set((s) =>
+        s.project === saved
+          ? { dirty: false, lastSavedAt: Date.now() }
+          : { lastSavedAt: Date.now() },
+      ),
 
     addTrack: (type) => {
       const id = newId('t');

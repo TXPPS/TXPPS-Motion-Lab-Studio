@@ -12,6 +12,7 @@ import {
   listProjects,
   loadPrefs,
   loadProject,
+  loadProjectBackup,
   saveProject,
   savePrefs,
   SchemaError,
@@ -20,21 +21,36 @@ import { diagLog } from '../state/diagnostics';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { engine } from '../audio/engine';
+import { retainOnly } from '../audio/mediaLibrary';
+import { usedMediaIds } from '../model/media';
 
 function toast(level: 'info' | 'error', msg: string): void {
   useUiStore.getState().toast(level, msg);
 }
 
+/** Set after a quiet (auto)save failure so the user is warned exactly once. */
+let autosaveFailureWarned = false;
+
 export async function saveCurrent(quiet = false): Promise<boolean> {
   const s = useProjectStore.getState();
+  const snapshot = s.project;
   try {
-    await saveProject(s.project);
-    s.markSaved();
-    await savePrefs({ lastProjectId: s.project.id });
-    if (!quiet) toast('info', `Saved "${s.project.name}"`);
+    await saveProject(snapshot);
+    s.markSaved(snapshot);
+    await savePrefs({ lastProjectId: snapshot.id });
+    if (!quiet) toast('info', `Saved "${snapshot.name}"`);
+    autosaveFailureWarned = false;
     return true;
   } catch (e) {
-    if (!quiet) toast('error', `Save failed: ${e instanceof Error ? e.message : e}`);
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!quiet) {
+      toast('error', `Save failed: ${msg}`);
+    } else if (!autosaveFailureWarned) {
+      // Autosave failures must never be silent — warn once, keep details in
+      // diagnostics (saveProject already logged the cause).
+      autosaveFailureWarned = true;
+      toast('error', `Autosave failed: ${msg}. Your latest changes are NOT saved.`);
+    }
     return false;
   }
 }
@@ -60,15 +76,29 @@ export async function openProject(id: string): Promise<boolean> {
     }
     useProjectStore.getState().setProject(p, { markClean: true });
     useUiStore.getState().set({ selectedClipId: null, selectedNoteIds: [], editClipId: null });
+    retainOnly(usedMediaIds(p));
     await savePrefs({ lastProjectId: p.id });
     return true;
   } catch (e) {
+    diagLog('error', `openProject failed: ${e instanceof Error ? e.message : e}`);
+    // The stored copy is unreadable (corrupted write or newer schema). Every
+    // save keeps the previous version — offer it rather than a dead end.
+    const backup = await loadProjectBackup(id).catch(() => null);
+    if (backup) {
+      useProjectStore.getState().setProject(backup, { markClean: false });
+      useUiStore.getState().set({ selectedClipId: null, selectedNoteIds: [], editClipId: null });
+      toast(
+        'info',
+        `"${backup.name}" could not be read — restored the previous saved version instead.`,
+      );
+      diagLog('warn', `openProject: restored backup copy of ${id}`);
+      return true;
+    }
     if (e instanceof SchemaError) {
       toast('error', `Cannot open project: ${e.message}`);
     } else {
       toast('error', `Open failed: ${e instanceof Error ? e.message : e}`);
     }
-    diagLog('error', `openProject failed: ${e instanceof Error ? e.message : e}`);
     return false;
   }
 }
@@ -79,6 +109,7 @@ export async function newProject(name: string, opts?: { demo?: boolean }): Promi
   if (!opts?.demo) p.name = name;
   useProjectStore.getState().setProject(p, { markClean: false });
   useUiStore.getState().set({ selectedClipId: null, selectedNoteIds: [], editClipId: null });
+  retainOnly(usedMediaIds(p));
   await saveCurrent(true);
 }
 
@@ -207,7 +238,7 @@ export async function bootProject(forceDemo: boolean, qaFixture = false): Promis
 
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** Debounced autosave wired to project changes. */
+/** Debounced autosave wired to project changes, plus unload protection. */
 export function installAutosave(): void {
   useProjectStore.subscribe((s, prev) => {
     if (s.project === prev.project) return;
@@ -215,5 +246,28 @@ export function installAutosave(): void {
     autosaveTimer = setTimeout(() => {
       void saveCurrent(true);
     }, 1500);
+  });
+
+  // Leaving with unsaved changes: flush a save immediately (IndexedDB writes
+  // started here usually complete during unload) and let the browser ask for
+  // confirmation while the page is still dirty.
+  const flush = () => {
+    if (!useProjectStore.getState().dirty) return;
+    if (autosaveTimer) {
+      clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+    void saveCurrent(true);
+  };
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flush();
+  });
+  window.addEventListener('beforeunload', (e) => {
+    if (!useProjectStore.getState().dirty) return;
+    flush();
+    e.preventDefault();
+    // Chrome requires returnValue to show the confirmation dialog.
+    e.returnValue = '';
   });
 }

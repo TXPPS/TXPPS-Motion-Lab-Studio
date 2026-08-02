@@ -172,6 +172,29 @@ export function evict(id: string): void {
   missing.delete(id);
 }
 
+/**
+ * Evict every cached decode the given project does not reference. Decoded
+ * PCM is large (~10 MB/min stereo), so leaving old projects' buffers cached
+ * would grow memory for the whole session. Procedural ids are cheap and
+ * regenerable; they are evicted too when unreferenced.
+ */
+export function retainOnly(keep: ReadonlySet<string>): void {
+  let dropped = 0;
+  for (const id of [...buffers.keys()]) {
+    if (!keep.has(id)) {
+      evict(id);
+      dropped++;
+    }
+  }
+  for (const id of [...peaks.keys()]) {
+    if (!keep.has(id)) {
+      peaks.delete(id);
+    }
+  }
+  missing.clear();
+  if (dropped > 0) diagLog('info', `Media cache: evicted ${dropped} unused decoded buffer(s)`);
+}
+
 export function cacheStats(): { buffers: number; peaks: number; missing: number } {
   return { buffers: buffers.size, peaks: peaks.size, missing: missing.size };
 }

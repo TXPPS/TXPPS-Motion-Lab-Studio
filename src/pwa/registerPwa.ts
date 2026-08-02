@@ -9,7 +9,7 @@ export function registerPwa(): void {
   // Virtual module provided by vite-plugin-pwa at build/dev time.
   import('virtual:pwa-register')
     .then(({ registerSW }) => {
-      const updateSW = registerSW({
+      registerSW({
         immediate: true,
         onOfflineReady() {
           diagLog('info', 'PWA: app shell cached — ready to work offline');
@@ -21,8 +21,15 @@ export function registerPwa(): void {
           diagLog('warn', `PWA: service worker registration failed: ${String(err)}`);
         },
         onNeedRefresh() {
-          diagLog('info', 'PWA: new version available — will update on next load');
-          void updateSW(true);
+          // NEVER force-reload a running DAW session (it could interrupt a
+          // recording or discard the autosave window). The new version is
+          // cached and takes over on the next natural load.
+          diagLog('info', 'PWA: new version cached — it loads next time the app opens');
+          void import('../state/uiStore').then(({ useUiStore }) => {
+            useUiStore
+              .getState()
+              .toast('info', 'Update ready — it will load next time you open the app.');
+          });
         },
       });
     })
