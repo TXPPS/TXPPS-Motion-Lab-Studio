@@ -43,6 +43,8 @@ export type IconName =
   | 'panel-left'
   | 'panel-right'
   | 'panel-bottom'
+  | 'maximize'
+  | 'restore'
   | 'logo';
 
 const FILLED: Partial<Record<IconName, string>> = {
@@ -87,6 +89,8 @@ const STROKED: Partial<Record<IconName, string>> = {
   'panel-left': 'M4 4h16v16H4zM9 4v16',
   'panel-right': 'M4 4h16v16H4zM15 4v16',
   'panel-bottom': 'M4 4h16v16H4zM4 14h16',
+  maximize: 'M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5',
+  restore: 'M4 9h5V4M20 9h-5V4M4 15h5v5M20 15h-5v5',
 };
 
 export function Icon({ name, size = 16 }: IconProps) {

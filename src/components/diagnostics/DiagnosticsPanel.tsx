@@ -137,7 +137,7 @@ export function DiagnosticsPanel() {
         <div className="ps-title" style={{ marginBottom: 4 }}>
           Log — {warnings.length} warnings, {errors.length} errors
         </div>
-        <div className="diag-log" data-testid="diag-log">
+        <div className="diag-log selectable-text" data-testid="diag-log">
           {entries.length === 0 && <div className="hint">No log entries.</div>}
           {entries
             .slice()

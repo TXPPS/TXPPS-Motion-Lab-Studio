@@ -14,6 +14,7 @@ import { ClipView } from './ClipView';
 import { TrackHeader } from './TrackHeader';
 import { AUTO_LANE_H, AutoLaneHeader, AutoLaneRow } from './AutomationLanes';
 import { TAKE_LANE_H, TakeLaneHeader, TakeLaneRow } from './TakeLanes';
+import { MaximizeButton } from '../shell/MaximizeButton';
 import type { AudioClip, Clip } from '../../model/types';
 
 /** The offered tools. Range/draw/zoom/hand are deferred until fully usable. */
@@ -579,6 +580,7 @@ export function Arrangement() {
         >
           +
         </button>
+        <MaximizeButton pane="arrange" label="arrangement" />
       </div>
 
       <div

@@ -5,6 +5,7 @@ import { PianoRoll } from '../pianoroll/PianoRoll';
 import { SynthPanel } from '../synth/SynthPanel';
 import { DiagnosticsPanel } from '../diagnostics/DiagnosticsPanel';
 import { Icon } from '../common/Icon';
+import { MaximizeButton } from './MaximizeButton';
 
 const TABS: { id: EditorTab; label: string }[] = [
   { id: 'mixer', label: 'Mixer' },
@@ -41,6 +42,7 @@ export function BottomEditor() {
           ))}
         </div>
         <div className="tab-actions">
+          <MaximizeButton pane="editor" label="editor" />
           <button
             className="icon-btn"
             onClick={() => useWorkspaceStore.getState().toggle('showEditor')}

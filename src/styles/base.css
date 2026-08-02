@@ -20,6 +20,26 @@ body {
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
   touch-action: manipulation;
+  /* DAW chrome is controls, not copy: nothing highlights under a touch
+     drag. Intentional text editing re-enables selection just below. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+[contenteditable='true'],
+.selectable-text,
+.selectable-text * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Faders and knobs must own their touches — a ride must never scroll the
+   page out from under the finger. */
+input[type='range'] {
+  touch-action: none;
 }
 
 button {

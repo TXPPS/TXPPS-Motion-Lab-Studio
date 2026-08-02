@@ -5,11 +5,16 @@ import { BrowserPanel } from '../browser/BrowserPanel';
 import { Inspector } from '../inspector/Inspector';
 import { TransportBar } from '../transport/TransportBar';
 import { BottomEditor } from './BottomEditor';
+import { MaximizeButton } from './MaximizeButton';
 
 /**
  * Desktop workstation. Minimums are expressed in pixels so the arrangement
  * always keeps a usable central width — the side panels stop shrinking (and can
  * be collapsed from the project bar) before the centre becomes unusable.
+ *
+ * Any pane can go full screen (DAW-style): the docked layout's sizes and
+ * visibility are left untouched while maximized, so restoring re-mounts the
+ * exact previous arrangement of panels.
  */
 export function DesktopLayout() {
   const showBrowser = useWorkspaceStore((s) => s.showBrowser);
@@ -18,7 +23,42 @@ export function DesktopLayout() {
   const browserSize = useWorkspaceStore((s) => s.browserSize);
   const inspectorSize = useWorkspaceStore((s) => s.inspectorSize);
   const editorSize = useWorkspaceStore((s) => s.editorSize);
+  const maximized = useWorkspaceStore((s) => s.maximized);
   const setSizes = useWorkspaceStore((s) => s.setSizes);
+
+  if (maximized) {
+    return (
+      <>
+        <TransportBar />
+        <div className="workspace" data-testid="workspace">
+          <div className="pane pane-maxi" data-testid={`maxi-${maximized}`}>
+            {maximized === 'arrange' && <Arrangement />}
+            {maximized === 'editor' && <BottomEditor />}
+            {maximized === 'browser' && (
+              <aside className="side-panel maxi-panel" aria-label="Browser">
+                <div className="panel-title">
+                  Browser
+                  <span className="spacer" style={{ flex: '1 1 auto' }} />
+                  <MaximizeButton pane="browser" label="browser" />
+                </div>
+                <BrowserPanel />
+              </aside>
+            )}
+            {maximized === 'inspector' && (
+              <aside className="side-panel maxi-panel" aria-label="Inspector">
+                <div className="panel-title">
+                  Inspector
+                  <span className="spacer" style={{ flex: '1 1 auto' }} />
+                  <MaximizeButton pane="inspector" label="inspector" />
+                </div>
+                <Inspector />
+              </aside>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -36,7 +76,11 @@ export function DesktopLayout() {
                 onResize={(size) => setSizes({ browserSize: size.asPercentage })}
               >
                 <aside className="side-panel left" aria-label="Browser" data-testid="browser-side">
-                  <div className="panel-title">Browser</div>
+                  <div className="panel-title">
+                    Browser
+                    <span className="spacer" style={{ flex: '1 1 auto' }} />
+                    <MaximizeButton pane="browser" label="browser" />
+                  </div>
                   <BrowserPanel />
                 </aside>
               </Panel>
@@ -87,7 +131,11 @@ export function DesktopLayout() {
                   aria-label="Inspector"
                   data-testid="inspector-side"
                 >
-                  <div className="panel-title">Inspector</div>
+                  <div className="panel-title">
+                    Inspector
+                    <span className="spacer" style={{ flex: '1 1 auto' }} />
+                    <MaximizeButton pane="inspector" label="inspector" />
+                  </div>
                   <Inspector />
                 </aside>
               </Panel>
