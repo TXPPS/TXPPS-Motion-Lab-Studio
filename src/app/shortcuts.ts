@@ -188,6 +188,39 @@ export const SHORTCUTS: Shortcut[] = [
     category: 'View',
   },
 
+  // Audio editing (Milestone 6)
+  {
+    id: 'tool-slip',
+    combo: '5',
+    display: '5',
+    description: 'Slip tool: drag audio inside a fixed clip window',
+    category: 'Editing',
+  },
+  {
+    id: 'clip-nudge',
+    combo: 'arrowleft/right (clips)',
+    display: '←/→',
+    description: 'Nudge the selected clips by the grid (Shift = fine)',
+    category: 'Editing',
+    when: 'clips selected',
+  },
+  {
+    id: 'crossfade',
+    combo: 'menu (two audio clips)',
+    display: 'Right-click',
+    description: 'Crossfade two adjacent audio clips (equal power / linear)',
+    category: 'Editing',
+    when: 'two clips selected',
+  },
+  {
+    id: 'take-swipe',
+    combo: 'drag (take lane)',
+    display: 'Swipe lane',
+    description: 'Comp that range from the take; click auditions it',
+    category: 'Editing',
+    when: 'take lanes open',
+  },
+
   // Automation
   {
     id: 'auto-add-point',

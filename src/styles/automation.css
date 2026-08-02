@@ -159,3 +159,114 @@
 .strip.bus .strip-name {
   color: var(--strip-color, var(--accent));
 }
+
+/* ---- Milestone 6: takes, comping, editing affordances ---- */
+
+.take-lane {
+  position: relative;
+  border-top: 1px dashed var(--border-soft);
+  background: rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  contain: strict;
+}
+.take-body {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border: 1px solid color-mix(in srgb, var(--take-color) 55%, transparent);
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+  background: rgba(8, 12, 16, 0.6);
+}
+.take-body.muted {
+  opacity: 0.35;
+}
+.take-body.soloed {
+  box-shadow: 0 0 0 1.5px var(--take-color);
+}
+.take-body .clip-wave {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.55;
+}
+.take-used {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--take-color) 26%, transparent);
+  border-left: 1px solid var(--take-color);
+  border-right: 1px solid var(--take-color);
+  pointer-events: none;
+}
+.tkh {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px 0 20px;
+  border-top: 1px dashed var(--border-soft);
+  background: var(--bg-panel);
+  overflow: hidden;
+  font-size: var(--fs-xs);
+}
+.tkh .alh-dot {
+  background: var(--take-color);
+}
+.tkh.muted .alh-name {
+  opacity: 0.4;
+}
+
+.clip-comp-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 4px;
+  pointer-events: none;
+  z-index: 3;
+}
+.clip-comp-seg {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  opacity: 0.95;
+}
+.clip-take-badge {
+  margin-left: 5px;
+  font-size: 9px;
+  padding: 0 3px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  opacity: 0.85;
+}
+.clip-flag {
+  margin-left: 4px;
+  font-size: 9px;
+  opacity: 0.8;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 2.5px;
+}
+.th-group {
+  margin-left: 5px;
+  font-size: 9px;
+  padding: 0 3px;
+  border-radius: 3px;
+  color: var(--accent);
+  border: 1px solid currentColor;
+}
+
+/* Bigger, friendlier hit targets for clip editing. */
+.clip-edge {
+  min-width: 8px;
+}
+.fade-handle {
+  width: 11px;
+  height: 11px;
+}
+[data-tool='slip'] .clip {
+  cursor: ew-resize;
+}

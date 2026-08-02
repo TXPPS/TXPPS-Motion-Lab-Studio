@@ -4,7 +4,7 @@ export type EditorTab = 'mixer' | 'piano' | 'synth' | 'diagnostics';
 export type PhoneMode = 'arrange' | 'record' | 'perform' | 'edit' | 'mix' | 'browse';
 export type BrowserTab = 'projects' | 'presets' | 'loops';
 /** Arrangement editing tools. Only fully-usable tools are offered. */
-export type ArrangeTool = 'pointer' | 'split' | 'erase' | 'mute';
+export type ArrangeTool = 'pointer' | 'split' | 'erase' | 'mute' | 'slip';
 
 export interface DialogState {
   kind: 'prompt' | 'confirm';

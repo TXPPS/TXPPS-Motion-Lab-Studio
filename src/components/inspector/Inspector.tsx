@@ -1,10 +1,152 @@
+import { useEffect, useState } from 'react';
 import { formatDb } from '../../model/music';
 import { TRACK_COLORS } from '../../model/types';
+import type { AudioClip, FadeShape } from '../../model/types';
 import { getClip, getTrack, useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { PanKnob } from '../common/widgets';
 import { TrackInputControls } from '../recording/RecordControls';
 import { InsertRack, SendRack } from '../mixer/InsertRack';
+import {
+  analyzeClip,
+  clipBufferReady,
+  ensureClipDecoded,
+  normalizeClip,
+  type ClipAnalysis,
+} from '../../app/audioEditActions';
+
+const FADE_SHAPE_OPTIONS: { id: FadeShape; label: string }[] = [
+  { id: 'linear', label: 'Linear' },
+  { id: 'equalPower', label: 'Equal power' },
+  { id: 'equalGain', label: 'Equal gain' },
+  { id: 's', label: 'S-curve' },
+];
+
+/** Audio-cleanup block: fades with shapes, analysis, polarity, mono, lock. */
+function AudioClipTools({ clip }: { clip: AudioClip }) {
+  const store = useProjectStore.getState();
+  const [analysis, setAnalysis] = useState<ClipAnalysis | null>(null);
+
+  useEffect(() => {
+    setAnalysis(null);
+    let cancelled = false;
+    void ensureClipDecoded(clip).then((ok) => {
+      if (!cancelled && ok) setAnalysis(analyzeClip(clip));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Re-analyze when the audible window changes.
+  }, [clip.id, clip.offset, clip.sourceDuration, clip.mediaId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <>
+      <div className="insp-row">
+        <span className="k">Fade in</span>
+        <input
+          type="number"
+          min={0}
+          step={0.05}
+          value={Number(clip.fadeIn.toFixed(2))}
+          onChange={(e) => store.setClipFades(clip.id, Math.max(0, Number(e.target.value)), undefined)}
+          aria-label="Fade in seconds"
+          style={{ width: 58 }}
+        />
+        <select
+          value={clip.fadeInShape ?? 'linear'}
+          onChange={(e) => store.setFadeShape(clip.id, 'in', e.target.value as FadeShape)}
+          aria-label="Fade in shape"
+          data-testid="fade-in-shape"
+        >
+          {FADE_SHAPE_OPTIONS.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="insp-row">
+        <span className="k">Fade out</span>
+        <input
+          type="number"
+          min={0}
+          step={0.05}
+          value={Number(clip.fadeOut.toFixed(2))}
+          onChange={(e) => store.setClipFades(clip.id, undefined, Math.max(0, Number(e.target.value)))}
+          aria-label="Fade out seconds"
+          style={{ width: 58 }}
+        />
+        <select
+          value={clip.fadeOutShape ?? 'linear'}
+          onChange={(e) => store.setFadeShape(clip.id, 'out', e.target.value as FadeShape)}
+          aria-label="Fade out shape"
+          data-testid="fade-out-shape"
+        >
+          {FADE_SHAPE_OPTIONS.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="insp-row" style={{ gap: 6 }}>
+        <button className="btn" onClick={() => normalizeClip(clip.id)} data-testid="normalize-clip">
+          Normalize
+        </button>
+        <button
+          className={`th-mini${clip.phaseInvert ? ' s-on' : ''}`}
+          title="Phase invert (polarity flip)"
+          aria-pressed={!!clip.phaseInvert}
+          onClick={() => store.setClip(clip.id, { phaseInvert: !clip.phaseInvert })}
+        >
+          ø
+        </button>
+        <button
+          className={`th-mini${clip.monoSum ? ' s-on' : ''}`}
+          title="Mono sum on playback"
+          aria-pressed={!!clip.monoSum}
+          onClick={() => store.setClip(clip.id, { monoSum: !clip.monoSum })}
+        >
+          M→1
+        </button>
+        <button
+          className={`th-mini${clip.locked ? ' m-on' : ''}`}
+          title={clip.locked ? 'Unlock clip' : 'Lock clip (blocks edits)'}
+          aria-pressed={!!clip.locked}
+          onClick={() => store.setClip(clip.id, { locked: !clip.locked })}
+        >
+          🔒
+        </button>
+      </div>
+      <div className="insp-row">
+        <span className="k">Analysis</span>
+        <span className="v mono" data-testid="audio-analysis">
+          {analysis
+            ? `peak ${formatDb(analysis.peak)} · DC ${
+                Math.abs(analysis.dcOffset) < 0.001
+                  ? 'clean'
+                  : analysis.dcOffset.toFixed(4)
+              } · ${analysis.channels}ch`
+            : clipBufferReady(clip)
+              ? '…'
+              : 'start audio to analyze'}
+        </span>
+      </div>
+      {clip.takes && clip.takes.length > 0 && (
+        <div className="insp-row">
+          <span className="k">Takes</span>
+          <span className="v">{clip.takes.length}</span>
+          <button
+            className="btn"
+            onClick={() => store.setClipView(clip.id, { takesOpen: !clip.takesOpen })}
+          >
+            {clip.takesOpen ? 'Hide lanes' : 'Show lanes'}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
 
 export function Inspector() {
   const project = useProjectStore((s) => s.project);
@@ -84,6 +226,7 @@ export function Inspector() {
               <span className="v mono">{formatDb(clip.gain)}</span>
             </div>
           )}
+          {clip.type === 'audio' && <AudioClipTools clip={clip} />}
           {clip.type === 'midi' && (
             <>
               <div className="insp-row">

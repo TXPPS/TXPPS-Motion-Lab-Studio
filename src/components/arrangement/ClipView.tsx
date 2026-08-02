@@ -1,10 +1,20 @@
 import { memo, useMemo } from 'react';
 import { copySelection, cutSelection, duplicateSelection } from '../../app/clipboardActions';
+import {
+  crossfadeSelection,
+  healSelection,
+  maxSlipOffset,
+  normalizeClip,
+  packSelectionIntoTakes,
+  rippleDeleteSelection,
+} from '../../app/audioEditActions';
 import { shortcutLabel } from '../../app/shortcuts';
 import { usePointerDrag, longPress } from '../../hooks/usePointerDrag';
 import { Waveform } from './Waveform';
 import { clamp, secondsPerBeat, snapBeat } from '../../model/music';
 import type { Clip, Track } from '../../model/types';
+import { TRACK_COLORS } from '../../model/types';
+import { compSpans } from '../../model/comping';
 import { useProjectStore } from '../../state/projectStore';
 import { engine } from '../../audio/engine';
 import { useUiStore } from '../../state/uiStore';
@@ -178,6 +188,63 @@ export const ClipView = memo(function ClipView({
             for (const c of clips) store.getState().setClip(c.id, { muted: target });
           },
         },
+        // ---- Milestone 6 editing ----
+        ...(() => {
+          const p = store.getState().project;
+          const sel = p.clips.filter((c) => ids.includes(c.id));
+          const audioSel = sel.filter((c) => c.type === 'audio');
+          const sameTrack = audioSel.length === 2 && audioSel[0].trackId === audioSel[1].trackId;
+          const items = [];
+          if (sameTrack) {
+            items.push(
+              {
+                label: 'Crossfade (equal power)',
+                action: () => crossfadeSelection('equalPower'),
+              },
+              { label: 'Crossfade (linear)', action: () => crossfadeSelection('linear') },
+            );
+          }
+          if (audioSel.length >= 2 && audioSel.every((c) => c.trackId === audioSel[0].trackId)) {
+            items.push({ label: `Pack ${audioSel.length} clips into takes`, action: () => packSelectionIntoTakes() });
+          }
+          if (many) {
+            items.push({ label: 'Heal splits', action: () => healSelection() });
+          }
+          if (clip.type === 'audio' && !many) {
+            items.push({ label: 'Normalize to −0.3 dB', action: () => normalizeClip(clip.id) });
+            items.push({
+              label: clip.phaseInvert ? 'Phase: inverted ✓' : 'Phase invert',
+              action: () => store.getState().setClip(clip.id, { phaseInvert: !clip.phaseInvert }),
+            });
+            items.push({
+              label: clip.monoSum ? 'Mono sum ✓' : 'Mono sum',
+              action: () => store.getState().setClip(clip.id, { monoSum: !clip.monoSum }),
+            });
+            if (clip.takes?.length) {
+              items.push({
+                label: clip.takesOpen ? 'Hide take lanes' : 'Show take lanes',
+                action: () => store.getState().setClipView(clip.id, { takesOpen: !clip.takesOpen }),
+              });
+            }
+          }
+          items.push({
+            label: many
+              ? `${sel.some((c) => !c.locked) ? 'Lock' : 'Unlock'} (${ids.length})`
+              : clip.locked
+                ? 'Unlock'
+                : 'Lock',
+            action: () => {
+              const target = sel.some((c) => !c.locked);
+              for (const c of sel) store.getState().setClip(c.id, { locked: target });
+            },
+          });
+          items.push({
+            label: label('Ripple delete', 'Ripple delete clips'),
+            danger: true,
+            action: () => rippleDeleteSelection(),
+          });
+          return items;
+        })(),
         {
           label: label('Delete', 'Delete clips'),
           shortcut: shortcutLabel('delete'),
@@ -212,6 +279,24 @@ export const ClipView = memo(function ClipView({
         // Clicking an unselected clip replaces the selection; clicking inside
         // an existing multi-selection keeps it, so the group can be dragged.
         uiState.selectClip(clip.id, clip.trackId);
+        // Edit groups: link time-overlapping clips across grouped tracks so a
+        // multitrack take moves as one block.
+        if (track.editGroup) {
+          const p = store.getState().project;
+          const groupTracks = new Set(
+            p.tracks.filter((t) => t.editGroup === track.editGroup).map((t) => t.id),
+          );
+          const linked = p.clips
+            .filter(
+              (c) =>
+                groupTracks.has(c.trackId) &&
+                c.start < clip.start + clip.length &&
+                c.start + c.length > clip.start,
+            )
+            .map((c) => c.id);
+          if (linked.length > 1) uiState.selectClips(linked);
+          uiState.set({ selectedClipId: clip.id, selectedTrackId: clip.trackId });
+        }
       } else {
         uiState.set({ selectedClipId: clip.id, selectedTrackId: clip.trackId });
       }
@@ -280,6 +365,29 @@ export const ClipView = memo(function ClipView({
 
   const spb = secondsPerBeat(bpm);
   const widthPx = Math.max(6, clip.length * pxPerBeat);
+  const locked = !!clip.locked || !!track.locked;
+
+  /** Slip tool: slide the source under the fixed clip window. */
+  const dragSlip = usePointerDrag<{ offset0: number; max?: number }>({
+    onStart: () => {
+      store.getState().beginGesture();
+      return {
+        offset0: clip.type === 'audio' ? clip.offset : 0,
+        max: clip.type === 'audio' ? maxSlipOffset(clip) : 0,
+      };
+    },
+    onMove: (dx, _dy, _e, d) => {
+      if (clip.type !== 'audio') return;
+      const pxPerSec = pxPerBeat / spb;
+      // Dragging right slides the material right — earlier source shows.
+      let want = d.offset0 - dx / pxPerSec;
+      if (d.max !== undefined) want = Math.min(want, d.max);
+      want = Math.max(0, want);
+      const cur = store.getState().project.clips.find((c) => c.id === clip.id);
+      if (cur?.type === 'audio') store.getState().slipClip(clip.id, want - cur.offset, d.max);
+    },
+    onEnd: () => store.getState().endGesture(),
+  });
   const srcSec = clip.type === 'audio' ? (clip.sourceDuration ?? clip.length * spb) : 0;
   const pxPerSec = srcSec > 0 ? widthPx / srcSec : 0;
   const fadeInPx = clip.type === 'audio' ? clip.fadeIn * pxPerSec : 0;
@@ -325,10 +433,17 @@ export const ClipView = memo(function ClipView({
         const tool = ui.getState().tool;
         if (tool !== 'pointer' && e.button === 0) {
           e.stopPropagation();
+          if (locked) {
+            ui.getState().toast('info', 'This clip is locked — unlock it to edit.');
+            return;
+          }
           if (tool === 'erase') {
             store.getState().deleteClip(clip.id);
           } else if (tool === 'mute') {
             store.getState().setClip(clip.id, { muted: !clip.muted });
+          } else if (tool === 'slip') {
+            if (clip.type === 'audio') dragSlip(e);
+            else ui.getState().toast('info', 'Slip works on audio clips.');
           } else if (tool === 'split') {
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
             const at = snapBeat(clip.start + (e.clientX - rect.left) / pxPerBeat, snap);
@@ -344,6 +459,9 @@ export const ClipView = memo(function ClipView({
       onDoubleClick={(e) => {
         e.stopPropagation();
         if (clip.type === 'midi') ui.getState().openEditorFor(clip.id, window.innerWidth < 700);
+        else if (clip.type === 'audio' && clip.takes?.length) {
+          store.getState().setClipView(clip.id, { takesOpen: !clip.takesOpen });
+        }
       }}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -359,32 +477,60 @@ export const ClipView = memo(function ClipView({
           gain={clip.gain}
           fadeIn={clip.fadeIn}
           fadeOut={clip.fadeOut}
+          fadeInShape={clip.fadeInShape}
+          fadeOutShape={clip.fadeOutShape}
+          widthPx={widthPx}
+          heightPx={laneHeight}
         />
       ) : (
         <MidiPreview clip={clip} height={laneHeight - 6} />
       )}
+      {clip.type === 'audio' && clip.takes && clip.takes.length > 0 && (
+        <div className="clip-comp-bar" data-testid={`comp-bar-${clip.name}`} aria-hidden="true">
+          {compSpans(clip).map((s, i) => {
+            const takeIdx = clip.takes!.findIndex((t) => t.id === s.take.id);
+            return (
+              <div
+                key={i}
+                className="clip-comp-seg"
+                style={{
+                  left: `${(s.fromBeat / clip.length) * 100}%`,
+                  width: `${((s.toBeat - s.fromBeat) / clip.length) * 100}%`,
+                  background: TRACK_COLORS[takeIdx % TRACK_COLORS.length],
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
       <span className="clip-name">
+        {clip.locked ? '🔒 ' : ''}
         {clip.muted ? '◇ ' : ''}
         {clip.name}
+        {clip.type === 'audio' && clip.takes?.length ? (
+          <span className="clip-take-badge">▤{clip.takes.length}</span>
+        ) : null}
+        {clip.type === 'audio' && clip.phaseInvert ? <span className="clip-flag">ø</span> : null}
+        {clip.type === 'audio' && clip.monoSum ? <span className="clip-flag">M</span> : null}
       </span>
-      {clip.type === 'audio' && (
+      {clip.type === 'audio' && !locked && (
         <>
           <div
             className="fade-handle in"
-            title="Drag to set the fade in"
+            title={`Drag to set the fade in${clip.fadeInShape && clip.fadeInShape !== 'linear' ? ` (${clip.fadeInShape})` : ''}`}
             style={{ left: Math.min(fadeInPx, widthPx - 8) }}
             onPointerDown={dragFadeIn}
           />
           <div
             className="fade-handle out"
-            title="Drag to set the fade out"
+            title={`Drag to set the fade out${clip.fadeOutShape && clip.fadeOutShape !== 'linear' ? ` (${clip.fadeOutShape})` : ''}`}
             style={{ right: Math.min(fadeOutPx, widthPx - 8) }}
             onPointerDown={dragFadeOut}
           />
         </>
       )}
-      <div className="clip-edge l" onPointerDown={dragLeft} />
-      <div className="clip-edge r" onPointerDown={dragRight} />
+      {!locked && <div className="clip-edge l" onPointerDown={dragLeft} />}
+      {!locked && <div className="clip-edge r" onPointerDown={dragRight} />}
     </div>
   );
 });

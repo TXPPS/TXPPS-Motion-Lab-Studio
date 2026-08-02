@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { engine } from '../../audio/engine';
 import { dragHasFiles, importDrop } from '../../app/importActions';
+import { zoomToSelection } from '../../app/audioEditActions';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
 import { beatsPerBar, clamp, snapBeat, snapBeatFloor } from '../../model/music';
 import type { ProjectData, Track } from '../../model/types';
@@ -12,6 +13,8 @@ import { Icon } from '../common/Icon';
 import { ClipView } from './ClipView';
 import { TrackHeader } from './TrackHeader';
 import { AUTO_LANE_H, AutoLaneHeader, AutoLaneRow } from './AutomationLanes';
+import { TAKE_LANE_H, TakeLaneHeader, TakeLaneRow } from './TakeLanes';
+import type { AudioClip, Clip } from '../../model/types';
 
 /** The offered tools. Range/draw/zoom/hand are deferred until fully usable. */
 const TOOLS = [
@@ -19,6 +22,7 @@ const TOOLS = [
   { id: 'split', label: 'Split', icon: 'scissors' },
   { id: 'erase', label: 'Erase', icon: 'eraser' },
   { id: 'mute', label: 'Mute', icon: 'speaker-off' },
+  { id: 'slip', label: 'Slip (drag audio inside a fixed clip)', icon: 'wave' },
 ] as const;
 
 const RULER_H = 30;
@@ -34,14 +38,23 @@ const clampLaneH = (h: number | undefined) => clamp(h ?? AUTO_LANE_H, 26, 120);
  * Everything that maps Y to a track (marquee rows, cross-track clip drags)
  * uses these totals so the two columns can never disagree.
  */
-function bandHeights(tracks: Track[]): { clip: number; total: number }[] {
+function bandHeights(
+  tracks: Track[],
+  clips: Clip[],
+): { clip: number; total: number }[] {
   return tracks.map((t) => {
     const clip = t.collapsed ? LANE_H_COLLAPSED : LANE_H;
     const lanes =
       t.automationOpen && t.automation
         ? t.automation.reduce((a, l) => a + clampLaneH(l.height), 0)
         : 0;
-    return { clip, total: clip + lanes };
+    let takes = 0;
+    for (const c of clips) {
+      if (c.trackId === t.id && c.type === 'audio' && c.takesOpen && c.takes?.length) {
+        takes += c.takes.length * TAKE_LANE_H;
+      }
+    }
+    return { clip, total: clip + lanes + takes };
   });
 }
 
@@ -147,13 +160,26 @@ export function Arrangement() {
   // Always span at least 72 bars so there is real horizontal range to scroll.
   const contentBeats = Math.max(endBeat + bpb * 4, loop.end + bpb, bpb * 72);
   const timelineW = Math.ceil(contentBeats * pxPerBeat);
-  const bands = useMemo(() => bandHeights(tracks), [tracks]);
+  const bands = useMemo(() => bandHeights(tracks, clips), [tracks, clips]);
   const heights = useMemo(() => bands.map((b) => b.total), [bands]);
   /** Resolved automation lanes per track (only for expanded tracks). */
   const lanesByTrack = useMemo(
     () => tracks.map((t) => trackLanes(t, project)),
     [tracks, project],
   );
+  /** Open take clips per track, in ONE pass — never filter per track. */
+  const takeClipsByTrack = useMemo(() => {
+    const m = new Map<string, AudioClip[]>();
+    for (const c of clips) {
+      if (c.type === 'audio' && c.takesOpen && c.takes?.length) {
+        const list = m.get(c.trackId) ?? [];
+        list.push(c);
+        m.set(c.trackId, list);
+      }
+    }
+    for (const list of m.values()) list.sort((a, b) => a.start - b.start);
+    return m;
+  }, [clips]);
   /** Cumulative band tops, for the vertical half of the render window. */
   const laneTops = useMemo(() => {
     const tops: number[] = [];
@@ -381,8 +407,9 @@ export function Arrangement() {
     if (!lanes) return null;
     const rect = lanes.getBoundingClientRect();
     const y = clientY - rect.top;
-    const ts = useProjectStore.getState().project.tracks;
-    const hs = bandHeights(ts);
+    const proj = useProjectStore.getState().project;
+    const ts = proj.tracks;
+    const hs = bandHeights(ts, proj.clips);
     let acc = 0;
     for (let i = 0; i < ts.length; i++) {
       if (y >= acc && y < acc + hs[i].total) return ts[i];
@@ -520,6 +547,15 @@ export function Arrangement() {
         <span className="spacer" style={{ flex: '1 1 auto' }} />
         <button
           className="icon-btn"
+          onClick={() => zoomToSelection()}
+          title="Zoom to the selected clips"
+          aria-label="Zoom to selection"
+          data-testid="zoom-selection"
+        >
+          ⛶
+        </button>
+        <button
+          className="icon-btn"
           onClick={() => zoomBy(0.8)}
           title="Zoom out (Ctrl + wheel)"
           aria-label="Zoom out"
@@ -564,6 +600,11 @@ export function Arrangement() {
                     height={le.h}
                   />
                 ))}
+                {(takeClipsByTrack.get(t.id) ?? []).map((tc) =>
+                  tc.takes!.map((take, ti) => (
+                    <TakeLaneHeader key={take.id} clip={tc} take={take} index={ti} track={t} />
+                  )),
+                )}
               </Fragment>
             ))}
             <div className="add-track">
@@ -653,6 +694,19 @@ export function Arrangement() {
                       />
                     ))}
                 </div>
+                {(takeClipsByTrack.get(t.id) ?? []).map((tc) =>
+                  tc.takes!.map((take, ti) => (
+                    <TakeLaneRow
+                      key={take.id}
+                      clip={tc}
+                      take={take}
+                      index={ti}
+                      pxPerBeat={pxPerBeat}
+                      snap={snap}
+                      bpm={useProjectStore.getState().project.bpm}
+                    />
+                  )),
+                )}
                 {lanesByTrack[i].length > 0 &&
                   (laneTops[i] > viewWin.bottom || laneTops[i] + heights[i] < viewWin.top ? (
                     // Off-window: hold the band's height without mounting rows.

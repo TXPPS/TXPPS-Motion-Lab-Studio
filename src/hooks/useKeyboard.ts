@@ -237,6 +237,18 @@ export function useGlobalKeyboard(): void {
         }
       }
 
+      // Clip nudge: arrows move the clip selection by the grid (Shift = fine).
+      {
+        const ui = useUiStore.getState();
+        if (ui.selectedClipIds.length > 0 && (k === 'arrowleft' || k === 'arrowright')) {
+          e.preventDefault();
+          const snapStep = ui.snap || 0.25;
+          const dBeats = (k === 'arrowleft' ? -1 : 1) * (e.shiftKey ? snapStep / 4 : snapStep);
+          useProjectStore.getState().moveClipsBy(ui.selectedClipIds, dBeats);
+          return;
+        }
+      }
+
       // Record toggle. "R" is not part of the virtual keyboard layout.
       if (k === 'r') {
         e.preventDefault();
@@ -248,9 +260,9 @@ export function useGlobalKeyboard(): void {
         engine.returnToStart();
         return;
       }
-      // Tool selection: 1-4 map to the arrangement tool row.
-      if (k >= '1' && k <= '4') {
-        const tools = ['pointer', 'split', 'erase', 'mute'] as const;
+      // Tool selection: 1-5 map to the arrangement tool row.
+      if (k >= '1' && k <= '5') {
+        const tools = ['pointer', 'split', 'erase', 'mute', 'slip'] as const;
         useUiStore.getState().set({ tool: tools[Number(k) - 1] });
         return;
       }

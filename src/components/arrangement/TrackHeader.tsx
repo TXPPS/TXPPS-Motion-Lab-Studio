@@ -67,6 +67,17 @@ export const TrackHeader = memo(function TrackHeader({
           store.getState().setTrack(track.id, { automationOpen: !track.automationOpen }),
       },
       { label: 'Add automation lane…', action: () => openAddLaneMenu(x, y) },
+      {
+        label: track.locked ? 'Unlock track' : 'Lock track (blocks clip edits)',
+        action: () => store.getState().setTrack(track.id, { locked: !track.locked }),
+      },
+      ...[1, 2, 3, 4].map((g) => ({
+        label: `${track.editGroup === g ? '● ' : ''}Edit group ${g}`,
+        action: () =>
+          store
+            .getState()
+            .setTrack(track.id, { editGroup: track.editGroup === g ? undefined : g }),
+      })),
       ...(track.type === 'instrument' || track.type === 'drum'
         ? [
             {
@@ -114,7 +125,11 @@ export const TrackHeader = memo(function TrackHeader({
         <span className="th-type">
           <Icon name={TYPE_ICON[track.type]} size={11} />
         </span>
-        <span className="th-name">{track.name}</span>
+        <span className="th-name">
+          {track.locked ? '🔒 ' : ''}
+          {track.name}
+          {track.editGroup ? <span className="th-group">G{track.editGroup}</span> : null}
+        </span>
         <button
           className={`th-mini th-auto${track.automationOpen ? ' a-on' : ''}`}
           title={
