@@ -38,6 +38,16 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  */
 export function validateProject(raw: unknown): ProjectData {
   if (!isRecord(raw)) throw new SchemaError('project data is not an object');
+  // IndexedDB (structured clone) can store values JSON cannot — NaN,
+  // Infinity, undefined-in-arrays. Normalize through JSON once so validated
+  // state is identical to what an export/import cycle would produce, and so
+  // validation is a fixpoint even for unknown passthrough fields.
+  try {
+    raw = JSON.parse(JSON.stringify(raw)) as Record<string, unknown>;
+  } catch {
+    throw new SchemaError('project data is not serializable');
+  }
+  if (!isRecord(raw)) throw new SchemaError('project data is not an object');
   const v = raw.schemaVersion;
   if (typeof v !== 'number') throw new SchemaError('missing schemaVersion');
   if (v > SCHEMA_VERSION) {
@@ -68,7 +78,9 @@ export function validateProject(raw: unknown): ProjectData {
       typeof c.trackId === 'string' &&
       trackIds.has(c.trackId) &&
       typeof c.start === 'number' &&
-      typeof c.length === 'number',
+      Number.isFinite(c.start) &&
+      typeof c.length === 'number' &&
+      Number.isFinite(c.length),
   );
   const dropped = raw.clips.length - clips.length + (raw.tracks.length - tracks.length);
   if (dropped > 0) diagLog('warn', `Project "${raw.name}": dropped ${dropped} invalid entries`);
@@ -79,6 +91,31 @@ export function validateProject(raw: unknown): ProjectData {
   for (const c of clips) {
     const base = c as unknown as Record<string, unknown>;
     if (base.locked !== undefined && typeof base.locked !== 'boolean') delete base.locked;
+    if (c.type === 'midi') {
+      // Notes with non-finite numerics (NaN/Infinity survive `typeof ===
+      // 'number'`) would corrupt scheduling and JSON round-trips — drop them,
+      // and clamp the rest to the playable ranges. Fuzz-covered.
+      const m = c as unknown as { notes?: unknown };
+      const notes = (Array.isArray(m.notes) ? m.notes : []).filter(
+        (n): n is { start: number; length: number; pitch: number; velocity: number } =>
+          isRecord(n) &&
+          typeof n.start === 'number' &&
+          Number.isFinite(n.start) &&
+          n.start >= 0 &&
+          typeof n.length === 'number' &&
+          Number.isFinite(n.length) &&
+          n.length > 0 &&
+          typeof n.pitch === 'number' &&
+          Number.isFinite(n.pitch) &&
+          typeof n.velocity === 'number' &&
+          Number.isFinite(n.velocity),
+      );
+      for (const n of notes) {
+        n.pitch = Math.min(127, Math.max(0, Math.round(n.pitch)));
+        n.velocity = Math.min(127, Math.max(1, Math.round(n.velocity)));
+      }
+      m.notes = notes;
+    }
     if (c.type === 'audio') {
       const a = c as unknown as Record<string, unknown>;
       if (typeof a.fadeIn !== 'number' || a.fadeIn < 0) a.fadeIn = 0;
