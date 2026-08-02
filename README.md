@@ -147,6 +147,41 @@ non-destructive.
 See [`docs/MILESTONE-6-AUDIO-EDITING.md`](docs/MILESTONE-6-AUDIO-EDITING.md)
 for the audit, the short manual, and deferrals.
 
+## Milestone 7 scope
+
+Sampler, drum rack and instrument workstation. One zone-based sampler model
+drives three views — the `view` field is a UI hint, never an engine branch —
+and samplers implement the same `Instrument` interface as the synth, so the
+scheduler, live keys, automation, mixer routing and offline export treat them
+identically.
+
+- Quick Sampler: drag a sample in, trim with zero-crossing assist (Alt
+  bypasses), loop/reverse/one-shot, root + coarse/fine tune, normalize to
+  −0.3 dBFS, master ADSR/filter/LFO
+- Slicing: deterministic transient detection (RMS-jump over an energy
+  envelope), manual markers, slices → drum pads, slices → MIDI clip; the
+  source media is never modified
+- Drum Rack: up to 104 MIDI-addressable pads (base C1), per-pad name, color,
+  mute/solo, gain, pan, pitch and choke groups, drag-and-drop assignment,
+  built-in procedurally generated kit
+- Multisample: key zones, velocity layers, round-robin groups, per-zone root
+  notes, linear crossfade through overlapping key ranges; zone rows are
+  memoized so a 512-zone instrument edits responsively
+- Instrument Rack: layered/split synth and sampler children with per-layer
+  key range, mute/solo and reorder, sharing the track's channel strip,
+  sends and automation
+- Browser → Samples: one-shots, loops and project media with search,
+  category chips, favorites and recents (localStorage), waveform thumbnails,
+  audition, tap-to-load and drag-out (`text/x-ml-media`) onto pads and zones
+- `smp:` automation parameters (volume, cutoff, resonance, ADSR, LFO) flow
+  through the same registry, engine and export paths as synth parameters
+- Voice management: 48-voice sampler cap inside the engine's 128-source
+  budget, choke groups, reversed-buffer cache; offline export mirrors the
+  live instrument graph
+
+See [`docs/MILESTONE-7-SAMPLER.md`](docs/MILESTONE-7-SAMPLER.md) for the
+architecture, the user guides, and deferrals.
+
 ## Development
 
 ```bash
@@ -172,6 +207,9 @@ Fixtures are never autosaved, so a QA run cannot overwrite a real project.
 | `#/qa-midi`      | Dense MIDI: 11k+ notes across a 6k-note stack, drum groove, and arpeggios |
 | `#/qa-automation`| Automation stress: 100 tracks, 500 lanes, 100,000 points, curve showcase |
 | `#/qa-audio-edit`| Audio-editing stress: 2,020 clips, crossfade chain, take comps, split run, locks, groups |
+| `#/qa-sampler`   | Sampler workstation: sliced quick sampler with `smp:` automation, drum rack beat, multisample, synth+sampler rack |
+| `#/qa-drums`     | Drum-rack scale: 100 assigned pads and a dense 16th-note trigger pattern  |
+| `#/qa-multisample`| Multisample scale: 512 zones (32 key bands × 4 velocity layers × 4 round-robins) |
 | `#/phone`        | Forces the phone layout on any screen size                                |
 | `#/diagnostics`  | Opens the diagnostics panel on load                                       |
 | `#/demo`         | Reseeds the demo project                                                  |
@@ -187,6 +225,7 @@ Fixtures are never autosaved, so a QA run cannot overwrite a real project.
 | Timeline / tracks / clips | `src/components/arrangement/`                             |
 | Mixer                     | `src/components/mixer/`                                   |
 | Instrument engine         | `src/audio/synth.ts` (MotionSynth + drum kit)             |
+| Sampler & racks           | `src/model/sampler.ts`, `src/audio/samplerInstrument.ts`, `src/components/sampler/` |
 | Recording                 | `src/audio/inputManager.ts`, `recorder.ts`, `recordingController.ts` |
 | Clip scheduling maths     | `src/audio/clipSchedule.ts` (shared by playback and export) |
 | Insert effects            | `src/model/effects.ts`, `src/audio/effectChain.ts`        |

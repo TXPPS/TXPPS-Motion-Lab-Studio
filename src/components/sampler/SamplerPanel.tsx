@@ -341,6 +341,12 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
       <div className="pad-grid" data-testid="pad-grid">
         {Array.from({ length: count }, (_, i) => {
           const z = byIndex.get(i);
+          const trigger = () => {
+            if (z) {
+              setSelected(z.id);
+              preview(track.id, DRUM_PAD_BASE + i);
+            }
+          };
           return (
             <div
               key={i}
@@ -351,10 +357,18 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
                   : undefined
               }
               data-testid={`pad-${i}`}
-              onClick={() => {
-                if (z) {
-                  setSelected(z.id);
-                  preview(track.id, DRUM_PAD_BASE + i);
+              role="button"
+              tabIndex={z ? 0 : -1}
+              aria-label={
+                z
+                  ? `Pad ${i + 1}: ${z.name} (${midiToName(DRUM_PAD_BASE + i)})`
+                  : `Empty pad ${i + 1}`
+              }
+              onClick={trigger}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  trigger();
                 }
               }}
               onDragOver={(e) => {
