@@ -15,6 +15,7 @@ import { useInputStore } from '../state/inputStore';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
 import { InsertChain } from './effectChain';
 import { applyEnvelope, computeClipSchedule } from './clipSchedule';
+import { expandCompClip } from '../model/comping';
 import { Scheduler } from './scheduler';
 import { laneValueAt } from '../model/automation';
 import type { AutomationPoint } from '../model/automation';
@@ -741,6 +742,28 @@ class AudioEngine {
    * the source, already including the clip's own trim offset.
    */
   private scheduleClip(clip: AudioClip, when: number, offsetSec: number): void {
+    const p = useProjectStore.getState().project;
+    const spb = secondsPerBeat(p.bpm);
+    // Take clips expand into one source per comp span; each span reschedules
+    // through the plain path so a comp cannot behave differently from clips.
+    if (clip.takes && clip.takes.length > 0) {
+      const entryIntoClipSec = Math.max(0, offsetSec - clip.offset);
+      for (const v of expandCompClip(clip, spb)) {
+        const spanStartSec = (v.start - clip.start) * spb;
+        const spanEndSec = spanStartSec + v.length * spb;
+        if (spanEndSec <= entryIntoClipSec + 0.001) continue;
+        if (spanStartSec >= entryIntoClipSec) {
+          this.scheduleAudioSource(v, when + (spanStartSec - entryIntoClipSec), v.offset);
+        } else {
+          this.scheduleAudioSource(v, when, v.offset + (entryIntoClipSec - spanStartSec));
+        }
+      }
+      return;
+    }
+    this.scheduleAudioSource(clip, when, offsetSec);
+  }
+
+  private scheduleAudioSource(clip: AudioClip, when: number, offsetSec: number): void {
     const ctx = this.ctx;
     const ch = this.channels.get(clip.trackId);
     if (!ctx || !ch || !this.canAllocate()) return;
@@ -757,6 +780,11 @@ class AudioEngine {
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     const g = ctx.createGain();
+    if (clip.monoSum) {
+      // Explicit mono forces an equal-weight downmix through this node.
+      g.channelCount = 1;
+      g.channelCountMode = 'explicit';
+    }
     applyEnvelope(g.gain, plan.envelope, when);
 
     src.connect(g);
@@ -764,7 +792,9 @@ class AudioEngine {
     const handle: ActiveHandle = {
       kind: 'buffer',
       trackId: clip.trackId,
-      clipId: clip.id,
+      // Comp spans carry synthetic ids (`<clipId>~<takeId>~<n>`); the registry
+      // must track the real clip so mute/delete stops its running spans.
+      clipId: clip.id.split('~')[0],
       stop: (hard) => {
         const t = ctx.currentTime;
         g.gain.setTargetAtTime(0, t, hard ? 0.004 : 0.012);

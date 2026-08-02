@@ -8,6 +8,7 @@
  *
  * Pure and synchronous: no AudioContext, no store access.
  */
+import type { FadeShape } from '../model/types';
 
 export interface EnvelopePoint {
   /** seconds relative to the clip's start time in the timeline */
@@ -36,7 +37,33 @@ export interface ClipTiming {
   gain: number;
   fadeIn: number;
   fadeOut: number;
+  fadeInShape?: FadeShape;
+  fadeOutShape?: FadeShape;
+  /** polarity flip: the whole envelope is negated */
+  phaseInvert?: boolean;
 }
+
+/**
+ * Rising gain of a fade at progress t (0 = silent end, 1 = full level).
+ * As a crossfade pair, linear/equalGain/s sum to constant amplitude and
+ * equalPower to constant power.
+ */
+export function fadeGain(t: number, shape: FadeShape | undefined): number {
+  const x = t <= 0 ? 0 : t >= 1 ? 1 : t;
+  switch (shape) {
+    case 'equalPower':
+      return Math.sin((x * Math.PI) / 2);
+    case 's':
+      return x * x * (3 - 2 * x);
+    case 'linear':
+    case 'equalGain':
+    default:
+      return x;
+  }
+}
+
+/** Curved fades approximate as short linear ramps; linear stays two points. */
+const SHAPE_STEPS = 8;
 
 /**
  * Work out playback duration and the gain envelope for one clip.
@@ -68,7 +95,8 @@ export function computeClipSchedule(
 
   if (durSec <= 0.001 || offsetSec >= bufferDuration) return null;
 
-  const peak = Math.max(0, clip.gain);
+  const sign = clip.phaseInvert ? -1 : 1;
+  const peak = Math.max(0, clip.gain) * sign;
   const fadeIn = Math.max(0, clip.fadeIn ?? 0);
   const fadeOut = Math.max(0, clip.fadeOut ?? 0);
   const envelope: EnvelopePoint[] = [];
@@ -76,8 +104,14 @@ export function computeClipSchedule(
   // Fades are expressed against the clip, so a clip entered part-way starts at
   // the level its envelope had already reached rather than jumping to silence.
   if (fadeIn > 0 && intoClipSec < fadeIn) {
-    envelope.push({ t: 0, value: peak * (intoClipSec / fadeIn), ramp: false });
-    envelope.push({ t: fadeIn - intoClipSec, value: peak, ramp: true });
+    const p0 = intoClipSec / fadeIn;
+    const shape = clip.fadeInShape;
+    envelope.push({ t: 0, value: peak * fadeGain(p0, shape), ramp: false });
+    const steps = !shape || shape === 'linear' || shape === 'equalGain' ? 1 : SHAPE_STEPS;
+    for (let k = 1; k <= steps; k++) {
+      const p = p0 + ((1 - p0) * k) / steps;
+      envelope.push({ t: (p - p0) * fadeIn, value: peak * fadeGain(p, shape), ramp: true });
+    }
   } else {
     envelope.push({ t: 0, value: peak, ramp: false });
   }
@@ -86,10 +120,26 @@ export function computeClipSchedule(
     const fadeStartInClip = Math.max(0, clipSourceSec - fadeOut);
     const fadeStartAt = Math.max(0, fadeStartInClip - intoClipSec);
     if (fadeStartAt < durSec) {
-      // Hold the level reached so far, then ramp down to the clip's end.
+      const shape = clip.fadeOutShape;
+      // Progress of the fade at its first audible instant (1 when the fade
+      // begins inside the schedule, less when entering mid-fade).
+      const pStart = Math.min(
+        1,
+        Math.max(0, (clipSourceSec - Math.max(fadeStartInClip, intoClipSec)) / fadeOut),
+      );
       const held = envelope[envelope.length - 1].value;
-      envelope.push({ t: fadeStartAt, value: held, ramp: false });
-      envelope.push({ t: durSec, value: 0.0001, ramp: true });
+      envelope.push({ t: fadeStartAt, value: fadeStartAt > 0 ? held : envelope[0].value, ramp: false });
+      const steps = !shape || shape === 'linear' || shape === 'equalGain' ? 1 : SHAPE_STEPS;
+      const span = durSec - fadeStartAt;
+      for (let k = 1; k <= steps; k++) {
+        const p = pStart * (1 - k / steps);
+        const value = peak * fadeGain(p, shape);
+        envelope.push({
+          t: fadeStartAt + (span * k) / steps,
+          value: Math.abs(value) < 0.0001 ? 0.0001 * sign : value,
+          ramp: true,
+        });
+      }
     }
   }
 

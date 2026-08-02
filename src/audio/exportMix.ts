@@ -25,6 +25,7 @@ import { laneValueAt, sampleSegment } from '../model/automation';
 import type { AutomationLane } from '../model/automation';
 import { denormParam, findAutoParam } from '../model/paramRegistry';
 import type { AutoParam } from '../model/paramRegistry';
+import { expandCompClip } from '../model/comping';
 
 /** Guard against a runaway render: two hours is far past any sane project. */
 const MAX_RENDER_SECONDS = 60 * 120;
@@ -420,27 +421,38 @@ export async function renderProject(
     if (clip.start + clip.length <= startBeat || clip.start >= endBeat) continue;
 
     if (clip.type === 'audio') {
-      const buffer = getBufferSync(clip.mediaId);
-      if (!buffer) {
-        missingMedia.add(clip.mediaId);
-        continue;
-      }
-      // Entering part-way through a clip that began before the range start.
-      const enterBeat = Math.max(clip.start, startBeat);
-      const intoClip = enterBeat - clip.start;
-      const offsetSec = clip.offset + beatsToSeconds(intoClip, project.bpm);
-      const plan = computeClipSchedule(clip, offsetSec, buffer.duration, spb);
-      if (!plan) continue;
+      // Take clips render exactly as they play: expanded per comp span.
+      const parts = clip.takes?.length ? expandCompClip(clip, spb) : [clip];
+      let scheduledAny = false;
+      for (const part of parts) {
+        if (part.start + part.length <= startBeat || part.start >= endBeat) continue;
+        const buffer = getBufferSync(part.mediaId);
+        if (!buffer) {
+          missingMedia.add(part.mediaId);
+          continue;
+        }
+        // Entering part-way through a clip that began before the range start.
+        const enterBeat = Math.max(part.start, startBeat);
+        const intoClip = enterBeat - part.start;
+        const offsetSec = part.offset + beatsToSeconds(intoClip, project.bpm);
+        const plan = computeClipSchedule(part, offsetSec, buffer.duration, spb);
+        if (!plan) continue;
 
-      const when = Math.max(0, beatsToSeconds(enterBeat, project.bpm) - rangeStartSec);
-      const src = ctx.createBufferSource();
-      src.buffer = buffer;
-      const g = ctx.createGain();
-      applyEnvelope(g.gain, plan.envelope, when);
-      src.connect(g);
-      g.connect(ch.input);
-      src.start(when, plan.offsetSec, plan.durSec);
-      scheduledClips++;
+        const when = Math.max(0, beatsToSeconds(enterBeat, project.bpm) - rangeStartSec);
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        const g = ctx.createGain();
+        if (part.monoSum) {
+          g.channelCount = 1;
+          g.channelCountMode = 'explicit';
+        }
+        applyEnvelope(g.gain, plan.envelope, when);
+        src.connect(g);
+        g.connect(ch.input);
+        src.start(when, plan.offsetSec, plan.durSec);
+        scheduledAny = true;
+      }
+      if (scheduledAny) scheduledClips++;
     } else {
       const inst = instruments.get(clip.trackId);
       if (!inst) continue;

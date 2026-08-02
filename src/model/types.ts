@@ -6,10 +6,40 @@ import type { AutomationLane, AutomationMode } from './automation';
 /**
  * v2 (Milestone 2) adds recorded/imported media references, nondestructive
  * audio-clip editing fields, and mixer sends. v3 (Milestone 5) adds per-track
- * automation lanes and the automation mode. Older projects migrate forward
+ * automation lanes and the automation mode. v4 (Milestone 6) adds fade
+ * shapes, take lanes with non-destructive comping, clip/track locking, edit
+ * groups, and the audio-cleanup flags. Older projects migrate forward
  * losslessly — see `validateProject` in persistence/projectRepo.ts.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
+
+/**
+ * Fade / crossfade shapes. As a crossfade pair (out on the left clip, in on
+ * the right), linear, equalGain and s sum to constant amplitude; equalPower
+ * (sin/cos) sums to constant power (-3 dB at the midpoint).
+ */
+export type FadeShape = 'linear' | 'equalPower' | 'equalGain' | 's';
+
+/** One alternative source under a comped audio clip. */
+export interface Take {
+  id: string;
+  name: string;
+  mediaId: string;
+  /** seconds into the take's media that aligns with the clip's start */
+  offset: number;
+  /** muted takes stay listed but are skipped by solo-audition */
+  muted?: boolean;
+}
+
+/**
+ * Comp segment: from `at` (beats relative to the clip start) until the next
+ * segment (or the clip end), the named take is the one that sounds. Always
+ * sorted, first segment at 0.
+ */
+export interface CompSegment {
+  at: number;
+  takeId: string;
+}
 
 export type TrackType = 'audio' | 'instrument' | 'drum' | 'bus';
 
@@ -63,6 +93,10 @@ export interface Track {
   automationMode?: AutomationMode;
   /** automation lanes expanded beneath the track in the arrangement */
   automationOpen?: boolean;
+  /** locked tracks refuse clip timing edits and deletion */
+  locked?: boolean;
+  /** edit group (1..4): selecting a clip links time-overlapping clips across the group */
+  editGroup?: number;
 }
 
 export interface Note {
@@ -88,6 +122,8 @@ interface ClipBase {
   /** beats */
   length: number;
   muted: boolean;
+  /** locked clips refuse timing edits and deletion until unlocked */
+  locked?: boolean;
 }
 
 export interface AudioClip extends ClipBase {
@@ -107,6 +143,21 @@ export interface AudioClip extends ClipBase {
   fadeIn: number;
   /** fade-out length in seconds (0 = none) */
   fadeOut: number;
+  /** fade curve shapes; absent = linear */
+  fadeInShape?: FadeShape;
+  fadeOutShape?: FadeShape;
+  /** flip polarity (gain × −1) — the classic phase-cancellation check */
+  phaseInvert?: boolean;
+  /** force a mono downmix on playback (channelCount 1, explicit) */
+  monoSum?: boolean;
+  /** alternative takes; when present, `comp` decides what sounds */
+  takes?: Take[];
+  /** ordered comp segments over the takes; ignored without takes */
+  comp?: CompSegment[];
+  /** take lanes expanded beneath the track in the arrangement */
+  takesOpen?: boolean;
+  /** audition one take by itself (UI state, persisted harmlessly) */
+  soloTakeId?: string;
 }
 
 export interface MidiClip extends ClipBase {

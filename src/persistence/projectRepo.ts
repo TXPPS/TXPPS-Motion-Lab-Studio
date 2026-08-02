@@ -8,6 +8,10 @@ import type { EffectKind, ProjectData, ProjectMeta, Track } from '../model/types
 import { isKnownEffect, MAX_INSERTS, normaliseParams } from '../model/effects';
 import { isAutomationMode, validateLane } from '../model/automation';
 import { paramIdExists } from '../model/paramRegistry';
+import { normalizeComp } from '../model/comping';
+import type { Take } from '../model/types';
+
+const FADE_SHAPES = new Set(['linear', 'equalPower', 'equalGain', 's']);
 import { diagLog } from '../state/diagnostics';
 import { idbDelete, idbGet, idbGetAll, idbPut, STORE_PREFS, STORE_PROJECTS } from './db';
 
@@ -72,6 +76,8 @@ export function validateProject(raw: unknown): ProjectData {
   // Purely additive: fields that did not exist in v1 get their v1-equivalent
   // defaults, so a Milestone 1 project keeps sounding exactly the same.
   for (const c of clips) {
+    const base = c as unknown as Record<string, unknown>;
+    if (base.locked !== undefined && typeof base.locked !== 'boolean') delete base.locked;
     if (c.type === 'audio') {
       const a = c as unknown as Record<string, unknown>;
       if (typeof a.fadeIn !== 'number' || a.fadeIn < 0) a.fadeIn = 0;
@@ -80,6 +86,49 @@ export function validateProject(raw: unknown): ProjectData {
       if (typeof a.offset !== 'number') a.offset = 0;
       if (a.sourceDuration !== undefined && typeof a.sourceDuration !== 'number') {
         delete a.sourceDuration;
+      }
+      // --- v3 → v4: fade shapes, cleanup flags, takes/comp ---------------
+      for (const key of ['fadeInShape', 'fadeOutShape'] as const) {
+        if (a[key] !== undefined && !(typeof a[key] === 'string' && FADE_SHAPES.has(a[key]))) {
+          delete a[key];
+        }
+      }
+      for (const key of ['phaseInvert', 'monoSum', 'takesOpen'] as const) {
+        if (a[key] !== undefined && typeof a[key] !== 'boolean') delete a[key];
+      }
+      if (a.takes !== undefined) {
+        const takes = (Array.isArray(a.takes) ? a.takes : []).filter(
+          (t): t is Take =>
+            isRecord(t) &&
+            typeof t.id === 'string' &&
+            typeof t.mediaId === 'string' &&
+            typeof t.offset === 'number' &&
+            Number.isFinite(t.offset),
+        );
+        if (takes.length === 0) {
+          delete a.takes;
+          delete a.comp;
+          delete a.soloTakeId;
+        } else {
+          for (const t of takes) if (typeof t.name !== 'string') t.name = 'Take';
+          a.takes = takes;
+          const segs = Array.isArray(a.comp)
+            ? (a.comp as unknown[]).filter(
+                (s) => isRecord(s) && typeof s.at === 'number' && typeof s.takeId === 'string',
+              )
+            : [];
+          a.comp = normalizeComp(
+            segs as { at: number; takeId: string }[],
+            takes,
+            typeof c.length === 'number' ? c.length : 0,
+          );
+          if (
+            a.soloTakeId !== undefined &&
+            !(typeof a.soloTakeId === 'string' && takes.some((t) => t.id === a.soloTakeId))
+          ) {
+            delete a.soloTakeId;
+          }
+        }
       }
     }
   }
@@ -150,6 +199,13 @@ export function validateProject(raw: unknown): ProjectData {
     }
     if (tr.automationOpen !== undefined && typeof tr.automationOpen !== 'boolean') {
       delete tr.automationOpen;
+    }
+    if (tr.locked !== undefined && typeof tr.locked !== 'boolean') delete tr.locked;
+    if (
+      tr.editGroup !== undefined &&
+      !(typeof tr.editGroup === 'number' && tr.editGroup >= 1 && tr.editGroup <= 4)
+    ) {
+      delete tr.editGroup;
     }
   }
 
