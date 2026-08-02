@@ -20,6 +20,8 @@ import { createDemoProject } from '../model/demoProject';
 import { makePoint, normalizeLanePoints } from '../model/automation';
 import type { AutomationLane, AutomationMode, AutomationPoint, CurveShape } from '../model/automation';
 import { paramIdExists } from '../model/paramRegistry';
+import { buildTakeClip, normalizeComp } from '../model/comping';
+import type { AudioClip, FadeShape } from '../model/types';
 
 const MAX_UNDO = 60;
 
@@ -125,6 +127,42 @@ export interface ProjectStore {
   updateNotes: (clipId: string, ids: string[], patch: (n: Note) => Partial<Note>) => void;
   deleteNotes: (clipId: string, ids: string[]) => void;
 
+  // Milestone 6: time editing, crossfades, takes/comping, locks.
+  /** Slip the source under a fixed clip window. maxOffset caps against media length. */
+  slipClip: (id: string, deltaSec: number, maxOffset?: number) => void;
+  /**
+   * Heal adjacent splits back together. Audio requires the same media with
+   * contiguous offsets; MIDI merges notes. Returns how many joins happened.
+   */
+  healClips: (ids: string[]) => number;
+  /** Delete and pull later clips on the same tracks left by the removed span. */
+  rippleDeleteClips: (ids: string[]) => void;
+  /**
+   * Crossfade two same-track audio clips at their junction: creates the
+   * overlap (using trim headroom on both sides where needed) and sets
+   * complementary fades of the given shape. One undo step.
+   */
+  createCrossfade: (
+    leftId: string,
+    rightId: string,
+    lengthBeats: number,
+    shape: FadeShape,
+  ) => boolean;
+  setFadeShape: (id: string, which: 'in' | 'out', shape: FadeShape) => void;
+  /** Pack the selected overlapping audio clips into one take clip. */
+  packTakes: (ids: string[]) => string | null;
+  /** The whole clip plays this take (comp collapses to one segment). */
+  promoteTake: (clipId: string, takeId: string) => void;
+  /** Assign a range of the comp to a take (swipe comping). */
+  setCompRange: (clipId: string, fromBeat: number, toBeat: number, takeId: string) => void;
+  deleteTake: (clipId: string, takeId: string) => void;
+  moveTake: (clipId: string, takeId: string, delta: number) => void;
+  setTakeMuted: (clipId: string, takeId: string, muted: boolean) => void;
+  /** Audition one take (null returns to the comp). Non-undoable UI state. */
+  setSoloTake: (clipId: string, takeId: string | null) => void;
+  /** Non-undoable view flags (take lanes open/closed). */
+  setClipView: (id: string, patch: { takesOpen?: boolean }) => void;
+
   // Automation (Milestone 5). Lane values are normalized 0..1.
   /** Create a lane for a parameter. Returns null for unknown/duplicate params. */
   addAutomationLane: (trackId: string, paramId: string) => string | null;
@@ -226,6 +264,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
 
   const trackById = (draft: ProjectData, id: string) => draft.tracks.find((t) => t.id === id);
   const clipById = (draft: ProjectData, id: string) => draft.clips.find((c) => c.id === id);
+  /** Locked clips and clips on locked tracks refuse timing edits. */
+  const editable = (draft: ProjectData, c: Clip) =>
+    !c.locked && !trackById(draft, c.trackId)?.locked;
 
   return {
     project: createDemoProject(),
@@ -431,7 +472,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update(
         (d) => {
           const c = clipById(d, id);
-          if (!c) return;
+          if (!c || !editable(d, c)) return;
           c.start = Math.max(0, start);
           if (trackId) {
             const target = trackById(d, trackId);
@@ -455,7 +496,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update(
         (d) => {
           const c = clipById(d, id);
-          if (!c) return;
+          if (!c || !editable(d, c)) return;
           c.start = Math.max(0, start);
           c.length = Math.max(0.25, length);
         },
@@ -464,7 +505,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
 
     moveClipsBy: (ids, deltaBeats) =>
       update((d) => {
-        const targets = d.clips.filter((c) => ids.includes(c.id));
+        const targets = d.clips.filter((c) => ids.includes(c.id) && editable(d, c));
         if (targets.length === 0 || !Number.isFinite(deltaBeats)) return;
         const minStart = Math.min(...targets.map((c) => c.start));
         const delta = Math.max(-minStart, deltaBeats);
@@ -474,7 +515,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     deleteClips: (ids) =>
       update((d) => {
         const set = new Set(ids);
-        d.clips = d.clips.filter((c) => !set.has(c.id));
+        d.clips = d.clips.filter((c) => !set.has(c.id) || !editable(d, c));
       }),
 
     duplicateClips: (ids) => {
@@ -531,7 +572,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
 
     deleteClip: (id) =>
       update((d) => {
-        d.clips = d.clips.filter((c) => c.id !== id);
+        d.clips = d.clips.filter((c) => c.id !== id || !editable(d, c));
       }),
 
     setClip: (id, patch) =>
@@ -578,7 +619,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update(
         (d) => {
           const c = clipById(d, id);
-          if (!c) return;
+          if (!c || !editable(d, c)) return;
           const end = c.start + c.length;
           // never past the clip end, never before the source begins
           const spb = 60 / d.bpm;
@@ -611,7 +652,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update(
         (d) => {
           const c = clipById(d, id);
-          if (!c) return;
+          if (!c || !editable(d, c)) return;
           const spb = 60 / d.bpm;
           const len = Math.max(0.125, newLengthBeats);
           c.length = len;
@@ -628,6 +669,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     splitClip: (id, atBeat) => {
       const src = get().project.clips.find((c) => c.id === id);
       if (!src) return null;
+      if (src.locked || get().project.tracks.find((t) => t.id === src.trackId)?.locked) return null;
       if (atBeat <= src.start + 1e-6 || atBeat >= src.start + src.length - 1e-6) return null;
       const rightId = newId('c');
       update((d) => {
@@ -671,7 +713,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update(
         (d) => {
           const c = clipById(d, id);
-          if (c?.type === 'audio') c.gain = clamp(gain, 0, 4);
+          if (c?.type === 'audio' && editable(d, c)) c.gain = clamp(gain, 0, 4);
         },
         { undoable: false },
       ),
@@ -680,7 +722,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update(
         (d) => {
           const c = clipById(d, id);
-          if (c?.type !== 'audio') return;
+          if (c?.type !== 'audio' || !editable(d, c)) return;
           const spb = 60 / d.bpm;
           const durSec = c.sourceDuration ?? c.length * spb;
           if (fadeIn !== undefined) c.fadeIn = clamp(fadeIn, 0, durSec);
@@ -839,6 +881,273 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         const c = clipById(d, clipId);
         if (c?.type === 'midi') c.notes = c.notes.filter((n) => !ids.includes(n.id));
       }),
+
+    // ---- Milestone 6 -----------------------------------------------------
+
+    slipClip: (id, deltaSec, maxOffset) =>
+      update(
+        (d) => {
+          const c = clipById(d, id);
+          if (c?.type !== 'audio' || !editable(d, c)) return;
+          let next = c.offset + deltaSec;
+          if (maxOffset !== undefined) next = Math.min(next, Math.max(0, maxOffset));
+          c.offset = Math.max(0, next);
+        },
+        { undoable: false },
+      ),
+
+    healClips: (ids) => {
+      let joins = 0;
+      update((d) => {
+        const spb = 60 / d.bpm;
+        const targets = d.clips
+          .filter((c) => ids.includes(c.id) && editable(d, c))
+          .sort((a, b) => (a.trackId === b.trackId ? a.start - b.start : a.trackId < b.trackId ? -1 : 1));
+        const gone = new Set<string>();
+        for (let i = 0; i < targets.length - 1; i++) {
+          const left = targets[i];
+          const right = targets[i + 1];
+          if (gone.has(left.id) || gone.has(right.id)) continue;
+          if (left.trackId !== right.trackId) continue;
+          if (Math.abs(left.start + left.length - right.start) > 0.02) continue;
+          if (left.type === 'audio' && right.type === 'audio') {
+            // Heal only what is genuinely one piece of material.
+            if (left.mediaId !== right.mediaId) continue;
+            const expectedOffset = left.offset + (left.sourceDuration ?? left.length * spb);
+            if (Math.abs(right.offset - expectedOffset) > 0.015) continue;
+            left.length += right.length;
+            left.sourceDuration =
+              (left.sourceDuration ?? 0) > 0 || (right.sourceDuration ?? 0) > 0
+                ? (left.sourceDuration ?? left.length * spb) + (right.sourceDuration ?? right.length * spb)
+                : undefined;
+            left.fadeOut = right.fadeOut;
+            if (right.fadeOutShape) left.fadeOutShape = right.fadeOutShape;
+            else delete left.fadeOutShape;
+            gone.add(right.id);
+            targets[i + 1] = left; // allow chaining heals along a split run
+            joins++;
+          } else if (left.type === 'midi' && right.type === 'midi') {
+            const shift = right.start - left.start;
+            for (const n of right.notes) {
+              left.notes.push({ ...n, id: newId('n'), start: n.start + shift });
+            }
+            left.length += right.length;
+            gone.add(right.id);
+            targets[i + 1] = left;
+            joins++;
+          }
+        }
+        if (gone.size) d.clips = d.clips.filter((c) => !gone.has(c.id));
+      });
+      return joins;
+    },
+
+    rippleDeleteClips: (ids) =>
+      update((d) => {
+        const victims = d.clips.filter((c) => ids.includes(c.id) && editable(d, c));
+        if (victims.length === 0) return;
+        const victimIds = new Set(victims.map((c) => c.id));
+        d.clips = d.clips.filter((c) => !victimIds.has(c.id));
+        // Per track: close each removed span by pulling later editable clips
+        // left, processing right-to-left so spans do not shift under us.
+        const byTrack = new Map<string, Clip[]>();
+        for (const v of victims) {
+          const list = byTrack.get(v.trackId) ?? [];
+          list.push(v);
+          byTrack.set(v.trackId, list);
+        }
+        for (const [trackId, list] of byTrack) {
+          list.sort((a, b) => b.start - a.start);
+          for (const v of list) {
+            for (const c of d.clips) {
+              if (c.trackId !== trackId || !editable(d, c)) continue;
+              if (c.start >= v.start + v.length - 1e-9) c.start = Math.max(0, c.start - v.length);
+            }
+          }
+        }
+      }),
+
+    createCrossfade: (leftId, rightId, lengthBeats, shape) => {
+      let ok = false;
+      update((d) => {
+        const spb = 60 / d.bpm;
+        // Known media duration bounds extension; unknown media gets none, so a
+        // crossfade can never schedule silence it cannot verify exists.
+        const getMediaDur = (c: AudioClip) =>
+          d.media?.find((m) => m.id === c.mediaId)?.duration ??
+          c.offset + (c.sourceDuration ?? c.length * spb);
+        let left = clipById(d, leftId);
+        let right = clipById(d, rightId);
+        if (left?.type !== 'audio' || right?.type !== 'audio') return;
+        if (left.trackId !== right.trackId) return;
+        if (!editable(d, left) || !editable(d, right)) return;
+        if (right.start < left.start) [left, right] = [right, left];
+        const leftEnd = left.start + left.length;
+        // The clips must at least touch (small gaps refuse rather than guess).
+        if (right.start > leftEnd + 0.05) return;
+        let overlap = leftEnd - right.start;
+        const want = Math.max(0.05, lengthBeats);
+        if (overlap < want) {
+          // Grow the overlap from both sides using real source headroom.
+          let need = want - overlap;
+          const leftSrc = left.sourceDuration ?? left.length * spb;
+          const leftHeadSec = Math.max(0, getMediaDur(left) - (left.offset + leftSrc));
+          const extendLeft = Math.min(need / 2, leftHeadSec / spb);
+          if (extendLeft > 0) {
+            left.length += extendLeft;
+            left.sourceDuration = leftSrc + extendLeft * spb;
+            need -= extendLeft;
+          }
+          const rightHead = Math.min(need, right.offset / spb, right.start - left.start);
+          if (rightHead > 0) {
+            right.start -= rightHead;
+            right.offset -= rightHead * spb;
+            right.length += rightHead;
+            right.sourceDuration =
+              (right.sourceDuration ?? right.length * spb) + rightHead * spb;
+            need -= rightHead;
+          }
+          overlap = left.start + left.length - right.start;
+        }
+        if (overlap <= 0.01) return;
+        const fadeSec = overlap * spb;
+        left.fadeOut = fadeSec;
+        left.fadeOutShape = shape;
+        right.fadeIn = fadeSec;
+        right.fadeInShape = shape;
+        ok = true;
+      });
+      return ok;
+    },
+
+    setFadeShape: (id, which, shape) =>
+      update((d) => {
+        const c = clipById(d, id);
+        if (c?.type !== 'audio' || !editable(d, c)) return;
+        if (which === 'in') c.fadeInShape = shape;
+        else c.fadeOutShape = shape;
+      }),
+
+    packTakes: (ids) => {
+      let newId2: string | null = null;
+      update((d) => {
+        const spb = 60 / d.bpm;
+        const clips = d.clips.filter(
+          (c): c is AudioClip => ids.includes(c.id) && c.type === 'audio' && editable(d, c),
+        );
+        if (clips.length < 2) return;
+        const trackId = clips[0].trackId;
+        if (!clips.every((c) => c.trackId === trackId)) return;
+        const takeClip = buildTakeClip(clips, spb);
+        if (!takeClip) return;
+        const gone = new Set(clips.map((c) => c.id));
+        d.clips = d.clips.filter((c) => !gone.has(c.id));
+        d.clips.push(takeClip);
+        newId2 = takeClip.id;
+      });
+      return newId2;
+    },
+
+    promoteTake: (clipId, takeId) =>
+      update((d) => {
+        const c = clipById(d, clipId);
+        if (c?.type !== 'audio' || !c.takes) return;
+        if (!c.takes.some((t) => t.id === takeId)) return;
+        c.comp = [{ at: 0, takeId }];
+        delete c.soloTakeId;
+      }),
+
+    setCompRange: (clipId, fromBeat, toBeat, takeId) =>
+      update(
+        (d) => {
+          const c = clipById(d, clipId);
+          if (c?.type !== 'audio' || !c.takes) return;
+          if (!c.takes.some((t) => t.id === takeId)) return;
+          const from = Math.max(0, Math.min(fromBeat, toBeat));
+          const to = Math.min(c.length, Math.max(fromBeat, toBeat));
+          if (to - from < 1e-6) return;
+          const segs = normalizeComp(c.comp, c.takes, c.length);
+          // What sounds after the range must keep sounding: capture the take
+          // active at `to`, drop segments inside the range, insert ours.
+          const afterTake =
+            segs.filter((s) => s.at <= to).pop()?.takeId ?? c.takes[0].id;
+          const kept = segs.filter((s) => s.at < from - 1e-9 || s.at > to + 1e-9);
+          kept.push({ at: from, takeId });
+          if (to < c.length - 1e-9) kept.push({ at: to, takeId: afterTake });
+          c.comp = normalizeComp(kept, c.takes, c.length);
+          delete c.soloTakeId;
+        },
+        { undoable: false },
+      ),
+
+    deleteTake: (clipId, takeId) =>
+      update((d) => {
+        const c = clipById(d, clipId);
+        if (c?.type !== 'audio' || !c.takes) return;
+        const idx = c.takes.findIndex((t) => t.id === takeId);
+        if (idx < 0) return;
+        if (c.takes.length === 1) {
+          // Deleting the last take flattens the clip to that material.
+          const t = c.takes[0];
+          c.mediaId = t.mediaId;
+          c.offset = Math.max(0, t.offset);
+          delete c.takes;
+          delete c.comp;
+          delete c.soloTakeId;
+          delete c.takesOpen;
+          return;
+        }
+        c.takes.splice(idx, 1);
+        c.comp = normalizeComp(
+          (c.comp ?? []).filter((s) => s.takeId !== takeId),
+          c.takes,
+          c.length,
+        );
+        if (c.soloTakeId === takeId) delete c.soloTakeId;
+      }),
+
+    moveTake: (clipId, takeId, delta) =>
+      update((d) => {
+        const c = clipById(d, clipId);
+        if (c?.type !== 'audio' || !c.takes) return;
+        const i = c.takes.findIndex((t) => t.id === takeId);
+        const j = i + delta;
+        if (i < 0 || j < 0 || j >= c.takes.length) return;
+        const [t] = c.takes.splice(i, 1);
+        c.takes.splice(j, 0, t);
+      }),
+
+    setTakeMuted: (clipId, takeId, muted) =>
+      update((d) => {
+        const t = (clipById(d, clipId) as AudioClip | undefined)?.takes?.find(
+          (x) => x.id === takeId,
+        );
+        if (t) t.muted = muted;
+      }),
+
+    setSoloTake: (clipId, takeId) =>
+      update(
+        (d) => {
+          const c = clipById(d, clipId);
+          if (c?.type !== 'audio' || !c.takes) return;
+          if (takeId === null) delete c.soloTakeId;
+          else if (c.takes.some((t) => t.id === takeId)) c.soloTakeId = takeId;
+        },
+        { undoable: false },
+      ),
+
+    setClipView: (id, patch) =>
+      update(
+        (d) => {
+          const c = clipById(d, id);
+          if (c?.type !== 'audio') return;
+          if (patch.takesOpen !== undefined) {
+            if (patch.takesOpen) c.takesOpen = true;
+            else delete c.takesOpen;
+          }
+        },
+        { undoable: false },
+      ),
 
     addAutomationLane: (trackId, paramId) => {
       const t = get().project.tracks.find((x) => x.id === trackId);
