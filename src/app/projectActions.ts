@@ -142,6 +142,24 @@ export async function bootProject(forceDemo: boolean, qaFixture = false): Promis
       diagLog('info', 'Loaded QA automation stress fixture (not persisted)');
       return;
     }
+    if (window.location.hash.includes('qa-multisample')) {
+      const { createMultisampleQaProject } = await import('../model/samplerQaProject');
+      useProjectStore.getState().setProject(createMultisampleQaProject(), { markClean: true });
+      diagLog('info', 'Loaded QA multisample fixture (not persisted)');
+      return;
+    }
+    if (window.location.hash.includes('qa-sampler')) {
+      const { createSamplerQaProject } = await import('../model/samplerQaProject');
+      useProjectStore.getState().setProject(createSamplerQaProject(), { markClean: true });
+      diagLog('info', 'Loaded QA sampler workstation fixture (not persisted)');
+      return;
+    }
+    if (window.location.hash.includes('qa-drums')) {
+      const { createDrumsQaProject } = await import('../model/samplerQaProject');
+      useProjectStore.getState().setProject(createDrumsQaProject(), { markClean: true });
+      diagLog('info', 'Loaded QA drum-rack fixture (not persisted)');
+      return;
+    }
     if (window.location.hash.includes('qa-huge')) {
       const { createHugeProject } = await import('../model/hugeProject');
       useProjectStore.getState().setProject(createHugeProject(), { markClean: true });

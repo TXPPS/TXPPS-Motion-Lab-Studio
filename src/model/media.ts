@@ -55,7 +55,16 @@ export function isProceduralMediaId(id: string): boolean {
 }
 
 /** Ids served by the runtime generator rather than IndexedDB. */
-export const PROCEDURAL_MEDIA_IDS = ['perc-110-2bar', 'texture-110-4bar'];
+export const PROCEDURAL_MEDIA_IDS = [
+  'perc-110-2bar',
+  'texture-110-4bar',
+  // One-shot drum hits (Milestone 7 sampler sources)
+  'hit-kick',
+  'hit-snare',
+  'hit-clap',
+  'hit-hat',
+  'hit-openhat',
+];
 
 export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;

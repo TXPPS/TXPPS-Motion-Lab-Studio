@@ -320,7 +320,24 @@ export function listMedia(): MediaInfo[] {
   }));
 }
 
+/** One-shot drum hits exposed as media ids for the sampler and browser. */
+const HITS: Record<string, number> = {
+  'hit-kick': 36,
+  'hit-snare': 38,
+  'hit-clap': 39,
+  'hit-hat': 42,
+  'hit-openhat': 46,
+};
+
+export function listHitMedia(): { id: string; name: string; seconds: number }[] {
+  return Object.entries(HITS).map(([id, pitch]) => {
+    const b = getDrumBuffer(pitch);
+    return { id, name: DRUMS[pitch].name, seconds: b.duration };
+  });
+}
+
 export function getMediaBuffer(id: string): AudioBuffer | null {
+  if (HITS[id] !== undefined) return getDrumBuffer(HITS[id]);
   if (!MEDIA[id]) {
     diagLog('warn', `Unknown mediaId "${id}"`);
     return null;
@@ -334,6 +351,7 @@ export function getMediaBuffer(id: string): AudioBuffer | null {
 }
 
 export function getMediaDurationSec(id: string): number {
+  if (HITS[id] !== undefined) return getDrumBuffer(HITS[id]).duration;
   const m = MEDIA[id];
   return m ? m.bars * 4 * SPB : 0;
 }
@@ -352,6 +370,29 @@ const PEAK_BUCKETS = 512;
 
 /** min/max peaks (512 buckets) for waveform rendering. Pure math — no AudioBuffer needed. */
 export function getMediaPeaks(id: string): { min: Float32Array; max: Float32Array } | null {
+  if (HITS[id] !== undefined) {
+    let p = peaksCache.get(id);
+    if (!p) {
+      const buf = getDrumBuffer(HITS[id]);
+      const data = buf.getChannelData(0);
+      const min = new Float32Array(PEAK_BUCKETS);
+      const max = new Float32Array(PEAK_BUCKETS);
+      const per = Math.max(1, Math.floor(data.length / PEAK_BUCKETS));
+      for (let b = 0; b < PEAK_BUCKETS; b++) {
+        let lo = 0;
+        let hi = 0;
+        for (let i = b * per; i < Math.min(data.length, (b + 1) * per); i++) {
+          if (data[i] < lo) lo = data[i];
+          if (data[i] > hi) hi = data[i];
+        }
+        min[b] = lo;
+        max[b] = hi;
+      }
+      p = { min, max };
+      peaksCache.set(id, p);
+    }
+    return p;
+  }
   if (!MEDIA[id]) return null;
   let p = peaksCache.get(id);
   if (!p) {

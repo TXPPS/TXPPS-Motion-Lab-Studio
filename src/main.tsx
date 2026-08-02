@@ -11,6 +11,7 @@ import './styles/synth.css';
 import './styles/panels.css';
 import './styles/recording.css';
 import './styles/automation.css';
+import './styles/sampler.css';
 import { installConsoleCapture, diagLog } from './state/diagnostics';
 import { bootProject, installAutosave } from './app/projectActions';
 import { midi } from './audio/midi';

@@ -18,6 +18,8 @@ import {
 import { Icon } from '../common/Icon';
 import { engine } from '../../audio/engine';
 import { pickAndImport } from '../../app/importActions';
+import { AuditionButton, matches } from './browserShared';
+import { SamplesTab } from './SamplesTab';
 
 function fmtWhen(ts: number): string {
   if (!ts) return '—';
@@ -26,50 +28,6 @@ function fmtWhen(ts: number): string {
   if (d < 3_600_000) return `${Math.floor(d / 60_000)}m ago`;
   if (d < 86_400_000) return `${Math.floor(d / 3_600_000)}h ago`;
   return new Date(ts).toLocaleDateString();
-}
-
-/** Case-insensitive substring match against several fields. */
-function matches(query: string, ...fields: (string | undefined)[]): boolean {
-  if (!query) return true;
-  const q = query.toLowerCase();
-  return fields.some((f) => f?.toLowerCase().includes(q));
-}
-
-/**
- * Audition (preview) button for one media id. Auditioning replaces any running
- * preview, so tapping down a list never stacks sounds; the active row shows a
- * stop square. Ended previews clear themselves via a light poll while active.
- */
-function AuditionButton({ mediaId, name }: { mediaId: string; name: string }) {
-  const [active, setActive] = useState(false);
-
-  useEffect(() => {
-    if (!active) return;
-    const id = setInterval(() => {
-      if (engine.auditioningId() !== mediaId) setActive(false);
-    }, 250);
-    return () => clearInterval(id);
-  }, [active, mediaId]);
-
-  return (
-    <button
-      className={`icon-btn audition${active ? ' on' : ''}`}
-      title={active ? 'Stop preview' : 'Preview'}
-      aria-label={`${active ? 'Stop preview of' : 'Preview'} ${name}`}
-      data-testid={`audition-${mediaId}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (active) {
-          engine.stopAudition();
-          setActive(false);
-        } else {
-          void engine.audition(mediaId).then((ok) => setActive(ok));
-        }
-      }}
-    >
-      <Icon name={active ? 'stop' : 'play'} size={12} />
-    </button>
-  );
 }
 
 function ProjectsTab({ query }: { query: string }) {
@@ -133,81 +91,81 @@ function ProjectsTab({ query }: { query: string }) {
         metas
           .filter((m) => matches(query, m.name))
           .map((m) => (
-          <div
-            key={m.id}
-            className={`list-item${m.id === current.id ? ' on' : ''}`}
-            data-testid={`proj-item-${m.name}`}
-            role="button"
-            tabIndex={0}
-            onClick={() => {
-              if (m.id !== current.id) void openProject(m.id);
-            }}
-            onKeyDown={(e) => {
-              if ((e.key === 'Enter' || e.key === ' ') && m.id !== current.id)
-                void openProject(m.id);
-            }}
-          >
-            <div className="li-main">
-              <div className="li-title">
-                {m.name}
-                {m.id === current.id && dirty ? ' •' : ''}
-              </div>
-              <div className="li-sub">
-                {fmtWhen(m.modifiedAt)} · {m.trackCount} tracks · {m.clipCount} clips
-              </div>
-            </div>
-            <span
-              className="li-actions"
-              onClick={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
+            <div
+              key={m.id}
+              className={`list-item${m.id === current.id ? ' on' : ''}`}
+              data-testid={`proj-item-${m.name}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                if (m.id !== current.id) void openProject(m.id);
+              }}
+              onKeyDown={(e) => {
+                if ((e.key === 'Enter' || e.key === ' ') && m.id !== current.id)
+                  void openProject(m.id);
+              }}
             >
-              <button
-                className="icon-btn"
-                title="Project menu"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  useUiStore.getState().showMenu({
-                    x: e.clientX,
-                    y: e.clientY,
-                    items: [
-                      ...(m.id === current.id
-                        ? [
-                            {
-                              label: 'Rename…',
-                              action: () =>
-                                useUiStore.getState().showDialog({
-                                  kind: 'prompt',
-                                  title: 'Rename project',
-                                  initialValue: m.name,
-                                  confirmLabel: 'Rename',
-                                  onSubmit: (v) => v && void renameCurrent(v),
-                                }),
-                            },
-                          ]
-                        : [{ label: 'Open', action: () => void openProject(m.id) }]),
-                      { label: 'Duplicate', action: () => void duplicateById(m.id) },
-                      {
-                        label: 'Delete',
-                        danger: true,
-                        action: () =>
-                          useUiStore.getState().showDialog({
-                            kind: 'confirm',
-                            title: `Delete "${m.name}"?`,
-                            message: 'This permanently removes the saved project.',
-                            confirmLabel: 'Delete',
-                            danger: true,
-                            onSubmit: () => void deleteById(m.id),
-                          }),
-                      },
-                    ],
-                  });
-                }}
+              <div className="li-main">
+                <div className="li-title">
+                  {m.name}
+                  {m.id === current.id && dirty ? ' •' : ''}
+                </div>
+                <div className="li-sub">
+                  {fmtWhen(m.modifiedAt)} · {m.trackCount} tracks · {m.clipCount} clips
+                </div>
+              </div>
+              <span
+                className="li-actions"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
               >
-                <Icon name="dots" size={13} />
-              </button>
-            </span>
-          </div>
-        ))
+                <button
+                  className="icon-btn"
+                  title="Project menu"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    useUiStore.getState().showMenu({
+                      x: e.clientX,
+                      y: e.clientY,
+                      items: [
+                        ...(m.id === current.id
+                          ? [
+                              {
+                                label: 'Rename…',
+                                action: () =>
+                                  useUiStore.getState().showDialog({
+                                    kind: 'prompt',
+                                    title: 'Rename project',
+                                    initialValue: m.name,
+                                    confirmLabel: 'Rename',
+                                    onSubmit: (v) => v && void renameCurrent(v),
+                                  }),
+                              },
+                            ]
+                          : [{ label: 'Open', action: () => void openProject(m.id) }]),
+                        { label: 'Duplicate', action: () => void duplicateById(m.id) },
+                        {
+                          label: 'Delete',
+                          danger: true,
+                          action: () =>
+                            useUiStore.getState().showDialog({
+                              kind: 'confirm',
+                              title: `Delete "${m.name}"?`,
+                              message: 'This permanently removes the saved project.',
+                              confirmLabel: 'Delete',
+                              danger: true,
+                              onSubmit: () => void deleteById(m.id),
+                            }),
+                        },
+                      ],
+                    });
+                  }}
+                >
+                  <Icon name="dots" size={13} />
+                </button>
+              </span>
+            </div>
+          ))
       )}
       <div className="panel-section">
         <button
@@ -386,14 +344,20 @@ export function BrowserPanel() {
   return (
     <>
       <div className="browser-tabs">
-        {(['projects', 'presets', 'loops'] as const).map((t) => (
+        {(['projects', 'presets', 'loops', 'samples'] as const).map((t) => (
           <button
             key={t}
             className={tab === t ? 'on' : ''}
             onClick={() => useUiStore.getState().set({ browserTab: t })}
             data-testid={`browser-tab-${t}`}
           >
-            {t === 'projects' ? 'Projects' : t === 'presets' ? 'Presets' : 'Loops'}
+            {t === 'projects'
+              ? 'Projects'
+              : t === 'presets'
+                ? 'Presets'
+                : t === 'loops'
+                  ? 'Loops'
+                  : 'Samples'}
           </button>
         ))}
       </div>
@@ -418,6 +382,8 @@ export function BrowserPanel() {
           <ProjectsTab query={query} />
         ) : tab === 'presets' ? (
           <PresetsTab query={query} />
+        ) : tab === 'samples' ? (
+          <SamplesTab query={query} />
         ) : (
           <LoopsTab query={query} />
         )}

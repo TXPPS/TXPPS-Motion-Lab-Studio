@@ -21,6 +21,8 @@ import { applyEnvelope, computeClipSchedule } from './clipSchedule';
 import { InsertChain } from './effectChain';
 import { getBufferSync, loadBuffer } from './mediaLibrary';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
+import { RackInstrument, SamplerInstrument, type RackChild } from './samplerInstrument';
+import { defaultSamplerParams, type SamplerParams as SmpParams } from '../model/sampler';
 import { laneValueAt, sampleSegment } from '../model/automation';
 import type { AutomationLane } from '../model/automation';
 import { denormParam, findAutoParam } from '../model/paramRegistry';
@@ -297,6 +299,7 @@ export async function renderProject(
   }
   const fxAuto: FxAutoEntry[] = [];
   const synthAuto = new Map<string, { lane: AutomationLane; desc: AutoParam; key: string }[]>();
+  const smpAuto = new Map<string, { lane: AutomationLane; desc: AutoParam; key: string }[]>();
   let automatedLanes = 0;
 
   for (const track of project.tracks) {
@@ -338,6 +341,10 @@ export async function renderProject(
         const list = synthAuto.get(track.id) ?? [];
         list.push({ lane, desc, key: id.slice(6) });
         synthAuto.set(track.id, list);
+      } else if (id.startsWith('smp:')) {
+        const list = smpAuto.get(track.id) ?? [];
+        list.push({ lane, desc, key: id.slice(4) });
+        smpAuto.set(track.id, list);
       }
     }
   }
@@ -380,9 +387,42 @@ export async function renderProject(
   // the same granularity the live engine has).
   const instruments = new Map<string, Instrument>();
   const synthBoxes = new Map<string, { params: SynthParams }>();
+  const samplerBoxes = new Map<string, { params: SmpParams }>();
   for (const track of project.tracks) {
     if (track.type !== 'instrument' && track.type !== 'drum') continue;
     const ch = channels.get(track.id)!;
+    if (track.rack?.items.length) {
+      // Rack: children mirror the live engine; per-item params are static in
+      // a bounce (item-level automation is not offered).
+      const children: RackChild[] = track.rack.items.map((item) => ({
+        id: item.id,
+        keyLo: item.keyLo,
+        keyHi: item.keyHi,
+        muted: item.muted,
+        solo: item.solo,
+        instrument:
+          item.kind === 'sampler'
+            ? new SamplerInstrument(
+                ctx,
+                ch.input,
+                track.id,
+                () => item.sampler ?? defaultSamplerParams('quick'),
+                OFFLINE_REGISTRY,
+              )
+            : new PolySynth(ctx, ch.input, track.id, () => item.synth ?? FALLBACK_SYNTH, OFFLINE_REGISTRY),
+      }));
+      instruments.set(track.id, new RackInstrument(() => children));
+      continue;
+    }
+    if (track.sampler) {
+      const sbox = { params: track.sampler };
+      samplerBoxes.set(track.id, sbox);
+      instruments.set(
+        track.id,
+        new SamplerInstrument(ctx, ch.input, track.id, () => sbox.params, OFFLINE_REGISTRY),
+      );
+      continue;
+    }
     const box = { params: track.synth ?? FALLBACK_SYNTH };
     synthBoxes.set(track.id, box);
     const getParams = () => box.params;
@@ -459,6 +499,8 @@ export async function renderProject(
       const track = project.tracks.find((t) => t.id === clip.trackId);
       const box = synthBoxes.get(clip.trackId);
       const hasSynthAuto = !!track && synthAuto.has(clip.trackId);
+      const sbox = samplerBoxes.get(clip.trackId);
+      const hasSmpAuto = !!track && smpAuto.has(clip.trackId);
       for (const note of (clip as MidiClip).notes) {
         if (note.muted) continue;
         const absBeat = clip.start + note.start;
@@ -468,6 +510,15 @@ export async function renderProject(
         const when = beatsToSeconds(absBeat, project.bpm) - rangeStartSec;
         if (when < 0) continue;
         if (hasSynthAuto && box && track) box.params = synthParamsAt(track, absBeat);
+        if (hasSmpAuto && sbox && track?.sampler) {
+          const merged: SmpParams = { ...track.sampler };
+          for (const l of smpAuto.get(track.id)!) {
+            const n = laneValueAt(l.lane.points, absBeat);
+            if (n === null) continue;
+            (merged as unknown as Record<string, number>)[l.key] = denormParam(l.desc, n);
+          }
+          sbox.params = merged;
+        }
         const durSec = beatsToSeconds(note.length, project.bpm);
         inst.scheduleNote(note.pitch, note.velocity, when, durSec, clip.id);
         scheduledNotes++;

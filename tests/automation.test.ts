@@ -191,7 +191,7 @@ describe('serialization', () => {
     expect(lane!.paramId).toBe('volume');
     expect(lane!.points).toHaveLength(2);
     expect(lane!.points[1].curve).toBe('s');
-    expect(revived.schemaVersion).toBe(4);
+    expect(revived.schemaVersion).toBe(5);
   });
 
   it('drops lanes whose parameter no longer exists', () => {

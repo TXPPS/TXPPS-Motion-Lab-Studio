@@ -15,6 +15,7 @@ import { EFFECT_SPECS, formatParam } from './effects';
 import { formatDb } from './music';
 import type { ParamSpec } from './effects';
 import type { ProjectData, SynthParams, Track } from './types';
+import type { SamplerParams } from './sampler';
 
 export interface AutoParam {
   id: string;
@@ -34,6 +35,26 @@ export interface AutoParam {
   /** Current static value from the track (the value automation overrides). */
   get: (track: Track) => number;
 }
+
+/** Sampler master parameters (automatable on non-rack sampler tracks). */
+const SAMPLER_PARAMS: {
+  key: keyof SamplerParams & string;
+  name: string;
+  unit: string;
+  min: number;
+  max: number;
+  def: number;
+  scale: 'linear' | 'log';
+  format: (v: number) => string;
+}[] = [
+  { key: 'volume', name: 'Level', unit: '%', min: 0, max: 1.5, def: 0.9, scale: 'linear', format: (v) => `${Math.round(v * 100)}%` },
+  { key: 'filterCutoff', name: 'Cutoff', unit: 'Hz', min: 40, max: 18000, def: 12000, scale: 'log', format: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)} kHz` : `${Math.round(v)} Hz`) },
+  { key: 'filterRes', name: 'Resonance', unit: 'Q', min: 0.1, max: 20, def: 0.8, scale: 'log', format: (v) => v.toFixed(1) },
+  { key: 'attack', name: 'Attack', unit: 's', min: 0.001, max: 4, def: 0.002, scale: 'log', format: (v) => (v < 0.1 ? `${Math.round(v * 1000)} ms` : `${v.toFixed(2)} s`) },
+  { key: 'release', name: 'Release', unit: 's', min: 0.005, max: 8, def: 0.12, scale: 'log', format: (v) => (v < 0.1 ? `${Math.round(v * 1000)} ms` : `${v.toFixed(2)} s`) },
+  { key: 'lfoRate', name: 'LFO Rate', unit: 'Hz', min: 0.05, max: 30, def: 4, scale: 'log', format: (v) => `${v.toFixed(1)} Hz` },
+  { key: 'lfoDepth', name: 'LFO Depth', unit: '%', min: 0, max: 1, def: 0, scale: 'linear', format: (v) => `${Math.round(v * 100)}%` },
+];
 
 export const PARAM_COLORS = {
   volume: '#d9a13c',
@@ -177,7 +198,26 @@ export function listAutoParams(track: Track, project: ProjectData): AutoParam[] 
     }
   }
 
-  if ((track.type === 'instrument' || track.type === 'drum') && track.synth) {
+  if (track.sampler && !track.rack?.items.length) {
+    for (const sp of SAMPLER_PARAMS) {
+      out.push({
+        id: `smp:${sp.key}`,
+        name: `Sampler · ${sp.name}`,
+        unit: sp.unit,
+        min: sp.min,
+        max: sp.max,
+        default: sp.def,
+        scale: sp.scale,
+        color: PARAM_COLORS.synth,
+        format: sp.format,
+        get: (t) => {
+          const v = t.sampler?.[sp.key];
+          return typeof v === 'number' ? v : sp.def;
+        },
+      });
+    }
+  }
+  if ((track.type === 'instrument' || track.type === 'drum') && track.synth && !track.sampler) {
     for (const sp of SYNTH_PARAMS) {
       out.push({
         id: `synth:${sp.key}`,
@@ -272,6 +312,11 @@ export function paramIdExists(track: Track, paramId: string): boolean {
     if (track.type !== 'instrument' && track.type !== 'drum') return false;
     const key = paramId.slice(6);
     return SYNTH_PARAMS.some((s) => s.key === key);
+  }
+  if (paramId.startsWith('smp:')) {
+    if (!track.sampler || track.rack?.items.length) return false;
+    const key = paramId.slice(4);
+    return SAMPLER_PARAMS.some((s) => s.key === key);
   }
   return false;
 }

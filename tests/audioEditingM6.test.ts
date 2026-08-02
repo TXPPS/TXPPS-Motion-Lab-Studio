@@ -312,6 +312,6 @@ describe('store: heal, ripple, crossfade, takes, locks', () => {
     const packed = revived.clips.find((c) => c.id === packedId) as AudioClip;
     expect(packed.takes).toHaveLength(2);
     expect(packed.comp![0].at).toBe(0);
-    expect(revived.schemaVersion).toBe(4);
+    expect(revived.schemaVersion).toBe(5);
   });
 });

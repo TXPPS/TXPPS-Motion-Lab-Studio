@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { engine } from '../../audio/engine';
 import { midi } from '../../audio/midi';
 import { clamp, midiToName } from '../../model/music';
@@ -9,6 +9,8 @@ import { useTransportStore } from '../../state/transportStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
 import { ParamKnob } from '../common/widgets';
+import { InstrumentKindSelect, SamplerPanel } from '../sampler/SamplerPanel';
+import { Keyboard } from './Keyboard';
 
 /** Pick the synth target: armed instrument/drum track, else selected, else first. */
 export function useSynthTarget(): Track | null {
@@ -23,127 +25,6 @@ export function useSynthTarget(): Track | null {
       null
     );
   }, [tracks, selId]);
-}
-
-const WHITE_OFFSETS = [0, 2, 4, 5, 7, 9, 11];
-const BLACK_AFTER: Record<number, number> = { 0: 1, 1: 3, 3: 6, 4: 8, 5: 10 };
-
-function Keyboard({ track, octaves = 2 }: { track: Track; octaves?: number }) {
-  const octave = useUiStore((s) => s.keyboardOctave);
-  const [pressed, setPressed] = useState<Set<number>>(new Set());
-  const pointerPitch = useRef(new Map<number, number>());
-  const base = (octave + 1) * 12; // C of the current octave
-
-  const press = useCallback(
-    (pitch: number, pointerId: number) => {
-      const prev = pointerPitch.current.get(pointerId);
-      if (prev === pitch) return;
-      if (prev !== undefined) engine.liveNoteOff(track.id, prev);
-      pointerPitch.current.set(pointerId, pitch);
-      engine.liveNoteOn(track.id, pitch, 100);
-      setPressed((s) => new Set(s).add(pitch));
-    },
-    [track.id],
-  );
-  const release = useCallback(
-    (pointerId: number) => {
-      const pitch = pointerPitch.current.get(pointerId);
-      if (pitch === undefined) return;
-      pointerPitch.current.delete(pointerId);
-      engine.liveNoteOff(track.id, pitch);
-      setPressed((s) => {
-        const n = new Set(s);
-        n.delete(pitch);
-        return n;
-      });
-    },
-    [track.id],
-  );
-
-  const whites: { pitch: number; label: string }[] = [];
-  for (let o = 0; o < octaves; o++) {
-    for (const off of WHITE_OFFSETS) {
-      const pitch = base + o * 12 + off;
-      whites.push({ pitch, label: off === 0 ? midiToName(pitch) : '' });
-    }
-  }
-
-  const keyHandlers = (pitch: number) => ({
-    onPointerDown: (e: React.PointerEvent) => {
-      e.preventDefault();
-      // Release any implicit capture so gliding fires pointerenter on other keys.
-      try {
-        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch {
-        /* no capture to release */
-      }
-      press(pitch, e.pointerId);
-    },
-    onPointerEnter: (e: React.PointerEvent) => {
-      if (e.buttons > 0 || e.pointerType === 'touch') press(pitch, e.pointerId);
-    },
-    onPointerUp: (e: React.PointerEvent) => release(e.pointerId),
-    onPointerCancel: (e: React.PointerEvent) => release(e.pointerId),
-    onPointerLeave: (e: React.PointerEvent) => {
-      if (e.pointerType !== 'touch') release(e.pointerId);
-    },
-  });
-
-  const whiteW = 100 / whites.length;
-  return (
-    <div className="kbd" data-testid="keyboard">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingRight: 6 }}>
-        <button
-          className="icon-btn"
-          onClick={() => useUiStore.getState().set({ keyboardOctave: clamp(octave + 1, 1, 7) })}
-          title="Octave up (X)"
-          aria-label="Octave up"
-        >
-          <Icon name="chevron-up" size={14} />
-        </button>
-        <div className="hint" style={{ textAlign: 'center' }}>
-          C{octave}
-        </div>
-        <button
-          className="icon-btn"
-          onClick={() => useUiStore.getState().set({ keyboardOctave: clamp(octave - 1, 1, 7) })}
-          title="Octave down (Z)"
-          aria-label="Octave down"
-        >
-          <Icon name="chevron-down" size={14} />
-        </button>
-      </div>
-      <div className="kbd-inner">
-        {whites.map((w) => (
-          <div
-            key={w.pitch}
-            className={`kbd-white${pressed.has(w.pitch) ? ' pressed' : ''}`}
-            {...keyHandlers(w.pitch)}
-            data-testid={`key-${w.pitch}`}
-          >
-            <span className="kn">{w.label}</span>
-          </div>
-        ))}
-        {whites.map((w, i) => {
-          const off = (((w.pitch - base) % 12) + 12) % 12;
-          const withinOct = WHITE_OFFSETS.indexOf(off);
-          const blackOff = BLACK_AFTER[withinOct];
-          if (blackOff === undefined) return null;
-          const pitch = w.pitch - off + blackOff;
-          if (pitch > base + octaves * 12) return null;
-          return (
-            <div
-              key={`b${pitch}-${i}`}
-              className={`kbd-black${pressed.has(pitch) ? ' pressed' : ''}`}
-              style={{ left: `${(i + 1) * whiteW - whiteW * 0.32}%`, width: `${whiteW * 0.64}%` }}
-              {...keyHandlers(pitch)}
-              data-testid={`key-${pitch}`}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 function DrumPads({ track }: { track: Track }) {
@@ -224,6 +105,11 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
   const setSynthParams = useProjectStore((s) => s.setSynthParams);
   const applyPreset = useProjectStore((s) => s.applyPreset);
 
+  // Sampler and instrument-rack tracks get the sampler workstation instead.
+  if (track && (track.sampler || track.rack?.items.length)) {
+    return <SamplerPanel track={track} performMode={performMode} />;
+  }
+
   if (!track || !track.synth) {
     return (
       <div className="syn">
@@ -262,6 +148,7 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
               {isDrum ? 'TX Drum Kit' : 'MotionSynth'} — {track.name}
             </span>
           </span>
+          <InstrumentKindSelect track={track} />
           {!isDrum && (
             <select
               value={SYNTH_PRESETS.some((x) => x.presetName === p.presetName) ? p.presetName : ''}

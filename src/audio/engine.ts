@@ -13,6 +13,8 @@ import { getBufferSync, loadBuffer } from './mediaLibrary';
 import { audioInput } from './inputManager';
 import { useInputStore } from '../state/inputStore';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
+import { RackInstrument, SamplerInstrument, type RackChild } from './samplerInstrument';
+import { defaultSamplerParams, type SamplerParams } from '../model/sampler';
 import { InsertChain } from './effectChain';
 import { applyEnvelope, computeClipSchedule } from './clipSchedule';
 import { expandCompClip } from '../model/comping';
@@ -34,7 +36,7 @@ interface AutoEntry {
   laneId: string;
   points: AutomationPoint[];
   param: AutoParam;
-  kind: 'volume' | 'pan' | 'mute' | 'send' | 'fx' | 'synth';
+  kind: 'volume' | 'pan' | 'mute' | 'send' | 'fx' | 'synth' | 'smp';
   busId?: string;
   effectId?: string;
   paramKey?: string;
@@ -119,6 +121,10 @@ class AudioEngine {
   private fxOverrides = new Map<string, Map<string, Record<string, number>>>();
   /** trackId → automated synth params; instruments read through this. */
   private synthOverrides = new Map<string, Partial<SynthParams>>();
+  /** trackId → automated sampler master params. */
+  private samplerOverrides = new Map<string, Partial<SamplerParams>>();
+  /** trackId → what kind of instrument is currently built (rebuild detector). */
+  private instrumentKind = new Map<string, string>();
   private autoDirty = true;
   private lastAutoPos = -1;
 
@@ -260,30 +266,25 @@ class AudioEngine {
     const t = ctx.currentTime;
     this.buildAutoIndex(p);
 
-    // 1. create channels/instruments for new tracks
+    // 1. create channels/instruments for new tracks. The instrument KIND can
+    // change (synth → sampler → rack), so a signature mismatch rebuilds it.
     for (const track of p.tracks) {
       if (!this.channels.has(track.id)) this.channels.set(track.id, this.buildChannel(track.id));
-      const hasSynth = track.type === 'instrument' || track.type === 'drum';
-      if (hasSynth && !this.instruments.has(track.id)) {
+      const hasInstrument = track.type === 'instrument' || track.type === 'drum';
+      if (!hasInstrument) continue;
+      const kind = track.rack?.items.length
+        ? `rack:${track.rack.items.map((i) => `${i.id}~${i.kind}`).join(',')}`
+        : track.sampler
+          ? 'sampler'
+          : 'synth';
+      if (this.instruments.has(track.id) && this.instrumentKind.get(track.id) !== kind) {
+        this.instruments.get(track.id)!.dispose();
+        this.instruments.delete(track.id);
+      }
+      if (!this.instruments.has(track.id)) {
         const ch = this.channels.get(track.id)!;
-        const getParams = () => {
-          const tr = useProjectStore.getState().project.tracks.find((x) => x.id === track.id);
-          const base = tr?.synth ?? FALLBACK_SYNTH;
-          // Automated synth parameters apply per voice at schedule time.
-          const ov = this.synthOverrides.get(track.id);
-          return ov ? { ...base, ...ov } : base;
-        };
-        const registry = {
-          register: (h: ActiveHandle) => this.registerSource(h),
-          unregister: (h: ActiveHandle) => this.unregisterSource(h),
-          canAllocate: () => this.canAllocate(),
-        };
-        this.instruments.set(
-          track.id,
-          track.type === 'drum'
-            ? new DrumKit(ctx, ch.input, track.id, getParams, registry)
-            : new PolySynth(ctx, ch.input, track.id, getParams, registry),
-        );
+        this.instruments.set(track.id, this.buildInstrument(ctx, ch.input, track.id, kind));
+        this.instrumentKind.set(track.id, kind);
       }
     }
 
@@ -394,6 +395,94 @@ class AudioEngine {
     // 5. tempo change during playback → retime scheduler
     if (this.playing && this.lastBpm !== p.bpm) this.scheduler.retime();
     this.lastBpm = p.bpm;
+  }
+
+  private sourceRegistry() {
+    return {
+      register: (h: ActiveHandle) => this.registerSource(h),
+      unregister: (h: ActiveHandle) => this.unregisterSource(h),
+      canAllocate: () => this.canAllocate(),
+    };
+  }
+
+  private readSynthParams(trackId: string): SynthParams {
+    const tr = useProjectStore.getState().project.tracks.find((x) => x.id === trackId);
+    const base = tr?.synth ?? FALLBACK_SYNTH;
+    const ov = this.synthOverrides.get(trackId);
+    return ov ? { ...base, ...ov } : base;
+  }
+
+  private readSamplerParams(trackId: string): SamplerParams {
+    const tr = useProjectStore.getState().project.tracks.find((x) => x.id === trackId);
+    const base = tr?.sampler ?? defaultSamplerParams('quick');
+    const ov = this.samplerOverrides.get(trackId);
+    return ov ? { ...base, ...ov } : base;
+  }
+
+  private buildInstrument(
+    ctx: AudioContext,
+    out: AudioNode,
+    trackId: string,
+    kind: string,
+  ): Instrument {
+    const registry = this.sourceRegistry();
+    if (kind === 'sampler') {
+      return new SamplerInstrument(ctx, out, trackId, () => this.readSamplerParams(trackId), registry);
+    }
+    if (kind.startsWith('rack:')) {
+      // Child instruments are created once per rack shape; ranges and
+      // mute/solo read live from the store on every trigger.
+      const trackNow = useProjectStore.getState().project.tracks.find((x) => x.id === trackId);
+      const children: RackChild[] = (trackNow?.rack?.items ?? []).map((item) => ({
+        id: item.id,
+        keyLo: item.keyLo,
+        keyHi: item.keyHi,
+        muted: item.muted,
+        solo: item.solo,
+        instrument:
+          item.kind === 'sampler'
+            ? new SamplerInstrument(
+                ctx,
+                out,
+                trackId,
+                () => {
+                  const it = useProjectStore
+                    .getState()
+                    .project.tracks.find((x) => x.id === trackId)
+                    ?.rack?.items.find((x) => x.id === item.id);
+                  return it?.sampler ?? defaultSamplerParams('quick');
+                },
+                registry,
+              )
+            : new PolySynth(
+                ctx,
+                out,
+                trackId,
+                () => {
+                  const it = useProjectStore
+                    .getState()
+                    .project.tracks.find((x) => x.id === trackId)
+                    ?.rack?.items.find((x) => x.id === item.id);
+                  return it?.synth ?? FALLBACK_SYNTH;
+                },
+                registry,
+              ),
+      }));
+      return new RackInstrument(() => {
+        const items = useProjectStore.getState().project.tracks.find((x) => x.id === trackId)?.rack
+          ?.items;
+        return children.map((c) => {
+          const it = items?.find((x) => x.id === c.id);
+          return it
+            ? { ...c, keyLo: it.keyLo, keyHi: it.keyHi, muted: it.muted, solo: it.solo }
+            : c;
+        });
+      });
+    }
+    const trackNow = useProjectStore.getState().project.tracks.find((x) => x.id === trackId);
+    return trackNow?.type === 'drum' && !trackNow.sampler
+      ? new DrumKit(ctx, out, trackId, () => this.readSynthParams(trackId), registry)
+      : new PolySynth(ctx, out, trackId, () => this.readSynthParams(trackId), registry);
   }
 
   private buildChannel(trackId: string): Channel {
@@ -555,6 +644,15 @@ class AudioEngine {
             kind: 'synth',
             paramKey: id.slice(6),
           };
+        } else if (id.startsWith('smp:')) {
+          entry = {
+            trackId: track.id,
+            laneId: lane.id,
+            points: lane.points,
+            param,
+            kind: 'smp',
+            paramKey: id.slice(4),
+          };
         }
         if (!entry) continue;
         entries.push(entry);
@@ -581,6 +679,10 @@ class AudioEngine {
     );
     for (const id of [...this.synthOverrides.keys()]) {
       if (!liveSynthTracks.has(id)) this.synthOverrides.delete(id);
+    }
+    const liveSamplerTracks = new Set(entries.filter((e) => e.kind === 'smp').map((e) => e.trackId));
+    for (const id of [...this.samplerOverrides.keys()]) {
+      if (!liveSamplerTracks.has(id)) this.samplerOverrides.delete(id);
     }
     // fx overrides are rebuilt each apply pass; keep only tracks still automated
     for (const id of [...this.fxOverrides.keys()]) {
@@ -665,6 +767,13 @@ class AudioEngine {
           const ov = this.synthOverrides.get(e.trackId) ?? {};
           (ov as Record<string, number>)[e.paramKey] = v;
           this.synthOverrides.set(e.trackId, ov);
+          break;
+        }
+        case 'smp': {
+          if (!e.paramKey) break;
+          const ov = this.samplerOverrides.get(e.trackId) ?? {};
+          (ov as Record<string, number>)[e.paramKey] = v;
+          this.samplerOverrides.set(e.trackId, ov);
           break;
         }
       }

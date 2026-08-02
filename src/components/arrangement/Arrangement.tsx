@@ -482,13 +482,22 @@ export function Arrangement() {
   const addTrackMenu = (x: number, y: number) => {
     const store = useProjectStore.getState();
     const ui = useUiStore.getState();
+    const addInstrument = (kind?: 'quick' | 'drum' | 'multi') => {
+      const id = store.addTrack('instrument');
+      if (kind) store.setInstrument(id, kind);
+      ui.selectTrack(id);
+      if (kind) ui.set({ editorTab: 'synth' });
+    };
     ui.showMenu({
       x,
       y,
       items: [
         { label: 'Audio Track', action: () => ui.selectTrack(store.addTrack('audio')) },
-        { label: 'Instrument Track', action: () => ui.selectTrack(store.addTrack('instrument')) },
-        { label: 'Drum Track', action: () => ui.selectTrack(store.addTrack('drum')) },
+        { label: 'Instrument Track', action: () => addInstrument() },
+        { label: 'Quick Sampler Track', action: () => addInstrument('quick') },
+        { label: 'Drum Rack Track', action: () => addInstrument('drum') },
+        { label: 'Multisample Track', action: () => addInstrument('multi') },
+        { label: 'Drum Track (classic kit)', action: () => ui.selectTrack(store.addTrack('drum')) },
         { label: 'Bus', action: () => ui.selectTrack(store.addTrack('bus')) },
       ],
     });

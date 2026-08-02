@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export type EditorTab = 'mixer' | 'piano' | 'synth' | 'diagnostics';
 export type PhoneMode = 'arrange' | 'record' | 'perform' | 'edit' | 'mix' | 'browse';
-export type BrowserTab = 'projects' | 'presets' | 'loops';
+export type BrowserTab = 'projects' | 'presets' | 'loops' | 'samples';
 /** Arrangement editing tools. Only fully-usable tools are offered. */
 export type ArrangeTool = 'pointer' | 'split' | 'erase' | 'mute' | 'slip';
 

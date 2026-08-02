@@ -21,7 +21,15 @@ import { makePoint, normalizeLanePoints } from '../model/automation';
 import type { AutomationLane, AutomationMode, AutomationPoint, CurveShape } from '../model/automation';
 import { paramIdExists } from '../model/paramRegistry';
 import { buildTakeClip, normalizeComp } from '../model/comping';
-import type { AudioClip, FadeShape } from '../model/types';
+import type { AudioClip, FadeShape, RackItem } from '../model/types';
+import {
+  buildDrumKit,
+  defaultSamplerParams,
+  makePadZone,
+  DRUM_PAD_BASE,
+  type SamplerParams,
+  type SampleZone,
+} from '../model/sampler';
 
 const MAX_UNDO = 60;
 
@@ -162,6 +170,32 @@ export interface ProjectStore {
   setSoloTake: (clipId: string, takeId: string | null) => void;
   /** Non-undoable view flags (take lanes open/closed). */
   setClipView: (id: string, patch: { takesOpen?: boolean }) => void;
+
+  // Milestone 7: sampler, drum rack, instrument rack.
+  /** Continuous sampler master edits (sliders); non-undoable. */
+  setSamplerParams: (trackId: string, patch: Partial<SamplerParams>) => void;
+  /** Switch a track's instrument. Undoable; creates sensible defaults. */
+  setInstrument: (trackId: string, kind: 'synth' | 'quick' | 'drum' | 'multi') => void;
+  addSamplerZones: (trackId: string, zones: SampleZone[]) => string[];
+  /** Continuous zone edits (drag trims); non-undoable — wrap in a gesture. */
+  updateSamplerZones: (
+    trackId: string,
+    ids: string[],
+    patch: (z: SampleZone) => Partial<SampleZone>,
+  ) => void;
+  removeSamplerZones: (trackId: string, ids: string[]) => void;
+  /** Assign media to a drum pad (creates or replaces that pad's zone). */
+  assignPad: (trackId: string, padIndex: number, mediaId: string, name?: string) => void;
+  setZoneSlices: (trackId: string, zoneId: string, slices: number[]) => void;
+  /** Turn a sliced zone into drum pads (one per slice). Returns pad count. */
+  sliceToPads: (trackId: string, zoneId: string) => number;
+  /** Create a MIDI clip triggering the slices in order. Returns the clip id. */
+  sliceToMidiClip: (trackId: string, zoneId: string, startBeat: number) => string | null;
+  applySamplerPreset: (trackId: string, preset: SamplerParams) => void;
+  rackAddItem: (trackId: string, kind: 'synth' | 'sampler') => string | null;
+  rackUpdateItem: (trackId: string, itemId: string, patch: Partial<RackItem>) => void;
+  rackRemoveItem: (trackId: string, itemId: string) => void;
+  rackMoveItem: (trackId: string, itemId: string, delta: number) => void;
 
   // Automation (Milestone 5). Lane values are normalized 0..1.
   /** Create a lane for a parameter. Returns null for unknown/duplicate params. */
@@ -1148,6 +1182,207 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         },
         { undoable: false },
       ),
+
+
+    // ---- Milestone 7 -----------------------------------------------------
+
+    setSamplerParams: (trackId, patch) =>
+      update(
+        (d) => {
+          const t = trackById(d, trackId);
+          if (t?.sampler) Object.assign(t.sampler, patch);
+        },
+        { undoable: false },
+      ),
+
+    setInstrument: (trackId, kind) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t || (t.type !== 'instrument' && t.type !== 'drum')) return;
+        delete t.rack;
+        if (kind === 'synth') {
+          delete t.sampler;
+          if (!t.synth) t.synth = getPreset(SYNTH_PRESETS[0].presetName);
+        } else if (kind === 'drum') {
+          t.sampler = buildDrumKit();
+        } else {
+          t.sampler = defaultSamplerParams(kind === 'multi' ? 'multi' : 'quick');
+        }
+      }),
+
+    addSamplerZones: (trackId, zones) => {
+      const ids: string[] = [];
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t?.sampler) return;
+        for (const z of zones) {
+          t.sampler.zones.push(z);
+          ids.push(z.id);
+        }
+      });
+      return ids;
+    },
+
+    updateSamplerZones: (trackId, ids, patch) =>
+      update(
+        (d) => {
+          const t = trackById(d, trackId);
+          if (!t?.sampler) return;
+          for (const z of t.sampler.zones) {
+            if (ids.includes(z.id)) Object.assign(z, patch(z));
+          }
+        },
+        { undoable: false },
+      ),
+
+    removeSamplerZones: (trackId, ids) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t?.sampler) return;
+        t.sampler.zones = t.sampler.zones.filter((z) => !ids.includes(z.id));
+      }),
+
+    assignPad: (trackId, padIndex, mediaId, name) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t?.sampler) return;
+        const key = DRUM_PAD_BASE + padIndex;
+        const existing = t.sampler.zones.find((z) => z.keyLo === key && z.keyHi === key);
+        if (existing) {
+          existing.mediaId = mediaId;
+          if (name) existing.name = name;
+          existing.startSec = 0;
+          delete existing.endSec;
+        } else {
+          t.sampler.zones.push(makePadZone(mediaId, padIndex, name ?? `Pad ${padIndex + 1}`));
+        }
+      }),
+
+    setZoneSlices: (trackId, zoneId, slices) =>
+      update((d) => {
+        const z = trackById(d, trackId)?.sampler?.zones.find((x) => x.id === zoneId);
+        if (!z) return;
+        const clean = slices.filter((x) => Number.isFinite(x) && x >= 0).sort((a, b) => a - b);
+        if (clean.length) z.slices = clean;
+        else delete z.slices;
+      }),
+
+    sliceToPads: (trackId, zoneId) => {
+      let made = 0;
+      update((d) => {
+        const t = trackById(d, trackId);
+        const z = t?.sampler?.zones.find((x) => x.id === zoneId);
+        if (!t?.sampler || !z || !z.slices || z.slices.length === 0) return;
+        const ends = [...z.slices.slice(1), z.endSec];
+        const pads = z.slices.slice(0, 64).map((startSec, i) => {
+          const pad = makePadZone(z.mediaId, i, `Slice ${i + 1}`);
+          pad.startSec = startSec;
+          if (ends[i] !== undefined) pad.endSec = ends[i];
+          pad.reverse = z.reverse;
+          return pad;
+        });
+        t.sampler.view = 'drum';
+        t.sampler.zones = pads;
+        made = pads.length;
+      });
+      return made;
+    },
+
+    sliceToMidiClip: (trackId, zoneId, startBeat) => {
+      let clipId: string | null = null;
+      update((d) => {
+        const t = trackById(d, trackId);
+        const z = t?.sampler?.zones.find((x) => x.id === zoneId);
+        if (!t || !z || !z.slices || z.slices.length === 0) return;
+        const spb = 60 / d.bpm;
+        const base = z.slices[0];
+        const id = newId('c');
+        const notes = z.slices.slice(0, 64).map((sec, i) => {
+          const next = z.slices![i + 1];
+          const lenSec = (next ?? sec + 0.25) - sec;
+          return {
+            id: newId('n'),
+            start: (sec - base) / spb,
+            length: Math.max(0.1, lenSec / spb),
+            pitch: DRUM_PAD_BASE + i,
+            velocity: 100,
+          };
+        });
+        const length = Math.max(1, Math.ceil(notes[notes.length - 1].start + 1));
+        d.clips.push({
+          id,
+          trackId,
+          type: 'midi',
+          name: 'Slices',
+          start: Math.max(0, startBeat),
+          length,
+          muted: false,
+          notes,
+        });
+        clipId = id;
+      });
+      return clipId;
+    },
+
+    applySamplerPreset: (trackId, preset) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t || (t.type !== 'instrument' && t.type !== 'drum')) return;
+        delete t.rack;
+        t.sampler = structuredClone(preset);
+      }),
+
+    rackAddItem: (trackId, kind) => {
+      const id = newId('rk');
+      let ok = false;
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t || (t.type !== 'instrument' && t.type !== 'drum')) return;
+        if (!t.rack) t.rack = { items: [] };
+        if (t.rack.items.length >= 8) return;
+        const item: RackItem = {
+          id,
+          name: kind === 'sampler' ? 'Sampler layer' : 'Synth layer',
+          color: TRACK_COLORS[t.rack.items.length % TRACK_COLORS.length],
+          keyLo: 0,
+          keyHi: 127,
+          muted: false,
+          solo: false,
+          kind,
+          ...(kind === 'sampler'
+            ? { sampler: defaultSamplerParams('quick') }
+            : { synth: getPreset(SYNTH_PRESETS[0].presetName) }),
+        };
+        t.rack.items.push(item);
+        ok = true;
+      });
+      return ok ? id : null;
+    },
+
+    rackUpdateItem: (trackId, itemId, patch) =>
+      update((d) => {
+        const it = trackById(d, trackId)?.rack?.items.find((x) => x.id === itemId);
+        if (it) Object.assign(it, patch);
+      }),
+
+    rackRemoveItem: (trackId, itemId) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t?.rack) return;
+        t.rack.items = t.rack.items.filter((x) => x.id !== itemId);
+        if (t.rack.items.length === 0) delete t.rack;
+      }),
+
+    rackMoveItem: (trackId, itemId, delta) =>
+      update((d) => {
+        const items = trackById(d, trackId)?.rack?.items;
+        if (!items) return;
+        const i = items.findIndex((x) => x.id === itemId);
+        const j = i + delta;
+        if (i < 0 || j < 0 || j >= items.length) return;
+        const [m] = items.splice(i, 1);
+        items.splice(j, 0, m);
+      }),
 
     addAutomationLane: (trackId, paramId) => {
       const t = get().project.tracks.find((x) => x.id === trackId);

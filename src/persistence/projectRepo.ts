@@ -9,7 +9,8 @@ import { isKnownEffect, MAX_INSERTS, normaliseParams } from '../model/effects';
 import { isAutomationMode, validateLane } from '../model/automation';
 import { paramIdExists } from '../model/paramRegistry';
 import { normalizeComp } from '../model/comping';
-import type { Take } from '../model/types';
+import { validateSampler } from '../model/sampler';
+import type { RackItem, Take } from '../model/types';
 
 const FADE_SHAPES = new Set(['linear', 'equalPower', 'equalGain', 's']);
 import { diagLog } from '../state/diagnostics';
@@ -201,6 +202,42 @@ export function validateProject(raw: unknown): ProjectData {
       delete tr.automationOpen;
     }
     if (tr.locked !== undefined && typeof tr.locked !== 'boolean') delete tr.locked;
+    // --- v4 → v5: sampler + instrument rack ------------------------------
+    if (tr.sampler !== undefined) {
+      const sv = validateSampler(tr.sampler);
+      if (sv) tr.sampler = sv;
+      else delete tr.sampler;
+    }
+    if (tr.rack !== undefined) {
+      const rr = tr.rack as Record<string, unknown> | null;
+      const items = Array.isArray(rr?.items)
+        ? (rr!.items as unknown[])
+            .map((it): RackItem | null => {
+              if (!isRecord(it) || typeof it.id !== 'string') return null;
+              const kind = it.kind === 'sampler' ? 'sampler' : 'synth';
+              const sampler = kind === 'sampler' ? validateSampler(it.sampler) : null;
+              if (kind === 'sampler' && !sampler) return null;
+              return {
+                id: it.id,
+                name: typeof it.name === 'string' ? it.name : 'Layer',
+                color: typeof it.color === 'string' ? it.color : '#37b89a',
+                keyLo: typeof it.keyLo === 'number' ? Math.max(0, Math.min(127, it.keyLo)) : 0,
+                keyHi: typeof it.keyHi === 'number' ? Math.max(0, Math.min(127, it.keyHi)) : 127,
+                muted: it.muted === true,
+                solo: it.solo === true,
+                kind,
+                ...(kind === 'sampler'
+                  ? { sampler: sampler! }
+                  : isRecord(it.synth)
+                    ? { synth: it.synth as unknown as RackItem['synth'] }
+                    : {}),
+              };
+            })
+            .filter((x): x is RackItem => x !== null)
+        : [];
+      if (items.length > 0) tr.rack = { items };
+      else delete tr.rack;
+    }
     if (
       tr.editGroup !== undefined &&
       !(typeof tr.editGroup === 'number' && tr.editGroup >= 1 && tr.editGroup <= 4)

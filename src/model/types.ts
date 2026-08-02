@@ -1,5 +1,6 @@
 import type { MediaRef } from './media';
 import type { AutomationLane, AutomationMode } from './automation';
+import type { SamplerParams } from './sampler';
 
 /** Core project data model. Everything here is plain serializable data. */
 
@@ -8,10 +9,26 @@ import type { AutomationLane, AutomationMode } from './automation';
  * audio-clip editing fields, and mixer sends. v3 (Milestone 5) adds per-track
  * automation lanes and the automation mode. v4 (Milestone 6) adds fade
  * shapes, take lanes with non-destructive comping, clip/track locking, edit
- * groups, and the audio-cleanup flags. Older projects migrate forward
- * losslessly — see `validateProject` in persistence/projectRepo.ts.
+ * groups, and the audio-cleanup flags. v5 (Milestone 7) adds the sampler
+ * instrument (zones), drum racks, and instrument racks. Older projects
+ * migrate forward losslessly — see `validateProject` in
+ * persistence/projectRepo.ts.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
+
+/** One layer/split inside an instrument rack. */
+export interface RackItem {
+  id: string;
+  name: string;
+  color: string;
+  keyLo: number;
+  keyHi: number;
+  muted: boolean;
+  solo: boolean;
+  kind: 'synth' | 'sampler';
+  synth?: import('./types').SynthParams;
+  sampler?: SamplerParams;
+}
 
 /**
  * Fade / crossfade shapes. As a crossfade pair (out on the left clip, in on
@@ -93,6 +110,10 @@ export interface Track {
   automationMode?: AutomationMode;
   /** automation lanes expanded beneath the track in the arrangement */
   automationOpen?: boolean;
+  /** sampler instrument (quick/drum/multi views share one engine) */
+  sampler?: SamplerParams;
+  /** instrument rack: layered/split child instruments (wins over sampler/synth) */
+  rack?: { items: RackItem[] };
   /** locked tracks refuse clip timing edits and deletion */
   locked?: boolean;
   /** edit group (1..4): selecting a clip links time-overlapping clips across the group */
