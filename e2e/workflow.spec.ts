@@ -290,6 +290,11 @@ test.describe('editing tools', () => {
 
 test.describe('huge-scale fixture (100 tracks / 1000 clips)', () => {
   test('loads, stays inside layout budgets, and scrolling stays responsive', async ({ page }) => {
+    // Pure performance assertion, Chromium-calibrated (see audioedit note).
+    test.skip(
+      process.env.E2E_BROWSER === 'webkit',
+      'stress perf budgets are Chromium-calibrated; container WebKit is not a perf reference',
+    );
     await page.setViewportSize({ width: 1440, height: 900 });
     const t0 = Date.now();
     await page.goto('/#/qa-huge');
