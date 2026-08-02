@@ -132,6 +132,13 @@ select:focus {
   border: 1px solid transparent;
   user-select: none;
 }
+/* Fingers get a bigger hit area than mouse pointers. */
+@media (pointer: coarse) {
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+}
 .icon-btn:hover {
   background: var(--bg-hover);
   color: var(--text);
