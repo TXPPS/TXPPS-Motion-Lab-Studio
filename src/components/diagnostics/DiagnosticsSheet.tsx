@@ -13,7 +13,12 @@ export function DiagnosticsSheet() {
         if (e.target === e.currentTarget) useUiStore.getState().set({ diagnosticsOpen: false });
       }}
     >
-      <div className="sheet" data-testid="diagnostics-sheet">
+      <div
+        className="sheet"
+        role="complementary"
+        aria-label="Diagnostics"
+        data-testid="diagnostics-sheet"
+      >
         <div className="panel-title">
           Diagnostics
           <span className="spacer" style={{ flex: 1 }} />

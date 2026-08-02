@@ -97,15 +97,17 @@ select:focus {
   transform: translateY(0.5px);
 }
 .btn.primary {
-  background: var(--accent-dim);
-  border-color: var(--accent-dim);
-  color: #fff;
+  /* dark text on the bright accent clears AA; white on the dim accent did not */
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06120e;
 }
 .btn.primary:hover {
-  background: var(--accent);
+  background: var(--accent-hi);
+  border-color: var(--accent-hi);
 }
 .btn.danger {
-  color: var(--danger);
+  color: var(--danger-text);
   border-color: rgba(216, 74, 68, 0.4);
 }
 .btn.danger:hover {
@@ -276,5 +278,18 @@ input[type='range']::-moz-range-thumb {
     width: 17px;
     height: 17px;
     margin-top: -7.5px;
+  }
+}
+
+/* Reduced motion: kill all animation/transition time app-wide. The few
+   animations we have are decorative (record pulse, toast slide). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

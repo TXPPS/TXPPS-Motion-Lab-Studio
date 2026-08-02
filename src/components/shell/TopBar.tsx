@@ -54,13 +54,13 @@ export function TopBar({ layout }: { layout: Layout }) {
   };
 
   return (
-    <div className="topbar">
+    <header className="topbar">
       <div className="brand">
         <Icon name="logo" size={22} />
-        <span className="brand-name">
+        <h1 className="brand-name">
           MotionLab
           {layout === 'desktop' && <span className="brand-sub"> Studio</span>}
-        </span>
+        </h1>
       </div>
 
       <button
@@ -165,6 +165,6 @@ export function TopBar({ layout }: { layout: Layout }) {
       >
         <Icon name="dots" size={15} />
       </button>
-    </div>
+    </header>
   );
 }

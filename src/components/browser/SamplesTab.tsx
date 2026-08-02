@@ -176,8 +176,6 @@ export function SamplesTab({ query }: { query: string }) {
         <div
           key={it.id}
           className="list-item sample-row"
-          role="button"
-          tabIndex={0}
           draggable
           data-testid={`sample-item-${it.id}`}
           onDragStart={(e) => {
@@ -186,12 +184,6 @@ export function SamplesTab({ query }: { query: string }) {
             markRecent(it.id);
           }}
           onClick={() => loadToTarget(it)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              loadToTarget(it);
-            }
-          }}
         >
           {thumbs && (
             <span className="sample-thumb" aria-hidden="true">
@@ -208,10 +200,16 @@ export function SamplesTab({ query }: { query: string }) {
               />
             </span>
           )}
-          <div className="li-main">
+          <button
+            className="li-main"
+            onClick={(e) => {
+              e.stopPropagation();
+              loadToTarget(it);
+            }}
+          >
             <div className="li-title">{it.name}</div>
             <div className="li-sub">{it.sub}</div>
-          </div>
+          </button>
           <span className="li-actions" onClick={(e) => e.stopPropagation()}>
             <button
               className={`icon-btn star${favs.includes(it.id) ? ' on' : ''}`}

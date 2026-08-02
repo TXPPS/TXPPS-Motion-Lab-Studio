@@ -23,19 +23,23 @@ export function BottomEditor() {
 
   return (
     <div className="editor-panel" data-testid="bottom-editor">
-      <div className="editor-tabs" role="tablist" aria-label="Editor">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            className={`tab${tab === t.id ? ' on' : ''}`}
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => useUiStore.getState().set({ editorTab: t.id })}
-            data-testid={`editor-tab-${t.id}`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="editor-tabs">
+        {/* The tablist wraps only the tabs; display:contents keeps the flex
+            row identical while the collapse button stays outside the role. */}
+        <div role="tablist" aria-label="Editor" style={{ display: 'contents' }}>
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              className={`tab${tab === t.id ? ' on' : ''}`}
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={() => useUiStore.getState().set({ editorTab: t.id })}
+              data-testid={`editor-tab-${t.id}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
         <div className="tab-actions">
           <button
             className="icon-btn"

@@ -16,7 +16,8 @@
   /* Text — warm off-white primary, muted gray secondary */
   --text: #e8e4da;
   --text-dim: #98a0ab;
-  --text-faint: #667080;
+  /* ≥4.5:1 on every panel background (WCAG AA small text) */
+  --text-faint: #8b94a1;
 
   /* Accents */
   --accent: #37b89a; /* teal-green primary */
@@ -27,6 +28,7 @@
   --warm-hi: #ecb54f;
   --warm-bg: rgba(217, 161, 60, 0.15);
   --danger: #d84a44; /* record / clipping / destructive only */
+  --danger-text: #ef7a73; /* danger as TEXT on dark panels (AA-clearing) */
   --danger-bg: rgba(216, 74, 68, 0.14);
 
   /* Meters */

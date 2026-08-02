@@ -35,7 +35,7 @@ export function DesktopLayout() {
                 className="pane"
                 onResize={(size) => setSizes({ browserSize: size.asPercentage })}
               >
-                <aside className="side-panel left" data-testid="browser-side">
+                <aside className="side-panel left" aria-label="Browser" data-testid="browser-side">
                   <div className="panel-title">Browser</div>
                   <BrowserPanel />
                 </aside>
@@ -82,7 +82,11 @@ export function DesktopLayout() {
                 className="pane"
                 onResize={(size) => setSizes({ inspectorSize: size.asPercentage })}
               >
-                <aside className="side-panel right" data-testid="inspector-side">
+                <aside
+                  className="side-panel right"
+                  aria-label="Inspector"
+                  data-testid="inspector-side"
+                >
                   <div className="panel-title">Inspector</div>
                   <Inspector />
                 </aside>

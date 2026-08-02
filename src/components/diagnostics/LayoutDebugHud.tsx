@@ -40,7 +40,12 @@ export function LayoutDebugHud() {
   );
 
   return (
-    <div className="debug-hud" data-testid="debug-hud">
+    <div
+      className="debug-hud"
+      role="complementary"
+      aria-label="Layout debug HUD"
+      data-testid="debug-hud"
+    >
       {row('viewport', `${snap.viewportW}x${snap.viewportH} @${snap.dpr}`)}
       {row('visual', `${snap.visualW ?? '-'}x${snap.visualH ?? '-'}`)}
       {row('breakpoint', snap.breakpoint)}

@@ -29,7 +29,7 @@ export function StatusBar() {
   const online = useOnline();
 
   return (
-    <div className="statusbar" data-testid="statusbar">
+    <footer className="statusbar" data-testid="statusbar">
       <span className="sb-item">
         <span
           className="dot"
@@ -64,6 +64,6 @@ export function StatusBar() {
       <span className="sb-item mono" title="Deployed git commit">
         {GIT_COMMIT}
       </span>
-    </div>
+    </footer>
   );
 }

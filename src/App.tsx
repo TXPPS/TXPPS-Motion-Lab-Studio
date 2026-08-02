@@ -61,7 +61,7 @@ export function App() {
   return (
     <div className="app" data-layout={layout} data-testid="app-root">
       <TopBar layout={layout} />
-      <div className="app-body">
+      <main className="app-body">
         {layout !== 'phone' && <RecordingBanner />}
         <ErrorBoundary label="workspace">
           {layout === 'desktop' ? (
@@ -72,7 +72,7 @@ export function App() {
             <PhoneLayout />
           )}
         </ErrorBoundary>
-      </div>
+      </main>
       {layout === 'phone' ? <PhoneNav /> : <StatusBar />}
       <DiagnosticsSheet />
       <ShortcutsSheet />

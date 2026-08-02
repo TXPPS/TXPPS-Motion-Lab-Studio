@@ -95,17 +95,18 @@ function ProjectsTab({ query }: { query: string }) {
               key={m.id}
               className={`list-item${m.id === current.id ? ' on' : ''}`}
               data-testid={`proj-item-${m.name}`}
-              role="button"
-              tabIndex={0}
               onClick={() => {
                 if (m.id !== current.id) void openProject(m.id);
               }}
-              onKeyDown={(e) => {
-                if ((e.key === 'Enter' || e.key === ' ') && m.id !== current.id)
-                  void openProject(m.id);
-              }}
             >
-              <div className="li-main">
+              <button
+                className="li-main"
+                aria-current={m.id === current.id || undefined}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (m.id !== current.id) void openProject(m.id);
+                }}
+              >
                 <div className="li-title">
                   {m.name}
                   {m.id === current.id && dirty ? ' •' : ''}
@@ -113,7 +114,7 @@ function ProjectsTab({ query }: { query: string }) {
                 <div className="li-sub">
                   {fmtWhen(m.modifiedAt)} · {m.trackCount} tracks · {m.clipCount} clips
                 </div>
-              </div>
+              </button>
               <span
                 className="li-actions"
                 onClick={(e) => e.stopPropagation()}
@@ -312,24 +313,20 @@ function MediaRow({
   testid?: string;
   onAdd: () => void;
 }) {
+  // The row body is a real <button> (primary action) so the audition control
+  // beside it is never nested inside another interactive element.
   return (
-    <div
-      className="list-item"
-      role="button"
-      tabIndex={0}
-      data-testid={testid}
-      onClick={onAdd}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
+    <div className="list-item" data-testid={testid} onClick={onAdd}>
+      <button
+        className="li-main"
+        onClick={(e) => {
+          e.stopPropagation();
           onAdd();
-        }
-      }}
-    >
-      <div className="li-main">
+        }}
+      >
         <div className="li-title">{title}</div>
         <div className="li-sub">{subtitle}</div>
-      </div>
+      </button>
       <span className="li-actions" onClick={(e) => e.stopPropagation()}>
         <AuditionButton mediaId={mediaId} name={title} />
       </span>
