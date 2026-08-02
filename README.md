@@ -203,6 +203,18 @@ The feature set above is frozen; RC1 is stability, compatibility and polish:
 - Onboarding: first-run welcome, shortcut sheet, feature-detecting
   diagnostics with a downloadable report
 
+## RC2.1 — workspace & mobile UX
+
+- Full-screen workspace system: arrange, editor (mixer/piano/instrument/
+  diagnostics), browser and inspector expand/restore with layout, scroll,
+  selection and undo preserved; state persists across reloads
+- Tablets: true single-editor workflow while the editor is full screen
+- Touch: app-wide selection discipline (chrome never highlights; text
+  fields still select); sliders own their touches
+- Responsive: 24-viewport overlap scan clean; the arrangement toolbar
+  wraps instead of clipping on narrow screens; six sizes asserted in CI
+  (`e2e/workspace.spec.ts`)
+
 Guides: [User Manual](docs/USER-MANUAL.md) ·
 [Quick Start](docs/QUICK-START.md) · [FAQ](docs/FAQ.md) ·
 [Known Limitations](docs/KNOWN-LIMITATIONS.md) ·

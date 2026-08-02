@@ -1,5 +1,37 @@
 # Release Notes
 
+## 1.0.0-rc.2.1 — Workspace & Mobile UX Refinement
+
+No engine changes; every RC1 feature and test is preserved.
+
+### Full-screen workspace (DAW-style)
+- Every workspace pane now expands to full screen and restores with one
+  control in the same place: the arrangement, the bottom editor (mixer,
+  piano roll, synth/sampler/pads, diagnostics), and — on desktop — the
+  browser and inspector (as centered columns).
+- Tablets get a true single-editor workflow: maximizing the editor
+  removes the forced split pane, and the Mixer/Piano/Instrument switcher
+  keeps working while full screen.
+- Maximizing leaves the docked layout untouched, so restoring brings
+  back the exact previous panel arrangement; scroll positions of the
+  arrangement, piano roll, mixer and instrument panel survive the round
+  trip, as do selection and undo history. The maximized state persists
+  with the workspace layout across reloads.
+
+### Touch interaction
+- App chrome no longer highlights as text under touch drags anywhere;
+  selection stays enabled exactly where text editing is intentional
+  (search, rename, notes, numeric fields, diagnostics log).
+- Faders and sliders own their touches (`touch-action: none`) — a ride
+  can no longer scroll the page out from under a finger.
+
+### Responsive
+- A 24-viewport measured scan drove the fixes: the arrangement toolbar
+  now wraps to a second row on narrow screens instead of hiding its
+  snap/zoom controls behind an invisible horizontal scroll. The scan
+  reports zero clipped or overlapping chrome controls at every size
+  from 360×780 to 2560×1080, and it now runs in CI for six of them.
+
 ## 1.0.0-rc.1 — Public Beta Release Candidate
 
 The feature set is frozen; this release hardens it for public use.

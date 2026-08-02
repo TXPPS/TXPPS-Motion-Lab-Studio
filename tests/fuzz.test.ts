@@ -40,7 +40,7 @@ const JUNK_VALUES: unknown[] = [
   [],
   {},
   { nested: { deep: [1, 2, 3] } },
-  9007199254740993n < 0n ? 0 : 42, // keep types JSON-safe
+  42,
   [[[[]]]],
   'a'.repeat(2000),
 ];

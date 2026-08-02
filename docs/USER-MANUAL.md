@@ -27,6 +27,14 @@ On tablets the side panels become drawers; on phones the bottom navigation
 switches whole workspaces (Arrange / Record / Perform / Edit / Mix /
 Browse).
 
+**Full screen.** Every pane carries an expand control (⛶ in its corner or
+tab bar): the arrangement, the bottom editor and — on desktop — the
+browser and inspector. Expanding takes over the whole workspace; the same
+control restores the exact previous layout, keeping your scroll position,
+selection and undo history. On tablets, expanding the editor gives a
+single-editor workflow with the Mixer/Piano/Instrument switcher still
+available. The choice persists with your workspace layout.
+
 ## 2. Tracks and clips
 
 **+ Track** (or right-click the track area) creates Audio, Instrument,
