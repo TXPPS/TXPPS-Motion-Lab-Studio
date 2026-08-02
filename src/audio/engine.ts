@@ -231,8 +231,22 @@ class AudioEngine {
     } else if (state === 'suspended') {
       t.set({ audioState: 'suspended' });
       if (this.playing) {
-        diagLog('warn', 'AudioContext suspended during playback — transport stopped');
-        this.stop();
+        // A suspension during ACTIVE playback (device/route change, UA
+        // policy blip) gets one immediate recovery attempt — context time
+        // freezes while suspended, so the scheduler resumes coherently.
+        // Only if it stays suspended does the transport stop.
+        void this.ctx.resume().catch(() => {
+          /* resume needs a user gesture — the timeout below stops us */
+        });
+        setTimeout(() => {
+          if (this.playing && this.ctx && (this.ctx.state as string) !== 'running') {
+            diagLog('warn', 'AudioContext suspended during playback — transport stopped');
+            this.stop();
+          } else if (this.playing) {
+            diagLog('info', 'AudioContext auto-resumed during playback');
+            this.reflectContextState();
+          }
+        }, 250);
       }
     } else if (state === 'closed') {
       t.set({ audioState: 'uninitialized', sampleRate: null });

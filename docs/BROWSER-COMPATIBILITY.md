@@ -20,13 +20,30 @@ claim that every retail build was hand-tested.
 
 | Suite | Chromium 141 | Firefox 151 | WebKit 26.5 |
 | --- | --- | --- | --- |
-| Full e2e (158 tests) | RESULT_CHROMIUM | RESULT_FIREFOX | RESULT_WEBKIT |
+| Full e2e (158 tests) | 158 passed | 156 passed, 2 env-skipped | 154 passed, 4 by-design skips |
 
-Notes:
+The cross-engine runs found and fixed two real cross-browser bugs before
+any user hit them: trim handles that Firefox's stricter overflow
+hit-testing made ungrabbable at the extremes, and a transport chip that
+escaped the bar at tablet widths under wider font metrics.
+
+Skips, precisely:
+- **Firefox (2)**: two tests need sustained *uninterrupted* playback
+  (touch-mode automation capture; edit-during-playback at stress scale).
+  This container's Firefox + null-sink audio stack spuriously suspends
+  the AudioContext mid-playback and refuses programmatic resume (probe-
+  verified); the app's designed response to a persistent suspension is a
+  clean transport stop, which the tests then report. The same behaviors
+  pass on Chromium and WebKit. On a real suspension the app now attempts
+  one automatic resume before stopping.
+- **WebKit (4)**: two microphone-pipeline tests (WebKit has no fake
+  capture device — retail Safari capture uses the normal prompt but is
+  not CI-provable) and two pure performance-budget stress tests (budgets
+  are Chromium-calibrated; in-container WebKit-GTK measures ~9× slower
+  than the same machine's Chromium and is not a performance reference —
+  the *functional* stress tests still run there with extended time).
 - Firefox runs with fake-microphone prefs so the recording pipeline is
-  exercised for real; WebKit has no fake-capture mechanism, so
-  microphone-dependent tests skip there (capture on retail Safari works
-  through the normal permission prompt but is not CI-provable here).
+  exercised for real end-to-end.
 - Clipboard permission grants are a Chromium-only Playwright feature; the
   app's internal copy/paste never depends on the async clipboard API.
 
