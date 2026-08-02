@@ -305,7 +305,15 @@
 
 .audio-chip {
   cursor: pointer;
-  flex: none;
+  /* May shrink on narrow transports (browser font metrics differ); the
+     label ellipsizes instead of the chip escaping the bar. */
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.audio-chip .chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ===== Status bar ===== */

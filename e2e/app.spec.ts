@@ -167,8 +167,24 @@ test.describe('persistence', () => {
 });
 
 test.describe('diagnostics', () => {
-  test('runs the smoke test and copies a plain-text report', async ({ page, context }) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  test('runs the smoke test and copies a plain-text report', async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    // Clipboard permission grants are Chromium-only in Playwright. On other
+    // engines, capture what the app writes by stubbing writeText — the app's
+    // copy path still runs for real.
+    if (browserName === 'chromium') {
+      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    } else {
+      await page.addInitScript(() => {
+        const w = window as unknown as { __copied: string };
+        w.__copied = '';
+        const stub = { writeText: (t: string) => ((w.__copied = t), Promise.resolve()) };
+        Object.defineProperty(navigator, 'clipboard', { value: stub, configurable: true });
+      });
+    }
     await boot(page);
     await startAudio(page);
     await page.click('[data-testid="open-diagnostics"]');
@@ -179,7 +195,10 @@ test.describe('diagnostics', () => {
     expect(fails, 'no smoke-test failures').toBe(0);
 
     await page.click('[data-testid="copy-report"]');
-    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    const clip = await page.evaluate((cn) => {
+      if (cn === 'chromium') return navigator.clipboard.readText();
+      return (window as unknown as { __copied: string }).__copied;
+    }, browserName);
     expect(clip).toContain('TXPPS MotionLab Studio');
     expect(clip).toContain('AudioContext');
   });

@@ -103,7 +103,10 @@ test.describe('piano roll editing', () => {
       const box = sc.getBoundingClientRect();
       const pt = (beat: number, pitch: number) => ({
         x: box.left + 52 + beat * 32,
-        y: box.top + (108 - pitch) * 16 + 8 - sc.scrollTop,
+        // Clamp inside the window: Firefox's synthetic input drops moves
+        // outside the viewport (a real OS pointer keeps streaming via
+        // capture, so users are unaffected — only the harness needs this).
+        y: Math.min(window.innerHeight - 24, box.top + (108 - pitch) * 16 + 8 - sc.scrollTop),
       });
       return { a: pt(0.3, 74), b: pt(14, 52) };
     });

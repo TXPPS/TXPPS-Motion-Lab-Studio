@@ -41,7 +41,7 @@ export function AudioStatusChip({ compact }: { compact?: boolean }) {
       data-audio-state={audioState}
     >
       <span className="dot" />
-      {compact ? short : full}
+      <span className="chip-label">{compact ? short : full}</span>
     </button>
   );
 }

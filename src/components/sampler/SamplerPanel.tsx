@@ -109,16 +109,19 @@ function ZoneWaveEditor({ track, zone }: { track: Track; zone: SampleZone }) {
           title={`Slice ${i + 1}`}
         />
       ))}
+      {/* clamp keeps the 10px grips fully inside the clipped container at the
+          extremes — Firefox hit-tests overflow-clipped children strictly, so a
+          half-outside handle would be ungrabbable at 0%/100% there */}
       <div
         className="smp-handle l"
-        style={{ left: `calc(${(zone.startSec / dur) * 100}% - 5px)` }}
+        style={{ left: `clamp(0px, calc(${(zone.startSec / dur) * 100}% - 5px), calc(100% - 10px))` }}
         title="Trim start (Alt bypasses zero-crossing snap)"
         onPointerDown={dragStart}
         data-testid="smp-trim-start"
       />
       <div
         className="smp-handle r"
-        style={{ left: `calc(${(endSec / dur) * 100}% - 5px)` }}
+        style={{ left: `clamp(0px, calc(${(endSec / dur) * 100}% - 5px), calc(100% - 10px))` }}
         title="Trim end (Alt bypasses zero-crossing snap)"
         onPointerDown={dragEnd}
         data-testid="smp-trim-end"

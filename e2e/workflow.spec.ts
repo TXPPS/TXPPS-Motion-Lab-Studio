@@ -196,12 +196,22 @@ test.describe('browser and project workflow', () => {
     await page.click('[data-testid="browser-tab-loops"]');
     const first = page.locator('[data-testid^="audition-"]').first();
     await first.click();
-    await page.waitForTimeout(400);
+    // First audition also unlocks the AudioContext; engines differ in how
+    // long that takes, so poll rather than assuming a fixed delay.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const w = window as unknown as { __ml: { engine: { auditioningId(): string | null } } };
+            return w.__ml.engine.auditioningId();
+          }),
+        { timeout: 8000, message: 'audition did not start' },
+      )
+      .not.toBeNull();
     const playing = await page.evaluate(() => {
       const w = window as unknown as { __ml: { engine: { auditioningId(): string | null } } };
       return w.__ml.engine.auditioningId();
     });
-    expect(playing, 'audition did not start').not.toBeNull();
 
     // Starting the second replaces the first rather than stacking.
     const second = page.locator('[data-testid^="audition-"]').nth(1);
