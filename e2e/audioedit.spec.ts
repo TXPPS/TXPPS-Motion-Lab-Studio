@@ -148,6 +148,9 @@ test.describe('takes and comping (qa-audio-edit)', () => {
   test('take lanes render; swipe comps a range; click auditions; promote wins', async ({
     page,
   }) => {
+    // Long pointer-swipe sequences on the 2,020-clip fixture: functional on
+    // every engine, but in-container WebKit-GTK needs far more wall time.
+    test.setTimeout(process.env.E2E_BROWSER === 'webkit' ? 420_000 : 180_000);
     await boot(page, '/#/qa-audio-edit');
 
     // Comp 1 has open take lanes: three rows.
@@ -448,6 +451,8 @@ test.describe('render correctness', () => {
   });
 
   test('comp clips and shaped fades render audibly correctly', async ({ page }) => {
+    // Two offline renders + comparisons; WebKit-GTK renders offline slowly.
+    test.setTimeout(process.env.E2E_BROWSER === 'webkit' ? 420_000 : 180_000);
     await boot(page, '/#/qa-audio-edit');
     await page.evaluate(async () => {
       const w = window as unknown as { __ml?: { engine: { start(): Promise<boolean> } } };
