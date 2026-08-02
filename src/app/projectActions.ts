@@ -118,6 +118,12 @@ export async function bootProject(forceDemo: boolean, qaFixture = false): Promis
   if (qaFixture) {
     // #/qa-audio loads the audio-editing fixture; #/qa the layout stress one.
     // Neither is persisted, so a QA run can never overwrite a real project.
+    if (window.location.hash.includes('qa-audio-edit')) {
+      const { createAudioEditQaProject } = await import('../model/audioEditQaProject');
+      useProjectStore.getState().setProject(createAudioEditQaProject(), { markClean: true });
+      diagLog('info', 'Loaded QA audio-edit stress fixture (not persisted)');
+      return;
+    }
     if (window.location.hash.includes('qa-audio')) {
       const { createAudioQaProject } = await import('../model/audioQaProject');
       useProjectStore.getState().setProject(createAudioQaProject(), { markClean: true });
