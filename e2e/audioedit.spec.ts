@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { PERF_SCALE } from './perfScale';
 
 /**
  * Milestone 6 audio-editing workflows through real pointer events, plus
@@ -332,7 +333,7 @@ test.describe('time editing on the stress fixture', () => {
     // qa-huge does; measured 155-180ms/step on CI's software rasteriser. The
     // budget is calibrated to that measurement — qa-huge's tighter budget is
     // still enforced by the existing workflow suite.
-    expect(cost, `scroll step ${cost.toFixed(1)}ms`).toBeLessThan(250);
+    expect(cost, `scroll step ${cost.toFixed(1)}ms`).toBeLessThan(250 * PERF_SCALE);
   });
 
   test('clip nudge and zoom-to-selection', async ({ page }) => {

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { PERF_SCALE } from './perfScale';
 
 /**
  * Automation system, driven through real pointer/keyboard events plus the
@@ -425,7 +426,7 @@ test.describe('automation stress fixture (500 lanes / 100k points)', () => {
       }
       return (performance.now() - start) / 20;
     });
-    expect(cost, `scroll step ${cost.toFixed(1)}ms`).toBeLessThan(130);
+    expect(cost, `scroll step ${cost.toFixed(1)}ms`).toBeLessThan(130 * PERF_SCALE);
 
     // Playback while editing: start audio, play, drag a showcase point.
     await page.evaluate(() => {
@@ -454,6 +455,6 @@ test.describe('automation stress fixture (500 lanes / 100k points)', () => {
     await page.keyboard.press('Space');
     expect(playing.is, 'transport must survive editing').toBe(true);
     expect(playing.pos).toBeGreaterThan(0);
-    expect(dragMs, 'point drag during playback must stay responsive').toBeLessThan(4000);
+    expect(dragMs, 'point drag during playback must stay responsive').toBeLessThan(4000 * PERF_SCALE);
   });
 });

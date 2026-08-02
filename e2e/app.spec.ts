@@ -31,8 +31,12 @@ async function startAudio(page: Page) {
 test.describe('boot & shell', () => {
   test('loads the demo project with tracks, clips, and mixer strips', async ({ page }) => {
     const errors: string[] = [];
-    page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-    page.on('pageerror', (e) => errors.push(e.message));
+    // WebKit reports "ResizeObserver loop completed with undelivered
+    // notifications" as a console error; it is a benign, spec-acknowledged
+    // signal (observations coalesce to the next frame), not an app defect.
+    const benign = /ResizeObserver loop/;
+    page.on('console', (m) => m.type() === 'error' && !benign.test(m.text()) && errors.push(m.text()));
+    page.on('pageerror', (e) => !benign.test(e.message) && errors.push(e.message));
     await boot(page);
 
     await expect(page.locator('[data-testid="arrangement"]')).toBeVisible();

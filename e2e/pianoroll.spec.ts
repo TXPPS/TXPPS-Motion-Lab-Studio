@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { PERF_SCALE } from './perfScale';
 
 /**
  * Piano roll workflow, driven through real pointer and keyboard events.
@@ -289,7 +290,7 @@ test.describe('dense MIDI fixture (11k notes)', () => {
       }
       return (performance.now() - start) / 20;
     });
-    expect(cost, `scroll step ${cost.toFixed(1)}ms`).toBeLessThan(120);
+    expect(cost, `scroll step ${cost.toFixed(1)}ms`).toBeLessThan(120 * PERF_SCALE);
 
     // Editing at scale: marquee a region and transpose it. Reset the scroll the
     // cost loop left behind, wait for the window to remount, then scan down for
@@ -319,6 +320,6 @@ test.describe('dense MIDI fixture (11k notes)', () => {
     const t0 = Date.now();
     await page.keyboard.press('ArrowUp');
     await page.waitForTimeout(100);
-    expect(Date.now() - t0, 'transpose at scale locked the UI').toBeLessThan(2500);
+    expect(Date.now() - t0, 'transpose at scale locked the UI').toBeLessThan(2500 * PERF_SCALE);
   });
 });

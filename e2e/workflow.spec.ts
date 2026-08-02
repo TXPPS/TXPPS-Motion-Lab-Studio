@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { PERF_SCALE } from './perfScale';
 
 /**
  * Arrangement editing workflow: marquee, multi-select, group move, clipboard,
@@ -341,8 +342,8 @@ test.describe('huge-scale fixture (100 tracks / 1000 clips)', () => {
       const bigJump = (performance.now() - t) / 20;
       return { smallStep, bigJump };
     });
-    expect(cost.smallStep, `paint-only step ${cost.smallStep.toFixed(1)}ms`).toBeLessThan(70);
-    expect(cost.bigJump, `windowed jump ${cost.bigJump.toFixed(1)}ms`).toBeLessThan(150);
+    expect(cost.smallStep, `paint-only step ${cost.smallStep.toFixed(1)}ms`).toBeLessThan(70 * PERF_SCALE);
+    expect(cost.bigJump, `windowed jump ${cost.bigJump.toFixed(1)}ms`).toBeLessThan(150 * PERF_SCALE);
 
     // Group-selection machinery at scale: marquee a region and confirm the
     // store-level selection matches without locking the UI. (Select-all is

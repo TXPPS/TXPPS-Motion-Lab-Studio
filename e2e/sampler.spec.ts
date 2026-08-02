@@ -88,7 +88,12 @@ test.describe('quick sampler', () => {
       const w = window as unknown as MlWindow;
       await w.__ml.engine.start();
     });
+    // Raw mouse coordinates do not auto-scroll: with WebKit's taller header
+    // wrapping, the wave can sit below the panel fold, so bring it fully into
+    // view before computing drag coordinates.
     const handle = page.locator('[data-testid="smp-trim-start"]');
+    await page.locator('[data-testid="smp-wave"]').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(150);
     const box = (await handle.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();

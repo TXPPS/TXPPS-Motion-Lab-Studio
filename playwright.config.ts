@@ -23,7 +23,11 @@ const engine = (process.env.E2E_BROWSER ?? 'chromium') as 'chromium' | 'firefox'
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 60_000,
+  // Perf budgets and timeouts are calibrated on Chromium in this CI; the
+  // Firefox/WebKit builds here run slower (esp. WebKit-GTK software paths),
+  // so cross-engine runs get triple time. Budget assertions scale via
+  // e2e/perfScale.ts for the same reason.
+  timeout: engine === 'chromium' ? 60_000 : 180_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
