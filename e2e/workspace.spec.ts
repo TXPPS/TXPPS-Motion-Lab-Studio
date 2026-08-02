@@ -133,11 +133,20 @@ test.describe('full-screen workspace (tablet)', () => {
 test.describe('touch-selection discipline', () => {
   test('chrome is unselectable; intentional text stays selectable', async ({ page }) => {
     await boot(page);
+    // user-select's computed value differs per engine ('auto' in Gecko where
+    // Chromium reports the cascaded 'none') — resolve the USED value by
+    // walking to the nearest non-auto ancestor, which is what selection
+    // actually obeys.
     const sel = (selector: string) =>
-      page.evaluate(
-        (s) => getComputedStyle(document.querySelector(s)!).userSelect,
-        selector,
-      );
+      page.evaluate((s) => {
+        let el: Element | null = document.querySelector(s)!;
+        while (el) {
+          const v = getComputedStyle(el).userSelect;
+          if (v !== 'auto') return v;
+          el = el.parentElement;
+        }
+        return 'auto';
+      }, selector);
     // Controls: never selectable.
     expect(await sel('.transport')).toBe('none');
     expect(await sel('[data-testid="btn-play"]')).toBe('none');
