@@ -182,6 +182,35 @@ identically.
 See [`docs/MILESTONE-7-SAMPLER.md`](docs/MILESTONE-7-SAMPLER.md) for the
 architecture, the user guides, and deferrals.
 
+## Version 1.0 RC1 — production hardening
+
+The feature set above is frozen; RC1 is stability, compatibility and polish:
+
+- Data safety: every save keeps an atomic backup of the previous version;
+  corrupted projects restore from it automatically; autosave failures warn
+  visibly; closing with unsaved changes flushes a save and asks first;
+  edits made during an in-flight save are never marked as persisted
+- Fuzzing: randomized project corruption proves validation never crashes,
+  always yields a playable project, and is a JSON-stable fixpoint
+- Performance: object-based undo stacks (50k-clip edit 377 ms → 107 ms,
+  undo 133 ms → 1.3 ms); media decode caches evicted on project switch
+- Accessibility: zero axe-core violations (WCAG 2.1 AA ruleset) on all
+  seven app surfaces; landmarks, real-button rows, AA contrast, pinch zoom
+  re-enabled, reduced-motion support
+- Cross-engine: the same e2e suite runs on Chromium, Firefox and WebKit
+  (`E2E_BROWSER=firefox|webkit`) — see the compatibility matrix
+- PWA: updates never force-reload a running session
+- Onboarding: first-run welcome, shortcut sheet, feature-detecting
+  diagnostics with a downloadable report
+
+Guides: [User Manual](docs/USER-MANUAL.md) ·
+[Quick Start](docs/QUICK-START.md) · [FAQ](docs/FAQ.md) ·
+[Known Limitations](docs/KNOWN-LIMITATIONS.md) ·
+[Browser Compatibility](docs/BROWSER-COMPATIBILITY.md) ·
+[Performance Notes](docs/PERFORMANCE.md) ·
+[Public Beta Guide](docs/BETA-GUIDE.md) ·
+[Release Notes](docs/RELEASE-NOTES.md)
+
 ## Development
 
 ```bash
@@ -210,6 +239,7 @@ Fixtures are never autosaved, so a QA run cannot overwrite a real project.
 | `#/qa-sampler`   | Sampler workstation: sliced quick sampler with `smp:` automation, drum rack beat, multisample, synth+sampler rack |
 | `#/qa-drums`     | Drum-rack scale: 100 assigned pads and a dense 16th-note trigger pattern  |
 | `#/qa-multisample`| Multisample scale: 512 zones (32 key bands × 4 velocity layers × 4 round-robins) |
+| `#/qa-max`       | Absolute maximum: 500 tracks, 50,000 clips, 20,000 notes, 1,000 lanes — failure-mode hunting |
 | `#/phone`        | Forces the phone layout on any screen size                                |
 | `#/diagnostics`  | Opens the diagnostics panel on load                                       |
 | `#/demo`         | Reseeds the demo project                                                  |
