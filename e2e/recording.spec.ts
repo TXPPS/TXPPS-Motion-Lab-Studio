@@ -4,24 +4,45 @@ import { existsSync } from 'node:fs';
 const preinstalledChromium = '/opt/pw-browsers/chromium';
 
 /**
- * Chromium's fake capture device produces a deterministic tone, so the whole
- * recording path — permission, arming, count-in, MediaRecorder, decode, peaks,
+ * Fake capture devices produce a deterministic tone, so the whole recording
+ * path — permission, arming, count-in, MediaRecorder, decode, peaks,
  * IndexedDB, clip creation — runs for real without any hardware attached.
  *
  * These tests therefore prove the *pipeline*, not that a physical microphone
  * works. No claim is made here about real input hardware.
+ *
+ * Engines: Chromium and Firefox both provide fake capture (flags/prefs).
+ * WebKit has none, so capture-dependent tests skip there — capture on retail
+ * Safari goes through the normal permission prompt but is not CI-provable.
  */
-test.use({
-  launchOptions: {
-    executablePath: existsSync(preinstalledChromium) ? preinstalledChromium : undefined,
-    args: [
-      '--autoplay-policy=no-user-gesture-required',
-      '--use-fake-ui-for-media-stream',
-      '--use-fake-device-for-media-capture',
-    ],
-  },
-  permissions: ['microphone'],
-});
+const engine = process.env.E2E_BROWSER ?? 'chromium';
+
+test.use(
+  engine === 'chromium'
+    ? {
+        launchOptions: {
+          executablePath: existsSync(preinstalledChromium) ? preinstalledChromium : undefined,
+          args: [
+            '--autoplay-policy=no-user-gesture-required',
+            '--use-fake-ui-for-media-stream',
+            '--use-fake-device-for-media-capture',
+          ],
+        },
+        permissions: ['microphone'],
+      }
+    : engine === 'firefox'
+      ? {
+          launchOptions: {
+            firefoxUserPrefs: {
+              'media.autoplay.default': 0,
+              'media.autoplay.blocking_policy': 0,
+              'media.navigator.streams.fake': true,
+              'media.navigator.permission.disabled': true,
+            },
+          },
+        }
+      : {},
+);
 
 /** Count getUserMedia calls from the very first script the page runs. */
 async function instrumentGum(page: Page) {
@@ -69,6 +90,10 @@ test.describe('microphone permission discipline', () => {
 });
 
 test.describe('recording pipeline', () => {
+  // No fake capture device exists on WebKit; the pipeline is proven on
+  // Chromium and Firefox. Retail Safari capture uses the normal prompt.
+  test.skip(engine === 'webkit', 'WebKit has no fake capture device');
+
   test('records a take end to end and creates a clip with real audio', async ({ page }) => {
     await instrumentGum(page);
     await page.setViewportSize({ width: 390, height: 844 });
