@@ -191,6 +191,12 @@ export async function bootProject(forceDemo: boolean, qaFixture = false): Promis
       diagLog('info', 'Loaded QA drum-rack fixture (not persisted)');
       return;
     }
+    if (window.location.hash.includes('qa-max')) {
+      const { createMaxProject } = await import('../model/maxProject');
+      useProjectStore.getState().setProject(createMaxProject(), { markClean: true });
+      diagLog('info', 'Loaded QA max-scale fixture (not persisted)');
+      return;
+    }
     if (window.location.hash.includes('qa-huge')) {
       const { createHugeProject } = await import('../model/hugeProject');
       useProjectStore.getState().setProject(createHugeProject(), { markClean: true });
