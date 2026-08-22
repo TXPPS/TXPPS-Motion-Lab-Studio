@@ -293,6 +293,22 @@ describe('the store releases a stale freeze as the edit lands', () => {
     expect(p.media?.some((m) => m.id === PRINT.id)).toBe(false);
   });
 
+  it("keeps a duplicated track's print until the last track lets it go", () => {
+    const dup = useProjectStore.getState().duplicateTrack('inst')!;
+    expect(useProjectStore.getState().project.tracks[1].freeze?.mediaId).toBe(PRINT.id);
+
+    useProjectStore
+      .getState()
+      .setTrack(dup, {
+        synth: { ...trackOf(useProjectStore.getState().project).synth!, cutoff: 500 },
+      });
+    const after = useProjectStore.getState().project;
+    expect(after.tracks[1].freeze).toBeUndefined();
+    // The original is still frozen, so the print it plays has to stay listed.
+    expect(after.tracks[0].freeze?.mediaId).toBe(PRINT.id);
+    expect(after.media?.some((m) => m.id === PRINT.id)).toBe(true);
+  });
+
   it('keeps the freeze through a mix move', () => {
     useProjectStore.getState().setTrack('inst', { volume: 0.4 });
     expect(useProjectStore.getState().project.tracks[0].freeze).toBeDefined();

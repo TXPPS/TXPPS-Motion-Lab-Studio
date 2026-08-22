@@ -451,7 +451,11 @@ function releaseStaleFreezes(before: ProjectData, draft: ProjectData): void {
     if (!track?.freeze) continue;
     const mediaId = track.freeze.mediaId;
     delete track.freeze;
-    if (draft.media) draft.media = draft.media.filter((m) => m.id !== mediaId);
+    // A duplicated track carries its original's print, so the print's record
+    // only goes when the last track playing it lets go of it.
+    if (draft.media && !draft.tracks.some((t) => t.freeze?.mediaId === mediaId)) {
+      draft.media = draft.media.filter((m) => m.id !== mediaId);
+    }
     names.push(track.name);
   }
   if (names.length === 0) return;

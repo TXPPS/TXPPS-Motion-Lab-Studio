@@ -32,12 +32,31 @@ where a capability is missing the UI says so.
   place first if that matters.
 - **Sample-rate follows the device** for playback (typically 44.1/48 kHz);
   export renders at whichever of 44.1–96 kHz you choose.
-- **No plugin latency compensation.** Every insert here is latency-free except
-  the limiter's lookahead and the de-esser's band split, which are compensated
-  internally, and the multiband, which is the last processor still built on the
-  browser's own `DynamicsCompressorNode` and inherits its roughly 6 ms of
-  undisclosed look-ahead. Bypassing it takes that back out; running it on one
-  track of a doubled part will comb against the other.
+- **No plugin latency compensation, and three places that carry latency.**
+  All three are measured rather than reasoned about — the same note bounced
+  with and without each processor, on Chromium at 44.1 kHz:
+  - **The master safety limiter costs 264 samples (5.99 ms), engaged or not.**
+    It is a `DynamicsCompressorNode`, which delays its output even at neutral
+    settings, and disengaging the limiter raises its threshold rather than
+    unwiring the node. So the master output — monitored and bounced alike —
+    sits 6 ms behind the timeline. Live and offline are identical, so nothing
+    drifts between what you hear and what you deliver; what it does mean is
+    that a bounce re-imported onto a track lands 6 ms late against the material
+    it came from, and that the metronome, which is deliberately routed past the
+    master, is 6 ms early against the mix. `e2e/masterlatency.spec.ts` measures
+    the number, so it cannot quietly rot.
+  - **The limiter insert costs 192 samples (4.35 ms)** in its oversampled
+    brickwall stage — present even when the insert is bypassed — and its
+    lookahead adds to that rather than being compensated away: the 3 ms default
+    takes it to 324 samples (7.35 ms).
+  - **The multiband costs 270 samples (6.1 ms)**: it is the last processor
+    still built on the browser's own `DynamicsCompressorNode`. Bypassing it
+    takes that back out, because its bypass crossfades to a dry path.
+
+  Every other insert is sample-aligned, the de-esser's band split and the
+  compressor's detector included. Running any of the three on one track of a
+  doubled part will comb against the other.
+
 - **Sidechain keying reaches the compressor, gate, de-esser and limiter**, not
   the multiband: an insert carries one key input, and one key across three band
   detectors is not what keying a multiband would mean. The key is tapped
@@ -55,6 +74,20 @@ where a capability is missing the UI says so.
 - **Voice caps.** 128 simultaneous engine sources; 24 voices per synth
   instrument and 48 per sampler instrument (oldest voice steals first).
   Beyond that, notes are skipped rather than glitching the audio thread.
+- **A frozen track is a print, and a print is a file.** Freezing renders the
+  track — its notes, its instrument, its note FX and its inserts — from bar 1
+  to its last clip, so the file is as long as the track's material however
+  sparse that material is, at roughly 10 MB a stereo minute (24-bit WAV). The
+  fader, pan, mute, solo and sends stay live and the print is otherwise
+  sample-identical to the instrument it replaces, which
+  `e2e/freeze.spec.ts` measures: the two renders differ by 6.7e-8 of full
+  scale, which is the 24-bit quantiser. The one place they can differ audibly
+  is pan: a print is a stereo file, so a _mono_ instrument panned off centre is
+  panned by the browser's stereo law rather than its mono law. At centre — and
+  for anything whose insert chain already outputs stereo — the two are
+  identical. Editing anything the print was made from releases the freeze
+  rather than playing a stale render, and that includes the tempo map, because
+  notes are printed at seconds.
 - Recording latency compensation is basic (count-in aligned); there is no
   per-device round-trip calibration.
 

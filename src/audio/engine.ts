@@ -13,7 +13,7 @@ import { clipRatePlan } from '../model/clipRate';
 import { stretchedBuffer } from './stretchCache';
 import { clipWarpMap, warpedBuffer, warpedClipTiming, warpedTimeSec } from './warpRender';
 import { isAudioTrackType, MASTER_ID } from '../model/types';
-import { FREEZE_CLIP_PREFIX, isFreezeClipId, isFrozen } from '../model/freeze';
+import { FREEZE_CLIP_PREFIX, freezeClipFor, isFreezeClipId, isFrozen } from '../model/freeze';
 import type { AudioClip, MidiClip, ProjectData, SynthParams } from '../model/types';
 import { useProjectStore } from '../state/projectStore';
 import { useTransportStore } from '../state/transportStore';
@@ -623,6 +623,10 @@ class AudioEngine {
     // outside the mix — so turning the click down cannot touch the programme.
     if (this.metroGain) safeSet(this.metroGain.gain, clickGain(p), t, masterSmooth);
     this.syncFreezeMedia(p);
+    // A track frozen while the transport is rolling joins from the playhead.
+    for (const track of p.tracks) {
+      if (isFrozen(track)) this.startPrintIfSilent(track.id);
+    }
     // Values at the playhead may have changed with the edit (or a lane may
     // have just been disabled and released its parameter).
     this.autoDirty = true;
@@ -1165,7 +1169,12 @@ class AudioEngine {
         this.freezeLoading.delete(id);
         if (!buf) {
           diagLog('warn', `Frozen track "${track.name}" has no print in storage — it is silent`);
+          return;
         }
+        // The decode may land after the transport rolled past the print's
+        // start, which would otherwise leave the track silent for the whole
+        // pass rather than for the moment the decode took.
+        this.startPrintIfSilent(track.id);
       });
     }
     for (const id of [...this.freezeMediaIds]) {
@@ -1174,6 +1183,27 @@ class AudioEngine {
       evict(id);
     }
     for (const id of live) this.freezeMediaIds.add(id);
+  }
+
+  /**
+   * Start a frozen track's print from where the playhead is now.
+   *
+   * The print is scheduled like any long clip — at the top of the window it
+   * begins in, or when playback enters it — so a track frozen (or a print
+   * decoded) mid-pass has no event of its own left to catch. Rather than
+   * staying silent until the next stop, it joins from the playhead.
+   */
+  private startPrintIfSilent(trackId: string): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.playing || this.freezePlaying.has(trackId)) return;
+    const p = useProjectStore.getState().project;
+    const track = p.tracks.find((t) => t.id === trackId);
+    if (!track || !isFrozen(track)) return;
+    const clip = freezeClipFor(p, track);
+    if (!clip || !getBufferSync(clip.mediaId)) return;
+    const at = this.getPositionBeats();
+    if (at >= clip.length) return;
+    this.scheduleClip(clip, ctx.currentTime + 0.03, beatToSec(tempoMapOf(p), at));
   }
 
   /**

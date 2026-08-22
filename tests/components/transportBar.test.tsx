@@ -11,6 +11,7 @@ vi.mock('../../src/audio/engine', async (importOriginal) => ({
 }));
 
 const { TransportBar } = await import('../../src/components/transport/TransportBar');
+const { ContextMenuHost } = await import('../../src/components/common/overlays');
 const { useProjectStore } = await import('../../src/state/projectStore');
 const { useTransportStore } = await import('../../src/state/transportStore');
 
@@ -201,5 +202,69 @@ describe('TransportBar count-in', () => {
     await user.click(screen.getByRole('button', { name: 'Metronome' }));
 
     expect(useProjectStore.getState().project.metronome).toBe(!before);
+  });
+});
+
+/**
+ * The click's level and its record-only switch live in the transport's ⋯ menu,
+ * beside the count-in and the pre-roll — they are the same kind of decision,
+ * made at the same moment, and saved in the same place: the song.
+ */
+describe('TransportBar click settings', () => {
+  /** Open the transport menu the way a user does, and hand back its items. */
+  async function openMenu() {
+    const user = setupUser();
+    render(
+      <>
+        <TransportBar />
+        <ContextMenuHost />
+      </>,
+    );
+    await user.click(screen.getByRole('button', { name: 'More transport options' }));
+    return user;
+  }
+
+  it('shows the click level and steps it, saving it in the project', async () => {
+    const user = await openMenu();
+    const item = screen.getByTestId('menu-click-level');
+    // The default every validated project carries.
+    expect(item).toHaveTextContent('Click level: 70%');
+    await user.click(item);
+    expect(useProjectStore.getState().project.clickLevel).toBe(1);
+  });
+
+  it('wraps the level round to silent from the top', async () => {
+    act(() =>
+      useProjectStore.getState().update((d) => {
+        d.clickLevel = 1.4;
+      }),
+    );
+    const user = await openMenu();
+    await user.click(screen.getByTestId('menu-click-level'));
+    expect(useProjectStore.getState().project.clickLevel).toBe(0);
+  });
+
+  it('toggles "only while recording", and reads back which way it is set', async () => {
+    const user = await openMenu();
+    expect(screen.getByTestId('menu-click-record-only')).toHaveTextContent(
+      'Click: whenever it is on',
+    );
+    await user.click(screen.getByTestId('menu-click-record-only'));
+    expect(useProjectStore.getState().project.clickRecordOnly).toBe(true);
+  });
+
+  it('reaches both items from the keyboard alone', async () => {
+    const user = await openMenu();
+    // The menu takes focus on open and walks with the arrow keys, so a
+    // pointer is never the only way in.
+    const items = screen.getAllByRole('menuitem');
+    expect(items[0]).toHaveFocus();
+    for (let i = 0; i < items.length; i++) {
+      if (document.activeElement === screen.getByTestId('menu-click-level')) break;
+      await user.keyboard('{ArrowDown}');
+    }
+    expect(screen.getByTestId('menu-click-level')).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(useProjectStore.getState().project.clickLevel).toBe(1);
   });
 });

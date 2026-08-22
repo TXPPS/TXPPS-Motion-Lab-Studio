@@ -35,10 +35,6 @@ import { DEFAULT_TAIL_SECONDS, preRollForProject, renderProject } from './export
 /** Freezing is not instant; a second press must not start a second render. */
 const running = new Set<string>();
 
-export function isFreezing(trackId: string): boolean {
-  return running.has(trackId);
-}
-
 /**
  * Print a track and switch it over to the print.
  *
@@ -160,7 +156,11 @@ export function unfreezeTrack(trackId: string): void {
   useProjectStore.getState().update((d) => {
     const t = d.tracks.find((x) => x.id === trackId);
     if (t) delete t.freeze;
-    if (d.media) d.media = d.media.filter((m) => m.id !== mediaId);
+    // A duplicated track carries its original's print; the record only goes
+    // when the last track playing it lets go.
+    if (d.media && !d.tracks.some((x) => x.freeze?.mediaId === mediaId)) {
+      d.media = d.media.filter((m) => m.id !== mediaId);
+    }
   });
   diagLog('info', `Unfroze "${track.name}"`);
   useUiStore.getState().toast('info', `Unfroze "${track.name}" — the instrument is back.`);

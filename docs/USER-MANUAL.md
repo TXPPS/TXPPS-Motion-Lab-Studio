@@ -109,7 +109,11 @@ clip is rounded out to a whole bar. No microphone permission is involved.
 
 An armed **audio track records audio**, with input monitoring optional.
 
-**Count-in, pre-roll and punch** are on the transport's right-click menu. A
+**Count-in, pre-roll and punch** are on the transport's ⋯ menu, along with the
+**click level** and **click only while recording** — the click is part of the
+song, so both are saved with it. With "only while recording" on, the click is
+silent during ordinary playback and sounds while you are counting in or
+capturing; a count-in always clicks, whatever else is set. A
 count-in is a click before the take; a pre-roll rolls the song itself for a
 bar or two so you play in. **Punch** confines the take to a range — set it
 from the loop — and the transport drops out of record at the end. What you
@@ -132,6 +136,16 @@ A–L plays notes live; **Z/X** shift octave. Web MIDI devices work where
 the browser supports them (see the compatibility matrix) — enable in the
 Synth tab's MIDI section.
 
+**MIDI input channel.** Each instrument track listens on one channel or on all
+of them (the inspector's _MIDI input_ control; **Omni** is the default, and an
+imported MIDI file's drum track arrives set to channel 10). A note reaches
+every armed track that accepts its channel, so two tracks armed on Omni are
+layered under one key and two set to different channels are played separately
+by one multi-timbral controller. With nothing armed the selected track answers,
+if it accepts the channel. When no track listens to a channel, the note is
+dropped and the Synth tab's MIDI readout says so rather than leaving you
+wondering where the sound went.
+
 ## 5. Instruments
 
 Every instrument track hosts one of:
@@ -150,6 +164,19 @@ Every instrument track hosts one of:
 
 Switch kinds with the instrument-type menu in the Synth tab header.
 Sampler master parameters (`smp:` ids) are automatable like synth ones.
+
+**Freeze** (inspector, or the track menu) renders a track — its notes, its
+instrument, its note FX and its inserts — to one audio file and plays that
+instead. The instrument stops being built and its notes stop being scheduled,
+live and in a bounce, which is the CPU a heavy synth or a big sampler gives
+back. Mixing carries on as before: fader, pan, mute, solo, sends and their
+automation all still apply to the print. Editing anything the print was made
+from — a note, the instrument, an insert, a note FX, the tempo — releases the
+freeze and gives the instrument straight back, with a message saying so, so a
+frozen track can never quietly play a render of something it no longer is.
+**Unfreeze** restores the instrument. A frozen track is marked with a snowflake
+in its header, and its print is listed in the pool as a frozen track's audio,
+where a cleanup will not offer to delete it.
 
 ## 6. Mixing
 

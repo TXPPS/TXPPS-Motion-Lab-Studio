@@ -6,8 +6,15 @@ vi.mock('../../src/audio/engine', async () => ({
   engine: (await import('../setup.tsx')).engineStub,
 }));
 
+const freezeTrack = vi.fn((_trackId: string) => Promise.resolve(true));
+const unfreezeTrack = vi.fn((_trackId: string) => {});
+vi.mock('../../src/audio/freeze', () => ({
+  freezeTrack: (id: string) => freezeTrack(id),
+  unfreezeTrack: (id: string) => unfreezeTrack(id),
+}));
+
 const { TrackHeader } = await import('../../src/components/arrangement/TrackHeader');
-const { DialogHost } = await import('../../src/components/common/overlays');
+const { ContextMenuHost, DialogHost } = await import('../../src/components/common/overlays');
 const { useProjectStore } = await import('../../src/state/projectStore');
 const { useUiStore } = await import('../../src/state/uiStore');
 
@@ -19,6 +26,7 @@ function HeaderHost({ trackId }: { trackId: string }) {
     <>
       <TrackHeader track={track} height={80} />
       <DialogHost />
+      <ContextMenuHost />
     </>
   );
 }
@@ -179,5 +187,49 @@ describe('TrackHeader automation', () => {
     expect(trackNow(track.id).automationOpen).toBeFalsy();
     const menu = useUiStore.getState().contextMenu;
     expect(menu?.items.map((i) => i.label)).toContain('Volume');
+  });
+});
+
+describe('TrackHeader freeze', () => {
+  /** The instrument track the demo project opens with. */
+  function instrument() {
+    return useProjectStore.getState().project.tracks.find((t) => t.type === 'instrument')!;
+  }
+
+  it('offers freezing from the track menu', async () => {
+    const user = setupUser();
+    const track = instrument();
+    render(<HeaderHost trackId={track.id} />);
+
+    await user.click(screen.getByTestId(`track-menu-${track.name}`));
+    await user.click(screen.getByTestId(`freeze-menu-${track.name}`));
+
+    expect(freezeTrack).toHaveBeenCalledWith(track.id);
+  });
+
+  it('marks a frozen track, and offers the way back', async () => {
+    const user = setupUser();
+    const track = instrument();
+    useProjectStore.getState().setTrack(track.id, {
+      freeze: { mediaId: 'freeze-1', renderedAt: 1 },
+    });
+    render(<HeaderHost trackId={track.id} />);
+
+    // Visible without opening anything, and named for a screen reader.
+    expect(screen.getByTestId(`frozen-${track.name}`)).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: new RegExp(`${track.name}.*frozen`) })).toBeVisible();
+
+    await user.click(screen.getByTestId(`track-menu-${track.name}`));
+    await user.click(screen.getByTestId(`freeze-menu-${track.name}`));
+    expect(unfreezeTrack).toHaveBeenCalledWith(track.id);
+  });
+
+  it('says nothing about freezing on a track that has no instrument', async () => {
+    const user = setupUser();
+    const audio = useProjectStore.getState().project.tracks.find((t) => t.type === 'audio')!;
+    render(<HeaderHost trackId={audio.id} />);
+
+    await user.click(screen.getByTestId(`track-menu-${audio.name}`));
+    expect(screen.queryByTestId(`freeze-menu-${audio.name}`)).toBeNull();
   });
 });
