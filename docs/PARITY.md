@@ -71,7 +71,7 @@ the benchmark is parity of the _workflow_, not of the mechanism.
 | Automation                    | **Yes**     | Read, touch, latch, write, trim, off                                                                                                            |
 | Mixdown and export            | **Yes**     | Master, stems by bus, per track; WAV 16/24/32-bit and float, FLAC; 44.1–96 kHz; TPDF and shaped dither; true-peak normalisation; metadata       |
 | MIDI file import and export   | **Yes**     | Format 0 and 1 in, format 1 out, with the tempo and signature map                                                                               |
-| Project merge                 | **No**      | Not built                                                                                                                                       |
+| Project merge                 | **Yes**     | Another song’s tracks, routing, sends, automation and global tracks land at the playhead, re-identified                                         |
 | Key commands                  | **Yes**     | Editable, conflict-checked, restorable, and layout-independent                                                                                  |
 | Control link (MIDI learn)     | **Yes**     | Learn by moving the control; absolute, relative and toggle modes, a settable range and invert                                                   |
 | Themes                        | **Yes**     | System, dark, light, high contrast                                                                                                              |

@@ -9,6 +9,7 @@ import {
   deleteById,
   duplicateById,
   newProject,
+  mergeProjectById,
   openProject,
   renameCurrent,
   saveCurrent,
@@ -147,6 +148,22 @@ function ProjectsTab({ query }: { query: string }) {
                             ]
                           : [{ label: 'Open', action: () => void openProject(m.id) }]),
                         { label: 'Duplicate', action: () => void duplicateById(m.id) },
+                        ...(m.id === current.id
+                          ? []
+                          : [
+                              {
+                                label: 'Merge into this song…',
+                                action: () =>
+                                  useUiStore.getState().showDialog({
+                                    kind: 'confirm',
+                                    title: `Merge "${m.name}" into "${current.name}"?`,
+                                    message:
+                                      'Its tracks and clips are added at the playhead. This song keeps its own tempo map.',
+                                    confirmLabel: 'Merge',
+                                    onSubmit: () => void mergeProjectById(m.id),
+                                  }),
+                              },
+                            ]),
                         {
                           label: 'Delete',
                           danger: true,

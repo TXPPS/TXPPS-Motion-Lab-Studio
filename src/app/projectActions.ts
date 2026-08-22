@@ -24,6 +24,7 @@ import { diagLog } from '../state/diagnostics';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { engine } from '../audio/engine';
+import { mergeProjects, type MergeOptions } from './projectMerge';
 import { retainOnly } from '../audio/mediaLibrary';
 import { usedMediaIds } from '../model/media';
 
@@ -79,6 +80,49 @@ export async function saveCurrentAs(name: string): Promise<void> {
   copy.createdAt = Date.now();
   s.setProject(copy, { markClean: false });
   await saveCurrent();
+}
+
+/**
+ * Bring another saved project's material into this one.
+ *
+ * The incoming project lands at the playhead rather than at bar 1: merging is
+ * almost always "put the bridge after the chorus", and dropping it on top of
+ * what is already there would be the one behaviour nobody wants.
+ */
+export async function mergeProjectById(id: string, options: MergeOptions = {}): Promise<boolean> {
+  const store = useProjectStore.getState();
+  if (id === store.project.id) {
+    toast('error', 'A project cannot be merged into itself.');
+    return false;
+  }
+  let source: ProjectData | null = null;
+  try {
+    source = await loadProject(id);
+  } catch (e) {
+    diagLog('error', `merge failed to read ${id}: ${e instanceof Error ? e.message : e}`);
+  }
+  if (!source) {
+    toast('error', 'That project could not be read.');
+    return false;
+  }
+
+  const result = mergeProjects(store.project, source, {
+    atBeat: engine.getPositionBeats(),
+    includeGlobalTracks: true,
+    ...options,
+  });
+  store.setProject(result.project, { markClean: false });
+  retainOnly(usedMediaIds(result.project));
+
+  const { tracks, clips } = result.added;
+  toast('info', `Merged "${source.name}": ${tracks} track(s), ${clips} clip(s).`);
+  for (const warning of result.warnings.slice(0, 3)) toast('info', warning);
+  diagLog(
+    'info',
+    `Merged project "${source.name}" (${tracks} tracks, ${clips} clips, ${result.warnings.length} warning(s))`,
+  );
+  await saveCurrent();
+  return true;
 }
 
 export async function openProject(id: string): Promise<boolean> {
