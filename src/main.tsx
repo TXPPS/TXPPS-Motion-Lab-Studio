@@ -63,10 +63,11 @@ registerPwa();
  * that the UI does not already offer.
  */
 void (async () => {
-  const [exportMix, demoProject, uiStoreMod] = await Promise.all([
+  const [exportMix, demoProject, uiStoreMod, encode] = await Promise.all([
     import('./audio/exportMix'),
     import('./model/demoProject'),
     import('./state/uiStore'),
+    import('./audio/encode'),
   ]);
   const w = window as unknown as { __ml?: Record<string, unknown> };
   // Merge: the engine already publishes meter/transport probes on this handle,
@@ -74,6 +75,10 @@ void (async () => {
   w.__ml = {
     ...(w.__ml ?? {}),
     exportMix,
+    // The encoders are here so a test can hand a file the app produced to the
+    // browser's own decoder: a format round-tripped only through its own
+    // reader is proof of self-consistency, not of a readable file.
+    encode,
     demoProject,
     engine,
     projectStore: useProjectStore,
