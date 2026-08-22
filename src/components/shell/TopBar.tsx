@@ -35,6 +35,12 @@ export function TopBar({ layout }: { layout: Layout }) {
       y,
       items: [
         { label: 'Save project', action: () => void saveCurrent() },
+        ...(layout === 'phone'
+          ? PAGES.filter((p) => p.id !== page).map((p) => ({
+              label: `Go to ${p.label}`,
+              action: () => useRouteStore.getState().go(p.id),
+            }))
+          : []),
         ...(layout === 'desktop'
           ? [
               {
@@ -193,24 +199,30 @@ export function TopBar({ layout }: { layout: Layout }) {
         </div>
       )}
 
-      <button
-        className="icon-btn"
-        onClick={() => ui.getState().set({ settingsOpen: true })}
-        title="Preferences"
-        aria-label="Open preferences"
-        data-testid="open-settings"
-      >
-        <Icon name="settings" size={15} />
-      </button>
-      <button
-        className="icon-btn"
-        onClick={() => ui.getState().set({ diagnosticsOpen: true })}
-        title="Diagnostics"
-        aria-label="Open diagnostics"
-        data-testid="open-diagnostics"
-      >
-        <Icon name="wrench" size={15} />
-      </button>
+      {/* On a phone these two live only in the overflow menu: the bar has to
+          fit a brand, a project name, undo/redo and four page tabs first. */}
+      {layout !== 'phone' && (
+        <>
+          <button
+            className="icon-btn"
+            onClick={() => ui.getState().set({ settingsOpen: true })}
+            title="Preferences"
+            aria-label="Open preferences"
+            data-testid="open-settings"
+          >
+            <Icon name="settings" size={15} />
+          </button>
+          <button
+            className="icon-btn"
+            onClick={() => ui.getState().set({ diagnosticsOpen: true })}
+            title="Diagnostics"
+            aria-label="Open diagnostics"
+            data-testid="open-diagnostics"
+          >
+            <Icon name="wrench" size={15} />
+          </button>
+        </>
+      )}
       <button
         className="icon-btn"
         onClick={(e) => overflowMenu(e.clientX, e.clientY)}

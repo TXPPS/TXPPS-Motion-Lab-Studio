@@ -311,7 +311,9 @@ export function correctedTrack(analysis: VocalAnalysis, opts: TuneOptions = {}):
     if (noteIndex >= 0) noteCursor = noteIndex;
     const exact = hzToMidi(frame.hz, referenceHz);
     const target =
-      noteIndex >= 0 ? targetPitch(analysis.notes[noteIndex].pitch, opts) : targetPitch(exact, opts);
+      noteIndex >= 0
+        ? targetPitch(analysis.notes[noteIndex].pitch, opts)
+        : targetPitch(exact, opts);
     return {
       timeSec: frame.timeSec,
       inputHz: frame.hz,

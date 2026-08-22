@@ -79,7 +79,8 @@ test.describe('audio & transport', () => {
     await page.click('[data-testid="btn-stop"]');
     await page.click('[data-testid="btn-rts"]');
     await page.waitForTimeout(100);
-    await expect(page.locator('[data-testid="pos-display"]')).toHaveText('1.1.1');
+    // Bars - beats - ticks, at PPQ 960.
+    await expect(page.locator('[data-testid="pos-display"]')).toHaveText('1.1.000');
   });
 
   test('repeated play/stop does not accumulate audio sources', async ({ page }) => {

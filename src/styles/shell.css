@@ -865,3 +865,58 @@
 [data-layout='phone'] [data-testid='maximize-arrange'] {
   display: none;
 }
+
+/* A tab that cannot save has to say so where the save state already lives. */
+.sb-readonly {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-xs);
+  color: var(--warm);
+  background: var(--warm-bg);
+  border: 1px solid var(--warm-line);
+  font-weight: var(--fw-semibold);
+}
+.sb-readonly:hover {
+  color: var(--warm-hi);
+  background: color-mix(in srgb, var(--warm) 24%, transparent);
+}
+
+/*
+ * Transport at narrow widths.
+ *
+ * The bar carries a lot now — bar-step transport, tap tempo, punch, a
+ * performance meter, the master fader and the audio state. Rather than let any
+ * of it clip (a control you cannot see is a control you do not have), the least
+ * essential items drop out in order as the window narrows. Everything hidden
+ * here is still reachable from the transport's overflow menu.
+ */
+@media (max-width: 1180px) {
+  .transport .t-perf {
+    display: none;
+  }
+}
+@media (max-width: 1020px) {
+  .transport .t-tap,
+  .transport .t-cell.sig {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .transport .t-cell.time,
+  .transport [data-testid='btn-rewind'],
+  .transport [data-testid='btn-forward'],
+  .transport [data-testid='btn-punch'] {
+    display: none;
+  }
+  .transport .t-master {
+    flex: 0 1 130px;
+    min-width: 84px;
+  }
+}
+@media (max-width: 760px) {
+  .transport .t-master {
+    display: none;
+  }
+}

@@ -56,6 +56,33 @@ export default defineConfig({
   build: {
     sourcemap: true,
     target: 'es2022',
+    rollupOptions: {
+      output: {
+        /**
+         * Three long-lived chunks so a UI change does not invalidate the parts
+         * that rarely move: the framework, the DSP maths, and the audio graph.
+         * Everything else stays route- and editor-split.
+         */
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/scheduler')) {
+            return 'react';
+          }
+          if (
+            id.includes('/src/audio/dsp/') ||
+            id.includes('/src/model/fft') ||
+            id.includes('/src/model/loudness') ||
+            id.includes('/src/model/pitch') ||
+            id.includes('/src/model/transients') ||
+            id.includes('/src/audio/timestretch') ||
+            id.includes('/src/audio/encode/')
+          ) {
+            return 'dsp';
+          }
+          if (id.includes('/src/audio/')) return 'engine';
+          return undefined;
+        },
+      },
+    },
   },
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],

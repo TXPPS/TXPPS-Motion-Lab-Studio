@@ -1,0 +1,113 @@
+/* ============================================================
+   Audio editor: one clip, its waveform, and the three analyses
+   that turn a recording into something else.
+   ============================================================ */
+
+.audio-editor {
+  display: grid;
+  grid-template-rows: auto minmax(90px, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-panel);
+}
+.audio-editor.empty {
+  display: grid;
+  place-items: center;
+}
+
+.ae-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-soft);
+}
+.ae-name {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+
+.ae-wave {
+  position: relative;
+  min-height: 0;
+  background: var(--bg-deep);
+  overflow: hidden;
+}
+.ae-wave > * {
+  width: 100%;
+  height: 100%;
+}
+/* Detected notes are drawn OVER the waveform they came from: seeing the two
+   together is the only way to judge whether the detection is right. */
+.ae-detected {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ae-detected span {
+  position: absolute;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--warm-hi);
+}
+
+.ae-body {
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  overflow: auto;
+  max-height: 46%;
+}
+.ae-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.ae-row .k {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+.ae-row .v {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  min-width: 48px;
+  text-align: right;
+}
+.ae-row select {
+  width: 100%;
+}
+.ae-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding-top: var(--sp-2);
+}
+
+.ae-errors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.ae-error-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 44px;
+  padding: var(--sp-1);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+.ae-err {
+  flex: 1 1 0;
+  min-width: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+.ae-err.bad {
+  background: var(--warm);
+}

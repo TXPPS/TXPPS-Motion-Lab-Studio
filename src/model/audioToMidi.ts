@@ -496,13 +496,14 @@ function monophonicNotes(
     // An onset inside the frame's step is a new note even when the pitch has not
     // moved: a repeated note, or the same note played again, shows up only here.
     if (build) {
+      const openedAt = build.startSec;
       const previousSec = i > 0 ? frames[i - 1].timeSec : frame.timeSec - hopSec;
       const onset = onsets.find(
-        (o) => o.timeSec > previousSec && o.timeSec <= frame.timeSec && o.timeSec > build!.startSec,
+        (o) => o.timeSec > previousSec && o.timeSec <= frame.timeSec && o.timeSec > openedAt,
       );
       if (
         onset &&
-        onset.timeSec - build.startSec >= minNoteSec &&
+        onset.timeSec - openedAt >= minNoteSec &&
         levelRiseDb(env, onset.timeSec) >= ARTICULATION_RISE_DB
       ) {
         closeAt(onset.timeSec);
@@ -595,7 +596,6 @@ function monophonicNotes(
 
 interface PolyOptions {
   fftSize: number;
-  hop: number;
   midiLow: number;
   midiHigh: number;
   harmonics: number;
@@ -692,11 +692,7 @@ interface Candidate {
   salience: number;
 }
 
-function frameCandidates(
-  peaks: SpectralPeaks,
-  sampleRate: number,
-  opts: PolyOptions,
-): Candidate[] {
+function frameCandidates(peaks: SpectralPeaks, sampleRate: number, opts: PolyOptions): Candidate[] {
   const binHz = sampleRate / opts.fftSize;
   const nyquist = sampleRate / 2;
   const found: Candidate[] = [];
@@ -766,7 +762,6 @@ function polyphonicNotes(
   const minNoteSec = Math.max(0.01, (options.minNoteMs ?? DEFAULT_MIN_NOTE_MS) / 1000);
   const opts: PolyOptions = {
     fftSize,
-    hop,
     midiLow: Math.max(12, Math.round(hzToMidi(options.minHz ?? DEFAULT_MIN_HZ, referenceHz))),
     midiHigh: Math.min(127, Math.round(hzToMidi(options.maxHz ?? 4000, referenceHz))),
     harmonics: 8,

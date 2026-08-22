@@ -1,6 +1,5 @@
 import { SCHEMA_VERSION } from '../src/model/types';
 import { AUTOMATION_MODES, AUTOMATION_MODE_BLURBS, modeRecords } from '../src/model/automation';
-import { useProjectStore } from '../src/state/projectStore';
 import { describe, expect, it } from 'vitest';
 import {
   laneValueAt,

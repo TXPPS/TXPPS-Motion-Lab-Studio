@@ -19,6 +19,7 @@ import {
   SchemaError,
 } from '../persistence/projectRepo';
 import { currentRoute, type QaFixture, type Route } from './router';
+import { announceSave, canWrite, claimProject } from '../persistence/sessionLock';
 import { diagLog } from '../state/diagnostics';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
@@ -34,11 +35,24 @@ function toast(level: 'info' | 'error', msg: string): void {
 let autosaveFailureWarned = false;
 
 export async function saveCurrent(quiet = false): Promise<boolean> {
+  if (!canWrite()) {
+    if (!quiet) {
+      useUiStore
+        .getState()
+        .toast(
+          'error',
+          'Another tab has this project open. Take over from the status bar to save.',
+        );
+    }
+    return false;
+  }
   const s = useProjectStore.getState();
   const snapshot = s.project;
   try {
     await saveProject(snapshot);
     s.markSaved(snapshot);
+    // Tell any read-only tab that the document underneath it has moved on.
+    announceSave(snapshot.id, snapshot.modifiedAt);
     await savePrefs({ lastProjectId: snapshot.id });
     if (!quiet) toast('info', `Saved "${snapshot.name}"`);
     autosaveFailureWarned = false;
@@ -68,6 +82,9 @@ export async function saveCurrentAs(name: string): Promise<void> {
 }
 
 export async function openProject(id: string): Promise<boolean> {
+  // Claim the project before loading it, so a second tab knows it is a reader
+  // before its first autosave timer can fire.
+  await claimProject(id);
   engine.stop();
   try {
     const p = await loadProject(id);
@@ -189,6 +206,7 @@ export async function bootProject(route: Route = currentRoute()): Promise<void> 
     }
     const demo = createDemoProject();
     useProjectStore.getState().setProject(demo, { markClean: false });
+    await claimProject(demo.id);
     await saveCurrent(true);
     diagLog('info', `Demo project ready (“${demo.name}”)`);
   } catch (e) {

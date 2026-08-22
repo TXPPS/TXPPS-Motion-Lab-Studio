@@ -14,7 +14,8 @@ import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 import type { IconName } from '../components/common/Icon';
 import type { ProjectData } from '../model/types';
 
-export type EditorId = 'mixer' | 'piano' | 'drums' | 'score' | 'chords' | 'synth' | 'diagnostics';
+export type EditorId =
+  'mixer' | 'piano' | 'drums' | 'score' | 'audio' | 'chords' | 'synth' | 'diagnostics';
 
 export interface EditorDef {
   id: EditorId;
@@ -39,6 +40,9 @@ export interface EditorDef {
 const Mixer = lazy(() => import('../components/mixer/Mixer').then((m) => ({ default: m.Mixer })));
 const PianoRoll = lazy(() =>
   import('../components/pianoroll/PianoRoll').then((m) => ({ default: m.PianoRoll })),
+);
+const AudioEditor = lazy(() =>
+  import('../components/audioeditor/AudioEditor').then((m) => ({ default: m.AudioEditor })),
 );
 const ChordAssistant = lazy(() =>
   import('../components/chords/ChordAssistant').then((m) => ({ default: m.ChordAssistant })),
@@ -71,6 +75,16 @@ export const EDITORS: EditorDef[] = [
     component: PianoRoll,
     appliesTo: isMidiClipOpen,
     unavailable: 'Open a MIDI clip',
+  },
+  {
+    id: 'audio',
+    label: 'Audio',
+    icon: 'wave',
+    hint: 'Waveform editing, audio to notes, vocal tune and stems',
+    component: AudioEditor,
+    appliesTo: (project, sel) =>
+      project.clips.some((c) => c.id === sel.clipId && c.type === 'audio'),
+    unavailable: 'Select an audio clip',
   },
   {
     id: 'chords',

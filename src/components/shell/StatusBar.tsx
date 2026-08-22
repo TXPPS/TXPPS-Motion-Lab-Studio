@@ -1,7 +1,41 @@
 import { useEffect, useState } from 'react';
 import { useProjectStore } from '../../state/projectStore';
 import { useTransportStore } from '../../state/transportStore';
+import { useUiStore } from '../../state/uiStore';
+import {
+  lockState,
+  onLockChange,
+  onRemoteSave,
+  takeOver,
+  type LockState,
+} from '../../persistence/sessionLock';
 import { GIT_COMMIT } from '../../diagnostics/report';
+import { Icon } from '../common/Icon';
+
+/**
+ * Whether this tab owns the project.
+ *
+ * A read-only tab is not broken and is not locked out of editing — it simply
+ * cannot save over the tab that got there first, and it has to say so, because
+ * silently discarding an afternoon's work is the worst thing this application
+ * could do.
+ */
+function useSessionLock(): LockState {
+  const [state, setState] = useState<LockState>(lockState());
+  useEffect(() => {
+    const stopLock = onLockChange(setState);
+    const stopSave = onRemoteSave(() => {
+      useUiStore
+        .getState()
+        .toast('error', 'The other tab just saved this project. Reload to see its version.');
+    });
+    return () => {
+      stopLock();
+      stopSave();
+    };
+  }, []);
+  return state;
+}
 
 function useOnline(): boolean {
   const [online, setOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -27,6 +61,7 @@ export function StatusBar() {
   const lastSavedAt = useProjectStore((s) => s.lastSavedAt);
   const dirty = useProjectStore((s) => s.dirty);
   const online = useOnline();
+  const lock = useSessionLock();
 
   return (
     <footer className="statusbar" data-testid="statusbar">
@@ -53,6 +88,16 @@ export function StatusBar() {
         {trackCount} tracks · {clipCount} clips
       </span>
       <span className="spacer" />
+      {lock === 'readonly' && (
+        <button
+          className="sb-item sb-readonly"
+          title="Another tab has this project open, so this one is not autosaving. Take over to make this tab the writer; the other tab keeps working, read-only."
+          onClick={() => void takeOver()}
+          data-testid="take-over"
+        >
+          <Icon name="lock" size={11} /> Read-only — take over
+        </button>
+      )}
       <span className="sb-item">{online ? 'Online' : 'Offline'}</span>
       <span className="sb-item">
         {dirty
