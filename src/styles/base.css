@@ -86,7 +86,7 @@ textarea:focus {
 input:disabled,
 select:disabled,
 textarea:disabled {
-  opacity: 0.5;
+  opacity: var(--opacity-disabled);
   cursor: not-allowed;
 }
 
@@ -139,23 +139,35 @@ textarea:focus-visible {
   border-color: var(--border-focus);
 }
 
+/*
+ * One scrollbar. The product had three geometries in three files, and in the
+ * contrast theme all three drew low-contrast slate on black — in the theme
+ * whose whole job is to be visible. The thumb is a token, and the gutter is
+ * transparent rather than a surface colour so the same rule reads correctly on
+ * a panel, on the timeline and on the console.
+ */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a323d;
-  border-radius: 5px;
-  border: 2px solid var(--bg-deep);
+  background: var(--border-strong);
+  border-radius: var(--radius-lg);
+  border: 3px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #38424f;
+  background: var(--text-faint);
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+html {
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 .mono {
@@ -169,7 +181,7 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  height: 28px;
+  height: var(--control-h);
   padding: 0 10px;
   border-radius: var(--radius);
   background: var(--bg-raised);
@@ -200,10 +212,11 @@ textarea:focus-visible {
   color: var(--accent);
 }
 .btn.primary {
-  /* dark text on the bright accent clears AA; white on the dim accent did not */
+  /* The label has to invert with the accent: the light theme's accent is a dark
+     teal, and the near-black this used to hard-code sat at about 2:1 on it. */
   background: var(--accent);
   border-color: var(--accent);
-  color: #06120e;
+  color: var(--text-inverse);
 }
 .btn.primary:hover {
   background: var(--accent-hi);
@@ -217,7 +230,12 @@ textarea:focus-visible {
   background: var(--danger-bg);
 }
 .btn:disabled {
-  opacity: 0.45;
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+}
+.btn[aria-disabled='true'] {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
   pointer-events: none;
 }
 .btn.full {
@@ -228,19 +246,12 @@ textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: var(--control-h);
+  height: var(--control-h);
   border-radius: var(--radius);
   color: var(--text-dim);
   border: 1px solid transparent;
   user-select: none;
-}
-/* Fingers get a bigger hit area than mouse pointers. */
-@media (pointer: coarse) {
-  .icon-btn {
-    width: 34px;
-    height: 34px;
-  }
 }
 .icon-btn {
   transition:
@@ -256,9 +267,15 @@ textarea:focus-visible {
   background: var(--bg-active);
 }
 /* Every disabled control reads the same way, whatever shape it is. */
-.icon-btn:disabled,
+.icon-btn:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+}
+/* aria-disabled has no native click suppression, so this one has to stop the
+   pointer — and loses the cursor affordance as the price. */
 .icon-btn[aria-disabled='true'] {
-  opacity: 0.38;
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
   pointer-events: none;
 }
 .icon-btn.on {
@@ -307,9 +324,17 @@ textarea:focus-visible {
   color: var(--accent);
   box-shadow: inset 0 -2px 0 var(--accent);
 }
+/* The marker above is a box-shadow at (0,2,1), so it beat the global
+   :focus-visible ring at (0,1,0) and the selected option was the one option in
+   the group that showed no ring. Both are carried here. */
+.seg button.on:focus-visible {
+  box-shadow:
+    inset 0 -2px 0 var(--accent),
+    var(--sh-focus);
+}
 .seg button:disabled {
-  opacity: 0.4;
-  pointer-events: none;
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 
 .chip {
@@ -317,10 +342,10 @@ textarea:focus-visible {
   align-items: center;
   gap: 5px;
   padding: 3px 8px;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   font-size: var(--fs-xs);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--ls-wide);
   border: 1px solid var(--border);
   color: var(--text-dim);
   white-space: nowrap;
@@ -360,14 +385,15 @@ textarea:focus-visible {
   font-size: var(--fs-xs);
 }
 
+/* Fingers get a bigger hit area than mouse pointers. */
 @media (pointer: coarse) {
   .btn {
-    height: 34px;
-    padding: 0 12px;
+    height: var(--toolbar-h);
+    padding: 0 var(--sp-5);
   }
   .icon-btn {
-    width: 36px;
-    height: 36px;
+    width: calc(36px * var(--ui-scale));
+    height: calc(36px * var(--ui-scale));
   }
 }
 
@@ -383,7 +409,7 @@ input[type='range'] {
 }
 input[type='range']::-webkit-slider-runnable-track {
   height: 4px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--bg-deep);
   border: 1px solid var(--border-soft);
 }
@@ -398,13 +424,13 @@ input[type='range']::-webkit-slider-thumb {
 }
 input[type='range']::-moz-range-track {
   height: 4px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--bg-deep);
   border: 1px solid var(--border-soft);
 }
 input[type='range']::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
   background: var(--accent);
   border: 1px solid #0a0e12;
@@ -443,8 +469,25 @@ h3,
   font-size: var(--fs-lg);
   font-weight: var(--fw-semibold);
 }
-.t-label {
-  font-size: var(--fs-xs);
+/*
+ * The uppercase micro-label. The product had eight definitions of this one
+ * object across five surfaces — 600 and 700, three tracking values, two
+ * colours — which is why a side-panel header used to read heavier than the
+ * section titles inside it. It is defined once, here; every class listed below
+ * carries only its own layout.
+ */
+.t-label,
+.panel-title,
+.panel-section .ps-title,
+.sc-group h3,
+.browser-group,
+.arr-corner,
+.gt-header,
+.co-title,
+.take-review .tr-title,
+.smp-rack .ps-title,
+.syn-group .g-title {
+  font-size: var(--fs-2xs);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-caps);
   text-transform: uppercase;
@@ -458,7 +501,7 @@ h3,
 .t-num {
   font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: var(--ls-tight);
 }
 
 /* ---------------------------------------------------------------- layout */

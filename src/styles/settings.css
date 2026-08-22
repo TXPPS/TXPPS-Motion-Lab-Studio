@@ -85,7 +85,9 @@
 
 .theme-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Four themes across when there is room, wrapping rather than squeezing the
+     cards to nothing on a phone-width sheet. */
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
   gap: var(--sp-3);
 }
 .theme-card {
@@ -111,6 +113,10 @@
   border-color: var(--accent);
   background: var(--accent-bg);
   color: var(--accent);
+}
+.theme-card:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 
 /* A switch, not a checkbox: a preference that takes effect immediately reads
@@ -138,6 +144,16 @@
   transition:
     transform var(--dur-base) var(--ease-spring),
     background var(--dur-fast) var(--ease-out);
+}
+.switch:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+.switch:hover:not(:disabled) .switch-knob {
+  background: var(--text-dim);
+}
+.switch:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 .switch.on {
   background: var(--accent-bg);
@@ -168,9 +184,16 @@
   border-radius: var(--radius);
   text-align: left;
 }
+.format-card:hover {
+  border-color: var(--border-strong);
+}
 .format-card.on {
   border-color: var(--accent);
   background: var(--accent-bg);
+}
+.format-card:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 .fmt-name {
   font-size: var(--fs-md);
@@ -335,7 +358,7 @@
 }
 .ctl-row select.mini {
   flex: 0 0 auto;
-  height: 24px;
+  height: var(--control-h-sm);
   padding: 0 var(--sp-2);
   font-size: var(--fs-xs);
 }

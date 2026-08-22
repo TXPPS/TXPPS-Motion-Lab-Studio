@@ -44,7 +44,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  height: 24px;
+  height: var(--control-h-sm);
   padding: 0 var(--sp-3);
   border-radius: var(--radius-xs);
   color: var(--text-dim);
@@ -63,6 +63,10 @@
   background: var(--accent-bg);
   color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.page-tab:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 
 /* ============================================================
@@ -265,6 +269,10 @@
   border-radius: var(--radius);
   cursor: pointer;
 }
+.ms-item:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
 .ms-item.selected {
   border-color: var(--accent-line);
   background: var(--accent-bg);
@@ -324,6 +332,9 @@
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
   text-align: left;
+}
+.ms-target:hover {
+  border-color: var(--border-strong);
 }
 .ms-target.on {
   border-color: var(--accent);
@@ -535,15 +546,24 @@
   border-color: var(--accent);
   color: var(--text-inverse);
 }
+/* --text-inverse, not white: it is the only label colour that clears AA on
+   --danger in all three themes (white fails on the contrast theme's #ff6b62 at
+   about 2.4:1, and on the dark theme's #d84a44 too). It is also what
+   .stage-btn.go already uses, so the button does not change species when it
+   goes live. */
 .stage-btn.go.on {
   background: var(--danger);
   border-color: var(--danger);
-  color: #fff;
+  color: var(--text-inverse);
 }
 .stage-btn.on:not(.go) {
   color: var(--accent);
   background: var(--accent-bg);
   border-color: var(--accent-line);
+}
+.stage-btn:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 .stage-next .btn {
   justify-content: space-between;

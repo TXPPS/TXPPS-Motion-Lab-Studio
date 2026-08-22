@@ -17,6 +17,10 @@
   border-radius: var(--radius) var(--radius) 0 0;
   background: transparent;
 }
+.browser-tabs button:hover:not(.on) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
 .browser-tabs button.on {
   background: var(--bg-panel-2);
   color: var(--text);
@@ -37,6 +41,11 @@
 }
 .list-item.on {
   background: var(--accent-bg);
+}
+.list-item:disabled,
+.list-item[aria-disabled='true'] {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 .list-item .li-main {
   flex: 1;
@@ -78,11 +87,7 @@ button.li-main {
   border-bottom: 1px solid var(--border-soft);
 }
 .panel-section .ps-title {
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-faint);
+  /* type comes from the one micro-label definition in base.css */
   margin-bottom: 6px;
 }
 
@@ -115,7 +120,7 @@ button.li-main {
 .insp-row input[type='number'],
 .insp-row select {
   width: 120px;
-  height: 26px;
+  height: var(--control-h);
   font-size: var(--fs-sm);
 }
 
@@ -128,11 +133,11 @@ button.li-main {
 .color-swatches button {
   width: 20px;
   height: 20px;
-  border-radius: 5px;
+  border-radius: var(--radius);
   border: 2px solid transparent;
 }
 .color-swatches button.on {
-  border-color: #fff;
+  border-color: var(--text);
 }
 
 /* ===== Diagnostics ===== */
@@ -201,8 +206,8 @@ button.li-main {
 .diag-log .row {
   display: flex;
   gap: 8px;
-  padding: 1.5px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  padding: var(--sp-1) 0;
+  border-bottom: 1px solid var(--border-soft);
 }
 .diag-log .t {
   color: var(--text-faint);
@@ -232,10 +237,10 @@ button.li-main {
   flex: none;
   width: 44px;
   text-align: center;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   font-size: 9.5px;
   font-weight: 700;
-  padding: 1.5px 0;
+  padding: var(--sp-1) 0;
 }
 .smoke-results .badge.pass {
   background: var(--accent-bg);
@@ -307,9 +312,9 @@ button.li-main {
 }
 .dc-flag {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-faint);
 }
 .dc-result.ok .dc-flag {
@@ -352,18 +357,14 @@ button.li-main {
   align-content: start;
 }
 .sc-group h3 {
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-faint);
+  /* type comes from the one micro-label definition in base.css */
   margin: 10px 0 5px;
 }
 .sc-row {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  padding: 2.5px 0;
+  padding: var(--sp-1) 0;
   font-size: var(--fs-sm);
 }
 .sc-row kbd {
@@ -375,8 +376,8 @@ button.li-main {
   background: var(--bg-deep);
   border: 1px solid var(--border);
   border-bottom-width: 2px;
-  border-radius: 4px;
-  padding: 1.5px 6px;
+  border-radius: var(--radius);
+  padding: var(--sp-1) 6px;
   text-align: center;
 }
 .sc-row .sc-desc {
@@ -400,7 +401,7 @@ button.li-main {
 .browser-search input {
   flex: 1;
   min-width: 0;
-  height: 26px;
+  height: var(--control-h);
   font-size: var(--fs-sm);
 }
 .browser-search .icon-btn {
@@ -432,10 +433,6 @@ button.li-main {
   font-size: var(--fs-sm);
   line-height: 1.5;
   padding: 7px 8px;
-}
-.project-notes:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
 }
 
 /* Welcome sheet ------------------------------------------------------------- */
@@ -509,6 +506,13 @@ button.li-main {
 .browser-tabs button.on {
   box-shadow: inset 0 -2px 0 var(--accent);
 }
+/* The marker above outranks the global :focus-visible ring, so the selected tab
+   was the one tab in the row that showed no ring. Both are carried here. */
+.browser-tabs button.on:focus-visible {
+  box-shadow:
+    inset 0 -2px 0 var(--accent),
+    var(--sh-focus);
+}
 
 .browser-list {
   display: flex;
@@ -522,11 +526,6 @@ button.li-main {
   z-index: var(--z-sticky);
   padding: var(--sp-3) var(--sp-4) var(--sp-2);
   background: var(--bg-panel);
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-caps);
-  text-transform: uppercase;
-  color: var(--text-faint);
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -834,7 +833,8 @@ button.li-main {
 }
 .macro-target .v {
   color: var(--text-faint);
-  min-width: 46px;
+  /* the grid track above owns the width; a minimum here only fights it */
+  min-width: 0;
   text-align: right;
 }
 

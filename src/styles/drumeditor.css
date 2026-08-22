@@ -231,6 +231,11 @@
   background: var(--de-hit-color);
   box-shadow: var(--sh-inset);
 }
+.de-hit:hover {
+  box-shadow:
+    var(--sh-inset),
+    0 0 0 1px color-mix(in srgb, var(--text) 55%, transparent);
+}
 .de-hit.selected {
   outline: 1px solid var(--warm-hi);
   z-index: 3;

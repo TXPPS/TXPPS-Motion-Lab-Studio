@@ -3,14 +3,17 @@
 .auto-lane {
   position: relative;
   border-top: 1px dashed var(--border-soft);
-  background: rgba(0, 0, 0, 0.18);
+  background: color-mix(in srgb, var(--bg-deep) 18%, transparent);
   overflow: hidden;
   contain: strict;
 }
 .auto-lane.disabled .auto-line,
 .auto-lane.disabled .auto-fill,
 .auto-lane.disabled .auto-pt {
-  opacity: 0.35;
+  opacity: var(--opacity-disabled);
+}
+.auto-lane.disabled .auto-pt {
+  cursor: not-allowed;
 }
 
 .auto-svg {
@@ -47,20 +50,30 @@
   touch-action: none;
   z-index: 2;
 }
+/* A finger cannot hit a 9px point. The negative margin keeps the centre exactly
+   where the lane put it — the point is placed at (x - 4.5, y - 4.5) in script,
+   against the 9px box above. */
+@media (pointer: coarse) {
+  .auto-pt {
+    width: 17px;
+    height: 17px;
+    margin: -4px 0 0 -4px;
+  }
+}
 .auto-pt:hover {
   transform: scale(1.35);
   background: var(--al-color, var(--accent));
 }
 .auto-pt.selected {
   background: var(--al-color, var(--accent));
-  border-color: #fff;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.22);
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--text) 22%, transparent);
 }
 
 .auto-marquee {
   position: absolute;
   border: 1px solid var(--al-color, var(--accent));
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--accent-bg);
   pointer-events: none;
   z-index: 3;
 }
@@ -79,7 +92,7 @@
 }
 .alh.disabled .alh-name,
 .alh.disabled .alh-dot {
-  opacity: 0.4;
+  opacity: var(--opacity-disabled);
 }
 .alh-dot {
   width: 7px;
@@ -94,7 +107,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-main);
+  color: var(--text);
 }
 .alh-val {
   color: var(--text-faint);
@@ -116,17 +129,17 @@
 
 /* Track header automation controls */
 .th-auto.a-on {
-  color: var(--warm, #d9a13c);
+  color: var(--warm);
   border-color: currentColor;
 }
 .th-automode {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   height: 18px;
   max-width: 58px;
   background: var(--bg-deep);
   color: var(--text-faint);
   border: 1px solid var(--border-soft);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
 }
 
 /* Mixer: automation + bus affordances */
@@ -134,10 +147,10 @@
   display: inline-block;
   margin-left: 5px;
   padding: 0 3px;
-  border-radius: 3px;
-  font-size: 9px;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-2xs);
   line-height: 12px;
-  color: var(--warm, #d9a13c);
+  color: var(--warm);
   border: 1px solid currentColor;
   vertical-align: 1px;
 }
@@ -145,16 +158,20 @@
   display: inline-block;
   margin-right: 5px;
   padding: 0 3px;
-  border-radius: 3px;
-  font-size: 8.5px;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-2xs);
   line-height: 12px;
-  letter-spacing: 0.4px;
+  letter-spacing: var(--ls-caps);
   color: var(--strip-color, var(--accent));
   border: 1px solid currentColor;
   vertical-align: 1px;
 }
+/* A bus is a different kind of channel and has to read as one on the desk. A
+   2.5% white wash was invisible on every theme's panel colour; tinting the
+   surface with the bus's own colour is the same move .strip.vca and .strip.fx
+   already make, and it survives a light ground. */
 .strip.bus {
-  background: rgba(255, 255, 255, 0.025);
+  background: color-mix(in srgb, var(--strip-color, var(--accent)) 12%, var(--bg-panel-2));
 }
 .strip.bus .strip-name {
   color: var(--strip-color, var(--accent));
@@ -165,7 +182,7 @@
 .take-lane {
   position: relative;
   border-top: 1px dashed var(--border-soft);
-  background: rgba(0, 0, 0, 0.22);
+  background: color-mix(in srgb, var(--bg-deep) 22%, transparent);
   overflow: hidden;
   contain: strict;
 }
@@ -174,11 +191,11 @@
   top: 2px;
   bottom: 2px;
   border: 1px solid color-mix(in srgb, var(--take-color) 55%, transparent);
-  border-radius: 4px;
+  border-radius: var(--radius);
   overflow: hidden;
   cursor: crosshair;
   touch-action: none;
-  background: rgba(8, 12, 16, 0.6);
+  background: color-mix(in srgb, var(--bg-deep) 60%, transparent);
 }
 .take-body.muted {
   opacity: 0.35;
@@ -236,25 +253,25 @@
 }
 .clip-take-badge {
   margin-left: 5px;
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   padding: 0 3px;
   border: 1px solid currentColor;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   opacity: 0.85;
 }
 .clip-flag {
   margin-left: 4px;
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   opacity: 0.8;
   border: 1px solid currentColor;
-  border-radius: 3px;
-  padding: 0 2.5px;
+  border-radius: var(--radius-xs);
+  padding: 0 2px;
 }
 .th-group {
   margin-left: 5px;
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   padding: 0 3px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   color: var(--accent);
   border: 1px solid currentColor;
 }

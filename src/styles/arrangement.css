@@ -52,27 +52,9 @@
   /* native two-axis panning; clip drags use their own pointer capture */
   touch-action: pan-x pan-y;
   /* Scrollbars stay visible: a clipped timeline must read as "scrollable",
-     not "broken". */
+     not "broken". The geometry and colours are the product's one scrollbar,
+     defined in base.css. */
   scrollbar-width: auto;
-  scrollbar-color: #3a4552 var(--bg-deep);
-}
-.arr-viewport::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-.arr-viewport::-webkit-scrollbar-track {
-  background: var(--bg-deep);
-}
-.arr-viewport::-webkit-scrollbar-thumb {
-  background: #3a4552;
-  border-radius: 6px;
-  border: 3px solid var(--bg-deep);
-}
-.arr-viewport::-webkit-scrollbar-thumb:hover {
-  background: #4a5765;
-}
-.arr-viewport::-webkit-scrollbar-corner {
-  background: var(--bg-deep);
 }
 
 /* Two flex columns whose containing block spans the ENTIRE scrollable width and
@@ -94,7 +76,7 @@
 .arr-header-col {
   position: sticky;
   left: 0;
-  z-index: 20;
+  z-index: var(--z-panel-chrome);
   width: var(--header-w);
   flex: none;
   background: var(--bg-panel);
@@ -117,11 +99,6 @@
   align-items: center;
   gap: 6px;
   padding: 0 8px;
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--text-faint);
   background: var(--bg-panel-2);
   border-bottom: 1px solid var(--border);
   user-select: none;
@@ -135,7 +112,7 @@
 .arr-ruler {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: var(--z-sticky);
   height: var(--ruler-h);
   background: var(--bg-panel-2);
   border-bottom: 1px solid var(--border);
@@ -170,6 +147,9 @@
   position: relative;
   border-bottom: 1px solid var(--border-soft);
 }
+.arr-lane:hover:not(.selected) {
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+}
 .arr-lane.selected {
   background: rgba(55, 184, 154, 0.05);
 }
@@ -187,7 +167,7 @@
   width: 1px;
   background: var(--warm);
   box-shadow: 0 0 6px rgba(217, 161, 60, 0.55);
-  z-index: 8;
+  z-index: var(--z-playhead);
   pointer-events: none;
   will-change: transform;
 }
@@ -209,7 +189,7 @@
   border-left: 2px solid var(--accent);
   border-right: 2px solid var(--accent);
   pointer-events: none;
-  z-index: 1;
+  z-index: var(--z-lane);
   opacity: 0.95;
 }
 .arr-loop.off {
@@ -221,22 +201,30 @@
   position: absolute;
   top: 3px;
   bottom: 3px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.55);
-  background: var(--clip-bg, #1e3a34);
+  /* A hairline that darkens whatever surface it is on, rather than a pure black
+     one — which in the light theme was heavier than any other line in the UI. */
+  border: 1px solid color-mix(in srgb, var(--bg-deep) 70%, transparent);
+  background: var(--clip-bg, var(--bg-raised));
   cursor: grab;
   user-select: none;
   touch-action: none;
-  min-width: 6px;
-  z-index: 2;
+  /* Wide enough to stay clickable at any zoom; the handles inside it hide
+     themselves below the width at which they would overlap (see below). */
+  min-width: 10px;
+  z-index: var(--z-clip);
+  container: clip / inline-size;
+}
+.clip:hover {
+  border-color: var(--border-strong);
 }
 .clip:active {
   cursor: grabbing;
 }
 .clip.selected {
   outline: 1.5px solid var(--warm);
-  z-index: 5;
+  z-index: calc(var(--z-clip) + 1);
 }
 .clip.muted {
   opacity: 0.4;
@@ -246,10 +234,10 @@
   top: 1px;
   left: 5px;
   right: 4px;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.92);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  color: var(--text);
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--bg-deep) 60%, transparent);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -282,12 +270,40 @@
     width: 15px;
   }
 }
+/*
+ * Below these widths the two trim edges meet in the middle and neither is
+ * reachable, and the fade handles no longer fit beside them. Hiding them is
+ * what makes a narrow clip draggable at all — the same trade the tool gating
+ * further down makes per tool.
+ */
+@container clip (max-width: 24px) {
+  .clip .clip-edge {
+    display: none;
+  }
+}
+@container clip (max-width: 40px) {
+  .clip .fade-handle {
+    display: none;
+  }
+}
+@media (pointer: coarse) {
+  @container clip (max-width: 44px) {
+    .clip .clip-edge {
+      display: none;
+    }
+  }
+  @container clip (max-width: 62px) {
+    .clip .fade-handle {
+      display: none;
+    }
+  }
+}
 
 /* ===== Track headers ===== */
 .th {
   display: flex;
   flex-direction: column;
-  padding: 5px 7px 4px;
+  padding: var(--sp-3) var(--sp-4) var(--sp-2);
   border-bottom: 1px solid var(--border-soft);
   background: var(--bg-panel);
   position: relative;
@@ -305,10 +321,6 @@
   bottom: 0;
   width: 3px;
   background: var(--th-color, var(--accent));
-}
-.th:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
 }
 .th-row {
   display: flex;
@@ -338,22 +350,29 @@
   min-width: 0;
 }
 .th-mini {
-  width: 22px;
-  height: 18px;
+  width: calc(22px * var(--ui-scale));
+  height: var(--control-h-sm);
   flex: none;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--border);
-  font-size: 9.5px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   color: var(--text-dim);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   user-select: none;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
-.th-mini:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+/* Mute, solo and arm are the buttons a mix gets driven from; they have to
+   answer the pointer before they are pressed. */
+.th-mini:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
 }
 .th-mini.m-on {
   background: var(--warm-bg);
@@ -377,8 +396,8 @@
   border-color: rgba(55, 184, 154, 0.5);
 }
 .th-mini:disabled {
-  opacity: 0.4;
-  pointer-events: none;
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 /* ON/OFF/PRE/PST labels need more room than a single letter. */
 .th-mini.wide,
@@ -409,9 +428,9 @@
 
 @media (pointer: coarse) {
   .th-mini {
-    width: 27px;
-    height: 24px;
-    font-size: 11px;
+    width: calc(32px * var(--ui-scale));
+    height: calc(30px * var(--ui-scale));
+    font-size: var(--fs-xs);
   }
 }
 
@@ -429,9 +448,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9.5px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--ls-caps);
   color: var(--danger);
   background: repeating-linear-gradient(45deg, rgba(216, 74, 68, 0.12) 0 6px, transparent 6px 12px);
   pointer-events: none;
@@ -454,9 +473,9 @@
   left: 2px;
   width: 7px;
   height: 7px;
-  border-radius: 2px;
-  background: rgba(232, 228, 218, 0.85);
-  border: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--text) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bg-deep) 55%, transparent);
 }
 .fade-handle.in {
   transform: translateX(-5px);
@@ -482,11 +501,11 @@
 /* Marquee selection rectangle (mouse rubber-band) -------------------------- */
 .arr-marquee {
   position: absolute;
-  z-index: 5;
+  z-index: var(--z-playhead);
   pointer-events: none;
   background: rgba(55, 184, 154, 0.1);
   border: 1px solid rgba(55, 184, 154, 0.55);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 
 /* The clip under a listen hold, so it is obvious what is sounding. */
@@ -499,7 +518,7 @@
 /* The clip a paint drag is asking for, before it exists. */
 .arr-paint-ghost {
   position: absolute;
-  z-index: 5;
+  z-index: var(--z-playhead);
   pointer-events: none;
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--accent) 22%, transparent);
@@ -554,7 +573,7 @@
 .arr-top {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: var(--z-sticky);
 }
 
 .gt-lane {
@@ -573,11 +592,6 @@
   align-items: center;
   gap: var(--sp-2);
   padding: 0 var(--sp-2) 0 var(--sp-4);
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-semibold);
-  letter-spacing: var(--ls-caps);
-  text-transform: uppercase;
-  color: var(--text-faint);
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border-soft);
 }
@@ -775,7 +789,7 @@
 /* Folder tracks: an indent guide makes membership readable at a glance without
    costing a column, and the folder row itself is visually a header, not a lane. */
 .th {
-  padding-left: calc(var(--sp-2) + var(--th-depth, 0) * 10px);
+  padding-left: calc(var(--sp-4) + var(--th-depth, 0) * 10px);
 }
 .th.folder {
   background: color-mix(in srgb, var(--th-color) 10%, var(--bg-panel));

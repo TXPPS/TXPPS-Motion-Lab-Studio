@@ -12,13 +12,15 @@
   padding: 0 8px;
 }
 .t-btn.rec:disabled {
-  opacity: 0.4;
-  pointer-events: none;
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 .t-btn.rec-on {
   background: var(--danger);
   border-color: var(--danger);
-  color: #fff;
+  /* same reason as .stage-btn.go.on: white fails on the contrast theme's
+     --danger, and this is the record button */
+  color: var(--text-inverse);
   /* state is never signalled by colour alone — the label carries it too */
   animation: rec-pulse 1.6s ease-in-out infinite;
 }
@@ -94,7 +96,7 @@
 /* Input meter -------------------------------------------------------------- */
 .input-meter {
   height: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: var(--bg-deep);
   border: 1px solid var(--border-soft);
   overflow: hidden;
@@ -228,7 +230,7 @@
 .rec-word {
   font-size: var(--fs-lg);
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--ls-wide);
 }
 
 /* Take review -------------------------------------------------------------- */
@@ -243,11 +245,7 @@
   gap: 6px;
 }
 .take-review .tr-title {
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-faint);
+  /* type comes from the one micro-label definition in base.css */
 }
 .take-review .tr-meta {
   font-size: var(--fs-sm);

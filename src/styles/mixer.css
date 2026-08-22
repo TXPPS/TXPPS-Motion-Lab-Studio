@@ -25,27 +25,12 @@
   overscroll-behavior-x: contain;
   overscroll-behavior-y: none;
   touch-action: pan-x;
+  /* Geometry and colours come from the product's one scrollbar in base.css. */
   scrollbar-width: auto;
-  scrollbar-color: #3a4552 var(--bg-deep);
   /* Height query source for the strip's optional rows. Safe to declare: the
      mixer's height comes from flex, never from its contents. */
   container-type: size;
   container-name: mixer;
-}
-.mixer::-webkit-scrollbar {
-  height: 11px;
-}
-.mixer::-webkit-scrollbar-track {
-  background: var(--bg-deep);
-  border-radius: 6px;
-}
-.mixer::-webkit-scrollbar-thumb {
-  background: #3a4552;
-  border-radius: 6px;
-  border: 3px solid var(--bg-deep);
-}
-.mixer::-webkit-scrollbar-thumb:hover {
-  background: #4a5765;
 }
 
 /* Strip -------------------------------------------------------------------- */
@@ -72,15 +57,16 @@
   overflow: hidden;
   background: var(--bg-panel-2);
   border: 1px solid var(--border-soft);
-  border-radius: 5px;
+  border-radius: var(--radius);
   padding: 6px 6px 7px;
   user-select: none;
 }
 .strip.selected {
   border-color: rgba(217, 161, 60, 0.55);
 }
-.strip.bus {
-  background: #181e19;
+/* A desk full of channels that never answer the pointer does not feel live. */
+.strip:hover:not(.selected) {
+  border-color: var(--border-strong);
 }
 .strip.master {
   background: var(--bg-raised);
@@ -88,8 +74,8 @@
   position: sticky;
   right: 0;
   /* lift above neighbours so the row scrolls underneath it cleanly */
-  z-index: 3;
-  box-shadow: -10px 0 14px -8px rgba(0, 0, 0, 0.7);
+  z-index: var(--z-sticky);
+  box-shadow: var(--sh-3);
 }
 /* On narrow/touch mixers a sticky master permanently hides a channel, so it
    scrolls with the row instead. */
@@ -177,14 +163,14 @@
   flex: 1 1 0;
   min-width: 0;
   height: 17px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: var(--bg-deep);
   border: 1px solid var(--border-soft);
   color: var(--text-faint);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--ls-wide);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -203,6 +189,10 @@
 .fx-chip:hover {
   border-color: var(--border-strong);
 }
+.fx-chip:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+}
 
 .strip-pan {
   display: flex;
@@ -213,7 +203,7 @@
 }
 .strip-pan .pan-val {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   color: var(--text-faint);
   min-width: 26px;
   text-align: left;
@@ -281,7 +271,7 @@
   min-width: 0;
   font-size: 9.5px;
   padding: 0 4px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: var(--bg-input);
   border: 1px solid var(--border);
   color: var(--text-dim);
@@ -293,23 +283,26 @@
   justify-content: center;
   white-space: nowrap;
   overflow: hidden;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--ls-wide);
 }
 
 /* Fader -------------------------------------------------------------------- */
 .fader {
   position: relative;
-  width: 30px;
+  width: calc(30px * var(--ui-scale));
   flex: none;
   height: 100%;
   min-height: 0;
   touch-action: none;
   cursor: ns-resize;
 }
+/* Every row of a strip clips its own content, so the global ring — which paints
+   outside the box — would be cut off here. An inset outline is the exception the
+   focus rule allows, in the deliberate focus colour rather than the accent. */
 .fader:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 3px;
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+  border-radius: var(--radius-xs);
 }
 .fader .fader-track {
   position: absolute;
@@ -319,7 +312,7 @@
   width: 4px;
   transform: translateX(-50%);
   background: var(--bg-deep);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--border-soft);
 }
 /* Unity-gain detent. The fader curve is gain = pos^2.2 × 1.5, so 0 dB sits at
@@ -343,7 +336,7 @@
   width: 4px;
   transform: translateX(-50%);
   background: linear-gradient(to top, var(--accent-dim), var(--accent));
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   opacity: 0.85;
 }
 .fader .fader-thumb {
@@ -353,9 +346,9 @@
   height: 14px;
   margin-bottom: -7px;
   transform: translateX(-50%);
-  background: linear-gradient(#3a4450, #232b35 45%, #1a2028);
+  background: linear-gradient(var(--bg-hover), var(--bg-raised) 45%, var(--bg-panel-2));
   border: 1px solid var(--border-strong);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
 }
 .fader .fader-thumb::after {
@@ -364,7 +357,7 @@
   left: 3px;
   right: 3px;
   top: 50%;
-  height: 1.5px;
+  height: 2px;
   transform: translateY(-50%);
   background: var(--accent);
 }
@@ -378,7 +371,7 @@
   position: relative;
   background: var(--bg-deep);
   border: 1px solid var(--border-soft);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
 }
 .meter.wide {
@@ -406,8 +399,8 @@
   left: 0;
   right: 0;
   top: 0;
-  height: 1.5px;
-  background: #fff;
+  height: 2px;
+  background: var(--text);
   opacity: 0;
   will-change: transform;
 }
@@ -417,9 +410,13 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: #2a1210;
+  background: var(--meter-bg);
   cursor: pointer;
   z-index: 2;
+}
+/* It is a button that clears the clip hold; it has to look like one. */
+.meter .meter-clip-led:hover {
+  background: color-mix(in srgb, var(--danger) 45%, var(--meter-bg));
 }
 .meter .meter-clip-led.on {
   background: var(--danger);
@@ -437,13 +434,15 @@
 .knob svg {
   display: block;
 }
+/* An SVG control inside a clipped strip row: an outline is the exception the
+   focus rule allows, in the deliberate focus colour rather than the accent. */
 .knob:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
   border-radius: 50%;
 }
 .knob-label {
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   color: var(--text-faint);
   text-align: center;
   user-select: none;
@@ -523,13 +522,6 @@
   text-overflow: ellipsis;
   max-width: 100%;
 }
-.fx-body {
-  border-top: 1px solid var(--border-soft);
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
 .fx-param {
   display: grid;
   grid-template-columns: 62px minmax(0, 1fr) 58px;
@@ -559,7 +551,7 @@
   padding-top: 2px;
 }
 .fx-actions .btn {
-  height: 24px;
+  height: var(--control-h-sm);
   padding: 0 8px;
 }
 .fx-add select {
@@ -585,7 +577,7 @@
   width: 100%;
 }
 .send-row .th-mini {
-  font-size: 8.5px;
+  font-size: var(--fs-2xs);
 }
 
 /* ------------------------------------------------------ input stage row */
@@ -636,6 +628,11 @@
   background: var(--warm-bg);
   border-color: var(--warm-line);
   color: var(--warm);
+}
+.in-flag:disabled,
+.in-trim:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 
 /* ---------------------------------------------------------- insert slots */
@@ -732,7 +729,7 @@
   align-items: stretch;
   gap: 2px;
   flex: 0 1 auto;
-  width: calc(var(--meter-w) * 2 + 16px);
+  width: calc(var(--meter-w) * 2 + 22px);
   max-width: 100%;
   min-width: 18px;
   min-height: 0;
@@ -740,7 +737,7 @@
 .smeter-over {
   height: 6px;
   flex: none;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--meter-bg);
   border: 1px solid var(--border-soft);
 }
@@ -761,7 +758,7 @@
   min-width: 3px;
   background: var(--meter-bg);
   border: 1px solid var(--border-soft);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
 }
 .smeter-fill {
@@ -769,19 +766,21 @@
   inset: 0;
   transform-origin: bottom;
   transform: scaleY(0);
+  /* Same stops as .meter-fill: the same signal has to read the same on both
+     meters, and a clip band that only exists at 100% is never seen coming. */
   background: linear-gradient(
     to top,
     var(--meter-lo) 0%,
     var(--meter-mid) 62%,
-    var(--meter-hot) 86%,
-    var(--meter-clip) 100%
+    var(--meter-hot) 84%,
+    var(--meter-clip) 97%
   );
 }
 .smeter-hold {
   position: absolute;
   left: 0;
   right: 0;
-  height: 1.5px;
+  height: 2px;
   background: var(--text);
   opacity: 0.85;
   bottom: 0;
@@ -790,7 +789,8 @@
    -18 dB should not require hovering to find out where -18 is. */
 .smeter-scale {
   position: relative;
-  flex: 0 1 14px;
+  /* Wide enough for the widest tick ("-48") at the label size below. */
+  flex: 0 1 20px;
   min-width: 0;
   overflow: hidden;
 }
@@ -800,7 +800,7 @@
   transform: translateY(50%);
   white-space: nowrap;
   font-family: var(--font-num);
-  font-size: 7.5px;
+  font-size: var(--fs-2xs);
   line-height: 1;
   color: var(--text-faint);
 }
@@ -847,8 +847,8 @@
 .mixer-add {
   flex: none;
   align-self: center;
-  width: 30px;
-  height: 30px;
+  width: var(--toolbar-h-sm);
+  height: var(--toolbar-h-sm);
   margin: 0 var(--sp-4);
   border-radius: var(--radius);
   border: 1px dashed var(--border-strong);
@@ -903,7 +903,7 @@
   background: var(--bg-raised);
   border: 1.5px solid var(--accent);
   color: var(--text);
-  font-size: 8px;
+  font-size: var(--fs-2xs);
   font-weight: var(--fw-bold);
   line-height: 1;
   cursor: grab;
@@ -943,7 +943,7 @@
   width: 12px;
   background: var(--meter-bg);
   border: 1px solid var(--border-soft);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
 }
 /* Reduction grows DOWNWARD from the top: that is the direction the level is
@@ -1097,11 +1097,7 @@
   min-width: 250px;
 }
 .co-title {
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-semibold);
-  letter-spacing: var(--ls-caps);
-  text-transform: uppercase;
-  color: var(--text-faint);
+  /* type comes from the one micro-label definition in base.css */
 }
 .co-body {
   display: flex;
@@ -1202,9 +1198,20 @@
    rather than collapsing rows to zero, because a zero-height row still costs a
    row-gap — exactly the space a cramped strip cannot spare.
 
-   Each threshold is what the level BELOW it needs plus a little: the full nine
-   rows want about 307px, eight want 277, seven want 251 and five want 209. A
-   step that fires earlier than that throws away a row that would have fitted. */
+   Each threshold is what the level BELOW it needs plus a little: at 100% UI
+   scale the full nine rows want about 307px, eight want 277, seven want 251 and
+   five want 209. A step that fires earlier than that throws away a row that
+   would have fitted.
+
+   The thresholds are in `em`, not px, and that is the whole point. A strip's
+   rows are built from --ui-scale, so at 140% the nine rows want about 430px,
+   not 307 — and a px threshold fired 100px too late and silently clipped the
+   routing row off the bottom of the strip. A container query cannot read a
+   custom property, but `em` in the condition resolves against the query
+   container's own font-size, and .mixer inherits --fs-md from <body>, which is
+   12.5px x --ui-scale. So 26.4em is 330px at 100% — identical to the value it
+   replaces — and 462px at 140%, which is where the query actually needs to
+   fire. If --fs-md ever changes, these four numbers change with it. */
 
 /* ---------------------------------------------------------------- cue mixes */
 .cue-bar {
@@ -1215,7 +1222,7 @@
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
   flex: 0 0 auto;
-  min-height: 34px;
+  min-height: var(--toolbar-h);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -1252,7 +1259,7 @@
   border-radius: var(--radius);
 }
 
-@container mixer (max-height: 330px) {
+@container mixer (max-height: 26.4em) {
   .strip {
     grid-template-rows:
       auto /* name    */
@@ -1285,7 +1292,7 @@
   }
 }
 
-@container mixer (max-height: 280px) {
+@container mixer (max-height: 22.4em) {
   .strip {
     grid-template-rows:
       auto
@@ -1318,7 +1325,7 @@
   }
 }
 
-@container mixer (max-height: 255px) {
+@container mixer (max-height: 20.4em) {
   .strip {
     grid-template-rows:
       auto
@@ -1346,7 +1353,7 @@
   }
 }
 
-@container mixer (max-height: 212px) {
+@container mixer (max-height: 16.96em) {
   .strip {
     grid-template-rows:
       auto

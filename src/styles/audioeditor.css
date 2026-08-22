@@ -48,7 +48,7 @@
 .ae-detected span {
   position: absolute;
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--warm-hi);
 }
 

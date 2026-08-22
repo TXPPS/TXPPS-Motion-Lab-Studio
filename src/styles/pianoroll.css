@@ -7,7 +7,7 @@
 }
 
 .pr-toolbar {
-  height: 34px;
+  height: var(--toolbar-h);
   flex: none;
   display: flex;
   align-items: center;
@@ -63,7 +63,7 @@
 .pr-keys {
   position: sticky;
   left: 0;
-  z-index: 8;
+  z-index: var(--z-sticky);
   width: 52px;
   float: left;
 }
@@ -72,7 +72,7 @@
   border-bottom: 1px solid var(--border-soft);
   background: #f2efe8;
   color: #333;
-  font-size: 8.5px;
+  font-size: var(--fs-2xs);
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -86,7 +86,7 @@
 }
 .pr-key.playing {
   background: var(--accent) !important;
-  color: #06120e;
+  color: var(--text-inverse);
 }
 .pr-key.c-note {
   font-weight: 700;
@@ -106,18 +106,21 @@
 
 .pr-note {
   position: absolute;
-  border-radius: 2.5px;
+  border-radius: var(--radius-xs);
   background: linear-gradient(#48c9a9, #2f9d84);
   border: 1px solid rgba(0, 0, 0, 0.5);
   cursor: grab;
   touch-action: none;
   min-width: 5px;
-  z-index: 3;
+  z-index: var(--z-clip);
+}
+.pr-note:hover {
+  border-color: color-mix(in srgb, var(--text) 60%, transparent);
 }
 .pr-note.selected {
   background: linear-gradient(var(--warm-hi), var(--warm));
   outline: 1px solid #fff3;
-  z-index: 4;
+  z-index: calc(var(--z-clip) + 1);
 }
 .pr-note .pr-note-edge {
   position: absolute;
@@ -139,7 +142,7 @@
   bottom: 0;
   width: 1px;
   background: var(--warm);
-  z-index: 6;
+  z-index: var(--z-playhead);
   pointer-events: none;
   will-change: transform;
 }
@@ -152,7 +155,7 @@
   border-left: 1px dashed rgba(55, 184, 154, 0.5);
   border-right: 1px dashed rgba(55, 184, 154, 0.5);
   pointer-events: none;
-  z-index: 1;
+  z-index: var(--z-lane);
 }
 
 /* Milestone 4: velocity lane, marquee, scale, labels ------------------------ */
@@ -171,7 +174,7 @@
   left: 3px;
   top: 50%;
   transform: translateY(-52%);
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   color: rgba(8, 12, 10, 0.85);
   pointer-events: none;
@@ -184,16 +187,16 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--bg-scrim);
   pointer-events: none;
 }
 .pr-marquee {
   position: absolute;
-  z-index: 6;
+  z-index: var(--z-playhead);
   pointer-events: none;
   background: rgba(55, 184, 154, 0.1);
   border: 1px solid rgba(55, 184, 154, 0.55);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 .hint-btn {
   color: var(--warm);
@@ -204,7 +207,7 @@
 .pr-vel-lane {
   position: sticky;
   bottom: 0;
-  z-index: 12;
+  z-index: var(--z-panel-chrome);
   background: var(--bg-panel-2);
   border-top: 1px solid var(--border);
 }
@@ -216,9 +219,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-faint);
   background: var(--bg-panel);
   border-right: 1px solid var(--border);
@@ -233,7 +236,7 @@
   position: absolute;
   bottom: 0;
   background: var(--accent-dim);
-  border-radius: 1.5px 1.5px 0 0;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
   cursor: ns-resize;
   touch-action: none;
 }

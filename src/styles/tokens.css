@@ -34,9 +34,12 @@
   /* Numeric readouts (time, dB, bpm) must not reflow as digits change. */
   --font-num: var(--font-mono);
 
-  /* A 6-step scale. Nothing in the product may invent a size between steps. */
-  --fs-2xs: calc(9.5px * var(--ui-scale));
-  --fs-xs: calc(10.5px * var(--ui-scale));
+  /* An 8-step scale. Nothing in the product may invent a size between steps.
+     The bottom two steps carry the product's micro-labels — strip readouts, dB
+     scales, badges — and were below the size at which those are readable at a
+     normal viewing distance, so the floor is 10.5px rather than 9.5px. */
+  --fs-2xs: calc(10.5px * var(--ui-scale));
+  --fs-xs: calc(11px * var(--ui-scale));
   --fs-sm: calc(11.5px * var(--ui-scale));
   --fs-md: calc(12.5px * var(--ui-scale));
   --fs-lg: calc(14px * var(--ui-scale));
@@ -52,8 +55,11 @@
   --fw-semibold: 600;
   --fw-bold: 700;
 
-  /* Uppercase micro-labels (panel titles, strip headers) need tracking. */
+  /* Uppercase micro-labels (panel titles, strip headers) need tracking.
+     `--ls-wide` is the smaller amount used by small mixed-case labels — chips,
+     routing readouts — which need opening up without reading as headings. */
   --ls-caps: 0.07em;
+  --ls-wide: 0.02em;
   --ls-tight: -0.01em;
 
   /* -------------------------------------------------------------- spacing */
@@ -109,6 +115,9 @@
   --ruler-h: calc(42px * var(--ui-scale));
   --global-lane-h: calc(20px * var(--ui-scale));
   --toolbar-h: calc(34px * var(--ui-scale));
+  /* A panel header is a bar, not a toolbar: it holds a title and at most two
+     icon buttons, so it is allowed to be shorter than a bar full of controls. */
+  --toolbar-h-sm: calc(30px * var(--ui-scale));
   --control-h: calc(28px * var(--ui-scale));
   --control-h-sm: calc(22px * var(--ui-scale));
 
@@ -121,6 +130,9 @@
   /* Panel minimums, enforced by the resizable panel system. */
   --panel-min-side: calc(180px * var(--ui-scale));
   --panel-min-center: calc(320px * var(--ui-scale));
+
+  /* One dimming for every disabled control, whatever shape it is. */
+  --opacity-disabled: 0.45;
 
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
@@ -208,7 +220,11 @@
   --sh-focus: 0 0 0 2px var(--bg-app), 0 0 0 4px var(--border-focus);
 }
 
-/* System setting with no explicit choice: follow the OS. */
+/* System setting with no explicit choice: follow the OS.
+   The palette below is byte-identical to :root[data-theme='light'] further
+   down. CSS has no way to share one declaration block between a media-gated
+   selector and a plain one, so the pair is kept in step by hand: any colour
+   change here must be made there too. */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
     color-scheme: light;
@@ -281,6 +297,9 @@
 /* deliberately not white-on-white: the editing ground stays darker than the */
 /* chrome so clips and waveforms keep the same figure/ground relationship as */
 /* in the dark theme.                                                        */
+/*                                                                           */
+/* Mirror of the @media (prefers-color-scheme: light) block above — change    */
+/* both together.                                                            */
 /* ====================================================================== */
 :root[data-theme='light'] {
   color-scheme: light;
@@ -414,4 +433,81 @@
   --sh-4: 0 20px 52px rgba(0, 0, 0, 0.95), 0 0 0 1px #8e97a4;
   --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.14);
   --sh-focus: 0 0 0 2px #000000, 0 0 0 4px var(--border-focus);
+}
+/* ====================================================================== */
+/* OS "increase contrast", with the app left on the system theme. Without   */
+/* this the setting does nothing and the user gets the ordinary dark theme; */
+/* the product already ships a theme built for exactly this need, so they   */
+/* get that one. An explicit choice still wins — this only matches when no  */
+/* data-theme is set.                                                       */
+/*                                                                          */
+/* The values mirror :root[data-theme='contrast'] above. CSS cannot share    */
+/* one declaration block between a media-gated selector and a plain one, so  */
+/* the two are kept in step by hand: change both together.                   */
+/* ====================================================================== */
+@media (prefers-contrast: more) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --bg-app: #000000;
+    --bg-deep: #000000;
+    --bg-panel: #0b0b0c;
+    --bg-panel-2: #101012;
+    --bg-raised: #17181a;
+    --bg-hover: #23252a;
+    --bg-active: #303339;
+    --bg-input: #000000;
+    --bg-float: #17181a;
+    --bg-scrim: rgba(0, 0, 0, 0.82);
+
+    --border: #59606c;
+    --border-soft: #3a404a;
+    --border-strong: #8e97a4;
+    --border-focus: #ffd166;
+
+    --text: #ffffff;
+    --text-dim: #d6dbe2;
+    --text-faint: #c3c9d2;
+    --text-inverse: #000000;
+
+    --accent: #56e8c6;
+    --accent-hi: #7ff5da;
+    --accent-dim: #2fb497;
+    --accent-bg: rgba(86, 232, 198, 0.2);
+    --accent-line: rgba(86, 232, 198, 0.6);
+
+    --warm: #ffc44d;
+    --warm-hi: #ffd980;
+    --warm-bg: rgba(255, 196, 77, 0.22);
+    --warm-line: rgba(255, 196, 77, 0.6);
+
+    --danger: #ff6b62;
+    --danger-text: #ff8a82;
+    --danger-bg: rgba(255, 107, 98, 0.22);
+    --danger-line: rgba(255, 107, 98, 0.6);
+
+    --info: #79bdf0;
+    --info-bg: rgba(121, 189, 240, 0.2);
+
+    --meter-lo: #56e8c6;
+    --meter-mid: #7ff5da;
+    --meter-hot: #ffc44d;
+    --meter-clip: #ff6b62;
+    --meter-over: #ff3b30;
+    --meter-bg: #000000;
+    --meter-rms: rgba(255, 255, 255, 0.4);
+
+    --grid-bar: rgba(255, 255, 255, 0.35);
+    --grid-beat: rgba(255, 255, 255, 0.16);
+    --grid-sub: rgba(255, 255, 255, 0.08);
+    --playhead: #ffffff;
+    --loop-band: rgba(255, 196, 77, 0.24);
+
+    --sh-1: 0 0 0 1px #59606c;
+    --sh-2: 0 0 0 1px #8e97a4;
+    --sh-3: 0 10px 28px rgba(0, 0, 0, 0.9), 0 0 0 1px #8e97a4;
+    --sh-4: 0 20px 52px rgba(0, 0, 0, 0.95), 0 0 0 1px #8e97a4;
+    --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    --sh-focus: 0 0 0 2px #000000, 0 0 0 4px var(--border-focus);
+  }
 }
