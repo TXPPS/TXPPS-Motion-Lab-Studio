@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export type EditorTab = 'mixer' | 'piano' | 'synth' | 'diagnostics';
 export type PhoneMode = 'arrange' | 'record' | 'perform' | 'edit' | 'mix' | 'browse';
-export type BrowserTab = 'projects' | 'presets' | 'loops' | 'samples';
+export type BrowserTab = 'projects' | 'instruments' | 'effects' | 'loops' | 'samples' | 'pool';
 /** Arrangement editing tools. Only fully-usable tools are offered. */
 export type ArrangeTool = 'pointer' | 'split' | 'erase' | 'mute' | 'slip';
 
@@ -57,6 +57,8 @@ interface UiState {
   settingsOpen: boolean;
   /** Export dialog */
   exportOpen: boolean;
+  /** Channel Overview strip above the console */
+  channelOverview: boolean;
   /** Active arrangement tool */
   tool: ArrangeTool;
 
@@ -122,6 +124,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   welcomeOpen: false,
   settingsOpen: false,
   exportOpen: false,
+  channelOverview: true,
   tool: 'pointer',
 
   selectedTrackId: null,

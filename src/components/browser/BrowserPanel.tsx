@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listMedia } from '../../audio/demoAudio';
 import { snapBeatFloor } from '../../model/music';
-import { SYNTH_PRESETS } from '../../model/presets';
 import type { ProjectMeta } from '../../model/types';
 import { listProjects } from '../../persistence/projectRepo';
 import { useProjectStore } from '../../state/projectStore';
@@ -15,11 +14,14 @@ import {
   saveCurrent,
   saveCurrentAs,
 } from '../../app/projectActions';
-import { Icon } from '../common/Icon';
+import { Icon, type IconName } from '../common/Icon';
 import { engine } from '../../audio/engine';
 import { pickAndImport } from '../../app/importActions';
 import { AuditionButton, matches } from './browserShared';
 import { SamplesTab } from './SamplesTab';
+import { EffectsTab, InstrumentsTab } from './InstrumentsTab';
+import { PoolTab } from './PoolTab';
+import type { BrowserTab } from '../../state/uiStore';
 
 function fmtWhen(ts: number): string {
   if (!ts) return '—';
@@ -181,38 +183,6 @@ function ProjectsTab({ query }: { query: string }) {
   );
 }
 
-function PresetsTab({ query }: { query: string }) {
-  const applyPreset = useProjectStore((s) => s.applyPreset);
-  const tracks = useProjectStore((s) => s.project.tracks);
-  const selId = useUiStore((s) => s.selectedTrackId);
-  const target =
-    tracks.find((t) => t.id === selId && t.type === 'instrument') ??
-    tracks.find((t) => t.type === 'instrument');
-  return (
-    <>
-      <div className="panel-section hint">
-        {target ? `Applies to: ${target.name}` : 'Select an instrument track first.'}
-      </div>
-      {SYNTH_PRESETS.filter((p) => matches(query, p.presetName, p.waveform)).map((p) => (
-        <button
-          key={p.presetName}
-          className={`list-item${target?.synth?.presetName === p.presetName ? ' on' : ''}`}
-          disabled={!target}
-          onClick={() => target && applyPreset(target.id, p.presetName)}
-        >
-          <div className="li-main">
-            <div className="li-title">{p.presetName}</div>
-            <div className="li-sub">
-              {p.waveform} · cutoff{' '}
-              {p.cutoff >= 1000 ? `${(p.cutoff / 1000).toFixed(1)}k` : p.cutoff}
-            </div>
-          </div>
-        </button>
-      ))}
-    </>
-  );
-}
-
 function LoopsTab({ query }: { query: string }) {
   const addAudioClip = useProjectStore((s) => s.addAudioClip);
   const addTrack = useProjectStore((s) => s.addTrack);
@@ -335,26 +305,43 @@ function MediaRow({
   );
 }
 
+/**
+ * The browser's categories, in the order the reference lists them: what you
+ * make music WITH first, then what you make it FROM, then what this session
+ * already owns.
+ */
+const BROWSER_TABS: { id: BrowserTab; label: string; icon: IconName; hint: string }[] = [
+  {
+    id: 'instruments',
+    label: 'Instruments',
+    icon: 'piano',
+    hint: 'Synths, samplers and note effects',
+  },
+  { id: 'effects', label: 'Effects', icon: 'sliders', hint: 'Inserts and chains' },
+  { id: 'loops', label: 'Loops', icon: 'loop', hint: 'Tempo-matched loops' },
+  { id: 'samples', label: 'Samples', icon: 'wave', hint: 'One-shots and project media' },
+  { id: 'pool', label: 'Pool', icon: 'database', hint: 'Everything this project owns' },
+  { id: 'projects', label: 'Projects', icon: 'folder', hint: 'Open, save and manage projects' },
+];
+
 export function BrowserPanel() {
   const tab = useUiStore((s) => s.browserTab);
   const [query, setQuery] = useState('');
   return (
     <>
-      <div className="browser-tabs">
-        {(['projects', 'presets', 'loops', 'samples'] as const).map((t) => (
+      <div className="browser-tabs" role="tablist" aria-label="Browser">
+        {BROWSER_TABS.map((t) => (
           <button
-            key={t}
-            className={tab === t ? 'on' : ''}
-            onClick={() => useUiStore.getState().set({ browserTab: t })}
-            data-testid={`browser-tab-${t}`}
+            key={t.id}
+            className={tab === t.id ? 'on' : ''}
+            role="tab"
+            aria-selected={tab === t.id}
+            title={t.hint}
+            onClick={() => useUiStore.getState().set({ browserTab: t.id })}
+            data-testid={`browser-tab-${t.id}`}
           >
-            {t === 'projects'
-              ? 'Projects'
-              : t === 'presets'
-                ? 'Presets'
-                : t === 'loops'
-                  ? 'Loops'
-                  : 'Samples'}
+            <Icon name={t.icon} size={12} />
+            <span>{t.label}</span>
           </button>
         ))}
       </div>
@@ -377,10 +364,14 @@ export function BrowserPanel() {
       <div className="panel-body" data-testid="browser-panel">
         {tab === 'projects' ? (
           <ProjectsTab query={query} />
-        ) : tab === 'presets' ? (
-          <PresetsTab query={query} />
+        ) : tab === 'instruments' ? (
+          <InstrumentsTab query={query} />
+        ) : tab === 'effects' ? (
+          <EffectsTab query={query} />
         ) : tab === 'samples' ? (
           <SamplesTab query={query} />
+        ) : tab === 'pool' ? (
+          <PoolTab query={query} />
         ) : (
           <LoopsTab query={query} />
         )}

@@ -1056,3 +1056,153 @@
   font-size: var(--fs-2xs);
   font-weight: var(--fw-semibold);
 }
+
+/* ============================================================
+   Channel Overview — one channel laid out horizontally above
+   the desk. Its own scroller, so a narrow console does not
+   squash the EQ curve.
+   ============================================================ */
+
+.channel-overview {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--bg-panel-2);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+.channel-overview.empty {
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-5);
+}
+.co-name {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  padding-right: var(--sp-4);
+  border-right: 1px solid var(--border-soft);
+  color: var(--strip-color, var(--accent));
+}
+.co-track {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+  white-space: nowrap;
+}
+.co-silent {
+  font-size: var(--fs-2xs);
+  color: var(--warm);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+}
+
+.co-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  flex: none;
+  min-width: 132px;
+}
+.co-section.wide {
+  min-width: 250px;
+}
+.co-title {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.co-body {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.co-input {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.co-trim {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 74px;
+}
+.co-trim .t-num {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+.co-add {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+}
+.co-add:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--accent-bg);
+}
+.co-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 110px;
+}
+.co-sends {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+}
+.co-send {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-2xs);
+  color: var(--text-dim);
+}
+.co-send-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.co-out {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.co-fader {
+  display: flex;
+  gap: var(--sp-2);
+  height: 88px;
+}
+.co-out .t-num {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  min-width: 38px;
+}
+
+/* The console and its overview share one column; only the strip row scrolls. */
+.mixer-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}

@@ -275,11 +275,16 @@ export function energyEnvelope(
 }
 
 /**
- * Running median of the detection function, with the window clamped rather than
- * shortened at the edges so the buffer can be sorted in place without a new
- * allocation per frame.
+ * Running median of the detection function and the mean absolute deviation from
+ * it. The window is clamped rather than shortened at the edges so one scratch
+ * buffer can be sorted in place instead of allocating per frame.
  */
-function runningMedian(values: Float32Array, span: number, out: Float32Array): void {
+function runningStatistics(
+  values: Float32Array,
+  span: number,
+  median: Float32Array,
+  deviation: Float32Array,
+): void {
   const n = values.length;
   const width = Math.max(3, span | 1);
   const half = (width - 1) / 2;
@@ -290,7 +295,11 @@ function runningMedian(values: Float32Array, span: number, out: Float32Array): v
       scratch[j] = values[k < 0 ? 0 : k >= n ? n - 1 : k];
     }
     scratch.sort();
-    out[i] = scratch[half];
+    const mid = scratch[half];
+    let spread = 0;
+    for (let j = 0; j < width; j++) spread += Math.abs(scratch[j] - mid);
+    median[i] = mid;
+    deviation[i] = spread / width;
   }
 }
 
@@ -301,10 +310,15 @@ interface Peak {
 }
 
 /**
- * Peak picking: a local maximum that stands clear of both the running median and
- * an absolute fraction of the loudest peak in the signal. The median alone lets
- * noise through in quiet passages, where three times almost nothing is still
- * almost nothing; the absolute floor alone misses a real hit in a quiet verse.
+ * Peak picking: a local maximum that stands clear of the local level, of the
+ * local fluctuation, and of an absolute fraction of the loudest onset present.
+ *
+ * All three terms earn their place. A plain median threshold passes steady noise,
+ * whose detection function wanders far enough above its own median often enough
+ * to look like a hit thirty times a second; scaling by the local deviation is
+ * what turns "above average" into "unusual". The absolute floor then stops a
+ * near-silent passage, where median and deviation are both about zero, from
+ * reporting its own dither as rhythm.
  */
 function pickPeaks(envelope: OnsetEnvelope, sensitivity: number, minIntervalSec: number): Peak[] {
   const values = envelope.values;
@@ -316,19 +330,25 @@ function pickPeaks(envelope: OnsetEnvelope, sensitivity: number, minIntervalSec:
   if (!(globalMax > 0)) return [];
 
   const s = clamp01(sensitivity);
-  // Picky at 0 (three times the local median, a third of the loudest onset),
-  // permissive at 1 (barely over the median, a fiftieth of the loudest).
-  const medianMultiple = 3 - 1.95 * s;
+  // Picky at 0 (five deviations clear, a third of the loudest onset), permissive
+  // at 1 (one deviation clear, a fiftieth of the loudest).
+  const deviations = 5 - 4 * s;
   const floor = globalMax * (0.32 - 0.3 * s);
 
   const median = new Float32Array(n);
-  runningMedian(values, Math.round(MEDIAN_SPAN_SEC / Math.max(envelope.hopSec, 1e-6)), median);
+  const deviation = new Float32Array(n);
+  runningStatistics(
+    values,
+    Math.round(MEDIAN_SPAN_SEC / Math.max(envelope.hopSec, 1e-6)),
+    median,
+    deviation,
+  );
 
   const candidates: Peak[] = [];
   for (let i = 1; i < n - 1; i++) {
     const v = values[i];
     if (v < values[i - 1] || v < values[i + 1]) continue;
-    const threshold = median[i] * medianMultiple + floor;
+    const threshold = median[i] + deviations * deviation[i] + floor;
     if (v <= threshold) continue;
     const head = globalMax - median[i];
     candidates.push({

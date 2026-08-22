@@ -16,6 +16,7 @@ import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
 import { ChannelStrip, MasterStrip } from './ChannelStrip';
+import { ChannelOverviewHost } from './ChannelOverview';
 import { VcaStrip } from './VcaStrip';
 
 export function Mixer({ touch }: { touch?: boolean }) {
@@ -37,6 +38,7 @@ export function Mixer({ touch }: { touch?: boolean }) {
   }, []);
 
   const states = useMemo(() => resolveChannels(project), [project]);
+  const showOverview = useUiStore((s) => s.channelOverview);
 
   const buses = tracks.filter((t) => t.type === 'bus');
   const fxChannels = tracks.filter((t) => t.type === 'fx');
@@ -89,49 +91,52 @@ export function Mixer({ touch }: { touch?: boolean }) {
   }
 
   return (
-    <div
-      ref={ref}
-      className={`mixer${touch ? ' touch' : ''}`}
-      data-testid="mixer"
-      role="group"
-      aria-label="Mixer"
-    >
-      {channels.map(strip)}
-      {sendTargets.length > 0 && <div className="mixer-sep" aria-hidden />}
-      {buses.map(strip)}
-      {fxChannels.map(strip)}
-      {vcas.length > 0 && <div className="mixer-sep" aria-hidden />}
-      {vcas.map((v) => (
-        <VcaStrip key={v.id} track={v} members={tracks.filter((t) => t.vcaId === v.id)} />
-      ))}
-      <div className="mixer-sep" aria-hidden />
-      <MasterStrip />
-      <button
-        className="mixer-add"
-        title="Add a bus, FX channel or VCA"
-        onClick={(e) =>
-          useUiStore.getState().showMenu({
-            x: e.clientX,
-            y: e.clientY,
-            items: [
-              {
-                label: 'Add bus',
-                action: () =>
-                  useUiStore.getState().selectTrack(useProjectStore.getState().addTrack('bus')),
-              },
-              {
-                label: 'Add FX channel',
-                action: () =>
-                  useUiStore.getState().selectTrack(useProjectStore.getState().addTrack('fx')),
-              },
-              { label: 'Add VCA fader', action: () => useProjectStore.getState().addVca() },
-            ],
-          })
-        }
-        data-testid="mixer-add"
+    <div className="mixer-wrap">
+      {showOverview && <ChannelOverviewHost />}
+      <div
+        ref={ref}
+        className={`mixer${touch ? ' touch' : ''}`}
+        data-testid="mixer"
+        role="group"
+        aria-label="Mixer"
       >
-        <Icon name="plus" size={14} />
-      </button>
+        {channels.map(strip)}
+        {sendTargets.length > 0 && <div className="mixer-sep" aria-hidden />}
+        {buses.map(strip)}
+        {fxChannels.map(strip)}
+        {vcas.length > 0 && <div className="mixer-sep" aria-hidden />}
+        {vcas.map((v) => (
+          <VcaStrip key={v.id} track={v} members={tracks.filter((t) => t.vcaId === v.id)} />
+        ))}
+        <div className="mixer-sep" aria-hidden />
+        <MasterStrip />
+        <button
+          className="mixer-add"
+          title="Add a bus, FX channel or VCA"
+          onClick={(e) =>
+            useUiStore.getState().showMenu({
+              x: e.clientX,
+              y: e.clientY,
+              items: [
+                {
+                  label: 'Add bus',
+                  action: () =>
+                    useUiStore.getState().selectTrack(useProjectStore.getState().addTrack('bus')),
+                },
+                {
+                  label: 'Add FX channel',
+                  action: () =>
+                    useUiStore.getState().selectTrack(useProjectStore.getState().addTrack('fx')),
+                },
+                { label: 'Add VCA fader', action: () => useProjectStore.getState().addVca() },
+              ],
+            })
+          }
+          data-testid="mixer-add"
+        >
+          <Icon name="plus" size={14} />
+        </button>
+      </div>
     </div>
   );
 }
