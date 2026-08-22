@@ -107,7 +107,15 @@ hardware keyboard, the on-screen keys or the computer keyboard, at the beat
 you played it. A chord still held when you stop is kept, not dropped, and the
 clip is rounded out to a whole bar. No microphone permission is involved.
 
-An armed **audio track records audio**, with input monitoring optional. Recording over an existing clip
+An armed **audio track records audio**, with input monitoring optional.
+
+**Count-in, pre-roll and punch** are on the transport's right-click menu. A
+count-in is a click before the take; a pre-roll rolls the song itself for a
+bar or two so you play in. **Punch** confines the take to a range — set it
+from the loop — and the transport drops out of record at the end. What you
+played during the run-up is kept in the take but sits outside the clip, so
+dragging the clip's left edge back reveals it; a note you were holding
+through the punch point is kept, trimmed to it. Recording over an existing clip
 stacks **takes**: open the take lanes (clip menu), swipe across a lane to
 comp that range from that take, click a lane to audition it, and promote,
 mute, reorder or delete takes. Comp joins get micro-fades automatically.

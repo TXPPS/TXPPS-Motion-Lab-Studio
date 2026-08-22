@@ -21,31 +21,31 @@ the benchmark is parity of the _workflow_, not of the mechanism.
 
 ## 2. Song page
 
-| Reference                 | MotionLab |                                                                                                                                                           |
-| ------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Transport                 | **Yes**   | Bars·beats·ticks and a millisecond clock, both typeable; bar-step transport with marker jumps; tap tempo; loop; punch; count-in; performance meter        |
-| Timeline ruler            | **Yes**   | Wall clock over bars and beats, walked through the signature map                                                                                          |
-| Arrangement Overview      | **Yes**   | Whole-song canvas with a draggable viewport window                                                                                                        |
-| Marker track              | **Yes**   | Drag, seek, rename, loop-to-next                                                                                                                          |
-| Arranger track            | **Yes**   | Named sections that resize, reorder and carry their contents                                                                                              |
-| Chord track               | **Yes**   | Placement, detection, and clips that follow it                                                                                                            |
-| Tempo track               | **Yes**   | Jump and linear-ramp tempo events, and signature changes                                                                                                  |
-| Video track               | **No**    | Out of scope; stated in the reference document                                                                                                            |
-| Track types               | **Yes**   | Audio, instrument, drum, bus, FX channel, folder, VCA                                                                                                     |
-| Tools                     | **Yes**   | Pointer, range, split, erase, mute, slip, paint, listen and zoom-drag — keys 1–9                                                                          |
-| Snap                      | **Yes**   | Off, grid, events, zero-crossing and adaptive, with a magnet strength                                                                                     |
-| Console                   | **Yes**   | Input trim/polarity/mono, named inserts, sends, pan, stereo meter with a printed dB scale, mute/solo/solo-safe/arm, routing, VCA assignment               |
-| Channel Overview          | **Yes**   | One channel laid out horizontally with its EQ curve and gain reduction                                                                                    |
-| Cue mixes                 | **Yes**   | Up to eight headphone mixes; untouched channels follow the main mix, solo is optional, and any cue bounces to its own file                                |
-| Sidechain routing         | **Yes**   | Any track keys the compressor, gate, expander or ducker on any other                                                                                      |
-| Metering                  | **Yes**   | Peak, RMS, stereo, peak hold, over-indicator, LUFS (M/S/I), LRA, true peak, correlation, spectrum, oscilloscope                                           |
-| Browser                   | **Yes**   | Instruments, Effects, Loops, Samples, Pool, Projects                                                                                                      |
-| Inspector                 | **Yes**   | Track, clip, inserts, sends, note FX, time and pitch                                                                                                      |
-| Music editor (piano roll) | **Yes**   |                                                                                                                                                           |
-| Drum editor               | **Yes**   | Lane grid from a GM or pad-derived drum map                                                                                                               |
-| Score editor              | **Yes**   | Real engraving — duration fitting, ties, beaming, key-aware spelling, voices — and editing on the staff: select, drag, note entry, durations, accidentals |
-| Audio editor              | **Yes**   | Waveform, plus Bend / Warp, Audio→Notes, Vocal Tune and stem separation                                                                                   |
-| Automation editor         | **Yes**   | Lanes with five curve shapes, marquee point editing, read/touch/latch/write/trim                                                                          |
+| Reference                 | MotionLab |                                                                                                                                                                         |
+| ------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Transport                 | **Yes**   | Bars·beats·ticks and a millisecond clock, both typeable; bar-step transport with marker jumps; tap tempo; loop; punch in/out with pre-roll; count-in; performance meter |
+| Timeline ruler            | **Yes**   | Wall clock over bars and beats, walked through the signature map                                                                                                        |
+| Arrangement Overview      | **Yes**   | Whole-song canvas with a draggable viewport window                                                                                                                      |
+| Marker track              | **Yes**   | Drag, seek, rename, loop-to-next                                                                                                                                        |
+| Arranger track            | **Yes**   | Named sections that resize, reorder and carry their contents                                                                                                            |
+| Chord track               | **Yes**   | Placement, detection, and clips that follow it                                                                                                                          |
+| Tempo track               | **Yes**   | Jump and linear-ramp tempo events, and signature changes                                                                                                                |
+| Video track               | **No**    | Out of scope; stated in the reference document                                                                                                                          |
+| Track types               | **Yes**   | Audio, instrument, drum, bus, FX channel, folder, VCA                                                                                                                   |
+| Tools                     | **Yes**   | Pointer, range, split, erase, mute, slip, paint, listen and zoom-drag — keys 1–9                                                                                        |
+| Snap                      | **Yes**   | Off, grid, events, zero-crossing and adaptive, with a magnet strength                                                                                                   |
+| Console                   | **Yes**   | Input trim/polarity/mono, named inserts, sends, pan, stereo meter with a printed dB scale, mute/solo/solo-safe/arm, routing, VCA assignment                             |
+| Channel Overview          | **Yes**   | One channel laid out horizontally with its EQ curve and gain reduction                                                                                                  |
+| Cue mixes                 | **Yes**   | Up to eight headphone mixes; untouched channels follow the main mix, solo is optional, and any cue bounces to its own file                                              |
+| Sidechain routing         | **Yes**   | Any track keys the compressor, gate, expander or ducker on any other                                                                                                    |
+| Metering                  | **Yes**   | Peak, RMS, stereo, peak hold, over-indicator, LUFS (M/S/I), LRA, true peak, correlation, spectrum, oscilloscope                                                         |
+| Browser                   | **Yes**   | Instruments, Effects, Loops, Samples, Pool, Projects                                                                                                                    |
+| Inspector                 | **Yes**   | Track, clip, inserts, sends, note FX, time and pitch                                                                                                                    |
+| Music editor (piano roll) | **Yes**   |                                                                                                                                                                         |
+| Drum editor               | **Yes**   | Lane grid from a GM or pad-derived drum map                                                                                                                             |
+| Score editor              | **Yes**   | Real engraving — duration fitting, ties, beaming, key-aware spelling, voices — and editing on the staff: select, drag, note entry, durations, accidentals               |
+| Audio editor              | **Yes**   | Waveform, plus Bend / Warp, Audio→Notes, Vocal Tune and stem separation                                                                                                 |
+| Automation editor         | **Yes**   | Lanes with five curve shapes, marquee point editing, read/touch/latch/write/trim                                                                                        |
 
 ## 3. Editing and production
 
