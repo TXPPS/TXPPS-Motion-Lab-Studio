@@ -13,6 +13,7 @@ import { isProceduralMediaId, type MediaRef, type PeakData } from '../model/medi
 import { diagLog } from '../state/diagnostics';
 import {
   getMediaBuffer as getProceduralBuffer,
+  getMediaDurationSec,
   getMediaPeaks as getProceduralPeaks,
 } from './demoAudio';
 import { peaksFromAudioBuffer } from './peaks';
@@ -32,6 +33,22 @@ export function cacheBuffer(id: string, buffer: AudioBuffer, peakData?: PeakData
 }
 
 /** Synchronous lookup used by the audio scheduler. Never decodes. */
+/**
+ * Source length in seconds for any media id, procedural or recorded.
+ *
+ * The procedural demo table only knows about generated loops and drum hits;
+ * asking it about a recorded take returns 0, which is why mid-clip playback
+ * entry used to fall silent on every real recording. A decoded buffer is the
+ * truth when one is cached, the project's own MediaRef is the truth when it is
+ * not, and the procedural table is the last resort.
+ */
+export function mediaDurationSec(id: string, refDuration?: number): number {
+  const buf = buffers.get(id);
+  if (buf) return buf.duration;
+  if (typeof refDuration === 'number' && refDuration > 0) return refDuration;
+  return getMediaDurationSec(id);
+}
+
 export function getBufferSync(id: string): AudioBuffer | null {
   if (isProceduralMediaId(id)) return getProceduralBuffer(id);
   return buffers.get(id) ?? null;

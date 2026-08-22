@@ -12,7 +12,8 @@ import {
   type TempoMap,
 } from '../model/tempo';
 import type { AudioClip, ProjectData } from '../model/types';
-import { getMediaDurationSec } from './demoAudio';
+import { mediaDurationSec } from './mediaLibrary';
+import { startSteadyTimer, type SteadyTimer } from './workerTimer';
 
 export const LOOKAHEAD_SEC = 0.15;
 export const TICK_MS = 25;
@@ -129,6 +130,12 @@ export interface SchedulerDeps {
   ) => void;
   scheduleMetronome: (when: number, accent: boolean) => void;
   onLoopWrap?: () => void;
+  /**
+   * Called at the end of every tick. Control-rate work that must survive a
+   * backgrounded tab (automation) rides this rather than the animation frame,
+   * which stops being called at all when the tab is hidden.
+   */
+  onTick?: () => void;
 }
 
 /**
@@ -147,7 +154,7 @@ interface Anchor {
 }
 
 export class Scheduler {
-  private timer: ReturnType<typeof setInterval> | null = null;
+  private timer: SteadyTimer | null = null;
   private nextBeat = 0;
   private nextCtxTime = 0;
   private anchors: Anchor[] = [];
@@ -156,6 +163,11 @@ export class Scheduler {
 
   get running(): boolean {
     return this.timer !== null;
+  }
+
+  /** True when the transport tick survives a backgrounded tab. */
+  get backgroundSafe(): boolean {
+    return this.timer?.backgroundSafe ?? false;
   }
 
   private map(): TempoMap {
@@ -169,13 +181,13 @@ export class Scheduler {
     this.nextCtxTime = t;
     this.anchors = [{ ctx: t, sec: beatToSec(this.map(), fromBeat) }];
     this.scheduleSounding(fromBeat, t);
-    this.timer = setInterval(() => this.tick(), TICK_MS);
+    this.timer = startSteadyTimer(TICK_MS, () => this.tick());
     this.tick();
   }
 
   stop(): void {
     if (this.timer !== null) {
-      clearInterval(this.timer);
+      this.timer.stop();
       this.timer = null;
     }
   }
@@ -224,7 +236,15 @@ export class Scheduler {
         // How far into the source we are is real elapsed time since the clip
         // started, which under a tempo map is an integral, not a product.
         const offsetSec = ev.clip.offset + beatRangeSec(map, beat - ev.intoBeats, beat);
-        if (offsetSec < getMediaDurationSec(ev.clip.mediaId)) {
+        // The clip's own recorded length is the authority when it has one: the
+        // procedural media table knows nothing about a recorded take, and
+        // asking it used to return 0 — which silently skipped every mid-clip
+        // entry (play from the middle, or a loop wrap) on real audio.
+        const sourceSec = mediaDurationSec(
+          ev.clip.mediaId,
+          ev.clip.sourceDuration ?? p.media?.find((m) => m.id === ev.clip.mediaId)?.duration,
+        );
+        if (sourceSec <= 0 || offsetSec < sourceSec) {
           this.deps.scheduleClip(ev.clip, ctxTime, offsetSec);
         }
       } else if (ev.kind === 'note') {
@@ -281,5 +301,6 @@ export class Scheduler {
         this.nextCtxTime = windowEndCtx;
       }
     }
+    this.deps.onTick?.();
   }
 }

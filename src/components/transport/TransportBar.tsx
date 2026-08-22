@@ -1,8 +1,12 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { engine } from '../../audio/engine';
-import { beatsToSeconds, formatPosition, formatTime } from '../../model/music';
+import { projectBeatToSec, tempoMapOf } from '../../model/music';
+import { barToBeat, beatToBar, formatBBT, formatClock, parseBBT } from '../../model/tempo';
+import { nextMarker, prevMarker } from '../../model/arrangement';
 import { useProjectStore } from '../../state/projectStore';
 import { useTransportStore } from '../../state/transportStore';
 import { useUiStore } from '../../state/uiStore';
+import { usePrefsStore } from '../../state/prefsStore';
 import { Icon } from '../common/Icon';
 import { Meter } from '../common/widgets';
 import { RecordButton } from '../recording/RecordControls';
@@ -47,6 +51,150 @@ export function AudioStatusChip({ compact }: { compact?: boolean }) {
 }
 
 /**
+ * The main position readout.
+ *
+ * Written straight into the DOM from the engine's animation frame rather than
+ * through React state: at 60 fps a re-rendering transport would re-render the
+ * whole bar (and everything selecting from the same store) sixty times a
+ * second for two changing strings.
+ */
+function PositionDisplay({ compact }: { compact?: boolean }) {
+  const bbtRef = useRef<HTMLSpanElement>(null);
+  const clockRef = useRef<HTMLSpanElement>(null);
+  const [editing, setEditing] = useState(false);
+  const primary = usePrefsStore((s) => s.primaryTimeDisplay);
+
+  useEffect(() => {
+    if (editing) return;
+    const write = () => {
+      const project = useProjectStore.getState().project;
+      const beat = engine.getPositionBeats();
+      const map = tempoMapOf(project);
+      if (bbtRef.current) bbtRef.current.textContent = formatBBT(map, beat);
+      if (clockRef.current)
+        clockRef.current.textContent = formatClock(projectBeatToSec(project, beat));
+    };
+    write();
+    return engine.onFrame(write);
+  }, [editing]);
+
+  const jump = (text: string) => {
+    const project = useProjectStore.getState().project;
+    const beat = parseBBT(tempoMapOf(project), text);
+    if (beat !== null) engine.seek(Math.max(0, beat));
+  };
+
+  return (
+    <>
+      <button
+        className={`t-cell pos${primary === 'bbt' ? ' primary' : ''}`}
+        onClick={() => setEditing(true)}
+        title="Position in bars · beats · ticks — click to type a position"
+        data-testid="pos-cell"
+      >
+        {editing ? (
+          <input
+            className="t-pos-input"
+            autoFocus
+            defaultValue={formatBBT(
+              tempoMapOf(useProjectStore.getState().project),
+              engine.getPositionBeats(),
+            )}
+            onBlur={(e) => {
+              jump(e.target.value);
+              setEditing(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+              if (e.key === 'Escape') setEditing(false);
+            }}
+            aria-label="Position in bars, beats and ticks"
+          />
+        ) : (
+          <span className="v" ref={bbtRef} data-testid="pos-display">
+            1.1.000
+          </span>
+        )}
+        <span className="l">Bars · Beats</span>
+      </button>
+      {!compact && (
+        <div
+          className={`t-cell time${primary === 'clock' ? ' primary' : ''}`}
+          title="Elapsed song time"
+        >
+          <span className="v" ref={clockRef} data-testid="clock-display">
+            0:00.000
+          </span>
+          <span className="l">Time</span>
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Performance meter: how much of each animation frame the app is using.
+ *
+ * Web Audio renders on its own thread, so this is not "DSP load" — it is the
+ * honest thing a browser can measure, which is whether the UI is keeping up.
+ * Audio dropouts show up here as long frames long before they are audible.
+ */
+function PerformanceMeter() {
+  const barRef = useRef<HTMLSpanElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const sources = useTransportStore((s) => s.activeSources);
+
+  useEffect(() => {
+    let smoothed = 0;
+    let frames = 0;
+    return engine.onFrame((dt) => {
+      // 16.7 ms is one frame's budget; anything past it is a dropped frame.
+      const load = Math.min(1.5, dt / 0.0167);
+      smoothed += (load - smoothed) * 0.08;
+      if (++frames % 10) return;
+      const pct = Math.round(smoothed * 100);
+      if (barRef.current) {
+        barRef.current.style.width = `${Math.min(100, pct)}%`;
+        barRef.current.dataset.level = pct > 95 ? 'hot' : pct > 70 ? 'warm' : 'ok';
+      }
+      if (textRef.current) textRef.current.textContent = `${pct}%`;
+    });
+  }, []);
+
+  return (
+    <div className="t-perf" title={`UI frame load · ${sources} active audio sources`}>
+      <div className="t-perf-bar">
+        <span ref={barRef} data-level="ok" />
+      </div>
+      <span className="t-perf-text" ref={textRef}>
+        0%
+      </span>
+      <span className="t-perf-src" data-testid="perf-sources">
+        {sources}
+      </span>
+    </div>
+  );
+}
+
+/** Tap tempo: four taps set the tempo, and it keeps averaging while you tap. */
+function useTapTempo(): () => void {
+  const taps = useRef<number[]>([]);
+  return useCallback(() => {
+    const now = performance.now();
+    const list = taps.current;
+    // A gap longer than two seconds starts a new count rather than averaging
+    // in a tap from a minute ago.
+    if (list.length && now - list[list.length - 1] > 2000) list.length = 0;
+    list.push(now);
+    if (list.length > 8) list.shift();
+    if (list.length < 2) return;
+    const spans = list.slice(1).map((t, i) => t - list[i]);
+    const mean = spans.reduce((a, b) => a + b, 0) / spans.length;
+    if (mean > 100) useProjectStore.getState().setBpm(Math.round((60000 / mean) * 10) / 10);
+  }, []);
+}
+
+/**
  * Transport. The compact variant used on phones carries a deliberately reduced
  * control set (transport buttons, position, tempo, audio state); metronome,
  * time signature and master volume move into the Mix workspace and the overflow
@@ -54,19 +202,34 @@ export function AudioStatusChip({ compact }: { compact?: boolean }) {
  */
 export function TransportBar({ compact }: { compact?: boolean }) {
   const playState = useTransportStore((s) => s.playState);
-  const positionBeats = useTransportStore((s) => s.positionBeats);
-  const bpm = useProjectStore((s) => s.project.bpm);
-  const timeSig = useProjectStore((s) => s.project.timeSig);
-  const loop = useProjectStore((s) => s.project.loop);
-  const metronome = useProjectStore((s) => s.project.metronome);
-  const masterVolume = useProjectStore((s) => s.project.masterVolume);
+  const project = useProjectStore((s) => s.project);
+  const { bpm, timeSig, loop, metronome } = project;
   const setBpm = useProjectStore((s) => s.setBpm);
   const setTimeSig = useProjectStore((s) => s.setTimeSig);
   const setLoop = useProjectStore((s) => s.setLoop);
   const setMetronome = useProjectStore((s) => s.setMetronome);
   const setMasterVolume = useProjectStore((s) => s.setMasterVolume);
+  const tap = useTapTempo();
 
   const playing = playState === 'playing';
+  const masterVolume = project.master?.volume ?? project.masterVolume;
+  const countIn = project.countIn ?? 1;
+  const punch = project.punch?.enabled === true;
+
+  /** Move the playhead by whole bars, honouring the signature map. */
+  const nudgeBars = (delta: number) => {
+    const map = tempoMapOf(project);
+    const bar = Math.floor(beatToBar(map, engine.getPositionBeats()) + 1e-6);
+    engine.seek(Math.max(0, barToBeat(map, Math.max(0, bar + delta))));
+  };
+
+  const gotoMarker = (dir: 1 | -1) => {
+    const markers = project.markers ?? [];
+    const at = engine.getPositionBeats();
+    const target = dir === 1 ? nextMarker(markers, at) : prevMarker(markers, at);
+    if (target) engine.seek(target.beat);
+    else if (dir === -1) engine.returnToStart();
+  };
 
   const moreMenu = (x: number, y: number) =>
     useUiStore.getState().showMenu({
@@ -81,6 +244,24 @@ export function TransportBar({ compact }: { compact?: boolean }) {
           label: `${loop.enabled ? 'Disable' : 'Enable'} loop`,
           action: () => setLoop({ enabled: !loop.enabled }),
         },
+        {
+          label: `${punch ? 'Disable' : 'Enable'} punch in/out`,
+          action: () =>
+            useProjectStore.getState().update((d) => {
+              d.punch = {
+                enabled: !punch,
+                start: d.punch?.start ?? d.loop.start,
+                end: d.punch?.end ?? d.loop.end,
+              };
+            }),
+        },
+        {
+          label: `Count-in: ${countIn === 0 ? 'off' : `${countIn} bar${countIn === 1 ? '' : 's'}`}`,
+          action: () =>
+            useProjectStore.getState().update((d) => {
+              d.countIn = ((d.countIn ?? 1) + 1) % 5;
+            }),
+        },
         { label: 'Return to start', action: () => engine.returnToStart() },
         { label: 'Panic — stop all audio', danger: true, action: () => engine.panic() },
       ],
@@ -92,12 +273,42 @@ export function TransportBar({ compact }: { compact?: boolean }) {
         <button
           className="t-btn"
           onClick={() => engine.returnToStart()}
-          title="Return to start"
+          title="Return to start (Home)"
           aria-label="Return to start"
           data-testid="btn-rts"
         >
           <Icon name="skipback" size={16} />
         </button>
+        {!compact && (
+          <>
+            <button
+              className="t-btn"
+              onClick={() => nudgeBars(-1)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                gotoMarker(-1);
+              }}
+              title="Back one bar — right-click for the previous marker"
+              aria-label="Back one bar"
+              data-testid="btn-rewind"
+            >
+              <Icon name="rewind" size={15} />
+            </button>
+            <button
+              className="t-btn"
+              onClick={() => nudgeBars(1)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                gotoMarker(1);
+              }}
+              title="Forward one bar — right-click for the next marker"
+              aria-label="Forward one bar"
+              data-testid="btn-forward"
+            >
+              <Icon name="forward" size={15} />
+            </button>
+          </>
+        )}
         <button
           className={`t-btn${playing ? ' play-on' : ''}`}
           onClick={() => void engine.play()}
@@ -132,37 +343,53 @@ export function TransportBar({ compact }: { compact?: boolean }) {
         )}
         {!compact && (
           <button
+            className={`t-btn${punch ? ' warm-on' : ''}`}
+            onClick={() =>
+              useProjectStore.getState().update((d) => {
+                d.punch = {
+                  enabled: !punch,
+                  start: d.punch?.start ?? d.loop.start,
+                  end: d.punch?.end ?? d.loop.end,
+                };
+              })
+            }
+            title="Punch in/out over the loop range"
+            aria-label="Punch in and out"
+            aria-pressed={punch}
+            data-testid="btn-punch"
+          >
+            <Icon name="punch" size={15} />
+          </button>
+        )}
+        {!compact && (
+          <button
             className={`t-btn${metronome ? ' metro-on' : ''}`}
             onClick={() => setMetronome(!metronome)}
-            title="Metronome"
+            onContextMenu={(e) => {
+              e.preventDefault();
+              useProjectStore.getState().update((d) => {
+                d.countIn = ((d.countIn ?? 1) + 1) % 5;
+              });
+            }}
+            title={`Metronome — right-click to change the count-in (${countIn === 0 ? 'off' : `${countIn} bar`})`}
             aria-label="Metronome"
             aria-pressed={metronome}
             data-testid="btn-metronome"
           >
             <Icon name="metronome" size={15} />
+            {countIn > 0 && <span className="t-badge">{countIn}</span>}
           </button>
         )}
       </div>
 
       <div className="t-display">
-        <div className="t-cell pos">
-          <span className="v" data-testid="pos-display">
-            {formatPosition(positionBeats, timeSig)}
-          </span>
-          <span className="l">Bar.Beat</span>
-        </div>
-        {!compact && (
-          <div className="t-cell time">
-            <span className="v">{formatTime(beatsToSeconds(positionBeats, bpm))}</span>
-            <span className="l">Time</span>
-          </div>
-        )}
+        <PositionDisplay compact={compact} />
         <div className="t-cell tempo">
           <input
             type="number"
-            min={30}
-            max={300}
-            step={1}
+            min={20}
+            max={999}
+            step={0.1}
             value={bpm}
             onChange={(e) => setBpm(Number(e.target.value) || bpm)}
             aria-label="Tempo in beats per minute"
@@ -170,6 +397,11 @@ export function TransportBar({ compact }: { compact?: boolean }) {
           />
           <span className="l">BPM</span>
         </div>
+        {!compact && (
+          <button className="t-tap" onClick={tap} title="Tap tempo" data-testid="btn-tap">
+            TAP
+          </button>
+        )}
         {!compact && (
           <div className="t-cell sig">
             <select
@@ -180,20 +412,24 @@ export function TransportBar({ compact }: { compact?: boolean }) {
               }}
               aria-label="Time signature"
             >
-              {['2/4', '3/4', '4/4', '5/4', '6/8', '7/8', '12/8'].map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
+              {['2/4', '3/4', '4/4', '5/4', '6/4', '7/4', '5/8', '6/8', '7/8', '9/8', '12/8'].map(
+                (s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ),
+              )}
             </select>
             <span className="l">Sig</span>
           </div>
         )}
       </div>
 
+      {!compact && <PerformanceMeter />}
+
       {!compact && (
         <div className="t-master">
-          <Icon name="wave" size={14} />
+          <Icon name="output" size={14} />
           <input
             type="range"
             min={0}
@@ -211,6 +447,17 @@ export function TransportBar({ compact }: { compact?: boolean }) {
       <span className="spacer" />
       <AudioStatusChip compact={compact} />
       {compact && (
+        <button
+          className="icon-btn"
+          onClick={(e) => moreMenu(e.clientX, e.clientY)}
+          title="More transport options"
+          aria-label="More transport options"
+          data-testid="transport-more"
+        >
+          <Icon name="dots" size={16} />
+        </button>
+      )}
+      {!compact && (
         <button
           className="icon-btn"
           onClick={(e) => moreMenu(e.clientX, e.clientY)}

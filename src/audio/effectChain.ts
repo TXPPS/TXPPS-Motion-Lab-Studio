@@ -14,12 +14,7 @@
  * curves all live in `dsp/curves.ts`, which knows nothing about Web Audio and
  * is unit-tested on its own.
  */
-import {
-  ANALYSER_SIZES,
-  CRUSH_FACTORS,
-  choiceOf,
-  paramOf,
-} from '../model/effects';
+import { ANALYSER_SIZES, CRUSH_FACTORS, EQ8_BANDS, choiceOf, paramOf } from '../model/effects';
 import {
   BUTTERWORTH_Q,
   BUTTERWORTH_Q_DB,
@@ -286,7 +281,8 @@ class ControlVca {
 
     this.rect = makeShaper(ctx, rectifierCurve());
     this.detector = makeFilter(ctx, 'lowpass', 120, SMOOTHING_Q_DB);
-    this.shaper = makeShaper(ctx, identityCurve(2048));
+    // Fully open until the first update installs the real law.
+    this.shaper = makeShaper(ctx, new Float32Array([1, 1]));
     this.holdDelay = ctx.createDelay(MAX_HOLD_SEC);
     this.holdMix = new Combiner(ctx, mode);
     this.fast = makeFilter(ctx, 'lowpass', 200, SMOOTHING_Q_DB);
@@ -380,7 +376,10 @@ class QuadratureLfo {
   readonly sine: OscillatorNode;
   readonly cosine: OscillatorNode;
 
-  constructor(private ctx: BaseAudioContext, hz: number) {
+  constructor(
+    private ctx: BaseAudioContext,
+    hz: number,
+  ) {
     this.sine = ctx.createOscillator();
     this.cosine = ctx.createOscillator();
     const zero = new Float32Array([0, 0]);
@@ -429,7 +428,9 @@ class ShapedLfo {
     // Fourier series, sine phase: a pure tone, an odd 1/n² set and an odd 1/n set.
     const shapes: number[][] = [
       [0, 1],
-      harmonics(15, (n) => (n % 2 === 1 ? ((8 / (Math.PI * Math.PI)) * (n % 4 === 1 ? 1 : -1)) / (n * n) : 0)),
+      harmonics(15, (n) =>
+        n % 2 === 1 ? ((8 / (Math.PI * Math.PI)) * (n % 4 === 1 ? 1 : -1)) / (n * n) : 0,
+      ),
       harmonics(15, (n) => (n % 2 === 1 ? 4 / (Math.PI * n) : 0)),
     ];
 
@@ -766,22 +767,6 @@ function buildEq3(ctx: BaseAudioContext, effect: Effect): EffectNode {
   };
 }
 
-/** Band layout of the eight-band EQ, in signal order. */
-export const EQ8_BANDS: readonly {
-  prefix: string;
-  type: BiquadFilterType;
-  hasGain: boolean;
-}[] = [
-  { prefix: 'hp', type: 'highpass', hasGain: false },
-  { prefix: 'ls', type: 'lowshelf', hasGain: true },
-  { prefix: 'b1', type: 'peaking', hasGain: true },
-  { prefix: 'b2', type: 'peaking', hasGain: true },
-  { prefix: 'b3', type: 'peaking', hasGain: true },
-  { prefix: 'b4', type: 'peaking', hasGain: true },
-  { prefix: 'hs', type: 'highshelf', hasGain: true },
-  { prefix: 'lp', type: 'lowpass', hasGain: false },
-];
-
 function buildEq8(ctx: BaseAudioContext, effect: Effect): EffectNode {
   // A gain band switches off by ramping to 0 dB, which is exactly unity. A pass
   // filter has no such setting, so it crossfades around itself instead.
@@ -872,8 +857,12 @@ const FILTER_MODES: readonly BiquadFilterType[] = ['lowpass', 'bandpass', 'highp
  * three filters and a ramp cost a few nodes and never do.
  */
 function buildFilter(ctx: BaseAudioContext, effect: Effect): EffectNode {
+  const input = makeGain(ctx, 1);
   const drive = new DriveStage(ctx, 24);
   const output = makeGain(ctx, 1);
+  const dry = makeGain(ctx, 0);
+  input.connect(drive.input);
+  input.connect(dry).connect(output);
   const modes = FILTER_MODES.map((type, i) => {
     const filter = makeFilter(ctx, type, 1200, type === 'bandpass' ? 1.2 : qToDb(1.2));
     const gain = makeGain(ctx, i === 0 ? 1 : 0);
@@ -884,7 +873,7 @@ function buildFilter(ctx: BaseAudioContext, effect: Effect): EffectNode {
   return {
     id: effect.id,
     kind: effect.kind,
-    input: drive.input,
+    input,
     output,
     update: (e, _bpm, bypass) => {
       const chosen = bypass ? -1 : choiceOf(e, 'mode');
@@ -898,14 +887,13 @@ function buildFilter(ctx: BaseAudioContext, effect: Effect): EffectNode {
         setParam(m.filter.Q, m.type === 'bandpass' ? resonance : qToDb(resonance), ctx);
         setParam(m.gain.gain, i === chosen ? 1 : 0, ctx);
       }
-      // Bypassed: every mode is muted, so the dry sum below carries the signal.
-      setParam(output.gain, 1, ctx);
-      if (bypass) setParam(modes[0].gain.gain, 0, ctx);
+      // When bypassed every mode is muted, so the dry path carries the signal.
+      setParam(dry.gain, bypass ? 1 : 0, ctx);
     },
     dispose: () => {
       drive.dispose();
       for (const m of modes) kill([m.filter, m.gain]);
-      kill([output]);
+      kill([input, output, dry]);
     },
   };
 }
@@ -1214,15 +1202,17 @@ function buildPhaser(ctx: BaseAudioContext, effect: Effect): EffectNode {
   // A cycle needs a DelayNode or the browser mutes it; this is the shortest
   // one the platform allows, so the resonance is a comb rather than a pure peak.
   const loopDelay = ctx.createDelay(0.05);
+  loopDelay.delayTime.value = 0;
   const chainIn = makeGain(ctx, 1);
 
   const allpass: BiquadFilterNode[] = [];
   const taps: GainNode[] = [];
   let cursor: AudioNode = chainIn;
   const maxStages = PHASER_STAGES[PHASER_STAGES.length - 1];
+  lfo.sine.connect(depth);
   for (let i = 0; i < maxStages; i++) {
     const stage = makeFilter(ctx, 'allpass', 700, 0.6);
-    lfo.sine.connect(depth).connect(stage.detune);
+    depth.connect(stage.detune);
     cursor.connect(stage);
     cursor = stage;
     allpass.push(stage);
@@ -1248,7 +1238,6 @@ function buildPhaser(ctx: BaseAudioContext, effect: Effect): EffectNode {
       setParam(depth.gain, bypass ? 0 : paramOf(e, 'depth') * 1800, ctx);
       for (const stage of allpass) setParam(stage.frequency, paramOf(e, 'centre'), ctx);
       setParam(feedback.gain, bypass ? 0 : clamp(paramOf(e, 'feedback'), 0, 0.9), ctx);
-      setParam(loopDelay.delayTime, 0, ctx);
       const chosen = PHASER_STAGES.indexOf(
         clamp(Math.round(paramOf(e, 'stages') / 2) * 2, 4, 12) as (typeof PHASER_STAGES)[number],
       );
@@ -1293,7 +1282,6 @@ function buildTremolo(ctx: BaseAudioContext, effect: Effect): EffectNode {
   lfo.out90.connect(rightAt90).connect(rightSum);
   lfo.out0.connect(rightAt180).connect(rightSum);
   rightSum.connect(rightDepth).connect(right.gain);
-  rightAt180.gain.value = -1;
 
   return {
     id: effect.id,
@@ -1313,9 +1301,7 @@ function buildTremolo(ctx: BaseAudioContext, effect: Effect): EffectNode {
       setParam(right.gain, 1 - depth / 2, ctx);
       setParam(leftDepth.gain, depth / 2, ctx);
       setParam(rightDepth.gain, depth / 2, ctx);
-      const phase = STEREO_PHASES.indexOf(
-        closestPhase(paramOf(e, 'stereoPhase')) as (typeof STEREO_PHASES)[number],
-      );
+      const phase = closestPhaseIndex(paramOf(e, 'stereoPhase'));
       setParam(rightAt0.gain, phase === 0 ? 1 : 0, ctx);
       setParam(rightAt90.gain, phase === 1 ? 1 : 0, ctx);
       setParam(rightAt180.gain, phase === 2 ? -1 : 0, ctx);
@@ -1340,10 +1326,10 @@ function buildTremolo(ctx: BaseAudioContext, effect: Effect): EffectNode {
 }
 
 /** Snap a phase control to the offsets the modulator can hold exactly. */
-function closestPhase(degrees: number): number {
-  let best = STEREO_PHASES[0];
-  for (const p of STEREO_PHASES) {
-    if (Math.abs(p - degrees) < Math.abs(best - degrees)) best = p;
+function closestPhaseIndex(degrees: number): number {
+  let best = 0;
+  for (let i = 1; i < STEREO_PHASES.length; i++) {
+    if (Math.abs(STEREO_PHASES[i] - degrees) < Math.abs(STEREO_PHASES[best] - degrees)) best = i;
   }
   return best;
 }
@@ -1507,7 +1493,10 @@ function buildPingPong(ctx: BaseAudioContext, effect: Effect): EffectNode {
     output: wd.output,
     update: (e, bpm, bypass) => {
       const modifier = syncModifierByIndex(choiceOf(e, 'modifier'));
-      const time = Math.min(MAX_DELAY_SEC, syncSeconds(paramOf(e, 'timeSixteenths'), bpm, modifier));
+      const time = Math.min(
+        MAX_DELAY_SEC,
+        syncSeconds(paramOf(e, 'timeSixteenths'), bpm, modifier),
+      );
       setParam(leftDelay.delayTime, time, ctx);
       setParam(rightDelay.delayTime, time, ctx);
       setParam(lowCut.frequency, paramOf(e, 'lowCut'), ctx);
@@ -1710,7 +1699,8 @@ function buildGainMatch(ctx: BaseAudioContext, effect: Effect): EffectNode {
     input: gain,
     output: gain,
     tap,
-    update: (e, _bpm, bypass) => setParam(gain.gain, bypass ? 1 : dbToGain(paramOf(e, 'trim')), ctx),
+    update: (e, _bpm, bypass) =>
+      setParam(gain.gain, bypass ? 1 : dbToGain(paramOf(e, 'trim')), ctx),
     dispose: () => kill([gain, tap]),
   };
 }
@@ -1742,11 +1732,14 @@ function buildMeasurement(
 }
 
 /**
- * Vocal Tune as an insert is a pass-through and stays one. Pitch correction
- * needs to see a whole phrase before it can decide anything, so it runs as an
- * offline render in the audio editor; these parameters are the settings that
- * render reads. Faking a live version with a delay line and a detector would
- * sound worse than nothing and would not match the rendered result.
+ * Unity pass-through, used by Vocal Tune and by any kind this build does not
+ * recognise.
+ *
+ * Vocal Tune is a pass-through on purpose. Pitch correction has to see a whole
+ * phrase before it can decide anything, so it runs as an offline render in the
+ * audio editor and its parameters here are the settings that render reads.
+ * Faking a live version with a delay line and a detector would sound worse than
+ * nothing and would not agree with the rendered result.
  */
 function buildPassThrough(ctx: BaseAudioContext, effect: Effect): EffectNode {
   const pass = ctx.createGain();

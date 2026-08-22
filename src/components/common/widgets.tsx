@@ -239,6 +239,105 @@ function normDb(v: number): number {
 }
 
 /**
+ * Where a dB value sits on the meter, 0 at the floor and 1 at 0 dBFS.
+ *
+ * The scale is deliberately not linear-in-dB: the top 12 dB is where mixing
+ * decisions are made, so it gets a third of the height, exactly as a hardware
+ * meter's screen-printed scale does.
+ */
+export function meterScalePosition(db: number): number {
+  if (db <= -DB_FLOOR) return 0;
+  if (db >= 0) return 1;
+  const x = (db + DB_FLOOR) / DB_FLOOR;
+  return clamp(Math.pow(x, 1.9), 0, 1);
+}
+
+/** Tick marks a mixing engineer expects to find on a channel meter. */
+export const METER_TICKS = [0, -3, -6, -12, -18, -24, -36, -48];
+
+/**
+ * Stereo channel meter with peak hold, an over indicator and a printed dB
+ * scale. It registers interest with the engine so unwatched channels are never
+ * scanned, and it writes straight to the DOM on the engine's single frame loop
+ * rather than through React state.
+ */
+export function StereoMeter({
+  meterId,
+  scale,
+  label,
+}: {
+  meterId: string;
+  /** draw the dB ruler beside the bars */
+  scale?: boolean;
+  label?: string;
+}) {
+  const lRef = useRef<HTMLDivElement>(null);
+  const rRef = useRef<HTMLDivElement>(null);
+  const lHold = useRef<HTMLDivElement>(null);
+  const rHold = useRef<HTMLDivElement>(null);
+  const overRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const unwatch = engine.watchMeter(meterId);
+    const stop = engine.onFrame(() => {
+      const m = engine.getMeter(meterId);
+      const set = (el: HTMLDivElement | null, v: number) => {
+        if (el) el.style.transform = `scaleY(${v})`;
+      };
+      const setHold = (el: HTMLDivElement | null, v: number) => {
+        if (el) el.style.bottom = `${v * 100}%`;
+      };
+      set(lRef.current, m ? meterScalePosition(linToDb(m.rmsL)) : 0);
+      set(rRef.current, m ? meterScalePosition(linToDb(m.rmsR)) : 0);
+      setHold(lHold.current, m ? meterScalePosition(linToDb(m.holdL)) : 0);
+      setHold(rHold.current, m ? meterScalePosition(linToDb(m.holdR)) : 0);
+      if (overRef.current) overRef.current.dataset.over = m?.clipped ? 'yes' : 'no';
+    });
+    return () => {
+      stop();
+      unwatch();
+    };
+  }, [meterId]);
+
+  return (
+    <div className="smeter" role="meter" aria-label={label ?? 'Level meter'}>
+      <button
+        ref={overRef}
+        className="smeter-over"
+        data-over="no"
+        title="Over — click to reset"
+        aria-label="Reset over indicator"
+        onClick={() => engine.resetClipIndicators()}
+      />
+      <div className="smeter-bars">
+        <div className="smeter-ch">
+          <div className="smeter-fill" ref={lRef} />
+          <div className="smeter-hold" ref={lHold} />
+        </div>
+        <div className="smeter-ch">
+          <div className="smeter-fill" ref={rRef} />
+          <div className="smeter-hold" ref={rHold} />
+        </div>
+        {scale && (
+          <div className="smeter-scale" aria-hidden>
+            {METER_TICKS.map((db) => (
+              <span
+                key={db}
+                /* Clamped so the 0 dB and floor labels sit fully inside the
+                   scale rather than half-clipped at its ends. */
+                style={{ bottom: `${clamp(meterScalePosition(db), 0.02, 0.965) * 100}%` }}
+              >
+                {db}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Real signal meter. Fills its container and drives fill/hold with percentage
  * transforms, so it needs no pixel height and cannot overflow. Reads the engine
  * analyser on the engine's single rAF loop and writes straight to the DOM.
@@ -249,7 +348,8 @@ export function Meter({ meterId, wide }: { meterId: string; wide?: boolean }) {
   const ledRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    return engine.onFrame(() => {
+    const unwatch = engine.watchMeter(meterId);
+    const stop = engine.onFrame(() => {
       const m = engine.getMeter(meterId);
       const fill = fillRef.current;
       const hold = holdRef.current;
@@ -267,6 +367,10 @@ export function Meter({ meterId, wide }: { meterId: string; wide?: boolean }) {
         led.className = `meter-clip-led${on ? ' on' : ''}`;
       }
     });
+    return () => {
+      stop();
+      unwatch();
+    };
   }, [meterId]);
 
   const reset = useCallback(() => engine.resetClipIndicators(), []);
@@ -289,7 +393,8 @@ export function PeakReadout({ meterId }: { meterId: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     let last = '';
-    return engine.onFrame(() => {
+    const unwatch = engine.watchMeter(meterId);
+    const stop = engine.onFrame(() => {
       const m = engine.getMeter(meterId);
       const txt = m && m.hold > 0.00001 ? formatDb(m.hold) : '-inf';
       if (txt !== last && ref.current) {
@@ -297,6 +402,10 @@ export function PeakReadout({ meterId }: { meterId: string }) {
         last = txt;
       }
     });
+    return () => {
+      stop();
+      unwatch();
+    };
   }, [meterId]);
   return <span ref={ref}>-inf</span>;
 }

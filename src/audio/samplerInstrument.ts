@@ -46,7 +46,8 @@ interface SamplerVoice {
   key: number;
   startedAt: number;
   oneShot: boolean;
-  stop: (hard: boolean) => void;
+  /** `at` is when the cut happens; defaults to now (see the implementation). */
+  stop: (hard: boolean, at?: number) => void;
   /** begin the release stage (note-off) */
   release: (when: number) => void;
   handle: ActiveHandle;
@@ -80,7 +81,7 @@ export class SamplerInstrument implements Instrument {
     if (this.voices.size >= MAX_SAMPLER_VOICES) {
       let oldest: SamplerVoice | null = null;
       for (const v of this.voices) if (!oldest || v.startedAt < oldest.startedAt) oldest = v;
-      oldest?.stop(true);
+      oldest?.stop(true, when);
     }
     const p = this.getParams();
     const raw = getBufferSync(zone.mediaId);
@@ -204,8 +205,14 @@ export class SamplerInstrument implements Instrument {
       startedAt: when,
       oneShot: zone.oneShot,
       release,
-      stop: (hard) => {
-        const t = this.ctx.currentTime;
+      /**
+       * `at` is when the cut happens — voice stealing and choke groups pass the
+       * start time of the voice doing the cutting. `ctx.currentTime` alone is
+       * right live and wrong offline, where it stays 0 for the whole render and
+       * would silence voices that had not started yet.
+       */
+      stop: (hard, at) => {
+        const t = Math.max(at ?? this.ctx.currentTime, when);
         gainNode.gain.cancelScheduledValues(t);
         gainNode.gain.setTargetAtTime(0.0001, t, hard ? 0.004 : 0.02);
         try {

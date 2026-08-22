@@ -45,10 +45,38 @@ interface AutoEntry {
 }
 
 export interface MeterData {
+  /** loudest of the two channels — what a single-bar meter shows */
   peak: number;
   rms: number;
   hold: number;
   clipped: boolean;
+  /** per-channel readings; equal to `peak`/`rms` on a mono source */
+  peakL: number;
+  peakR: number;
+  rmsL: number;
+  rmsR: number;
+  holdL: number;
+  holdR: number;
+}
+
+const ZERO_METER: MeterData = {
+  peak: 0,
+  rms: 0,
+  hold: 0,
+  clipped: false,
+  peakL: 0,
+  peakR: 0,
+  rmsL: 0,
+  rmsR: 0,
+  holdL: 0,
+  holdR: 0,
+};
+
+/** Lazily-built stereo metering tap. Only channels with a visible meter get one. */
+interface MeterTap {
+  splitter: ChannelSplitterNode;
+  left: AnalyserNode;
+  right: AnalyserNode;
 }
 
 interface Channel {
@@ -62,6 +90,7 @@ interface Channel {
   volGain: GainNode;
   panner: StereoPannerNode;
   analyser: AnalyserNode;
+  tap: MeterTap | null;
   routedTo: string;
   /** per-target send gains, keyed by bus id */
   sends: Map<string, GainNode>;
@@ -106,6 +135,9 @@ class AudioEngine {
   private scheduler: Scheduler;
 
   private meterData = new Map<string, MeterData>();
+  /** channel id → how many visible meters are reading it */
+  private meterWatchers = new Map<string, number>();
+  private masterTap: MeterTap | null = null;
   private scratch = new Float32Array(2048);
   private rafId: number | null = null;
   private frameCbs = new Set<(dt: number) => void>();
@@ -144,6 +176,9 @@ class AudioEngine {
         this.instruments.get(trackId)?.scheduleNote(pitch, vel, when, durSec, clipId);
       },
       scheduleMetronome: (when, accent) => this.scheduleMetronomeClick(when, accent),
+      // Automation must keep moving in a hidden tab; the animation frame does
+      // not fire there, but the transport tick does.
+      onTick: () => this.applyAutomation(),
     });
   }
 
@@ -232,9 +267,22 @@ class AudioEngine {
     // The click is a cue, never part of the mix: it joins after the master
     // chain so it is never compressed, never metered as programme, and never
     // present in a bounce.
+    // The master is always metered, so its stereo tap is built up front.
+    const splitter = ctx.createChannelSplitter(2);
+    const left = ctx.createAnalyser();
+    const right = ctx.createAnalyser();
+    left.fftSize = 1024;
+    right.fftSize = 1024;
+    this.masterAnalyser.connect(splitter);
+    splitter.connect(left, 0);
+    splitter.connect(right, 1);
+    this.masterTap = { splitter, left, right };
+    // The click joins AFTER the analyser, straight at the destination: it is a
+    // cue, not programme material, so it must never be metered, never be
+    // compressed by the safety limiter, and never reach a bounce.
     this.metroGain = ctx.createGain();
     this.metroGain.gain.value = 0.5;
-    this.metroGain.connect(this.masterAnalyser);
+    this.metroGain.connect(ctx.destination);
   }
 
   private reflectContextState(): void {
@@ -344,6 +392,8 @@ class AudioEngine {
           }
         }
         ch.sends.clear();
+        this.disposeTap(id);
+        this.meterWatchers.delete(id);
         ch.inserts.dispose();
         try {
           ch.input.disconnect();
@@ -592,6 +642,7 @@ class AudioEngine {
       volGain,
       panner,
       analyser,
+      tap: null,
       routedTo: 'master',
       sends: new Map(),
     };
@@ -1225,31 +1276,117 @@ class AudioEngine {
     return () => this.frameCbs.delete(cb);
   }
 
+  /**
+   * Register interest in a channel's meter.
+   *
+   * Metering is not free: each read scans an analyser's whole time-domain
+   * buffer, so metering every channel of a 500-track session costs a million
+   * samples per frame for bars nobody is looking at. Only watched channels are
+   * read, and a channel's stereo tap is built on first watch and torn down when
+   * the last watcher leaves.
+   */
+  watchMeter(id: string): () => void {
+    this.meterWatchers.set(id, (this.meterWatchers.get(id) ?? 0) + 1);
+    this.ensureTap(id);
+    return () => {
+      const n = (this.meterWatchers.get(id) ?? 1) - 1;
+      if (n > 0) {
+        this.meterWatchers.set(id, n);
+        return;
+      }
+      this.meterWatchers.delete(id);
+      this.disposeTap(id);
+      this.meterData.delete(id);
+    };
+  }
+
+  private ensureTap(id: string): void {
+    const ctx = this.ctx;
+    const ch = this.channels.get(id);
+    if (!ctx || !ch || ch.tap) return;
+    const splitter = ctx.createChannelSplitter(2);
+    const left = ctx.createAnalyser();
+    const right = ctx.createAnalyser();
+    left.fftSize = 1024;
+    right.fftSize = 1024;
+    ch.analyser.connect(splitter);
+    splitter.connect(left, 0);
+    splitter.connect(right, 1);
+    ch.tap = { splitter, left, right };
+  }
+
+  private disposeTap(id: string): void {
+    const ch = this.channels.get(id);
+    if (!ch?.tap) return;
+    for (const n of [ch.tap.splitter, ch.tap.left, ch.tap.right]) {
+      try {
+        n.disconnect();
+      } catch {
+        /* already gone */
+      }
+    }
+    ch.tap = null;
+  }
+
+  private scanAnalyser(analyser: AnalyserNode): { peak: number; rms: number } {
+    const n = analyser.fftSize;
+    const buf = this.scratch.subarray(0, n);
+    analyser.getFloatTimeDomainData(buf);
+    let peak = 0;
+    let sum = 0;
+    for (let i = 0; i < n; i++) {
+      const v = buf[i];
+      const a = v < 0 ? -v : v;
+      if (a > peak) peak = a;
+      sum += v * v;
+    }
+    return { peak, rms: Math.sqrt(sum / n) };
+  }
+
   private updateMeters(dt: number): void {
     if (!this.ctx) return;
-    const read = (id: string, analyser: AnalyserNode) => {
-      const n = analyser.fftSize;
-      const buf = this.scratch.subarray(0, n);
-      analyser.getFloatTimeDomainData(buf);
-      let peak = 0;
-      let sum = 0;
-      for (let i = 0; i < n; i++) {
-        const v = Math.abs(buf[i]);
-        if (v > peak) peak = v;
-        sum += buf[i] * buf[i];
-      }
-      const rms = Math.sqrt(sum / n);
-      const prev = this.meterData.get(id) ?? { peak: 0, rms: 0, hold: 0, clipped: false };
-      const hold = peak >= prev.hold ? peak : Math.max(0, prev.hold - dt * 0.4);
+    const write = (
+      id: string,
+      l: { peak: number; rms: number },
+      r: { peak: number; rms: number },
+    ) => {
+      const prev = this.meterData.get(id) ?? ZERO_METER;
+      const decay = dt * 0.4;
+      const holdL = l.peak >= prev.holdL ? l.peak : Math.max(0, prev.holdL - decay);
+      const holdR = r.peak >= prev.holdR ? r.peak : Math.max(0, prev.holdR - decay);
+      const peak = Math.max(l.peak, r.peak);
       this.meterData.set(id, {
         peak,
-        rms: Math.max(rms, prev.rms * 0.82),
-        hold,
+        rms: Math.max(Math.max(l.rms, r.rms), prev.rms * 0.82),
+        hold: Math.max(holdL, holdR),
         clipped: prev.clipped || peak >= 0.999,
+        peakL: l.peak,
+        peakR: r.peak,
+        rmsL: Math.max(l.rms, prev.rmsL * 0.82),
+        rmsR: Math.max(r.rms, prev.rmsR * 0.82),
+        holdL,
+        holdR,
       });
     };
-    for (const [id, ch] of this.channels) read(id, ch.analyser);
-    if (this.masterAnalyser) read('master', this.masterAnalyser);
+
+    for (const id of this.meterWatchers.keys()) {
+      const ch = this.channels.get(id);
+      if (!ch) continue;
+      if (!ch.tap) this.ensureTap(id);
+      if (ch.tap) write(id, this.scanAnalyser(ch.tap.left), this.scanAnalyser(ch.tap.right));
+      else {
+        const mono = this.scanAnalyser(ch.analyser);
+        write(id, mono, mono);
+      }
+    }
+    // The master meter is always live: it is the one reading that must be true
+    // even when no mixer is on screen (the transport shows it).
+    if (this.masterTap) {
+      write('master', this.scanAnalyser(this.masterTap.left), this.scanAnalyser(this.masterTap.right));
+    } else if (this.masterAnalyser) {
+      const mono = this.scanAnalyser(this.masterAnalyser);
+      write('master', mono, mono);
+    }
   }
 
   getMeter(id: string): MeterData | undefined {

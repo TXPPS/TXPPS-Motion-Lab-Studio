@@ -1,16 +1,22 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  EFFECT_GROUPS,
   EFFECT_SPECS,
   MAX_INSERTS,
+  choiceName,
+  choiceOf,
   defaultParams,
   describeEffect,
   effectSpec,
+  effectsInGroup,
+  eq8Bands,
   formatParam,
   isKnownEffect,
   normaliseParams,
   paramOf,
 } from '../src/model/effects';
-import type { Effect } from '../src/model/types';
+import { EFFECT_GROUP_LABELS } from '../src/model/effects';
+import type { Effect, EffectKind } from '../src/model/types';
 import { useProjectStore } from '../src/state/projectStore';
 import { createDemoProject } from '../src/model/demoProject';
 
@@ -56,6 +62,130 @@ describe('effect specs', () => {
   });
 });
 
+describe('effect catalogue', () => {
+  it('covers every kind the project schema can hold', () => {
+    // The picker is generated from the specs, so a kind without one is a kind
+    // a musician can never reach.
+    const kinds: EffectKind[] = [
+      'trim',
+      'compressor',
+      'gate',
+      'limiter',
+      'multiband',
+      'deesser',
+      'eq3',
+      'eq8',
+      'filter',
+      'saturator',
+      'distortion',
+      'ampsim',
+      'bitcrusher',
+      'chorus',
+      'flanger',
+      'phaser',
+      'tremolo',
+      'rotary',
+      'delay',
+      'pingpong',
+      'reverb',
+      'width',
+      'autopan',
+      'gainMatch',
+      'analyser',
+      'tuner',
+      'vocaltune',
+    ];
+    for (const kind of kinds) expect(effectSpec(kind), kind).toBeTruthy();
+    expect(EFFECT_SPECS.length).toBe(kinds.length);
+    expect(new Set(EFFECT_SPECS.map((s) => s.kind)).size).toBe(EFFECT_SPECS.length);
+  });
+
+  it('gives every effect a label, a blurb and a picker group', () => {
+    for (const spec of EFFECT_SPECS) {
+      expect(spec.label.length, spec.kind).toBeGreaterThan(0);
+      expect(spec.blurb.length, spec.kind).toBeGreaterThan(10);
+      expect(EFFECT_GROUPS, spec.kind).toContain(spec.group);
+      expect(EFFECT_GROUP_LABELS[spec.group]).toBeTruthy();
+      expect(spec.params.length, spec.kind).toBeGreaterThan(0);
+    }
+  });
+
+  it('partitions the catalogue across the groups with nothing lost or doubled', () => {
+    const grouped = EFFECT_GROUPS.flatMap((g) => effectsInGroup(g));
+    expect(grouped.length).toBe(EFFECT_SPECS.length);
+    expect(new Set(grouped.map((s) => s.kind)).size).toBe(EFFECT_SPECS.length);
+  });
+
+  it('flags gain reduction only on processors that measure it', () => {
+    const reporting = EFFECT_SPECS.filter((s) => s.gainReduction).map((s) => s.kind);
+    expect(reporting.sort()).toEqual(
+      ['compressor', 'deesser', 'gate', 'limiter', 'multiband'].sort(),
+    );
+    for (const spec of EFFECT_SPECS) {
+      if (spec.gainReduction) expect(spec.group, spec.kind).toBe('dynamics');
+    }
+  });
+
+  it('gives every parameter a unit or a set of named choices', () => {
+    for (const spec of EFFECT_SPECS) {
+      for (const p of spec.params) {
+        expect(p.unit !== undefined || p.choices !== undefined, `${spec.kind}.${p.key}`).toBe(true);
+        expect(p.step, `${spec.kind}.${p.key} step`).toBeGreaterThan(0);
+        expect(p.step, `${spec.kind}.${p.key} step`).toBeLessThanOrEqual(p.max - p.min);
+      }
+      expect(new Set(spec.params.map((p) => p.key)).size, spec.kind).toBe(spec.params.length);
+    }
+  });
+
+  it('makes every choice parameter an exact index into its own list', () => {
+    for (const spec of EFFECT_SPECS) {
+      for (const p of spec.params) {
+        if (!p.choices) continue;
+        expect(p.min, `${spec.kind}.${p.key}`).toBe(0);
+        expect(p.max, `${spec.kind}.${p.key}`).toBe(p.choices.length - 1);
+        expect(p.step, `${spec.kind}.${p.key}`).toBe(1);
+        expect(p.choices.length, `${spec.kind}.${p.key}`).toBeGreaterThan(1);
+        expect(formatParam(p, p.default)).toBe(p.choices[p.default]);
+      }
+    }
+  });
+
+  it('reads and names a choice, clamping a value from outside the list', () => {
+    const fx: Effect = {
+      id: 'x',
+      kind: 'saturator',
+      bypass: false,
+      params: { ...defaultParams('saturator'), model: 2 },
+    };
+    expect(choiceOf(fx, 'model')).toBe(2);
+    expect(choiceName(fx, 'model')).toBe('Transistor');
+    expect(choiceOf({ ...fx, params: { model: 99 } }, 'model')).toBe(2);
+    expect(choiceOf({ ...fx, params: { model: -4 } }, 'model')).toBe(0);
+    // A parameter with no choice list is not a choice; nothing to name.
+    expect(choiceName(fx, 'drive')).toBe('');
+  });
+
+  it('exports the eight-band EQ as bands a response plot can draw', () => {
+    const fx: Effect = {
+      id: 'x',
+      kind: 'eq8',
+      bypass: false,
+      params: { ...defaultParams('eq8'), b1On: 1, b1Freq: 500, b1Gain: 5, b1Q: 2, hpOn: 0 },
+    };
+    const bands = eq8Bands(fx);
+    expect(bands.length).toBe(8);
+    const band1 = bands[2];
+    expect(band1.type).toBe('peaking');
+    expect(band1.freqHz).toBe(500);
+    expect(band1.gainDb).toBe(5);
+    expect(band1.q).toBe(2);
+    expect(band1.enabled).toBe(true);
+    expect(bands[0].enabled).toBe(false);
+    // Pass filters have no gain of their own, whatever a stale project stored.
+    expect(bands[0].gainDb).toBe(0);
+  });
+});
+
 describe('parameter normalisation', () => {
   it('clamps out-of-range values into the spec range', () => {
     const p = normaliseParams('compressor', { threshold: -900, ratio: 5000, attack: 3 });
@@ -98,7 +228,7 @@ describe('effect formatting', () => {
     }
   });
 
-  it('summarises every effect kind without throwing', () => {
+  it('summarises every effect kind with something readable', () => {
     for (const spec of EFFECT_SPECS) {
       const fx: Effect = {
         id: 'x',
@@ -106,8 +236,30 @@ describe('effect formatting', () => {
         bypass: false,
         params: defaultParams(spec.kind),
       };
-      expect(describeEffect(fx)).not.toMatch(/NaN|undefined/);
+      const summary = describeEffect(fx);
+      expect(summary, spec.kind).not.toMatch(/NaN|undefined|Infinity/);
+      expect(summary.length, spec.kind).toBeGreaterThan(0);
     }
+  });
+
+  it('moves the summary when the parameter it reports moves', () => {
+    const base: Effect = {
+      id: 'x',
+      kind: 'gate',
+      bypass: false,
+      params: defaultParams('gate'),
+    };
+    expect(describeEffect(base)).not.toBe(
+      describeEffect({ ...base, params: { ...base.params, threshold: -12 } }),
+    );
+    const synced: Effect = {
+      id: 'y',
+      kind: 'tremolo',
+      bypass: false,
+      params: { ...defaultParams('tremolo'), sync: 1, division: 2 },
+    };
+    expect(describeEffect(synced)).toContain('1/8');
+    expect(describeEffect({ ...synced, params: { ...synced.params, sync: 0 } })).toContain('Hz');
   });
 });
 

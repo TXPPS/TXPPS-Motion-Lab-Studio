@@ -56,13 +56,15 @@
   min-width: var(--strip-w);
   display: grid;
   grid-template-rows:
-    auto /* name          */
-    auto /* inserts/sends */
-    auto /* pan           */
+    auto /* name            */
+    auto /* input stage     */
+    auto /* insert slots    */
+    auto /* sends           */
+    auto /* pan             */
     minmax(var(--fader-min-h), 1fr) /* fader + meter */
-    auto /* mute/solo/arm */
-    auto /* dB + peak     */
-    auto; /* routing       */
+    auto /* mute/solo/arm   */
+    auto /* dB + peak       */
+    auto; /* routing + VCA   */
   row-gap: 4px;
   align-content: stretch;
   height: 100%;
@@ -102,35 +104,61 @@
 .strip-name {
   grid-row: 1;
 }
-.strip-fx {
+.strip-input {
   grid-row: 2;
 }
-.strip-pan {
+.strip-inserts,
+.strip-fx {
   grid-row: 3;
 }
-.strip-mid {
+.strip-sends {
   grid-row: 4;
 }
-.strip-btns {
+.strip-pan {
   grid-row: 5;
 }
-.strip-readout {
+.strip-mid {
   grid-row: 6;
 }
-.strip-route {
+.strip-btns {
   grid-row: 7;
+}
+.strip-readout {
+  grid-row: 8;
+}
+.strip-foot,
+.strip-route {
+  grid-row: 9;
+}
+/* A VCA has no input stage, inserts, sends, pan or meter: it borrows the
+   channel grid so the console's rows still line up across the desk. */
+.strip.vca .strip-mid {
+  grid-row: 6;
 }
 
 .strip-name {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
   font-size: var(--fs-xs);
-  font-weight: 700;
-  text-align: center;
+  font-weight: var(--fw-bold);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   padding-bottom: 3px;
   border-bottom: 2px solid var(--strip-color, var(--accent));
   min-width: 0;
+  color: var(--text);
+}
+.strip-name .strip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+/* A channel silenced by a group or by someone else's solo is dimmed, not
+   hidden: the engineer needs to see that it is there and why it is quiet. */
+.strip.silent .strip-name,
+.strip.silent .strip-mid {
+  opacity: 0.55;
 }
 
 /* Insert/send status row. Two equal chips that never wrap and never widen the
@@ -580,4 +608,275 @@
   .strip-route {
     grid-row: 6;
   }
+}
+
+/* ------------------------------------------------------ input stage row */
+.strip-input {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.in-trim {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 16px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-soft);
+  color: var(--text-faint);
+  font-family: var(--font-num);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+}
+.in-trim.set {
+  color: var(--warm);
+  border-color: var(--warm-line);
+}
+.in-flag {
+  flex: none;
+  width: 18px;
+  height: 16px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-soft);
+  color: var(--text-faint);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+}
+.strip.master .in-flag {
+  flex: 1 1 0;
+  width: auto;
+}
+.in-flag:hover,
+.in-trim:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.in-flag.on {
+  background: var(--warm-bg);
+  border-color: var(--warm-line);
+  color: var(--warm);
+}
+
+/* ---------------------------------------------------------- insert slots */
+.strip-inserts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ins-slot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+  min-width: 0;
+  text-align: left;
+}
+.ins-slot:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.ins-slot .ins-dot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.ins-slot .ins-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ins-slot.bypassed {
+  color: var(--text-faint);
+}
+.ins-slot.bypassed .ins-dot {
+  background: var(--text-faint);
+}
+.ins-slot.bypassed .ins-name {
+  text-decoration: line-through;
+}
+.ins-slot.empty,
+.ins-slot.more {
+  justify-content: center;
+  color: var(--text-faint);
+  border-style: dashed;
+}
+
+/* ----------------------------------------------------------------- sends */
+.strip-sends {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.snd-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: var(--radius-xs);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-line);
+  color: var(--accent);
+  font-size: var(--fs-2xs);
+  min-width: 0;
+}
+.snd-row .snd-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.snd-row .snd-val {
+  font-family: var(--font-num);
+  flex: none;
+}
+
+/* -------------------------------------------------------- stereo meter */
+.smeter {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  flex: none;
+  width: calc(var(--meter-w) * 2 + 16px);
+  min-height: 0;
+}
+.smeter-over {
+  height: 6px;
+  flex: none;
+  border-radius: 2px;
+  background: var(--meter-bg);
+  border: 1px solid var(--border-soft);
+}
+.smeter-over[data-over='yes'] {
+  background: var(--meter-over);
+  border-color: var(--meter-over);
+}
+.smeter-bars {
+  position: relative;
+  display: flex;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.smeter-ch {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 3px;
+  background: var(--meter-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.smeter-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: bottom;
+  transform: scaleY(0);
+  background: linear-gradient(
+    to top,
+    var(--meter-lo) 0%,
+    var(--meter-mid) 62%,
+    var(--meter-hot) 86%,
+    var(--meter-clip) 100%
+  );
+}
+.smeter-hold {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: var(--text);
+  opacity: 0.85;
+  bottom: 0;
+}
+/* The printed scale is part of the meter, not a tooltip: a mixing decision at
+   -18 dB should not require hovering to find out where -18 is. */
+.smeter-scale {
+  position: relative;
+  flex: none;
+  width: 14px;
+}
+.smeter-scale span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  white-space: nowrap;
+  font-family: var(--font-num);
+  font-size: 7.5px;
+  line-height: 1;
+  color: var(--text-faint);
+}
+
+/* --------------------------------------------------------- strip footer */
+.strip-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.strip-vca {
+  height: 16px;
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-2xs);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-xs);
+  color: var(--text-faint);
+}
+.strip.vca {
+  background: color-mix(in srgb, var(--strip-color) 8%, var(--bg-panel-2));
+}
+.strip.vca .vca-members {
+  display: block;
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.strip.fx {
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-panel-2));
+}
+
+/* A rule between console sections: channels · buses and returns · VCAs · master */
+.mixer-sep {
+  flex: none;
+  width: 1px;
+  align-self: stretch;
+  margin: var(--sp-3) var(--sp-2);
+  background: var(--border);
+}
+.mixer-add {
+  flex: none;
+  align-self: center;
+  width: 30px;
+  height: 30px;
+  margin: 0 var(--sp-4);
+  border-radius: var(--radius);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-faint);
+}
+.mixer-add:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--accent-bg);
+}
+.mixer.empty {
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-6);
 }

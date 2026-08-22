@@ -206,10 +206,12 @@ describe('transport-adjacent settings', () => {
   beforeEach(() => reset());
   it('clamps bpm and loop', () => {
     const s = useProjectStore.getState();
+    // The tempo range matches the tempo map's (20-999 BPM): a drum-and-bass
+    // half-time feel and a 20 BPM ambient pulse are both real tempi.
     s.setBpm(9999);
-    expect(useProjectStore.getState().project.bpm).toBeLessThanOrEqual(300);
+    expect(useProjectStore.getState().project.bpm).toBeLessThanOrEqual(999);
     s.setBpm(1);
-    expect(useProjectStore.getState().project.bpm).toBeGreaterThanOrEqual(30);
+    expect(useProjectStore.getState().project.bpm).toBeGreaterThanOrEqual(20);
     s.setLoop({ start: 4, end: 4 });
     const loop = useProjectStore.getState().project.loop;
     expect(loop.end).toBeGreaterThan(loop.start);

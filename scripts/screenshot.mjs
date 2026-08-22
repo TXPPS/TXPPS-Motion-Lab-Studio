@@ -27,7 +27,9 @@ page.on('console', (m) => {
 await page.addInitScript((t) => {
   try {
     localStorage.setItem('motionlab.prefs.v1', JSON.stringify({ theme: t, uiScale: 1 }));
-  } catch {}
+  } catch {
+    /* storage disabled in this context — the default theme is fine */
+  }
 }, theme);
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1400);

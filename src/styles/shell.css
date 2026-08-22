@@ -213,7 +213,98 @@
 .t-btn.metro-on {
   color: var(--accent);
   background: var(--accent-bg);
-  border-color: rgba(55, 184, 154, 0.4);
+  border-color: var(--accent-line);
+}
+.t-btn.warm-on {
+  color: var(--warm);
+  background: var(--warm-bg);
+  border-color: var(--warm-line);
+}
+.t-btn {
+  position: relative;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.t-btn:active {
+  background: var(--bg-active);
+}
+/* Count-in bars, shown on the metronome rather than costing its own control. */
+.t-badge {
+  position: absolute;
+  right: 1px;
+  bottom: 0;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  color: var(--warm);
+  pointer-events: none;
+}
+
+/* Tap tempo sits beside the BPM cell, not inside it: a tap is a gesture, not a
+   value, and it must not be reachable by tabbing through the number field. */
+.t-tap {
+  flex: none;
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-caps);
+}
+.t-tap:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.t-tap:active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+/* Performance: frame load and live source count. */
+.t-perf {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  padding: 0 var(--sp-2);
+}
+.t-perf-bar {
+  width: 46px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--meter-bg);
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+}
+.t-perf-bar span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--meter-mid);
+  transition: width var(--dur-fast) linear;
+}
+.t-perf-bar span[data-level='warm'] {
+  background: var(--meter-hot);
+}
+.t-perf-bar span[data-level='hot'] {
+  background: var(--meter-clip);
+}
+.t-perf-text,
+.t-perf-src {
+  font-family: var(--font-num);
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  min-width: 26px;
+}
+.t-perf-src::before {
+  content: '♪';
+  margin-right: 2px;
+  opacity: 0.6;
 }
 
 /* Readouts have stable widths so changing digits never reflow neighbours. */
@@ -256,16 +347,38 @@
   white-space: nowrap;
 }
 .t-cell.pos {
-  min-width: 80px;
+  min-width: 96px;
 }
 .t-cell.time {
-  min-width: 70px;
+  min-width: 92px;
 }
 .t-cell.tempo {
-  min-width: 64px;
+  min-width: 66px;
 }
 .t-cell.sig {
-  min-width: 54px;
+  min-width: 58px;
+}
+/* The reading the user chose as primary is the brighter of the two. */
+.t-cell.primary .v {
+  color: var(--accent-hi);
+}
+.t-cell.pos {
+  cursor: text;
+}
+.t-cell.pos:hover .v {
+  color: var(--accent-hi);
+}
+.t-pos-input {
+  width: 100%;
+  text-align: center;
+  background: var(--bg-input);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-xs);
+  font-family: var(--font-num);
+  font-size: 15px;
+  font-weight: var(--fw-semibold);
+  padding: 0;
+  height: 18px;
 }
 .t-cell input,
 .t-cell select {

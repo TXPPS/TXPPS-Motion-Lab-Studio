@@ -113,8 +113,8 @@
   --control-h-sm: calc(22px * var(--ui-scale));
 
   /* Mixer strip geometry — strips are fixed-width and never shrink. */
-  --strip-w: calc(88px * var(--ui-scale));
-  --strip-w-touch: calc(104px * var(--ui-scale));
+  --strip-w: calc(96px * var(--ui-scale));
+  --strip-w-touch: calc(112px * var(--ui-scale));
   --fader-min-h: calc(44px * var(--ui-scale));
   --meter-w: calc(12px * var(--ui-scale));
 

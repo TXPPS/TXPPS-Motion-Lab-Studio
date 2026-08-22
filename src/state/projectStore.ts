@@ -1617,7 +1617,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     setBpm: (bpm) =>
       update(
         (d) => {
-          d.bpm = clamp(Math.round(bpm * 10) / 10, 30, 300);
+          d.bpm = clamp(Math.round(bpm * 10) / 10, 20, 999);
+          // The song's starting tempo lives in the map once one exists; letting
+          // the scalar drift from it would make the ruler and playback disagree.
+          if (d.tempoMap?.tempos.length) d.tempoMap.tempos[0].bpm = d.bpm;
         },
         { undoable: false },
       ),
@@ -1625,9 +1628,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     setTimeSig: (num, den) =>
       update((d) => {
         d.timeSig = {
-          num: clamp(Math.round(num), 1, 16),
-          den: [1, 2, 4, 8, 16].includes(den) ? den : 4,
+          num: clamp(Math.round(num), 1, 32),
+          den: [1, 2, 4, 8, 16, 32].includes(den) ? den : 4,
         };
+        if (d.tempoMap?.sigs.length) {
+          d.tempoMap.sigs[0].num = d.timeSig.num;
+          d.tempoMap.sigs[0].den = d.timeSig.den;
+        }
       }),
 
     setLoop: (patch) =>
@@ -2072,6 +2079,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update(
         (d) => {
           d.masterVolume = clamp(v, 0, 1.5);
+          // The engine reads `master.volume` first and validation always
+          // materialises that object, so writing only the legacy scalar left
+          // the master fader inert on every saved project.
+          ensureMaster(d).volume = d.masterVolume;
         },
         { undoable: false },
       ),

@@ -109,10 +109,20 @@ class Voice {
     } catch {}
   }
 
-  stopNow(hard?: boolean): void {
+  /**
+   * Cut this voice short.
+   *
+   * `at` is when the cut should happen — voice stealing passes the moment the
+   * stealing voice starts. Defaulting to `ctx.currentTime` is right live and
+   * catastrophic offline, where currentTime stays 0 while the whole song is
+   * being scheduled: a steal would silence a voice that had not started yet,
+   * and the bounce would be missing notes the live playback had.
+   */
+  stopNow(hard?: boolean, at?: number): void {
     if (this.ended) return;
     this.released = true;
-    const t = this.ctx.currentTime;
+    // Never schedule a stop before this voice's own start.
+    const t = Math.max(at ?? this.ctx.currentTime, this.startedAt);
     const tau = hard ? 0.005 : 0.02;
     this.amp.gain.cancelScheduledValues(t);
     this.amp.gain.setTargetAtTime(0, t, tau);
@@ -142,7 +152,7 @@ export class PolySynth implements Instrument {
       // steal the oldest voice
       let oldest: Voice | null = null;
       for (const v of this.voices) if (!oldest || v.startedAt < oldest.startedAt) oldest = v;
-      oldest?.stopNow(true);
+      oldest?.stopNow(true, when);
     }
     const v = new Voice(
       this.ctx,

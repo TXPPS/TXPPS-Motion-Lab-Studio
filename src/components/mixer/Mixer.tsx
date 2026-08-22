@@ -1,257 +1,26 @@
-import { useEffect, useRef } from 'react';
-import { engine } from '../../audio/engine';
-import { formatDb } from '../../model/music';
+/**
+ * The console.
+ *
+ * One horizontal scroller holding a row of fixed-width strips, grouped the way
+ * an engineer reads a desk: channels, then buses and FX returns, then VCAs,
+ * then the master. Folder tracks own no channel — their fader acts on their
+ * members — so they appear as group headers rather than as strips.
+ *
+ * A vertical wheel over the console is translated to horizontal scroll so mouse
+ * users can pan the row; trackpads keep their native two-axis deltas.
+ */
+import { useEffect, useMemo, useRef } from 'react';
+import { resolveChannels } from '../../model/mixerGraph';
 import type { Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
-import { Fader, Meter, PanKnob, PeakReadout, panText } from '../common/widgets';
-import { captureParamChange, captureParamRelease } from '../../app/automationActions';
+import { Icon } from '../common/Icon';
+import { ChannelStrip, MasterStrip } from './ChannelStrip';
+import { VcaStrip } from './VcaStrip';
 
-/**
- * One channel strip. Geometry is fully bounded by CSS grid rows — the only
- * flexible row is the fader/meter row, and the strip clips its own overflow, so
- * no control can escape into a neighbour regardless of panel height.
- */
-function ChannelStrip({
-  track,
-  outputName,
-  buses,
-  feeds,
-}: {
-  track: Track;
-  outputName: string;
-  buses: Track[];
-  /** For a bus strip: names of the tracks routed or sending into it. */
-  feeds?: string[];
-}) {
-  const selected = useUiStore((s) => s.selectedTrackId === track.id);
-  const store = useProjectStore;
-  const isBus = track.type === 'bus';
-  const effects = track.effects ?? [];
-  const fxCount = effects.length;
-  const allBypassed = fxCount > 0 && effects.every((e) => e.bypass);
-  const sendCount = (track.sends ?? []).filter((s) => s.enabled && s.amount > 0).length;
-  const autoLanes = (track.automation ?? []).filter((l) => l.enabled && l.points.length > 0);
-  const autoMode = track.automationMode ?? 'read';
-
-  return (
-    <div
-      className={`strip${selected ? ' selected' : ''}${isBus ? ' bus' : ''}`}
-      style={{ ['--strip-color' as string]: track.color }}
-      onPointerDown={() => useUiStore.getState().selectTrack(track.id)}
-      data-testid={`strip-${track.name}`}
-      data-strip="channel"
-    >
-      <div className="strip-name" title={track.name}>
-        {isBus && (
-          <span
-            className="strip-bus-tag"
-            title={`Bus · fed by ${feeds?.length ?? 0} source${(feeds?.length ?? 0) === 1 ? '' : 's'}${feeds?.length ? `: ${feeds.join(', ')}` : ''}`}
-          >
-            BUS{feeds?.length ? ` ${feeds.length}` : ''}
-          </span>
-        )}
-        {track.name}
-        {autoLanes.length > 0 && autoMode !== 'off' && (
-          <span
-            className="strip-auto-dot"
-            title={`${autoLanes.length} automation lane${autoLanes.length === 1 ? '' : 's'} (${autoMode})`}
-            data-testid={`strip-auto-${track.name}`}
-          >
-            A
-          </span>
-        )}
-      </div>
-
-      {/* Compact insert/send status. Editing happens in the inspector, which has
-          the room for it; the strip keeps its bounded six-row geometry. */}
-      <div className="strip-fx">
-        <button
-          className={`fx-chip${fxCount ? ' on' : ''}${allBypassed ? ' bypassed' : ''}`}
-          title={
-            fxCount
-              ? `${fxCount} insert${fxCount === 1 ? '' : 's'}${allBypassed ? ' (all bypassed)' : ''}`
-              : 'No inserts'
-          }
-          aria-label={`${track.name} inserts: ${fxCount}`}
-          data-testid={`strip-fx-${track.name}`}
-          onClick={() => {
-            useUiStore.getState().selectTrack(track.id);
-            useUiStore.getState().set({ panelInspector: true, phoneMode: 'browse' });
-          }}
-        >
-          FX {fxCount || '–'}
-        </button>
-        <button
-          className={`fx-chip${sendCount ? ' on' : ''}`}
-          title={sendCount ? `${sendCount} active send${sendCount === 1 ? '' : 's'}` : 'No sends'}
-          aria-label={`${track.name} sends: ${sendCount}`}
-          onClick={() => {
-            useUiStore.getState().selectTrack(track.id);
-            useUiStore.getState().set({ panelInspector: true, phoneMode: 'browse' });
-          }}
-        >
-          SND {sendCount || '–'}
-        </button>
-      </div>
-
-      <div className="strip-pan">
-        <PanKnob
-          size={26}
-          value={track.pan}
-          onChange={(v) => {
-            store.getState().setTrack(track.id, { pan: v });
-            captureParamChange(track.id, 'pan', v);
-          }}
-          onGestureStart={() => store.getState().beginGesture()}
-          onGestureEnd={() => {
-            store.getState().endGesture();
-            captureParamRelease(track.id, 'pan');
-          }}
-          label={`${track.name} pan`}
-        />
-        <span className="pan-val">{panText(track.pan)}</span>
-      </div>
-
-      <div className="strip-mid">
-        <Fader
-          value={track.volume}
-          label={`${track.name} volume`}
-          onGestureStart={() => store.getState().beginGesture()}
-          onGestureEnd={() => {
-            store.getState().endGesture();
-            captureParamRelease(track.id, 'volume');
-          }}
-          onChange={(v) => {
-            store.getState().setTrack(track.id, { volume: v });
-            captureParamChange(track.id, 'volume', v);
-          }}
-        />
-        <Meter meterId={track.id} />
-      </div>
-
-      <div className="strip-btns">
-        <button
-          className={`th-mini${track.mute ? ' m-on' : ''}`}
-          aria-pressed={track.mute}
-          aria-label={`Mute ${track.name}`}
-          title="Mute"
-          data-testid={`mix-mute-${track.name}`}
-          onClick={() => store.getState().setTrack(track.id, { mute: !track.mute })}
-        >
-          M
-        </button>
-        <button
-          className={`th-mini${track.solo ? ' s-on' : ''}`}
-          aria-pressed={track.solo}
-          aria-label={`Solo ${track.name}`}
-          title="Solo"
-          data-testid={`mix-solo-${track.name}`}
-          onClick={() => store.getState().setTrack(track.id, { solo: !track.solo })}
-        >
-          S
-        </button>
-        {!isBus && (
-          <button
-            className={`th-mini${track.armed ? ' r-on' : ''}`}
-            aria-pressed={track.armed}
-            aria-label={`Record arm ${track.name}`}
-            title="Record arm"
-            onClick={() => store.getState().setTrack(track.id, { armed: !track.armed })}
-          >
-            ●
-          </button>
-        )}
-      </div>
-
-      <div className="strip-readout">
-        <span className="rd-db" data-testid={`db-${track.name}`}>
-          {formatDb(track.volume)}
-        </span>
-        <span className="rd-pk">
-          <PeakReadout meterId={track.id} />
-        </span>
-      </div>
-
-      {isBus ? (
-        <div className="strip-route static">&rarr; MASTER</div>
-      ) : buses.length > 0 ? (
-        <select
-          className="strip-route"
-          value={track.output}
-          aria-label={`${track.name} output`}
-          onChange={(e) => store.getState().setTrack(track.id, { output: e.target.value })}
-        >
-          <option value="master">Master</option>
-          {buses.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <div className="strip-route static" title={outputName}>
-          &rarr; {outputName}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MasterStrip() {
-  const masterVolume = useProjectStore((s) => s.project.masterVolume);
-  const store = useProjectStore;
-  return (
-    <div
-      className="strip master"
-      data-testid="strip-master"
-      data-strip="master"
-      style={{ ['--strip-color' as string]: 'var(--warm)' }}
-    >
-      <div className="strip-name">Master</div>
-      {/* Placeholder keeps the master strip's rows aligned with the channels. */}
-      <div className="strip-fx" aria-hidden="true" />
-      <div className="strip-pan">
-        <span className="knob-label">STEREO OUT</span>
-      </div>
-      <div className="strip-mid">
-        <Fader
-          value={masterVolume}
-          label="Master volume"
-          onGestureStart={() => store.getState().beginGesture()}
-          onGestureEnd={() => store.getState().endGesture()}
-          onChange={(v) => store.getState().setMasterVolume(v)}
-        />
-        <Meter meterId="master" wide />
-      </div>
-      <div className="strip-btns">
-        <button
-          className="th-mini"
-          title="Reset peak and clip indicators"
-          aria-label="Reset peak indicators"
-          onClick={() => engine.resetClipIndicators()}
-        >
-          PK
-        </button>
-      </div>
-      <div className="strip-readout">
-        <span className="rd-db">{formatDb(masterVolume)}</span>
-        <span className="rd-pk">
-          <PeakReadout meterId="master" />
-        </span>
-      </div>
-      <div className="strip-route static">OUTPUT</div>
-    </div>
-  );
-}
-
-/**
- * The mixer is one horizontal scroller containing a single row of fixed-width
- * strips. A vertical wheel over the mixer is translated to horizontal scroll so
- * mouse users can pan the row; trackpads keep their native two-axis deltas.
- */
 export function Mixer({ touch }: { touch?: boolean }) {
-  const tracks = useProjectStore((s) => s.project.tracks);
+  const project = useProjectStore((s) => s.project);
+  const tracks = project.tracks;
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -267,19 +36,57 @@ export function Mixer({ touch }: { touch?: boolean }) {
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
+  const states = useMemo(() => resolveChannels(project), [project]);
+
   const buses = tracks.filter((t) => t.type === 'bus');
-  const channels = tracks.filter((t) => t.type !== 'bus');
+  const fxChannels = tracks.filter((t) => t.type === 'fx');
+  const vcas = tracks.filter((t) => t.type === 'vca');
+  const channels = tracks.filter(
+    (t) => t.type === 'audio' || t.type === 'instrument' || t.type === 'drum',
+  );
+  const sendTargets = [...buses, ...fxChannels];
+
   const nameOf = (id: string) =>
     id === 'master' ? 'Master' : (tracks.find((t) => t.id === id)?.name ?? 'Master');
-  /** Which tracks feed each bus (output routing or an enabled send). */
+
+  /** Which tracks feed a summing channel (output routing or an enabled send). */
   const feedsOf = (busId: string) =>
-    channels
+    tracks
       .filter(
         (t) =>
-          t.output === busId ||
-          (t.sends ?? []).some((s) => s.busId === busId && s.enabled && s.amount > 0),
+          t.id !== busId &&
+          (t.output === busId ||
+            (t.sends ?? []).some((s) => s.busId === busId && s.enabled && s.amount > 0)),
       )
       .map((t) => t.name);
+
+  const strip = (t: Track) => (
+    <ChannelStrip
+      key={t.id}
+      track={t}
+      outputName={nameOf(t.output)}
+      buses={sendTargets}
+      feeds={t.type === 'bus' || t.type === 'fx' ? feedsOf(t.id) : undefined}
+      state={states.get(t.id)}
+      vcas={vcas}
+    />
+  );
+
+  if (channels.length === 0 && sendTargets.length === 0) {
+    return (
+      <div className="mixer empty" data-testid="mixer" role="group" aria-label="Mixer">
+        <div className="empty-state">
+          <Icon name="mixer" size={30} className="es-icon" />
+          <div className="es-title">Nothing to mix yet</div>
+          <p className="es-body">
+            Add a track in the arrangement and its channel appears here, with its inserts, sends,
+            meter and routing.
+          </p>
+        </div>
+        <MasterStrip />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -289,13 +96,42 @@ export function Mixer({ touch }: { touch?: boolean }) {
       role="group"
       aria-label="Mixer"
     >
-      {channels.map((t) => (
-        <ChannelStrip key={t.id} track={t} outputName={nameOf(t.output)} buses={buses} />
+      {channels.map(strip)}
+      {sendTargets.length > 0 && <div className="mixer-sep" aria-hidden />}
+      {buses.map(strip)}
+      {fxChannels.map(strip)}
+      {vcas.length > 0 && <div className="mixer-sep" aria-hidden />}
+      {vcas.map((v) => (
+        <VcaStrip key={v.id} track={v} members={tracks.filter((t) => t.vcaId === v.id)} />
       ))}
-      {buses.map((t) => (
-        <ChannelStrip key={t.id} track={t} outputName="Master" buses={[]} feeds={feedsOf(t.id)} />
-      ))}
+      <div className="mixer-sep" aria-hidden />
       <MasterStrip />
+      <button
+        className="mixer-add"
+        title="Add a bus, FX channel or VCA"
+        onClick={(e) =>
+          useUiStore.getState().showMenu({
+            x: e.clientX,
+            y: e.clientY,
+            items: [
+              {
+                label: 'Add bus',
+                action: () =>
+                  useUiStore.getState().selectTrack(useProjectStore.getState().addTrack('bus')),
+              },
+              {
+                label: 'Add FX channel',
+                action: () =>
+                  useUiStore.getState().selectTrack(useProjectStore.getState().addTrack('fx')),
+              },
+              { label: 'Add VCA fader', action: () => useProjectStore.getState().addVca() },
+            ],
+          })
+        }
+        data-testid="mixer-add"
+      >
+        <Icon name="plus" size={14} />
+      </button>
     </div>
   );
 }

@@ -18,14 +18,7 @@ export interface Complex {
 }
 
 export type BiquadType =
-  | 'lowpass'
-  | 'highpass'
-  | 'bandpass'
-  | 'notch'
-  | 'allpass'
-  | 'peaking'
-  | 'lowshelf'
-  | 'highshelf';
+  'lowpass' | 'highpass' | 'bandpass' | 'notch' | 'allpass' | 'peaking' | 'lowshelf' | 'highshelf';
 
 /** Transfer function numerator/denominator, normalised so a0 is 1. */
 export interface BiquadCoefficients {
@@ -327,9 +320,7 @@ export function saturationCurve(
       const norm = 1 / (1 - Math.exp(-drive));
       const asym = 0.62;
       return fillCurve(size, (x) =>
-        x >= 0
-          ? (1 - Math.exp(-drive * x)) * norm
-          : -(1 - Math.exp(drive * asym * x)) * norm,
+        x >= 0 ? (1 - Math.exp(-drive * x)) * norm : -(1 - Math.exp(drive * asym * x)) * norm,
       );
     }
     case 'tape': {
@@ -343,11 +334,15 @@ export function saturationCurve(
   }
 }
 
-/** Three-region overdrive: linear, soft knee, hard rail. Odd-symmetric. */
+/**
+ * Three-region overdrive: linear below a third, a quadratic knee, then the
+ * rail at two thirds. Odd-symmetric, continuous at both joins and monotone
+ * throughout, which is what keeps it a saturator rather than a fold-back.
+ */
 function transistorStage(u: number): number {
   const a = Math.abs(u);
   const s = Math.sign(u);
-  if (a >= 1) return s;
+  if (a >= 2 / 3) return s;
   if (a < 1 / 3) return 2 * u;
   const k = 2 - 3 * a;
   return (s * (3 - k * k)) / 3;
@@ -378,7 +373,12 @@ export const MAX_CRUSH_BITS = 12;
 export function quantiserCurve(bits: number, size = 32768): Float32Array {
   const b = clamp(Math.round(bits), 1, MAX_CRUSH_BITS);
   const levels = Math.pow(2, b - 1);
-  return fillCurve(size, (x) => clamp(Math.round(x * levels) / levels, -1, 1));
+  // Round half away from zero. Math.round breaks ties towards +infinity, which
+  // would make the quantiser lopsided and put a DC step in the output.
+  return fillCurve(size, (x) => {
+    const scaled = x * levels;
+    return clamp((Math.sign(scaled) * Math.round(Math.abs(scaled))) / levels, -1, 1);
+  });
 }
 
 /**
@@ -391,8 +391,14 @@ export function identityCurve(size = 4096): Float32Array {
   return fillCurve(size, (x) => x);
 }
 
-/** Full-wave rectifier: the front end of every envelope detector here. */
-export function rectifierCurve(size = 2048): Float32Array {
+/**
+ * Full-wave rectifier: the front end of every envelope detector here.
+ *
+ * The default size is odd on purpose. A WaveShaper interpolates between curve
+ * points, and an even-length curve has no entry at exactly zero, so silence
+ * would rectify to a small positive floor and hold a gate very slightly open.
+ */
+export function rectifierCurve(size = 2049): Float32Array {
   return fillCurve(size, (x) => Math.abs(x));
 }
 
@@ -584,9 +590,13 @@ export function syncModifierByIndex(index: number): SyncModifier {
   return SYNC_MODIFIERS[clamp(Math.round(index), 0, SYNC_MODIFIERS.length - 1)];
 }
 
-/** Seconds per beat, with the tempo clamped to the range the transport allows. */
+/**
+ * Seconds per beat, with the tempo clamped to the range the transport allows.
+ * A project file can arrive with a missing or corrupt tempo, and a NaN reaching
+ * a delay time would silence the channel, so it falls back to 120 first.
+ */
 export function beatSeconds(bpm: number): number {
-  return 60 / clamp(bpm, 20, 300);
+  return 60 / clamp(Number.isFinite(bpm) ? bpm : 120, 20, 300);
 }
 
 /** Length of `sixteenths` sixteenth notes, dotted or tripleted, in seconds. */

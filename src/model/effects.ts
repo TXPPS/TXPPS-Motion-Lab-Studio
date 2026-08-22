@@ -10,6 +10,7 @@
  * index into a name at display time, so a musician never reads a bare ordinal.
  */
 import { CABINETS, describeDivision, syncModifierByIndex } from '../audio/dsp/curves';
+import type { BiquadType, EqBandSpec } from '../audio/dsp/curves';
 import type { Effect, EffectKind } from './types';
 
 export interface ParamSpec {
@@ -306,7 +307,15 @@ export const EFFECT_SPECS: EffectSpec[] = [
     params: [
       choice('mode', 'Mode', ['Low pass', 'Band pass', 'High pass']),
       freq('cutoff', 'Cutoff', 20, 20000, 1200, 10),
-      { key: 'resonance', label: 'Resonance', min: 0.5, max: 20, step: 0.1, default: 1.2, unit: 'Q' },
+      {
+        key: 'resonance',
+        label: 'Resonance',
+        min: 0.5,
+        max: 20,
+        step: 0.1,
+        default: 1.2,
+        unit: 'Q',
+      },
       { key: 'drive', label: 'Drive', min: 0, max: 24, step: 0.5, default: 0, unit: 'dB' },
     ],
   },
@@ -405,7 +414,15 @@ export const EFFECT_SPECS: EffectSpec[] = [
       },
       { key: 'depth', label: 'Depth', min: 0, max: 8, step: 0.1, default: 3, unit: 'ms' },
       { key: 'delay', label: 'Delay', min: 0.2, max: 12, step: 0.1, default: 2, unit: 'ms' },
-      { key: 'feedback', label: 'Feedback', min: -0.9, max: 0.9, step: 0.01, default: 0.5, unit: '%' },
+      {
+        key: 'feedback',
+        label: 'Feedback',
+        min: -0.9,
+        max: 0.9,
+        step: 0.01,
+        default: 0.5,
+        unit: '%',
+      },
       choice('throughZero', 'Through zero', ON_OFF),
       percent('mix', 'Mix', 0.45),
     ],
@@ -454,7 +471,15 @@ export const EFFECT_SPECS: EffectSpec[] = [
       choice('modifier', 'Feel', SYNC_CHOICES),
       percent('depth', 'Depth', 0.6),
       choice('shape', 'Shape', LFO_SHAPES),
-      { key: 'stereoPhase', label: 'Stereo phase', min: 0, max: 180, step: 1, default: 0, unit: '°' },
+      {
+        key: 'stereoPhase',
+        label: 'Stereo phase',
+        min: 0,
+        max: 180,
+        step: 1,
+        default: 0,
+        unit: '°',
+      },
     ],
   },
   {
@@ -464,7 +489,15 @@ export const EFFECT_SPECS: EffectSpec[] = [
     group: 'modulation',
     params: [
       choice('speed', 'Speed', ['Slow', 'Fast']),
-      { key: 'slowRate', label: 'Slow rate', min: 0.2, max: 2, step: 0.05, default: 0.8, unit: 'Hz' },
+      {
+        key: 'slowRate',
+        label: 'Slow rate',
+        min: 0.2,
+        max: 2,
+        step: 0.05,
+        default: 0.8,
+        unit: 'Hz',
+      },
       { key: 'fastRate', label: 'Fast rate', min: 2, max: 10, step: 0.1, default: 6.5, unit: 'Hz' },
       freq('crossover', 'Crossover', 400, 2000, 800, 10),
       percent('hornDepth', 'Horn depth', 0.8),
@@ -483,7 +516,15 @@ export const EFFECT_SPECS: EffectSpec[] = [
     params: [
       // Expressed in sixteenths so it follows the project tempo.
       { key: 'timeSixteenths', label: 'Time', min: 1, max: 16, step: 1, default: 6, unit: 'x' },
-      { key: 'feedback', label: 'Feedback', min: 0, max: 0.9, step: 0.01, default: 0.32, unit: '%' },
+      {
+        key: 'feedback',
+        label: 'Feedback',
+        min: 0,
+        max: 0.9,
+        step: 0.01,
+        default: 0.32,
+        unit: '%',
+      },
       freq('tone', 'Tone', 500, 16000, 4200, 100),
       percent('mix', 'Mix', 0.25),
     ],
@@ -496,7 +537,15 @@ export const EFFECT_SPECS: EffectSpec[] = [
     params: [
       { key: 'timeSixteenths', label: 'Time', min: 1, max: 16, step: 1, default: 3, unit: 'div' },
       choice('modifier', 'Feel', SYNC_CHOICES),
-      { key: 'feedback', label: 'Feedback', min: 0, max: 0.9, step: 0.01, default: 0.35, unit: '%' },
+      {
+        key: 'feedback',
+        label: 'Feedback',
+        min: 0,
+        max: 0.9,
+        step: 0.01,
+        default: 0.35,
+        unit: '%',
+      },
       freq('lowCut', 'Low cut', 20, 2000, 180),
       freq('highCut', 'High cut', 500, 18000, 6000, 50),
       percent('width', 'Width', 1),
@@ -558,7 +607,9 @@ export const EFFECT_SPECS: EffectSpec[] = [
     label: 'Gain',
     blurb: 'Level trim before the rest of the chain.',
     group: 'utility',
-    params: [{ key: 'gainDb', label: 'Gain', min: -24, max: 24, step: 0.5, default: 0, unit: 'dB' }],
+    params: [
+      { key: 'gainDb', label: 'Gain', min: -24, max: 24, step: 0.5, default: 0, unit: 'dB' },
+    ],
   },
   {
     kind: 'gainMatch',
@@ -577,7 +628,15 @@ export const EFFECT_SPECS: EffectSpec[] = [
     group: 'utility',
     params: [
       choice('resolution', 'Resolution', ANALYSER_CHOICES, 2),
-      { key: 'smoothing', label: 'Smoothing', min: 0, max: 0.95, step: 0.01, default: 0.8, unit: '%' },
+      {
+        key: 'smoothing',
+        label: 'Smoothing',
+        min: 0,
+        max: 0.95,
+        step: 0.01,
+        default: 0.8,
+        unit: '%',
+      },
     ],
   },
   {
@@ -586,7 +645,15 @@ export const EFFECT_SPECS: EffectSpec[] = [
     blurb: 'Pitch readout. Passes audio through untouched.',
     group: 'utility',
     params: [
-      { key: 'reference', label: 'Reference', min: 415, max: 465, step: 0.5, default: 440, unit: 'Hz' },
+      {
+        key: 'reference',
+        label: 'Reference',
+        min: 415,
+        max: 465,
+        step: 0.5,
+        default: 440,
+        unit: 'Hz',
+      },
     ],
   },
   {
@@ -602,6 +669,39 @@ export const EFFECT_SPECS: EffectSpec[] = [
     ],
   },
 ];
+
+/**
+ * Band layout of the eight-band EQ, in signal order. The audio builder and the
+ * response plot both read it, so a band cannot exist in one and not the other.
+ */
+export const EQ8_BANDS: readonly {
+  prefix: string;
+  type: BiquadType;
+  hasGain: boolean;
+}[] = [
+  { prefix: 'hp', type: 'highpass', hasGain: false },
+  { prefix: 'ls', type: 'lowshelf', hasGain: true },
+  { prefix: 'b1', type: 'peaking', hasGain: true },
+  { prefix: 'b2', type: 'peaking', hasGain: true },
+  { prefix: 'b3', type: 'peaking', hasGain: true },
+  { prefix: 'b4', type: 'peaking', hasGain: true },
+  { prefix: 'hs', type: 'highshelf', hasGain: true },
+  { prefix: 'lp', type: 'lowpass', hasGain: false },
+];
+
+/**
+ * The eight-band EQ's current settings in the form `eqMagnitudeResponse` wants,
+ * so the UI can draw the curve the audio graph is actually producing.
+ */
+export function eq8Bands(effect: Effect): EqBandSpec[] {
+  return EQ8_BANDS.map((b) => ({
+    type: b.type,
+    freqHz: paramOf(effect, `${b.prefix}Freq`),
+    q: paramOf(effect, `${b.prefix}Q`),
+    gainDb: b.hasGain ? paramOf(effect, `${b.prefix}Gain`) : 0,
+    enabled: choiceOf(effect, `${b.prefix}On`) === 1,
+  }));
+}
 
 const BY_KIND = new Map(EFFECT_SPECS.map((s) => [s.kind, s]));
 

@@ -12,7 +12,9 @@ describe('workspace layout normalization', () => {
       showEditor: true,
       maximized: 'editor',
     };
-    expect(normalizeLayout(stored)).toEqual(stored);
+    // Fields the stored layout does not mention keep their defaults; the ones
+    // it does mention survive verbatim.
+    expect(normalizeLayout(stored)).toEqual({ ...DEFAULT_LAYOUT, ...stored });
     expect(normalizeLayout({ ...stored, maximized: 'arrange' }).maximized).toBe('arrange');
     expect(normalizeLayout({ ...stored, maximized: null }).maximized).toBeNull();
   });
