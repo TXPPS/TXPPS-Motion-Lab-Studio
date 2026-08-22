@@ -12,8 +12,11 @@ import {
   eq8Bands,
   formatParam,
   isKnownEffect,
+  matchTrimFor,
   normaliseParams,
   paramOf,
+  TUNE_SCALE_IDS,
+  tuneSettingsOf,
 } from '../src/model/effects';
 import { EFFECT_GROUP_LABELS } from '../src/model/effects';
 import type { Effect, EffectKind } from '../src/model/types';
@@ -411,5 +414,61 @@ describe('sends', () => {
     useProjectStore.getState().removeSend(audio.id, bus.id);
     const after = useProjectStore.getState().project.tracks.find((t) => t.id === audio.id)!;
     expect(after.sends).toEqual([]);
+  });
+});
+
+describe('Gain Match measures rather than guesses', () => {
+  const match = (params: Record<string, number>): Effect => ({
+    id: 'gm',
+    kind: 'gainMatch',
+    bypass: false,
+    params,
+  });
+
+  it('corrects relative to the trim already applied, because the meter is after it', () => {
+    // Measured −12 with +3 already on: the source is −15, and −18 needs −3.
+    expect(matchTrimFor(match({ trim: 3, target: -18 }), -12)).toBe(-3);
+    expect(matchTrimFor(match({ trim: 0, target: -18 }), -18)).toBe(0);
+  });
+
+  it('stops at the trim control own range instead of naming a value it has not got', () => {
+    expect(matchTrimFor(match({ trim: 0, target: -18 }), -60)).toBe(24);
+    expect(matchTrimFor(match({ trim: 0, target: -30 }), 6)).toBe(-24);
+  });
+
+  it('answers for nothing else', () => {
+    expect(matchTrimFor(match({}), Number.NEGATIVE_INFINITY)).toBeNull();
+    expect(matchTrimFor({ id: 't', kind: 'trim', bypass: false, params: {} }, -12)).toBeNull();
+  });
+});
+
+describe('Vocal Tune carries the settings the editor retunes with', () => {
+  const tune = (params: Record<string, number>): Effect => ({
+    id: 'vt',
+    kind: 'vocaltune',
+    bypass: false,
+    params,
+  });
+
+  it('reads its defaults as the audio editor terms', () => {
+    const s = tuneSettingsOf(tune({}))!;
+    expect(s.strength).toBe(0.8);
+    expect(s.retuneMs).toBe(25);
+    expect(s.humanise).toBe(0.6);
+    expect(s.scaleId).toBe('major');
+    expect(s.tonic).toBe(0);
+    // Formant preservation is what the stretcher actually implements, and it
+    // is on by default: a resampled shift moves the body of the voice with it.
+    expect(s.formantPreserve).toBe(true);
+  });
+
+  it('maps the scale and key choices onto the product own scale list', () => {
+    const s = tuneSettingsOf(tune({ scale: TUNE_SCALE_IDS.indexOf('min-pent'), key: 9 }))!;
+    expect(s.scaleId).toBe('min-pent');
+    expect(s.tonic).toBe(9);
+  });
+
+  it('answers for nothing else', () => {
+    expect(tuneSettingsOf({ id: 'x', kind: 'trim', bypass: false, params: {} })).toBeNull();
   });
 });

@@ -10,7 +10,7 @@
  * effect's parameters (`src/model/effects.ts`), so a new effect gets a real
  * face for free and only needs a bespoke visualisation if it earns one.
  */
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   complexMagnitudeDb,
   crossoverResponse,
@@ -44,8 +44,11 @@ import {
   type DelayLayout,
   type ReverbTail,
   type WidthField,
+  tuneSettingsOf,
+  matchTrimFor,
 } from '../../model/effects';
 import { clamp } from '../../model/music';
+import { KEY_NAMES, scaleById, snapToScale } from '../../model/scales';
 import type { Effect } from '../../model/types';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
 
@@ -1033,6 +1036,200 @@ function TapFace({
   );
 }
 
+/**
+ * Vocal Tune's law: what a sung pitch becomes.
+ *
+ * The x axis is one octave of what was sung; the y axis is what comes out. A
+ * chromatic scale is the diagonal with twelve steps in it; a major scale has
+ * five wider steps, and the width of a step is exactly how far a note can be
+ * out before it is pulled somewhere else. Strength tilts the whole staircase
+ * back toward the diagonal, because that is precisely what strength does —
+ * at 0 the picture is the input, unchanged, which is also what the processor
+ * would do.
+ *
+ * Drawn from `tuneSettingsOf`, which is what the audio editor retunes with, so
+ * this cannot show a scale the correction would not snap to.
+ */
+function TuneFace({ settings }: { settings: NonNullable<ReturnType<typeof tuneSettingsOf>> }) {
+  const W = CURVE_W;
+  const H = CURVE_H;
+  const strength = clamp(settings.strength ?? 1, 0, 1);
+  const tonic = (((settings.tonic ?? 0) % 12) + 12) % 12;
+  const scaleId = settings.scaleId ?? 'chromatic';
+
+  const { d, steps } = useMemo(() => {
+    // One octave from the tonic, sampled finely enough that a step edge is a
+    // vertical line rather than a slope.
+    const N = 240;
+    const points: string[] = [];
+    const edges: number[] = [];
+    let previous = Number.NaN;
+    for (let i = 0; i <= N; i++) {
+      const semis = (i / N) * 12;
+      const sung = 60 + tonic + semis;
+      const target = snapToScale(Math.round(sung), tonic, scaleId);
+      const out = sung + (target - sung) * strength;
+      const x = (semis / 12) * W;
+      const y = H - ((out - (60 + tonic)) / 12) * H;
+      points.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${clamp(y, 0, H).toFixed(2)}`);
+      if (target !== previous) {
+        if (i > 0) edges.push(x);
+        previous = target;
+      }
+    }
+    return { d: points.join(' '), steps: edges };
+  }, [W, H, strength, tonic, scaleId]);
+
+  return (
+    <svg
+      width={W}
+      height={H}
+      className="fx-curve"
+      viewBox={`0 0 ${W} ${H}`}
+      aria-label={`Retune to ${KEY_NAMES[tonic]} ${scaleById(scaleId)?.label ?? scaleId}, strength ${Math.round(strength * 100)} percent`}
+    >
+      {/* Sung equals corrected: the line the processor leaves alone. */}
+      <line x1={0} y1={H} x2={W} y2={0} stroke="var(--grid-sub)" strokeDasharray="3 3" />
+      {steps.map((x, i) => (
+        <line key={i} x1={x} y1={0} x2={x} y2={H} stroke="var(--grid-sub)" opacity="0.5" />
+      ))}
+      <path d={d} fill="none" stroke="var(--accent)" strokeWidth="1.6" />
+      <text x={4} y={H - 4} fontSize="8" fill="var(--text-faint)">
+        {KEY_NAMES[tonic]} {scaleById(scaleId)?.label ?? scaleId}
+      </text>
+      <text x={W - 4} y={10} fontSize="8" textAnchor="end" fill="var(--text-faint)">
+        {Math.round(settings.retuneMs ?? 0)} ms
+      </text>
+    </svg>
+  );
+}
+
+/**
+ * Gain Match: what the device measures, and the trim that would land it.
+ *
+ * The device is called a *measured* trim, and until now it measured nothing —
+ * it was a gain knob with a longer name, and matching two versions of a chain
+ * by ear is exactly the job it claims to remove. The analyser already hangs off
+ * its output, so the level is there to be read: this integrates it while audio
+ * plays and offers the one trim that puts it on the target.
+ *
+ * RMS, not LUFS: a loudness meter needs K-weighting and a gate, which the
+ * Release page has and this insert does not. Saying which number it is, is the
+ * difference between a simple tool and a wrong one.
+ */
+function MatchFace({
+  trackId,
+  effect,
+  onParam,
+  onGestureStart,
+  onGestureEnd,
+}: {
+  trackId: string;
+  effect: Effect;
+  onParam: (key: string, value: number) => void;
+  onGestureStart: () => void;
+  onGestureEnd: () => void;
+}) {
+  const target = paramOf(effect, 'target');
+  const [measuredDb, setMeasuredDb] = useState<number | null>(null);
+  // The integrated value the button uses, kept out of state so a frame that
+  // does not change the rounded readout does not re-render the console.
+  const level = useRef<number | null>(null);
+
+  useEffect(() => {
+    level.current = null;
+    setMeasuredDb(null);
+    const buffer = new Float32Array(2048);
+    return engine.onFrame(() => {
+      const tap = engine.effectTap(trackId, effect.id);
+      if (!tap) return;
+      if (buffer.length !== tap.fftSize) return;
+      tap.getFloatTimeDomainData(buffer);
+      let sum = 0;
+      for (let i = 0; i < buffer.length; i++) sum += buffer[i] * buffer[i];
+      const rms = Math.sqrt(sum / buffer.length);
+      // Silence never moves the average: a measurement taken over the gaps in
+      // a performance is a measurement of the gaps.
+      if (rms < 1e-5) return;
+      const db = 20 * Math.log10(rms);
+      level.current = level.current === null ? db : level.current + 0.08 * (db - level.current);
+      setMeasuredDb(Math.round(level.current * 10) / 10);
+    });
+  }, [trackId, effect.id]);
+
+  const W = CURVE_W;
+  const H = CURVE_H;
+  // −60..0 dBFS across the width, which is the range a mix lives in.
+  const xOfDb = (db: number) => clamp((db + 60) / 60, 0, 1) * W;
+  const suggestion = measuredDb === null ? null : matchTrimFor(effect, measuredDb);
+
+  return (
+    <div className="fx-match">
+      <svg
+        width={W}
+        height={H}
+        className="fx-curve"
+        viewBox={`0 0 ${W} ${H}`}
+        aria-label={
+          measuredDb === null
+            ? `Target ${target.toFixed(1)} dB RMS, nothing measured yet`
+            : `Measured ${measuredDb.toFixed(1)} dB RMS against a target of ${target.toFixed(1)} dB`
+        }
+      >
+        <rect x={0} y={H / 2 - 7} width={W} height={14} fill="var(--bg-deep)" />
+        {measuredDb !== null && (
+          <rect
+            x={0}
+            y={H / 2 - 7}
+            width={xOfDb(measuredDb)}
+            height={14}
+            fill="var(--accent)"
+            opacity="0.55"
+          />
+        )}
+        <line
+          x1={xOfDb(target)}
+          y1={H / 2 - 12}
+          x2={xOfDb(target)}
+          y2={H / 2 + 12}
+          stroke="var(--warn, var(--accent))"
+          strokeWidth="1.6"
+        />
+        <text
+          x={xOfDb(target)}
+          y={H / 2 - 15}
+          fontSize="8"
+          textAnchor="middle"
+          fill="var(--text-faint)"
+        >
+          target
+        </text>
+        <text x={4} y={H - 4} fontSize="8" fill="var(--text-faint)">
+          {measuredDb === null ? 'play to measure' : `${measuredDb.toFixed(1)} dB RMS`}
+        </text>
+      </svg>
+      <button
+        className="btn"
+        data-testid="fx-match-now"
+        disabled={suggestion === null}
+        title={
+          suggestion === null
+            ? 'Play the track: the trim is measured, not guessed'
+            : `Set the trim to ${suggestion.toFixed(1)} dB, which puts the output on ${target.toFixed(1)} dB`
+        }
+        onClick={() => {
+          if (suggestion === null) return;
+          onGestureStart();
+          onParam('trim', suggestion);
+          onGestureEnd();
+        }}
+      >
+        Match
+      </button>
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------ face
 
 /**
@@ -1055,6 +1252,8 @@ export function faceKindOf(
   | 'delay'
   | 'reverb'
   | 'width'
+  | 'tune'
+  | 'match'
   | 'spectrum'
   | 'scope'
   | null {
@@ -1093,6 +1292,10 @@ export function faceKindOf(
       return 'spectrum';
     case 'tuner':
       return 'scope';
+    case 'vocaltune':
+      return 'tune';
+    case 'gainMatch':
+      return 'match';
     default:
       return null;
   }
@@ -1160,6 +1363,21 @@ export function EffectVisual({
   if (face === 'width') {
     const field = widthFieldOf(effect);
     return field ? <WidthFace field={field} /> : null;
+  }
+  if (face === 'tune') {
+    const settings = tuneSettingsOf(effect);
+    return settings ? <TuneFace settings={settings} /> : null;
+  }
+  if (face === 'match') {
+    return (
+      <MatchFace
+        trackId={trackId}
+        effect={effect}
+        onParam={onParam}
+        onGestureStart={onGestureStart}
+        onGestureEnd={onGestureEnd}
+      />
+    );
   }
   if (face === 'spectrum' || face === 'scope') {
     return <TapFace trackId={trackId} effect={effect} mode={face} />;

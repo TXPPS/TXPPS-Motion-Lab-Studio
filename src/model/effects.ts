@@ -23,7 +23,9 @@ import {
   transferCurve,
 } from '../audio/dsp/curves';
 import type { BiquadType, EqBandSpec, SaturationModel } from '../audio/dsp/curves';
+import { KEY_NAMES, SCALES } from './scales';
 import type { Effect, EffectKind } from './types';
+import type { TuneOptions } from './vocalTune';
 
 export interface ParamSpec {
   key: string;
@@ -113,6 +115,10 @@ const decibels = (key: string, label: string, span: number, def = 0, step = 0.5)
   default: def,
   unit: 'dB',
 });
+
+/** The scales Vocal Tune snaps to — the product's own list, in its own order. */
+export const TUNE_SCALE_IDS: readonly string[] = SCALES.map((s) => s.id);
+const TUNE_SCALE_LABELS: readonly string[] = SCALES.map((s) => s.label);
 
 const percent = (key: string, label: string, def: number, max = 1): ParamSpec => ({
   key,
@@ -679,17 +685,71 @@ export const EFFECT_SPECS: EffectSpec[] = [
   },
   {
     kind: 'vocaltune',
+    // The device is where a track's pitch correction is *set*; the audio editor
+    // is where it is applied, to a take, offline. Nothing here colours the live
+    // signal — a real-time retune is not something this build does, and a
+    // device that quietly did nothing to the audio while looking like it did
+    // would be worse than one that says so.
     label: 'Vocal Tune',
-    blurb: 'Settings for offline pitch correction. As an insert it only passes audio.',
+    blurb: 'Pitch-correction settings for this track. Retunes a take in the audio editor.',
     group: 'utility',
     params: [
       percent('strength', 'Strength', 0.8),
-      { key: 'speed', label: 'Speed', min: 1, max: 200, step: 1, default: 25, unit: 'ms' },
-      { key: 'formant', label: 'Formant', min: -12, max: 12, step: 0.5, default: 0, unit: 'st' },
-      choice('scale', 'Scale', ['Chromatic', 'Major', 'Minor']),
+      // 0 ms is the hard, obviously-processed snap; the old floor of 1 ms put
+      // that sound out of reach for no reason.
+      { key: 'speed', label: 'Speed', min: 0, max: 200, step: 1, default: 25, unit: 'ms' },
+      percent('humanise', 'Humanise', 0.6),
+      choice('scale', 'Scale', TUNE_SCALE_LABELS, TUNE_SCALE_IDS.indexOf('major')),
+      choice('key', 'Key', KEY_NAMES),
+      // Was a ±12 semitone formant shift that nothing implemented. The
+      // stretcher does have formant *preservation*, so this is now the control
+      // for the thing that exists rather than a knob for the thing that does not.
+      choice('formant', 'Formant', ['Shift with pitch', 'Preserve'], 1),
     ],
   },
 ];
+
+/**
+ * The trim that would put a measured level on Gain Match's target.
+ *
+ * The device's analyser sits *after* its gain, so what is measured already
+ * includes the trim it is set to — the correction is therefore relative to
+ * where the trim is now, not an absolute value. Getting that backwards would
+ * make the button apply the same offset twice.
+ *
+ * Clamped to the parameter's own range: a source 40 dB below the target cannot
+ * be matched by a control that stops at 24, and pretending otherwise would put
+ * a number on the knob it does not have.
+ */
+export function matchTrimFor(effect: Effect, measuredDb: number): number | null {
+  if (effect.kind !== 'gainMatch' || !Number.isFinite(measuredDb)) return null;
+  const spec = BY_KIND.get(effect.kind)?.params.find((p) => p.key === 'trim');
+  const wanted = paramOf(effect, 'trim') + (paramOf(effect, 'target') - measuredDb);
+  const lo = spec?.min ?? -24;
+  const hi = spec?.max ?? 24;
+  return Math.round(Math.min(hi, Math.max(lo, wanted)) * 10) / 10;
+}
+
+/**
+ * What Vocal Tune is set to, in the terms `model/vocalTune.ts` takes.
+ *
+ * The audio editor drives the correction from this rather than from state of
+ * its own, so the settings shown on the device are the settings a take is
+ * retuned with. Returns null for any other kind.
+ */
+export function tuneSettingsOf(
+  effect: Effect,
+): (TuneOptions & { formantPreserve: boolean }) | null {
+  if (effect.kind !== 'vocaltune') return null;
+  return {
+    strength: paramOf(effect, 'strength'),
+    retuneMs: paramOf(effect, 'speed'),
+    humanise: paramOf(effect, 'humanise'),
+    scaleId: TUNE_SCALE_IDS[choiceOf(effect, 'scale')] ?? 'chromatic',
+    tonic: choiceOf(effect, 'key'),
+    formantPreserve: choiceOf(effect, 'formant') === 1,
+  };
+}
 
 /**
  * Band layout of the eight-band EQ, in signal order. The audio builder and the

@@ -961,6 +961,14 @@
   border-radius: var(--radius-xs);
 }
 
+/* Gain Match: the measurement, and the one action it exists for. */
+.fx-match {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
 /* Draggable EQ band handles sit on top of the curve. */
 /* A band handle takes the EQ family's colour (§2.8), not the accent: it is
    an EQ control, and the accent means signal is passing. */

@@ -18,6 +18,7 @@ import { getBufferSync, loadBuffer } from '../../audio/mediaLibrary';
 import { putMediaBlob } from '../../persistence/mediaStore';
 import { audioBufferToWav } from '../../audio/exportMix';
 import { audioToNotes, detectedNotesToNotes, type DetectedNote } from '../../model/audioToMidi';
+import { TUNE_SCALE_IDS, tuneSettingsOf } from '../../model/effects';
 import {
   analyzeVocal,
   correctedTrack,
@@ -91,8 +92,10 @@ export function AudioEditor() {
   const [quantizeGrid, setQuantizeGrid] = useState(0);
   const [detected, setDetected] = useState<DetectedNote[] | null>(null);
 
-  // Vocal tune
-  const [tune, setTune] = useState<TuneOptions>({
+  // Vocal tune. The settings live on the track's Vocal Tune device when it has
+  // one, so what the console shows is what a take is actually retuned with —
+  // the device used to carry four parameters nothing read.
+  const [localTune, setLocalTune] = useState<TuneOptions>({
     scaleId: 'major',
     tonic: 0,
     strength: 0.8,
@@ -104,6 +107,37 @@ export function AudioEditor() {
   // Bend / warp
   const [warpGrid, setWarpGrid] = useState(1);
   const [warpStrength, setWarpStrength] = useState(1);
+
+  const tuneTrack = clip ? project.tracks.find((t) => t.id === clip.trackId) : undefined;
+  const tuneDevice = tuneTrack?.effects?.find((e) => e.kind === 'vocaltune') ?? null;
+  const deviceTune = tuneDevice ? tuneSettingsOf(tuneDevice) : null;
+  const tune: TuneOptions = deviceTune ?? localTune;
+  // Formant preservation is the device's, and on by default: shifting pitch by
+  // resampling moves the body of the voice with it, which is the sound people
+  // mean by "chipmunk". A track with no device gets the same default.
+  const formantPreserve = deviceTune?.formantPreserve ?? true;
+
+  /**
+   * One gesture per change, whichever side holds the settings: moving a slider
+   * on a track that has the device must be one step of undo, not six.
+   */
+  const setTune = (next: TuneOptions): void => {
+    if (!tuneDevice || !tuneTrack) {
+      setLocalTune(next);
+      return;
+    }
+    const store = useProjectStore.getState();
+    const write = (key: string, value: number) =>
+      store.setEffectParam(tuneTrack.id, tuneDevice.id, key, value);
+    store.beginGesture();
+    write('strength', next.strength ?? 0.8);
+    write('speed', next.retuneMs ?? 25);
+    write('humanise', next.humanise ?? 0.6);
+    write('key', (((next.tonic ?? 0) % 12) + 12) % 12);
+    const scaleIndex = TUNE_SCALE_IDS.indexOf(next.scaleId ?? 'chromatic');
+    write('scale', scaleIndex >= 0 ? scaleIndex : TUNE_SCALE_IDS.indexOf('chromatic'));
+    store.endGesture();
+  };
 
   const sourceSeconds = useMemo(() => {
     if (!clip) return 0;
@@ -227,9 +261,10 @@ export function AudioEditor() {
    *
    * Correction is applied as a piecewise pitch shift over short blocks: the
    * tuning curve is a per-frame semitone offset, and a block that shares one
-   * offset can be shifted with the existing stretcher. This is the honest
-   * quality a local, dependency-free implementation reaches — it is not a
-   * formant-corrected studio retune, and the header says so.
+   * offset can be shifted with the existing stretcher, with the stretcher's
+   * own formant preservation when the device asks for it. This is the honest
+   * quality a local, dependency-free implementation reaches: block-wise, not
+   * a continuous phase-locked retune.
    */
   const renderTuned = async () => {
     const win = clipWindow();
@@ -249,7 +284,7 @@ export function AudioEditor() {
         timeSec: f.timeSec,
         shiftSemitones: f.shiftCents / 100,
       }));
-      const out = win.channels.map((ch) => renderCorrected(ch, win.rate, curve));
+      const out = win.channels.map((ch) => renderCorrected(ch, win.rate, curve, formantPreserve));
       const rendered = ctx.createBuffer(out.length, out[0].length, win.rate);
       out.forEach((ch, i) => rendered.copyToChannel(ch, i));
       const blob = new Blob([audioBufferToWav(rendered)], { type: 'audio/wav' });
@@ -509,7 +544,6 @@ export function AudioEditor() {
                 onChange={(e) => setTune({ ...tune, scaleId: e.target.value })}
                 aria-label="Scale"
               >
-                <option value="chromatic">Chromatic</option>
                 {SCALES.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.label}
@@ -556,6 +590,14 @@ export function AudioEditor() {
                 onChange={(e) => setTune({ ...tune, humanise: Number(e.target.value) })}
               />
               <span className="v t-num">{Math.round((tune.humanise ?? 0.6) * 100)}%</span>
+            </div>
+            <div className="ae-row ae-note">
+              <span className="hint">
+                {tuneDevice
+                  ? `Settings come from the Vocal Tune device on ${tuneTrack?.name ?? 'this track'}, and are saved with the song.`
+                  : 'These settings are this session only. Add a Vocal Tune device to the track to keep them with the song.'}
+                {formantPreserve ? ' Formants are preserved.' : ' Formants shift with the pitch.'}
+              </span>
             </div>
             <div className="ae-actions">
               <button className="btn" onClick={analyseTuning} disabled={busy !== null}>
@@ -624,6 +666,7 @@ function renderCorrected(
   channel: Float32Array,
   sampleRate: number,
   frames: { timeSec: number; shiftSemitones: number }[],
+  formantPreserve: boolean,
 ): Float32Array {
   const out = new Float32Array(channel.length);
   const fade = Math.max(1, Math.round(sampleRate * 0.005));
@@ -646,7 +689,7 @@ function renderCorrected(
       const shifted =
         Math.abs(frames[i].shiftSemitones) < 0.02
           ? block
-          : pitchShiftChannel(block, sampleRate, frames[i].shiftSemitones);
+          : pitchShiftChannel(block, sampleRate, frames[i].shiftSemitones, formantPreserve);
       for (let k = 0; k < to - from; k++) {
         const v = k < shifted.length ? shifted[k] : 0;
         // Cross-fade the joins so a change of shift cannot click.
