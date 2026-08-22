@@ -47,3 +47,5 @@ function(mw_add_test name source)
 endfunction()
 
 mw_add_test(param_tests core/test/param_tests.cpp)
+mw_add_test(tempo_tests core/test/tempo_tests.cpp)
+mw_add_test(topology_tests core/test/topology_tests.cpp)

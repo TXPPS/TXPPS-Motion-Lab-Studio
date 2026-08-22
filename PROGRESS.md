@@ -14,7 +14,7 @@ not actually run.
 | Phase | Deliverable | Status |
 | --- | --- | --- |
 | 0 | ADRs; skeleton builds | **PASS (host target)** · shells BLOCKED |
-| 1 | Real-time engine: graph, transport, PPQ=480, PDC, I/O | in progress |
+| 1 | Real-time engine: graph, transport, PPQ=480, PDC, I/O | **PASS** (graph, transport, PDC) · device I/O BLOCKED |
 | 2 | Tracks, mixer, routing, automation | not started |
 | 3 | Editing, MIDI, piano roll, comping | not started |
 | 4 | Design system, plugin framework, presets, browser | not started |
@@ -38,7 +38,9 @@ Ninja with `-Wall -Wextra -Wpedantic -Werror -Wconversion -Wold-style-cast`,
 and its tests run headlessly.
 
 ```
-param: 15 case(s), 0 failure(s)
+param:    15 case(s), 0 failure(s)
+tempo:    12 case(s), 0 failure(s)
+topology: 12 case(s), 0 failure(s)
 ```
 
 Two of those fifteen assert that draining and advancing every parameter in a set
@@ -66,6 +68,12 @@ them.
 | Parameter taper round-trip, all laws | PASS | 15/15 |
 | Audio path allocates nothing | PASS | 0 allocations over 64 blocks |
 | Allocation guard catches an allocation | PASS | mutation-tested |
+| Tempo map: seconds↔ticks inverse across changes | PASS | 12/12 |
+| Tempo ramp integrated in closed form, not averaged | PASS | asserted to differ from the average by >20 ms per bar |
+| Bars↔ticks inverse under mixed time signatures | PASS | 12 bars, three signatures |
+| Delay compensation: every path aligned at its join | PASS | 12/12, incl. sends, diamonds and key inputs |
+| Graph order deterministic | PASS | asserted stable across runs |
+| Cycle detection | PASS | reported, not looped |
 | Bypass null test to −120 dBFS | — | no processors yet |
 | THD / aliasing per plugin | — | no processors yet |
 | Golden-render regression | — | no renderer yet |
@@ -112,7 +120,7 @@ most of the engine, all of the DSP, the project format, and the sync algorithm.
 
 1. Land the Reference Spec Sheets from the four Research Analysts and open the
    provenance register in `LEGAL_NOTES.md`.
-2. Phase 1: the node graph, the transport at PPQ = 480, and plugin delay
-   compensation — all platform-independent, all testable here by offline render.
-3. Build the offline render harness and the first golden-render regression, so
-   Phase 1's correctness has somewhere to be asserted before any DSP lands.
+2. Buffers and the `Node` interface, so the planned graph can actually render —
+   then the offline render harness and the first golden-render regression.
+3. Phase 2's mixer topology on top of it: channel, bus, VCA and send routing,
+   with the pan laws and the metering the brief specifies.
