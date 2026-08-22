@@ -78,7 +78,10 @@ export function normalizeMarkers(raw: unknown): Marker[] {
     out.push({
       id,
       beat: Math.max(0, finite(r.beat, 0)),
-      name: typeof r.name === 'string' && r.name.trim() ? r.name.slice(0, 80) : `Marker ${out.length + 1}`,
+      name:
+        typeof r.name === 'string' && r.name.trim()
+          ? r.name.slice(0, 80)
+          : `Marker ${out.length + 1}`,
       ...(typeof r.color === 'string' ? { color: r.color } : {}),
     });
   }
@@ -102,7 +105,9 @@ export function normalizeSections(raw: unknown): ArrangerSection[] {
     const id = typeof r.id === 'string' && r.id && !seen.has(r.id) ? r.id : `sec-${items.length}`;
     seen.add(id);
     const name =
-      typeof r.name === 'string' && r.name.trim() ? r.name.slice(0, 60) : `Section ${items.length + 1}`;
+      typeof r.name === 'string' && r.name.trim()
+        ? r.name.slice(0, 60)
+        : `Section ${items.length + 1}`;
     items.push({
       id,
       start: Math.max(0, finite(r.start, 0)),

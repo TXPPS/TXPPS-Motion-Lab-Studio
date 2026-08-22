@@ -77,9 +77,7 @@ export const TrackHeader = memo(function TrackHeader({
       ...[1, 2, 3, 4].map((g) => ({
         label: `${track.editGroup === g ? '● ' : ''}Edit group ${g}`,
         action: () =>
-          store
-            .getState()
-            .setTrack(track.id, { editGroup: track.editGroup === g ? undefined : g }),
+          store.getState().setTrack(track.id, { editGroup: track.editGroup === g ? undefined : g }),
       })),
       ...(track.type === 'instrument' || track.type === 'drum'
         ? [

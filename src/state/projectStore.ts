@@ -18,8 +18,25 @@ import { defaultParams, effectSpec, MAX_INSERTS } from '../model/effects';
 import type { MediaRef } from '../model/media';
 import { createDemoProject } from '../model/demoProject';
 import { makePoint, normalizeLanePoints } from '../model/automation';
-import type { AutomationLane, AutomationMode, AutomationPoint, CurveShape } from '../model/automation';
+import type {
+  AutomationLane,
+  AutomationMode,
+  AutomationPoint,
+  CurveShape,
+} from '../model/automation';
 import { paramIdExists } from '../model/paramRegistry';
+import { normalizeTempoMap, type TempoCurve } from '../model/tempo';
+import {
+  normalizeChords,
+  normalizeMarkers,
+  normalizeSections,
+  reorderSections,
+  sectionColorFor,
+  MARKER_COLORS,
+  SECTION_COLORS,
+  type ArrangerSection,
+  type Marker,
+} from '../model/arrangement';
 import { buildTakeClip, normalizeComp } from '../model/comping';
 import type { AudioClip, FadeShape, RackItem } from '../model/types';
 import {
@@ -264,6 +281,56 @@ export interface ProjectStore {
   // Transport-adjacent settings
   setBpm: (bpm: number) => void;
   setTimeSig: (num: number, den: number) => void;
+
+  // ---- global tracks (v6) ----
+  /** Add or move a tempo event. Beat 0 always exists and can only be retimed. */
+  setTempoEvent: (beat: number, bpm: number, curve?: TempoCurve) => void;
+  removeTempoEvent: (id: string) => void;
+  moveTempoEvent: (id: string, beat: number) => void;
+  /** Insert or replace the signature that starts at `bar`. */
+  setSignature: (bar: number, num: number, den: number) => void;
+  removeSignature: (id: string) => void;
+  addMarker: (beat: number, name?: string) => string;
+  setMarker: (id: string, patch: Partial<Marker>) => void;
+  removeMarker: (id: string) => void;
+  addSection: (start: number, length: number, name?: string) => string;
+  setSection: (id: string, patch: Partial<ArrangerSection>) => void;
+  removeSection: (id: string) => void;
+  /**
+   * Reorder the arrangement by moving a section. Every clip and automation
+   * point inside a moved section travels with it — that is what makes the
+   * arranger track an arrangement tool rather than a set of labels.
+   */
+  moveSection: (id: string, toIndex: number) => void;
+  setChord: (beat: number, root: number, quality: string, bass?: number) => string;
+  removeChord: (id: string) => void;
+  clearChords: () => void;
+
+  // ---- master channel ----
+  setMaster: (patch: Partial<NonNullable<ProjectData['master']>>) => void;
+  addMasterEffect: (kind: EffectKind) => string | null;
+  removeMasterEffect: (effectId: string) => void;
+  setMasterEffectParam: (effectId: string, key: string, value: number) => void;
+  setMasterEffectBypass: (effectId: string, bypass: boolean) => void;
+  moveMasterEffect: (effectId: string, delta: number) => void;
+
+  // ---- grouping ----
+  /** Wrap the given tracks in a new folder track placed above them. */
+  groupTracks: (trackIds: string[], name?: string) => string | null;
+  /** Dissolve a folder, leaving its children in place. */
+  ungroupFolder: (folderId: string) => void;
+  setFolderFor: (trackId: string, folderId: string | undefined) => void;
+  addVca: (name?: string) => string;
+  assignVca: (trackId: string, vcaId: string | undefined) => void;
+  /** Reorder tracks; the folder a track lands in follows from its neighbours. */
+  moveTrack: (id: string, toIndex: number) => void;
+
+  // ---- scratch pads ----
+  createScratchPad: (name?: string) => string;
+  deleteScratchPad: (id: string) => void;
+  renameScratchPad: (id: string, name: string) => void;
+  /** Swap a pad's clips into the timeline, stashing the current ones back. */
+  swapScratchPad: (id: string) => void;
   setLoop: (patch: Partial<ProjectData['loop']>) => void;
   setMetronome: (on: boolean) => void;
   /** Free-form project notes. Not undoable: typing is a continuous gesture. */
@@ -984,7 +1051,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         const spb = 60 / d.bpm;
         const targets = d.clips
           .filter((c) => ids.includes(c.id) && editable(d, c))
-          .sort((a, b) => (a.trackId === b.trackId ? a.start - b.start : a.trackId < b.trackId ? -1 : 1));
+          .sort((a, b) =>
+            a.trackId === b.trackId ? a.start - b.start : a.trackId < b.trackId ? -1 : 1,
+          );
         const gone = new Set<string>();
         for (let i = 0; i < targets.length - 1; i++) {
           const left = targets[i];
@@ -1000,7 +1069,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
             left.length += right.length;
             left.sourceDuration =
               (left.sourceDuration ?? 0) > 0 || (right.sourceDuration ?? 0) > 0
-                ? (left.sourceDuration ?? left.length * spb) + (right.sourceDuration ?? right.length * spb)
+                ? (left.sourceDuration ?? left.length * spb) +
+                  (right.sourceDuration ?? right.length * spb)
                 : undefined;
             left.fadeOut = right.fadeOut;
             if (right.fadeOutShape) left.fadeOutShape = right.fadeOutShape;
@@ -1085,8 +1155,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
             right.start -= rightHead;
             right.offset -= rightHead * spb;
             right.length += rightHead;
-            right.sourceDuration =
-              (right.sourceDuration ?? right.length * spb) + rightHead * spb;
+            right.sourceDuration = (right.sourceDuration ?? right.length * spb) + rightHead * spb;
             need -= rightHead;
           }
           overlap = left.start + left.length - right.start;
@@ -1151,8 +1220,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
           const segs = normalizeComp(c.comp, c.takes, c.length);
           // What sounds after the range must keep sounding: capture the take
           // active at `to`, drop segments inside the range, insert ours.
-          const afterTake =
-            segs.filter((s) => s.at <= to).pop()?.takeId ?? c.takes[0].id;
+          const afterTake = segs.filter((s) => s.at <= to).pop()?.takeId ?? c.takes[0].id;
           const kept = segs.filter((s) => s.at < from - 1e-9 || s.at > to + 1e-9);
           kept.push({ at: from, takeId });
           if (to < c.length - 1e-9) kept.push({ at: to, takeId: afterTake });
@@ -1230,7 +1298,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         },
         { undoable: false },
       ),
-
 
     // ---- Milestone 7 -----------------------------------------------------
 
@@ -1589,6 +1656,418 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         { undoable: false },
       ),
 
+    // ---------------------------------------------------------- tempo map
+
+    setTempoEvent: (beat, bpm, curve) =>
+      update((d) => {
+        const map = ensureMap(d);
+        const at = Math.max(0, Math.round(beat * 1e6) / 1e6);
+        const existing = map.tempos.find((t) => Math.abs(t.beat - at) < 1e-6);
+        if (existing) {
+          existing.bpm = clamp(bpm, 20, 999);
+          if (curve) existing.curve = curve;
+        } else {
+          map.tempos.push({
+            id: newId('tmp'),
+            beat: at,
+            bpm: clamp(bpm, 20, 999),
+            curve: curve ?? 'jump',
+          });
+          map.tempos.sort((a, b) => a.beat - b.beat);
+        }
+        syncScalarTempo(d);
+      }),
+
+    removeTempoEvent: (id) =>
+      update((d) => {
+        const map = ensureMap(d);
+        // The event at beat 0 is the song's starting tempo; it can be changed
+        // but never removed, or there would be no tempo before the first event.
+        map.tempos = map.tempos.filter((t) => t.id !== id || t.beat === 0);
+        syncScalarTempo(d);
+      }),
+
+    moveTempoEvent: (id, beat) =>
+      update((d) => {
+        const map = ensureMap(d);
+        const ev = map.tempos.find((t) => t.id === id);
+        if (!ev || ev.beat === 0) return;
+        ev.beat = Math.max(0.001, Math.round(beat * 1e6) / 1e6);
+        map.tempos.sort((a, b) => a.beat - b.beat);
+        syncScalarTempo(d);
+      }),
+
+    setSignature: (bar, num, den) =>
+      update((d) => {
+        const map = ensureMap(d);
+        const at = Math.max(0, Math.round(bar));
+        const n = clamp(Math.round(num), 1, 32);
+        const dd = [1, 2, 4, 8, 16, 32].includes(den) ? den : 4;
+        const existing = map.sigs.find((sg) => sg.bar === at);
+        if (existing) {
+          existing.num = n;
+          existing.den = dd;
+        } else {
+          map.sigs.push({ id: newId('sig'), bar: at, num: n, den: dd });
+          map.sigs.sort((a, b) => a.bar - b.bar);
+        }
+        syncScalarTempo(d);
+      }),
+
+    removeSignature: (id) =>
+      update((d) => {
+        const map = ensureMap(d);
+        map.sigs = map.sigs.filter((sg) => sg.id !== id || sg.bar === 0);
+        syncScalarTempo(d);
+      }),
+
+    // ------------------------------------------------------------ markers
+
+    addMarker: (beat, name) => {
+      const id = newId('mk');
+      update((d) => {
+        const markers = (d.markers ??= []);
+        markers.push({
+          id,
+          beat: Math.max(0, beat),
+          name: name?.trim() || `Marker ${markers.length + 1}`,
+          color: MARKER_COLORS[markers.length % MARKER_COLORS.length],
+        });
+        d.markers = normalizeMarkers(markers);
+      });
+      return id;
+    },
+
+    setMarker: (id, patch) =>
+      update((d) => {
+        const m = d.markers?.find((x) => x.id === id);
+        if (!m) return;
+        Object.assign(m, patch);
+        d.markers = normalizeMarkers(d.markers);
+      }),
+
+    removeMarker: (id) =>
+      update((d) => {
+        d.markers = (d.markers ?? []).filter((m) => m.id !== id);
+      }),
+
+    // ----------------------------------------------------------- sections
+
+    addSection: (start, length, name) => {
+      const id = newId('sec');
+      update((d) => {
+        const sections = (d.sections ??= []);
+        const label = name?.trim() || `Section ${sections.length + 1}`;
+        sections.push({
+          id,
+          start: Math.max(0, start),
+          length: Math.max(1, length),
+          name: label,
+          color: sectionColorFor(label, SECTION_COLORS.verse),
+        });
+        d.sections = normalizeSections(sections);
+      });
+      return id;
+    },
+
+    setSection: (id, patch) =>
+      update((d) => {
+        const sec = d.sections?.find((x) => x.id === id);
+        if (!sec) return;
+        Object.assign(sec, patch);
+        if (patch.name && !patch.color) sec.color = sectionColorFor(patch.name, sec.color);
+        d.sections = normalizeSections(d.sections);
+      }),
+
+    removeSection: (id) =>
+      update((d) => {
+        d.sections = (d.sections ?? []).filter((s2) => s2.id !== id);
+      }),
+
+    moveSection: (id, toIndex) =>
+      update((d) => {
+        const sections = d.sections ?? [];
+        const from = sections.findIndex((s2) => s2.id === id);
+        if (from < 0) return;
+        const { sections: next, deltas } = reorderSections(sections, from, toIndex);
+        // Capture each section's ORIGINAL window before anything moves, so a
+        // clip is assigned to exactly one section even after the list shifts.
+        const windows = sections.map((s2) => ({
+          id: s2.id,
+          from: s2.start,
+          to: s2.start + s2.length,
+          delta: deltas.get(s2.id) ?? 0,
+        }));
+        const shiftOf = (beat: number): number => {
+          for (const w of windows) {
+            if (beat >= w.from - 1e-9 && beat < w.to - 1e-9) return w.delta;
+          }
+          return 0;
+        };
+        for (const c of d.clips) {
+          const shift = shiftOf(c.start);
+          if (shift) c.start = Math.max(0, c.start + shift);
+        }
+        for (const t of d.tracks) {
+          for (const lane of t.automation ?? []) {
+            for (const pt of lane.points) {
+              const shift = shiftOf(pt.beat);
+              if (shift) pt.beat = Math.max(0, pt.beat + shift);
+            }
+            normalizeLanePoints(lane.points);
+          }
+        }
+        for (const m of d.markers ?? []) m.beat = Math.max(0, m.beat + shiftOf(m.beat));
+        for (const ch of d.chords ?? []) ch.beat = Math.max(0, ch.beat + shiftOf(ch.beat));
+        d.sections = next;
+        d.markers = normalizeMarkers(d.markers);
+        d.chords = normalizeChords(d.chords);
+      }),
+
+    // ------------------------------------------------------------- chords
+
+    setChord: (beat, root, quality, bass) => {
+      const id = newId('ch');
+      update((d) => {
+        const chords = (d.chords ??= []);
+        const at = Math.max(0, beat);
+        const existing = chords.find((c) => Math.abs(c.beat - at) < 1e-6);
+        if (existing) {
+          existing.root = ((Math.round(root) % 12) + 12) % 12;
+          existing.quality = quality;
+          if (bass === undefined) delete existing.bass;
+          else existing.bass = ((Math.round(bass) % 12) + 12) % 12;
+        } else {
+          chords.push({
+            id,
+            beat: at,
+            root: ((Math.round(root) % 12) + 12) % 12,
+            quality,
+            ...(bass === undefined ? {} : { bass: ((Math.round(bass) % 12) + 12) % 12 }),
+          });
+        }
+        d.chords = normalizeChords(chords);
+      });
+      return id;
+    },
+
+    removeChord: (id) =>
+      update((d) => {
+        d.chords = (d.chords ?? []).filter((c) => c.id !== id);
+      }),
+
+    clearChords: () =>
+      update((d) => {
+        d.chords = [];
+      }),
+
+    // ------------------------------------------------------ master channel
+
+    setMaster: (patch) =>
+      update(
+        (d) => {
+          const m = ensureMaster(d);
+          Object.assign(m, patch);
+          m.volume = clamp(m.volume, 0, 1.5);
+          m.pan = clamp(m.pan, -1, 1);
+          // masterVolume stays the single source older readers see.
+          d.masterVolume = m.volume;
+        },
+        { undoable: patch.volume === undefined && patch.pan === undefined },
+      ),
+
+    addMasterEffect: (kind) => {
+      const id = newId('fx');
+      let ok = false;
+      update((d) => {
+        const m = ensureMaster(d);
+        const fx = (m.effects ??= []);
+        if (fx.length >= MAX_INSERTS) return;
+        fx.push({ id, kind, bypass: false, params: defaultParams(kind) });
+        ok = true;
+      });
+      return ok ? id : null;
+    },
+
+    removeMasterEffect: (effectId) =>
+      update((d) => {
+        const m = ensureMaster(d);
+        m.effects = (m.effects ?? []).filter((e) => e.id !== effectId);
+        // A lane that automated the removed insert has nothing left to drive.
+        m.automation = (m.automation ?? []).filter((l) => !l.paramId.startsWith(`fx:${effectId}:`));
+      }),
+
+    setMasterEffectParam: (effectId, key, value) =>
+      update(
+        (d) => {
+          const e = ensureMaster(d).effects?.find((x) => x.id === effectId);
+          if (!e) return;
+          const spec = effectSpec(e.kind)?.params.find((pp) => pp.key === key);
+          e.params[key] = spec ? clamp(value, spec.min, spec.max) : value;
+        },
+        { undoable: false },
+      ),
+
+    setMasterEffectBypass: (effectId, bypass) =>
+      update((d) => {
+        const e = ensureMaster(d).effects?.find((x) => x.id === effectId);
+        if (e) e.bypass = bypass;
+      }),
+
+    moveMasterEffect: (effectId, delta) =>
+      update((d) => {
+        const fx = ensureMaster(d).effects ?? [];
+        const i = fx.findIndex((e) => e.id === effectId);
+        const j = i + delta;
+        if (i < 0 || j < 0 || j >= fx.length) return;
+        [fx[i], fx[j]] = [fx[j], fx[i]];
+      }),
+
+    // ----------------------------------------------------------- grouping
+
+    groupTracks: (trackIds, name) => {
+      const id = newId('folder');
+      let ok = false;
+      update((d) => {
+        const members = d.tracks.filter((t) => trackIds.includes(t.id) && t.type !== 'folder');
+        if (members.length === 0) return;
+        const firstIndex = Math.min(...members.map((t) => d.tracks.indexOf(t)));
+        const folder: Track = {
+          id,
+          type: 'folder',
+          name: name?.trim() || `Group ${d.tracks.filter((t) => t.type === 'folder').length + 1}`,
+          color: members[0].color,
+          volume: 1,
+          pan: 0,
+          mute: false,
+          solo: false,
+          armed: false,
+          collapsed: false,
+          output: 'master',
+          folderId: members[0].folderId,
+        };
+        for (const m of members) m.folderId = id;
+        d.tracks.splice(firstIndex, 0, folder);
+        ok = true;
+      });
+      return ok ? id : null;
+    },
+
+    ungroupFolder: (folderId) =>
+      update((d) => {
+        const folder = d.tracks.find((t) => t.id === folderId && t.type === 'folder');
+        if (!folder) return;
+        for (const t of d.tracks) {
+          if (t.folderId === folderId) {
+            if (folder.folderId) t.folderId = folder.folderId;
+            else delete t.folderId;
+          }
+        }
+        d.tracks = d.tracks.filter((t) => t.id !== folderId);
+      }),
+
+    setFolderFor: (trackId, folderId) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t) return;
+        if (!folderId) {
+          delete t.folderId;
+          return;
+        }
+        const folder = d.tracks.find((x) => x.id === folderId && x.type === 'folder');
+        if (!folder || folderId === trackId) return;
+        // Refuse a cycle: a folder cannot be dropped inside its own subtree.
+        let cursor: string | undefined = folder.folderId;
+        const seen = new Set<string>([folderId]);
+        while (cursor) {
+          if (cursor === trackId || seen.has(cursor)) return;
+          seen.add(cursor);
+          cursor = d.tracks.find((x) => x.id === cursor)?.folderId;
+        }
+        t.folderId = folderId;
+      }),
+
+    addVca: (name) => {
+      const id = newId('vca');
+      update((d) => {
+        const n = d.tracks.filter((t) => t.type === 'vca').length + 1;
+        d.tracks.push({
+          id,
+          type: 'vca',
+          name: name?.trim() || `VCA ${n}`,
+          color: TRACK_COLORS[(d.tracks.length + 3) % TRACK_COLORS.length],
+          volume: 1,
+          pan: 0,
+          mute: false,
+          solo: false,
+          armed: false,
+          collapsed: false,
+          output: 'master',
+        });
+      });
+      return id;
+    },
+
+    assignVca: (trackId, vcaId) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t || t.type === 'vca') return;
+        if (!vcaId) delete t.vcaId;
+        else if (d.tracks.some((x) => x.id === vcaId && x.type === 'vca')) t.vcaId = vcaId;
+      }),
+
+    moveTrack: (id, toIndex) =>
+      update((d) => {
+        const from = d.tracks.findIndex((t) => t.id === id);
+        if (from < 0) return;
+        const to = clamp(Math.round(toIndex), 0, d.tracks.length - 1);
+        if (from === to) return;
+        const [moved] = d.tracks.splice(from, 1);
+        d.tracks.splice(to, 0, moved);
+      }),
+
+    // ------------------------------------------------------- scratch pads
+
+    createScratchPad: (name) => {
+      const id = newId('pad');
+      update((d) => {
+        const pads = (d.scratchPads ??= []);
+        pads.push({
+          id,
+          name: name?.trim() || `Pad ${pads.length + 1}`,
+          clips: [],
+          length: 32,
+          createdAt: Date.now(),
+        });
+      });
+      return id;
+    },
+
+    deleteScratchPad: (id) =>
+      update((d) => {
+        d.scratchPads = (d.scratchPads ?? []).filter((p2) => p2.id !== id);
+        if (d.activePadId === id) delete d.activePadId;
+      }),
+
+    renameScratchPad: (id, name) =>
+      update((d) => {
+        const pad = d.scratchPads?.find((p2) => p2.id === id);
+        if (pad) pad.name = name.slice(0, 60) || pad.name;
+      }),
+
+    swapScratchPad: (id) =>
+      update((d) => {
+        const pad = d.scratchPads?.find((p2) => p2.id === id);
+        if (!pad) return;
+        const liveClips = d.clips;
+        // Clips whose track no longer exists cannot come back into the
+        // timeline; dropping them here is the only place it can be noticed.
+        const trackIds = new Set(d.tracks.map((t) => t.id));
+        d.clips = pad.clips.filter((c) => trackIds.has(c.trackId));
+        pad.clips = liveClips;
+        d.activePadId = d.activePadId === id ? undefined : id;
+      }),
+
     setMasterVolume: (v) =>
       update(
         (d) => {
@@ -1598,6 +2077,38 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       ),
   };
 });
+
+/**
+ * The tempo map, created on demand. Projects made before v6 (and every QA
+ * fixture) carry only `bpm`/`timeSig`; the first tempo edit is what turns that
+ * into a map, seeded so the song sounds identical until something is changed.
+ */
+function ensureMap(d: ProjectData) {
+  d.tempoMap = normalizeTempoMap(d.tempoMap, d.bpm, d.timeSig);
+  return d.tempoMap;
+}
+
+/**
+ * Keep the scalar `bpm`/`timeSig` equal to the map's value at beat 0. They are
+ * what an older build, an export header and the diagnostics report read, so
+ * they must never drift from the map.
+ */
+function syncScalarTempo(d: ProjectData): void {
+  const map = d.tempoMap;
+  if (!map) return;
+  d.bpm = map.tempos[0].bpm;
+  d.timeSig = { num: map.sigs[0].num, den: map.sigs[0].den };
+}
+
+function ensureMaster(d: ProjectData): NonNullable<ProjectData['master']> {
+  d.master ??= {
+    volume: d.masterVolume,
+    pan: 0,
+    effects: [],
+    limiter: true,
+  };
+  return d.master;
+}
 
 function isUndoableTrackPatch(patch: Partial<Track>): boolean {
   // Continuous controls (volume/pan) and view toggles create undo noise;

@@ -45,9 +45,7 @@ export function RecoveryPanel() {
 
   return (
     <div className="recovery-panel" data-testid="recovery-panel">
-      <div className="ps-title">
-        Unfinished recordings ({recs.length})
-      </div>
+      <div className="ps-title">Unfinished recordings ({recs.length})</div>
       <div className="hint">
         These takes were captured but never made it onto the timeline. Recovering adds one to the
         current project.

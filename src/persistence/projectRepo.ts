@@ -248,7 +248,11 @@ export function validateProject(raw: unknown): ProjectData {
     if (typeof tr.vcaId !== 'string' || !vcaIds.has(tr.vcaId) || tr.vcaId === tr.id) {
       delete tr.vcaId;
     }
-    if (typeof tr.sidechainFrom !== 'string' || !byId.has(tr.sidechainFrom) || tr.sidechainFrom === tr.id) {
+    if (
+      typeof tr.sidechainFrom !== 'string' ||
+      !byId.has(tr.sidechainFrom) ||
+      tr.sidechainFrom === tr.id
+    ) {
       delete tr.sidechainFrom;
     }
   }
@@ -267,7 +271,9 @@ export function validateProject(raw: unknown): ProjectData {
     }
   }
   // Routing targets must exist and must be a summing destination.
-  const busIds = new Set(tracks.filter((t) => t.type === 'bus' || t.type === 'fx').map((t) => t.id));
+  const busIds = new Set(
+    tracks.filter((t) => t.type === 'bus' || t.type === 'fx').map((t) => t.id),
+  );
   for (const t of tracks) {
     const tr = t as unknown as Record<string, unknown>;
     if (!AUDIO_TRACK_TYPES.includes(t.type)) continue;
@@ -289,7 +295,10 @@ export function validateProject(raw: unknown): ProjectData {
         .filter((l) => paramIdExists(t as unknown as Track, l.paramId));
       const droppedLanes = (tr.automation as unknown[]).length - lanes.length;
       if (droppedLanes > 0) {
-        diagLog('warn', `Project "${raw.name}": dropped ${droppedLanes} invalid automation lane(s)`);
+        diagLog(
+          'warn',
+          `Project "${raw.name}": dropped ${droppedLanes} invalid automation lane(s)`,
+        );
       }
       if (lanes.length > 0) tr.automation = lanes;
       else delete tr.automation;
@@ -384,18 +393,17 @@ export function validateProject(raw: unknown): ProjectData {
     // explicitly or a save/load cycle would silently drop them.
     ...(typeof raw.notes === 'string' ? { notes: raw.notes } : {}),
     // --- v6 song-level structure ---
-    tempoMap: normalizeTempoMap(
-      isRecord(raw.tempoMap) ? (raw.tempoMap as never) : undefined,
-      bpm,
-      {
-        num: typeof ts.num === 'number' ? ts.num : 4,
-        den: typeof ts.den === 'number' ? ts.den : 4,
-      },
-    ),
+    tempoMap: normalizeTempoMap(isRecord(raw.tempoMap) ? (raw.tempoMap as never) : undefined, bpm, {
+      num: typeof ts.num === 'number' ? ts.num : 4,
+      den: typeof ts.den === 'number' ? ts.den : 4,
+    }),
     markers: normalizeMarkers(raw.markers),
     sections: normalizeSections(raw.sections),
     chords: normalizeChords(raw.chords),
-    master: validateMaster(raw.master, typeof raw.masterVolume === 'number' ? raw.masterVolume : 0.9),
+    master: validateMaster(
+      raw.master,
+      typeof raw.masterVolume === 'number' ? raw.masterVolume : 0.9,
+    ),
     scratchPads: validateScratchPads(raw.scratchPads, trackIds),
     ...(typeof raw.activePadId === 'string' ? { activePadId: raw.activePadId } : {}),
     countIn: clampNum(raw.countIn, 0, 8, 1),
@@ -426,7 +434,13 @@ const KNOWN_TRACK_TYPES = new Set<string>([
   'vca',
 ]);
 
-const NOTE_FX_KINDS = new Set(['arpeggiator', 'chorder', 'repeater', 'noteFilter', 'velocityCurve']);
+const NOTE_FX_KINDS = new Set([
+  'arpeggiator',
+  'chorder',
+  'repeater',
+  'noteFilter',
+  'velocityCurve',
+]);
 
 function clampNum(v: unknown, min: number, max: number, fallback: number): number {
   return typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;

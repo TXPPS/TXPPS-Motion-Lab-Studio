@@ -43,7 +43,9 @@ export function copyAutomationSelection(): boolean {
     sourceParamId: lane.paramId,
     points: points.map((x) => ({ beat: x.beat - minBeat, value: x.value, curve: x.curve })),
   };
-  useUiStore.getState().toast('info', `Copied ${points.length} automation point${points.length === 1 ? '' : 's'}`);
+  useUiStore
+    .getState()
+    .toast('info', `Copied ${points.length} automation point${points.length === 1 ? '' : 's'}`);
   return true;
 }
 
@@ -55,13 +57,11 @@ export function hasAutomationClipboard(): boolean {
 export function pasteAutomation(trackId: string, laneId: string, atBeat?: number): boolean {
   if (!clipboard) return false;
   const beat = Math.max(0, atBeat ?? engine.getPositionBeats());
-  const ids = useProjectStore
-    .getState()
-    .insertAutomationPoints(
-      trackId,
-      laneId,
-      clipboard.points.map((x) => ({ beat: beat + x.beat, value: x.value, curve: x.curve })),
-    );
+  const ids = useProjectStore.getState().insertAutomationPoints(
+    trackId,
+    laneId,
+    clipboard.points.map((x) => ({ beat: beat + x.beat, value: x.value, curve: x.curve })),
+  );
   if (ids.length === 0) return false;
   useUiStore.getState().set({ autoSel: { trackId, laneId, pointIds: ids } });
   return true;
@@ -182,7 +182,9 @@ function tick(): void {
   for (const s of sessions.values()) {
     if (!s.released) continue;
     if (beat - s.lastBeat < 0.1) continue;
-    useProjectStore.getState().writeAutomationAt(s.trackId, s.laneId, beat, s.lastValue, s.lastBeat);
+    useProjectStore
+      .getState()
+      .writeAutomationAt(s.trackId, s.laneId, beat, s.lastValue, s.lastBeat);
     s.lastBeat = beat;
   }
 }

@@ -1,7 +1,12 @@
 import { useEffect } from 'react';
 import { engine } from '../../audio/engine';
 import { audioInput, DEFAULT_INPUT } from '../../audio/inputManager';
-import { getCountInBars, recording, recordTargetTrack, setCountInBars } from '../../audio/recordingController';
+import {
+  getCountInBars,
+  recording,
+  recordTargetTrack,
+  setCountInBars,
+} from '../../audio/recordingController';
 import { recorderSupported } from '../../audio/recorder';
 import { useInputStore, permissionLabel } from '../../state/inputStore';
 import { useProjectStore } from '../../state/projectStore';
@@ -304,7 +309,9 @@ export function TakeReview() {
         <button
           className="btn"
           onClick={() => {
-            engine.seek(store.getState().project.clips.find((c) => c.id === take.clipId)?.start ?? 0);
+            engine.seek(
+              store.getState().project.clips.find((c) => c.id === take.clipId)?.start ?? 0,
+            );
             void engine.play();
           }}
           data-testid="play-take"

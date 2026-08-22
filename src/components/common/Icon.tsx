@@ -186,7 +186,8 @@ const STROKED: Partial<Record<IconName, string>> = {
   rewind: 'M11 6l-7 6 7 6zM20 6l-7 6 7 6z',
   forward: 'M13 6l7 6-7 6zM4 6l7 6-7 6z',
   loop: 'M17 4l3 3-3 3M7 20l-3-3 3-3M20 7H9a5 5 0 0 0-5 5M4 17h11a5 5 0 0 0 5-5',
-  'loop-one': 'M17 4l3 3-3 3M7 20l-3-3 3-3M20 7H9a5 5 0 0 0-5 5M4 17h11a5 5 0 0 0 5-5M12 10.5l1.5-1v5',
+  'loop-one':
+    'M17 4l3 3-3 3M7 20l-3-3 3-3M20 7H9a5 5 0 0 0-5 5M4 17h11a5 5 0 0 0 5-5M12 10.5l1.5-1v5',
   metronome: 'M9 3h6l3 17H6zM12 12l5-6',
   punch: 'M4 12h4M16 12h4M12 4v4M12 16v4M12 9.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z',
   countin: 'M5 12h3M11 7v10M16 9v6M20 11v2',
@@ -220,7 +221,8 @@ const STROKED: Partial<Record<IconName, string>> = {
   compressor: 'M4 18L10 8h2l8 10M4 18h16M9 14h6',
   insert: 'M4 12h4l2-4 3 8 2-4h5',
   send: 'M4 12h10M11 8l4 4-4 4M18 5v14',
-  automation: 'M4 17c4 0 4-10 8-10s4 6 8 6M6 17a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM12 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM19 14a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z',
+  automation:
+    'M4 17c4 0 4-10 8-10s4 6 8 6M6 17a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM12 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM19 14a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z',
   solo: 'M15.5 7.5A4 4 0 0 0 8 9c0 3.5 8 2 8 5.5a4 4 0 0 1-7.6 1.5',
   headphones: 'M4 15v-3a8 8 0 0 1 16 0v3M4 14h3v6H5a1 1 0 0 1-1-1zM20 14h-3v6h2a1 1 0 0 0 1-1z',
   mic: 'M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM6 11a6 6 0 0 0 12 0M12 17v4M9 21h6',
@@ -251,7 +253,8 @@ const STROKED: Partial<Record<IconName, string>> = {
   'file-audio': 'M6 3h8l4 4v14H6zM14 3v4h4M9 15h1.5l2-2v6l-2-2H9zM15 13.5a3 3 0 0 1 0 5',
   'file-midi': 'M6 3h8l4 4v14H6zM14 3v4h4M9 17v-5l1.5 2 1.5-2v5M14.5 12v5',
   cloud: 'M7 18a4 4 0 0 1 0-8 5.5 5.5 0 0 1 10.6 1.5A3.5 3.5 0 0 1 17 18z',
-  database: 'M12 4c4.4 0 8 1.1 8 2.5S16.4 9 12 9 4 7.9 4 6.5 7.6 4 12 4zM4 6.5v11C4 19 7.6 20 12 20s8-1 8-2.5v-11M4 12c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5',
+  database:
+    'M12 4c4.4 0 8 1.1 8 2.5S16.4 9 12 9 4 7.9 4 6.5 7.6 4 12 4zM4 6.5v11C4 19 7.6 20 12 20s8-1 8-2.5v-11M4 12c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5',
   clipboard: 'M9 4h6v3H9zM9 5H6v16h12V5h-3',
   copy: 'M9 9h10v10H9zM5 15V5h10',
   trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6',
@@ -284,7 +287,8 @@ const STROKED: Partial<Record<IconName, string>> = {
   lock: 'M6 11h12v9H6zM9 11V8a3 3 0 0 1 6 0v3',
   unlock: 'M6 11h12v9H6zM9 11V8a3 3 0 0 1 5.7-1.3',
   link: 'M10 13a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 1 0-5.7-5.7L11.4 6M14 11a4 4 0 0 0-5.7 0l-2.6 2.6a4 4 0 1 0 5.7 5.7l1.2-1.2',
-  unlink: 'M9 15l-1.6 1.6a4 4 0 0 1-5.7-5.7L3.3 9.3M15 9l1.6-1.6a4 4 0 0 1 5.7 5.7L20.7 14.7M5 5l14 14',
+  unlink:
+    'M9 15l-1.6 1.6a4 4 0 0 1-5.7-5.7L3.3 9.3M15 9l1.6-1.6a4 4 0 0 1 5.7 5.7L20.7 14.7M5 5l14 14',
   refresh: 'M20 8a8 8 0 1 0 .7 6M20 4v4h-4',
   power: 'M12 4v8M7.5 6.5a7 7 0 1 0 9 0',
   external: 'M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',

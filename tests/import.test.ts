@@ -147,11 +147,7 @@ describe('successful import', () => {
   });
 
   it('registers media in the project without a clip when no track is given', async () => {
-    const res = await importAudioFile(
-      file('library.wav', 2048),
-      {},
-      ctxThatDecodes(fakeBuffer(1)),
-    );
+    const res = await importAudioFile(file('library.wav', 2048), {}, ctxThatDecodes(fakeBuffer(1)));
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     expect(res.clipId).toBeNull();

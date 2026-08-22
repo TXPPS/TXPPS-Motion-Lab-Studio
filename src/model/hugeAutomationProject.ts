@@ -21,7 +21,12 @@ function lane(paramId: string, points: AutomationPoint[], height?: number): Auto
 }
 
 /** `count` points across the fixture length; phase/rate vary the shape. */
-function wavePoints(count: number, phase: number, rate: number, stepped = false): AutomationPoint[] {
+function wavePoints(
+  count: number,
+  phase: number,
+  rate: number,
+  stepped = false,
+): AutomationPoint[] {
   const pts: AutomationPoint[] = [];
   for (let i = 0; i < count; i++) {
     const beat = (i * AUTO_FIXTURE_BEATS) / count;
@@ -87,7 +92,7 @@ export function createHugeAutomationProject(): ProjectData {
   ];
 
   const tracks: Track[] = [showcase];
-  const clips: (MidiClip)[] = [];
+  const clips: MidiClip[] = [];
 
   // 97 dense tracks (plus showcase and two buses = 100) × ~5 lanes each.
   for (let i = 0; i < 97; i++) {
@@ -103,7 +108,11 @@ export function createHugeAutomationProject(): ProjectData {
           : {}),
       sends: [{ busId: i % 2 ? fxBus.id : subBus.id, amount: 0.3, enabled: true, preFader: false }],
       ...(i % 7 === 0
-        ? { effects: [{ id: newId('fx'), kind: 'trim' as const, bypass: false, params: { gainDb: 0 } }] }
+        ? {
+            effects: [
+              { id: newId('fx'), kind: 'trim' as const, bypass: false, params: { gainDb: 0 } },
+            ],
+          }
         : {}),
       ...(i < 2 ? { automationOpen: true, collapsed: false } : {}),
     });
@@ -113,9 +122,7 @@ export function createHugeAutomationProject(): ProjectData {
       lane('pan', wavePoints(200, i * 2, 3 + (i % 4))),
       lane('mute', wavePoints(200, i * 3, 1 + (i % 3), true)),
       lane(`send:${busId}`, wavePoints(200, i * 5, 2 + (i % 6))),
-      t.synth
-        ? lane('synth:cutoff', wavePoints(200, i * 7, 4 + (i % 5)))
-        : lane('volume', [], 30), // placeholder never used: audio gets fx or pan2
+      t.synth ? lane('synth:cutoff', wavePoints(200, i * 7, 4 + (i % 5))) : lane('volume', [], 30), // placeholder never used: audio gets fx or pan2
     ];
     // Audio tracks without a synth get their fifth lane from the insert (when
     // present) or a second stepped mute pattern is replaced by send — keep it
@@ -125,9 +132,7 @@ export function createHugeAutomationProject(): ProjectData {
         ? lane(`fx:${t.effects[0].id}:gainDb`, wavePoints(200, i * 11, 3))
         : lane('pan', [], 0); // dropped below
     }
-    t.automation = lanes.filter(
-      (l, idx) => !(idx === 4 && l.points.length === 0),
-    );
+    t.automation = lanes.filter((l, idx) => !(idx === 4 && l.points.length === 0));
     // Tracks whose fifth lane was dropped get a compensating extra lane so the
     // fixture still reaches exactly 500 lanes / 100k points (added after loop).
     tracks.push(t);

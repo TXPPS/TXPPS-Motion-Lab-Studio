@@ -23,8 +23,7 @@ function seed() {
   return { t1, t2, a, b, c };
 }
 
-const clipsById = () =>
-  new Map(useProjectStore.getState().project.clips.map((c) => [c.id, c]));
+const clipsById = () => new Map(useProjectStore.getState().project.clips.map((c) => [c.id, c]));
 
 beforeEach(() => {
   resetClipboard();

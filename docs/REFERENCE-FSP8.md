@@ -7,18 +7,18 @@ this project. Every audit, gap list and milestone in `docs/` refers back to it.
 
 MotionLab is a **browser-native** DAW. Where the reference depends on native-only
 capability (VST/AU hosting, ASIO drivers, disc burning, hardware control surfaces over
-proprietary protocols), the benchmark is *functional parity of the workflow*, not of the
+proprietary protocols), the benchmark is _functional parity of the workflow_, not of the
 mechanism — the feature must exist and be usable, implemented with web platform
 primitives.
 
 ## 1. Pages / top-level views
 
-| Reference                | Purpose                                                             |
-| ------------------------ | ------------------------------------------------------------------- |
-| **Start page**           | Recent songs, templates, demos, setup, what's new                    |
-| **Song page**            | The workstation: Arrange + Console + Browser + Inspector + Editor    |
-| **Project page**         | Mastering: ordered track list, master chain, loudness, release       |
-| **Show page**            | Live performance: setlists, players, patches, per-song setups        |
+| Reference        | Purpose                                                           |
+| ---------------- | ----------------------------------------------------------------- |
+| **Start page**   | Recent songs, templates, demos, setup, what's new                 |
+| **Song page**    | The workstation: Arrange + Console + Browser + Inspector + Editor |
+| **Project page** | Mastering: ordered track list, master chain, loudness, release    |
+| **Show page**    | Live performance: setlists, players, patches, per-song setups     |
 
 ## 2. Song page anatomy
 
@@ -75,7 +75,7 @@ primitives.
 - **Import**: audio, MIDI file, project merge.
 - **Macros, key commands, control link, themes, UI scaling.**
 
-## 4. What MotionLab does *not* attempt
+## 4. What MotionLab does _not_ attempt
 
 Stated up front so "complete" stays honest:
 

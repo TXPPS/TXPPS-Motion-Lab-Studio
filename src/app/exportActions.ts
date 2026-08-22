@@ -72,8 +72,7 @@ export async function exportWav(range?: RenderRange): Promise<boolean> {
     // build is synchronous — an await mid-build would start the render before
     // every source was connected.
     await engine.start().catch(() => false);
-    const decodeCtx: BaseAudioContext =
-      engine.context ?? new OfflineAudioContext(1, 1, 44100);
+    const decodeCtx: BaseAudioContext = engine.context ?? new OfflineAudioContext(1, 1, 44100);
     const missing = await preloadForRender(project, decodeCtx);
     if (missing.length) {
       diagLog('warn', `Export: ${missing.length} media item(s) missing; they will be silent`);

@@ -121,7 +121,11 @@ export async function runMediaStorageSmokeTest(): Promise<CommandResult> {
     await putMediaBlob(id, new Blob([payload], { type: 'application/octet-stream' }), 'test');
     const back = await getMediaBlob(id);
     if (!back?.blob) {
-      return { ok: false, title: 'Media storage smoke test', detail: 'Write succeeded but read returned nothing.' };
+      return {
+        ok: false,
+        title: 'Media storage smoke test',
+        detail: 'Write succeeded but read returned nothing.',
+      };
     }
     const bytes = new Uint8Array(await back.blob.arrayBuffer());
     const identical = bytes.length === payload.length && bytes.every((b, i) => b === payload[i]);
@@ -274,9 +278,8 @@ export function stopAllMediaStreams(): CommandResult {
  */
 export async function runExportSmokeTest(): Promise<CommandResult> {
   try {
-    const { renderProject, audioBufferToWav, validateWav, preloadForRender } = await import(
-      '../audio/exportMix'
-    );
+    const { renderProject, audioBufferToWav, validateWav, preloadForRender } =
+      await import('../audio/exportMix');
     const project = useProjectStore.getState().project;
     const ctx: BaseAudioContext = engine.context ?? new OfflineAudioContext(1, 1, 44100);
     await preloadForRender(project, ctx);

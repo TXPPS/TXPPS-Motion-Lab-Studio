@@ -37,7 +37,9 @@ function track(patch: Partial<Track> & Pick<Track, 'name' | 'type'>): Track {
   };
 }
 
-function audioClip(patch: Partial<AudioClip> & Pick<AudioClip, 'trackId' | 'name' | 'start'>): AudioClip {
+function audioClip(
+  patch: Partial<AudioClip> & Pick<AudioClip, 'trackId' | 'name' | 'start'>,
+): AudioClip {
   return {
     id: newId('c'),
     type: 'audio',

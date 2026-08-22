@@ -259,7 +259,13 @@ export class SamplerInstrument implements Instrument {
     }
   }
 
-  scheduleNote(pitch: number, velocity: number, when: number, durSec: number, clipId?: string): void {
+  scheduleNote(
+    pitch: number,
+    velocity: number,
+    when: number,
+    durSec: number,
+    clipId?: string,
+  ): void {
     this.trigger(pitch, velocity, when, durSec, clipId);
   }
 
@@ -321,14 +327,17 @@ export class RackInstrument implements Instrument {
     const kids = this.children();
     const soloActive = kids.some((k) => k.solo);
     return kids
-      .filter(
-        (k) =>
-          !k.muted && (!soloActive || k.solo) && pitch >= k.keyLo && pitch <= k.keyHi,
-      )
+      .filter((k) => !k.muted && (!soloActive || k.solo) && pitch >= k.keyLo && pitch <= k.keyHi)
       .map((k) => k.instrument);
   }
 
-  scheduleNote(pitch: number, velocity: number, when: number, durSec: number, clipId?: string): void {
+  scheduleNote(
+    pitch: number,
+    velocity: number,
+    when: number,
+    durSec: number,
+    clipId?: string,
+  ): void {
     for (const i of this.targets(pitch)) i.scheduleNote(pitch, velocity, when, durSec, clipId);
   }
   noteOn(pitch: number, velocity: number): void {

@@ -150,7 +150,9 @@ function m2Fields(): DiagField[] {
     {
       key: 'Open input streams',
       value: streams.length
-        ? streams.map((s) => `${s.device.slice(0, 10)}:${s.readyState}${s.muted ? ':muted' : ''}`).join(', ')
+        ? streams
+            .map((s) => `${s.device.slice(0, 10)}:${s.readyState}${s.muted ? ':muted' : ''}`)
+            .join(', ')
         : 'none',
       status: streams.some((s) => s.muted) ? 'warn' : undefined,
     },
@@ -201,7 +203,8 @@ function m2Fields(): DiagField[] {
     },
     {
       key: 'Export status',
-      value: exp.stage === 'idle' ? 'idle' : `${exp.stage}${exp.message ? ` — ${exp.message}` : ''}`,
+      value:
+        exp.stage === 'idle' ? 'idle' : `${exp.stage}${exp.message ? ` — ${exp.message}` : ''}`,
       status: exp.stage === 'error' ? 'err' : undefined,
     },
     { key: 'Last export', value: exp.lastResult ?? 'none this session' },
@@ -222,13 +225,20 @@ export function featureFields(): DiagField[] {
   });
   return [
     // Hard requirements — the app cannot run without these.
-    has(typeof w.AudioContext === 'function' || typeof w.webkitAudioContext === 'function', 'Web Audio', true),
+    has(
+      typeof w.AudioContext === 'function' || typeof w.webkitAudioContext === 'function',
+      'Web Audio',
+      true,
+    ),
     has(typeof structuredClone === 'function', 'structuredClone', true),
     // Degradable — features that switch off individually when absent.
     has(typeof w.OfflineAudioContext === 'function', 'Offline render (WAV export)'),
     has(!!nav.mediaDevices?.getUserMedia, 'Microphone capture'),
     has(typeof w.MediaRecorder === 'function', 'MediaRecorder'),
-    has(typeof (nav as Navigator & { requestMIDIAccess?: unknown }).requestMIDIAccess === 'function', 'Web MIDI'),
+    has(
+      typeof (nav as Navigator & { requestMIDIAccess?: unknown }).requestMIDIAccess === 'function',
+      'Web MIDI',
+    ),
     has(typeof w.indexedDB !== 'undefined', 'IndexedDB (project storage)'),
     has(!!nav.storage?.estimate, 'Storage estimate API'),
     has(typeof w.PointerEvent === 'function', 'Pointer events'),

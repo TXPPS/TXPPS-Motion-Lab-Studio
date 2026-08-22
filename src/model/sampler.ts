@@ -207,8 +207,7 @@ export function matchZones(
 
 /** Playback rate for a zone at a key. */
 export function zonePlaybackRate(zone: SampleZone, key: number): number {
-  const semis =
-    (zone.keyTrack ? key - zone.rootNote : 0) + zone.tuneCoarse + zone.tuneFine / 100;
+  const semis = (zone.keyTrack ? key - zone.rootNote : 0) + zone.tuneCoarse + zone.tuneFine / 100;
   return Math.pow(2, semis / 12);
 }
 

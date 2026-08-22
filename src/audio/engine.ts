@@ -5,7 +5,9 @@
  * mirrors its status into the transport store.
  */
 import { clipSecondsPerBeat } from '../model/music';
-import type { AudioClip, ProjectData, SynthParams, Track } from '../model/types';
+import { resolveChannels } from '../model/mixerGraph';
+import { isAudioTrackType, MASTER_ID } from '../model/types';
+import type { AudioClip, ProjectData, SynthParams } from '../model/types';
 import { useProjectStore } from '../state/projectStore';
 import { useTransportStore } from '../state/transportStore';
 import { diagLog } from '../state/diagnostics';
@@ -51,8 +53,10 @@ export interface MeterData {
 
 interface Channel {
   trackId: string;
+  /** Everything feeding this channel connects here. */
   input: GainNode;
-  /** insert effects, between the input and the fader */
+  /** Input trim, polarity and mono sum, ahead of the inserts. */
+  trim: GainNode;
   inserts: InsertChain;
   muteGain: GainNode;
   volGain: GainNode;
@@ -87,7 +91,10 @@ class AudioEngine {
   private ctx: AudioContext | null = null;
   private startPromise: Promise<boolean> | null = null;
   private masterInput: GainNode | null = null;
+  private masterInserts: InsertChain | null = null;
   private masterGain: GainNode | null = null;
+  private masterPan: StereoPannerNode | null = null;
+  private masterMono: GainNode | null = null;
   private limiter: DynamicsCompressorNode | null = null;
   private masterAnalyser: AnalyserNode | null = null;
   private metroGain: GainNode | null = null;
@@ -195,9 +202,17 @@ class AudioEngine {
   }
 
   private buildMasterChain(ctx: AudioContext): void {
+    const p = useProjectStore.getState().project;
     this.masterInput = ctx.createGain();
+    this.masterInserts = new InsertChain(ctx);
     this.masterGain = ctx.createGain();
-    this.masterGain.gain.value = useProjectStore.getState().project.masterVolume;
+    this.masterGain.gain.value = p.master?.volume ?? p.masterVolume;
+    this.masterPan = ctx.createStereoPanner();
+    this.masterMono = ctx.createGain();
+    // The mono check is a monitoring tool, not a mix decision: forcing an
+    // explicit single-channel count here sums L and R without touching the
+    // signal that a bounce renders.
+    this.masterMono.channelCountMode = 'max';
     this.limiter = ctx.createDynamicsCompressor();
     this.limiter.threshold.value = -1.5;
     this.limiter.knee.value = 0;
@@ -205,11 +220,18 @@ class AudioEngine {
     this.limiter.attack.value = 0.002;
     this.limiter.release.value = 0.08;
     this.masterAnalyser = ctx.createAnalyser();
-    this.masterAnalyser.fftSize = 1024;
-    this.masterInput.connect(this.masterGain);
-    this.masterGain.connect(this.limiter);
+    this.masterAnalyser.fftSize = 2048;
+    // input → master inserts → fader → pan → mono check → limiter → analyser
+    this.masterInput.connect(this.masterInserts.entry);
+    this.masterInserts.exit.connect(this.masterGain);
+    this.masterGain.connect(this.masterPan);
+    this.masterPan.connect(this.masterMono);
+    this.masterMono.connect(this.limiter);
     this.limiter.connect(this.masterAnalyser);
     this.masterAnalyser.connect(ctx.destination);
+    // The click is a cue, never part of the mix: it joins after the master
+    // chain so it is never compressed, never metered as programme, and never
+    // present in a bounce.
     this.metroGain = ctx.createGain();
     this.metroGain.gain.value = 0.5;
     this.metroGain.connect(this.masterAnalyser);
@@ -283,6 +305,9 @@ class AudioEngine {
     // 1. create channels/instruments for new tracks. The instrument KIND can
     // change (synth → sampler → rack), so a signature mismatch rebuilds it.
     for (const track of p.tracks) {
+      // Folders and VCAs carry no audio — they act on their members' gain,
+      // which resolveChannels() has already folded into each member's state.
+      if (!isAudioTrackType(track.type)) continue;
       if (!this.channels.has(track.id)) this.channels.set(track.id, this.buildChannel(track.id));
       const hasInstrument = track.type === 'instrument' || track.type === 'drum';
       if (!hasInstrument) continue;
@@ -302,8 +327,9 @@ class AudioEngine {
       }
     }
 
-    // 2. remove channels for deleted tracks
-    const liveIds = new Set(p.tracks.map((x) => x.id));
+    // 2. remove channels for deleted tracks (and for tracks that became a
+    // folder or a VCA, which no longer own one)
+    const liveIds = new Set(p.tracks.filter((x) => isAudioTrackType(x.type)).map((x) => x.id));
     for (const [id, ch] of this.channels) {
       if (!liveIds.has(id)) {
         this.stopSourcesWhere((h) => h.trackId === id, true);
@@ -321,6 +347,7 @@ class AudioEngine {
         ch.inserts.dispose();
         try {
           ch.input.disconnect();
+          ch.trim.disconnect();
           ch.muteGain.disconnect();
           ch.volGain.disconnect();
           ch.panner.disconnect();
@@ -331,26 +358,40 @@ class AudioEngine {
       }
     }
 
-    // 3. apply params + routing
-    const soloActive = p.tracks.some((x) => x.solo);
+    // 3. apply params + routing. Mute, solo, VCA and folder gain are resolved
+    // once, as pure data, so the engine, the meters and the bounce cannot
+    // disagree about what is audible.
+    const states = resolveChannels(p);
     for (const track of p.tracks) {
-      const ch = this.channels.get(track.id)!;
-      const audible = this.isAudible(track, p.tracks, soloActive);
+      const ch = this.channels.get(track.id);
+      if (!ch) continue;
+      const state = states.get(track.id)!;
+      const audible = state.audible;
       const smooth = initial ? 0.001 : PARAM_TAU;
       const owned = this.autoOwned.get(track.id);
       ch.inserts.sync(track.effects ?? [], p.bpm, this.fxOverrides.get(track.id));
+      // Input trim carries polarity: a negative gain IS the polarity flip, so
+      // the two never need separate nodes and can never fight each other.
+      const trimGain = Math.pow(10, (track.inputGainDb ?? 0) / 20) * (track.phaseInvert ? -1 : 1);
+      ch.trim.gain.setTargetAtTime(trimGain, t, smooth);
+      const wantMono = track.monoSum === true;
+      if ((ch.trim.channelCount === 1) !== wantMono) {
+        ch.trim.channelCount = wantMono ? 1 : 2;
+        ch.trim.channelCountMode = wantMono ? 'explicit' : 'max';
+      }
       if (!owned?.has('mute')) ch.muteGain.gain.setTargetAtTime(audible ? 1 : 0, t, smooth);
-      if (!owned?.has('volume')) ch.volGain.gain.setTargetAtTime(track.volume, t, smooth);
-      if (!owned?.has('pan')) ch.panner.pan.setTargetAtTime(track.pan, t, smooth);
-      const dest = track.type === 'bus' ? 'master' : track.output;
+      // The fader value the automation engine owns is the track's own volume;
+      // VCA and folder trims multiply on top of it here.
+      if (!owned?.has('volume')) ch.volGain.gain.setTargetAtTime(state.gain, t, smooth);
+      if (!owned?.has('pan')) ch.panner.pan.setTargetAtTime(state.pan, t, smooth);
+      const dest = track.type === 'bus' || track.type === 'fx' ? 'master' : track.output;
       if (ch.routedTo !== dest) {
         try {
           ch.analyser.disconnect();
         } catch {}
+        const destType = p.tracks.find((x) => x.id === dest)?.type;
         const target =
-          dest !== 'master' &&
-          this.channels.has(dest) &&
-          p.tracks.find((x) => x.id === dest)?.type === 'bus'
+          dest !== 'master' && this.channels.has(dest) && (destType === 'bus' || destType === 'fx')
             ? this.channels.get(dest)!.input
             : this.masterInput;
         ch.analyser.connect(target);
@@ -360,7 +401,7 @@ class AudioEngine {
       // Sends: post-fader taps the panner output, pre-fader taps the channel
       // input. Buses never send onward, which keeps the graph acyclic.
       const wanted = new Map(
-        (track.type === 'bus' ? [] : (track.sends ?? []))
+        (track.type === 'bus' || track.type === 'fx' ? [] : (track.sends ?? []))
           .filter((s) => this.channels.has(s.busId) && s.busId !== track.id)
           .map((s) => [s.busId, s]),
       );
@@ -392,7 +433,23 @@ class AudioEngine {
         }
       }
     }
-    this.masterGain.gain.setTargetAtTime(p.masterVolume, t, initial ? 0.001 : PARAM_TAU);
+    const master = p.master;
+    const masterSmooth = initial ? 0.001 : PARAM_TAU;
+    this.masterGain.gain.setTargetAtTime(master?.volume ?? p.masterVolume, t, masterSmooth);
+    this.masterPan?.pan.setTargetAtTime(master?.pan ?? 0, t, masterSmooth);
+    this.masterInserts?.sync(master?.effects ?? [], p.bpm, this.fxOverrides.get(MASTER_ID));
+    if (this.masterMono) {
+      const mono = master?.monoCheck === true;
+      if ((this.masterMono.channelCount === 1) !== mono) {
+        this.masterMono.channelCount = mono ? 1 : 2;
+        this.masterMono.channelCountMode = mono ? 'explicit' : 'max';
+      }
+    }
+    if (this.limiter) {
+      // Disengaging the safety limiter raises its threshold out of the way
+      // rather than rewiring the chain, so nothing clicks on the toggle.
+      this.limiter.threshold.setTargetAtTime(master?.limiter === false ? 0 : -1.5, t, masterSmooth);
+    }
     // Values at the playhead may have changed with the edit (or a lane may
     // have just been disabled and released its parameter).
     this.autoDirty = true;
@@ -441,7 +498,13 @@ class AudioEngine {
   ): Instrument {
     const registry = this.sourceRegistry();
     if (kind === 'sampler') {
-      return new SamplerInstrument(ctx, out, trackId, () => this.readSamplerParams(trackId), registry);
+      return new SamplerInstrument(
+        ctx,
+        out,
+        trackId,
+        () => this.readSamplerParams(trackId),
+        registry,
+      );
     }
     if (kind.startsWith('rack:')) {
       // Child instruments are created once per rack shape; ranges and
@@ -483,8 +546,8 @@ class AudioEngine {
               ),
       }));
       return new RackInstrument(() => {
-        const items = useProjectStore.getState().project.tracks.find((x) => x.id === trackId)?.rack
-          ?.items;
+        const items = useProjectStore.getState().project.tracks.find((x) => x.id === trackId)
+          ?.rack?.items;
         return children.map((c) => {
           const it = items?.find((x) => x.id === c.id);
           return it
@@ -502,16 +565,19 @@ class AudioEngine {
   private buildChannel(trackId: string): Channel {
     const ctx = this.ctx!;
     const input = ctx.createGain();
+    const trim = ctx.createGain();
     const inserts = new InsertChain(ctx);
     const muteGain = ctx.createGain();
     const volGain = ctx.createGain();
     const panner = ctx.createStereoPanner();
     const analyser = ctx.createAnalyser();
-    analyser.fftSize = 1024;
-    // input → inserts → mute → volume → pan → analyser → destination.
-    // Inserts sit ahead of the fader so moving the fader does not change how
-    // hard a compressor works, which is what a mixing engineer expects.
-    input.connect(inserts.entry);
+    analyser.fftSize = 2048;
+    // input → trim → inserts → mute → volume → pan → analyser → destination.
+    // The trim carries input gain and polarity, so a compressor downstream sees
+    // the level the engineer set; inserts sit ahead of the fader so moving the
+    // fader does not change how hard that compressor works.
+    input.connect(trim);
+    trim.connect(inserts.entry);
     inserts.exit.connect(muteGain);
     muteGain.connect(volGain);
     volGain.connect(panner);
@@ -520,6 +586,7 @@ class AudioEngine {
     return {
       trackId,
       input,
+      trim,
       inserts,
       muteGain,
       volGain,
@@ -694,7 +761,9 @@ class AudioEngine {
     for (const id of [...this.synthOverrides.keys()]) {
       if (!liveSynthTracks.has(id)) this.synthOverrides.delete(id);
     }
-    const liveSamplerTracks = new Set(entries.filter((e) => e.kind === 'smp').map((e) => e.trackId));
+    const liveSamplerTracks = new Set(
+      entries.filter((e) => e.kind === 'smp').map((e) => e.trackId),
+    );
     for (const id of [...this.samplerOverrides.keys()]) {
       if (!liveSamplerTracks.has(id)) this.samplerOverrides.delete(id);
     }
@@ -726,9 +795,9 @@ class AudioEngine {
 
     const p = useProjectStore.getState().project;
     const t = ctx.currentTime;
-    const soloActive = p.tracks.some((x) => x.solo);
     /** effects whose automated params changed this pass */
     const fxTouched = new Set<string>();
+    const states = resolveChannels(p);
 
     for (const e of this.autoIndex) {
       const n = laneValueAt(e.points, pos);
@@ -741,16 +810,20 @@ class AudioEngine {
       const track = p.tracks.find((x) => x.id === e.trackId);
       if (!track) continue;
       const v = denormParam(e.param, n);
+      const state = states.get(e.trackId);
 
       switch (e.kind) {
         case 'volume':
-          ch.volGain.gain.setTargetAtTime(Math.max(0, v), t, AUTO_TAU);
+          // The lane writes the channel's own fader; the group multiplier is
+          // reapplied here so a VCA or folder trim keeps working under
+          // automation instead of being overwritten by it.
+          ch.volGain.gain.setTargetAtTime(Math.max(0, v) * (state?.groupGain ?? 1), t, AUTO_TAU);
           break;
         case 'pan':
           ch.panner.pan.setTargetAtTime(Math.max(-1, Math.min(1, v)), t, AUTO_TAU);
           break;
         case 'mute': {
-          const open = this.isAudible(track, p.tracks, soloActive) && v < 0.5;
+          const open = (state?.audible ?? true) && v < 0.5;
           ch.muteGain.gain.setTargetAtTime(open ? 1 : 0, t, 0.008);
           break;
         }
@@ -758,8 +831,7 @@ class AudioEngine {
           const node = e.busId ? ch.sends.get(e.busId) : undefined;
           if (!node) break;
           const send = track.sends?.find((s) => s.busId === e.busId);
-          const audible = this.isAudible(track, p.tracks, soloActive);
-          const level = send?.enabled && audible ? Math.max(0, v) : 0;
+          const level = send?.enabled && (state?.audible ?? true) ? Math.max(0, v) : 0;
           node.gain.setTargetAtTime(level, t, AUTO_TAU);
           break;
         }
@@ -810,15 +882,6 @@ class AudioEngine {
     const n = laneValueAt(entry.points, this.getPositionBeats());
     if (n === null) return null;
     return { norm: n, value: denormParam(entry.param, n) };
-  }
-
-  private isAudible(track: Track, tracks: Track[], soloActive: boolean): boolean {
-    if (track.mute) return false;
-    if (!soloActive) return true;
-    if (track.solo) return true;
-    if (track.type === 'bus') return tracks.some((s) => s.solo && s.output === track.id);
-    const out = tracks.find((x) => x.id === track.output);
-    return out?.solo === true;
   }
 
   // ---------- source registry ----------
@@ -937,8 +1000,7 @@ class AudioEngine {
     src.start(when, offsetSec, durSec);
   }
 
-  private auditionState: { src: AudioBufferSourceNode; g: GainNode; mediaId: string } | null =
-    null;
+  private auditionState: { src: AudioBufferSourceNode; g: GainNode; mediaId: string } | null = null;
 
   /**
    * Preview a media item from the browser: one shot, straight to the master,
@@ -1100,7 +1162,10 @@ class AudioEngine {
     audioInput.stopAll();
     useTransportStore.getState().set({ playState: 'stopped' });
     useInputStore.getState().set({ activeStreams: 0, activeTracks: 0, inputLevel: 0 });
-    diagLog('warn', `Panic: all audio and input stopped${wasPlaying ? ' (transport was playing)' : ''}`);
+    diagLog(
+      'warn',
+      `Panic: all audio and input stopped${wasPlaying ? ' (transport was playing)' : ''}`,
+    );
   }
 
   getPositionBeats(): number {

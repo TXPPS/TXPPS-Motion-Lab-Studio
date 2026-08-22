@@ -33,9 +33,23 @@ function track(patch: Partial<Track> & Pick<Track, 'name' | 'type'>): Track {
 
 export function createHugeMidiProject(): ProjectData {
   const now = Date.now();
-  const orch = track({ name: 'Orchestral Stack', type: 'instrument', synth: getPreset('Warm Keys') });
-  const drums = track({ name: 'Dense Drums', type: 'drum', color: '#d9a13c', synth: { ...DRUM_KIT_PARAMS } });
-  const synth = track({ name: 'Arp Runs', type: 'instrument', color: '#37b89a', synth: getPreset('Sine Lead') });
+  const orch = track({
+    name: 'Orchestral Stack',
+    type: 'instrument',
+    synth: getPreset('Warm Keys'),
+  });
+  const drums = track({
+    name: 'Dense Drums',
+    type: 'drum',
+    color: '#d9a13c',
+    synth: { ...DRUM_KIT_PARAMS },
+  });
+  const synth = track({
+    name: 'Arp Runs',
+    type: 'instrument',
+    color: '#37b89a',
+    synth: getPreset('Sine Lead'),
+  });
 
   // Orchestral: 256 beats; every half-beat a 12-voice chord stack → 512 × 12 ≈ 6144.
   const orchNotes: Note[] = [];

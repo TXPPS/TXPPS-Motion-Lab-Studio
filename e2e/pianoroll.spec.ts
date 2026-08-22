@@ -194,10 +194,9 @@ test.describe('piano roll editing', () => {
 
     await page.keyboard.press('Control+z');
     await page.waitForTimeout(200);
-    expect(
-      offGridCount(await keysNotes(page)),
-      'undo did not restore the un-quantized state',
-    ).toBe(offGrid);
+    expect(offGridCount(await keysNotes(page)), 'undo did not restore the un-quantized state').toBe(
+      offGrid,
+    );
   });
 
   test('chordify builds a major chord from a selected root', async ({ page }) => {
@@ -240,9 +239,9 @@ test.describe('piano roll editing', () => {
     await page.selectOption('[data-testid="scale-select"]', 'major');
     await page.waitForTimeout(200);
     // Key rows outside C major dim.
-    expect(await page.evaluate(() => document.querySelectorAll('.pr-key.oos').length)).toBeGreaterThan(
-      10,
-    );
+    expect(
+      await page.evaluate(() => document.querySelectorAll('.pr-key.oos').length),
+    ).toBeGreaterThan(10);
 
     // With lock on, clicking a C♯ row lands on an in-scale pitch.
     await page.click('button[title*="scale"]');

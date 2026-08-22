@@ -153,7 +153,12 @@ export function bpmAt(map: TempoMap, beat: number): number {
  *   60·Δb·ln(bpm₁/bpm₀)/(bpm₁−bpm₀)
  * — used rather than numeric integration so long ramps stay sample-exact.
  */
-function segmentSeconds(fromBeat: number, toBeat: number, ev: TempoEvent, next?: TempoEvent): number {
+function segmentSeconds(
+  fromBeat: number,
+  toBeat: number,
+  ev: TempoEvent,
+  next?: TempoEvent,
+): number {
   const db = toBeat - fromBeat;
   if (db <= 0) return 0;
   if (ev.curve !== 'ramp' || !next || next.beat <= ev.beat || next.bpm === ev.bpm) {
@@ -319,9 +324,7 @@ export function beatToBBT(map: TempoMap, beat: number): BBT {
 
 export function formatBBT(map: TempoMap, beat: number, withTicks = true): string {
   const p = beatToBBT(map, beat);
-  return withTicks
-    ? `${p.bar}.${p.beat}.${String(p.tick).padStart(3, '0')}`
-    : `${p.bar}.${p.beat}`;
+  return withTicks ? `${p.bar}.${p.beat}.${String(p.tick).padStart(3, '0')}` : `${p.bar}.${p.beat}`;
 }
 
 /** Parse "bar.beat.tick" (1-based) back to an absolute beat. Returns null on junk. */

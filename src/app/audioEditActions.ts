@@ -115,7 +115,12 @@ export function crossfadeSelection(shape: FadeShape, lengthBeats?: number): void
 export function healSelection(): void {
   const ids = useUiStore.getState().selectedClipIds;
   const joins = useProjectStore.getState().healClips(ids);
-  toast('info', joins ? `Healed ${joins} split${joins === 1 ? '' : 's'}` : 'Nothing to heal: clips must be adjacent pieces of the same material.');
+  toast(
+    'info',
+    joins
+      ? `Healed ${joins} split${joins === 1 ? '' : 's'}`
+      : 'Nothing to heal: clips must be adjacent pieces of the same material.',
+  );
 }
 
 export function rippleDeleteSelection(): void {
@@ -148,8 +153,7 @@ export function zoomToSelection(): void {
   const to = Math.max(...clips.map((c) => c.start + c.length));
   const vp = document.querySelector('[data-testid="arr-scroll"]') as HTMLElement | null;
   if (!vp) return;
-  const headerW =
-    (vp.querySelector('.arr-header-col') as HTMLElement | null)?.clientWidth ?? 0;
+  const headerW = (vp.querySelector('.arr-header-col') as HTMLElement | null)?.clientWidth ?? 0;
   const viewW = Math.max(100, vp.clientWidth - headerW - 40);
   const ppb = Math.min(120, Math.max(6, viewW / Math.max(0.5, to - from)));
   useUiStore.getState().set({ pxPerBeat: Math.round(ppb * 10) / 10 });

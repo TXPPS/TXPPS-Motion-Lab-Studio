@@ -8,22 +8,22 @@ what keeps 500 lanes affordable and the behavior predictable.
 
 ## 1. Verification status
 
-| Area | Status |
-| --- | --- |
-| Unified lane model (normalized values, sorted points, five curve shapes) | Implemented; 32 unit tests over curve math, interpolation, validation, store ops, fixture integrity |
-| Parameter binding registry (volume/pan/mute, sends, insert params, synth params) | Implemented; ids, names, units, ranges, defaults, log/linear scaling, formatting; unit-tested round-trips |
-| Serialization + schema v3 migration | Implemented; malformed lanes dropped, values clamped, dangling parameter ids removed; v2 projects load unchanged |
-| Lane UI (expand/collapse, resize, names, value readout, per-family colors) | Implemented; e2e drives every control through real pointer events |
-| Point editing (add, delete, drag, marquee, multi-select, copy/paste/duplicate, undo/redo) | Implemented; e2e verified including single-step undo for paste and delete |
-| Curves (linear, exponential, logarithmic, S-curve, stepped) | Implemented; unit-tested math; curve menu e2e verified; showcase track in the QA fixture |
-| Live playback application | Implemented; control-rate (per animation frame) with 15ms `setTargetAtTime` smoothing — **not** claimed sample-accurate (see §4) |
-| Offline render application | Implemented; fader-domain lanes become scheduled ramps (sample-accurate between knots); e2e measures rendered amplitude actually following a volume ride |
-| Automation modes: Read, Touch, Latch, Off | Implemented; touch e2e-verified end to end (fader ride during playback lands in the lane) |
-| Write and Trim modes | **Deferred** — see §6 |
-| Mixer: track colors, bus tags with feed counts, automation indicator | Implemented; screenshot-inspected |
-| Sidechain routing | **Deferred** — see §6 |
-| 100 tracks / 500 lanes / 100k points fixture (`#/qa-automation`) | Implemented; exact counts unit-asserted; e2e asserts bounded DOM, scroll budget, editing during playback |
-| Tempo automation | **Deferred** — see §6 |
+| Area                                                                                      | Status                                                                                                                                                   |
+| ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unified lane model (normalized values, sorted points, five curve shapes)                  | Implemented; 32 unit tests over curve math, interpolation, validation, store ops, fixture integrity                                                      |
+| Parameter binding registry (volume/pan/mute, sends, insert params, synth params)          | Implemented; ids, names, units, ranges, defaults, log/linear scaling, formatting; unit-tested round-trips                                                |
+| Serialization + schema v3 migration                                                       | Implemented; malformed lanes dropped, values clamped, dangling parameter ids removed; v2 projects load unchanged                                         |
+| Lane UI (expand/collapse, resize, names, value readout, per-family colors)                | Implemented; e2e drives every control through real pointer events                                                                                        |
+| Point editing (add, delete, drag, marquee, multi-select, copy/paste/duplicate, undo/redo) | Implemented; e2e verified including single-step undo for paste and delete                                                                                |
+| Curves (linear, exponential, logarithmic, S-curve, stepped)                               | Implemented; unit-tested math; curve menu e2e verified; showcase track in the QA fixture                                                                 |
+| Live playback application                                                                 | Implemented; control-rate (per animation frame) with 15ms `setTargetAtTime` smoothing — **not** claimed sample-accurate (see §4)                         |
+| Offline render application                                                                | Implemented; fader-domain lanes become scheduled ramps (sample-accurate between knots); e2e measures rendered amplitude actually following a volume ride |
+| Automation modes: Read, Touch, Latch, Off                                                 | Implemented; touch e2e-verified end to end (fader ride during playback lands in the lane)                                                                |
+| Write and Trim modes                                                                      | **Deferred** — see §6                                                                                                                                    |
+| Mixer: track colors, bus tags with feed counts, automation indicator                      | Implemented; screenshot-inspected                                                                                                                        |
+| Sidechain routing                                                                         | **Deferred** — see §6                                                                                                                                    |
+| 100 tracks / 500 lanes / 100k points fixture (`#/qa-automation`)                          | Implemented; exact counts unit-asserted; e2e asserts bounded DOM, scroll budget, editing during playback                                                 |
+| Tempo automation                                                                          | **Deferred** — see §6                                                                                                                                    |
 
 Totals after M5: **228 unit tests**, **137 e2e tests**, strict TypeScript,
 ESLint clean.
@@ -41,7 +41,7 @@ ride onto a filter lane is well-defined.
 
 Points stay sorted — every mutation funnels through one normalizer — so
 readers binary-search. `laneValueAt` holds the first value before the first
-point and the last after the last; the curve stored on a segment's *left*
+point and the last after the last; the curve stored on a segment's _left_
 point shapes it (`exp` = t³, `log` = 1−(1−t)³, `s` = smoothstep, `step` =
 hold-then-jump).
 

@@ -121,8 +121,8 @@ describe('collectWindowEvents', () => {
       mediaId: 'perc-110-2bar',
       offset: 0,
       gain: 1,
-          fadeIn: 0,
-          fadeOut: 0,
+      fadeIn: 0,
+      fadeOut: 0,
     });
     const evs = collectWindowEvents(p, 0, 4);
     expect(evs.some((e) => e.kind === 'clip')).toBe(true);
@@ -172,8 +172,8 @@ describe('collectSoundingAt', () => {
       mediaId: 'perc-110-2bar',
       offset: 0,
       gain: 1,
-          fadeIn: 0,
-          fadeOut: 0,
+      fadeIn: 0,
+      fadeOut: 0,
     });
     const evs = collectSoundingAt(p, 3);
     expect(evs).toHaveLength(1);

@@ -242,7 +242,9 @@ test.describe('mixer geometry', () => {
           faderRowH: rowOf('.strip-mid'),
           fxRowH: rowOf('.strip-fx'),
           lastRowVisible:
-            !!lastRow && !!firstBox && lastRow.getBoundingClientRect().bottom <= firstBox.bottom + 1,
+            !!lastRow &&
+            !!firstBox &&
+            lastRow.getBoundingClientRect().bottom <= firstBox.bottom + 1,
         };
       });
 

@@ -100,7 +100,12 @@ class RecordingController {
     this.trackId = track.id;
     this.trackName = track.name;
     this.deviceId = track.inputDeviceId || DEFAULT_INPUT;
-    store.set({ phase: 'arming', lastRecordError: null, recordTrackId: track.id, recordSeconds: 0 });
+    store.set({
+      phase: 'arming',
+      lastRecordError: null,
+      recordTrackId: track.id,
+      recordSeconds: 0,
+    });
 
     const audioOk = await engine.start();
     if (!audioOk) {

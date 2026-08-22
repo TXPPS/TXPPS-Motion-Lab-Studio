@@ -5,6 +5,7 @@
 No engine changes; every RC1 feature and test is preserved.
 
 ### Full-screen workspace (DAW-style)
+
 - Every workspace pane now expands to full screen and restores with one
   control in the same place: the arrangement, the bottom editor (mixer,
   piano roll, synth/sampler/pads, diagnostics), and — on desktop — the
@@ -19,6 +20,7 @@ No engine changes; every RC1 feature and test is preserved.
   with the workspace layout across reloads.
 
 ### Touch interaction
+
 - App chrome no longer highlights as text under touch drags anywhere;
   selection stays enabled exactly where text editing is intentional
   (search, rename, notes, numeric fields, diagnostics log).
@@ -26,6 +28,7 @@ No engine changes; every RC1 feature and test is preserved.
   can no longer scroll the page out from under a finger.
 
 ### Responsive
+
 - A 24-viewport measured scan drove the fixes: the arrangement toolbar
   now wraps to a second row on narrow screens instead of hiding its
   snap/zoom controls behind an invisible horizontal scroll. The scan
@@ -37,6 +40,7 @@ No engine changes; every RC1 feature and test is preserved.
 The feature set is frozen; this release hardens it for public use.
 
 ### Reliability & data safety
+
 - Every project save now keeps the previous version as an atomic backup;
   unreadable projects restore from backup automatically.
 - Autosave failures surface visibly (once) instead of silently; storage
@@ -51,6 +55,7 @@ The feature set is frozen; this release hardens it for public use.
   browser" card instead of a blank page.
 
 ### Performance
+
 - Undo/redo stacks hold immutable project objects instead of JSON strings:
   at the 50,000-clip stress scale, edits 377 ms → 107 ms and undo
   133 ms → 1.3 ms.
@@ -60,11 +65,13 @@ The feature set is frozen; this release hardens it for public use.
   with measured numbers in [Performance Notes](PERFORMANCE.md).
 
 ### Accessibility
+
 - Zero axe-core violations (WCAG 2.1 AA ruleset) across all seven app
   surfaces: proper landmarks, real-button list rows, AA text contrast,
   keyboard-operable pads, reduced-motion support, pinch zoom re-enabled.
 
 ### Compatibility
+
 - The full e2e suite now runs on Chromium, Firefox and WebKit engines;
   results and honest caveats in the
   [Browser Compatibility](BROWSER-COMPATIBILITY.md) matrix.
@@ -72,15 +79,18 @@ The feature set is frozen; this release hardens it for public use.
   sniffing).
 
 ### PWA
+
 - An available update no longer force-reloads a running session; it
   announces itself and applies on the next natural load.
 
 ### Onboarding
+
 - First-run welcome card (once, reopenable from ⋯ → Welcome tour),
   keyboard-shortcut sheet, and a downloadable diagnostic package for bug
   reports.
 
 ### Earlier milestones
+
 M1 foundation · M2 recording · M3 workflow & effects · M4 MIDI tools ·
 M5 automation & mixing · M6 audio editing & comping · M7 sampler, drum
 rack & instrument workstation. Details in `docs/MILESTONE-*.md`.

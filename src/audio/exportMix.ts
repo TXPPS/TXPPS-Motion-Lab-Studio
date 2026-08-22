@@ -14,6 +14,8 @@
  * anything requiring a live input (monitoring) is by definition not included —
  * which is correct for a mixdown.
  */
+import { isAudioTrackType } from '../model/types';
+import { resolveChannels } from '../model/mixerGraph';
 import {
   clipSecondsPerBeat,
   projectBeatRangeSec,
@@ -149,24 +151,6 @@ function scheduleLaneOnParam(
   }
 }
 
-function isAudible(track: Track, tracks: Track[], soloActive: boolean): boolean {
-  if (track.mute) return false;
-  if (soloActive && !track.solo) {
-    // A track feeding a soloed bus stays audible.
-    let out = track.output;
-    const seen = new Set<string>();
-    while (out && out !== 'master' && !seen.has(out)) {
-      seen.add(out);
-      const parent = tracks.find((t) => t.id === out);
-      if (!parent) break;
-      if (parent.solo) return true;
-      out = parent.output;
-    }
-    return false;
-  }
-  return true;
-}
-
 /** Ensure every referenced media item is decoded before the render begins. */
 export async function preloadForRender(
   project: ProjectData,
@@ -222,17 +206,25 @@ export async function renderProject(
   opts.onProgress?.('Building graph');
 
   // ---- master chain: mirrors AudioEngine.buildMasterChain ----
+  // A bounce that does not run the master inserts is not the mix the engineer
+  // approved, so the offline chain carries the same stages in the same order.
   const masterInput = ctx.createGain();
+  const masterInserts = new InsertChain(ctx);
   const masterGain = ctx.createGain();
-  masterGain.gain.value = project.masterVolume;
+  masterGain.gain.value = project.master?.volume ?? project.masterVolume;
+  const masterPan = ctx.createStereoPanner();
+  masterPan.pan.value = project.master?.pan ?? 0;
   const limiter = ctx.createDynamicsCompressor();
-  limiter.threshold.value = -1.5;
+  limiter.threshold.value = project.master?.limiter === false ? 0 : -1.5;
   limiter.knee.value = 0;
   limiter.ratio.value = 20;
   limiter.attack.value = 0.002;
   limiter.release.value = 0.08;
-  masterInput.connect(masterGain);
-  masterGain.connect(limiter);
+  masterInserts.sync(project.master?.effects ?? [], project.bpm);
+  masterInput.connect(masterInserts.entry);
+  masterInserts.exit.connect(masterGain);
+  masterGain.connect(masterPan);
+  masterPan.connect(limiter);
   limiter.connect(ctx.destination);
 
   // ---- channels ----
@@ -245,49 +237,68 @@ export async function renderProject(
     out: GainNode;
   }
   const channels = new Map<string, OfflineChannel>();
-  const soloActive = project.tracks.some((t) => t.solo);
+  // Mute, solo, VCA and folder gain come from the same pure resolver the live
+  // engine uses, so a bounce cannot disagree with what was monitored.
+  const states = resolveChannels(project);
 
   for (const track of project.tracks) {
+    if (!isAudioTrackType(track.type)) continue;
+    const state = states.get(track.id)!;
     const input = ctx.createGain();
+    const trim = ctx.createGain();
     const inserts = new InsertChain(ctx);
     const muteGain = ctx.createGain();
     const volGain = ctx.createGain();
     const panner = ctx.createStereoPanner();
     const out = ctx.createGain();
 
-    input.connect(inserts.entry);
+    input.connect(trim);
+    trim.connect(inserts.entry);
     inserts.exit.connect(muteGain);
     muteGain.connect(volGain);
     volGain.connect(panner);
     panner.connect(out);
 
     inserts.sync(track.effects ?? [], project.bpm);
-    muteGain.gain.value = isAudible(track, project.tracks, soloActive) ? 1 : 0;
-    volGain.gain.value = track.volume;
-    panner.pan.value = track.pan;
+    trim.gain.value = Math.pow(10, (track.inputGainDb ?? 0) / 20) * (track.phaseInvert ? -1 : 1);
+    if (track.monoSum) {
+      trim.channelCount = 1;
+      trim.channelCountMode = 'explicit';
+    }
+    muteGain.gain.value = state.audible ? 1 : 0;
+    volGain.gain.value = state.gain;
+    panner.pan.value = state.pan;
 
     channels.set(track.id, { input, inserts, muteGain, volGain, panner, out });
   }
 
   // ---- routing: outputs then sends (buses exist by now) ----
   for (const track of project.tracks) {
-    const ch = channels.get(track.id)!;
-    const dest = track.type === 'bus' ? 'master' : track.output;
+    const ch = channels.get(track.id);
+    if (!ch) continue;
+    const dest = track.type === 'bus' || track.type === 'fx' ? 'master' : track.output;
     const target =
-      dest !== 'master' && channels.has(dest)
-        ? channels.get(dest)!.input
-        : masterInput;
+      dest !== 'master' && channels.has(dest) ? channels.get(dest)!.input : masterInput;
     ch.out.connect(target);
   }
   const sendGains = new Map<string, GainNode>();
   for (const track of project.tracks) {
-    if (track.type === 'bus') continue; // buses never send onward
-    const ch = channels.get(track.id)!;
-    const audible = isAudible(track, project.tracks, soloActive);
+    // Buses and FX channels never send onward, which keeps the graph acyclic.
+    if (track.type === 'bus' || track.type === 'fx') continue;
+    const ch = channels.get(track.id);
+    if (!ch) continue;
+    const audible = states.get(track.id)?.audible ?? true;
     for (const send of track.sends ?? []) {
       const bus = channels.get(send.busId);
       const busTrack = project.tracks.find((t) => t.id === send.busId);
-      if (!bus || !busTrack || busTrack.type !== 'bus' || send.busId === track.id) continue;
+      if (
+        !bus ||
+        !busTrack ||
+        (busTrack.type !== 'bus' && busTrack.type !== 'fx') ||
+        send.busId === track.id
+      ) {
+        continue;
+      }
       const g = ctx.createGain();
       g.gain.value = send.enabled && audible ? Math.max(0, send.amount) : 0;
       // Pre-fader taps the insert output, matching the live graph.
@@ -322,15 +333,23 @@ export async function renderProject(
   let automatedLanes = 0;
 
   for (const track of project.tracks) {
-    const ch = channels.get(track.id)!;
-    const audible = isAudible(track, project.tracks, soloActive);
+    const ch = channels.get(track.id);
+    if (!ch) continue;
+    const state = states.get(track.id);
+    const audible = state?.audible ?? true;
+    const groupGain = state?.groupGain ?? 1;
     for (const lane of appliedLanes(track)) {
       const desc = findAutoParam(track, project, lane.paramId);
       if (!desc) continue;
       automatedLanes++;
       const id = lane.paramId;
       if (id === 'volume') {
-        scheduleLaneOnParam(ch.volGain.gain, lane, desc, rampOpts);
+        // As live: the lane writes the channel's own fader, and the VCA/folder
+        // multiplier is reapplied so a group trim is not lost under automation.
+        scheduleLaneOnParam(ch.volGain.gain, lane, desc, {
+          ...rampOpts,
+          mapValue: (v) => Math.max(0, v) * groupGain,
+        });
       } else if (id === 'pan') {
         scheduleLaneOnParam(ch.panner.pan, lane, desc, {
           ...rampOpts,
@@ -428,7 +447,13 @@ export async function renderProject(
                 () => item.sampler ?? defaultSamplerParams('quick'),
                 OFFLINE_REGISTRY,
               )
-            : new PolySynth(ctx, ch.input, track.id, () => item.synth ?? FALLBACK_SYNTH, OFFLINE_REGISTRY),
+            : new PolySynth(
+                ctx,
+                ch.input,
+                track.id,
+                () => item.synth ?? FALLBACK_SYNTH,
+                OFFLINE_REGISTRY,
+              ),
       }));
       instruments.set(track.id, new RackInstrument(() => children));
       continue;

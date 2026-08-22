@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { engine } from '../../audio/engine';
-import { getBufferSync, getPeaksSync, isMissing, loadPeaks, mediaExists } from '../../audio/mediaLibrary';
+import {
+  getBufferSync,
+  getPeaksSync,
+  isMissing,
+  loadPeaks,
+  mediaExists,
+} from '../../audio/mediaLibrary';
 import { sampleWindow } from '../../audio/peaks';
 import { fadeGain } from '../../audio/clipSchedule';
 import type { PeakData } from '../../model/media';
@@ -123,7 +129,10 @@ export function Waveform({
         const rate = buf.sampleRate;
         for (let i = 0; i < cols; i++) {
           const from = Math.floor((offsetSec + (i / cols) * durationSec) * rate);
-          const to = Math.max(from + 1, Math.floor((offsetSec + ((i + 1) / cols) * durationSec) * rate));
+          const to = Math.max(
+            from + 1,
+            Math.floor((offsetSec + ((i + 1) / cols) * durationSec) * rate),
+          );
           let lo = 0;
           let hi = 0;
           for (let s = Math.max(0, from); s < Math.min(data.length, to); s++) {
@@ -205,14 +214,27 @@ export function Waveform({
     // covers everything an observer did.
     let frame = requestAnimationFrame(() => {
       frame = 0;
-      if (canvas.offsetWidth !== canvas.width / (Math.min(2, window.devicePixelRatio || 1))) {
+      if (canvas.offsetWidth !== canvas.width / Math.min(2, window.devicePixelRatio || 1)) {
         draw();
       }
     });
     return () => {
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [peaks, offsetSec, durationSec, color, gain, fadeIn, fadeOut, fadeInShape, fadeOutShape, mediaId, widthPx, heightPx]);
+  }, [
+    peaks,
+    offsetSec,
+    durationSec,
+    color,
+    gain,
+    fadeIn,
+    fadeOut,
+    fadeInShape,
+    fadeOutShape,
+    mediaId,
+    widthPx,
+    heightPx,
+  ]);
 
   if (missing) {
     return (

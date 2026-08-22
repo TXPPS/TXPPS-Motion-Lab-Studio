@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildChord,
-  drop2,
-  invertChord,
-  octaveDouble,
-  spreadChord,
-} from '../src/model/chords';
+import { buildChord, drop2, invertChord, octaveDouble, spreadChord } from '../src/model/chords';
 import {
   deleteOverlaps,
   humanizeNotes,
@@ -94,8 +88,20 @@ describe('humanize', () => {
   });
 
   it('different seeds give different performances', () => {
-    const a = humanizeNotes(src(), { seed: 1, timing: 0.05, velocity: 20, length: 0, probability: 1 });
-    const b = humanizeNotes(src(), { seed: 2, timing: 0.05, velocity: 20, length: 0, probability: 1 });
+    const a = humanizeNotes(src(), {
+      seed: 1,
+      timing: 0.05,
+      velocity: 20,
+      length: 0,
+      probability: 1,
+    });
+    const b = humanizeNotes(src(), {
+      seed: 2,
+      timing: 0.05,
+      velocity: 20,
+      length: 0,
+      probability: 1,
+    });
     expect(a).not.toEqual(b);
   });
 

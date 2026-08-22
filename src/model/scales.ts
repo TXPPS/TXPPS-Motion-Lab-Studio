@@ -65,8 +65,13 @@ export function suggestScales(
 ): { tonic: number; scaleId: string; label: string; matches: number; total: number }[] {
   if (pitches.length === 0) return [];
   const classes = pitches.map((p) => ((p % 12) + 12) % 12);
-  const results: { tonic: number; scaleId: string; label: string; matches: number; total: number }[] =
-    [];
+  const results: {
+    tonic: number;
+    scaleId: string;
+    label: string;
+    matches: number;
+    total: number;
+  }[] = [];
   for (const scaleId of ['major', 'minor']) {
     for (let tonic = 0; tonic < 12; tonic++) {
       const matches = classes.filter((pc) => inScale(pc, tonic, scaleId)).length;

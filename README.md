@@ -240,45 +240,45 @@ npm run format     # Prettier
 
 Fixtures are never autosaved, so a QA run cannot overwrite a real project.
 
-| Route            | Loads                                                                     |
-| ---------------- | ------------------------------------------------------------------------- |
-| `#/qa`           | Layout stress fixture: 26 tracks, 133 clips, 27 mixer strips              |
-| `#/qa-audio`     | Audio editing & routing: trims, splits, fades, clip gains, missing media, three buses with sends |
-| `#/qa-huge`      | Extreme scale: 100 tracks, ~1080 clips, for performance QA               |
-| `#/qa-midi`      | Dense MIDI: 11k+ notes across a 6k-note stack, drum groove, and arpeggios |
-| `#/qa-automation`| Automation stress: 100 tracks, 500 lanes, 100,000 points, curve showcase |
-| `#/qa-audio-edit`| Audio-editing stress: 2,020 clips, crossfade chain, take comps, split run, locks, groups |
-| `#/qa-sampler`   | Sampler workstation: sliced quick sampler with `smp:` automation, drum rack beat, multisample, synth+sampler rack |
-| `#/qa-drums`     | Drum-rack scale: 100 assigned pads and a dense 16th-note trigger pattern  |
-| `#/qa-multisample`| Multisample scale: 512 zones (32 key bands × 4 velocity layers × 4 round-robins) |
-| `#/qa-max`       | Absolute maximum: 500 tracks, 50,000 clips, 20,000 notes, 1,000 lanes — failure-mode hunting |
-| `#/phone`        | Forces the phone layout on any screen size                                |
-| `#/diagnostics`  | Opens the diagnostics panel on load                                       |
-| `#/demo`         | Reseeds the demo project                                                  |
+| Route              | Loads                                                                                                             |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `#/qa`             | Layout stress fixture: 26 tracks, 133 clips, 27 mixer strips                                                      |
+| `#/qa-audio`       | Audio editing & routing: trims, splits, fades, clip gains, missing media, three buses with sends                  |
+| `#/qa-huge`        | Extreme scale: 100 tracks, ~1080 clips, for performance QA                                                        |
+| `#/qa-midi`        | Dense MIDI: 11k+ notes across a 6k-note stack, drum groove, and arpeggios                                         |
+| `#/qa-automation`  | Automation stress: 100 tracks, 500 lanes, 100,000 points, curve showcase                                          |
+| `#/qa-audio-edit`  | Audio-editing stress: 2,020 clips, crossfade chain, take comps, split run, locks, groups                          |
+| `#/qa-sampler`     | Sampler workstation: sliced quick sampler with `smp:` automation, drum rack beat, multisample, synth+sampler rack |
+| `#/qa-drums`       | Drum-rack scale: 100 assigned pads and a dense 16th-note trigger pattern                                          |
+| `#/qa-multisample` | Multisample scale: 512 zones (32 key bands × 4 velocity layers × 4 round-robins)                                  |
+| `#/qa-max`         | Absolute maximum: 500 tracks, 50,000 clips, 20,000 notes, 1,000 lanes — failure-mode hunting                      |
+| `#/phone`          | Forces the phone layout on any screen size                                                                        |
+| `#/diagnostics`    | Opens the diagnostics panel on load                                                                               |
+| `#/demo`           | Reseeds the demo project                                                                                          |
 
 ## Architecture
 
-| Boundary                  | Location                                                  |
-| ------------------------- | --------------------------------------------------------- |
-| Application shell         | `src/App.tsx`, `src/components/shell/`                    |
-| Project state             | `src/state/projectStore.ts` (zustand, undo/redo)          |
-| Audio engine              | `src/audio/engine.ts` (single AudioContext owner)         |
-| Transport & scheduling    | `src/audio/scheduler.ts`, `src/state/transportStore.ts`   |
-| Timeline / tracks / clips | `src/components/arrangement/`                             |
-| Mixer                     | `src/components/mixer/`                                   |
-| Instrument engine         | `src/audio/synth.ts` (MotionSynth + drum kit)             |
-| Sampler & racks           | `src/model/sampler.ts`, `src/audio/samplerInstrument.ts`, `src/components/sampler/` |
-| Recording                 | `src/audio/inputManager.ts`, `recorder.ts`, `recordingController.ts` |
-| Clip scheduling maths     | `src/audio/clipSchedule.ts` (shared by playback and export) |
-| Insert effects            | `src/model/effects.ts`, `src/audio/effectChain.ts`        |
+| Boundary                  | Location                                                                                                  |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Application shell         | `src/App.tsx`, `src/components/shell/`                                                                    |
+| Project state             | `src/state/projectStore.ts` (zustand, undo/redo)                                                          |
+| Audio engine              | `src/audio/engine.ts` (single AudioContext owner)                                                         |
+| Transport & scheduling    | `src/audio/scheduler.ts`, `src/state/transportStore.ts`                                                   |
+| Timeline / tracks / clips | `src/components/arrangement/`                                                                             |
+| Mixer                     | `src/components/mixer/`                                                                                   |
+| Instrument engine         | `src/audio/synth.ts` (MotionSynth + drum kit)                                                             |
+| Sampler & racks           | `src/model/sampler.ts`, `src/audio/samplerInstrument.ts`, `src/components/sampler/`                       |
+| Recording                 | `src/audio/inputManager.ts`, `recorder.ts`, `recordingController.ts`                                      |
+| Clip scheduling maths     | `src/audio/clipSchedule.ts` (shared by playback and export)                                               |
+| Insert effects            | `src/model/effects.ts`, `src/audio/effectChain.ts`                                                        |
 | Automation                | `src/model/automation.ts`, `src/model/paramRegistry.ts`, `src/components/arrangement/AutomationLanes.tsx` |
-| Import / export           | `src/audio/importAudio.ts`, `src/audio/exportMix.ts`      |
-| Piano roll                | `src/components/pianoroll/`                               |
-| Persistence               | `src/persistence/` (IndexedDB)                            |
-| Diagnostics               | `src/state/diagnostics.ts`, `src/components/diagnostics/` |
-| Responsive layouts        | `src/components/shell/`, `src/styles/`                    |
-| PWA behavior              | `vite.config.ts` (vite-plugin-pwa), `src/pwa/`            |
-| Testing                   | `tests/` (Vitest), `e2e/` (Playwright)                    |
+| Import / export           | `src/audio/importAudio.ts`, `src/audio/exportMix.ts`                                                      |
+| Piano roll                | `src/components/pianoroll/`                                                                               |
+| Persistence               | `src/persistence/` (IndexedDB)                                                                            |
+| Diagnostics               | `src/state/diagnostics.ts`, `src/components/diagnostics/`                                                 |
+| Responsive layouts        | `src/components/shell/`, `src/styles/`                                                                    |
+| PWA behavior              | `vite.config.ts` (vite-plugin-pwa), `src/pwa/`                                                            |
+| Testing                   | `tests/` (Vitest), `e2e/` (Playwright)                                                                    |
 
 Audio rule: exactly one `AudioContext`, owned by `AudioEngine`. UI components never touch
 audio nodes directly — they act on stores; the engine reacts to store changes.

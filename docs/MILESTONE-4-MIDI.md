@@ -8,23 +8,23 @@ model layer, and all usable on a 6,000-note clip.
 
 ## 1. Verification status
 
-| Area | Status |
-| --- | --- |
-| Piano roll rebuild (windowed rendering, gradient grid, velocity lane, marquee, note labels, mute) | Implemented; e2e verified through real pointer events |
-| Note drag with pitch preview, Shift snap bypass, resize, double-click delete | Implemented; drag/resize covered by e2e gestures |
-| Quantize (grids incl. triplets, strength %, swing %, single undo step) | Implemented; 34 model unit tests + e2e through the toolbar button |
-| Humanize (seeded timing/velocity/length/probability) | Implemented; unit-verified deterministic given a seed; probability mutes, never deletes |
-| Chord tools (14 qualities, inversions, drop-2, spread, octave double) | Implemented; unit tests + e2e chordify through a real menu click |
-| Scale system (12 scales, highlight, lock, suggestions) | Implemented; unit tests + e2e (shading, lock-snapped note add) |
-| MIDI transforms (transpose, reverse, mirror, stretch, legato, delete overlaps, thin, repeat) | Implemented; unit tests; exposed in the Tools menu |
-| Note-level shortcuts (Ctrl+A/Ctrl+D override, arrow nudge/transpose, M mute) | Implemented; e2e verified; registered in the shortcut sheet, conflict-checked |
-| Muted notes silent in playback **and** WAV export | Implemented; `muted` checked in the scheduler and the offline render |
-| 10k-note performance (`#/qa-midi`, 6k-note clip open) | Implemented; e2e asserts bounded mounts, scroll budget, editing at scale |
-| Drum-lane naming in the roll (kick/snare/hat… labels on drum tracks) | Implemented; screenshot-inspected via the dense drum clip |
-| Dedicated drum grid editor / step sequencer | **Deferred** — the roll's drum-named lanes are honest; a separate step surface is not built |
-| Groove templates / groove extraction | **Deferred** — quantize swing covers the common case; template management does not exist |
-| Typing-keyboard velocity/sustain layers | **Deferred** — the virtual keyboard plays notes and shifts octaves (Z/X) as before |
-| Quantize/humanize live preview | **Deferred** — both commit as one undoable step instead; determinism makes results repeatable |
+| Area                                                                                              | Status                                                                                        |
+| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Piano roll rebuild (windowed rendering, gradient grid, velocity lane, marquee, note labels, mute) | Implemented; e2e verified through real pointer events                                         |
+| Note drag with pitch preview, Shift snap bypass, resize, double-click delete                      | Implemented; drag/resize covered by e2e gestures                                              |
+| Quantize (grids incl. triplets, strength %, swing %, single undo step)                            | Implemented; 34 model unit tests + e2e through the toolbar button                             |
+| Humanize (seeded timing/velocity/length/probability)                                              | Implemented; unit-verified deterministic given a seed; probability mutes, never deletes       |
+| Chord tools (14 qualities, inversions, drop-2, spread, octave double)                             | Implemented; unit tests + e2e chordify through a real menu click                              |
+| Scale system (12 scales, highlight, lock, suggestions)                                            | Implemented; unit tests + e2e (shading, lock-snapped note add)                                |
+| MIDI transforms (transpose, reverse, mirror, stretch, legato, delete overlaps, thin, repeat)      | Implemented; unit tests; exposed in the Tools menu                                            |
+| Note-level shortcuts (Ctrl+A/Ctrl+D override, arrow nudge/transpose, M mute)                      | Implemented; e2e verified; registered in the shortcut sheet, conflict-checked                 |
+| Muted notes silent in playback **and** WAV export                                                 | Implemented; `muted` checked in the scheduler and the offline render                          |
+| 10k-note performance (`#/qa-midi`, 6k-note clip open)                                             | Implemented; e2e asserts bounded mounts, scroll budget, editing at scale                      |
+| Drum-lane naming in the roll (kick/snare/hat… labels on drum tracks)                              | Implemented; screenshot-inspected via the dense drum clip                                     |
+| Dedicated drum grid editor / step sequencer                                                       | **Deferred** — the roll's drum-named lanes are honest; a separate step surface is not built   |
+| Groove templates / groove extraction                                                              | **Deferred** — quantize swing covers the common case; template management does not exist      |
+| Typing-keyboard velocity/sustain layers                                                           | **Deferred** — the virtual keyboard plays notes and shifts octaves (Z/X) as before            |
+| Quantize/humanize live preview                                                                    | **Deferred** — both commit as one undoable step instead; determinism makes results repeatable |
 
 Totals after M4: **196 unit tests** (34 new for the MIDI model), **129 e2e
 tests** (7 new piano-roll tests), strict TypeScript, ESLint clean.
@@ -41,7 +41,7 @@ Two latent application bugs surfaced during this milestone's test work, both
 worth recording:
 
 1. **Every context-menu item was dead to a real mouse press.** The menu host
-   closed on a capture-phase `pointerdown` anywhere — including *inside* the
+   closed on a capture-phase `pointerdown` anywhere — including _inside_ the
    menu — so the menu unmounted between `pointerdown` and `pointerup` and the
    item's `click` never fired. Keyboard/tap paths masked it; the first e2e test
    that clicked a menu item exposed it. Fixed with a `contains()` guard
@@ -63,7 +63,7 @@ dependencies, so every rule is unit-testable exactly:
   that target. Grids include 1/1…1/32 plus 1/4T, 1/8T, 1/16T triplets.
 - **Humanize** — a seeded mulberry32 PRNG drives timing/velocity/length
   offsets; the same seed always produces the same result (asserted by test).
-  `probability` *mutes* skipped notes rather than deleting them — a humanize
+  `probability` _mutes_ skipped notes rather than deleting them — a humanize
   pass never destroys material.
 - **Transforms** — transpose, reverse, mirror-around-center, stretch ×2/÷2,
   legato, delete-overlaps, thin, repeat. `repeatNotes` returns only the

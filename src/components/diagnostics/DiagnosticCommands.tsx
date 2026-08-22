@@ -81,7 +81,11 @@ export function DiagnosticCommands() {
         ))}
       </div>
       {Object.entries(results).map(([id, r]) => (
-        <div className={`dc-result${r.ok ? ' ok' : ' bad'}`} key={id} data-testid={`diag-res-${id}`}>
+        <div
+          className={`dc-result${r.ok ? ' ok' : ' bad'}`}
+          key={id}
+          data-testid={`diag-res-${id}`}
+        >
           <span className="dc-flag">{r.ok ? 'PASS' : 'FAIL'}</span>
           <span className="dc-title">{r.title}</span>
           <span className="dc-detail">{r.detail}</span>

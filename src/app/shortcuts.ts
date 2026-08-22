@@ -16,20 +16,38 @@ export interface Shortcut {
   combo: string;
   display: string;
   description: string;
-  category: 'Transport' | 'Editing' | 'Selection' | 'View' | 'Project' | 'Piano roll' | 'Automation';
+  category:
+    'Transport' | 'Editing' | 'Selection' | 'View' | 'Project' | 'Piano roll' | 'Automation';
   /** Context in which the combo applies, when not global. */
   when?: string;
 }
 
-const IS_MAC =
-  typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform ?? '');
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform ?? '');
 const MOD = IS_MAC ? '⌘' : 'Ctrl';
 
 export const SHORTCUTS: Shortcut[] = [
   // Transport
-  { id: 'play', combo: 'space', display: 'Space', description: 'Play / stop', category: 'Transport' },
-  { id: 'return', combo: 'enter', display: 'Enter', description: 'Return to start', category: 'Transport' },
-  { id: 'record', combo: 'r', display: 'R', description: 'Start / stop recording', category: 'Transport' },
+  {
+    id: 'play',
+    combo: 'space',
+    display: 'Space',
+    description: 'Play / stop',
+    category: 'Transport',
+  },
+  {
+    id: 'return',
+    combo: 'enter',
+    display: 'Enter',
+    description: 'Return to start',
+    category: 'Transport',
+  },
+  {
+    id: 'record',
+    combo: 'r',
+    display: 'R',
+    description: 'Start / stop recording',
+    category: 'Transport',
+  },
   {
     id: 'escape',
     combo: 'escape',
@@ -39,7 +57,13 @@ export const SHORTCUTS: Shortcut[] = [
   },
 
   // Project
-  { id: 'save', combo: 'mod+s', display: `${MOD}+S`, description: 'Save project', category: 'Project' },
+  {
+    id: 'save',
+    combo: 'mod+s',
+    display: `${MOD}+S`,
+    description: 'Save project',
+    category: 'Project',
+  },
   { id: 'undo', combo: 'mod+z', display: `${MOD}+Z`, description: 'Undo', category: 'Project' },
   {
     id: 'redo',
@@ -75,8 +99,20 @@ export const SHORTCUTS: Shortcut[] = [
   },
 
   // Editing
-  { id: 'copy', combo: 'mod+c', display: `${MOD}+C`, description: 'Copy selected clips', category: 'Editing' },
-  { id: 'cut', combo: 'mod+x', display: `${MOD}+X`, description: 'Cut selected clips', category: 'Editing' },
+  {
+    id: 'copy',
+    combo: 'mod+c',
+    display: `${MOD}+C`,
+    description: 'Copy selected clips',
+    category: 'Editing',
+  },
+  {
+    id: 'cut',
+    combo: 'mod+x',
+    display: `${MOD}+X`,
+    description: 'Cut selected clips',
+    category: 'Editing',
+  },
   {
     id: 'paste',
     combo: 'mod+v',
@@ -178,8 +214,20 @@ export const SHORTCUTS: Shortcut[] = [
     description: 'Pointer · Split · Erase · Mute tool',
     category: 'View',
   },
-  { id: 'octave-down', combo: 'z', display: 'Z', description: 'Keyboard octave down', category: 'View' },
-  { id: 'octave-up', combo: 'x', display: 'X', description: 'Keyboard octave up', category: 'View' },
+  {
+    id: 'octave-down',
+    combo: 'z',
+    display: 'Z',
+    description: 'Keyboard octave down',
+    category: 'View',
+  },
+  {
+    id: 'octave-up',
+    combo: 'x',
+    display: 'X',
+    description: 'Keyboard octave up',
+    category: 'View',
+  },
   {
     id: 'help',
     combo: 'shift+/',

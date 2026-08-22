@@ -49,7 +49,14 @@ export function createHugeProject(): ProjectData {
       armed: false,
       collapsed: i % 7 === 3,
       output: i % 11 === 0 ? busA.id : 'master',
-      ...(isAudio ? {} : { synth: i % 10 === 5 ? { ...DRUM_KIT_PARAMS } : getPreset(SYNTH_PRESETS[i % SYNTH_PRESETS.length].presetName) }),
+      ...(isAudio
+        ? {}
+        : {
+            synth:
+              i % 10 === 5
+                ? { ...DRUM_KIT_PARAMS }
+                : getPreset(SYNTH_PRESETS[i % SYNTH_PRESETS.length].presetName),
+          }),
     });
   }
   tracks.push(busA, busB);

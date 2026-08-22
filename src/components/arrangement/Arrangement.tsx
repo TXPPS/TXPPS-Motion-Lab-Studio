@@ -39,10 +39,7 @@ const clampLaneH = (h: number | undefined) => clamp(h ?? AUTO_LANE_H, 26, 120);
  * Everything that maps Y to a track (marquee rows, cross-track clip drags)
  * uses these totals so the two columns can never disagree.
  */
-function bandHeights(
-  tracks: Track[],
-  clips: Clip[],
-): { clip: number; total: number }[] {
+function bandHeights(tracks: Track[], clips: Clip[]): { clip: number; total: number }[] {
   return tracks.map((t) => {
     const clip = t.collapsed ? LANE_H_COLLAPSED : LANE_H;
     const lanes =
@@ -109,8 +106,7 @@ export function Arrangement() {
   const updateViewWin = useCallback(() => {
     const vp = viewportRef.current;
     if (!vp) return;
-    const headerW =
-      (vp.querySelector('.arr-header-col') as HTMLElement | null)?.clientWidth ?? 0;
+    const headerW = (vp.querySelector('.arr-header-col') as HTMLElement | null)?.clientWidth ?? 0;
     const vw = vp.clientWidth - headerW;
     const vh = vp.clientHeight;
     const q = (n: number) => Math.floor(n / 200) * 200;
@@ -164,10 +160,7 @@ export function Arrangement() {
   const bands = useMemo(() => bandHeights(tracks, clips), [tracks, clips]);
   const heights = useMemo(() => bands.map((b) => b.total), [bands]);
   /** Resolved automation lanes per track (only for expanded tracks). */
-  const lanesByTrack = useMemo(
-    () => tracks.map((t) => trackLanes(t, project)),
-    [tracks, project],
-  );
+  const lanesByTrack = useMemo(() => tracks.map((t) => trackLanes(t, project)), [tracks, project]);
   /** Open take clips per track, in ONE pass — never filter per track. */
   const takeClipsByTrack = useMemo(() => {
     const m = new Map<string, AudioClip[]>();
@@ -653,47 +646,50 @@ export function Arrangement() {
               <div className="arr-grid-canvas" style={gridStyle} />
               {tracks.map((t, i) => (
                 <Fragment key={t.id}>
-                <div
-                  className={`arr-lane${selectedTrackId === t.id ? ' selected' : ''}${
-                    dropLane === t.id ? ' drop-target' : ''
-                  }`}
-                  style={{ height: bands[i].clip }}
-                  data-testid={`lane-${t.name}`}
-                  onPointerDown={() => useUiStore.getState().selectTrack(t.id)}
-                  onDragOver={(e) => {
-                    // Only audio tracks can hold a file; anything else keeps the
-                    // default "no drop" cursor rather than accepting and failing.
-                    if (t.type !== 'audio' || !dragHasFiles(e.dataTransfer)) return;
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'copy';
-                    setDropLane(t.id);
-                  }}
-                  onDragLeave={() => setDropLane((cur) => (cur === t.id ? null : cur))}
-                  onDrop={(e) => {
-                    if (t.type !== 'audio' || !dragHasFiles(e.dataTransfer)) return;
-                    e.preventDefault();
-                    setDropLane(null);
-                    const lanes = viewportRef.current?.querySelector('.arr-lanes');
-                    if (!lanes) return;
-                    const rect = lanes.getBoundingClientRect();
-                    const beat = snapBeatFloor((e.clientX - rect.left) / pxPerBeat, Math.max(snap, 1));
-                    useUiStore.getState().selectTrack(t.id);
-                    importDrop(e.dataTransfer, { trackId: t.id, startBeat: beat });
-                  }}
-                  onDoubleClick={(e) => {
-                    if (t.type !== 'instrument' && t.type !== 'drum') return;
-                    const lanes = viewportRef.current?.querySelector('.arr-lanes');
-                    if (!lanes) return;
-                    const rect = lanes.getBoundingClientRect();
-                    const beat = snapBeatFloor(
-                      (e.clientX - rect.left) / pxPerBeat,
-                      Math.max(snap, 1),
-                    );
-                    const id = useProjectStore.getState().addMidiClip(t.id, beat, bpb);
-                    useUiStore.getState().selectClip(id, t.id);
-                  }}
-                >
-                  {(visibleByTrack.get(t.id) ?? []).map((c) => (
+                  <div
+                    className={`arr-lane${selectedTrackId === t.id ? ' selected' : ''}${
+                      dropLane === t.id ? ' drop-target' : ''
+                    }`}
+                    style={{ height: bands[i].clip }}
+                    data-testid={`lane-${t.name}`}
+                    onPointerDown={() => useUiStore.getState().selectTrack(t.id)}
+                    onDragOver={(e) => {
+                      // Only audio tracks can hold a file; anything else keeps the
+                      // default "no drop" cursor rather than accepting and failing.
+                      if (t.type !== 'audio' || !dragHasFiles(e.dataTransfer)) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'copy';
+                      setDropLane(t.id);
+                    }}
+                    onDragLeave={() => setDropLane((cur) => (cur === t.id ? null : cur))}
+                    onDrop={(e) => {
+                      if (t.type !== 'audio' || !dragHasFiles(e.dataTransfer)) return;
+                      e.preventDefault();
+                      setDropLane(null);
+                      const lanes = viewportRef.current?.querySelector('.arr-lanes');
+                      if (!lanes) return;
+                      const rect = lanes.getBoundingClientRect();
+                      const beat = snapBeatFloor(
+                        (e.clientX - rect.left) / pxPerBeat,
+                        Math.max(snap, 1),
+                      );
+                      useUiStore.getState().selectTrack(t.id);
+                      importDrop(e.dataTransfer, { trackId: t.id, startBeat: beat });
+                    }}
+                    onDoubleClick={(e) => {
+                      if (t.type !== 'instrument' && t.type !== 'drum') return;
+                      const lanes = viewportRef.current?.querySelector('.arr-lanes');
+                      if (!lanes) return;
+                      const rect = lanes.getBoundingClientRect();
+                      const beat = snapBeatFloor(
+                        (e.clientX - rect.left) / pxPerBeat,
+                        Math.max(snap, 1),
+                      );
+                      const id = useProjectStore.getState().addMidiClip(t.id, beat, bpb);
+                      useUiStore.getState().selectClip(id, t.id);
+                    }}
+                  >
+                    {(visibleByTrack.get(t.id) ?? []).map((c) => (
                       <ClipView
                         key={c.id}
                         clip={c}
@@ -704,39 +700,39 @@ export function Arrangement() {
                         onEdgeScroll={edgeScroll}
                       />
                     ))}
-                </div>
-                {(takeClipsByTrack.get(t.id) ?? []).map((tc) =>
-                  tc.takes!.map((take, ti) => (
-                    <TakeLaneRow
-                      key={take.id}
-                      clip={tc}
-                      take={take}
-                      index={ti}
-                      pxPerBeat={pxPerBeat}
-                      snap={snap}
-                    />
-                  )),
-                )}
-                {lanesByTrack[i].length > 0 &&
-                  (laneTops[i] > viewWin.bottom || laneTops[i] + heights[i] < viewWin.top ? (
-                    // Off-window: hold the band's height without mounting rows.
-                    <div style={{ height: heights[i] - bands[i].clip }} />
-                  ) : (
-                    lanesByTrack[i].map((le) => (
-                      <AutoLaneRow
-                        key={le.lane.id}
-                        track={t}
-                        lane={le.lane}
-                        param={le.param}
-                        height={le.h}
+                  </div>
+                  {(takeClipsByTrack.get(t.id) ?? []).map((tc) =>
+                    tc.takes!.map((take, ti) => (
+                      <TakeLaneRow
+                        key={take.id}
+                        clip={tc}
+                        take={take}
+                        index={ti}
                         pxPerBeat={pxPerBeat}
-                        winLeft={viewWin.left}
-                        winRight={viewWin.right}
-                        timelineW={timelineW}
                         snap={snap}
                       />
-                    ))
-                  ))}
+                    )),
+                  )}
+                  {lanesByTrack[i].length > 0 &&
+                    (laneTops[i] > viewWin.bottom || laneTops[i] + heights[i] < viewWin.top ? (
+                      // Off-window: hold the band's height without mounting rows.
+                      <div style={{ height: heights[i] - bands[i].clip }} />
+                    ) : (
+                      lanesByTrack[i].map((le) => (
+                        <AutoLaneRow
+                          key={le.lane.id}
+                          track={t}
+                          lane={le.lane}
+                          param={le.param}
+                          height={le.h}
+                          pxPerBeat={pxPerBeat}
+                          winLeft={viewWin.left}
+                          winRight={viewWin.right}
+                          timelineW={timelineW}
+                          snap={snap}
+                        />
+                      ))
+                    ))}
                 </Fragment>
               ))}
               {marquee && (

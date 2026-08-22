@@ -114,7 +114,9 @@ function ZoneWaveEditor({ track, zone }: { track: Track; zone: SampleZone }) {
           half-outside handle would be ungrabbable at 0%/100% there */}
       <div
         className="smp-handle l"
-        style={{ left: `clamp(0px, calc(${(zone.startSec / dur) * 100}% - 5px), calc(100% - 10px))` }}
+        style={{
+          left: `clamp(0px, calc(${(zone.startSec / dur) * 100}% - 5px), calc(100% - 10px))`,
+        }}
         title="Trim start (Alt bypasses zero-crossing snap)"
         onPointerDown={dragStart}
         data-testid="smp-trim-start"
@@ -491,11 +493,9 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
               max={24}
               value={sel.tuneCoarse}
               onChange={(e) =>
-                store
-                  .getState()
-                  .updateSamplerZones(track.id, [sel.id], () => ({
-                    tuneCoarse: num(e.target.value, 0),
-                  }))
+                store.getState().updateSamplerZones(track.id, [sel.id], () => ({
+                  tuneCoarse: num(e.target.value, 0),
+                }))
               }
               aria-label="Pad pitch (semitones)"
             />
@@ -509,11 +509,9 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
               value={sel.chokeGroup ?? 0}
               onChange={(e) => {
                 const g = num(e.target.value, 0);
-                store
-                  .getState()
-                  .updateSamplerZones(track.id, [sel.id], () => ({
-                    chokeGroup: g > 0 ? g : undefined,
-                  }));
+                store.getState().updateSamplerZones(track.id, [sel.id], () => ({
+                  chokeGroup: g > 0 ? g : undefined,
+                }));
               }}
               aria-label="Choke group (0 = none)"
             />
@@ -551,102 +549,108 @@ const zoneRowEq = (a: SampleZone, b: SampleZone) =>
   a.rootNote === b.rootNote &&
   a.rrGroup === b.rrGroup;
 
-const ZoneRow = memo(function ZoneRow({ trackId, z }: { trackId: string; z: SampleZone }) {
-  const store = useProjectStore;
-  const upd = (patch: Partial<SampleZone>) =>
-    store.getState().updateSamplerZones(trackId, [z.id], () => patch);
-  return (
-    <div className="zone-row" data-testid="zone-row">
-      <button className="th-mini" title="Preview at root" onClick={() => preview(trackId, z.rootNote)}>
-        ▶
-      </button>
-      <span className="alh-name" title={`${z.name} (${z.mediaId})`}>
-        {z.name}
-      </span>
-      <label>
-        Key
-        <input
-          type="number"
-          min={0}
-          max={127}
-          value={z.keyLo}
-          aria-label="Key low"
-          onChange={(e) => upd({ keyLo: num(e.target.value, 0) })}
-        />
-        –
-        <input
-          type="number"
-          min={0}
-          max={127}
-          value={z.keyHi}
-          aria-label="Key high"
-          onChange={(e) => upd({ keyHi: num(e.target.value, 127) })}
-        />
-      </label>
-      <label>
-        Root
-        <input
-          type="number"
-          min={0}
-          max={127}
-          value={z.rootNote}
-          aria-label="Zone root"
-          onChange={(e) => upd({ rootNote: num(e.target.value, 60) })}
-        />
-      </label>
-      <label>
-        Vel
-        <input
-          type="number"
-          min={1}
-          max={127}
-          value={z.velLo}
-          aria-label="Velocity low"
-          onChange={(e) => upd({ velLo: num(e.target.value, 1) })}
-        />
-        –
-        <input
-          type="number"
-          min={1}
-          max={127}
-          value={z.velHi}
-          aria-label="Velocity high"
-          onChange={(e) => upd({ velHi: num(e.target.value, 127) })}
-        />
-      </label>
-      <label>
-        RR
-        <input
-          type="number"
-          min={0}
-          max={99}
-          value={z.rrGroup ?? 0}
-          aria-label="Round-robin group"
-          onChange={(e) => {
-            const g = num(e.target.value, 0);
-            upd({ rrGroup: g > 0 ? g : undefined });
-          }}
-        />
-      </label>
-      <div className="zone-strip" aria-hidden="true">
-        <div
-          style={{
-            left: `${(z.keyLo / 127) * 100}%`,
-            width: `${(Math.max(1, z.keyHi - z.keyLo) / 127) * 100}%`,
-          }}
-        />
+const ZoneRow = memo(
+  function ZoneRow({ trackId, z }: { trackId: string; z: SampleZone }) {
+    const store = useProjectStore;
+    const upd = (patch: Partial<SampleZone>) =>
+      store.getState().updateSamplerZones(trackId, [z.id], () => patch);
+    return (
+      <div className="zone-row" data-testid="zone-row">
+        <button
+          className="th-mini"
+          title="Preview at root"
+          onClick={() => preview(trackId, z.rootNote)}
+        >
+          ▶
+        </button>
+        <span className="alh-name" title={`${z.name} (${z.mediaId})`}>
+          {z.name}
+        </span>
+        <label>
+          Key
+          <input
+            type="number"
+            min={0}
+            max={127}
+            value={z.keyLo}
+            aria-label="Key low"
+            onChange={(e) => upd({ keyLo: num(e.target.value, 0) })}
+          />
+          –
+          <input
+            type="number"
+            min={0}
+            max={127}
+            value={z.keyHi}
+            aria-label="Key high"
+            onChange={(e) => upd({ keyHi: num(e.target.value, 127) })}
+          />
+        </label>
+        <label>
+          Root
+          <input
+            type="number"
+            min={0}
+            max={127}
+            value={z.rootNote}
+            aria-label="Zone root"
+            onChange={(e) => upd({ rootNote: num(e.target.value, 60) })}
+          />
+        </label>
+        <label>
+          Vel
+          <input
+            type="number"
+            min={1}
+            max={127}
+            value={z.velLo}
+            aria-label="Velocity low"
+            onChange={(e) => upd({ velLo: num(e.target.value, 1) })}
+          />
+          –
+          <input
+            type="number"
+            min={1}
+            max={127}
+            value={z.velHi}
+            aria-label="Velocity high"
+            onChange={(e) => upd({ velHi: num(e.target.value, 127) })}
+          />
+        </label>
+        <label>
+          RR
+          <input
+            type="number"
+            min={0}
+            max={99}
+            value={z.rrGroup ?? 0}
+            aria-label="Round-robin group"
+            onChange={(e) => {
+              const g = num(e.target.value, 0);
+              upd({ rrGroup: g > 0 ? g : undefined });
+            }}
+          />
+        </label>
+        <div className="zone-strip" aria-hidden="true">
+          <div
+            style={{
+              left: `${(z.keyLo / 127) * 100}%`,
+              width: `${(Math.max(1, z.keyHi - z.keyLo) / 127) * 100}%`,
+            }}
+          />
+        </div>
+        <button
+          className="th-mini"
+          title="Remove zone"
+          onClick={() => store.getState().removeSamplerZones(trackId, [z.id])}
+        >
+          ×
+        </button>
       </div>
-      <button
-        className="th-mini"
-        title="Remove zone"
-        onClick={() => store.getState().removeSamplerZones(trackId, [z.id])}
-      >
-        ×
-      </button>
-    </div>
-  );
-},
-(prev, next) => prev.trackId === next.trackId && zoneRowEq(prev.z, next.z));
+    );
+  },
+  (prev, next) => prev.trackId === next.trackId && zoneRowEq(prev.z, next.z),
+);
 
 function MultiView({ track, params }: { track: Track; params: SamplerParams }) {
   const store = useProjectStore;
@@ -662,14 +666,12 @@ function MultiView({ track, params }: { track: Track; params: SamplerParams }) {
           className="btn"
           data-testid="add-zone"
           onClick={() =>
-            store
-              .getState()
-              .addSamplerZones(track.id, [
-                makeZone({
-                  mediaId: PROCEDURAL_MEDIA_IDS[1],
-                  name: `Zone ${params.zones.length + 1}`,
-                }),
-              ])
+            store.getState().addSamplerZones(track.id, [
+              makeZone({
+                mediaId: PROCEDURAL_MEDIA_IDS[1],
+                name: `Zone ${params.zones.length + 1}`,
+              }),
+            ])
           }
         >
           + Zone

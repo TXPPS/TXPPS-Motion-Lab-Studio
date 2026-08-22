@@ -7,25 +7,25 @@ flowing through the same schedule math the offline bounce uses.
 
 ## 1. Verification status
 
-| Area | Status |
-| --- | --- |
-| Fade shapes (linear, equal power, equal gain, S-curve) on fade-in and fade-out | Implemented; unit-tested math (equal power crosses at −3 dB; amplitude pairs sum to unity); drawn as real curves on clips |
-| Crossfades (menu on two same-track clips; overlap created from real trim headroom; complementary shapes; single undo) | Implemented; e2e through the menu; refuses honestly when no material exists to overlap |
-| Take lanes (multiple takes, visibility, mute, solo-audition, promote, reorder, safe delete) | Implemented; e2e drives lanes, audition, promote; deleting the last take flattens to a plain clip |
-| Swipe comping (segment data only, join micro-fades, indicators, single-step undo) | Implemented; e2e swipe → segments; comp bar mirrors segments; undo restores |
-| Pack clips into takes | Implemented; e2e packs two stacked clips and opens the lanes |
-| Split / heal / join | Implemented; heal requires genuinely contiguous material (same media, contiguous offsets ±15 ms) — MIDI merges notes; e2e splits with the tool and heals from the menu |
-| Slip editing (tool 5 + store op, clamped to real source bounds) | Implemented; e2e verifies offset moves while the clip stays put |
-| Ripple delete (per-track foundation) | Implemented; later clips pull left by the removed span; locked material is skipped; e2e verified |
-| Clip nudge (arrows, Shift = fine) and zoom-to-selection | Implemented; e2e verified |
-| Normalization (−0.3 dBFS via clip gain), phase invert, mono sum | Implemented; normalize/analysis read the decoded buffer; phase and mono flags flow into live playback and the render |
-| DC-offset + peak analysis, visual silence detection | Implemented; inspector readout; silence runs dim in the waveform |
-| Sample-aware zoom | Implemented; above ~600 px/s the waveform draws min/max from decoded samples instead of the peak cache |
-| Track/clip locking, edit groups (linked selection) | Implemented; store-level guards (the only place that counts) + UI badges; e2e verifies locks hold and groups link |
-| Render correctness | e2e: a phase-inverted duplicate cancels to < 2% of the reference peak (proves sample-aligned scheduling and polarity); comp clips render take-correct material; shaped fades render (M5-style amplitude checks) |
-| `#/qa-audio-edit` fixture | 2,020 clips / 56 tracks, every editing feature staged; exact-shape unit test |
-| Clip gain envelopes (point-level per-clip gain curves) | **Deferred** — see §5 |
-| Global time-stretch / warping | **Deferred** — the milestone brief itself rules out unreliable stretching |
+| Area                                                                                                                  | Status                                                                                                                                                                                                          |
+| --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fade shapes (linear, equal power, equal gain, S-curve) on fade-in and fade-out                                        | Implemented; unit-tested math (equal power crosses at −3 dB; amplitude pairs sum to unity); drawn as real curves on clips                                                                                       |
+| Crossfades (menu on two same-track clips; overlap created from real trim headroom; complementary shapes; single undo) | Implemented; e2e through the menu; refuses honestly when no material exists to overlap                                                                                                                          |
+| Take lanes (multiple takes, visibility, mute, solo-audition, promote, reorder, safe delete)                           | Implemented; e2e drives lanes, audition, promote; deleting the last take flattens to a plain clip                                                                                                               |
+| Swipe comping (segment data only, join micro-fades, indicators, single-step undo)                                     | Implemented; e2e swipe → segments; comp bar mirrors segments; undo restores                                                                                                                                     |
+| Pack clips into takes                                                                                                 | Implemented; e2e packs two stacked clips and opens the lanes                                                                                                                                                    |
+| Split / heal / join                                                                                                   | Implemented; heal requires genuinely contiguous material (same media, contiguous offsets ±15 ms) — MIDI merges notes; e2e splits with the tool and heals from the menu                                          |
+| Slip editing (tool 5 + store op, clamped to real source bounds)                                                       | Implemented; e2e verifies offset moves while the clip stays put                                                                                                                                                 |
+| Ripple delete (per-track foundation)                                                                                  | Implemented; later clips pull left by the removed span; locked material is skipped; e2e verified                                                                                                                |
+| Clip nudge (arrows, Shift = fine) and zoom-to-selection                                                               | Implemented; e2e verified                                                                                                                                                                                       |
+| Normalization (−0.3 dBFS via clip gain), phase invert, mono sum                                                       | Implemented; normalize/analysis read the decoded buffer; phase and mono flags flow into live playback and the render                                                                                            |
+| DC-offset + peak analysis, visual silence detection                                                                   | Implemented; inspector readout; silence runs dim in the waveform                                                                                                                                                |
+| Sample-aware zoom                                                                                                     | Implemented; above ~600 px/s the waveform draws min/max from decoded samples instead of the peak cache                                                                                                          |
+| Track/clip locking, edit groups (linked selection)                                                                    | Implemented; store-level guards (the only place that counts) + UI badges; e2e verifies locks hold and groups link                                                                                               |
+| Render correctness                                                                                                    | e2e: a phase-inverted duplicate cancels to < 2% of the reference peak (proves sample-aligned scheduling and polarity); comp clips render take-correct material; shaped fades render (M5-style amplitude checks) |
+| `#/qa-audio-edit` fixture                                                                                             | 2,020 clips / 56 tracks, every editing feature staged; exact-shape unit test                                                                                                                                    |
+| Clip gain envelopes (point-level per-clip gain curves)                                                                | **Deferred** — see §5                                                                                                                                                                                           |
+| Global time-stretch / warping                                                                                         | **Deferred** — the milestone brief itself rules out unreliable stretching                                                                                                                                       |
 
 Totals after M6: **245 unit tests**, **146 e2e tests**, strict TypeScript,
 ESLint clean.
@@ -40,7 +40,7 @@ differently than it played.
 
 **Crossfades** are stored as what they truly are — an overlap plus a shaped
 fade-out on the left clip and a complementary fade-in on the right. Creating
-one extends the overlap only from *verifiable* source headroom (known media
+one extends the overlap only from _verifiable_ source headroom (known media
 duration, trim offsets); when neither side has material, it refuses with an
 explanation instead of scheduling silence.
 
@@ -69,18 +69,18 @@ mount cost); size changes arrive as props instead.
 
 - **Crossfade**: select two touching clips on one track → right-click →
   Crossfade. Drag the fade handles to resize; pick shapes in the inspector.
-- **Comp**: stack alternative clips → right-click → *Pack N clips into
-  takes*. Swipe across a lane to comp a range; click a lane to audition it;
+- **Comp**: stack alternative clips → right-click → _Pack N clips into
+  takes_. Swipe across a lane to comp a range; click a lane to audition it;
   ▲ promotes; × deletes safely. Double-click the clip toggles the lanes.
 - **Slip**: tool 5 (or the toolbar), drag inside a clip — the window stays,
   the material slides.
-- **Heal**: select the pieces of a split → right-click → *Heal splits*.
-- **Ripple delete**: right-click → *Ripple delete* — later clips close the
+- **Heal**: select the pieces of a split → right-click → _Heal splits_.
+- **Ripple delete**: right-click → _Ripple delete_ — later clips close the
   gap; locked material stays put.
 - **Cleanup**: inspector → Normalize, ø (polarity), M→1 (mono), analysis
   readout; silence shows as dimmed runs in the waveform.
 - **Safety**: lock clips from their menu, lock tracks from the track menu;
-  set *Edit group 1–4* on related tracks and their overlapping clips select
+  set _Edit group 1–4_ on related tracks and their overlapping clips select
   and move together.
 
 ## 4. Performance (measured on this CI's software rasteriser)

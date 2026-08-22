@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { computePeaks, fromStoredPeaks, peaksAreSilent, sampleWindow, toStoredPeaks } from '../src/audio/peaks';
+import {
+  computePeaks,
+  fromStoredPeaks,
+  peaksAreSilent,
+  sampleWindow,
+  toStoredPeaks,
+} from '../src/audio/peaks';
 import { PEAKS_VERSION } from '../src/model/media';
 import { createEmptyProject } from '../src/model/demoProject';
 import { useProjectStore } from '../src/state/projectStore';

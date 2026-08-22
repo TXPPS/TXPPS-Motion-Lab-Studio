@@ -420,7 +420,11 @@ export function buildMidiFile(tracks: MidiWriteTrack[], opts: MidiWriteOptions =
       evs.push({
         tick: Math.max(0, Math.round(c.tick)),
         order: 0,
-        bytes: [0xb0 | ch, Math.max(0, Math.min(127, c.controller)), Math.max(0, Math.min(127, c.value))],
+        bytes: [
+          0xb0 | ch,
+          Math.max(0, Math.min(127, c.controller)),
+          Math.max(0, Math.min(127, c.value)),
+        ],
       });
     }
     payload.push(...chunk('MTrk', serialiseTrack(evs)));
@@ -429,7 +433,7 @@ export function buildMidiFile(tracks: MidiWriteTrack[], opts: MidiWriteOptions =
   const header = chunk('MThd', [
     0x00,
     0x01, // format 1
-    (((tracks.length + 1) >> 8) & 0xff),
+    ((tracks.length + 1) >> 8) & 0xff,
     (tracks.length + 1) & 0xff,
     (ppq >> 8) & 0xff,
     ppq & 0xff,

@@ -61,7 +61,9 @@ test.describe('marquee and multi-selection', () => {
 
     const before = await page.evaluate(() => {
       const w = window as unknown as {
-        __ml: { projectStore: { getState(): { project: { clips: { name: string; start: number }[] } } } };
+        __ml: {
+          projectStore: { getState(): { project: { clips: { name: string; start: number }[] } } };
+        };
       };
       const clips = w.__ml.projectStore.getState().project.clips;
       return {
@@ -78,7 +80,9 @@ test.describe('marquee and multi-selection', () => {
 
     const after = await page.evaluate(() => {
       const w = window as unknown as {
-        __ml: { projectStore: { getState(): { project: { clips: { name: string; start: number }[] } } } };
+        __ml: {
+          projectStore: { getState(): { project: { clips: { name: string; start: number }[] } } };
+        };
       };
       const clips = w.__ml.projectStore.getState().project.clips;
       return {
@@ -304,7 +308,9 @@ test.describe('huge-scale fixture (100 tracks / 1000 clips)', () => {
 
     const info = await page.evaluate(() => {
       const w = window as unknown as {
-        __ml: { projectStore: { getState(): { project: { tracks: unknown[]; clips: unknown[] } } } };
+        __ml: {
+          projectStore: { getState(): { project: { tracks: unknown[]; clips: unknown[] } } };
+        };
       };
       const p = w.__ml.projectStore.getState().project;
       return {
@@ -347,8 +353,12 @@ test.describe('huge-scale fixture (100 tracks / 1000 clips)', () => {
       const bigJump = (performance.now() - t) / 20;
       return { smallStep, bigJump };
     });
-    expect(cost.smallStep, `paint-only step ${cost.smallStep.toFixed(1)}ms`).toBeLessThan(70 * PERF_SCALE);
-    expect(cost.bigJump, `windowed jump ${cost.bigJump.toFixed(1)}ms`).toBeLessThan(150 * PERF_SCALE);
+    expect(cost.smallStep, `paint-only step ${cost.smallStep.toFixed(1)}ms`).toBeLessThan(
+      70 * PERF_SCALE,
+    );
+    expect(cost.bigJump, `windowed jump ${cost.bigJump.toFixed(1)}ms`).toBeLessThan(
+      150 * PERF_SCALE,
+    );
 
     // Group-selection machinery at scale: marquee a region and confirm the
     // store-level selection matches without locking the UI. (Select-all is

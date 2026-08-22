@@ -170,12 +170,12 @@ export function createSamplerQaProject(): ProjectData {
     [0, 1, 2, 3, 4, 5, 6, 7].map((b) => note(b, 0.75, b % 2 ? 67 + (b % 3) * 5 : 48 + b, 92)),
   );
 
-  return scaffold(SAMPLER_QA_PROJECT_ID, 'QA — Sampler Workstation', [quick, drums, multi, rack], [
-    quickClip,
-    drumClip,
-    chordClip,
-    rackClip,
-  ]);
+  return scaffold(
+    SAMPLER_QA_PROJECT_ID,
+    'QA — Sampler Workstation',
+    [quick, drums, multi, rack],
+    [quickClip, drumClip, chordClip, rackClip],
+  );
 }
 
 /** #/qa-drums — 100 assigned pads on one rack plus a dense trigger pattern. */
@@ -199,7 +199,8 @@ export function createDrumsQaProject(): ProjectData {
   for (let s = 0; s < 128; s++) {
     const beat = s * 0.25;
     notes.push(note(beat, 0.2, DRUM_PAD_BASE + ((s * 7) % DRUMS_QA_PADS), 70 + (s % 50)));
-    if (s % 2 === 0) notes.push(note(beat, 0.2, DRUM_PAD_BASE + ((s * 13 + 3) % DRUMS_QA_PADS), 96));
+    if (s % 2 === 0)
+      notes.push(note(beat, 0.2, DRUM_PAD_BASE + ((s * 13 + 3) % DRUMS_QA_PADS), 96));
   }
   const clip = midiClip(rack.id, 'Pad walk', 32, notes);
 

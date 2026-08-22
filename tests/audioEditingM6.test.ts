@@ -292,9 +292,7 @@ describe('store: heal, ripple, crossfade, takes, locks', () => {
     expect(p.clips.length).toBeGreaterThanOrEqual(2000);
     const withTakes = p.clips.filter((c) => c.type === 'audio' && c.takes?.length);
     expect(withTakes.length).toBeGreaterThanOrEqual(2);
-    const faded = p.clips.filter(
-      (c) => c.type === 'audio' && (c.fadeIn > 0 || c.fadeOut > 0),
-    );
+    const faded = p.clips.filter((c) => c.type === 'audio' && (c.fadeIn > 0 || c.fadeOut > 0));
     expect(faded.length).toBeGreaterThan(1900);
     const revived = validateProject(JSON.parse(JSON.stringify(p)));
     expect(revived.clips.length).toBe(p.clips.length);

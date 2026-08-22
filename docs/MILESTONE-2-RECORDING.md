@@ -14,27 +14,27 @@ Everything here is real browser audio. Nothing is simulated at the UI layer.
 The project instructions require each claim to be labelled honestly. This is that
 labelling.
 
-| Area | Status |
-| --- | --- |
-| Input selection, arming, monitoring | Implemented; verified by automated browser tests using a synthetic capture device |
-| Count-in, capture, finalise, clip creation | Implemented; verified end to end in an automated browser test |
-| Permission discipline (no startup prompt) | Implemented; **directly asserted** by counting `getUserMedia` calls |
-| Microphone release after recording | Implemented; **directly asserted** on `MediaStreamTrack.readyState` |
-| MediaRecorder format negotiation | Implemented; Opus/WebM verified in Chromium. **Safari AAC/MP4 not verified** — no Safari available |
-| Waveform generation and rendering | Implemented; peak maths unit-tested, rendering verified in browser tests |
-| Nondestructive trim / split / gain / fades | Implemented; invariants unit-tested |
-| Audio file import | Implemented; pipeline unit-tested with a stubbed decoder. **Real-codec decoding not verified in CI** — jsdom has no Web Audio |
-| Insert effects (gain, EQ, compressor, delay, reverb) | Implemented; graph construction and parameter clamping tested. **Audio output not measured** — no offline render comparison yet |
-| Sends and buses | Implemented; routing and cycle rejection unit-tested |
-| Schema v1 → v2 migration | Implemented; verified against realistic v1 project fixtures |
-| Interrupted-take recovery | Implemented; **verified by unit-level reasoning and manual code paths only** — no automated crash-simulation test |
-| Storage quota handling | Implemented; pre-flight check tested. **Actual quota exhaustion not simulated** |
-| WAV export (offline bounce) | Implemented; **automated-test verified in a real browser** — nine tests prove clips, instrument notes, mute, inserts, bypass and sends each reach the output |
-| Export file validity | Implemented; every bounce is decoded and checked before it is offered to the user |
-| Diagnostic commands | Implemented; run manually from the panel. The storage, export, missing-media, recorder and waveform checks are deterministic; the two microphone checks need real input to be meaningful |
-| Real microphone hardware | **Not verified.** No physical audio input device was available in this environment |
-| Real MIDI hardware | **Not verified.** No physical MIDI device was available |
-| iOS / Safari behaviour | **Not verified.** No Apple device or Safari build was available |
+| Area                                                 | Status                                                                                                                                                                                   |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Input selection, arming, monitoring                  | Implemented; verified by automated browser tests using a synthetic capture device                                                                                                        |
+| Count-in, capture, finalise, clip creation           | Implemented; verified end to end in an automated browser test                                                                                                                            |
+| Permission discipline (no startup prompt)            | Implemented; **directly asserted** by counting `getUserMedia` calls                                                                                                                      |
+| Microphone release after recording                   | Implemented; **directly asserted** on `MediaStreamTrack.readyState`                                                                                                                      |
+| MediaRecorder format negotiation                     | Implemented; Opus/WebM verified in Chromium. **Safari AAC/MP4 not verified** — no Safari available                                                                                       |
+| Waveform generation and rendering                    | Implemented; peak maths unit-tested, rendering verified in browser tests                                                                                                                 |
+| Nondestructive trim / split / gain / fades           | Implemented; invariants unit-tested                                                                                                                                                      |
+| Audio file import                                    | Implemented; pipeline unit-tested with a stubbed decoder. **Real-codec decoding not verified in CI** — jsdom has no Web Audio                                                            |
+| Insert effects (gain, EQ, compressor, delay, reverb) | Implemented; graph construction and parameter clamping tested. **Audio output not measured** — no offline render comparison yet                                                          |
+| Sends and buses                                      | Implemented; routing and cycle rejection unit-tested                                                                                                                                     |
+| Schema v1 → v2 migration                             | Implemented; verified against realistic v1 project fixtures                                                                                                                              |
+| Interrupted-take recovery                            | Implemented; **verified by unit-level reasoning and manual code paths only** — no automated crash-simulation test                                                                        |
+| Storage quota handling                               | Implemented; pre-flight check tested. **Actual quota exhaustion not simulated**                                                                                                          |
+| WAV export (offline bounce)                          | Implemented; **automated-test verified in a real browser** — nine tests prove clips, instrument notes, mute, inserts, bypass and sends each reach the output                             |
+| Export file validity                                 | Implemented; every bounce is decoded and checked before it is offered to the user                                                                                                        |
+| Diagnostic commands                                  | Implemented; run manually from the panel. The storage, export, missing-media, recorder and waveform checks are deterministic; the two microphone checks need real input to be meaningful |
+| Real microphone hardware                             | **Not verified.** No physical audio input device was available in this environment                                                                                                       |
+| Real MIDI hardware                                   | **Not verified.** No physical MIDI device was available                                                                                                                                  |
+| iOS / Safari behaviour                               | **Not verified.** No Apple device or Safari build was available                                                                                                                          |
 
 Test totals: **147 unit tests**, **110 end-to-end tests**, strict TypeScript, ESLint
 clean, production build succeeding.
@@ -121,13 +121,13 @@ at test time.
 
 ### Storage split
 
-| What | Where | Why |
-| --- | --- | --- |
-| Project document | IndexedDB `projects` | Small, rewritten on every autosave |
-| `MediaRef` metadata | Inside the project document | Small; keeps media discoverable with the project |
-| Encoded audio bytes | IndexedDB `media` | Large; must not be rewritten on every autosave |
-| Peak envelopes | IndexedDB `peaks` | Cache; regenerable, so failure to write is non-fatal |
-| Interrupted takes | IndexedDB `recovery` | Survives a crash independently of any project |
+| What                | Where                       | Why                                                  |
+| ------------------- | --------------------------- | ---------------------------------------------------- |
+| Project document    | IndexedDB `projects`        | Small, rewritten on every autosave                   |
+| `MediaRef` metadata | Inside the project document | Small; keeps media discoverable with the project     |
+| Encoded audio bytes | IndexedDB `media`           | Large; must not be rewritten on every autosave       |
+| Peak envelopes      | IndexedDB `peaks`           | Cache; regenerable, so failure to write is non-fatal |
+| Interrupted takes   | IndexedDB `recovery`        | Survives a crash independently of any project        |
 
 Saving a project therefore never rewrites megabytes of audio, and `localStorage`
 is never involved.
@@ -155,7 +155,7 @@ No edit ever rewrites audio. Every operation adjusts clip metadata:
   the audio under the playhead does not shift.
 - **Trim end** changes the musical length and the source duration together.
 - **Split** adjusts the right half's source offset (`left.offset + leftLength ×
-  secondsPerBeat`) rather than copying audio, and drops any fade that would land
+secondsPerBeat`) rather than copying audio, and drops any fade that would land
   across the cut.
 - **Fades** are gain ramps applied at schedule time, and they honour mid-clip
   entry — a loop wrap or a seek into the middle of a fade still produces the
@@ -190,13 +190,13 @@ cycle.
 Five effects behind one `EffectNode` interface (`input`, `output`, `update`,
 `dispose`), so the channel does not know which effect it holds:
 
-| Effect | Built from |
-| --- | --- |
-| Gain | `GainNode` |
-| EQ | three `BiquadFilterNode`s (low shelf, peaking, high shelf) |
-| Compressor | `DynamicsCompressorNode` + makeup `GainNode` |
-| Delay | `DelayNode` with a filtered feedback loop, tempo-synced in sixteenths |
-| Reverb | `ConvolverNode` with a **synthesised** impulse + pre-delay |
+| Effect     | Built from                                                            |
+| ---------- | --------------------------------------------------------------------- |
+| Gain       | `GainNode`                                                            |
+| EQ         | three `BiquadFilterNode`s (low shelf, peaking, high shelf)            |
+| Compressor | `DynamicsCompressorNode` + makeup `GainNode`                          |
+| Delay      | `DelayNode` with a filtered feedback loop, tempo-synced in sixteenths |
+| Reverb     | `ConvolverNode` with a **synthesised** impulse + pre-delay            |
 
 Design decisions worth knowing:
 

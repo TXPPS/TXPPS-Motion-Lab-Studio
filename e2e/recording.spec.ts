@@ -181,9 +181,8 @@ test.describe('recording pipeline', () => {
     // Monitoring is off, so nothing should still be holding the device open.
     const live = await page.evaluate(() => {
       const w = window as unknown as { __streams: MediaStream[] };
-      return w.__streams
-        .flatMap((s) => s.getAudioTracks())
-        .filter((t) => t.readyState === 'live').length;
+      return w.__streams.flatMap((s) => s.getAudioTracks()).filter((t) => t.readyState === 'live')
+        .length;
     });
     expect(live, 'a microphone track was left open after recording').toBe(0);
   });

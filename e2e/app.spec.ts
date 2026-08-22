@@ -35,7 +35,10 @@ test.describe('boot & shell', () => {
     // notifications" as a console error; it is a benign, spec-acknowledged
     // signal (observations coalesce to the next frame), not an app defect.
     const benign = /ResizeObserver loop/;
-    page.on('console', (m) => m.type() === 'error' && !benign.test(m.text()) && errors.push(m.text()));
+    page.on(
+      'console',
+      (m) => m.type() === 'error' && !benign.test(m.text()) && errors.push(m.text()),
+    );
     page.on('pageerror', (e) => !benign.test(e.message) && errors.push(e.message));
     await boot(page);
 

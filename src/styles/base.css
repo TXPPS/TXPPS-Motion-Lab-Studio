@@ -20,7 +20,9 @@ body {
   /* Contextual alternates off, tabular figures on: readouts must not jitter as
      digits change, and a DAW has a lot of live digits. */
   font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1, 'cv08' 1;
+  font-feature-settings:
+    'tnum' 1,
+    'cv08' 1;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
   touch-action: manipulation;
@@ -98,12 +100,15 @@ select {
   -webkit-appearance: none;
   appearance: none;
   padding-right: calc(var(--sp-6) + var(--sp-1));
-  background-image: linear-gradient(45deg, transparent 50%, var(--text-dim) 50%),
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-dim) 50%),
     linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
   background-position:
     right calc(var(--sp-5) - 1px) center,
     right var(--sp-4) center;
-  background-size: 5px 5px, 5px 5px;
+  background-size:
+    5px 5px,
+    5px 5px;
   background-repeat: no-repeat;
   cursor: pointer;
 }
@@ -414,8 +419,6 @@ input[type='range']::-moz-range-thumb {
     margin-top: -7.5px;
   }
 }
-
-
 
 /* ------------------------------------------------------------------ type */
 /*

@@ -33,7 +33,9 @@ export const EFFECT_SPECS: EffectSpec[] = [
     kind: 'trim',
     label: 'Gain',
     blurb: 'Level trim before the rest of the chain.',
-    params: [{ key: 'gainDb', label: 'Gain', min: -24, max: 24, step: 0.5, default: 0, unit: 'dB' }],
+    params: [
+      { key: 'gainDb', label: 'Gain', min: -24, max: 24, step: 0.5, default: 0, unit: 'dB' },
+    ],
   },
   {
     kind: 'eq3',
@@ -96,8 +98,25 @@ export const EFFECT_SPECS: EffectSpec[] = [
     params: [
       // Expressed in sixteenths so it follows the project tempo.
       { key: 'timeSixteenths', label: 'Time', min: 1, max: 16, step: 1, default: 6, unit: 'x' },
-      { key: 'feedback', label: 'Feedback', min: 0, max: 0.9, step: 0.01, default: 0.32, unit: '%' },
-      { key: 'tone', label: 'Tone', min: 500, max: 16000, step: 100, default: 4200, unit: 'Hz', curve: 'log' },
+      {
+        key: 'feedback',
+        label: 'Feedback',
+        min: 0,
+        max: 0.9,
+        step: 0.01,
+        default: 0.32,
+        unit: '%',
+      },
+      {
+        key: 'tone',
+        label: 'Tone',
+        min: 500,
+        max: 16000,
+        step: 100,
+        default: 4200,
+        unit: 'Hz',
+        curve: 'log',
+      },
       { key: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, default: 0.25, unit: '%' },
     ],
   },
@@ -107,7 +126,16 @@ export const EFFECT_SPECS: EffectSpec[] = [
     blurb: 'Synthesised room. Best used on a bus via a send.',
     params: [
       { key: 'size', label: 'Size', min: 0.2, max: 6, step: 0.1, default: 1.8, unit: 's' },
-      { key: 'damping', label: 'Damping', min: 800, max: 16000, step: 100, default: 5200, unit: 'Hz', curve: 'log' },
+      {
+        key: 'damping',
+        label: 'Damping',
+        min: 800,
+        max: 16000,
+        step: 100,
+        default: 5200,
+        unit: 'Hz',
+        curve: 'log',
+      },
       { key: 'predelay', label: 'Pre-delay', min: 0, max: 120, step: 1, default: 18, unit: 'ms' },
       { key: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, default: 0.3, unit: '%' },
     ],
@@ -159,7 +187,9 @@ export function formatParam(spec: ParamSpec, value: number): string {
     case 'dB':
       return `${value > 0 ? '+' : ''}${value.toFixed(1)} dB`;
     case 'Hz':
-      return value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)} kHz` : `${Math.round(value)} Hz`;
+      return value >= 1000
+        ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)} kHz`
+        : `${Math.round(value)} Hz`;
     case 'ms':
       return `${Math.round(value)} ms`;
     case 's':

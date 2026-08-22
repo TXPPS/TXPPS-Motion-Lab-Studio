@@ -79,7 +79,8 @@ function buildTrim(ctx: BaseAudioContext, effect: Effect): EffectNode {
     kind: effect.kind,
     input: gain,
     output: gain,
-    update: (e, _bpm, bypass) => setParam(gain.gain, bypass ? 1 : dbToGain(paramOf(e, 'gainDb')), ctx),
+    update: (e, _bpm, bypass) =>
+      setParam(gain.gain, bypass ? 1 : dbToGain(paramOf(e, 'gainDb')), ctx),
     dispose: () => {
       try {
         gain.disconnect();

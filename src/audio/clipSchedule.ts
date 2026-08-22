@@ -128,7 +128,11 @@ export function computeClipSchedule(
         Math.max(0, (clipSourceSec - Math.max(fadeStartInClip, intoClipSec)) / fadeOut),
       );
       const held = envelope[envelope.length - 1].value;
-      envelope.push({ t: fadeStartAt, value: fadeStartAt > 0 ? held : envelope[0].value, ramp: false });
+      envelope.push({
+        t: fadeStartAt,
+        value: fadeStartAt > 0 ? held : envelope[0].value,
+        ramp: false,
+      });
       const steps = !shape || shape === 'linear' || shape === 'equalGain' ? 1 : SHAPE_STEPS;
       const span = durSec - fadeStartAt;
       for (let k = 1; k <= steps; k++) {

@@ -37,9 +37,7 @@ export const TakeLaneRow = memo(function TakeLaneRow({
   const store = useProjectStore;
   const spb = useProjectStore((s) => clipSecondsPerBeat(s.project, clip));
   const widthPx = Math.max(6, clip.length * pxPerBeat);
-  const spans = compSpans({ ...clip, soloTakeId: undefined }).filter(
-    (s) => s.take.id === take.id,
-  );
+  const spans = compSpans({ ...clip, soloTakeId: undefined }).filter((s) => s.take.id === take.id);
   const soloed = clip.soloTakeId === take.id;
 
   const dragSwipe = usePointerDrag<{ anchorBeat: number }>({

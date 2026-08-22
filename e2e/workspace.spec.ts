@@ -56,8 +56,11 @@ test.describe('full-screen workspace (desktop)', () => {
     const clips = () =>
       page.evaluate(
         () =>
-          (window as unknown as { __ml: { projectStore: { getState(): { project: { clips: unknown[] } } } } })
-            .__ml.projectStore.getState().project.clips.length,
+          (
+            window as unknown as {
+              __ml: { projectStore: { getState(): { project: { clips: unknown[] } } } };
+            }
+          ).__ml.projectStore.getState().project.clips.length,
       );
     const before = await clips();
     await page.click('[data-testid="clip-Drums A"]');
@@ -183,7 +186,8 @@ test.describe('responsive chrome integrity', () => {
           '.topbar, .transport, .arr-toolbar, .editor-tabs, .statusbar, .bottomnav, .browser-tabs',
         );
         const name = (el: Element) =>
-          el.getAttribute('data-testid') || el.getAttribute('aria-label') ||
+          el.getAttribute('data-testid') ||
+          el.getAttribute('aria-label') ||
           (el.textContent || '').trim().slice(0, 16);
         for (const region of regions) {
           const els = [...region.querySelectorAll('button, input, select')].filter((el) => {

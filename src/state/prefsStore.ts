@@ -55,7 +55,9 @@ function readStored(): Prefs {
       ...DEFAULT_PREFS,
       ...parsed,
       uiScale: clampScale(parsed.uiScale),
-      theme: (['system', 'dark', 'light', 'contrast'] as const).includes(parsed.theme as ThemeChoice)
+      theme: (['system', 'dark', 'light', 'contrast'] as const).includes(
+        parsed.theme as ThemeChoice,
+      )
         ? (parsed.theme as ThemeChoice)
         : 'system',
     };

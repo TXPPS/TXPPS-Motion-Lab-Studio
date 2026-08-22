@@ -148,7 +148,11 @@ export function normalizeLanePoints(points: AutomationPoint[]): void {
   points.sort((x, y) => x.beat - y.beat);
 }
 
-export function makePoint(beat: number, value: number, curve: CurveShape = 'linear'): AutomationPoint {
+export function makePoint(
+  beat: number,
+  value: number,
+  curve: CurveShape = 'linear',
+): AutomationPoint {
   return { id: newId('ap'), beat: Math.max(0, beat), value: clamp01(value), curve };
 }
 
@@ -174,7 +178,8 @@ export function validateLane(raw: unknown): AutomationLane | null {
       id: typeof q.id === 'string' ? q.id : newId('ap'),
       beat: Math.max(0, q.beat),
       value: clamp01(q.value),
-      curve: typeof q.curve === 'string' && CURVE_IDS.has(q.curve) ? (q.curve as CurveShape) : 'linear',
+      curve:
+        typeof q.curve === 'string' && CURVE_IDS.has(q.curve) ? (q.curve as CurveShape) : 'linear',
     });
   }
   normalizeLanePoints(points);

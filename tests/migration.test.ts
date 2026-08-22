@@ -175,13 +175,7 @@ describe('hostile and corrupt project data', () => {
 
   it('drops media entries that are missing required fields', () => {
     const raw = v1Project();
-    raw.media = [
-      { id: 'm1', duration: 3.5 },
-      { id: 'm2' },
-      { duration: 1 },
-      'garbage',
-      null,
-    ];
+    raw.media = [{ id: 'm1', duration: 3.5 }, { id: 'm2' }, { duration: 1 }, 'garbage', null];
     expect(validateProject(raw).media!.map((m) => m.id)).toEqual(['m1']);
   });
 

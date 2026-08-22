@@ -6,5 +6,4 @@
  * budgets scale rather than silently skipping the tests. DOM-bound counts
  * (windowing caps) stay unscaled: they are engine-independent guarantees.
  */
-export const PERF_SCALE =
-  process.env.E2E_BROWSER && process.env.E2E_BROWSER !== 'chromium' ? 3 : 1;
+export const PERF_SCALE = process.env.E2E_BROWSER && process.env.E2E_BROWSER !== 'chromium' ? 3 : 1;

@@ -30,7 +30,9 @@ function track(patch: Partial<Track> & Pick<Track, 'name' | 'type'>): Track {
   };
 }
 
-function clip(patch: Partial<AudioClip> & Pick<AudioClip, 'trackId' | 'start' | 'length'>): AudioClip {
+function clip(
+  patch: Partial<AudioClip> & Pick<AudioClip, 'trackId' | 'start' | 'length'>,
+): AudioClip {
   return {
     id: newId('c'),
     type: 'audio',
@@ -146,7 +148,11 @@ export function createAudioEditQaProject(): ProjectData {
 
   // 6. Dense field: 50 collapsed tracks × 40 clips, every one faded.
   for (let ti = 0; ti < 50; ti++) {
-    const t = track({ name: `Field ${String(ti + 1).padStart(2, '0')}`, type: 'audio', collapsed: true });
+    const t = track({
+      name: `Field ${String(ti + 1).padStart(2, '0')}`,
+      type: 'audio',
+      collapsed: true,
+    });
     tracks.push(t);
     for (let ci = 0; ci < 40; ci++) {
       clips.push(

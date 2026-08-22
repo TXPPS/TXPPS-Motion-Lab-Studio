@@ -21,7 +21,12 @@ describe('standard MIDI file', () => {
           notes: [{ tick: 0, durTicks: 120, pitch: 36, velocity: 127 }],
         },
       ],
-      { ppq: 960, name: 'Test Song', tempos: [{ tick: 0, bpm: 96 }], sigs: [{ tick: 0, num: 3, den: 4 }] },
+      {
+        ppq: 960,
+        name: 'Test Song',
+        tempos: [{ tick: 0, bpm: 96 }],
+        sigs: [{ tick: 0, num: 3, den: 4 }],
+      },
     );
 
     const parsed = parseMidiFile(bytes);
@@ -66,15 +71,51 @@ describe('standard MIDI file', () => {
   it('reads running status and multi-byte delta times', () => {
     // hand-built: two note-ons using running status, delta 0x81 0x00 = 128 ticks
     const track = [
-      0x00, 0x90, 60, 100, // note on C4
-      0x81, 0x00, 62, 100, // running status note on D4 after 128 ticks
-      0x60, 0x80, 60, 0x40,
-      0x60, 0x80, 62, 0x40,
-      0x00, 0xff, 0x2f, 0x00,
+      0x00,
+      0x90,
+      60,
+      100, // note on C4
+      0x81,
+      0x00,
+      62,
+      100, // running status note on D4 after 128 ticks
+      0x60,
+      0x80,
+      60,
+      0x40,
+      0x60,
+      0x80,
+      62,
+      0x40,
+      0x00,
+      0xff,
+      0x2f,
+      0x00,
     ];
     const bytes = new Uint8Array([
-      0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, 0, 1, 0x01, 0xe0,
-      0x4d, 0x54, 0x72, 0x6b, 0, 0, 0, track.length, ...track,
+      0x4d,
+      0x54,
+      0x68,
+      0x64,
+      0,
+      0,
+      0,
+      6,
+      0,
+      0,
+      0,
+      1,
+      0x01,
+      0xe0,
+      0x4d,
+      0x54,
+      0x72,
+      0x6b,
+      0,
+      0,
+      0,
+      track.length,
+      ...track,
     ]);
     const parsed = parseMidiFile(bytes);
     expect(parsed.ppq).toBe(480);
@@ -86,7 +127,9 @@ describe('standard MIDI file', () => {
 
   it('rejects non-MIDI data and survives truncation', () => {
     expect(() => parseMidiFile(new Uint8Array([1, 2, 3]))).toThrow(/Not a MIDI file/);
-    const good = buildMidiFile([{ name: 'T', channel: 0, notes: [{ tick: 0, durTicks: 480, pitch: 60, velocity: 90 }] }]);
+    const good = buildMidiFile([
+      { name: 'T', channel: 0, notes: [{ tick: 0, durTicks: 480, pitch: 60, velocity: 90 }] },
+    ]);
     const truncated = good.subarray(0, good.length - 6);
     const parsed = parseMidiFile(truncated);
     expect(parsed.warnings.length + parsed.tracks.length).toBeGreaterThan(0);
@@ -95,8 +138,29 @@ describe('standard MIDI file', () => {
   it('estimates a length for a note that never gets a note-off', () => {
     const track = [0x00, 0x90, 64, 100, 0x60, 0xff, 0x2f, 0x00];
     const bytes = new Uint8Array([
-      0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, 0, 1, 0x01, 0xe0,
-      0x4d, 0x54, 0x72, 0x6b, 0, 0, 0, track.length, ...track,
+      0x4d,
+      0x54,
+      0x68,
+      0x64,
+      0,
+      0,
+      0,
+      6,
+      0,
+      0,
+      0,
+      1,
+      0x01,
+      0xe0,
+      0x4d,
+      0x54,
+      0x72,
+      0x6b,
+      0,
+      0,
+      0,
+      track.length,
+      ...track,
     ]);
     const parsed = parseMidiFile(bytes);
     expect(parsed.tracks[0].notes).toHaveLength(1);

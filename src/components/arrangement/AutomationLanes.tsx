@@ -117,9 +117,7 @@ export const AutoLaneRow = memo(function AutoLaneRow({
                 : a.curve === 'log'
                   ? 1 - (1 - t) * (1 - t) * (1 - t)
                   : t * t * (3 - 2 * t));
-          els.push(
-            `L ${x(a.beat + (b.beat - a.beat) * t).toFixed(1)} ${yOf(shaped).toFixed(1)}`,
-          );
+          els.push(`L ${x(a.beat + (b.beat - a.beat) * t).toFixed(1)} ${yOf(shaped).toFixed(1)}`);
         }
       }
     }
@@ -225,7 +223,8 @@ export const AutoLaneRow = memo(function AutoLaneRow({
         },
         {
           label: lane.enabled ? 'Disable lane' : 'Enable lane',
-          action: () => store.getState().setAutomationLane(track.id, lane.id, { enabled: !lane.enabled }),
+          action: () =>
+            store.getState().setAutomationLane(track.id, lane.id, { enabled: !lane.enabled }),
         },
         {
           label: 'Clear lane',
@@ -324,7 +323,10 @@ export const AutoLaneRow = memo(function AutoLaneRow({
           />
         ) : (
           <>
-            <path d={`${path} L ${winW} ${height - PAD} L 0 ${height - PAD} Z`} className="auto-fill" />
+            <path
+              d={`${path} L ${winW} ${height - PAD} L 0 ${height - PAD} Z`}
+              className="auto-fill"
+            />
             <path d={path} className="auto-line" />
           </>
         )}
@@ -409,7 +411,9 @@ export const AutoLaneHeader = memo(function AutoLaneHeader({
         className={`th-mini alh-power${lane.enabled ? ' on' : ''}`}
         title={lane.enabled ? 'Disable lane (keeps points)' : 'Enable lane'}
         aria-pressed={lane.enabled}
-        onClick={() => store.getState().setAutomationLane(track.id, lane.id, { enabled: !lane.enabled })}
+        onClick={() =>
+          store.getState().setAutomationLane(track.id, lane.id, { enabled: !lane.enabled })
+        }
       >
         ●
       </button>

@@ -1,7 +1,7 @@
 ---
 name: Bug report
 about: Something broke, sounded wrong, or lost work
-title: "[area] short description"
+title: '[area] short description'
 labels: bug, beta
 ---
 
@@ -9,10 +9,7 @@ labels: bug, beta
 
 **What I expected**
 
-**Steps to reproduce**
-1.
-2.
-3.
+**Steps to reproduce** 1. 2. 3.
 
 **How often** (always / sometimes / once):
 

@@ -32,10 +32,7 @@ export async function scanRecoveries(): Promise<RecoveryRecord[]> {
   const recs = await listRecoveries().catch(() => []);
   useInputStore.getState().set({ pendingRecoveries: recs.length });
   if (recs.length > 0) {
-    diagLog(
-      'warn',
-      `${recs.length} interrupted take(s) waiting to be recovered or discarded`,
-    );
+    diagLog('warn', `${recs.length} interrupted take(s) waiting to be recovered or discarded`);
   }
   return recs;
 }
@@ -152,8 +149,9 @@ export async function discardAllRecoveries(): Promise<number> {
 
 export function describeRecovery(rec: RecoveryRecord): string {
   const when = new Date(rec.startedAt).toLocaleString();
-  const size = rec.blob.size < 1024 * 1024
-    ? `${(rec.blob.size / 1024).toFixed(0)} KB`
-    : `${(rec.blob.size / (1024 * 1024)).toFixed(1)} MB`;
+  const size =
+    rec.blob.size < 1024 * 1024
+      ? `${(rec.blob.size / 1024).toFixed(0)} KB`
+      : `${(rec.blob.size / (1024 * 1024)).toFixed(1)} MB`;
   return `${rec.trackName} · ${rec.durationSec.toFixed(1)}s · ${size} · ${when} · ${rec.projectName}`;
 }

@@ -44,7 +44,10 @@ function ChannelStrip({
     >
       <div className="strip-name" title={track.name}>
         {isBus && (
-          <span className="strip-bus-tag" title={`Bus · fed by ${feeds?.length ?? 0} source${(feeds?.length ?? 0) === 1 ? '' : 's'}${feeds?.length ? `: ${feeds.join(', ')}` : ''}`}>
+          <span
+            className="strip-bus-tag"
+            title={`Bus · fed by ${feeds?.length ?? 0} source${(feeds?.length ?? 0) === 1 ? '' : 's'}${feeds?.length ? `: ${feeds.join(', ')}` : ''}`}
+          >
             BUS{feeds?.length ? ` ${feeds.length}` : ''}
           </span>
         )}

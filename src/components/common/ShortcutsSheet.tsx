@@ -37,7 +37,10 @@ export function ShortcutsSheet() {
   if (!open) return null;
 
   return (
-    <div className="sheet-overlay sc-center" onPointerDown={(e) => e.target === e.currentTarget && close()}>
+    <div
+      className="sheet-overlay sc-center"
+      onPointerDown={(e) => e.target === e.currentTarget && close()}
+    >
       <div
         className="sc-sheet"
         role="dialog"
@@ -48,7 +51,12 @@ export function ShortcutsSheet() {
         <div className="panel-title">
           <span>Keyboard shortcuts</span>
           <span className="spacer" style={{ flex: 1 }} />
-          <button className="icon-btn" onClick={close} aria-label="Close" data-testid="shortcuts-close">
+          <button
+            className="icon-btn"
+            onClick={close}
+            aria-label="Close"
+            data-testid="shortcuts-close"
+          >
             ✕
           </button>
         </div>

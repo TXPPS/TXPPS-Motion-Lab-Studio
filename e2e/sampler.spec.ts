@@ -43,10 +43,7 @@ interface MlWindow {
     activeSources: () => number;
     isRunning: () => boolean;
     getMeter: (id: string) => { peak: number; rms: number } | null;
-    automationValueAt: (
-      trackId: string,
-      paramId: string,
-    ) => { norm: number; value: number } | null;
+    automationValueAt: (trackId: string, paramId: string) => { norm: number; value: number } | null;
   };
 }
 
@@ -110,8 +107,7 @@ test.describe('quick sampler', () => {
     await openSamplerFor(page, 'Quick Slice');
 
     const clipsBefore = await page.evaluate(
-      () =>
-        (window as unknown as MlWindow).__ml.projectStore.getState().project.clips.length,
+      () => (window as unknown as MlWindow).__ml.projectStore.getState().project.clips.length,
     );
     await page.getByRole('button', { name: 'Slices → MIDI' }).click();
     await page.waitForTimeout(200);
@@ -266,9 +262,7 @@ test.describe('automation and audio proof', () => {
     const r = await page.evaluate(async () => {
       const w = window as unknown as MlWindow;
       const { renderProject, preloadForRender, audioBufferToWav, validateWav } = w.__ml.exportMix;
-      const project = w.__ml.projectStore.getState().project as Parameters<
-        typeof renderProject
-      >[0];
+      const project = w.__ml.projectStore.getState().project as Parameters<typeof renderProject>[0];
       const ctx = (w.__ml.engine as unknown as { context: BaseAudioContext }).context;
       await preloadForRender(project, ctx);
       const res = await renderProject(project, {

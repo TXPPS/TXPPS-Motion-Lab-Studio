@@ -7,11 +7,11 @@ magnitude, not marketing.
 
 ## Startup
 
-| Scenario | Boot to interactive |
-| --- | --- |
-| Demo project (8 tracks / 12 clips) | ~0.5 s |
-| `#/qa-huge` (100 tracks / 1,078 clips) | ~1.4 s |
-| `#/qa-max` (500 tracks / 50,000 clips) | ~1.5 s |
+| Scenario                               | Boot to interactive |
+| -------------------------------------- | ------------------- |
+| Demo project (8 tracks / 12 clips)     | ~0.5 s              |
+| `#/qa-huge` (100 tracks / 1,078 clips) | ~1.4 s              |
+| `#/qa-max` (500 tracks / 50,000 clips) | ~1.5 s              |
 
 Boot cost is dominated by fixture generation at QA scale; loading a
 stored project adds one IndexedDB read + validation (validation now
@@ -20,10 +20,10 @@ for realistic projects).
 
 ## Editing latency (store update → render)
 
-| Scale | Undoable edit | Undo |
-| --- | --- | --- |
-| 1,078 clips | ~14 ms | ~0 ms |
-| 50,000 clips | ~107 ms | ~1.3 ms |
+| Scale        | Undoable edit | Undo    |
+| ------------ | ------------- | ------- |
+| 1,078 clips  | ~14 ms        | ~0 ms   |
+| 50,000 clips | ~107 ms       | ~1.3 ms |
 
 RC1 moved undo/redo stacks from JSON strings to retained immutable
 objects: at 50k clips an edit dropped from 377 ms → 107 ms and undo from
@@ -46,10 +46,10 @@ consistent immutable store, linear in project size.
 ## Memory
 
 | Scenario | JS heap |
-| --- | --- |
-| Demo | ~12 MB |
-| qa-huge | ~18 MB |
-| qa-max | ~74 MB |
+| -------- | ------- |
+| Demo     | ~12 MB  |
+| qa-huge  | ~18 MB  |
+| qa-max   | ~74 MB  |
 
 Plus decoded audio (~10 MB per stereo minute). Decode caches are evicted
 on project switch (RC1); undo history retains up to 60 project versions,

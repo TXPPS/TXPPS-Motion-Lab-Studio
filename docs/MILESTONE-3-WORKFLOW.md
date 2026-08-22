@@ -6,21 +6,21 @@ UX audit found the friction, not to lengthen a feature list.
 
 ## 1. Verification status
 
-| Area | Status |
-| --- | --- |
-| Multi-selection, marquee, group move | Implemented; unit + e2e verified through real pointer events |
-| Clipboard (copy/cut/paste/duplicate/delete) | Implemented; unit + e2e verified, including deleted-track and snapshot edge cases |
-| Editing tools (pointer/split/erase/mute) | Implemented; e2e verified |
-| Shortcut registry + help sheet + menu hints | Implemented; conflict-checked by unit test |
-| Windowed clip rendering | Implemented; perf measured before/after on the same CI machine |
-| Browser search + audition | Implemented; e2e verified |
-| Project notes | Implemented; e2e verified through save → reload |
-| Unused-media scan/cleanup | Implemented; scan is report-only, delete is confirm-gated. **Not e2e verified** — exercised via the diagnostics panel manually in CI browser only |
-| Mixer unity detent | Implemented; CSS derived from the fader curve. Visual only — **not asserted by a test** |
-| Range/draw/zoom/hand tools | **Deferred** — the brief says only fully-usable tools |
-| Editable shortcut bindings | **Deferred** — the registry exists; a rebinding UI does not |
-| Settings pages | **Deferred** — workspace layout, snap and zoom already persist; a dedicated settings surface was cut for scope honesty |
-| Favorites/tags in the browser | **Deferred** |
+| Area                                        | Status                                                                                                                                            |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Multi-selection, marquee, group move        | Implemented; unit + e2e verified through real pointer events                                                                                      |
+| Clipboard (copy/cut/paste/duplicate/delete) | Implemented; unit + e2e verified, including deleted-track and snapshot edge cases                                                                 |
+| Editing tools (pointer/split/erase/mute)    | Implemented; e2e verified                                                                                                                         |
+| Shortcut registry + help sheet + menu hints | Implemented; conflict-checked by unit test                                                                                                        |
+| Windowed clip rendering                     | Implemented; perf measured before/after on the same CI machine                                                                                    |
+| Browser search + audition                   | Implemented; e2e verified                                                                                                                         |
+| Project notes                               | Implemented; e2e verified through save → reload                                                                                                   |
+| Unused-media scan/cleanup                   | Implemented; scan is report-only, delete is confirm-gated. **Not e2e verified** — exercised via the diagnostics panel manually in CI browser only |
+| Mixer unity detent                          | Implemented; CSS derived from the fader curve. Visual only — **not asserted by a test**                                                           |
+| Range/draw/zoom/hand tools                  | **Deferred** — the brief says only fully-usable tools                                                                                             |
+| Editable shortcut bindings                  | **Deferred** — the registry exists; a rebinding UI does not                                                                                       |
+| Settings pages                              | **Deferred** — workspace layout, snap and zoom already persist; a dedicated settings surface was cut for scope honesty                            |
+| Favorites/tags in the browser               | **Deferred**                                                                                                                                      |
 
 Totals after M3: **162 unit tests**, **122 e2e tests**, strict TypeScript,
 ESLint clean.
@@ -84,12 +84,12 @@ Range, draw, zoom and hand are deferred, not half-shipped.
 
 The 100-track / 1078-clip fixture (`#/qa-huge`) made the cost model measurable:
 
-| Change | Scroll step (same CI machine, software raster) |
-| --- | --- |
-| Baseline (every clip mounted, full-content grid canvas) | 200–275 ms |
-| + clip windowing | ~95 ms |
-| + grid canvas → repeating CSS gradients | ~40 ms floor, 63 ms window-crossing jump |
-| Paint-only step after all changes | **28 ms** |
+| Change                                                  | Scroll step (same CI machine, software raster) |
+| ------------------------------------------------------- | ---------------------------------------------- |
+| Baseline (every clip mounted, full-content grid canvas) | 200–275 ms                                     |
+| + clip windowing                                        | ~95 ms                                         |
+| + grid canvas → repeating CSS gradients                 | ~40 ms floor, 63 ms window-crossing jump       |
+| Paint-only step after all changes                       | **28 ms**                                      |
 
 Three separate causes, found by measuring rather than guessing:
 
@@ -128,7 +128,7 @@ sounds. Escape/panic stops a running audition.
   rebuilds the object on load, so the field is carried explicitly — otherwise
   one save/load cycle would have silently dropped it.
 - **Unused media**: a report-only scan (count + size), and a confirm-gated
-  delete. Reference collection scans every saved project *plus the open one*,
+  delete. Reference collection scans every saved project _plus the open one_,
   because the open project may hold an unsaved new recording that a
   saved-data-only scan would call unused.
 

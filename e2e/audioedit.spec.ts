@@ -86,7 +86,15 @@ test.describe('crossfades and healing', () => {
           projectStore: {
             getState(): {
               project: {
-                clips: { name: string; fadeIn: number; fadeOut: number; fadeInShape?: string; fadeOutShape?: string; start: number; length: number }[];
+                clips: {
+                  name: string;
+                  fadeIn: number;
+                  fadeOut: number;
+                  fadeInShape?: string;
+                  fadeOutShape?: string;
+                  start: number;
+                  length: number;
+                }[];
               };
             };
           };
@@ -110,11 +118,11 @@ test.describe('crossfades and healing', () => {
     await page.waitForTimeout(200);
     const undone = await page.evaluate(() => {
       const w = window as unknown as {
-        __ml: { projectStore: { getState(): { project: { clips: { name: string; fadeOut: number }[] } } } };
+        __ml: {
+          projectStore: { getState(): { project: { clips: { name: string; fadeOut: number }[] } } };
+        };
       };
-      return w.__ml.projectStore
-        .getState()
-        .project.clips.filter((c) => c.name === 'Perc 2-bar')[0];
+      return w.__ml.projectStore.getState().project.clips.filter((c) => c.name === 'Perc 2-bar')[0];
     });
     expect(undone.fadeOut).toBe(0);
   });
@@ -251,9 +259,7 @@ test.describe('takes and comping (qa-audio-edit)', () => {
           };
         };
       };
-      return w.__ml.projectStore
-        .getState()
-        .project.clips.find((c) => (c.takes?.length ?? 0) > 0);
+      return w.__ml.projectStore.getState().project.clips.find((c) => (c.takes?.length ?? 0) > 0);
     });
     expect(packed).toBeDefined();
     expect(packed!.takes).toHaveLength(2);
@@ -262,9 +268,7 @@ test.describe('takes and comping (qa-audio-edit)', () => {
 });
 
 test.describe('time editing on the stress fixture', () => {
-  test('slip tool slides material; ripple delete closes the gap; locks hold', async ({
-    page,
-  }) => {
+  test('slip tool slides material; ripple delete closes the gap; locks hold', async ({ page }) => {
     // Functional coverage matters on every engine; in-container WebKit-GTK
     // just needs far more wall time on the 2,000-clip fixture.
     test.setTimeout(process.env.E2E_BROWSER === 'webkit' ? 420_000 : 180_000);
@@ -360,15 +364,19 @@ test.describe('time editing on the stress fixture', () => {
           projectStore: { getState(): { project: { clips: { name: string; start: number }[] } } };
         };
       };
-      return w.__ml.projectStore.getState().project.clips.find((c) => c.name === 'Perc 2-bar')!.start;
+      return w.__ml.projectStore.getState().project.clips.find((c) => c.name === 'Perc 2-bar')!
+        .start;
     });
     await page.keyboard.press('ArrowRight');
     await page.waitForTimeout(200);
     const after = await page.evaluate(() => {
       const w = window as unknown as {
-        __ml: { projectStore: { getState(): { project: { clips: { name: string; start: number }[] } } } };
+        __ml: {
+          projectStore: { getState(): { project: { clips: { name: string; start: number }[] } } };
+        };
       };
-      return w.__ml.projectStore.getState().project.clips.find((c) => c.name === 'Perc 2-bar')!.start;
+      return w.__ml.projectStore.getState().project.clips.find((c) => c.name === 'Perc 2-bar')!
+        .start;
     });
     expect(after).toBeCloseTo(before + 0.25, 5);
     await page.keyboard.press('Control+z');

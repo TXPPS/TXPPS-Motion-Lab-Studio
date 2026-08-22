@@ -113,7 +113,6 @@ export function gainToFaderPos(gain: number): number {
   return clamp(Math.pow(clamp(gain, 0, 1.5) / 1.5, 1 / 2.2), 0, 1);
 }
 
-
 // ---------------------------------------------------------------- tempo map
 
 /**

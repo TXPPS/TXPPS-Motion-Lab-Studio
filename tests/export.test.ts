@@ -19,8 +19,7 @@ function fakeBuffer(channels: Float32Array[], sampleRate = 44100): AudioBuffer {
 
 function parseHeader(buf: ArrayBuffer) {
   const v = new DataView(buf);
-  const str = (o: number, n: number) =>
-    String.fromCharCode(...new Uint8Array(buf, o, n));
+  const str = (o: number, n: number) => String.fromCharCode(...new Uint8Array(buf, o, n));
   return {
     riff: str(0, 4),
     riffSize: v.getUint32(4, true),

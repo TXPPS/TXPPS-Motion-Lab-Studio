@@ -343,10 +343,14 @@ export function PianoRoll() {
       );
     }
     if (blackRows.length) {
-      layers.push(`repeating-linear-gradient(180deg, ${blackRows.join(', ')}, transparent ${cycle}px)`);
+      layers.push(
+        `repeating-linear-gradient(180deg, ${blackRows.join(', ')}, transparent ${cycle}px)`,
+      );
     }
     if (scaleRows.length) {
-      layers.push(`repeating-linear-gradient(180deg, ${scaleRows.join(', ')}, transparent ${cycle}px)`);
+      layers.push(
+        `repeating-linear-gradient(180deg, ${scaleRows.join(', ')}, transparent ${cycle}px)`,
+      );
     }
     return { backgroundImage: layers.join(', ') } as const;
   }, [ppb, snap, prKey, prScale]);
@@ -394,9 +398,7 @@ export function PianoRoll() {
       const pHi = PITCH_MAX - Math.floor(y0 / ROW_H);
       const pLo = PITCH_MAX - Math.floor(y1 / ROW_H);
       const hits = clip.notes
-        .filter(
-          (n) => n.start < b1 && n.start + n.length > b0 && n.pitch >= pLo && n.pitch <= pHi,
-        )
+        .filter((n) => n.start < b1 && n.start + n.length > b0 && n.pitch >= pLo && n.pitch <= pHi)
         .map((n) => n.id);
       useUiStore.getState().set({ selectedNoteIds: [...new Set([...d.base, ...hits])] });
     },
@@ -446,7 +448,9 @@ export function PianoRoll() {
       const src = targetNotes();
       if (src.length === 0) return;
       useProjectStore.getState().transformNotes(clip.id, fn(src));
-      useUiStore.getState().toast('info', `${label}: ${src.length} note${src.length === 1 ? '' : 's'}`);
+      useUiStore
+        .getState()
+        .toast('info', `${label}: ${src.length} note${src.length === 1 ? '' : 's'}`);
     },
     [clip, targetNotes],
   );
@@ -605,9 +609,7 @@ export function PianoRoll() {
               }
             }
             const ids = useProjectStore.getState().addNotes(clip.id, extra);
-            useUiStore
-              .getState()
-              .set({ selectedNoteIds: [...selectedNoteIds, ...ids] });
+            useUiStore.getState().set({ selectedNoteIds: [...selectedNoteIds, ...ids] });
             if (track && roots[0]) previewChord(track.id, buildChord(roots[0].pitch, q.id));
           },
         })),
@@ -634,7 +636,12 @@ export function PianoRoll() {
             if (!base) return;
             const extra = pitches
               .filter((p) => !have.has(p))
-              .map((p) => ({ start: base.start, length: base.length, pitch: p, velocity: base.velocity }));
+              .map((p) => ({
+                start: base.start,
+                length: base.length,
+                pitch: p,
+                velocity: base.velocity,
+              }));
             const ids = useProjectStore.getState().addNotes(clip.id, extra);
             useUiStore.getState().set({ selectedNoteIds: [...selectedNoteIds, ...ids] });
           },
@@ -663,7 +670,10 @@ export function PianoRoll() {
 
   const suggestions =
     prScale === 'chromatic' && clip.notes.length >= 3
-      ? suggestScales(clip.notes.map((n) => n.pitch), 1)
+      ? suggestScales(
+          clip.notes.map((n) => n.pitch),
+          1,
+        )
       : [];
 
   return (
@@ -820,10 +830,18 @@ export function PianoRoll() {
         )}
 
         <span className="pr-sep" />
-        <button className="btn" onClick={(e) => openToolsMenu(e.clientX, e.clientY)} data-testid="pr-tools">
+        <button
+          className="btn"
+          onClick={(e) => openToolsMenu(e.clientX, e.clientY)}
+          data-testid="pr-tools"
+        >
           Tools
         </button>
-        <button className="btn" onClick={(e) => openChordMenu(e.clientX, e.clientY)} data-testid="pr-chords">
+        <button
+          className="btn"
+          onClick={(e) => openChordMenu(e.clientX, e.clientY)}
+          data-testid="pr-chords"
+        >
           Chords
         </button>
 
@@ -883,8 +901,7 @@ export function PianoRoll() {
               const drumName = isDrum
                 ? DRUM_PITCHES.find((d) => d.pitch === pitch)?.name
                 : undefined;
-              const outOfScale =
-                prScale !== 'chromatic' && !inScale(pitch, prKey, prScale);
+              const outOfScale = prScale !== 'chromatic' && !inScale(pitch, prKey, prScale);
               return (
                 <div
                   key={pitch}
@@ -934,7 +951,11 @@ export function PianoRoll() {
         {/* Velocity lane: sticky to the bottom of the scroller, scrolls in X. */}
         <div className="pr-vel-lane" style={{ width: KEYS_W + gridW, height: VEL_H }}>
           <div className="pr-vel-label">VEL</div>
-          <div className="pr-vel-area" style={{ left: KEYS_W, width: gridW }} data-testid="pr-vel-lane">
+          <div
+            className="pr-vel-area"
+            style={{ left: KEYS_W, width: gridW }}
+            data-testid="pr-vel-lane"
+          >
             {velNotes.map((n) => (
               <VelBar key={n.id} note={n} clip={clip} ppb={ppb} />
             ))}

@@ -48,7 +48,9 @@ function AudioClipTools({ clip }: { clip: AudioClip }) {
           min={0}
           step={0.05}
           value={Number(clip.fadeIn.toFixed(2))}
-          onChange={(e) => store.setClipFades(clip.id, Math.max(0, Number(e.target.value)), undefined)}
+          onChange={(e) =>
+            store.setClipFades(clip.id, Math.max(0, Number(e.target.value)), undefined)
+          }
           aria-label="Fade in seconds"
           style={{ width: 58 }}
         />
@@ -72,7 +74,9 @@ function AudioClipTools({ clip }: { clip: AudioClip }) {
           min={0}
           step={0.05}
           value={Number(clip.fadeOut.toFixed(2))}
-          onChange={(e) => store.setClipFades(clip.id, undefined, Math.max(0, Number(e.target.value)))}
+          onChange={(e) =>
+            store.setClipFades(clip.id, undefined, Math.max(0, Number(e.target.value)))
+          }
           aria-label="Fade out seconds"
           style={{ width: 58 }}
         />
@@ -123,9 +127,7 @@ function AudioClipTools({ clip }: { clip: AudioClip }) {
         <span className="v mono" data-testid="audio-analysis">
           {analysis
             ? `peak ${formatDb(analysis.peak)} · DC ${
-                Math.abs(analysis.dcOffset) < 0.001
-                  ? 'clean'
-                  : analysis.dcOffset.toFixed(4)
+                Math.abs(analysis.dcOffset) < 0.001 ? 'clean' : analysis.dcOffset.toFixed(4)
               } · ${analysis.channels}ch`
             : clipBufferReady(clip)
               ? '…'

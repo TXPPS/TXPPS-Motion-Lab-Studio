@@ -98,8 +98,7 @@ export const ClipView = memo(function ClipView({
     }
     const ids = ui.getState().selectedClipIds;
     const many = ids.length > 1;
-    const label = (single: string, plural: string) =>
-      many ? `${plural} (${ids.length})` : single;
+    const label = (single: string, plural: string) => (many ? `${plural} (${ids.length})` : single);
 
     ui.getState().showMenu({
       x,
@@ -206,7 +205,10 @@ export const ClipView = memo(function ClipView({
             );
           }
           if (audioSel.length >= 2 && audioSel.every((c) => c.trackId === audioSel[0].trackId)) {
-            items.push({ label: `Pack ${audioSel.length} clips into takes`, action: () => packSelectionIntoTakes() });
+            items.push({
+              label: `Pack ${audioSel.length} clips into takes`,
+              action: () => packSelectionIntoTakes(),
+            });
           }
           if (many) {
             items.push({ label: 'Heal splits', action: () => healSelection() });
@@ -400,7 +402,9 @@ export const ClipView = memo(function ClipView({
     },
     onMove: (dx, _dy, _e, startFade) => {
       if (pxPerSec <= 0) return;
-      store.getState().setClipFades(clip.id, clamp(startFade + dx / pxPerSec, 0, srcSec), undefined);
+      store
+        .getState()
+        .setClipFades(clip.id, clamp(startFade + dx / pxPerSec, 0, srcSec), undefined);
     },
     onEnd: () => store.getState().endGesture(),
   });
@@ -412,7 +416,9 @@ export const ClipView = memo(function ClipView({
     },
     onMove: (dx, _dy, _e, startFade) => {
       if (pxPerSec <= 0) return;
-      store.getState().setClipFades(clip.id, undefined, clamp(startFade - dx / pxPerSec, 0, srcSec));
+      store
+        .getState()
+        .setClipFades(clip.id, undefined, clamp(startFade - dx / pxPerSec, 0, srcSec));
     },
     onEnd: () => store.getState().endGesture(),
   });

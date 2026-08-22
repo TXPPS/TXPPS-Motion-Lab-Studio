@@ -63,7 +63,12 @@ describe('tempo map — time conversion', () => {
 
   it('honours a tempo jump', () => {
     const m = normalizeTempoMap(
-      { tempos: [{ id: 'a', beat: 0, bpm: 120 }, { id: 'b', beat: 4, bpm: 60 }] },
+      {
+        tempos: [
+          { id: 'a', beat: 0, bpm: 120 },
+          { id: 'b', beat: 4, bpm: 60 },
+        ],
+      },
       120,
       { num: 4, den: 4 },
     );

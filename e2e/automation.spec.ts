@@ -29,7 +29,11 @@ const lanesOf = (page: Page, trackName: string) =>
         projectStore: {
           getState(): {
             project: {
-              tracks: { id: string; name: string; automation?: { paramId: string; points: unknown[] }[] }[];
+              tracks: {
+                id: string;
+                name: string;
+                automation?: { paramId: string; points: unknown[] }[];
+              }[];
             };
           };
         };
@@ -42,7 +46,9 @@ const lanesOf = (page: Page, trackName: string) =>
 const trackIdOf = (page: Page, trackName: string) =>
   page.evaluate((name) => {
     const w = window as unknown as {
-      __ml: { projectStore: { getState(): { project: { tracks: { id: string; name: string }[] } } } };
+      __ml: {
+        projectStore: { getState(): { project: { tracks: { id: string; name: string }[] } } };
+      };
     };
     return w.__ml.projectStore.getState().project.tracks.find((x) => x.name === name)?.id ?? null;
   }, trackName);
@@ -85,9 +91,9 @@ test.describe('automation lanes', () => {
     await page.mouse.move(box.x + 420, box.y + 40, { steps: 6 });
     await expect(page.locator('[data-testid="auto-marquee"]')).toBeVisible();
     await page.mouse.up();
-    expect(
-      await page.evaluate(() => document.querySelectorAll('.auto-pt.selected').length),
-    ).toBe(2);
+    expect(await page.evaluate(() => document.querySelectorAll('.auto-pt.selected').length)).toBe(
+      2,
+    );
     await page.keyboard.press('Delete');
     await page.waitForTimeout(200);
     lanes = await lanesOf(page, 'Keys');
@@ -473,6 +479,8 @@ test.describe('automation stress fixture (500 lanes / 100k points)', () => {
     await page.keyboard.press('Space');
     expect(playing.is, 'transport must survive editing').toBe(true);
     expect(playing.pos).toBeGreaterThan(0);
-    expect(dragMs, 'point drag during playback must stay responsive').toBeLessThan(4000 * PERF_SCALE);
+    expect(dragMs, 'point drag during playback must stay responsive').toBeLessThan(
+      4000 * PERF_SCALE,
+    );
   });
 });
