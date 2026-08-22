@@ -20,8 +20,8 @@ import {
   EQ8_BANDS,
   choiceOf,
   deesserBand,
-  dynamicsCurve,
   dynamicsCurveKey,
+  dynamicsGain,
   dynamicsLawOf,
   multibandSplits,
   paramOf,
@@ -46,7 +46,9 @@ import {
   syncModifierByIndex,
   syncSeconds,
   timeConstantHz,
+  transferCurve,
 } from './dsp/curves';
+import type { DynamicsLaw } from '../model/effects';
 import type { Effect } from '../model/types';
 import { getPluginSync, pluginToken } from './wam/pluginPool';
 import { buildWamEffectNode } from './wam/wamEffectNode';
@@ -264,12 +266,10 @@ class Combiner {
  * exactly, so the widened rectifier is still exact for ordinary levels.
  *
  * What this fixes is the *reading*: the detector no longer under-reports a hot
- * signal as full scale. The transfer WaveShaper it feeds is still defined over
- * 0…1, so the gain it asks for still stops moving once the envelope passes
- * full scale. Widening that one too means sampling each law over a wider
- * envelope range, which at the curve sizes used here would cost the gate most
- * of the resolution its law needs — a separate change with a real trade-off,
- * not a line to add here.
+ * signal as full scale. How much of that reading a processor's gain actually
+ * follows is a separate decision, because it costs curve resolution to follow
+ * it — that decision is `ControlVca`'s `envelopeTop`, and this constant is the
+ * widest a processor may set it to.
  */
 export const DETECTOR_HEADROOM = 16;
 
@@ -411,6 +411,23 @@ class ControlVca {
   constructor(
     private ctx: BaseAudioContext,
     law: 'expand' | 'compress',
+    /**
+     * The loudest envelope the transfer curve is sampled over, as a linear
+     * factor of full scale. Above it the curve runs out and the gain stops
+     * moving, however much louder the detector says the signal got.
+     *
+     * One spends the whole curve on 0…0 dBFS, which is what a gate and a
+     * compressor want: a gate's range lives entirely below full scale, and
+     * anything a compressor is still asked to reduce above it is a few tenths
+     * of a dB at a ratio that has already flattened. A limiter is the opposite
+     * case. Its own drive control reaches +24 dB, so a curve stopping at full
+     * scale stops asking for reduction exactly where a limiter's work starts:
+     * the clipper behind it removes the rest, silently, while the meter reads
+     * the VCA and reports the four tenths of a dB the curve managed. Trading
+     * resolution below −36 dBFS for that range is free for a limiter, whose
+     * law is unity everywhere down there, and would not be free for a gate.
+     */
+    private readonly envelopeTop = 1,
   ) {
     const mode = law === 'expand' ? 'max' : 'min';
     this.input = makeGain(ctx, 1);
@@ -420,7 +437,11 @@ class ControlVca {
     this.vca = makeGain(ctx, 0);
     this.input.connect(this.lookahead).connect(this.vca).connect(this.output);
 
-    this.rect = makeShaper(ctx, rectifierCurve(DETECTOR_HEADROOM));
+    // The key gains divide by the whole detector headroom on the way in, and
+    // the rectifier multiplies back only as far as the curve is not already
+    // scaled: a curve sampled over the full headroom is indexed by the divided
+    // signal directly, so its rectifier is a plain |x|.
+    this.rect = makeShaper(ctx, rectifierCurve(DETECTOR_HEADROOM / envelopeTop));
     this.detector = makeFilter(ctx, 'lowpass', 120, SMOOTHING_Q_DB);
     // Fully open until the first update installs the real law.
     this.shaper = makeShaper(ctx, new Float32Array([1, 1]));
@@ -456,11 +477,16 @@ class ControlVca {
     this.unity.start();
   }
 
-  /** Swap the transfer curve, but only when its defining values changed. */
-  setCurve(key: string, build: () => Float32Array): void {
+  /** Install a gain law as the transfer curve, but only when its values moved. */
+  setLaw(law: DynamicsLaw): void {
+    const key = dynamicsCurveKey(law);
     if (key === this.curveKey) return;
     this.curveKey = key;
-    this.shaper.curve = build();
+    // The shaper is indexed by the envelope divided by `envelopeTop`, so the
+    // law has to be asked about the envelope each index stands for rather than
+    // about the index. At the default top of one that is `dynamicsCurve(law)`
+    // point for point — the array the plugin face plots.
+    this.shaper.curve = transferCurve((e) => dynamicsGain(law, e * this.envelopeTop));
   }
 
   setBallistics(attackMs: number, releaseMs: number, holdMs: number): void {
@@ -692,13 +718,14 @@ class SwitchableFilter {
  * The law comes from the effect spec, which is also where the plugin face
  * reads it, so the curve the shaper is filled with and the curve the face
  * draws are one description evaluated twice rather than two descriptions that
- * have to be kept in step. Only the multiband has no law of this shape, and it
- * is not built on a VCA.
+ * have to be kept in step. The two evaluations are sampled over each
+ * processor's own envelope range, which is why the VCA is handed the law
+ * itself rather than a finished curve. Only the multiband has no law of this
+ * shape, and it is not built on a VCA.
  */
 function applyLaw(vca: ControlVca, effect: Effect): void {
   const law = dynamicsLawOf(effect);
-  if (!law) return;
-  vca.setCurve(dynamicsCurveKey(law), () => dynamicsCurve(law));
+  if (law) vca.setLaw(law);
 }
 
 function buildTrim(ctx: BaseAudioContext, effect: Effect): EffectNode {
@@ -779,21 +806,32 @@ function buildGate(ctx: BaseAudioContext, effect: Effect): EffectNode {
 
 function buildLimiter(ctx: BaseAudioContext, effect: Effect): EffectNode {
   const drive = makeGain(ctx, 1);
-  const vca = new ControlVca(ctx, 'compress');
+  // The one processor whose curve is sampled over the whole detector range:
+  // 24 dB of drive in front of a ceiling at full scale is what this device is
+  // for, and a curve stopping at 0 dBFS would hand all of it to the clipper.
+  const vca = new ControlVca(ctx, 'compress', DETECTOR_HEADROOM);
   // Scale so the ceiling lands on full scale, clip there, then scale back:
   // the shaper's own input clamping is an exact brickwall inside the rails.
   const preClip = makeGain(ctx, 1);
   const brickwall = makeShaper(ctx, identityCurve(), '4x');
   const postClip = makeGain(ctx, 1);
+  // The clipper's own bypass leg. Its curve is the identity, so inside the
+  // rails the shaper is transparent — but `oversample: '4x'` switches on the
+  // browser's up- and down-sampling filters, which are neither transparent nor
+  // latency-free, and a bypassed insert that quietly filters and delays the
+  // channel is the comb filter every other insert here crossfades to avoid.
+  const clipperDry = makeGain(ctx, 0);
+  const output = makeGain(ctx, 1);
 
   drive.connect(vca.input);
-  vca.output.connect(preClip).connect(brickwall).connect(postClip);
+  vca.output.connect(preClip).connect(brickwall).connect(postClip).connect(output);
+  vca.output.connect(clipperDry).connect(output);
 
   return {
     id: effect.id,
     kind: effect.kind,
     input: drive,
-    output: postClip,
+    output,
     tap: vca.tap,
     sidechain: vca.keyInput,
     setSidechain: (external: boolean) => vca.setSidechain(external),
@@ -803,7 +841,9 @@ function buildLimiter(ctx: BaseAudioContext, effect: Effect): EffectNode {
       const ceilingGain = dbToGain(ceiling);
       setParam(drive.gain, bypass ? 1 : dbToGain(paramOf(e, 'drive')), ctx);
       // A high ratio at the ceiling does the work; the clipper only mops up the
-      // overshoot a finite ratio always leaves behind. The ratio and knee are
+      // overshoot a finite ratio always leaves behind. That division of labour
+      // holds only as far as the VCA's curve reaches, which is why this one is
+      // sampled over the whole detector range. The ratio and knee are
       // `LIMITER_RATIO` and `LIMITER_KNEE_DB`, declared with the effect so the
       // face plots the limiter rather than a straight line.
       applyLaw(vca, e);
@@ -811,11 +851,16 @@ function buildLimiter(ctx: BaseAudioContext, effect: Effect): EffectNode {
       vca.setLookahead(bypass ? 0 : paramOf(e, 'lookahead'));
       vca.setActive(!bypass);
       setParam(preClip.gain, bypass ? 1 : 1 / ceilingGain, ctx);
-      setParam(postClip.gain, bypass ? 1 : ceilingGain, ctx);
+      // Muting the wet leg is what actually takes the oversampled shaper out
+      // of circuit; returning its two scale gains to unity, which is all this
+      // used to do, leaves the signal passing through it. The ceiling scale
+      // rides on the same gain, so the mute costs no extra node.
+      setParam(postClip.gain, bypass ? 0 : ceilingGain, ctx);
+      setParam(clipperDry.gain, bypass ? 1 : 0, ctx);
     },
     dispose: () => {
       vca.dispose();
-      kill([drive, preClip, brickwall, postClip]);
+      kill([drive, preClip, brickwall, postClip, clipperDry, output]);
     },
   };
 }

@@ -547,6 +547,13 @@ describe('factory presets', () => {
 interface Connection {
   from: RecordingNode;
   to: RecordingNode | RecordingParam;
+  /**
+   * The output and input channel indices of `connect`, kept because a
+   * splitter/merger pair carries the two sides of the stereo image down two
+   * routes that must not be read as two copies of one signal.
+   */
+  output?: number;
+  input?: number;
 }
 
 interface RecordingParam {
@@ -593,8 +600,8 @@ function recordingContext(): { ctx: BaseAudioContext; connections: Connection[] 
     const self: RecordingNode = {
       kind,
       ...extra,
-      connect(destination) {
-        connections.push({ from: self, to: destination });
+      connect(destination, output, input) {
+        connections.push({ from: self, to: destination, output, input });
         return isParam(destination) ? undefined : destination;
       },
       disconnect() {},
@@ -668,6 +675,170 @@ function effectOf(kind: EffectKind): Effect {
   return { id: `fx-${kind}`, kind, bypass: false, params: defaultParams(kind) };
 }
 
+// -------------------------------------------------------- bypass transparency
+
+const isNode = (end: RecordingNode | RecordingParam): end is RecordingNode => 'kind' in end;
+
+/**
+ * The value a control connection holds a parameter at, or NaN if something can
+ * still move it.
+ *
+ * A ConstantSource contributes its offset and an oscillator contributes
+ * anything at all, which is the distinction that matters: the DC of an LFO is
+ * zero whether or not it is switched on, so summing values would call a
+ * running tremolo still. What proves a modulation path shut is a gain of
+ * exactly zero standing in it, and that is the one case walked no further.
+ *
+ * The walk needs no loop guard. Web Audio mutes any cycle that does not
+ * contain a DelayNode, so every cycle in a working graph has one, and a delay
+ * is not a constant.
+ */
+function heldAt(node: RecordingNode, connections: Connection[]): number {
+  if (node.kind === 'constant') return (node.offset as RecordingParam).value;
+  if (node.kind !== 'gain') return NaN;
+  const g = gainOf(node, connections);
+  if (g === 0) return 0;
+  const sources = connections.filter((c) => c.to === node);
+  if (sources.length === 0) return NaN;
+  return g * sources.reduce((sum, c) => sum + heldAt(c.from, connections), 0);
+}
+
+/** What a parameter is pinned to: its own value plus everything driving it. */
+function settledAt(param: RecordingParam, connections: Connection[]): number {
+  return connections
+    .filter((c) => c.to === param)
+    .reduce((total, c) => total + heldAt(c.from, connections), param.value);
+}
+
+/** The constant a gain node multiplies by, driven gain included. */
+function gainOf(node: RecordingNode, connections: Connection[]): number {
+  return settledAt(node.gain as RecordingParam, connections);
+}
+
+/**
+ * Whether a node passes audio through unaltered as it is currently set.
+ *
+ * Splitters and mergers only move channels about; a delay of zero and a panner
+ * at centre are wires; a peaking or shelving biquad at 0 dB is the identity
+ * exactly, because at unit gain its numerator and denominator are the same
+ * polynomial. Everything else — a pass filter, a convolver, a compressor, and
+ * above all a WaveShaper, whose `oversample` switches on resampling filters
+ * that are neither flat nor latency-free — colours or delays what it is given.
+ */
+function isTransparent(node: RecordingNode, connections: Connection[]): boolean {
+  switch (node.kind) {
+    case 'gain':
+    case 'splitter':
+    case 'merger':
+      return true;
+    case 'delay':
+      return settledAt(node.delayTime as RecordingParam, connections) === 0;
+    case 'panner':
+      return settledAt(node.pan as RecordingParam, connections) === 0;
+    case 'biquad':
+      return (
+        ['peaking', 'lowshelf', 'highshelf'].includes(node.type as string) &&
+        settledAt(node.gain as RecordingParam, connections) === 0
+      );
+    default:
+      return false;
+  }
+}
+
+interface Route {
+  /** The nodes that are not wires, named — empty for a route that adds nothing. */
+  through: string;
+  /** The channel indices the route was connected on, empty for the usual case. */
+  channels: string;
+  /** The product of the gains along it, counting every other node as unity. */
+  scale: number;
+}
+
+/**
+ * Every route audio can take from one node to another.
+ *
+ * Simple paths only: a route that arrives back at a node it has already
+ * visited is a feedback loop going round again, and what it does on the second
+ * pass is what it did on the first, scaled. Since a bypassed insert has to
+ * hold every loop at zero gain anyway, the first pass is enough to see it.
+ */
+function routesBetween(connections: Connection[], from: RecordingNode, to: RecordingNode): Route[] {
+  const routes: Route[] = [];
+  const walk = (at: RecordingNode, visited: RecordingNode[], route: Route) => {
+    if (at === to) {
+      routes.push(route);
+      return;
+    }
+    for (const c of connections) {
+      if (c.from !== at || !isNode(c.to) || visited.includes(c.to)) continue;
+      const next = c.to;
+      const name = next.kind === 'biquad' ? `${next.kind}:${next.type}` : next.kind;
+      walk(next, [...visited, next], {
+        through: isTransparent(next, connections) ? route.through : `${route.through}${name},`,
+        channels:
+          c.output === undefined && c.input === undefined
+            ? route.channels
+            : `${route.channels}${c.output}:${c.input},`,
+        scale: next.kind === 'gain' ? route.scale * gainOf(next, connections) : route.scale,
+      });
+    }
+  };
+  walk(from, [from], { through: '', channels: '', scale: 1 });
+  return routes;
+}
+
+/**
+ * Everything that stops a bypassed insert from being a route around itself,
+ * as a list of complaints — empty when the insert is transparent.
+ *
+ * A route at zero gain carries nothing and is ignored; of the rest, the ones
+ * that add nothing must sum to unity, one channel of the image at a time, and
+ * the ones that add something must sum to zero. Routes are added up rather
+ * than judged one at a time because two of them through the same processing
+ * can be the honest way to bypass it — the de-esser subtracts its own band
+ * back out, so its band filter is on two live routes at +1 and −1 and is
+ * therefore not in circuit at all.
+ */
+function bypassFaults(kind: EffectKind): string[] {
+  const { ctx, connections } = recordingContext();
+  const effect = effectOf(kind);
+  const node = buildEffectNode(ctx, effect);
+  // Once each way round: a builder that only writes a gain on the branch it
+  // thinks is active leaves the other one wherever it happened to be.
+  node.update(effect, 120, false);
+  node.update({ ...effect, bypass: true }, 120, true);
+  const input = node.input as unknown as RecordingNode;
+  const output = node.output as unknown as RecordingNode;
+  const faults: string[] = [];
+
+  if (input === output) {
+    const gain = gainOf(input, connections);
+    if (gain !== 1) faults.push(`its single node sits at a gain of ${gain}`);
+    return faults;
+  }
+
+  const routes = routesBetween(connections, input, output).filter((r) => r.scale !== 0);
+  if (!routes.some((r) => r.through === '')) {
+    faults.push('no live route from input to output avoids its processing');
+  }
+  for (const channels of new Set(routes.map((r) => r.channels))) {
+    for (const through of new Set(routes.map((r) => r.through))) {
+      const group = routes.filter((r) => r.channels === channels && r.through === through);
+      if (group.length === 0) continue;
+      const sum = group.reduce((total, r) => total + r.scale, 0);
+      const wanted = through === '' ? 1 : 0;
+      if (!(Math.abs(sum - wanted) <= 1e-9)) {
+        faults.push(
+          through === ''
+            ? `its clear route carries ${sum} rather than unity`
+            : `${sum} of the signal still passes ${through.slice(0, -1)}`,
+        );
+      }
+    }
+  }
+  return faults;
+}
+
 describe('effect builders', () => {
   it('builds, updates and disposes every declared kind', () => {
     for (const spec of EFFECT_SPECS) {
@@ -732,6 +903,22 @@ describe('effect builders', () => {
         expect((c.to as RecordingNode).kind, kind).toBe('analyser');
       }
       node.dispose();
+    }
+  });
+
+  /**
+   * The whole contract `WetDry` states: "a bypassed insert is mathematically
+   * transparent whatever the wet path does". Twenty-six of the twenty-seven
+   * kinds honoured it and the Limiter did not — it returned its scale gains to
+   * unity and left the signal running through a `WaveShaperNode` with
+   * `oversample: '4x'`, whose resampling filters are neither flat nor
+   * latency-free, so switching that insert off comb-filtered the channel it
+   * was supposed to leave alone. Checking one insert is what let that sit
+   * there; this is over all of them.
+   */
+  it('routes a bypassed insert around everything it adds, for every declared kind', () => {
+    for (const spec of EFFECT_SPECS) {
+      expect(bypassFaults(spec.kind).join('; '), spec.kind).toBe('');
     }
   });
 
@@ -859,6 +1046,13 @@ describe('the keyable compressor', () => {
     }
   });
 
+  /**
+   * Node by node, at settings a general check cannot reach: 12 dB of makeup
+   * has to stand down and so does the look-ahead. That every insert routes
+   * around itself when bypassed at all is checked over all twenty-seven kinds
+   * in `effect builders`, which is where the Limiter's clipper was found still
+   * sitting in the signal path while this test passed for the compressor.
+   */
   it('is exactly unity gain when bypassed, makeup and lookahead included', () => {
     const effect = compressor({ makeupDb: 12 });
     const parts = partsOf(effect);
@@ -937,18 +1131,41 @@ describe('the picture a dynamics face draws', () => {
   const VCA_KINDS = ['compressor', 'gate', 'limiter', 'deesser'] as const;
 
   /**
-   * The transfer-curve shaper of a processor built on the control VCA, found
-   * by walking the detector the way the audio does: key → |x| → detector →
-   * curve.
+   * The whole detector of a processor built on the control VCA, found by
+   * walking it the way the audio does: key → |x| → detector → curve.
    */
-  function transferCurveOf(effect: Effect): Float32Array {
+  function detectorOf(effect: Effect) {
     const { ctx, connections } = recordingContext();
     const node = buildEffectNode(ctx, effect);
     node.update(effect, 120, false);
     const out = (n: unknown) => connections.filter((c) => c.from === n).map((c) => c.to);
-    const rect = out(node.sidechain as unknown as RecordingNode)[0] as RecordingNode;
+    const into = (n: unknown) => connections.filter((c) => c.to === n).map((c) => c.from);
+    const key = node.sidechain as unknown as RecordingNode;
+    const rect = out(key)[0] as RecordingNode;
     const detector = out(rect)[0] as RecordingNode;
-    return (out(detector)[0] as unknown as { curve: Float32Array }).curve;
+    const internalKey = into(rect).find((n) => n !== key) as unknown as { gain: RecordingParam };
+    return {
+      transfer: (out(detector)[0] as unknown as { curve: Float32Array }).curve,
+      rectifier: (rect as unknown as { curve: Float32Array }).curve,
+      keyGain: internalKey.gain.value,
+    };
+  }
+
+  /**
+   * The gain a steady input of `level` drives the VCA to, end to end: the key
+   * gain scales into the rectifier's headroom, the rectifier reads the
+   * envelope back out, and the transfer curve turns it into a gain. The
+   * detector between the last two is a lowpass with a DC gain of one, so a
+   * steady level crosses it unchanged and can be left out.
+   *
+   * Reading both shapers rather than either array is the point. A curve that
+   * stops short of the level being asked about holds its last value instead of
+   * saying so, which is exactly how a limiter came to plot 23 dB of reduction
+   * and deliver 0.4 — an array comparison at the same parameters saw nothing
+   * wrong, because the array was right and its input was off the end of it.
+   */
+  function deliveredGain(parts: ReturnType<typeof detectorOf>, level: number): number {
+    return readShaper(parts.transfer, readShaper(parts.rectifier, level * parts.keyGain));
   }
 
   /** Every biquad a built effect wired up, whatever it called them. */
@@ -969,14 +1186,88 @@ describe('the picture a dynamics face draws', () => {
     }[];
   }
 
-  it('plots, for every processor built on the VCA, the curve its own audio is filled with', () => {
+  /**
+   * The loudest input a processor's transfer curve still answers for, read out
+   * of the graph rather than assumed: the curve is indexed by the envelope
+   * divided by this, so the level whose envelope reads 1 at the far end of the
+   * curve is it.
+   */
+  function envelopeTopOf(parts: ReturnType<typeof detectorOf>): number {
+    return 1 / readShaper(parts.rectifier, parts.keyGain);
+  }
+
+  it('delivers, for every processor built on the VCA, the gain its own face plots', () => {
     for (const kind of VCA_KINDS) {
       const effect = effectOf(kind);
       const law = dynamicsLawOf(effect);
       expect(law, kind).not.toBeNull();
-      // Same array the face plots point for point, at the same parameters.
-      expect(transferCurveOf(effect), kind).toEqual(dynamicsCurve(law!));
+      const parts = detectorOf(effect);
+      const points = parts.transfer.length;
+      const top = envelopeTopOf(parts);
+      // The positive half of the curve, point by point, at the input level
+      // each point stands for. Landing on the points rather than between them
+      // is what makes this exact rather than a tolerance: a WaveShaper returns
+      // a curve entry unaltered at its own position, so a difference here is a
+      // scale that fails to undo the one in front of it, never interpolation.
+      for (let i = Math.ceil((points - 1) / 2); i < points; i += 7) {
+        const envelope = ((i / (points - 1)) * 2 - 1) * top;
+        const where = `${kind} at ${gainToDb(envelope).toFixed(1)} dBFS`;
+        expect(deliveredGain(parts, envelope), where).toBeCloseTo(dynamicsGain(law!, envelope), 6);
+      }
     }
+  });
+
+  /**
+   * Why the limiter is the only one of the four whose curve is stretched over
+   * the detector's whole range, and why stretching the others would cost
+   * something real. A gate's law is steepest at the very bottom, where a
+   * default 8:1 expander takes 7 dB away per dB below the threshold, and its
+   * curve is already coarse enough there to deliver 18.73 dB of attenuation
+   * where its face plots 21.00 — a level that falls between two curve points,
+   * which is why the test above, which reads only the points themselves, is
+   * still exact. Sixteen times fewer points across that region is not a trade
+   * a gate can make, and it has nothing above full scale to gain by it.
+   */
+  it('leaves the gate, the compressor and the de-esser sampling their laws over 0…0 dBFS', () => {
+    for (const kind of ['compressor', 'gate', 'deesser'] as const) {
+      const parts = detectorOf(effectOf(kind));
+      expect(envelopeTopOf(parts), kind).toBe(1);
+      // The rectifier therefore still multiplies the whole headroom back out,
+      // so the detector reads a hot signal even where the curve stops moving.
+      expect(parts.rectifier, kind).toEqual(rectifierCurve(DETECTOR_HEADROOM));
+      expect(parts.transfer, kind).toEqual(dynamicsCurve(dynamicsLawOf(effectOf(kind))!));
+    }
+  });
+
+  /**
+   * H-3, in the numbers the audit measured. The limiter's own drive reaches
+   * +24 dB and its face plots the law across all of it, but its curve stopped
+   * at an envelope of 1: above full scale the VCA's gain stopped moving, the
+   * hard clipper downstream quietly removed everything the law had asked for
+   * and not delivered, and the meter — which reads the VCA — went on reporting
+   * the four tenths of a dB the curve had managed while 23 dB was being
+   * clipped off. The face was right, the meter was right about the VCA, and
+   * the two together said something false about the device.
+   */
+  it('holds the limiter to the law its face draws, above full scale where its drive puts it', () => {
+    const limiter = effectOf('limiter');
+    const law = dynamicsLawOf(limiter)!;
+    const parts = detectorOf(limiter);
+    // The face's input axis runs to +24 dBFS (`axisTopOf` in `PluginFace`),
+    // and the curve has to answer for every decibel of it.
+    expect(gainToDb(envelopeTopOf(parts))).toBeGreaterThanOrEqual(24);
+
+    for (const db of [-6, 0, 6, 12, 24]) {
+      const plotted = gainToDb(dynamicsGain(law, dbToGain(db)));
+      const delivered = gainToDb(deliveredGain(parts, dbToGain(db)));
+      expect(delivered, `${db} dBFS in`).toBeCloseTo(plotted, 2);
+    }
+
+    // The four tenths of a dB the old curve topped out at, named so that a
+    // curve that stops at full scale cannot pass this quietly again.
+    const stuckAt = gainToDb(dynamicsGain(law, 1));
+    expect(stuckAt).toBeCloseTo(-0.4, 1);
+    expect(gainToDb(deliveredGain(parts, dbToGain(24)))).toBeLessThan(-20);
   });
 
   it('never draws a straight line for a processor that is not straight', () => {
