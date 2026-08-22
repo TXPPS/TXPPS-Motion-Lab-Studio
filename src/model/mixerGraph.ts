@@ -17,8 +17,11 @@
  *   feeds audible, and soloing a bus keeps whatever feeds it audible. Soloing a
  *   folder or a VCA solos its members.
  * - `soloSafe` tracks (reverb returns, talkback) survive any solo.
+ * - A cue mix is the same graph heard differently: folders and VCAs still
+ *   apply, the channel's own fader, pan and mute come from the cue, and the
+ *   main mix's solo is optional.
  */
-import type { ProjectData, Track } from './types';
+import { isAudioTrackType, type CueMix, type ProjectData, type Track } from './types';
 
 export interface ChannelState {
   /** false → the channel's mute gain is driven to zero */
@@ -95,7 +98,11 @@ export function feedersOf(tracks: Track[], busId: string): Track[] {
  * are included so the mixer can render them, but their `audible` only describes
  * whether their members are being heard.
  */
-export function resolveChannels(project: ProjectData): Map<string, ChannelState> {
+export function resolveChannels(
+  project: ProjectData,
+  cueId?: string | null,
+): Map<string, ChannelState> {
+  const cue = cueId ? project.cueMixes?.find((c) => c.id === cueId) : undefined;
   const tracks = project.tracks;
   const byId = new Map(tracks.map((t) => [t.id, t]));
   const out = new Map<string, ChannelState>();
@@ -160,16 +167,42 @@ export function resolveChannels(project: ProjectData): Map<string, ChannelState>
     for (const f of chain) groupGain *= f.volume;
     if (vca?.type === 'vca') groupGain *= vca.volume;
 
-    out.set(t.id, {
+    const base: ChannelState = {
       audible: !selfMuted && !groupMuted && soloOk,
       gain: Math.max(0, t.volume * groupGain),
       groupGain: Math.max(0, groupGain),
       pan: t.type === 'vca' || t.type === 'folder' ? 0 : t.pan,
       mutedByGroup: groupMuted && !selfMuted,
       mutedBySolo: !soloOk && !selfMuted && !groupMuted,
-    });
+    };
+    out.set(t.id, cue ? cueState(base, t, cue, groupGain) : base);
   }
   return out;
+}
+
+/**
+ * The same channel as the cue hears it.
+ *
+ * Folders and VCAs still apply — a cue is a different balance of the console,
+ * not a different console — but the channel's own fader, pan and mute are the
+ * cue's, and the main mix's solo is optional, because a headphone mix that
+ * goes silent when the engineer solos something is a headphone mix nobody
+ * trusts.
+ */
+function cueState(base: ChannelState, track: Track, cue: CueMix, groupGain: number): ChannelState {
+  if (!isAudioTrackType(track.type)) return base;
+  const send = cue.sends[track.id];
+  const level = !send || send.follow ? track.volume : send.level;
+  const pan = !send || send.follow ? base.pan : send.pan;
+  const muted = send?.mute === true || track.mute;
+  const soloOk = cue.ignoreSolo ? true : !base.mutedBySolo;
+  return {
+    ...base,
+    audible: !muted && !base.mutedByGroup && soloOk,
+    gain: Math.max(0, level * groupGain * cue.level),
+    pan,
+    mutedBySolo: !cue.ignoreSolo && base.mutedBySolo,
+  };
 }
 
 /**

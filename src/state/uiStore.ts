@@ -9,8 +9,25 @@ export type EditorTab =
   'mixer' | 'piano' | 'drums' | 'score' | 'audio' | 'chords' | 'synth' | 'diagnostics';
 export type PhoneMode = 'arrange' | 'record' | 'perform' | 'edit' | 'mix' | 'browse';
 export type BrowserTab = 'projects' | 'instruments' | 'effects' | 'loops' | 'samples' | 'pool';
-/** Arrangement editing tools. Only fully-usable tools are offered. */
-export type ArrangeTool = 'pointer' | 'range' | 'split' | 'erase' | 'mute' | 'slip';
+/**
+ * Arrangement editing tools, in the order the toolbar shows them and the
+ * order the number keys 1-9 select them. One list rather than a type beside a
+ * key map: a tool that the toolbar offers and the keyboard has never heard of
+ * is a shortcut list that lies, which is how `range` ended up unbound.
+ */
+export const ARRANGE_TOOLS = [
+  'pointer',
+  'range',
+  'split',
+  'erase',
+  'mute',
+  'slip',
+  'paint',
+  'listen',
+  'zoom',
+] as const;
+
+export type ArrangeTool = (typeof ARRANGE_TOOLS)[number];
 
 export interface DialogState {
   kind: 'prompt' | 'confirm';
@@ -66,6 +83,8 @@ interface UiState {
   /** Channel Overview strip above the console */
   channelOverview: boolean;
   /** Active arrangement tool */
+  /** cue mix being monitored on the main output, or null for the main mix */
+  monitorCueId: string | null;
   tool: ArrangeTool;
 
   selectedTrackId: string | null;
@@ -89,6 +108,13 @@ interface UiState {
   range: { fromBeat: number; toBeat: number; trackIds: string[] } | null;
 
   pxPerBeat: number;
+  /**
+   * Vertical arrangement zoom: a multiplier on the track lane height. One
+   * number for every track, because the zoom tool scales the view rather than
+   * resizing one lane — a per-track height would be project data, not view
+   * state, and would have to survive a save.
+   */
+  laneScale: number;
   /** Grid size in beats. 0 means the grid itself is off. */
   snap: number;
   /**
@@ -144,6 +170,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   settingsOpen: false,
   exportOpen: false,
   channelOverview: true,
+  monitorCueId: null,
   tool: 'pointer',
 
   selectedTrackId: null,
@@ -155,6 +182,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   range: null,
 
   pxPerBeat: 26,
+  laneScale: 1,
   snap: 0.25,
   snapMode: 'grid',
   prPxPerBeat: 32,

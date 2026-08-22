@@ -1206,6 +1206,52 @@
    rows want about 307px, eight want 277, seven want 251 and five want 209. A
    step that fires earlier than that throws away a row that would have fitted. */
 
+/* ---------------------------------------------------------------- cue mixes */
+.cue-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  flex: 0 0 auto;
+  min-height: 34px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cue-bar::-webkit-scrollbar {
+  display: none;
+}
+/* Monitoring a cue is a mode; a mode you cannot see is a mode left switched on. */
+.cue-bar.live {
+  background: var(--accent-bg);
+  border-bottom-color: var(--accent);
+}
+.cue-live {
+  font-size: var(--fs-xs);
+  color: var(--accent);
+  white-space: nowrap;
+}
+.cue-level {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 110px;
+}
+.cue-level input {
+  flex: 1 1 auto;
+  min-width: 60px;
+}
+.cue-bar .grow {
+  flex: 1 1 auto;
+}
+/* The strips carry the same signal as the bar: this fader is the cue's. */
+.strip.in-cue .strip-mid,
+.strip.in-cue .strip-pan {
+  background: var(--accent-bg);
+  border-radius: var(--radius);
+}
+
 @container mixer (max-height: 330px) {
   .strip {
     grid-template-rows:

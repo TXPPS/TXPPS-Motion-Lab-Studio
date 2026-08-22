@@ -76,6 +76,8 @@ export interface ExportSettings {
   dither: 'none' | 'tpdf' | 'shaped';
   /** 'mix' bounces the master; 'stems' bounces one file per source. */
   scope: 'mix' | 'stems' | 'tracks';
+  /** render a cue mix's balance instead of the main mix */
+  cueId: string | null;
   range: 'song' | 'loop';
   /** Normalise the result so its true peak lands here, in dBTP. Null = leave it. */
   normalizeDbtp: number | null;
@@ -93,6 +95,7 @@ export const DEFAULT_EXPORT: ExportSettings = {
   sampleRate: 48000,
   dither: 'tpdf',
   scope: 'mix',
+  cueId: null,
   range: 'song',
   normalizeDbtp: null,
   trimSilence: false,
@@ -203,6 +206,7 @@ export async function exportProject(settings: ExportSettings): Promise<boolean> 
         range,
         sampleRate: settings.sampleRate,
         tailSeconds: settings.tailSeconds,
+        cueId: settings.cueId,
         onProgress: (stage) => set({ message: `${job.name}: ${stage}…` }),
         signal,
       });

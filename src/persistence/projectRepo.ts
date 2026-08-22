@@ -7,9 +7,12 @@ import { SCHEMA_VERSION } from '../model/types';
 import type { EffectKind, ProjectData, ProjectMeta, Track } from '../model/types';
 import { isKnownEffect, MAX_INSERTS, normaliseParams } from '../model/effects';
 import { normalizeTempoMap } from '../model/tempo';
+import { normalizeWarpMap } from '../model/warp';
+import type { WarpMap } from '../model/warp';
 import { normalizeChords, normalizeMarkers, normalizeSections } from '../model/arrangement';
 import { normalizeLinks } from '../model/controlLink';
 import { normalizeGrooves } from '../model/groove';
+import { normalizeCueMixes } from '../model/cueMix';
 import { AUDIO_TRACK_TYPES } from '../model/types';
 import { isAutomationMode, validateLane } from '../model/automation';
 import { paramIdExists } from '../model/paramRegistry';
@@ -156,6 +159,22 @@ export function validateProject(raw: unknown): ProjectData {
       if (typeof a.offset !== 'number') a.offset = 0;
       if (a.sourceDuration !== undefined && typeof a.sourceDuration !== 'number') {
         delete a.sourceDuration;
+      }
+      // A warp map is normalised on the way in for the same reason the engine
+      // trusts it on the way out: a marker pair the mapping cannot represent
+      // (same source second, or a later marker on an earlier beat) would make
+      // the playback rate infinite or negative. An empty map is no map.
+      if (a.warp !== undefined) {
+        const stored = isRecord(a.warp) ? a.warp : {};
+        const warp = normalizeWarpMap(
+          {
+            markers: Array.isArray(stored.markers) ? (stored.markers as WarpMap['markers']) : [],
+            ...(typeof stored.sourceBpm === 'number' ? { sourceBpm: stored.sourceBpm } : {}),
+          },
+          typeof a.sourceBpm === 'number' ? a.sourceBpm : undefined,
+        );
+        if (warp.markers.length > 0) a.warp = warp;
+        else delete a.warp;
       }
       // --- v3 → v4: fade shapes, cleanup flags, takes/comp ---------------
       for (const key of ['fadeInShape', 'fadeOutShape'] as const) {
@@ -437,6 +456,7 @@ export function validateProject(raw: unknown): ProjectData {
     scratchPads: validateScratchPads(raw.scratchPads, trackIds),
     controlLinks: normalizeLinks(raw.controlLinks),
     grooves: normalizeGrooves(raw.grooves),
+    cueMixes: normalizeCueMixes(raw.cueMixes, trackIds),
     ...(typeof raw.activePadId === 'string' ? { activePadId: raw.activePadId } : {}),
     countIn: clampNum(raw.countIn, 0, 8, 1),
     preRoll: clampNum(raw.preRoll, 0, 8, 0),

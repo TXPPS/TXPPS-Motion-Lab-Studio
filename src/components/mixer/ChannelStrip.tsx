@@ -22,6 +22,14 @@ import type { Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { Fader, PanKnob, PeakReadout, StereoMeter, panText } from '../common/widgets';
+import { cueSendOf, findCue } from '../../model/cueMix';
+
+/** The cue being monitored, if any. Null means the main mix, which is the norm. */
+function useCueMix() {
+  const cueId = useUiStore((s) => s.monitorCueId);
+  const cues = useProjectStore((s) => s.project.cueMixes);
+  return findCue(cues, cueId);
+}
 import { Icon, type IconName } from '../common/Icon';
 import { captureParamChange, captureParamRelease } from '../../app/automationActions';
 
@@ -127,6 +135,15 @@ export const ChannelStrip = memo(function ChannelStrip({
   const trim = track.inputGainDb ?? 0;
   const vca = vcas.find((v) => v.id === track.vcaId);
 
+  // While a cue mix is being monitored, the fader, pan and mute belong to the
+  // cue: what you hear is what you are adjusting. Everything else on the strip
+  // — inserts, sends, routing, arm — is the channel's and stays the channel's,
+  // because a cue changes a balance, not a signal path.
+  const cue = useCueMix();
+  const send = cue ? cueSendOf(cue, track) : null;
+  const level = send ? send.level : track.volume;
+  const pan = send ? send.pan : track.pan;
+
   const silentBecause = state?.mutedByGroup
     ? 'silenced by its group'
     : state?.mutedBySolo
@@ -137,7 +154,7 @@ export const ChannelStrip = memo(function ChannelStrip({
     <div
       className={`strip${selected ? ' selected' : ''}${isSum ? ' bus' : ''}${
         state && !state.audible ? ' silent' : ''
-      }`}
+      }${cue ? ' in-cue' : ''}`}
       style={{ ['--strip-color' as string]: track.color }}
       onPointerDown={() => useUiStore.getState().selectTrack(track.id)}
       data-testid={`strip-${track.name}`}
@@ -210,31 +227,41 @@ export const ChannelStrip = memo(function ChannelStrip({
       <div className="strip-pan">
         <PanKnob
           size={26}
-          value={track.pan}
+          value={pan}
           onChange={(v) => {
+            if (cue) {
+              store.getState().setCueSend(cue.id, track.id, { pan: v });
+              return;
+            }
             store.getState().setTrack(track.id, { pan: v });
             captureParamChange(track.id, 'pan', v);
           }}
-          onGestureStart={() => store.getState().beginGesture()}
+          onGestureStart={() => !cue && store.getState().beginGesture()}
           onGestureEnd={() => {
+            if (cue) return;
             store.getState().endGesture();
             captureParamRelease(track.id, 'pan');
           }}
-          label={`${track.name} pan`}
+          label={cue ? `${track.name} pan in ${cue.name}` : `${track.name} pan`}
         />
-        <span className="pan-val">{panText(track.pan)}</span>
+        <span className="pan-val">{panText(pan)}</span>
       </div>
 
       <div className="strip-mid">
         <Fader
-          value={track.volume}
-          label={`${track.name} volume`}
-          onGestureStart={() => store.getState().beginGesture()}
+          value={level}
+          label={cue ? `${track.name} level in ${cue.name}` : `${track.name} volume`}
+          onGestureStart={() => !cue && store.getState().beginGesture()}
           onGestureEnd={() => {
+            if (cue) return;
             store.getState().endGesture();
             captureParamRelease(track.id, 'volume');
           }}
           onChange={(v) => {
+            if (cue) {
+              store.getState().setCueSend(cue.id, track.id, { level: v });
+              return;
+            }
             store.getState().setTrack(track.id, { volume: v });
             captureParamChange(track.id, 'volume', v);
           }}
@@ -244,12 +271,16 @@ export const ChannelStrip = memo(function ChannelStrip({
 
       <div className="strip-btns">
         <button
-          className={`th-mini${track.mute ? ' m-on' : ''}`}
-          aria-pressed={track.mute}
-          aria-label={`Mute ${track.name}`}
+          className={`th-mini${(send ? send.mute : track.mute) ? ' m-on' : ''}`}
+          aria-pressed={send ? send.mute : track.mute}
+          aria-label={cue ? `Mute ${track.name} in ${cue.name}` : `Mute ${track.name}`}
           title={silentBecause ? `Muted — ${silentBecause}` : 'Mute'}
           data-testid={`mix-mute-${track.name}`}
-          onClick={() => store.getState().setTrack(track.id, { mute: !track.mute })}
+          onClick={() =>
+            cue && send
+              ? store.getState().setCueSend(cue.id, track.id, { mute: !send.mute })
+              : store.getState().setTrack(track.id, { mute: !track.mute })
+          }
         >
           M
         </button>
@@ -282,7 +313,7 @@ export const ChannelStrip = memo(function ChannelStrip({
 
       <div className="strip-readout">
         <span className="rd-db" data-testid={`db-${track.name}`}>
-          {formatDb(track.volume)}
+          {formatDb(level)}
         </span>
         <span className="rd-pk">
           <PeakReadout meterId={track.id} />

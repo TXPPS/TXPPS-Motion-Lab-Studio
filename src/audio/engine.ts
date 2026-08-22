@@ -4,13 +4,16 @@
  * methods here. The engine reacts to project-store changes (syncGraph) and
  * mirrors its status into the transport store.
  */
-import { clipSecondsPerBeat } from '../model/music';
+import { clipSecondsPerBeat, tempoMapOf } from '../model/music';
+import { beatToSec, secToBeat } from '../model/tempo';
+import { playedNotes } from './notePipeline';
 import { resolveChannels } from '../model/mixerGraph';
 import { midiRecorder } from './midiRecorder';
 import { clipRatePlan } from '../model/clipRate';
 import { stretchedBuffer } from './stretchCache';
+import { clipWarpMap, warpedBuffer, warpedClipTiming, warpedTimeSec } from './warpRender';
 import { isAudioTrackType, MASTER_ID } from '../model/types';
-import type { AudioClip, ProjectData, SynthParams } from '../model/types';
+import type { AudioClip, MidiClip, ProjectData, SynthParams } from '../model/types';
 import { useProjectStore } from '../state/projectStore';
 import { useTransportStore } from '../state/transportStore';
 import { diagLog } from '../state/diagnostics';
@@ -30,6 +33,9 @@ import { denormParam, findAutoParam } from '../model/paramRegistry';
 import type { AutoParam } from '../model/paramRegistry';
 
 const MAX_ACTIVE_SOURCES = 128;
+/** Lookahead and tick of the listen preview's note pump, in seconds and ms. */
+const PREVIEW_LOOKAHEAD_SEC = 0.3;
+const PREVIEW_TICK_MS = 60;
 const PARAM_TAU = 0.015;
 /** Automation smoothing: every applied value approaches its target over this
  *  time constant, so control-rate updates cannot produce zipper steps. */
@@ -136,6 +142,8 @@ class AudioEngine {
   private metroGain: GainNode | null = null;
 
   private channels = new Map<string, Channel>();
+  /** cue mix being monitored on the main output, or null for the main mix */
+  private monitorCueId: string | null = null;
   private monitors = new Map<string, Monitor>();
   private instruments = new Map<string, Instrument>();
   private activeSources = new Set<ActiveHandle>();
@@ -423,7 +431,7 @@ class AudioEngine {
     // 3. apply params + routing. Mute, solo, VCA and folder gain are resolved
     // once, as pure data, so the engine, the meters and the bounce cannot
     // disagree about what is audible.
-    const states = resolveChannels(p);
+    const states = resolveChannels(p, this.monitorCueId);
     for (const track of p.tracks) {
       const ch = this.channels.get(track.id);
       if (!ch) continue;
@@ -897,7 +905,7 @@ class AudioEngine {
     const t = ctx.currentTime;
     /** effects whose automated params changed this pass */
     const fxTouched = new Set<string>();
-    const states = resolveChannels(p);
+    const states = resolveChannels(p, this.monitorCueId);
 
     for (const e of this.autoIndex) {
       const n = laneValueAt(e.points, pos);
@@ -1062,13 +1070,22 @@ class AudioEngine {
     // (pitch preserved). While that render is in flight the resampled path
     // keeps sounding, because a silent clip is worse than a briefly wrong one.
     const plan = clipRatePlan(p, clip, spb);
+    // The warp map is applied first, by rendering the source onto its own
+    // musical grid: everything after it — tempo follow, stretch, transpose —
+    // then works on material that is already in time, exactly as it does for a
+    // clip with no map at all. Until that render lands the clip plays unwarped
+    // rather than silent, the same trade the stretch cache makes.
+    const warp = clipWarpMap(clip);
+    const warped = warp ? warpedBuffer(ctx, clip.mediaId, warp) : null;
+    const timing = warped && warp ? warpedClipTiming(clip, warp) : clip;
+    if (warped && warp) offsetSec = warpedTimeSec(warp, offsetSec);
     let buffer =
       plan.preservePitch && plan.timeRatio !== 1
-        ? stretchedBuffer(ctx, clip.mediaId, plan.timeRatio, plan.semitones)
-        : getBufferSync(clip.mediaId);
+        ? stretchedBuffer(ctx, clip.mediaId, plan.timeRatio, plan.semitones, warp)
+        : (warped ?? getBufferSync(clip.mediaId));
     let rate = plan.rate;
     if (!buffer) {
-      buffer = getBufferSync(clip.mediaId);
+      buffer = warped ?? getBufferSync(clip.mediaId);
       // The pre-render is not ready: fall back to resampling at the same speed.
       rate = plan.fallbackRate;
     } else if (plan.preservePitch && plan.timeRatio !== 1) {
@@ -1080,7 +1097,7 @@ class AudioEngine {
     // Duration and gain envelope come from the shared scheduler so that an
     // exported bounce is sample-for-sample the same decision as live playback.
     const schedule = computeClipSchedule(
-      clip,
+      timing,
       offsetSec,
       buffer.duration,
       plan.preservePitch && plan.timeRatio !== 1 ? spb / plan.timeRatio : spb,
@@ -1200,6 +1217,155 @@ class AudioEngine {
     return this.auditionState?.mediaId ?? null;
   }
 
+  /**
+   * Sources belonging to a running listen preview are tagged with a clip id
+   * that no clip has, so ending the preview stops exactly its own voices and
+   * leaves the transport's voices for the same clip playing.
+   */
+  private previewTag: string | null = null;
+  private previewTimer: ReturnType<typeof setInterval> | null = null;
+  /**
+   * Bumped by every start and every stop. Media loads and context unlocks are
+   * asynchronous; a preview whose buffer arrives after the pointer went up
+   * must not start sounding, and the generation is how it finds that out.
+   */
+  private previewGen = 0;
+
+  /**
+   * Listen to one clip from a point inside it, for as long as the caller holds
+   * it — the arrangement's listen tool.
+   *
+   * It runs beside the transport, never through it: nothing here seeks, starts
+   * or stops the scheduler, so a listen during playback is additive and a
+   * listen while stopped leaves the position where the musician left it.
+   */
+  async previewClip(clipId: string, fromBeat: number): Promise<boolean> {
+    this.stopPreview();
+    const gen = ++this.previewGen;
+    const ok = await this.start();
+    const ctx = this.ctx;
+    if (!ok || !ctx || gen !== this.previewGen) return false;
+    const p = useProjectStore.getState().project;
+    const clip = p.clips.find((c) => c.id === clipId);
+    if (!clip) return false;
+    const at = Math.min(Math.max(fromBeat, clip.start), clip.start + clip.length);
+    this.previewTag = `${clip.id}~listen`;
+    return clip.type === 'audio'
+      ? this.previewAudioClip(clip, at, gen)
+      : this.previewMidiClip(clip, at, gen);
+  }
+
+  private async previewAudioClip(clip: AudioClip, atBeat: number, gen: number): Promise<boolean> {
+    const ctx = this.ctx;
+    const dest = this.channels.get(clip.trackId)?.input ?? this.masterInput;
+    if (!ctx || !dest) return false;
+    const buffer = getBufferSync(clip.mediaId) ?? (await loadBuffer(clip.mediaId, ctx));
+    if (!buffer || gen !== this.previewGen) return false;
+    const p = useProjectStore.getState().project;
+    const spb = clipSecondsPerBeat(p, clip);
+    const into = Math.max(0, atBeat - clip.start);
+    // Resampling rather than the stretch cache: a preview is wanted now, and
+    // a pre-render that has not been asked for yet would arrive after the
+    // finger came off. The speed is right; a stretched clip previews at the
+    // pitch resampling gives it.
+    const rate = clipRatePlan(p, clip, spb).fallbackRate;
+    const schedule = computeClipSchedule(clip, clip.offset + into * spb, buffer.duration, spb);
+    if (!schedule) return false;
+
+    const when = ctx.currentTime + 0.02;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    if (rate !== 1) src.playbackRate.value = rate;
+    const g = ctx.createGain();
+    applyEnvelope(g.gain, schedule.envelope, when);
+    src.connect(g);
+    g.connect(dest);
+    const handle: ActiveHandle = {
+      kind: 'buffer',
+      trackId: clip.trackId,
+      clipId: this.previewTag ?? undefined,
+      stop: (hard) => {
+        const t = ctx.currentTime;
+        g.gain.cancelScheduledValues(t);
+        g.gain.setTargetAtTime(0, t, hard ? 0.004 : 0.012);
+        try {
+          src.stop(t + 0.05);
+        } catch {
+          /* already stopped */
+        }
+      },
+    };
+    src.onended = () => {
+      this.unregisterSource(handle);
+      try {
+        src.disconnect();
+        g.disconnect();
+      } catch {
+        /* already gone */
+      }
+    };
+    this.registerSource(handle);
+    src.start(when, schedule.offsetSec, schedule.durSec);
+    return true;
+  }
+
+  private previewMidiClip(clip: MidiClip, atBeat: number, gen: number): boolean {
+    const ctx = this.ctx;
+    const inst = this.instruments.get(clip.trackId);
+    const tag = this.previewTag;
+    if (!ctx || !inst || !tag) return false;
+    const p = useProjectStore.getState().project;
+    const map = tempoMapOf(p);
+    const track = p.tracks.find((t) => t.id === clip.trackId);
+    // A note already sounding at the press point starts immediately with what
+    // is left of it: pressing inside a held chord should sound the chord.
+    const events = playedNotes(p, clip, track)
+      .filter((n) => !n.muted && n.start < clip.length)
+      .map((n) => ({
+        pitch: n.pitch,
+        velocity: n.velocity,
+        beat: Math.max(clip.start + n.start, atBeat),
+        end: clip.start + Math.min(n.start + n.length, clip.length),
+      }))
+      .filter((e) => e.end > atBeat)
+      .sort((a, b) => a.beat - b.beat);
+
+    const t0 = ctx.currentTime + 0.03;
+    const startSec = beatToSec(map, atBeat);
+    let next = 0;
+    /**
+     * An instrument builds a voice the moment it is handed a note, so a
+     * preview cannot give it the whole clip at once — it would spend every
+     * voice it has on notes a minute away and steal them back before they
+     * sounded. Same lookahead pump as the transport, for the same reason.
+     */
+    const pump = () => {
+      if (gen !== this.previewGen) return;
+      const horizon = secToBeat(map, ctx.currentTime - t0 + startSec + PREVIEW_LOOKAHEAD_SEC);
+      while (next < events.length && events[next].beat <= horizon) {
+        const e = events[next++];
+        const at = beatToSec(map, e.beat);
+        inst.scheduleNote(e.pitch, e.velocity, t0 + at - startSec, beatToSec(map, e.end) - at, tag);
+      }
+    };
+    pump();
+    this.previewTimer = setInterval(pump, PREVIEW_TICK_MS);
+    return true;
+  }
+
+  /** End the listen preview. Safe to call when nothing is previewing. */
+  stopPreview(): void {
+    this.previewGen++;
+    if (this.previewTimer !== null) {
+      clearInterval(this.previewTimer);
+      this.previewTimer = null;
+    }
+    const tag = this.previewTag;
+    if (!tag) return;
+    this.previewTag = null;
+    this.stopSourcesWhere((h) => h.clipId === tag);
+  }
+
   /** Immediate metronome click, used by the recording count-in. */
   playMetronomeClick(accent: boolean): void {
     const ctx = this.ctx;
@@ -1304,6 +1470,7 @@ class AudioEngine {
     }
     this.stopAllSources(true);
     this.stopAudition();
+    this.stopPreview();
     this.stopAllMonitoring();
     audioInput.stopAll();
     useTransportStore.getState().set({ playState: 'stopped' });
@@ -1319,6 +1486,23 @@ class AudioEngine {
   }
 
   // ---------- live input ----------
+
+  /**
+   * Monitor a cue mix on the main output instead of the main mix.
+   *
+   * The engine holds this rather than reading it from the UI store: which mix
+   * is being monitored is a property of the audio path, and the store that
+   * owns panel layout has no business being a dependency of the graph.
+   */
+  setMonitorCue(cueId: string | null): void {
+    if (this.monitorCueId === cueId) return;
+    this.monitorCueId = cueId;
+    this.syncGraph(useProjectStore.getState().project, false);
+  }
+
+  get monitoredCueId(): string | null {
+    return this.monitorCueId;
+  }
 
   liveNoteOn(trackId: string, pitch: number, velocity: number): void {
     // Capture happens here rather than in the Web MIDI handler: hardware MIDI,

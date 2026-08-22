@@ -300,6 +300,38 @@ export interface WorkspaceState {
 }
 
 /** Per-track send into an effect bus. */
+/**
+ * One channel's place in a cue mix.
+ *
+ * `follow` is the default state and the reason a cue mix is usable at all: a
+ * new cue starts as a copy of the main mix and only the channels the performer
+ * asked about are ever touched, so a twenty-track session does not need twenty
+ * decisions before the first note.
+ */
+export interface CueSend {
+  /** linear 0..1.5, used when `follow` is false */
+  level: number;
+  pan: number;
+  mute: boolean;
+  /** take the level and pan from the main mix instead of the stored ones */
+  follow: boolean;
+}
+
+/**
+ * A headphone mix. It is the same channels heard differently — not a copy of
+ * the material — so it carries only what each channel does, keyed by track id.
+ */
+export interface CueMix {
+  id: string;
+  name: string;
+  /** master level for the whole cue, linear */
+  level: number;
+  /** channels not listed here follow the main mix */
+  sends: Record<string, CueSend>;
+  /** a cue is a monitor path: solo on the main mix should not silence it */
+  ignoreSolo: boolean;
+}
+
 export interface Send {
   /** target bus track id */
   busId: string;
@@ -552,6 +584,8 @@ export interface ProjectData {
   controlLinks?: ControlLink[];
   /** grooves lifted off performances in this song, alongside the built-ins */
   grooves?: Groove[];
+  /** headphone mixes: a separate balance per performer, off the same channels */
+  cueMixes?: CueMix[];
   /** count-in bars before recording (0 = none) */
   countIn?: number;
   /** pre-roll in bars before the punch point */

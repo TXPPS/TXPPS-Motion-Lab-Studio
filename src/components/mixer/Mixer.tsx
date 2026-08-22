@@ -17,6 +17,7 @@ import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
 import { ChannelStrip, MasterStrip } from './ChannelStrip';
 import { ChannelOverviewHost } from './ChannelOverview';
+import { CueBar } from './CueBar';
 import { VcaStrip } from './VcaStrip';
 
 export function Mixer({ touch }: { touch?: boolean }) {
@@ -37,7 +38,8 @@ export function Mixer({ touch }: { touch?: boolean }) {
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
-  const states = useMemo(() => resolveChannels(project), [project]);
+  const monitorCueId = useUiStore((s) => s.monitorCueId);
+  const states = useMemo(() => resolveChannels(project, monitorCueId), [project, monitorCueId]);
   const showOverview = useUiStore((s) => s.channelOverview);
 
   const buses = tracks.filter((t) => t.type === 'bus');
@@ -92,6 +94,7 @@ export function Mixer({ touch }: { touch?: boolean }) {
 
   return (
     <div className="mixer-wrap">
+      <CueBar />
       {showOverview && <ChannelOverviewHost />}
       <div
         ref={ref}

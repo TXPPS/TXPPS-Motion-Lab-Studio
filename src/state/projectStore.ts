@@ -5,6 +5,8 @@ import { getPreset, DRUM_KIT_PARAMS, SYNTH_PRESETS } from '../model/presets';
 import { TRACK_COLORS } from '../model/types';
 import type {
   Clip,
+  CueMix,
+  CueSend,
   EffectKind,
   MidiClip,
   Note,
@@ -36,6 +38,7 @@ import {
 import { createNoteFx } from '../model/noteFx';
 import { MAX_MACROS, createMacro, macroWrites } from '../model/macros';
 import { MAX_SAVED_GROOVES, applyGroove, type Groove } from '../model/groove';
+import { MAX_CUE_MIXES } from '../model/cueMix';
 import type { NoteFxKind } from '../model/types';
 import { normalizeTempoMap, type TempoCurve } from '../model/tempo';
 import {
@@ -350,6 +353,16 @@ export interface ProjectStore {
   ) => void;
 
   // ---- macros ----
+  // ---- cue mixes ----
+  /** A new cue, starting as a copy of the main mix. */
+  addCueMix: (name?: string) => string | null;
+  removeCueMix: (cueId: string) => void;
+  renameCueMix: (cueId: string, name: string) => void;
+  setCueMix: (cueId: string, patch: Partial<Pick<CueMix, 'level' | 'ignoreSolo'>>) => void;
+  setCueSend: (cueId: string, trackId: string, patch: Partial<CueSend>) => void;
+  /** Take the whole cue back to the main mix's balance. */
+  matchCueToMain: (cueId: string) => void;
+
   // ---- groove ----
   /** Nudge a clip's notes by a groove, at a strength. */
   applyGrooveToClip: (clipId: string, groove: Groove, strength: number) => void;
@@ -2130,6 +2143,81 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       ),
 
     // -------------------------------------------------------------- macros
+
+    addCueMix: (name) => {
+      const id = newId('cue');
+      let made = false;
+      update((d) => {
+        const cues = d.cueMixes ?? [];
+        if (cues.length >= MAX_CUE_MIXES) return;
+        d.cueMixes = [
+          ...cues,
+          {
+            id,
+            name: name?.slice(0, 40) || `Cue ${cues.length + 1}`,
+            level: 1,
+            sends: {},
+            ignoreSolo: true,
+          },
+        ];
+        made = true;
+      });
+      return made ? id : null;
+    },
+
+    removeCueMix: (cueId) =>
+      update((d) => {
+        d.cueMixes = (d.cueMixes ?? []).filter((c) => c.id !== cueId);
+      }),
+
+    renameCueMix: (cueId, name) =>
+      update((d) => {
+        const cue = (d.cueMixes ?? []).find((c) => c.id === cueId);
+        if (cue) cue.name = name.slice(0, 40) || cue.name;
+      }),
+
+    setCueMix: (cueId, patch) =>
+      update((d) => {
+        const cue = (d.cueMixes ?? []).find((c) => c.id === cueId);
+        if (!cue) return;
+        if (typeof patch.level === 'number') cue.level = clamp(patch.level, 0, 1.5);
+        if (typeof patch.ignoreSolo === 'boolean') cue.ignoreSolo = patch.ignoreSolo;
+      }),
+
+    setCueSend: (cueId, trackId, patch) =>
+      update(
+        (d) => {
+          const cue = (d.cueMixes ?? []).find((c) => c.id === cueId);
+          const track = trackById(d, trackId);
+          if (!cue || !track) return;
+          // A channel nobody has touched yet follows the main mix; the moment
+          // it is touched it needs a real position to start from, and the main
+          // mix's is the only one the performer has heard.
+          const existing = cue.sends[trackId] ?? {
+            level: track.volume,
+            pan: track.pan,
+            mute: false,
+            follow: true,
+          };
+          const next: CueSend = { ...existing, ...patch };
+          if (typeof patch.level === 'number') {
+            next.level = clamp(patch.level, 0, 1.5);
+            next.follow = false;
+          }
+          if (typeof patch.pan === 'number') {
+            next.pan = clamp(patch.pan, -1, 1);
+            next.follow = false;
+          }
+          cue.sends[trackId] = next;
+        },
+        { undoable: false },
+      ),
+
+    matchCueToMain: (cueId) =>
+      update((d) => {
+        const cue = (d.cueMixes ?? []).find((c) => c.id === cueId);
+        if (cue) cue.sends = {};
+      }),
 
     applyGrooveToClip: (clipId, groove, strength) =>
       update((d) => {

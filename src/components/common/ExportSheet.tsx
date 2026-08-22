@@ -144,6 +144,27 @@ export function ExportSheet() {
                 ))}
               </div>
             </div>
+            {(project.cueMixes?.length ?? 0) > 0 && (
+              <div className="set-row">
+                <div className="set-label">
+                  <span>Mix</span>
+                  <span className="hint">A cue renders through the same signal path</span>
+                </div>
+                <select
+                  value={settings.cueId ?? ''}
+                  onChange={(e) => patch({ cueId: e.target.value || null })}
+                  aria-label="Which mix to render"
+                  data-testid="export-cue"
+                >
+                  <option value="">Main mix</option>
+                  {project.cueMixes?.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="set-row">
               <div className="set-label">
                 <span>Range</span>

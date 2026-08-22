@@ -37,6 +37,14 @@ import type { AutomationLane } from '../model/automation';
 import { denormParam, findAutoParam } from '../model/paramRegistry';
 import type { AutoParam } from '../model/paramRegistry';
 import { expandCompClip } from '../model/comping';
+import {
+  clipWarpMap,
+  renderWarpedBuffer,
+  warpedClipTiming,
+  warpedTimeSec,
+  warpKey,
+} from './warpRender';
+import type { WarpMap } from '../model/warp';
 
 /** Guard against a runaway render: two hours is far past any sane project. */
 const MAX_RENDER_SECONDS = 60 * 120;
@@ -57,6 +65,8 @@ export interface RenderOptions {
   sampleRate?: number;
   onProgress?: (stage: string) => void;
   signal?: { cancelled: boolean };
+  /** Render a cue mix's balance instead of the main mix. */
+  cueId?: string | null;
 }
 
 export interface RenderResult {
@@ -240,8 +250,9 @@ export async function renderProject(
   }
   const channels = new Map<string, OfflineChannel>();
   // Mute, solo, VCA and folder gain come from the same pure resolver the live
-  // engine uses, so a bounce cannot disagree with what was monitored.
-  const states = resolveChannels(project);
+  // engine uses, so a bounce cannot disagree with what was monitored — a cue
+  // mix included, which is what makes "send the drummer their mix" one click.
+  const states = resolveChannels(project, opts.cueId);
 
   for (const track of project.tracks) {
     if (!isAudioTrackType(track.type)) continue;
@@ -494,6 +505,23 @@ export async function renderProject(
 
   // ---- schedule everything up front ----
   opts.onProgress?.('Scheduling');
+  // One warp render per (media, map): comped takes and duplicated loops share
+  // theirs, and a warp render walks the whole file.
+  const warpRenders = new Map<string, AudioBuffer>();
+  const warpRender = (mediaId: string, map: WarpMap, source: AudioBuffer): AudioBuffer => {
+    const key = `${mediaId}|${warpKey(map)}`;
+    const done = warpRenders.get(key);
+    if (done) return done;
+    let rendered = source;
+    try {
+      rendered = renderWarpedBuffer(ctx, source, map);
+    } catch (e) {
+      // An unrenderable map bounces unwarped rather than silent, and says so.
+      diagLog('warn', `Warp render failed for ${mediaId}: ${String(e)}`);
+    }
+    warpRenders.set(key, rendered);
+    return rendered;
+  };
   let scheduledClips = 0;
   let scheduledNotes = 0;
   const missingMedia = new Set<string>();
@@ -512,16 +540,27 @@ export async function renderProject(
       let scheduledAny = false;
       for (const part of parts) {
         if (part.start + part.length <= startBeat || part.start >= endBeat) continue;
-        const buffer = getBufferSync(part.mediaId);
-        if (!buffer) {
+        const media = getBufferSync(part.mediaId);
+        if (!media) {
           missingMedia.add(part.mediaId);
           continue;
         }
+        // A warped clip bounces from the same render playback hears, computed
+        // here rather than fetched from the cache: an offline render cannot
+        // wait on a background task, and it must not guess at the map.
+        const warp = clipWarpMap(part);
+        const buffer = warp ? warpRender(part.mediaId, warp, media) : media;
         // Entering part-way through a clip that began before the range start.
         const enterBeat = Math.max(part.start, startBeat);
         const intoClip = enterBeat - part.start;
-        const offsetSec = part.offset + projectBeatRangeSec(project, part.start, intoClip);
-        const plan = computeClipSchedule(part, offsetSec, buffer.duration, spb);
+        const enterSec = part.offset + projectBeatRangeSec(project, part.start, intoClip);
+        const offsetSec = warp ? warpedTimeSec(warp, enterSec) : enterSec;
+        const plan = computeClipSchedule(
+          warp ? warpedClipTiming(part, warp) : part,
+          offsetSec,
+          buffer.duration,
+          spb,
+        );
         if (!plan) continue;
 
         const when = Math.max(0, projectBeatToSec(project, enterBeat) - rangeStartSec);
