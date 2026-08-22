@@ -3,10 +3,11 @@
  *
  * The dedicated surface for one audio clip: its waveform at edit resolution,
  * the non-destructive edits that already existed (trim, fades, gain, polarity,
- * normalise), and the three analysis tools that turn a recording into something
- * else — Audio to Notes, Vocal Tune and stem separation.
+ * normalise), the warp lane that pins the recording to the song's beats, and
+ * the three analysis tools that turn a recording into something else — Audio to
+ * Notes, Vocal Tune and stem separation.
  *
- * All three are offline: they read the decoded buffer, run pure DSP, and
+ * All three analyses are offline: they read the decoded buffer, run pure DSP, and
  * produce new material (a MIDI clip, a corrected render, four new audio
  * clips). None of them alters the source, so every one of them is undoable and
  * the original take is always still there.
@@ -36,8 +37,11 @@ import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
 import { Waveform } from '../arrangement/Waveform';
+import { WarpLane, WarpPanel } from './WarpTool';
+import { normalizeWarpMap, type WarpMap } from '../../model/warp';
+import { projectBpmAt } from '../../model/music';
 
-type Tool = 'notes' | 'tune' | 'stems';
+type Tool = 'notes' | 'tune' | 'stems' | 'warp';
 
 /** The clip the editor is working on, or null. */
 function useAudioClip(): AudioClip | null {
@@ -97,10 +101,25 @@ export function AudioEditor() {
   });
   const [errors, setErrors] = useState<number[] | null>(null);
 
+  // Bend / warp
+  const [warpGrid, setWarpGrid] = useState(1);
+  const [warpStrength, setWarpStrength] = useState(1);
+
   const sourceSeconds = useMemo(() => {
     if (!clip) return 0;
     return clip.sourceDuration ?? (buffer ? buffer.duration : 0);
   }, [clip, buffer]);
+
+  // The map is normalised on the way in, so the lane can never be handed a
+  // marker order the playback path would refuse.
+  const warpMap = useMemo(
+    () =>
+      normalizeWarpMap(
+        clip?.warp,
+        clip ? (clip.sourceBpm ?? projectBpmAt(project, clip.start)) : undefined,
+      ),
+    [clip, project],
+  );
 
   if (!clip) {
     return (
@@ -133,6 +152,11 @@ export function AudioEditor() {
     for (const ch of channels) for (let i = 0; i < mono.length; i++) mono[i] += ch[i];
     if (channels.length > 1) for (let i = 0; i < mono.length; i++) mono[i] /= channels.length;
     return { data: mono, channels, rate };
+  };
+
+  /** A map with nothing pinned is stored as no map at all, not as an empty one. */
+  const setWarpMap = (map: WarpMap) => {
+    useProjectStore.getState().setClip(clip.id, { warp: map.markers.length > 0 ? map : undefined });
   };
 
   const runToNotes = () => {
@@ -320,6 +344,7 @@ export function AudioEditor() {
         <div className="seg" role="group" aria-label="Audio tool">
           {(
             [
+              ['warp', 'Bend / Warp'],
               ['notes', 'Audio → Notes'],
               ['tune', 'Vocal Tune'],
               ['stems', 'Stems'],
@@ -350,6 +375,17 @@ export function AudioEditor() {
           fadeInShape={clip.fadeInShape}
           fadeOutShape={clip.fadeOutShape}
         />
+        {tool === 'warp' && sourceSeconds > 0 && (
+          <WarpLane
+            map={warpMap}
+            offsetSec={clip.offset}
+            durationSec={sourceSeconds}
+            maxSourceSec={buffer?.duration ?? clip.offset + sourceSeconds}
+            transients={clip.transients}
+            gridBeats={warpGrid}
+            onChange={setWarpMap}
+          />
+        )}
         {detected && tool === 'notes' && sourceSeconds > 0 && (
           <div className="ae-detected" aria-hidden>
             {detected.map((n, i) => (
@@ -369,6 +405,18 @@ export function AudioEditor() {
       </div>
 
       <div className="ae-body">
+        {tool === 'warp' && (
+          <WarpPanel
+            clip={clip}
+            map={warpMap}
+            buffer={buffer}
+            gridBeats={warpGrid}
+            strength={warpStrength}
+            onGrid={setWarpGrid}
+            onStrength={setWarpStrength}
+            onChange={setWarpMap}
+          />
+        )}
         {tool === 'notes' && (
           <>
             <div className="ae-row">

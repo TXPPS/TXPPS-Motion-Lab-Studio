@@ -185,4 +185,41 @@ describe('hostile and corrupt project data', () => {
     const clip = validateProject(raw).clips[0] as AudioClip;
     expect(clip.sourceDuration).toBeUndefined();
   });
+
+  it('keeps a warp map across a save and a load', () => {
+    const raw = v1Project();
+    const clip = (raw.clips as Record<string, unknown>[])[0];
+    clip.sourceBpm = 110;
+    clip.warp = {
+      sourceBpm: 110,
+      markers: [
+        { sourceSec: 0, beat: 0 },
+        { sourceSec: 1.09, beat: 2 },
+      ],
+    };
+    const loaded = validateProject(JSON.parse(JSON.stringify(raw))).clips[0] as AudioClip;
+    expect(loaded.warp).toEqual(clip.warp);
+  });
+
+  it('drops warp markers no playback rate could reach, and an empty map with them', () => {
+    const raw = v1Project();
+    const clips = raw.clips as Record<string, unknown>[];
+    clips[0].warp = {
+      sourceBpm: 120,
+      markers: [
+        { sourceSec: 0, beat: 0 },
+        // Later in the source but earlier in the song: a negative rate.
+        { sourceSec: 2, beat: -1 },
+        { sourceSec: 3, beat: 4 },
+      ],
+    };
+    const kept = validateProject(raw).clips[0] as AudioClip;
+    expect(kept.warp!.markers).toEqual([
+      { sourceSec: 0, beat: 0 },
+      { sourceSec: 3, beat: 4 },
+    ]);
+
+    clips[0].warp = { sourceBpm: 120, markers: 'nonsense' };
+    expect((validateProject(raw).clips[0] as AudioClip).warp).toBeUndefined();
+  });
 });

@@ -11,6 +11,21 @@ import {
   warpedBeatLength,
 } from '../src/model/warp';
 import {
+  MIN_MARKER_GAP_SEC,
+  addWarpMarker,
+  moveWarpMarker,
+  nearestTransient,
+  removeWarpMarker,
+  warpMarkerNear,
+} from '../src/model/warpEdit';
+import {
+  warpChannel,
+  warpSegments,
+  warpedClipTiming,
+  warpedTimeSec,
+  renderWarpedBuffer,
+} from '../src/audio/warpRender';
+import {
   BUILTIN_GROOVES,
   applyGroove,
   extractGroove,
@@ -267,5 +282,240 @@ describe('groove', () => {
     expect(sixteenth.offsets[2]).toBe(0);
     expect(grooveByName('Laid Back')!.offsets[1]).toBeGreaterThan(0);
     expect(grooveByName('Pushed')!.offsets[1]).toBeLessThan(0);
+  });
+});
+
+/** Two bars of a 120 bpm source, one marker per beat. */
+function editableMap() {
+  return createWarpMap(
+    [
+      { sourceSec: 0.5, beat: 1 },
+      { sourceSec: 1.0, beat: 2 },
+      { sourceSec: 1.5, beat: 3 },
+    ],
+    120,
+  );
+}
+
+describe('warp marker editing', () => {
+  it('keeps the beat a dragged marker is pinned to and moves the audio under it', () => {
+    const map = editableMap();
+    const moved = moveWarpMarker(map, 1, 1.2);
+    expect(moved.markers[1]).toEqual({ sourceSec: 1.2, beat: 2 });
+    // The audio at 1.2 s used to play late; now it lands exactly on beat 2.
+    expect(sourceToBeat(map, 1.2)).toBeGreaterThan(2);
+    expect(sourceToBeat(moved, 1.2)).toBeCloseTo(2, 12);
+  });
+
+  it('clamps a drag inside its neighbours instead of reordering them', () => {
+    const map = editableMap();
+    const left = moveWarpMarker(map, 1, -5);
+    const right = moveWarpMarker(map, 1, 99);
+    expect(left.markers[1].sourceSec).toBeCloseTo(0.5 + MIN_MARKER_GAP_SEC, 12);
+    expect(right.markers[1].sourceSec).toBeCloseTo(1.5 - MIN_MARKER_GAP_SEC, 12);
+    for (const m of [left, right]) {
+      expect(m.markers).toHaveLength(3);
+      for (let i = 1; i < m.markers.length; i++) {
+        expect(m.markers[i].sourceSec).toBeGreaterThan(m.markers[i - 1].sourceSec);
+        expect(m.markers[i].beat).toBeGreaterThan(m.markers[i - 1].beat);
+      }
+    }
+  });
+
+  it('clamps the first marker at zero and the last at the end of the media', () => {
+    const map = editableMap();
+    expect(moveWarpMarker(map, 0, -1).markers[0].sourceSec).toBe(0);
+    expect(moveWarpMarker(map, 2, 100, 2.25).markers[2].sourceSec).toBe(2.25);
+  });
+
+  it('leaves a marker alone when its neighbours leave it no room', () => {
+    const tight = createWarpMap(
+      [
+        { sourceSec: 1, beat: 1 },
+        { sourceSec: 1.005, beat: 2 },
+        { sourceSec: 1.01, beat: 3 },
+      ],
+      120,
+    );
+    expect(moveWarpMarker(tight, 1, 1.4)).toBe(tight);
+    expect(moveWarpMarker(tight, 7, 1.4)).toBe(tight);
+  });
+
+  it('pins a new marker where the audio already plays, so adding one is silent', () => {
+    const map = editableMap();
+    const added = addWarpMarker(map, 1.31);
+    expect(added.markers.map((m) => m.sourceSec)).toEqual([0.5, 1, 1.31, 1.5]);
+    for (let sourceSec = 0; sourceSec <= 3; sourceSec += 0.031) {
+      expect(sourceToBeat(added, sourceSec)).toBeCloseTo(sourceToBeat(map, sourceSec), 12);
+    }
+  });
+
+  it('refuses an add on top of a marker that is already there', () => {
+    const map = editableMap();
+    expect(addWarpMarker(map, 1.0 + MIN_MARKER_GAP_SEC / 2)).toBe(map);
+    expect(addWarpMarker(map, -1)).toBe(map);
+  });
+
+  it('removes a marker and leaves the rest ordered', () => {
+    const map = editableMap();
+    const cut = removeWarpMarker(map, 1);
+    expect(cut.markers.map((m) => m.beat)).toEqual([1, 3]);
+    expect(removeWarpMarker(map, 9)).toBe(map);
+    expect(removeWarpMarker(removeWarpMarker(cut, 0), 0).markers).toHaveLength(0);
+  });
+
+  it('finds the marker under a pointer, nearest first, and nothing outside the tolerance', () => {
+    const map = editableMap();
+    expect(warpMarkerNear(map, 1.04, 0.06)).toBe(1);
+    expect(warpMarkerNear(map, 1.26, 0.3)).toBe(2);
+    expect(warpMarkerNear(map, 1.25, 0.01)).toBe(-1);
+  });
+
+  it('snaps to the nearest onset in reach and to nothing when there is none', () => {
+    const onsets = [0.02, 0.51, 1.48];
+    expect(nearestTransient(onsets, 0.54, 0.05)).toBe(0.51);
+    expect(nearestTransient(onsets, 0.9, 0.05)).toBeNull();
+    expect(nearestTransient(undefined, 0.9, 5)).toBeNull();
+  });
+});
+
+describe('warp render', () => {
+  /** A marker at one second pinned half a beat early: the first second plays
+   *  in half the time, and everything after it keeps the recorded tempo. */
+  const halved = createWarpMap(
+    [
+      { sourceSec: 0, beat: 0 },
+      { sourceSec: 1, beat: 1 },
+    ],
+    120,
+  );
+
+  it('is the identity for a map that pins fewer than two points', () => {
+    for (const map of [createWarpMap([], 120), createWarpMap([{ sourceSec: 1, beat: 3 }], 120)]) {
+      for (const sourceSec of [0, 0.4, 1, 2.7]) {
+        expect(warpedTimeSec(map, sourceSec)).toBeCloseTo(sourceSec, 12);
+      }
+    }
+  });
+
+  it('never moves the head of the file, whatever the markers do behind it', () => {
+    const late = createWarpMap(
+      [
+        { sourceSec: 1, beat: 0 },
+        { sourceSec: 1.4, beat: 1 },
+      ],
+      120,
+    );
+    expect(warpedTimeSec(late, 0)).toBe(0);
+    expect(warpedTimeSec(late, 0.7)).toBeCloseTo(0.7, 12);
+    // The bent segment is 0.4 s of source playing a beat, which at 120 bpm is
+    // half a second of warped time.
+    expect(warpedTimeSec(late, 1.4)).toBeCloseTo(1.5, 12);
+  });
+
+  it('cuts the source at every marker inside it and stretches each piece to its beats', () => {
+    const segments = warpSegments(halved, 2);
+    expect(segments.map((s) => [s.fromSec, s.toSec])).toEqual([
+      [0, 1],
+      [1, 2],
+    ]);
+    expect(segments[0].outToSec).toBeCloseTo(0.5, 12);
+    // Past the last marker the source runs at its own tempo again.
+    expect(segments[1].outToSec - segments[1].outFromSec).toBeCloseTo(1, 12);
+  });
+
+  it('moves the audio to where the map says it plays', () => {
+    const rate = 8000;
+    const source = new Float32Array(2 * rate);
+    // A second of tone, then a second of silence.
+    for (let i = 0; i < rate; i++) source[i] = Math.sin((2 * Math.PI * 200 * i) / rate);
+    const out = warpChannel(source, rate, halved);
+
+    expect(out.length).toBe(Math.round(1.5 * rate));
+    const rms = (fromSec: number, toSec: number) => {
+      let sum = 0;
+      const from = Math.round(fromSec * rate);
+      const to = Math.round(toSec * rate);
+      for (let i = from; i < to; i++) sum += out[i] * out[i];
+      return Math.sqrt(sum / (to - from));
+    };
+    // The tone now finishes at half a second, not at one.
+    expect(rms(0.05, 0.4)).toBeGreaterThan(0.3);
+    expect(rms(0.65, 1.4)).toBeLessThan(0.02);
+  });
+
+  it('returns a copy, not the same array, when there is nothing to bend', () => {
+    const source = new Float32Array([0.1, -0.2, 0.3, -0.4]);
+    const out = warpChannel(source, 8000, createWarpMap([], 120));
+    expect([...out]).toEqual([...source]);
+    expect(out).not.toBe(source);
+  });
+
+  it('reads a clip trim in warped seconds so the same material still plays', () => {
+    const timing = { offset: 1, length: 2, sourceDuration: 1, gain: 1, fadeIn: 0, fadeOut: 0 };
+    const warped = warpedClipTiming(timing, halved);
+    // The trim starts after the bent segment, which is half a second shorter.
+    expect(warped.offset).toBeCloseTo(0.5, 12);
+    expect(warped.sourceDuration).toBeCloseTo(1, 12);
+    expect(warpedClipTiming({ ...timing, sourceDuration: undefined }, halved).sourceDuration).toBe(
+      undefined,
+    );
+  });
+});
+
+describe('renderWarpedBuffer', () => {
+  /**
+   * jsdom has no Web Audio; the render only ever asks its context for a buffer,
+   * so a stand-in that hands back plain arrays exercises the real code.
+   */
+  function fakeContext(): BaseAudioContext {
+    return {
+      createBuffer: (channels: number, length: number, sampleRate: number) => {
+        const data = Array.from({ length: channels }, () => new Float32Array(length));
+        return {
+          numberOfChannels: channels,
+          length,
+          sampleRate,
+          duration: length / sampleRate,
+          getChannelData: (i: number) => data[i],
+          copyToChannel: (from: Float32Array, i: number) => data[i].set(from),
+        } as unknown as AudioBuffer;
+      },
+    } as unknown as BaseAudioContext;
+  }
+
+  function fakeBuffer(channels: Float32Array[], sampleRate: number): AudioBuffer {
+    return {
+      numberOfChannels: channels.length,
+      length: channels[0].length,
+      sampleRate,
+      duration: channels[0].length / sampleRate,
+      getChannelData: (i: number) => channels[i],
+    } as unknown as AudioBuffer;
+  }
+
+  it('warps every channel to the length the map asks for', () => {
+    const rate = 8000;
+    const map = createWarpMap(
+      [
+        { sourceSec: 0, beat: 0 },
+        { sourceSec: 1, beat: 1 },
+      ],
+      120,
+    );
+    const tone = (hz: number) =>
+      Float32Array.from({ length: 2 * rate }, (_, i) => Math.sin((2 * Math.PI * hz * i) / rate));
+    const out = renderWarpedBuffer(fakeContext(), fakeBuffer([tone(200), tone(300)], rate), map);
+
+    expect(out.numberOfChannels).toBe(2);
+    expect(out.sampleRate).toBe(rate);
+    // The first second of source now plays in half a second.
+    expect(out.length).toBe(Math.round(1.5 * rate));
+    for (let c = 0; c < 2; c++) {
+      const data = out.getChannelData(c);
+      let peak = 0;
+      for (const v of data) peak = Math.max(peak, Math.abs(v));
+      expect(peak).toBeGreaterThan(0.5);
+    }
   });
 });

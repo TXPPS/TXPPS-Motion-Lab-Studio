@@ -12,6 +12,8 @@
  */
 import { stretchBuffer } from './timestretch';
 import { getBufferSync } from './mediaLibrary';
+import { clearWarpCache, invalidateWarp, warpedBuffer, warpKey } from './warpRender';
+import type { WarpMap } from '../model/warp';
 import { diagLog } from '../state/diagnostics';
 
 interface Entry {
@@ -26,8 +28,9 @@ const cache = new Map<string, Entry>();
 const RATIO_STEP = 0.005;
 const MAX_ENTRIES = 48;
 
-function keyOf(mediaId: string, ratio: number, semitones: number): string {
-  return `${mediaId}|${ratio.toFixed(3)}|${semitones.toFixed(2)}`;
+function keyOf(mediaId: string, ratio: number, semitones: number, warp: string): string {
+  // The media id stays first: `invalidateStretch` drops a whole media by prefix.
+  return `${mediaId}|${ratio.toFixed(3)}|${semitones.toFixed(2)}|${warp}`;
 }
 
 export function quantizeRatio(ratio: number): number {
@@ -38,21 +41,26 @@ export function quantizeRatio(ratio: number): number {
  * The stretched buffer for these settings, or null while it is being made.
  * Starting the render is a side effect of asking for it, which keeps the
  * scheduling path free of any decision about when to render.
+ *
+ * A warped clip stretches its warped render rather than the raw media, so the
+ * two renders compose instead of fighting: the map puts the take in time, the
+ * stretch then takes it to the song's tempo.
  */
 export function stretchedBuffer(
   ctx: BaseAudioContext,
   mediaId: string,
   timeRatio: number,
   semitones: number,
+  warp?: WarpMap | null,
 ): AudioBuffer | null {
+  const source = warp ? warpedBuffer(ctx, mediaId, warp) : getBufferSync(mediaId);
+  if (!source) return null;
   const ratio = quantizeRatio(timeRatio);
-  if (Math.abs(ratio - 1) < 1e-3 && Math.abs(semitones) < 1e-3) return getBufferSync(mediaId);
-  const key = keyOf(mediaId, ratio, semitones);
+  if (Math.abs(ratio - 1) < 1e-3 && Math.abs(semitones) < 1e-3) return source;
+  const key = keyOf(mediaId, ratio, semitones, warp ? warpKey(warp) : '');
   const hit = cache.get(key);
   if (hit) return hit.buffer;
 
-  const source = getBufferSync(mediaId);
-  if (!source) return null;
   const entry: Entry = { buffer: null, pending: true };
   cache.set(key, entry);
   if (cache.size > MAX_ENTRIES) {
@@ -77,15 +85,20 @@ export function stretchedBuffer(
   return null;
 }
 
-/** Drop everything for one media id (its bytes changed, or it was removed). */
+/**
+ * Drop everything for one media id (its bytes changed, or it was removed).
+ * The warp renders go with it: a stretch entry is built on one of them.
+ */
 export function invalidateStretch(mediaId: string): void {
   for (const key of [...cache.keys()]) {
     if (key.startsWith(`${mediaId}|`)) cache.delete(key);
   }
+  invalidateWarp(mediaId);
 }
 
 export function clearStretchCache(): void {
   cache.clear();
+  clearWarpCache();
 }
 
 export function stretchCacheStats(): { entries: number; rendering: number } {

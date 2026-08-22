@@ -111,3 +111,80 @@
 .ae-err.bad {
   background: var(--warm);
 }
+
+/* Warp markers sit ON the waveform, because a marker means nothing except in
+   relation to the sound it pins. The lane is transparent and takes the pointer
+   only on the markers themselves, so a double-click anywhere else can add one. */
+.ae-warp-lane {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+}
+.ae-warp-grid {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--grid-beat);
+  pointer-events: none;
+}
+.ae-warp-grid.bar {
+  background: var(--grid-bar);
+}
+.ae-warp-onset {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--warm-line);
+  opacity: 0.45;
+  pointer-events: none;
+}
+.ae-warp-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 11px;
+  margin-left: -5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: ew-resize;
+  touch-action: none;
+}
+/* The hairline is drawn rather than sized, so the hit area can stay finger-wide
+   while the line stays one pixel. */
+.ae-warp-marker::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 5px;
+  width: 1px;
+  background: var(--accent-hi);
+}
+.ae-warp-marker:hover::before,
+.ae-warp-marker:focus-visible::before,
+.ae-warp-marker.dragging::before {
+  background: var(--text);
+  box-shadow: 0 0 0 1px var(--accent-line);
+}
+.ae-warp-marker:focus-visible {
+  outline: none;
+}
+.ae-warp-flag {
+  position: absolute;
+  top: 0;
+  left: 5px;
+  padding: 1px var(--sp-2);
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+  background: var(--accent);
+  color: var(--text-inverse);
+  font: var(--fw-semibold) var(--fs-2xs) / 1.3 var(--font-num);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.ae-warp-marker.dragging .ae-warp-flag,
+.ae-warp-marker:hover .ae-warp-flag {
+  background: var(--accent-hi);
+}
