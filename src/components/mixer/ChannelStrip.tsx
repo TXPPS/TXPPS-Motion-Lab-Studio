@@ -85,12 +85,15 @@ function InsertSlots({ track }: { track: Track }) {
   );
 }
 
+/** Sends a strip shows before it summarises the rest. */
+const MAX_SEND_ROWS = 3;
+
 function SendRows({ track, busName }: { track: Track; busName: (id: string) => string }) {
   const sends = (track.sends ?? []).filter((s) => s.enabled);
   if (sends.length === 0) return null;
   return (
     <div className="strip-sends">
-      {sends.slice(0, 3).map((s) => (
+      {sends.slice(0, MAX_SEND_ROWS).map((s) => (
         <button
           key={s.busId}
           className="snd-row"
@@ -103,6 +106,13 @@ function SendRows({ track, busName }: { track: Track; busName: (id: string) => s
           <span className="snd-val">{formatDb(s.amount)}</span>
         </button>
       ))}
+      {/* The insert rack says how many it is hiding; a send row that silently
+          dropped two of five was the one place a channel lied about itself. */}
+      {sends.length > MAX_SEND_ROWS && (
+        <button className="snd-row more" onClick={() => focusTrack(track.id)}>
+          +{sends.length - MAX_SEND_ROWS} more
+        </button>
+      )}
     </div>
   );
 }
@@ -176,7 +186,9 @@ export const ChannelStrip = memo(function ChannelStrip({
             {feeds?.length ? ` ${feeds.length}` : ''}
           </span>
         )}
-        <span className="strip-label">{track.name}</span>
+        <span className="strip-label" title={track.name}>
+          {track.name}
+        </span>
         {autoLanes.length > 0 && autoMode !== 'off' && (
           <span
             className="strip-auto-dot"

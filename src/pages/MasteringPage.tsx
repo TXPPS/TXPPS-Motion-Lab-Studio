@@ -256,7 +256,7 @@ export default function MasteringPage() {
               </p>
             </div>
           ) : (
-            <ol className="ms-items">
+            <ol className="ms-items" role="listbox" aria-label="Running order">
               {mastering.items.map((item, i) => {
                 const m = item.measured;
                 const diff = m ? m.integratedLufs - mastering.targetLufs : 0;
@@ -264,20 +264,57 @@ export default function MasteringPage() {
                   <li
                     key={item.id}
                     className={`ms-item${item.id === selectedId ? ' selected' : ''}`}
+                    role="option"
+                    tabIndex={0}
+                    aria-selected={item.id === selectedId}
                     onPointerDown={() => setSelectedId(item.id)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' && e.key !== ' ') return;
+                      e.preventDefault();
+                      setSelectedId(item.id);
+                    }}
                     data-testid={`master-item-${i + 1}`}
                   >
                     <span className="ms-num">{i + 1}</span>
-                    <span className="ms-name">{item.name}</span>
+                    <span className="ms-name" title={item.name}>
+                      {item.name}
+                    </span>
                     <span className="ms-dur t-num">
                       {formatClock(m?.durationSeconds ?? 0, false)}
                     </span>
-                    <span className={`ms-lufs t-num${Math.abs(diff) > 1 ? ' off' : ''}`}>
+                    {/* Off-target and over-ceiling were signalled by hue alone:
+                        the number reads the same, so a red/green deficiency or
+                        a screen reader saw nothing wrong. */}
+                    <span
+                      className={`ms-lufs t-num${Math.abs(diff) > 1 ? ' off' : ''}`}
+                      aria-label={
+                        m
+                          ? `${fmtLufs(m.integratedLufs)} LUFS${
+                              Math.abs(diff) > 1
+                                ? `, ${Math.abs(diff).toFixed(1)} LU ${diff > 0 ? 'above' : 'below'} the ${mastering.targetLufs} LUFS target`
+                                : ''
+                            }`
+                          : 'not measured'
+                      }
+                    >
+                      {Math.abs(diff) > 1 && m && <span aria-hidden="true">⚠ </span>}
                       {m ? `${fmtLufs(m.integratedLufs)} LUFS` : '—'}
                     </span>
                     <span
                       className={`ms-tp t-num${m && m.truePeakDbtp > mastering.ceilingDbtp ? ' over' : ''}`}
+                      aria-label={
+                        m
+                          ? `${m.truePeakDbtp.toFixed(1)} dBTP${
+                              m.truePeakDbtp > mastering.ceilingDbtp
+                                ? `, over the ${mastering.ceilingDbtp} dBTP ceiling`
+                                : ''
+                            }`
+                          : 'not measured'
+                      }
                     >
+                      {m && m.truePeakDbtp > mastering.ceilingDbtp && (
+                        <span aria-hidden="true">⚠ </span>
+                      )}
                       {m ? `${m.truePeakDbtp.toFixed(1)} dBTP` : '—'}
                     </span>
                     <span className="ms-actions">

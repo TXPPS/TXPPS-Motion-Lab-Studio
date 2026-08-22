@@ -101,6 +101,7 @@ export function ExportSheet() {
         role="dialog"
         aria-modal="true"
         aria-label="Export"
+        aria-busy={running}
         data-testid="export-sheet"
       >
         <div className="sheet-head">
@@ -209,11 +210,12 @@ export function ExportSheet() {
 
           <section>
             <h3 className="t-label">Format</h3>
-            <div className="format-grid">
+            <div className="format-grid" role="group" aria-label="File format">
               {AUDIO_FORMATS.map((f) => (
                 <button
                   key={f.id}
                   className={`format-card${settings.format === f.id ? ' on' : ''}`}
+                  aria-pressed={settings.format === f.id}
                   onClick={() =>
                     patch({
                       format: f.id,
@@ -398,9 +400,11 @@ export function ExportSheet() {
               {Math.floor(seconds / 60)}:{String(Math.round(seconds % 60)).padStart(2, '0')} ·{' '}
               {bytesLabel(estimate)}
             </span>
-            {progress.message && progress.stage !== 'idle' && (
-              <span className={`export-status ${progress.stage}`}>{progress.message}</span>
-            )}
+            {/* A render can run for minutes. Without a live region it is the
+                one thing in the product that reports nothing at all. */}
+            <span className={`export-status ${progress.stage}`} role="status" aria-live="polite">
+              {progress.stage !== 'idle' ? progress.message : ''}
+            </span>
           </div>
           <span className="grow" />
           {running ? (

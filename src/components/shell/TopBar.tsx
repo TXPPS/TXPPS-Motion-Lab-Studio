@@ -111,7 +111,14 @@ export function TopBar({ layout }: { layout: Layout }) {
           })
         }
       >
-        {dirty && <span className="dirty-dot" title="Unsaved changes" />}
+        {dirty && (
+          <span
+            className="dirty-dot"
+            role="img"
+            aria-label="Unsaved changes"
+            title="Unsaved changes"
+          />
+        )}
         <span className="pname">{name}</span>
       </button>
 

@@ -300,13 +300,17 @@ export function StereoMeter({
   }, [meterId]);
 
   return (
-    <div className="smeter" role="meter" aria-label={label ?? 'Level meter'}>
+    // The bars are written straight to the DOM on the engine's frame loop, so
+    // an ARIA meter here would be a role with no value — and thirty of them on
+    // a mixer is thirty things to swipe past. The number a screen reader wants
+    // is the peak readout beside it, which is real text.
+    <div className="smeter" aria-hidden="true">
       <button
         ref={overRef}
         className="smeter-over"
         data-over="no"
         title="Over — click to reset"
-        aria-label="Reset over indicator"
+        aria-label={label ? `Reset over indicator for ${label}` : 'Reset over indicator'}
         onClick={() => engine.resetClipIndicators()}
       />
       <div className="smeter-bars">
@@ -345,7 +349,7 @@ export function StereoMeter({
 export function Meter({ meterId, wide }: { meterId: string; wide?: boolean }) {
   const fillRef = useRef<HTMLDivElement>(null);
   const holdRef = useRef<HTMLDivElement>(null);
-  const ledRef = useRef<HTMLDivElement>(null);
+  const ledRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const unwatch = engine.watchMeter(meterId);
@@ -376,13 +380,21 @@ export function Meter({ meterId, wide }: { meterId: string; wide?: boolean }) {
   const reset = useCallback(() => engine.resetClipIndicators(), []);
   return (
     <div className={`meter${wide ? ' wide' : ''}`} title="Signal meter">
-      <div ref={fillRef} className="meter-fill" />
-      <div ref={holdRef} className="meter-hold" style={{ top: '100%', marginTop: -1.5 }} />
+      <div ref={fillRef} className="meter-fill" aria-hidden="true" />
       <div
+        ref={holdRef}
+        className="meter-hold"
+        style={{ top: '100%', marginTop: -1.5 }}
+        aria-hidden="true"
+      />
+      {/* Clearing an over indicator is a real action, so it is a real button —
+          the stereo meter beside it already does this. */}
+      <button
         ref={ledRef}
         className="meter-clip-led"
         onClick={reset}
         title="Clip indicator — click to reset peaks"
+        aria-label="Reset over indicator"
       />
     </div>
   );

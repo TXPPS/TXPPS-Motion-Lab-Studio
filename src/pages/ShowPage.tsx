@@ -118,7 +118,9 @@ export default function ShowPage() {
                 >
                   <button className="se-main" onClick={() => cue(i)}>
                     <span className="se-num">{i + 1}</span>
-                    <span className="se-name">{e.name}</span>
+                    <span className="se-name" title={e.name}>
+                      {e.name}
+                    </span>
                     <span className="se-meta t-num">
                       {e.bpm ? `${Math.round(e.bpm)} BPM` : ''}
                       {e.timeSig ? ` · ${e.timeSig.num}/${e.timeSig.den}` : ''}

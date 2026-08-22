@@ -93,11 +93,17 @@ export function Keyboard({ track, octaves = 2 }: { track: Track; octaves?: numbe
           <Icon name="chevron-down" size={14} />
         </button>
       </div>
-      <div className="kbd-inner">
+      {/* tabIndex -1 deliberately: sixty keys in the tab order would bury the
+          rest of the panel, and A-L on the computer keyboard already plays
+          them. Browse mode still finds each key by its note name. */}
+      <div className="kbd-inner" role="group" aria-label={`Keyboard, octave ${octave}`}>
         {whites.map((w) => (
           <div
             key={w.pitch}
             className={`kbd-white${pressed.has(w.pitch) ? ' pressed' : ''}`}
+            role="button"
+            tabIndex={-1}
+            aria-label={midiToName(w.pitch)}
             {...keyHandlers(w.pitch)}
             data-testid={`key-${w.pitch}`}
           >
@@ -116,6 +122,9 @@ export function Keyboard({ track, octaves = 2 }: { track: Track; octaves?: numbe
               key={`b${pitch}-${i}`}
               className={`kbd-black${pressed.has(pitch) ? ' pressed' : ''}`}
               style={{ left: `${(i + 1) * whiteW - whiteW * 0.32}%`, width: `${whiteW * 0.64}%` }}
+              role="button"
+              tabIndex={-1}
+              aria-label={midiToName(pitch)}
               {...keyHandlers(pitch)}
               data-testid={`key-${pitch}`}
             />

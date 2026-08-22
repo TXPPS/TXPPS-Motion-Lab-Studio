@@ -31,8 +31,7 @@ export function InputMeter({ trackId, tall }: { trackId: string | null; tall?: b
       className={`input-meter${tall ? ' tall' : ''}`}
       data-input-meter={trackId ?? ''}
       data-testid="input-meter"
-      role="meter"
-      aria-label="Input level"
+      aria-hidden="true"
     >
       <div className="im-fill" />
     </div>

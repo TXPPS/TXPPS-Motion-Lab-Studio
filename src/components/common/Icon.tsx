@@ -158,6 +158,11 @@ export type IconName =
 
 /** Solid glyphs: the shape itself carries the meaning. */
 const FILLED: Partial<Record<IconName, string>> = {
+  // Dots are dots. Drawn as zero-length stroke caps their diameter *is* the
+  // stroke weight, which at the 11px the overflow menus use is under a pixel.
+  dots: 'M6 10.9a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2zM12 10.9a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2zM18 10.9a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2z',
+  'dots-v':
+    'M12 4.9a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2zM12 10.9a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2zM12 16.9a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2z',
   play: 'M8 5.5v13l10.5-6.5z',
   pause: 'M8 6h3v12H8zM13 6h3v12h-3z',
   stop: 'M7 7h10v10H7z',
@@ -169,9 +174,11 @@ const FILLED: Partial<Record<IconName, string>> = {
     'M7 5a3 3 0 1 1-.4 5.97L9.4 12l-2.8 1.03A3 3 0 1 1 7 19a3 3 0 0 1 2.5-4.65L12 13.4l6.7 2.46-.7 1.88L12.6 15l.06.16A3 3 0 0 1 7 19m0-12a1.4 1.4 0 1 0 0 2.8A1.4 1.4 0 0 0 7 7zm0 8.2a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8zM18 6.7l.7 1.87L12 11l-1.6-.6z',
   eraser:
     'M15.4 4.6a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L12 18H7.6l-3-3a2 2 0 0 1 0-2.8zM9.8 8.4l-3.8 3.8 2.4 2.4h2.8l3-3z',
-  'speaker-off':
-    'M4 9h3.5L12 5v14l-4.5-4H4zm12.2-.7 1.4 1.4-1.8 1.8 1.8 1.8-1.4 1.4-1.8-1.8-1.8 1.8-1.4-1.4 1.8-1.8-1.8-1.8 1.4-1.4 1.8 1.8z',
-  speaker: 'M4 9h3.5L12 5v14l-4.5-4H4z',
+  // Both speakers draw the same cone in the same place: muting a track must
+  // not make its icon jump sideways. The strike sits over the cone rather than
+  // beside it, which is what kept the two glyphs different widths before.
+  'speaker-off': 'M6 9h3.5L14 5v14l-4.5-4H6zm-1.2-3.4 14.4 14.4-1.4 1.4L3.4 7l1.4-1.4z',
+  speaker: 'M6 9h3.5L14 5v14l-4.5-4H6z',
   marker: 'M6 3h11l-2.2 3.2L17 9.5H6v11H4V3z',
   star: 'M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z',
   'mute-tool': 'M4 9h3.5L12 5v14l-4.5-4H4zm11.5 1.3 1.4-1.4 4.2 4.2-1.4 1.4z',
@@ -277,8 +284,6 @@ const STROKED: Partial<Record<IconName, string>> = {
   'chevrons-right': 'M7 6l6 6-6 6M13 6l6 6-6 6',
   'arrow-up': 'M12 20V5M6 11l6-6 6 6',
   'arrow-down': 'M12 4v15M6 13l6 6 6-6',
-  dots: 'M6 12h.01M12 12h.01M18 12h.01',
-  'dots-v': 'M12 6v.01M12 12v.01M12 18v.01',
   undo: 'M8 5L3 10l5 5M3 10h11a6 6 0 0 1 0 12h-2',
   redo: 'M16 5l5 5-5 5M21 10H10a6 6 0 0 0 0 12h2',
   settings:
@@ -311,11 +316,24 @@ const STROKED: Partial<Record<IconName, string>> = {
   keyboard: 'M3 6h18v12H3zM7 10h.01M11 10h.01M15 10h.01M18 10h.01M7 14h10',
 };
 
+/**
+ * Glyphs whose path was drawn outside the set's shared 4..20 box, with the
+ * transform that puts them back inside it. Re-boxing beats redrawing: the
+ * drawing is already right, it is only the wrong size. `non-scaling-stroke`
+ * keeps the stroke weight identical to every other glyph, which a plain
+ * scale would not.
+ */
+const REBOX: Partial<Record<IconName, string>> = {
+  // ran 2..23.8 wide and 0..22 tall, so it rendered about a third larger than
+  // the icons beside it in the top bar
+  settings: 'translate(2.5 4) scale(0.727)',
+};
+
 export function Icon({ name, size = 16, weight = 1.8, className }: IconProps) {
   if (name === 'logo') {
     return (
       <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden className={className}>
-        <rect width="64" height="64" rx="12" fill="#1b222b" />
+        <rect width="64" height="64" rx="12" fill="var(--bg-raised)" />
         <path
           d="M8 32 L16 32 L20 18 L26 46 L32 24 L38 40 L42 30 L48 32 L56 32"
           fill="none"
@@ -344,7 +362,11 @@ export function Icon({ name, size = 16, weight = 1.8, className }: IconProps) {
       className={className}
       focusable="false"
     >
-      <path d={filled ?? stroked ?? ''} />
+      <path
+        d={filled ?? stroked ?? ''}
+        transform={REBOX[name]}
+        vectorEffect={REBOX[name] ? 'non-scaling-stroke' : undefined}
+      />
     </svg>
   );
 }

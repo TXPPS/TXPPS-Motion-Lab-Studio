@@ -184,10 +184,30 @@ export function EffectsTab({ query }: { query: string }) {
     }
   };
 
+  const chains = CHAIN_PRESETS.filter((c) => matches(query, `${c.name} ${c.blurb}`));
+  const groups = EFFECT_GROUPS.map((group) => ({
+    group,
+    list: effectsInGroup(group).filter((s) => matches(query, `${s.label} ${s.blurb}`)),
+  })).filter((g) => g.list.length > 0);
+
+  // Every group returning nothing used to render an empty panel with no
+  // explanation — the projects tab already says so, one directory over.
+  if (chains.length === 0 && groups.length === 0) {
+    return (
+      <div className="browser-list">
+        <div className="empty-state">
+          <Icon name="sliders" size={26} className="es-icon" />
+          <div className="es-title">Nothing matches “{query}”</div>
+          <p className="es-body">Try a shorter word, or clear the search to see all 27 effects.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="browser-list">
-      <div className="browser-group">Chains</div>
-      {CHAIN_PRESETS.filter((c) => matches(query, `${c.name} ${c.blurb}`)).map((c) => (
+      {chains.length > 0 && <div className="browser-group">Chains</div>}
+      {chains.map((c) => (
         <Row
           key={c.id}
           icon="layers"
@@ -201,9 +221,7 @@ export function EffectsTab({ query }: { query: string }) {
         />
       ))}
 
-      {EFFECT_GROUPS.map((group) => {
-        const list = effectsInGroup(group).filter((s) => matches(query, `${s.label} ${s.blurb}`));
-        if (list.length === 0) return null;
+      {groups.map(({ group, list }) => {
         return (
           <div key={group}>
             <div className="browser-group">{EFFECT_GROUP_LABELS[group]}</div>

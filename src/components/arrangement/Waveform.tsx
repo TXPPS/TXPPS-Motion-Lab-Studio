@@ -45,6 +45,26 @@ interface WaveformProps {
  * samples, and never creates per-sample DOM. One canvas per clip, redrawn only
  * when its own inputs or size change, which keeps hundreds of clips cheap.
  */
+/**
+ * Canvas cannot read a CSS variable, so the few colours drawn here are read
+ * off the element once per paint. Hard-coded values made the silence dimmer
+ * and the fade shading invisible in the light theme — a real feature that
+ * simply could not be seen.
+ */
+function canvasTheme(el: HTMLElement): {
+  silence: string;
+  fadeShade: string;
+  fadeCurve: string;
+} {
+  const css = getComputedStyle(el);
+  const read = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
+  return {
+    silence: read('--bg-hover', 'rgba(255,255,255,0.05)'),
+    fadeShade: read('--bg-scrim', 'rgba(4, 8, 12, 0.55)'),
+    fadeCurve: read('--text', 'rgba(232, 228, 218, 0.65)'),
+  };
+}
+
 export function Waveform({
   mediaId,
   offsetSec,
@@ -106,6 +126,7 @@ export function Waveform({
       }
       const ctx2d = canvas.getContext('2d');
       if (!ctx2d) return;
+      const theme = canvasTheme(canvas);
       ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx2d.clearRect(0, 0, w, h);
       if (!peaks || durationSec <= 0) return;
@@ -160,7 +181,7 @@ export function Waveform({
       // Visual silence detection: dim runs where the material is effectively
       // flat for long enough to matter when trimming or comping.
       const minRunCols = Math.max(4, Math.ceil(SILENCE_MIN_SEC * pxPerSec * (cols / w)));
-      ctx2d.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx2d.fillStyle = theme.silence;
       let run = 0;
       for (let i = 0; i <= cols; i++) {
         const quiet = i < cols && Math.max(Math.abs(max[i]), Math.abs(min[i])) < SILENCE_LEVEL;
@@ -177,7 +198,7 @@ export function Waveform({
       ctx2d.globalAlpha = 1;
       const traceFade = (fw: number, shape: FadeShape | undefined, isIn: boolean) => {
         const steps = 14;
-        ctx2d.fillStyle = 'rgba(4, 8, 12, 0.55)';
+        ctx2d.fillStyle = theme.fadeShade;
         ctx2d.beginPath();
         ctx2d.moveTo(isIn ? 0 : w, h);
         for (let k = 0; k <= steps; k++) {
@@ -190,7 +211,7 @@ export function Waveform({
         ctx2d.lineTo(isIn ? 0 : w, 0);
         ctx2d.closePath();
         ctx2d.fill();
-        ctx2d.strokeStyle = 'rgba(232, 228, 218, 0.65)';
+        ctx2d.strokeStyle = theme.fadeCurve;
         ctx2d.lineWidth = 1;
         ctx2d.beginPath();
         for (let k = 0; k <= steps; k++) {

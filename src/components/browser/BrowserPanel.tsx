@@ -352,6 +352,8 @@ export function BrowserPanel() {
             key={t.id}
             className={tab === t.id ? 'on' : ''}
             role="tab"
+            id={`browser-tab-${t.id}`}
+            aria-controls="browser-panel"
             aria-selected={tab === t.id}
             title={t.hint}
             onClick={() => useUiStore.getState().set({ browserTab: t.id })}
@@ -378,7 +380,14 @@ export function BrowserPanel() {
           </button>
         )}
       </div>
-      <div className="panel-body" data-testid="browser-panel">
+      <div
+        className="panel-body"
+        role="tabpanel"
+        id="browser-panel"
+        aria-labelledby={`browser-tab-${tab}`}
+        tabIndex={0}
+        data-testid="browser-panel"
+      >
         {tab === 'projects' ? (
           <ProjectsTab query={query} />
         ) : tab === 'instruments' ? (

@@ -37,6 +37,8 @@ export function BottomEditor() {
                 key={e.id}
                 className={`tab${tab === e.id ? ' on' : ''}${ok ? '' : ' dim'}`}
                 role="tab"
+                id={`editor-tab-${e.id}`}
+                aria-controls="editor-panel"
                 aria-selected={tab === e.id}
                 title={ok ? e.hint : (e.unavailable ?? e.hint)}
                 onClick={() => useUiStore.getState().set({ editorTab: e.id })}
@@ -60,7 +62,13 @@ export function BottomEditor() {
           </button>
         </div>
       </div>
-      <div className="editor-body" role="tabpanel">
+      <div
+        className="editor-body"
+        role="tabpanel"
+        id="editor-panel"
+        aria-labelledby={`editor-tab-${tab}`}
+        tabIndex={0}
+      >
         <Suspense fallback={<div className="page-loading">Loading…</div>}>
           <Body />
         </Suspense>

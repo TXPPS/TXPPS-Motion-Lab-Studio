@@ -34,7 +34,9 @@ export const VcaStrip = memo(function VcaStrip({
       <div className="strip-name" title={`${track.name} — ${members.length} member(s)`}>
         <Icon name="vca" size={11} />
         <span className="strip-bus-tag">VCA {members.length || ''}</span>
-        <span className="strip-label">{track.name}</span>
+        <span className="strip-label" title={track.name}>
+          {track.name}
+        </span>
       </div>
 
       <div className="strip-input">

@@ -369,14 +369,24 @@ export function Inspector() {
             </div>
           )}
           <div className="insp-row" style={{ gap: 6 }}>
+            {/* A button's own text is its accessible name, so "M", "S" and a
+                bullet announce as themselves and nothing else. The label has to
+                say which track, and the pressed state has to be exposed, or
+                there is no way to hear whether the track is muted. */}
             <button
               className={`th-mini${track.mute ? ' m-on' : ''}`}
+              aria-label={`Mute ${track.name}`}
+              aria-pressed={track.mute}
+              title="Mute"
               onClick={() => store.setTrack(track.id, { mute: !track.mute })}
             >
               M
             </button>
             <button
               className={`th-mini${track.solo ? ' s-on' : ''}`}
+              aria-label={`Solo ${track.name}`}
+              aria-pressed={track.solo}
+              title="Solo"
               onClick={() => store.setTrack(track.id, { solo: !track.solo })}
             >
               S
@@ -384,6 +394,9 @@ export function Inspector() {
             {track.type !== 'bus' && (
               <button
                 className={`th-mini${track.armed ? ' r-on' : ''}`}
+                aria-label={`Record arm ${track.name}`}
+                aria-pressed={track.armed}
+                title="Record arm"
                 onClick={() => store.setTrack(track.id, { armed: !track.armed })}
               >
                 ●

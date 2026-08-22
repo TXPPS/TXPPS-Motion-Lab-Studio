@@ -115,13 +115,37 @@ export function SettingsSheet() {
         <div className="sheet-body">
           <section>
             <h3 className="t-label">Appearance</h3>
-            <div className="theme-grid" role="radiogroup" aria-label="Theme">
+            {/* A radio group is one tab stop with arrows inside it — four
+                separate stops is what a group of buttons does, not what a
+                screen reader in forms mode expects here. */}
+            <div
+              className="theme-grid"
+              role="radiogroup"
+              aria-label="Theme"
+              onKeyDown={(e) => {
+                const step =
+                  e.key === 'ArrowRight' || e.key === 'ArrowDown'
+                    ? 1
+                    : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+                      ? -1
+                      : 0;
+                if (step === 0) return;
+                e.preventDefault();
+                const at = THEMES.findIndex((t) => t.id === prefs.theme);
+                const next = THEMES[(at + step + THEMES.length) % THEMES.length];
+                set({ theme: next.id });
+                e.currentTarget
+                  .querySelector<HTMLButtonElement>(`[data-testid="theme-${next.id}"]`)
+                  ?.focus();
+              }}
+            >
               {THEMES.map((t) => (
                 <button
                   key={t.id}
                   className={`theme-card${prefs.theme === t.id ? ' on' : ''}`}
                   role="radio"
                   aria-checked={prefs.theme === t.id}
+                  tabIndex={prefs.theme === t.id ? 0 : -1}
                   onClick={() => set({ theme: t.id })}
                   title={t.blurb}
                   data-testid={`theme-${t.id}`}
