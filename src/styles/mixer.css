@@ -863,6 +863,15 @@
   white-space: nowrap;
   line-height: 1;
 }
+/* The scale thins out with the room. A docked console gives its fader the
+   44px minimum, and eight labels in 44px print over one another — which reads
+   as text that did not fit rather than as a scale. The ends always show,
+   because a meter whose ends are unlabelled says nothing at all; the quarters
+   and then the rest come back as the console gets taller. */
+.smeter-scale span.quarter,
+.smeter-scale span.fine {
+  display: none;
+}
 
 /* --------------------------------------------------------- strip footer */
 .strip-foot {
@@ -2128,4 +2137,15 @@
   min-width: 118px;
   height: var(--control-h-sm);
   font-size: var(--fs-2xs);
+}
+
+@container mixer (min-height: 24em) {
+  .smeter-scale span.quarter {
+    display: block;
+  }
+}
+@container mixer (min-height: 34em) {
+  .smeter-scale span.fine {
+    display: block;
+  }
 }

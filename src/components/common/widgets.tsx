@@ -470,6 +470,22 @@ export function meterScalePosition(db: number): number {
 export const METER_TICKS = [0, -3, -6, -12, -18, -24, -36, -48];
 
 /**
+ * How much of the scale a meter of a given height can actually carry.
+ *
+ * Eight labels need about eighty pixels of meter to stand apart. A channel
+ * strip in the docked editor gives its fader the 44px minimum, and eight
+ * labels in 44px do not read as a scale — they read as a column of digits
+ * printed over each other, which is worse than no scale at all. So the scale
+ * thins out with the room: the two ends first, because a meter whose ends are
+ * unlabelled tells you nothing, then the quarters, then the rest.
+ */
+export function meterTickTier(db: number): 'end' | 'quarter' | 'fine' {
+  if (db === 0 || db === -48) return 'end';
+  if (db === -12 || db === -24) return 'quarter';
+  return 'fine';
+}
+
+/**
  * Where the meter changes colour, in dBFS: safe below -18, comfortable
  * headroom to -6, hot to -1, and clipping above that.
  */
@@ -574,6 +590,7 @@ export function StereoMeter({
             {METER_TICKS.map((db) => (
               <span
                 key={db}
+                className={meterTickTier(db)}
                 /* Clamped so the 0 dB and floor labels sit fully inside the
                    scale rather than half-clipped at its ends. */
                 /* The floor label is held far enough in that its descender
