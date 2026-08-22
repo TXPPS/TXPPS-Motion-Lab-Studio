@@ -25,8 +25,9 @@ The top bar switches between them.
   drag its window to scroll.
 - **The ruler** reads wall clock over bars and beats. Drag its upper half to set
   the loop, click its lower half to move the playhead.
-- **Tools** are 1–6: Pointer, Range, Split, Erase, Mute, Slip. The Range tool
-  selects time across tracks — right-click the range for what you can do to it.
+- **Tools** are 1–9: Pointer, Range, Split, Erase, Mute, Slip, Paint, Listen,
+  Zoom. The Range tool selects time across tracks — right-click the range for
+  what you can do to it.
 - **The editor panel** at the bottom holds the mixer, piano roll, drum grid,
   score, audio editor, chord assistant, instrument and diagnostics. A tab that
   is dimmed says what it needs.
@@ -86,7 +87,12 @@ double-click MIDI clips to edit notes, right-click for the full menu
 Marquee-drag selects many; **Ctrl+C/V/X** work across tracks. Snap and
 zoom controls live in the arrangement toolbar; the slip tool (**6**)
 slides audio inside a clip without moving the clip, and the range tool
-(**2**) selects time across tracks for the range edits.
+(**2**) selects time across tracks for the range edits. Paint (**7**) draws
+a MIDI clip on an empty instrument or drum lane — drag its length, or click
+for one bar. Listen (**8**) plays a clip from wherever you press for as long
+as you hold it, without moving the playhead. Zoom (**9**) zooms around the
+point you drag from; drag down for taller tracks, click to zoom in a step and
+Alt-click or right-click to zoom out.
 
 Locked clips/tracks refuse timing edits. Edit groups link selection across
 their member tracks.
@@ -146,7 +152,26 @@ per effect. **Sends** feed bus tracks (pre/post fader); buses route to
 master or other buses (cycles are rejected). Automation modes (read /
 touch / latch / write) sit at the top of each strip.
 
-## 7. Automation
+**Cue mixes** are the bar above the console: a separate headphone balance
+per performer, off the same channels. A new cue starts as a copy of the main
+mix and only the channels you touch ever leave it, so a twenty-track session
+needs no decisions before the first note. While a cue is selected the console
+is that cue — the bar and the affected strips change colour, the faders,
+pans and mutes are the cue's, and **Main** is always one click away. Inserts,
+sends, routing and arm stay the channel's: a cue changes a balance, not a
+signal path. By default a cue ignores the main mix's solo. Any cue can be
+rendered from the export sheet's **Mix** menu.
+
+## 7. Groove
+
+Select a MIDI clip and the inspector shows its **Groove** panel: a list of
+built-in feels plus any you have lifted, drawn as slots pushed off their grid
+lines. **Extract** reads the clip's own timing and accents into a groove kept
+with the song; **Apply** puts any groove onto the clip at any strength. It
+nudges rather than quantizes, so a part that was played keeps its own feel
+underneath the borrowed one — quantize first if you want the groove alone.
+
+## 8. Automation
 
 Open a track's automation lanes (track header **A** button). Any
 automatable parameter — volume, pan, mute, sends, insert parameters,
@@ -155,7 +180,7 @@ per-segment curve shapes (linear, exp, log, S, stepped). Recording modes
 capture fader/knob moves during playback. Automation applies sample-
 accurately where the parameter supports ramps and is reflected in export.
 
-## 8. Browser and media
+## 9. Browser and media
 
 - **Projects** — create, open, save, save-as, duplicate, rename, delete.
 - **Presets** — synth presets applied to the selected instrument track.
@@ -169,14 +194,14 @@ Import audio by dropping files onto a track or via **Loops → Import audio
 file** (WAV/MP3/M4A — whatever the browser decodes). Recordings and
 imports are stored in the browser alongside the project.
 
-## 9. Export
+## 10. Export
 
 **⋯ → Export mix as WAV** renders the whole project offline (not a live
 capture): clips, notes, instruments, effects, sends and automation render
 exactly as playback schedules them. **Export loop region** bounces just
 the loop. Files download as 16-bit WAV.
 
-## 10. Saving, backups and recovery
+## 11. Saving, backups and recovery
 
 - Autosave runs ~1.5 s after each change; the status bar shows save state.
 - Every save keeps the previous version as a backup; if a stored project
@@ -185,7 +210,25 @@ the loop. Files download as 16-bit WAV.
 - If autosave ever fails (storage full/blocked), a warning toast appears —
   the app never fails silently. Check Diagnostics for details.
 
-## 11. Diagnostics
+## 12. Control Link
+
+**Settings → Control Link** binds hardware to the product: pick what should
+move, press **Learn**, then move the control. A binding can drive the
+transport, the master volume or tempo, any track macro, or any automatable
+parameter. Choose **Absolute** for a fader, **Relative** for an endless
+encoder, **Toggle** for a button, and set a range or invert so a knob sweeps
+only the part of a parameter that matters. One control drives one thing:
+learning a control that is already bound re-points it.
+
+## 13. Merging projects
+
+Right-click another project in the browser and choose **Merge into this
+song**. Its tracks, clips, routing, sends, automation, markers, sections and
+chords are added at the playhead, with everything re-identified so nothing
+collides. This song keeps its own tempo map, and says so if the incoming one
+had changes of its own.
+
+## 14. Diagnostics
 
 The Diagnostics tab (or wrench icon) shows version, environment, detected
 browser features, audio/MIDI state, storage usage, project stats and the

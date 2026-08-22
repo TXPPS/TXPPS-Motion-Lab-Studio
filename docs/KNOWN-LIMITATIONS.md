@@ -10,8 +10,10 @@ where a capability is missing the UI says so.
 - No plugin hosting (VST/AU/CLAP) and no marketplace: the web has no
   equivalent sandbox for native plugin code.
 - No video track, no disc burning or DDP, and no control-surface protocols
-  beyond Web MIDI. All four are named in
-  [the reference benchmark](REFERENCE-FSP8.md) §4 with the reason.
+  beyond Web MIDI — a hardware controller is bound through Control Link,
+  which speaks MIDI CC and pitch bend, not Mackie Control or HUI. All four
+  are named in [the reference benchmark](REFERENCE-FSP8.md) §4 with the
+  reason.
 - The analysis features (Audio→Notes, Vocal Tune, stem separation, chord
   detection) are classical DSP running locally. They are not trained
   models, they never upload anything, and each panel says what its
@@ -78,13 +80,19 @@ Measured on this project's CI hardware — see
 - One undo history per session (60 steps), cleared when switching
   projects.
 - The piano roll edits one clip at a time.
-- **The score editor engraves but does not edit.** Notes are edited in the
-  piano roll or the drum grid; the score reflects them.
-- **Warp markers are detected, not dragged.** A clip can follow the tempo, be
-  stretched and be transposed, and its transients can be detected; moving an
-  individual warp marker on the waveform is not built.
-- **Paint, Listen and drag-zoom tools** are not built. Pointer, Range, Split,
-  Erase, Mute and Slip are.
-- **Cue mixes and project merge** are not built.
+- **The score edits pitch, timing and duration — not everything.** Velocity,
+  mute, per-note pan and detune, off-grid placement, triplet grids and the
+  quantize/humanize tools are piano-roll work, and the staff engraves at most
+  two voices, so denser polyphony is more comfortable in the roll. A forced
+  enharmonic spelling (the same sound written as a different letter) is not
+  offered: a note stores a MIDI number and the letter is re-derived from the
+  key on every re-engrave, so the choice would have nowhere to live.
+- **A warp render lands a moment after the drag.** Markers are dragged in the
+  audio editor's Bend / Warp lane and the map is rendered through the time
+  stretcher, which is too heavy for the scheduling path — so a clip that is
+  already sounding keeps playing the previous render until the new one is
+  ready, exactly as a tempo-follow stretch does. The clip's length in the
+  arrangement does not follow the warped length either: warping past the clip's
+  end trims it, as any other trim would.
 - Crossfades require real trim headroom on both clips (the app checks and
   says so).

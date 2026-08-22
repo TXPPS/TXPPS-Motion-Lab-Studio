@@ -38,8 +38,11 @@ Four pages, the way a professional DAW is organised:
   a plugin face showing what it does: the EQ's magnitude curve with draggable band
   handles, the compressor's transfer curve and live gain reduction, the waveshaper's
   actual curve, the modulator's LFO shape, live spectrum and scope.
-- **Six editors**: piano roll, drum grid, score engraving, audio editor, chord assistant
-  and the console, all lazily loaded from one registry.
+- **Six editors**: piano roll, drum grid, editable score engraving, audio editor, chord
+  assistant and the console, all lazily loaded from one registry. The score is notated
+  and edited on the staff — heads drag by staff step and by the grid, notes are entered
+  from a duration palette, and a note is only ever entered at a value the engraver can
+  write whole, so nothing appears tied that was not asked for.
 - **Instruments**: virtual-analogue synth, quick sampler, drum rack, multisample and
   instrument racks, plus note effects (arpeggiator, chorder, repeater, note filter,
   velocity curve) that transform what is played without touching what is written.
@@ -56,6 +59,14 @@ Running locally, offline, with no model download and no upload:
 - **Transient and tempo detection**, tempo-follow, speed and transposition with pitch
   preservation, and groove extraction.
 - **Chord detection and a Chord Assistant** that says _why_ it suggests what it suggests.
+- **Groove**: lift a part's own timing and accents into a groove kept with the song, and
+  put it on another part at any strength.
+- **Cue mixes**: a separate headphone balance per performer off the same channels, where
+  every channel nobody has touched follows the main mix.
+- **Control Link**: bind a knob, fader, pedal or button to the transport, a macro or any
+  automatable parameter by moving it.
+- **Project merge**: another song's tracks, routing, sends and automation land at the
+  playhead, re-identified so nothing collides.
 
 ### Delivery
 
@@ -64,6 +75,7 @@ Running locally, offline, with no model download and no upload:
 - WAV (16/24/32-bit integer, 32-bit float) and FLAC, 44.1–96 kHz, TPDF or noise-shaped
   dither, true-peak normalisation, metadata, and a BS.1770 measurement of every file.
 - MIDI file import and export, format 0 and 1, with the tempo and signature map.
+- Any cue mix renders to its own file, through the same signal path the mix used.
 
 ### The product around it
 
