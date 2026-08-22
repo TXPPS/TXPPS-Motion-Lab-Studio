@@ -263,3 +263,81 @@ describe('gesture nesting', () => {
     expect(useProjectStore.getState().undoStack.length).toBe(before + 2);
   });
 });
+
+describe('scratch pads', () => {
+  it('swaps a pad in and out without losing either arrangement', () => {
+    // A clean project: the swap replaces every clip, so the demo's would
+    // otherwise drown the two this test is about.
+    useProjectStore.getState().setProject(createEmptyProject('pads'));
+    const s = useProjectStore.getState();
+    const trackId = s.addTrack('instrument');
+    const mainClip = useProjectStore.getState().addMidiClip(trackId, 0, 4);
+    const padId = useProjectStore.getState().createScratchPad('Alt chorus');
+
+    // Put something different in the pad.
+    useProjectStore.getState().update((d) => {
+      const pad = d.scratchPads!.find((p) => p.id === padId)!;
+      pad.clips = [
+        {
+          id: 'pad-clip',
+          trackId,
+          type: 'midi',
+          name: 'Alt',
+          start: 8,
+          length: 4,
+          muted: false,
+          notes: [],
+        },
+      ];
+    });
+
+    useProjectStore.getState().swapScratchPad(padId);
+    let st = useProjectStore.getState().project;
+    expect(st.clips.map((c) => c.id)).toEqual(['pad-clip']);
+    expect(st.activePadId).toBe(padId);
+    // The main arrangement is in the pad, not gone.
+    expect(st.scratchPads![0].clips.map((c) => c.id)).toEqual([mainClip]);
+
+    useProjectStore.getState().swapScratchPad(padId);
+    st = useProjectStore.getState().project;
+    expect(st.clips.map((c) => c.id)).toEqual([mainClip]);
+    expect(st.activePadId).toBeUndefined();
+    expect(st.scratchPads![0].clips.map((c) => c.id)).toEqual(['pad-clip']);
+  });
+
+  it('drops a pad clip whose track has since been deleted', () => {
+    useProjectStore.getState().setProject(createEmptyProject('pads2'));
+    const s = useProjectStore.getState();
+    const keep = s.addTrack('audio');
+    const doomed = useProjectStore.getState().addTrack('audio');
+    const padId = useProjectStore.getState().createScratchPad('Pad');
+    useProjectStore.getState().update((d) => {
+      const pad = d.scratchPads!.find((p) => p.id === padId)!;
+      pad.clips = [
+        {
+          id: 'a',
+          trackId: keep,
+          type: 'midi',
+          name: 'a',
+          start: 0,
+          length: 4,
+          muted: false,
+          notes: [],
+        },
+        {
+          id: 'b',
+          trackId: doomed,
+          type: 'midi',
+          name: 'b',
+          start: 0,
+          length: 4,
+          muted: false,
+          notes: [],
+        },
+      ];
+    });
+    useProjectStore.getState().deleteTrack(doomed);
+    useProjectStore.getState().swapScratchPad(padId);
+    expect(useProjectStore.getState().project.clips.map((c) => c.id)).toEqual(['a']);
+  });
+});

@@ -19,6 +19,7 @@ import { visibleTracks, folderDepth } from '../../model/mixerGraph';
 import { MaximizeButton } from '../shell/MaximizeButton';
 import { GlobalTrackHeaders, GlobalTrackLanes, globalTrackMenuItems } from './GlobalTracks';
 import { ArrangementOverview } from './Overview';
+import { ScratchPadButton } from './ScratchPads';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import type { AudioClip, Clip } from '../../model/types';
 
@@ -652,6 +653,7 @@ export function Arrangement() {
         >
           <Icon name="section" size={14} />
         </button>
+        <ScratchPadButton />
         <button
           className={`icon-btn${showOverview ? ' on' : ''}`}
           onClick={() => useWorkspaceStore.getState().toggle('showOverview')}

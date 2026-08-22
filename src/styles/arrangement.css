@@ -777,3 +777,18 @@
   align-items: center;
   gap: var(--sp-1);
 }
+
+/* A count badge on a toolbar icon, sharing the transport's badge language. */
+.arr-toolbar .icon-btn {
+  position: relative;
+}
+.arr-toolbar .icon-btn .t-badge {
+  position: absolute;
+  right: 1px;
+  bottom: 0;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  color: var(--warm);
+  pointer-events: none;
+}
