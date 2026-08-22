@@ -297,11 +297,9 @@ describe('the store releases a stale freeze as the edit lands', () => {
     const dup = useProjectStore.getState().duplicateTrack('inst')!;
     expect(useProjectStore.getState().project.tracks[1].freeze?.mediaId).toBe(PRINT.id);
 
-    useProjectStore
-      .getState()
-      .setTrack(dup, {
-        synth: { ...trackOf(useProjectStore.getState().project).synth!, cutoff: 500 },
-      });
+    useProjectStore.getState().setTrack(dup, {
+      synth: { ...trackOf(useProjectStore.getState().project).synth!, cutoff: 500 },
+    });
     const after = useProjectStore.getState().project;
     expect(after.tracks[1].freeze).toBeUndefined();
     // The original is still frozen, so the print it plays has to stay listed.
