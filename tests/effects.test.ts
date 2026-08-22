@@ -12,7 +12,9 @@ import {
   eq8Bands,
   formatParam,
   isKnownEffect,
+  delayLayoutOf,
   matchTrimFor,
+  modulationOf,
   normaliseParams,
   paramOf,
   TUNE_SCALE_IDS,
@@ -470,5 +472,91 @@ describe('Vocal Tune carries the settings the editor retunes with', () => {
 
   it('answers for nothing else', () => {
     expect(tuneSettingsOf({ id: 'x', kind: 'trim', bypass: false, params: {} })).toBeNull();
+  });
+});
+
+describe('the modulator a face draws is the one the audio runs', () => {
+  const fx = (kind: EffectKind, params: Record<string, number>): Effect => ({
+    id: 'm',
+    kind,
+    bypass: false,
+    params,
+  });
+
+  it('reports chorus and flanger depth as the share of the sweep the audio can use', () => {
+    // The audio clamps `depth / 1000` to the base delay, so 6 ms of sweep on a
+    // 6 ms delay is full depth and the same 6 ms on 20 ms is under a third.
+    expect(modulationOf(fx('chorus', { depth: 6, delay: 6 }), 120)?.depth).toBeCloseTo(1, 5);
+    expect(modulationOf(fx('chorus', { depth: 6, delay: 20 }), 120)?.depth).toBeCloseTo(0.3, 5);
+    expect(modulationOf(fx('flanger', { depth: 2, delay: 8 }), 120)?.depth).toBeCloseTo(0.25, 5);
+  });
+
+  it('draws nothing moving when a device is set to no modulation', () => {
+    // The face used to fall back to 60 % whenever depth was zero, so a device
+    // doing nothing drew a sweep.
+    expect(modulationOf(fx('tremolo', { depth: 0 }), 120)?.depth).toBe(0);
+    expect(modulationOf(fx('chorus', { depth: 0, delay: 8 }), 120)?.depth).toBe(0);
+  });
+
+  it('answers for the rotary, which has neither a depth nor a shape control', () => {
+    const slow = modulationOf(fx('rotary', { hornDepth: 0.7, slowRate: 0.8, fastRate: 6.4 }), 120);
+    expect(slow?.depth).toBeCloseTo(0.7, 5);
+    expect(slow?.rateHz).toBeCloseTo(0.8, 5);
+    const fast = modulationOf(
+      fx('rotary', { hornDepth: 0.7, slowRate: 0.8, fastRate: 6.4, speed: 1 }),
+      120,
+    );
+    expect(fast?.rateHz).toBeCloseTo(6.4, 5);
+  });
+
+  it('resolves a tempo lock, so the picture moves when the song does', () => {
+    const free = modulationOf(fx('tremolo', { depth: 0.5, rate: 5 }), 120);
+    expect(free?.rateHz).toBeCloseTo(5, 5);
+    const locked = modulationOf(fx('tremolo', { depth: 0.5, sync: 1, division: 4 }), 120);
+    // A quarter note at 120 bpm is 0.5 s, so a quarter-note tremolo is 2 Hz.
+    expect(locked?.rateHz).toBeCloseTo(2, 5);
+    expect(
+      modulationOf(fx('tremolo', { depth: 0.5, sync: 1, division: 4 }), 60)?.rateHz,
+    ).toBeCloseTo(1, 5);
+  });
+
+  it('answers for nothing that has no modulator', () => {
+    expect(modulationOf(fx('reverb', {}), 120)).toBeNull();
+    expect(modulationOf(fx('trim', {}), 120)).toBeNull();
+  });
+});
+
+describe('the delay picture is the delay the audio builds', () => {
+  const fx = (kind: EffectKind, params: Record<string, number>): Effect => ({
+    id: 'd',
+    kind,
+    bypass: false,
+    params,
+  });
+
+  it('carries the ping-pong Feel, which the audio applies and the layout ignored', () => {
+    const straight = delayLayoutOf(fx('pingpong', { timeSixteenths: 4 }), 120)!;
+    const dotted = delayLayoutOf(fx('pingpong', { timeSixteenths: 4, modifier: 1 }), 120)!;
+    expect(dotted.timeSec).toBeCloseTo(straight.timeSec * 1.5, 6);
+    const triplet = delayLayoutOf(fx('pingpong', { timeSixteenths: 4, modifier: 2 }), 120)!;
+    expect(triplet.timeSec).toBeCloseTo((straight.timeSec * 2) / 3, 6);
+  });
+
+  it('leaves the plain delay straight, because it has no Feel control', () => {
+    const a = delayLayoutOf(fx('delay', { timeSixteenths: 4 }), 120)!;
+    const b = delayLayoutOf(fx('delay', { timeSixteenths: 4, modifier: 2 }), 120)!;
+    expect(b.timeSec).toBeCloseTo(a.timeSec, 6);
+  });
+
+  it('reports the damping corner each kind actually has', () => {
+    expect(delayLayoutOf(fx('delay', { tone: 4200 }), 120)?.toneHz).toBe(4200);
+    // A ping-pong has no `tone`; it is the high cut that darkens its repeats.
+    expect(delayLayoutOf(fx('pingpong', { highCut: 6500 }), 120)?.toneHz).toBe(6500);
+  });
+
+  it('reports the width, so a ping-pong at width zero is not drawn alternating', () => {
+    expect(delayLayoutOf(fx('pingpong', { width: 0 }), 120)?.width).toBe(0);
+    expect(delayLayoutOf(fx('pingpong', { width: 1 }), 120)?.width).toBe(1);
+    expect(delayLayoutOf(fx('delay', {}), 120)?.width).toBe(0);
   });
 });

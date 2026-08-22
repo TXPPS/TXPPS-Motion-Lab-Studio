@@ -25,7 +25,6 @@ import { engine } from '../../audio/engine';
 import { useProjectStore } from '../../state/projectStore';
 import {
   EQ8_BANDS,
-  choiceName,
   choiceOf,
   deesserBand,
   dynamicsGain,
@@ -46,6 +45,8 @@ import {
   type WidthField,
   tuneSettingsOf,
   matchTrimFor,
+  modulationOf,
+  type ModulationField,
 } from '../../model/effects';
 import { clamp } from '../../model/music';
 import {
@@ -737,14 +738,21 @@ function DelayFace({ layout }: { layout: DelayLayout }) {
       className="fx-curve"
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
-      aria-label={`Delay: ${layout.taps.length} audible repeats, ${Math.round(layout.timeSec * 1000)} milliseconds apart`}
+      aria-label={`Delay: ${layout.taps.length} audible repeats, ${Math.round(
+        layout.timeSec * 1000,
+      )} milliseconds apart${layout.pingPong && layout.width > 0 ? ', alternating channels' : ''}`}
     >
       <line x1={0} y1={mid} x2={W} y2={mid} stroke="var(--grid-sub)" />
       {layout.taps.map((level, i) => {
         const x = ((i * layout.timeSec) / span) * (W - 8) + 4;
-        // A ping-pong alternates sides; a plain delay keeps both.
-        const up = !layout.pingPong || i % 2 === 0;
-        const down = !layout.pingPong || i % 2 === 1;
+        // A ping-pong alternates sides — but only as far as its Width throws
+        // them. At width 0 both panners sit at centre and there is nothing
+        // alternating, so both sides are drawn and the picture agrees.
+        const alternating = layout.pingPong && layout.width > 0;
+        const up = !alternating || i % 2 === 0;
+        const down = !alternating || i % 2 === 1;
+        // The quiet side is what the width leaves in the other channel.
+        const quiet = alternating ? 1 : layout.pingPong ? 1 - layout.width : 0.55;
         const h = level * (mid - 6);
         return (
           <g key={i}>
@@ -768,7 +776,7 @@ function DelayFace({ layout }: { layout: DelayLayout }) {
                 stroke="var(--accent)"
                 strokeWidth="2"
                 strokeLinecap="round"
-                opacity={layout.pingPong ? 1 : 0.55}
+                opacity={alternating ? 1 : quiet}
               />
             )}
           </g>
@@ -953,25 +961,63 @@ function lfoValue(shape: string, phase: number): number {
   }
 }
 
-function LfoFace({ shape, depth, cycles }: { shape: string; depth: number; cycles: number }) {
+/** How many cycles of the modulator a face draws, by how fast it is running. */
+function cyclesFor(rateHz: number): number {
+  // One window is about two seconds of modulation: slow enough that a 0.2 Hz
+  // rotary shows less than a full turn, fast enough that an 8 Hz tremolo does
+  // not draw as a solid block.
+  return clamp(rateHz * 2, 0.5, 8);
+}
+
+const MOD_TARGET_LABEL: Record<ModulationField['target'], string> = {
+  delay: 'delay time',
+  filter: 'notch frequency',
+  level: 'level',
+  pan: 'position',
+  rotor: 'horn level',
+};
+
+/**
+ * The modulator, as the audio runs it.
+ *
+ * Everything drawn here comes from `modulationOf`, which reports the shape the
+ * modulator builds, the share of its available sweep the setting uses, and the
+ * rate it runs at with a tempo lock resolved. Nothing is read off a parameter
+ * directly: that is what let six devices share one picture that answered to
+ * almost none of their controls.
+ */
+function LfoFace({ field }: { field: ModulationField }) {
+  const cycles = cyclesFor(field.rateHz);
+  const shape = (LFO_SHAPES[field.shape] ?? 'sine').toLowerCase();
   const path = useMemo(() => {
     const pts: string[] = [];
-    for (let i = 0; i <= 120; i++) {
-      const phase = (i / 120) * Math.max(1, cycles);
-      const v = lfoValue(shape, phase) * clamp(depth, 0, 1);
+    for (let i = 0; i <= 160; i++) {
+      const phase = (i / 160) * cycles;
+      const v = lfoValue(shape, phase) * clamp(field.depth, 0, 1);
       pts.push(
-        `${i === 0 ? 'M' : 'L'} ${((i / 120) * CURVE_W).toFixed(1)} ${(
+        `${i === 0 ? 'M' : 'L'} ${((i / 160) * CURVE_W).toFixed(1)} ${(
           CURVE_H / 2 -
           v * (CURVE_H / 2.4)
         ).toFixed(1)}`,
       );
     }
     return pts.join(' ');
-  }, [shape, depth, cycles]);
+  }, [shape, field.depth, cycles]);
+  const label = `${shape} modulation of ${MOD_TARGET_LABEL[field.target]}, ${Math.round(
+    field.depth * 100,
+  )} percent at ${field.rateHz.toFixed(2)} hertz`;
   return (
-    <svg width={CURVE_W} height={CURVE_H} className="fx-curve" aria-label="Modulation shape">
+    <svg width={CURVE_W} height={CURVE_H} className="fx-curve" aria-label={label}>
       <line x1={0} y1={CURVE_H / 2} x2={CURVE_W} y2={CURVE_H / 2} stroke="var(--grid-sub)" />
+      {/* At zero depth the line stays flat, which is what the processor does —
+          the old fallback drew a 60 % sweep for a device doing nothing. */}
       <path d={path} fill="none" stroke="var(--info)" strokeWidth="1.8" />
+      <text x={4} y={CURVE_H - 4} fontSize="8" fill="var(--text-faint)">
+        {MOD_TARGET_LABEL[field.target]}
+      </text>
+      <text x={CURVE_W - 4} y={CURVE_H - 4} fontSize="8" textAnchor="end" fill="var(--text-faint)">
+        {field.rateHz < 1 ? `${field.rateHz.toFixed(2)} Hz` : `${field.rateHz.toFixed(1)} Hz`}
+      </text>
     </svg>
   );
 }
@@ -1013,7 +1059,10 @@ function TapFace({
           freq = new Float32Array(tap.frequencyBinCount);
         tap.getFloatFrequencyData(freq);
         ctx.beginPath();
-        const nyquist = 24000;
+        // The context's own rate: a hard-coded 24 kHz drew every point about
+        // 8.8 % high at 44.1 kHz, so the analyser disagreed with the EQ curve
+        // beside it on the same channel.
+        const nyquist = tap.context.sampleRate / 2;
         for (let i = 1; i < freq.length; i++) {
           const hz = (i / freq.length) * nyquist;
           const x = xOfHz(clamp(hz, MIN_HZ, MAX_HZ));
@@ -1495,15 +1544,10 @@ export function EffectVisual({
     return curve ? <ShaperFace curve={curve} label={shaperLabel(effect)} /> : null;
   }
   if (face === 'lfo') {
-    const shapeIndex = Math.round(paramOf(effect, 'shape'));
-    const shape = LFO_SHAPES[shapeIndex] ?? choiceName(effect, 'shape') ?? 'sine';
-    return (
-      <LfoFace
-        shape={String(shape).toLowerCase()}
-        depth={paramOf(effect, 'depth') || 0.6}
-        cycles={2}
-      />
-    );
+    // The tempo is the project's, because a tempo-locked modulator's rate — and
+    // therefore its picture — moves when the song does.
+    const field = modulationOf(effect, useProjectStore.getState().project.bpm);
+    return field ? <LfoFace field={field} /> : null;
   }
   if (face === 'delay') {
     // The tempo is the project's: a synced delay's picture has to move when

@@ -21,6 +21,7 @@ import {
   syncModifierByIndex,
   syncSeconds,
   transferCurve,
+  syncHz,
 } from '../audio/dsp/curves';
 import type { BiquadType, EqBandSpec, SaturationModel } from '../audio/dsp/curves';
 import { KEY_NAMES, SCALES } from './scales';
@@ -305,7 +306,7 @@ export const EFFECT_SPECS: EffectSpec[] = [
       freq('lowFreq', 'Low freq', 40, 500, 160),
       { key: 'midDb', label: 'Mid', min: -18, max: 18, step: 0.5, default: 0, unit: 'dB' },
       freq('midFreq', 'Mid freq', 200, 6000, 1000, 10),
-      { key: 'midQ', label: 'Mid Q', min: 0.3, max: 8, step: 0.1, default: 1, unit: 'x' },
+      { key: 'midQ', label: 'Mid Q', min: 0.3, max: 8, step: 0.1, default: 1, unit: 'Q' },
       { key: 'highDb', label: 'High', min: -18, max: 18, step: 0.5, default: 0, unit: 'dB' },
       freq('highFreq', 'High freq', 1500, 16000, 6000, 50),
     ],
@@ -542,7 +543,7 @@ export const EFFECT_SPECS: EffectSpec[] = [
     group: 'time',
     params: [
       // Expressed in sixteenths so it follows the project tempo.
-      { key: 'timeSixteenths', label: 'Time', min: 1, max: 16, step: 1, default: 6, unit: 'x' },
+      { key: 'timeSixteenths', label: 'Time', min: 1, max: 16, step: 1, default: 6, unit: 'div' },
       {
         key: 'feedback',
         label: 'Feedback',
@@ -710,6 +711,89 @@ export const EFFECT_SPECS: EffectSpec[] = [
     ],
   },
 ];
+
+/** What a modulation device's LFO is actually doing. */
+export interface ModulationField {
+  /** Index into the three shapes `ShapedLfo` can build. */
+  shape: number;
+  /**
+   * How much of the sweep available to this processor the setting uses, 0..1.
+   *
+   * Not the parameter: chorus and flanger declare depth in *milliseconds* and
+   * the audio clamps it to the base delay, so a device set to 6 ms of sweep on
+   * a 6 ms delay is at full depth while one set to 6 ms on a 20 ms delay is at
+   * a third. Handing the raw millisecond value to a face that clamps 0..1 made
+   * every setting above 1 ms draw the same full-scale sweep.
+   */
+  depth: number;
+  /** The rate the modulator runs at, in Hz, tempo-locked settings resolved. */
+  rateHz: number;
+  /** What the modulation moves, so the picture can be labelled truthfully. */
+  target: 'delay' | 'filter' | 'level' | 'pan' | 'rotor';
+}
+
+/**
+ * The modulator behind a modulation device, as the audio builds it.
+ *
+ * Six devices shared one drawing that read `depth` off whatever effect it was
+ * given and fell back to 0.6 when there was none — so a device set to no
+ * modulation at all drew a waveform moving at 60 %, and the rotary speaker
+ * (which has neither `depth` nor `shape`) drew a fixed sine that answered to
+ * none of its six controls. Returns null for a kind that has no modulator.
+ */
+export function modulationOf(effect: Effect, bpm: number): ModulationField | null {
+  const unit = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
+  const sweepShare = (): number => {
+    // The audio's own clamp: `Math.min(depth / 1000, base)` over `base`.
+    const base = paramOf(effect, 'delay');
+    return base > 0 ? Math.min(paramOf(effect, 'depth'), base) / base : 0;
+  };
+  const lockedRate = (): number =>
+    choiceOf(effect, 'sync') === 1
+      ? syncHz(paramOf(effect, 'division'), bpm, syncModifierByIndex(choiceOf(effect, 'modifier')))
+      : paramOf(effect, 'rate');
+
+  switch (effect.kind) {
+    case 'chorus':
+    case 'flanger':
+      // Both run a plain quadrature sine; neither offers a shape control.
+      return { shape: 0, depth: sweepShare(), rateHz: paramOf(effect, 'rate'), target: 'delay' };
+    case 'phaser':
+      return {
+        shape: 0,
+        depth: unit(paramOf(effect, 'depth')),
+        rateHz: paramOf(effect, 'rate'),
+        target: 'filter',
+      };
+    case 'tremolo':
+      return {
+        shape: choiceOf(effect, 'shape'),
+        depth: unit(paramOf(effect, 'depth')),
+        rateHz: lockedRate(),
+        target: 'level',
+      };
+    case 'autopan':
+      return {
+        shape: choiceOf(effect, 'shape'),
+        depth: unit(paramOf(effect, 'depth')),
+        rateHz: lockedRate(),
+        target: 'pan',
+      };
+    case 'rotary': {
+      // The horn is what a listener hears turning, so it is the rotor drawn.
+      // Its rate is the selected speed; the drum runs at 0.78 of it.
+      const fast = choiceOf(effect, 'speed') === 1;
+      return {
+        shape: 0,
+        depth: unit(paramOf(effect, 'hornDepth')),
+        rateHz: paramOf(effect, fast ? 'fastRate' : 'slowRate'),
+        target: 'rotor',
+      };
+    }
+    default:
+      return null;
+  }
+}
 
 /**
  * The trim that would put a measured level on Gain Match's target.
@@ -914,12 +998,25 @@ export interface DelayLayout {
   timeSec: number;
   /** How much of each echo returns, 0..0.9 — the builder clamps at 0.9. */
   feedback: number;
-  /** Damping corner the repeats pass through, in Hz. */
+  /**
+   * Damping corner the repeats pass through, in Hz.
+   *
+   * The plain delay has one `tone` control; a ping-pong has a low cut and a
+   * high cut, and it is the high cut that darkens the repeats — so that is
+   * what this reports for it, rather than the 0 Hz a missing parameter used
+   * to produce.
+   */
   toneHz: number;
   /** Wet level, 0..1. */
   mix: number;
   /** True when the repeats alternate channels. */
   pingPong: boolean;
+  /**
+   * How far apart the two sides are thrown, 0..1. At 0 a ping-pong's panners
+   * both sit at centre and there is no alternation to draw — the picture used
+   * to show one anyway.
+   */
+  width: number;
   /** Amplitude of each echo, until it falls below audibility. */
   taps: number[];
 }
@@ -934,12 +1031,21 @@ export function delayLayoutOf(effect: Effect, bpm: number): DelayLayout | null {
     taps.push(level);
     if (feedback <= 0) break;
   }
+  const pingPong = effect.kind === 'pingpong';
   return {
-    timeSec: syncSeconds(paramOf(effect, 'timeSixteenths'), bpm, 'straight'),
+    // The ping-pong has a Feel control and applies it; this hard-coded
+    // 'straight', so on Dotted the audio spaced its repeats half again as wide
+    // as the picture promised. The plain delay has no Feel and is unaffected.
+    timeSec: syncSeconds(
+      paramOf(effect, 'timeSixteenths'),
+      bpm,
+      pingPong ? syncModifierByIndex(choiceOf(effect, 'modifier')) : 'straight',
+    ),
     feedback,
-    toneHz: paramOf(effect, 'tone'),
+    toneHz: pingPong ? paramOf(effect, 'highCut') : paramOf(effect, 'tone'),
     mix: paramOf(effect, 'mix'),
-    pingPong: effect.kind === 'pingpong',
+    pingPong,
+    width: pingPong ? Math.min(1, Math.max(0, paramOf(effect, 'width'))) : 0,
     taps,
   };
 }
@@ -1298,7 +1404,10 @@ export function describeEffect(effect: Effect): string {
     case 'rotary':
       return `${choiceName(effect, 'speed')} · ${mixText(effect)}`;
     case 'delay':
-      return `1/${Math.max(1, Math.round(16 / paramOf(effect, 'timeSixteenths')))} · ${mixText(effect)}`;
+      // Was 1/round(16/n), which is only right for the five settings that
+      // divide 16: the default of 6 printed "1/3", a division this delay
+      // cannot produce. The ping-pong beside it already did this correctly.
+      return `${divisionText(effect, 'timeSixteenths')} · ${mixText(effect)}`;
     case 'pingpong':
       return `${divisionText(effect, 'timeSixteenths')} · ${mixText(effect)}`;
     case 'reverb':
