@@ -81,6 +81,11 @@ cmake --build build
   filename, type, symbol, preset name or comment. Reference names live only in
   `docs/reference/`. See `LEGAL_NOTES.md`; this is a commercial-safety
   requirement.
+- **A value marked `[I]` in a spec sheet is quarantined.** It came from an
+  emulator implementation rather than from a measurement or a manual, which
+  makes it somebody's design decision rather than a fact about the hardware.
+  Re-derive it or choose your own before it reaches `motionwave/`. `LEGAL_NOTES.md`
+  explains why and names the affected set.
 
 ## What NOT to refactor
 
