@@ -14,7 +14,7 @@ import { cacheBuffer } from '../audio/mediaLibrary';
 import { peaksAreSilent, peaksFromAudioBuffer } from '../audio/peaks';
 import { newId } from '../model/ids';
 import { PEAKS_VERSION, type MediaRef } from '../model/media';
-import { secondsToBeats } from '../model/music';
+import { projectBeatsForSeconds } from '../model/music';
 import {
   deleteRecovery,
   listRecoveries,
@@ -100,13 +100,16 @@ export async function recoverTake(rec: RecoveryRecord): Promise<boolean> {
   }
   cacheBuffer(mediaId, buffer, peaks);
 
-  const bpm = useProjectStore.getState().project.bpm;
+  const startBeat = rec.projectId === store.project.id ? rec.startBeat : 0;
   const clipId = useProjectStore.getState().addRecordedClip({
     trackId,
     mediaId,
     // The original start beat only means something in the original project.
-    start: rec.projectId === store.project.id ? rec.startBeat : 0,
-    lengthBeats: Math.max(0.25, secondsToBeats(buffer.duration, bpm)),
+    start: startBeat,
+    lengthBeats: Math.max(
+      0.25,
+      projectBeatsForSeconds(useProjectStore.getState().project, startBeat, buffer.duration),
+    ),
     name: mediaRef.name,
     sourceDuration: buffer.duration,
     mediaRef,

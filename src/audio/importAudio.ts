@@ -13,7 +13,7 @@
  * that older Safari does not, and no static list is correct on every browser.
  */
 import { newId } from '../model/ids';
-import { secondsToBeats } from '../model/music';
+import { projectBeatsForSeconds } from '../model/music';
 import { PEAKS_VERSION, type MediaRef } from '../model/media';
 import { diagLog } from '../state/diagnostics';
 import { useProjectStore } from '../state/projectStore';
@@ -172,12 +172,15 @@ export async function importAudioFile(
   const store = useProjectStore.getState();
   let clipId: string | null = null;
   if (target.trackId) {
-    const bpm = store.project.bpm;
+    const startBeat = Math.max(0, target.startBeat ?? 0);
     clipId = store.addRecordedClip({
       trackId: target.trackId,
       mediaId,
-      start: Math.max(0, target.startBeat ?? 0),
-      lengthBeats: Math.max(0.25, secondsToBeats(buffer.duration, bpm)),
+      start: startBeat,
+      lengthBeats: Math.max(
+        0.25,
+        projectBeatsForSeconds(store.project, startBeat, buffer.duration),
+      ),
       name: mediaRef.name,
       sourceDuration: buffer.duration,
       mediaRef,

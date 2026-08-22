@@ -10,7 +10,7 @@
  * encoded streams to one timeline is not, so the app records one armed track at
  * a time and says so.
  */
-import { beatsPerBar, secondsToBeats } from '../model/music';
+import { beatsPerBar, projectBeatsForSeconds } from '../model/music';
 import type { Track } from '../model/types';
 import { diagLog } from '../state/diagnostics';
 import { useInputStore } from '../state/inputStore';
@@ -379,8 +379,11 @@ class RecordingController {
 
   /** Elapsed capture time in beats, for the recording overlay. */
   elapsedBeats(): number {
-    const bpm = useProjectStore.getState().project.bpm;
-    return secondsToBeats(this.recorder.elapsedSec, bpm);
+    return projectBeatsForSeconds(
+      useProjectStore.getState().project,
+      this.captureStartBeat,
+      this.recorder.elapsedSec,
+    );
   }
 
   captureStart(): number {

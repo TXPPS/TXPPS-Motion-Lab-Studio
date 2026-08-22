@@ -714,7 +714,6 @@ export function Arrangement() {
                       index={ti}
                       pxPerBeat={pxPerBeat}
                       snap={snap}
-                      bpm={useProjectStore.getState().project.bpm}
                     />
                   )),
                 )}

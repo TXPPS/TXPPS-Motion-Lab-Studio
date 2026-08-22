@@ -6,7 +6,7 @@
 import { engine } from '../audio/engine';
 import { getBufferSync } from '../audio/mediaLibrary';
 import { getMediaDurationSec } from '../audio/demoAudio';
-import { secondsPerBeat } from '../model/music';
+import { clipSecondsPerBeat } from '../model/music';
 import type { AudioClip, FadeShape } from '../model/types';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
@@ -27,7 +27,7 @@ export function mediaDurationSec(mediaId: string): number {
 export function maxSlipOffset(clip: AudioClip): number | undefined {
   const dur = mediaDurationSec(clip.mediaId);
   if (dur <= 0) return undefined;
-  const spb = secondsPerBeat(useProjectStore.getState().project.bpm);
+  const spb = clipSecondsPerBeat(useProjectStore.getState().project, clip);
   const need = clip.sourceDuration ?? clip.length * spb;
   return Math.max(0, dur - need);
 }
@@ -44,7 +44,7 @@ export interface ClipAnalysis {
 export function analyzeClip(clip: AudioClip): ClipAnalysis | null {
   const buf = getBufferSync(clip.mediaId);
   if (!buf) return null;
-  const spb = secondsPerBeat(useProjectStore.getState().project.bpm);
+  const spb = clipSecondsPerBeat(useProjectStore.getState().project, clip);
   const from = Math.max(0, Math.floor(clip.offset * buf.sampleRate));
   const lenSec = clip.sourceDuration ?? clip.length * spb;
   const to = Math.min(buf.length, Math.ceil((clip.offset + lenSec) * buf.sampleRate));

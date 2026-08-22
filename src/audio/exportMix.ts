@@ -14,7 +14,12 @@
  * anything requiring a live input (monitoring) is by definition not included —
  * which is correct for a mixdown.
  */
-import { beatsToSeconds, secondsPerBeat } from '../model/music';
+import {
+  clipSecondsPerBeat,
+  projectBeatRangeSec,
+  projectBeatToSec,
+  projectSecToBeat,
+} from '../model/music';
 import type { AudioClip, MidiClip, ProjectData, SynthParams, Track } from '../model/types';
 import { diagLog } from '../state/diagnostics';
 import { applyEnvelope, computeClipSchedule } from './clipSchedule';
@@ -106,11 +111,16 @@ function scheduleLaneOnParam(
   param: AudioParam,
   lane: AutomationLane,
   desc: AutoParam,
-  opts: { startBeat: number; endBeat: number; spb: number; mapValue?: (v: number) => number },
+  opts: {
+    startBeat: number;
+    endBeat: number;
+    /** beat → render-relative seconds; tempo-map aware, supplied by the caller */
+    timeOf: (beat: number) => number;
+    mapValue?: (v: number) => number;
+  },
 ): void {
-  const { startBeat, endBeat, spb } = opts;
+  const { startBeat, endBeat, timeOf } = opts;
   const map = opts.mapValue ?? ((v: number) => v);
-  const timeOf = (beat: number) => Math.max(0, (beat - startBeat) * spb);
   const valueOf = (norm: number) => map(denormParam(desc, norm));
 
   const startNorm = laneValueAt(lane.points, startBeat);
@@ -189,9 +199,10 @@ export async function renderProject(
 ): Promise<RenderResult> {
   const startBeat = Math.max(0, opts.range?.startBeat ?? 0);
   const endBeat = Math.max(startBeat + 0.25, opts.range?.endBeat ?? projectEnd(project));
-  const spb = secondsPerBeat(project.bpm);
   const tail = Math.max(0, opts.tailSeconds ?? DEFAULT_TAIL_SECONDS);
-  const durationSec = (endBeat - startBeat) * spb + tail;
+  // Under a tempo map the render length is the integral across the range, not
+  // a multiplication — a song that ritards is longer than its beat count says.
+  const durationSec = projectBeatRangeSec(project, startBeat, endBeat - startBeat) + tail;
 
   if (!Number.isFinite(durationSec) || durationSec <= 0) {
     throw new ExportError('Nothing to export: the render range is empty.');
@@ -289,7 +300,15 @@ export async function renderProject(
   // ---- automation: fader-domain lanes become scheduled (sample-accurate)
   // ramps; insert-parameter lanes apply through a suspend/resume control grid;
   // synth-parameter lanes apply per note at schedule time (below). ----
-  const rampOpts = { startBeat, endBeat: endBeat + tail / spb, spb };
+  // Song time at the range start: every scheduled time in this render is
+  // measured from here, so it must exist before the first ramp is scheduled.
+  const rangeStartSec = projectBeatToSec(project, startBeat);
+  // The render clock is song seconds measured from the range start, so every
+  // automation ramp converts through the tempo map rather than through one
+  // seconds-per-beat — a lane written over a ritard lands where it was drawn.
+  const timeOf = (beat: number) => Math.max(0, projectBeatToSec(project, beat) - rangeStartSec);
+  const tailEndBeat = projectSecToBeat(project, projectBeatToSec(project, endBeat) + tail);
+  const rampOpts = { startBeat, endBeat: tailEndBeat, timeOf };
   interface FxAutoEntry {
     track: Track;
     lane: AutomationLane;
@@ -356,7 +375,7 @@ export async function renderProject(
     let grid = 0.025;
     const usable = durationSec - 0.001;
     if (usable / grid > 4800) grid = usable / 4800;
-    const beatAt = (sec: number) => startBeat + sec / spb;
+    const beatAt = (sec: number) => projectSecToBeat(project, rangeStartSec + sec);
     for (let t = grid; t < usable; t += grid) {
       const at = t;
       void ctx.suspend(at).then(() => {
@@ -448,7 +467,6 @@ export async function renderProject(
 
   // ---- schedule everything up front ----
   opts.onProgress?.('Scheduling');
-  const rangeStartSec = beatsToSeconds(startBeat, project.bpm);
   let scheduledClips = 0;
   let scheduledNotes = 0;
   const missingMedia = new Set<string>();
@@ -462,6 +480,7 @@ export async function renderProject(
 
     if (clip.type === 'audio') {
       // Take clips render exactly as they play: expanded per comp span.
+      const spb = clipSecondsPerBeat(project, clip);
       const parts = clip.takes?.length ? expandCompClip(clip, spb) : [clip];
       let scheduledAny = false;
       for (const part of parts) {
@@ -474,11 +493,11 @@ export async function renderProject(
         // Entering part-way through a clip that began before the range start.
         const enterBeat = Math.max(part.start, startBeat);
         const intoClip = enterBeat - part.start;
-        const offsetSec = part.offset + beatsToSeconds(intoClip, project.bpm);
+        const offsetSec = part.offset + projectBeatRangeSec(project, part.start, intoClip);
         const plan = computeClipSchedule(part, offsetSec, buffer.duration, spb);
         if (!plan) continue;
 
-        const when = Math.max(0, beatsToSeconds(enterBeat, project.bpm) - rangeStartSec);
+        const when = Math.max(0, projectBeatToSec(project, enterBeat) - rangeStartSec);
         const src = ctx.createBufferSource();
         src.buffer = buffer;
         const g = ctx.createGain();
@@ -507,7 +526,7 @@ export async function renderProject(
         if (absBeat < startBeat || absBeat >= endBeat) continue;
         // A note is not retriggered part-way; notes starting before the range
         // are omitted, which is what a range bounce means.
-        const when = beatsToSeconds(absBeat, project.bpm) - rangeStartSec;
+        const when = projectBeatToSec(project, absBeat) - rangeStartSec;
         if (when < 0) continue;
         if (hasSynthAuto && box && track) box.params = synthParamsAt(track, absBeat);
         if (hasSmpAuto && sbox && track?.sampler) {
@@ -519,7 +538,7 @@ export async function renderProject(
           }
           sbox.params = merged;
         }
-        const durSec = beatsToSeconds(note.length, project.bpm);
+        const durSec = projectBeatRangeSec(project, absBeat, note.length);
         inst.scheduleNote(note.pitch, note.velocity, when, durSec, clip.id);
         scheduledNotes++;
       }

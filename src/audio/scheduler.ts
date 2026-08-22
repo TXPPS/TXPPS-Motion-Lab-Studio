@@ -2,7 +2,15 @@
  * Lookahead transport scheduler. One instance lives inside the AudioEngine.
  * Pure event-collection helpers are exported for unit testing.
  */
-import { beatsPerBar, secondsPerBeat } from '../model/music';
+import { tempoMapOf } from '../model/music';
+import {
+  beatRangeSec,
+  beatToBar,
+  beatToSec,
+  secToBeat,
+  sigAtBeat,
+  type TempoMap,
+} from '../model/tempo';
 import type { AudioClip, ProjectData } from '../model/types';
 import { getMediaDurationSec } from './demoAudio';
 
@@ -59,10 +67,16 @@ export function collectWindowEvents(
     }
   }
   if (project.metronome) {
-    const bpb = beatsPerBar(project.timeSig);
-    for (let b = Math.ceil(fromBeat - 1e-9); b < toBeat - 1e-9; b++) {
+    const map = tempoMapOf(project);
+    // The click counts the signature's denominator, not quarter notes: 6/8
+    // clicks six times a bar, 3/4 three times, and the downbeat is accented
+    // wherever the signature map says a bar begins.
+    const unit = 4 / sigAtBeat(map, Math.max(0, fromBeat)).den;
+    const first = Math.ceil((fromBeat - 1e-9) / unit) * unit;
+    for (let b = first; b < toBeat - 1e-9; b += unit) {
       if (b < fromBeat - 1e-9) continue;
-      out.push({ kind: 'metronome', beat: b, accent: Math.abs(b % bpb) < 1e-9 });
+      const bar = beatToBar(map, b);
+      out.push({ kind: 'metronome', beat: b, accent: Math.abs(bar - Math.round(bar)) < 1e-6 });
     }
   }
   return out;
@@ -117,10 +131,19 @@ export interface SchedulerDeps {
   onLoopWrap?: () => void;
 }
 
+/**
+ * A point where the audio clock and the song clock are known to coincide.
+ *
+ * Under a tempo map there is no single seconds-per-beat to extrapolate with, so
+ * an anchor stores the *song time* at a context time and every conversion goes
+ * back through the map. Anchors accumulate at play, seek, loop wrap and tempo
+ * edit; the newest one at or before `now` wins, which keeps already-scheduled
+ * material mapped under the tempo it was scheduled with.
+ */
 interface Anchor {
   ctx: number;
-  beat: number;
-  spb: number;
+  /** seconds from the start of the song at `ctx` */
+  sec: number;
 }
 
 export class Scheduler {
@@ -135,13 +158,16 @@ export class Scheduler {
     return this.timer !== null;
   }
 
+  private map(): TempoMap {
+    return tempoMapOf(this.deps.getProject());
+  }
+
   start(fromBeat: number): void {
     this.stop();
     const t = this.deps.now() + 0.06;
     this.nextBeat = fromBeat;
     this.nextCtxTime = t;
-    const spb = secondsPerBeat(this.deps.getProject().bpm);
-    this.anchors = [{ ctx: t, beat: fromBeat, spb }];
+    this.anchors = [{ ctx: t, sec: beatToSec(this.map(), fromBeat) }];
     this.scheduleSounding(fromBeat, t);
     this.timer = setInterval(() => this.tick(), TICK_MS);
     this.tick();
@@ -160,22 +186,23 @@ export class Scheduler {
     const t = this.deps.now() + 0.04;
     this.nextBeat = beat;
     this.nextCtxTime = t;
-    const spb = secondsPerBeat(this.deps.getProject().bpm);
-    this.anchors.push({ ctx: t, beat, spb });
+    this.anchors.push({ ctx: t, sec: beatToSec(this.map(), beat) });
     this.scheduleSounding(beat, t);
     this.tick();
   }
 
-  /** Re-derive the beat mapping after a bpm change without stopping playback. */
+  /** Re-derive the beat mapping after a tempo edit without stopping playback. */
   retime(): void {
     if (!this.running) return;
     const now = this.deps.now();
     const pos = this.positionBeats();
-    const spb = secondsPerBeat(this.deps.getProject().bpm);
-    // Events up to nextCtxTime are already scheduled under the old tempo; map
+    const map = this.map();
+    const nowSec = beatToSec(map, pos);
+    // Events up to nextCtxTime are already scheduled under the old tempo; move
     // the beat cursor so new scheduling continues from the same wall-clock time.
-    this.nextBeat = pos + Math.max(0, this.nextCtxTime - now) / spb;
-    this.anchors.push({ ctx: now, beat: pos, spb });
+    this.nextBeat = secToBeat(map, nowSec + Math.max(0, this.nextCtxTime - now));
+    this.anchors.push({ ctx: now, sec: nowSec });
+    if (this.anchors.length > 24) this.anchors.splice(0, this.anchors.length - 24);
   }
 
   positionBeats(): number {
@@ -186,15 +213,17 @@ export class Scheduler {
       if (cand.ctx <= now) a = cand;
       else break;
     }
-    return Math.max(0, a.beat + (now - a.ctx) / a.spb);
+    return Math.max(0, secToBeat(this.map(), a.sec + (now - a.ctx)));
   }
 
   private scheduleSounding(beat: number, ctxTime: number): void {
     const p = this.deps.getProject();
-    const spb = secondsPerBeat(p.bpm);
+    const map = tempoMapOf(p);
     for (const ev of collectSoundingAt(p, beat)) {
       if (ev.kind === 'clipMid') {
-        const offsetSec = ev.clip.offset + ev.intoBeats * spb;
+        // How far into the source we are is real elapsed time since the clip
+        // started, which under a tempo map is an integral, not a product.
+        const offsetSec = ev.clip.offset + beatRangeSec(map, beat - ev.intoBeats, beat);
         if (offsetSec < getMediaDurationSec(ev.clip.mediaId)) {
           this.deps.scheduleClip(ev.clip, ctxTime, offsetSec);
         }
@@ -205,7 +234,7 @@ export class Scheduler {
           ev.pitch,
           ev.velocity,
           ctxTime,
-          ev.durBeats * spb,
+          beatRangeSec(map, beat, beat + ev.durBeats),
         );
       }
     }
@@ -213,19 +242,20 @@ export class Scheduler {
 
   private tick(): void {
     const p = this.deps.getProject();
-    const spb = secondsPerBeat(p.bpm);
+    const map = tempoMapOf(p);
     const horizon = this.deps.now() + LOOKAHEAD_SEC;
     let guard = 0;
     while (this.nextCtxTime < horizon && guard++ < 64) {
       const loop = p.loop;
-      let windowEndBeat = this.nextBeat + (horizon - this.nextCtxTime) / spb;
+      const fromSec = beatToSec(map, this.nextBeat);
+      let windowEndBeat = secToBeat(map, fromSec + (horizon - this.nextCtxTime));
       let wrap = false;
       if (loop.enabled && this.nextBeat < loop.end && windowEndBeat >= loop.end) {
         windowEndBeat = loop.end;
         wrap = true;
       }
       for (const ev of collectWindowEvents(p, this.nextBeat, windowEndBeat)) {
-        const when = this.nextCtxTime + (ev.beat - this.nextBeat) * spb;
+        const when = this.nextCtxTime + (beatToSec(map, ev.beat) - fromSec);
         if (ev.kind === 'clip') this.deps.scheduleClip(ev.clip, when, ev.offsetSec);
         else if (ev.kind === 'note')
           this.deps.scheduleNote(
@@ -234,15 +264,15 @@ export class Scheduler {
             ev.pitch,
             ev.velocity,
             when,
-            ev.durBeats * spb,
+            beatRangeSec(map, ev.beat, ev.beat + ev.durBeats),
           );
         else if (ev.kind === 'metronome') this.deps.scheduleMetronome(when, ev.accent);
       }
-      const windowEndCtx = this.nextCtxTime + (windowEndBeat - this.nextBeat) * spb;
+      const windowEndCtx = this.nextCtxTime + (beatToSec(map, windowEndBeat) - fromSec);
       if (wrap) {
         this.nextBeat = loop.start;
         this.nextCtxTime = windowEndCtx;
-        this.anchors.push({ ctx: windowEndCtx, beat: loop.start, spb });
+        this.anchors.push({ ctx: windowEndCtx, sec: beatToSec(map, loop.start) });
         if (this.anchors.length > 24) this.anchors.splice(0, this.anchors.length - 24);
         this.scheduleSounding(loop.start, windowEndCtx);
         this.deps.onLoopWrap?.();

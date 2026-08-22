@@ -15,7 +15,7 @@
  * recorder actually starts, and any count-in happens *before* that, so the
  * resulting clip lands where the user expects regardless of encoder latency.
  */
-import { beatsToSeconds, secondsToBeats } from '../model/music';
+import { projectBeatRangeSec, projectBeatsForSeconds } from '../model/music';
 import { newId } from '../model/ids';
 import { PEAKS_VERSION, type MediaRef } from '../model/media';
 import { diagLog } from '../state/diagnostics';
@@ -218,8 +218,12 @@ export async function commitTake(opts: CommitOptions): Promise<CommitResult | nu
   cacheBuffer(mediaId, buffer, peaks);
 
   const store = useProjectStore.getState();
-  const bpm = store.project.bpm;
-  const lengthBeats = Math.max(0.25, secondsToBeats(buffer.duration, bpm));
+  // Musical length of the take depends on where it lands: a take recorded
+  // across a tempo change is not `seconds x one bpm` beats long.
+  const lengthBeats = Math.max(
+    0.25,
+    projectBeatsForSeconds(store.project, startBeat, buffer.duration),
+  );
   const clipId = store.addRecordedClip({
     trackId,
     mediaId,
@@ -270,10 +274,10 @@ export async function stashRecovery(
   }
 }
 
-export function beatsForSeconds(seconds: number, bpm: number): number {
-  return secondsToBeats(seconds, bpm);
+export function beatsForSeconds(seconds: number, fromBeat = 0): number {
+  return projectBeatsForSeconds(useProjectStore.getState().project, fromBeat, seconds);
 }
 
-export function secondsForBeats(beats: number, bpm: number): number {
-  return beatsToSeconds(beats, bpm);
+export function secondsForBeats(beats: number, fromBeat = 0): number {
+  return projectBeatRangeSec(useProjectStore.getState().project, fromBeat, beats);
 }

@@ -1,4 +1,14 @@
-import type { LoopRegion, TimeSignature } from './types';
+import type { LoopRegion, ProjectData, TimeSignature } from './types';
+import {
+  avgSecPerBeat,
+  beatsForSecondsFrom,
+  bpmAt,
+  beatRangeSec,
+  beatToSec,
+  normalizeTempoMap,
+  secToBeat,
+  type TempoMap,
+} from './tempo';
 
 export function secondsPerBeat(bpm: number): number {
   return 60 / bpm;
@@ -101,4 +111,69 @@ export function faderPosToGain(pos: number): number {
 
 export function gainToFaderPos(gain: number): number {
   return clamp(Math.pow(clamp(gain, 0, 1.5) / 1.5, 1 / 2.2), 0, 1);
+}
+
+
+// ---------------------------------------------------------------- tempo map
+
+/**
+ * The project's tempo map, normalised once per project object.
+ *
+ * A project edited before v6 (or a QA fixture built by hand) has no `tempoMap`;
+ * it gets a one-event map from its `bpm` and `timeSig`, so every caller can
+ * assume a map exists without every caller having to build one. The cache is
+ * keyed by the project object, and the store replaces that object on each edit,
+ * so a tempo change is picked up on the very next read.
+ */
+const tempoMapCache = new WeakMap<object, TempoMap>();
+
+export function tempoMapOf(p: ProjectData): TempoMap {
+  const cached = tempoMapCache.get(p);
+  if (cached) return cached;
+  const map =
+    p.tempoMap && Array.isArray(p.tempoMap.tempos) && p.tempoMap.tempos.length > 0
+      ? p.tempoMap
+      : normalizeTempoMap(p.tempoMap, p.bpm, p.timeSig);
+  tempoMapCache.set(p, map);
+  return map;
+}
+
+/** Song seconds at an absolute beat, honouring tempo changes and ramps. */
+export function projectBeatToSec(p: ProjectData, beat: number): number {
+  return beatToSec(tempoMapOf(p), beat);
+}
+
+export function projectSecToBeat(p: ProjectData, sec: number): number {
+  return secToBeat(tempoMapOf(p), sec);
+}
+
+/** Duration in seconds of a beat span — the tempo-aware `beats * secondsPerBeat`. */
+export function projectBeatRangeSec(p: ProjectData, fromBeat: number, lengthBeats: number): number {
+  return beatRangeSec(tempoMapOf(p), fromBeat, fromBeat + lengthBeats);
+}
+
+/** Instantaneous tempo at a beat. Use for delay sync and readouts, not for spans. */
+export function projectBpmAt(p: ProjectData, beat: number): number {
+  return bpmAt(tempoMapOf(p), beat);
+}
+
+/**
+ * Seconds-per-beat to use for one clip's *source material*.
+ *
+ * Audio plays back at a fixed sample rate, so the amount of source a clip
+ * consumes is fixed by real time, not by beats. Averaging the tempo across the
+ * clip's own span gives the correct source length for a constant tempo and an
+ * honest one across a ramp — and it is the number both playback and the
+ * offline bounce feed into `computeClipSchedule`, so they cannot disagree.
+ */
+export function clipSecondsPerBeat(
+  p: ProjectData,
+  clip: { start: number; length: number },
+): number {
+  return avgSecPerBeat(tempoMapOf(p), clip.start, clip.length);
+}
+
+/** Musical length of a recording of `seconds` that starts at `fromBeat`. */
+export function projectBeatsForSeconds(p: ProjectData, fromBeat: number, seconds: number): number {
+  return beatsForSecondsFrom(tempoMapOf(p), fromBeat, seconds);
 }

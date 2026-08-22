@@ -167,44 +167,66 @@ function segmentSeconds(fromBeat: number, toBeat: number, ev: TempoEvent, next?:
   return (60 * Math.log(b1 / b0)) / slope;
 }
 
+/**
+ * Cumulative seconds at each tempo event, cached per map object.
+ *
+ * Without this, every beat→second conversion walks the whole tempo list, and
+ * the scheduler performs one per scheduled note. The cache is a WeakMap keyed
+ * by the (immutable) map, so a new map from an edit simply builds a new entry
+ * and the old one is collected.
+ */
+const cumCache = new WeakMap<TempoMap, number[]>();
+
+function cumulative(map: TempoMap): number[] {
+  let cum = cumCache.get(map);
+  if (cum) return cum;
+  const t = map.tempos;
+  cum = new Array<number>(t.length);
+  let sec = 0;
+  for (let i = 0; i < t.length; i++) {
+    cum[i] = sec;
+    const next = t[i + 1];
+    if (next) sec += segmentSeconds(t[i].beat, next.beat, t[i], next);
+  }
+  cumCache.set(map, cum);
+  return cum;
+}
+
 /** Wall-clock seconds from beat 0 to `beat`. */
 export function beatToSec(map: TempoMap, beat: number): number {
   const target = Math.max(0, beat);
   const t = map.tempos;
-  let sec = 0;
-  for (let i = 0; i < t.length; i++) {
-    const start = t[i].beat;
-    if (start >= target) break;
-    const next = t[i + 1];
-    const end = next ? Math.min(next.beat, target) : target;
-    sec += segmentSeconds(start, end, t[i], next);
-  }
-  return sec;
+  const cum = cumulative(map);
+  const i = tempoIndexAt(map, target);
+  return cum[i] + segmentSeconds(t[i].beat, target, t[i], t[i + 1]);
 }
 
 /** Inverse of `beatToSec`. */
 export function secToBeat(map: TempoMap, sec: number): number {
   const target = Math.max(0, sec);
   const t = map.tempos;
-  let acc = 0;
-  for (let i = 0; i < t.length; i++) {
-    const ev = t[i];
-    const next = t[i + 1];
-    const segEnd = next ? next.beat : Infinity;
-    const segSec = next ? segmentSeconds(ev.beat, next.beat, ev, next) : Infinity;
-    if (acc + segSec >= target || !next) {
-      const rem = target - acc;
-      if (ev.curve !== 'ramp' || !next || next.bpm === ev.bpm) {
-        return ev.beat + (rem * ev.bpm) / 60;
-      }
-      const slope = (next.bpm - ev.bpm) / (next.beat - ev.beat);
-      // invert 60·ln(b1/b0)/slope = rem  →  b1 = b0·e^(slope·rem/60)
-      const b1 = ev.bpm * Math.exp((slope * rem) / 60);
-      return Math.min(segEnd, ev.beat + (b1 - ev.bpm) / slope);
-    }
-    acc += segSec;
+  const cum = cumulative(map);
+  // last event whose cumulative time is at or before the target
+  let lo = 0;
+  let hi = t.length - 1;
+  let i = 0;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (cum[mid] <= target + 1e-12) {
+      i = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
   }
-  return 0;
+  const ev = t[i];
+  const next = t[i + 1];
+  const rem = target - cum[i];
+  if (ev.curve !== 'ramp' || !next || next.bpm === ev.bpm) {
+    return ev.beat + (rem * ev.bpm) / 60;
+  }
+  const slope = (next.bpm - ev.bpm) / (next.beat - ev.beat);
+  // invert 60·ln(b1/b0)/slope = rem  →  b1 = b0·e^(slope·rem/60)
+  const b1 = ev.bpm * Math.exp((slope * rem) / 60);
+  return Math.min(next.beat, ev.beat + (b1 - ev.bpm) / slope);
 }
 
 /** Duration in seconds of the beat range [from, to). Never negative. */
@@ -324,6 +346,17 @@ export function formatClock(seconds: number, ms = true): string {
   const milli = Math.round((sec - whole) * 1000);
   const core = `${h > 0 ? `${h}:${String(m).padStart(2, '0')}` : m}:${String(whole).padStart(2, '0')}`;
   return ms ? `${core}.${String(milli).padStart(3, '0')}` : core;
+}
+
+/**
+ * How many beats `seconds` of wall time covers, starting at `fromBeat`.
+ *
+ * This is what a recorded or imported file needs: it arrives with a duration in
+ * seconds and has to become a musical length, which under a tempo map depends
+ * on where on the timeline it lands.
+ */
+export function beatsForSecondsFrom(map: TempoMap, fromBeat: number, seconds: number): number {
+  return Math.max(0, secToBeat(map, beatToSec(map, fromBeat) + Math.max(0, seconds)) - fromBeat);
 }
 
 /** True when the map is a single constant tempo and signature (the fast path). */

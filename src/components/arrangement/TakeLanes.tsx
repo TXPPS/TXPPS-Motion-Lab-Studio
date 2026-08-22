@@ -5,7 +5,7 @@
  */
 import { memo } from 'react';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
-import { clamp, secondsPerBeat, snapBeat } from '../../model/music';
+import { clamp, clipSecondsPerBeat, snapBeat } from '../../model/music';
 import { compSpans } from '../../model/comping';
 import type { AudioClip, Take, Track } from '../../model/types';
 import { TRACK_COLORS } from '../../model/types';
@@ -25,7 +25,6 @@ interface RowProps {
   index: number;
   pxPerBeat: number;
   snap: number;
-  bpm: number;
 }
 
 export const TakeLaneRow = memo(function TakeLaneRow({
@@ -34,10 +33,9 @@ export const TakeLaneRow = memo(function TakeLaneRow({
   index,
   pxPerBeat,
   snap,
-  bpm,
 }: RowProps) {
   const store = useProjectStore;
-  const spb = secondsPerBeat(bpm);
+  const spb = useProjectStore((s) => clipSecondsPerBeat(s.project, clip));
   const widthPx = Math.max(6, clip.length * pxPerBeat);
   const spans = compSpans({ ...clip, soloTakeId: undefined }).filter(
     (s) => s.take.id === take.id,

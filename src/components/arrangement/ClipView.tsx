@@ -11,7 +11,7 @@ import {
 import { shortcutLabel } from '../../app/shortcuts';
 import { usePointerDrag, longPress } from '../../hooks/usePointerDrag';
 import { Waveform } from './Waveform';
-import { clamp, secondsPerBeat, snapBeat } from '../../model/music';
+import { clamp, clipSecondsPerBeat, snapBeat } from '../../model/music';
 import type { Clip, Track } from '../../model/types';
 import { TRACK_COLORS } from '../../model/types';
 import { compSpans } from '../../model/comping';
@@ -82,7 +82,8 @@ export const ClipView = memo(function ClipView({
 }: ClipViewProps) {
   const selected = useUiStore((s) => s.selectedClipIds.includes(clip.id));
   const snap = useUiStore((s) => s.snap);
-  const bpm = useProjectStore((s) => s.project.bpm);
+  // Source seconds per musical beat for THIS clip's span — tempo-map aware.
+  const spb = useProjectStore((s) => clipSecondsPerBeat(s.project, clip));
   const store = useProjectStore;
   const ui = useUiStore;
 
@@ -363,7 +364,6 @@ export const ClipView = memo(function ClipView({
     onEnd: () => store.getState().endGesture(),
   });
 
-  const spb = secondsPerBeat(bpm);
   const widthPx = Math.max(6, clip.length * pxPerBeat);
   const locked = !!clip.locked || !!track.locked;
 
@@ -472,7 +472,7 @@ export const ClipView = memo(function ClipView({
         <Waveform
           mediaId={clip.mediaId}
           offsetSec={clip.offset}
-          durationSec={clip.sourceDuration ?? clip.length * secondsPerBeat(bpm)}
+          durationSec={clip.sourceDuration ?? clip.length * spb}
           color={color}
           gain={clip.gain}
           fadeIn={clip.fadeIn}

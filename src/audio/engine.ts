@@ -4,7 +4,7 @@
  * methods here. The engine reacts to project-store changes (syncGraph) and
  * mirrors its status into the transport store.
  */
-import { secondsPerBeat } from '../model/music';
+import { clipSecondsPerBeat } from '../model/music';
 import type { AudioClip, ProjectData, SynthParams, Track } from '../model/types';
 import { useProjectStore } from '../state/projectStore';
 import { useTransportStore } from '../state/transportStore';
@@ -866,7 +866,7 @@ class AudioEngine {
    */
   private scheduleClip(clip: AudioClip, when: number, offsetSec: number): void {
     const p = useProjectStore.getState().project;
-    const spb = secondsPerBeat(p.bpm);
+    const spb = clipSecondsPerBeat(p, clip);
     // Take clips expand into one source per comp span; each span reschedules
     // through the plain path so a comp cannot behave differently from clips.
     if (clip.takes && clip.takes.length > 0) {
@@ -893,7 +893,7 @@ class AudioEngine {
     const buffer = getBufferSync(clip.mediaId);
     if (!buffer) return;
     const p = useProjectStore.getState().project;
-    const spb = secondsPerBeat(p.bpm);
+    const spb = clipSecondsPerBeat(p, clip);
     // Duration and gain envelope come from the shared scheduler so that an
     // exported bounce is sample-for-sample the same decision as live playback.
     const plan = computeClipSchedule(clip, offsetSec, buffer.duration, spb);
