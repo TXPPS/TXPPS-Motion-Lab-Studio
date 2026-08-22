@@ -21,9 +21,11 @@ import {
   clipCurve,
   complexMagnitude,
   complexMagnitudeDb,
+  compressorCurve,
   compressorGain,
   crossoverResponse,
   describeDivision,
+  dbToGain,
   eqMagnitudeResponse,
   expanderGain,
   identityCurve,
@@ -50,7 +52,7 @@ import {
   chainSteps,
   presetParams,
 } from '../src/model/effectPresets';
-import { buildEffectNode } from '../src/audio/effectChain';
+import { InsertChain, buildEffectNode } from '../src/audio/effectChain';
 import type { Effect, EffectKind } from '../src/model/types';
 
 const SR = 48000;
@@ -673,6 +675,156 @@ describe('effect builders', () => {
     node.update({ ...effect, params: { ...effect.params, resolution: 4 } }, 120, false);
     expect((node.tap as unknown as { fftSize: number }).fftSize).toBe(8192);
     node.dispose();
+  });
+});
+
+/**
+ * The compressor is the one processor a mixer expects to key from somewhere
+ * else, and for a long time it could not: it was a `DynamicsCompressorNode`,
+ * which has no external detector input, so the sidechain menu connected a key
+ * to nothing and the plugin face plotted a curve the audio never used. These
+ * pin down what replaced it — the key input, the law, the bypass and the meter.
+ */
+describe('the keyable compressor', () => {
+  const params = { threshold: -18, ratio: 6, knee: 9, attack: 5, release: 200, makeupDb: 0 };
+  const compressor = (overrides: Record<string, number> = {}, bypass = false): Effect => ({
+    id: 'comp',
+    kind: 'compressor',
+    bypass,
+    params: { ...params, ...overrides },
+  });
+
+  /**
+   * The control VCA's parts, identified by how they are wired rather than by
+   * name, because the recording context hands back anonymous nodes.
+   */
+  function partsOf(effect: Effect) {
+    const { ctx, connections } = recordingContext();
+    const node = buildEffectNode(ctx, effect);
+    const out = (n: unknown) => connections.filter((c) => c.from === n).map((c) => c.to);
+    const into = (n: unknown) => connections.filter((c) => c.to === n).map((c) => c.from);
+    const key = node.sidechain as unknown as RecordingNode;
+    const rect = out(key)[0] as RecordingNode;
+    const detector = out(rect)[0] as RecordingNode;
+    const constant = connections.find((c) => c.from.kind === 'constant')!.from;
+    const lookahead = out(node.input).find(
+      (n) => (n as RecordingNode).kind === 'delay',
+    ) as RecordingNode;
+    return {
+      node,
+      key: key as unknown as { gain: RecordingParam },
+      internalKey: into(rect).find((n) => n !== key) as unknown as { gain: RecordingParam },
+      shaper: out(detector)[0] as unknown as { curve: Float32Array },
+      depth: into(node.tap)[0] as unknown as { gain: RecordingParam },
+      dry: out(constant)[0] as unknown as { gain: RecordingParam },
+      vca: out(lookahead)[0] as unknown as { gain: RecordingParam },
+      lookahead: lookahead as unknown as { delayTime: RecordingParam },
+      makeup: node.output as unknown as { gain: RecordingParam },
+    };
+  }
+
+  it('shapes the gain with the exact law the plugin face plots', () => {
+    const effect = compressor();
+    const parts = partsOf(effect);
+    parts.node.update(effect, 120, false);
+
+    // Same array the face's `compressorGain` would produce point for point —
+    // the whole reason the drawn knee is now the heard knee.
+    expect(parts.shaper.curve).toEqual(compressorCurve(-18, 6, 9));
+    const curve = parts.shaper.curve;
+    for (let i = 0; i < curve.length; i += 37) {
+      const x = (i / (curve.length - 1)) * 2 - 1;
+      expect(curve[i]).toBeCloseTo(compressorGain(Math.abs(x), -18, 6, 9), 6);
+    }
+  });
+
+  it('rebuilds the curve when threshold, ratio or knee move, and only then', () => {
+    const effect = compressor();
+    const parts = partsOf(effect);
+    parts.node.update(effect, 120, false);
+    const first = parts.shaper.curve;
+
+    // Ballistics are ramped, not rebuilt: a slower release must not cost a curve.
+    parts.node.update(compressor({ release: 600 }), 120, false);
+    expect(parts.shaper.curve).toBe(first);
+
+    parts.node.update(compressor({ knee: 0 }), 120, false);
+    expect(parts.shaper.curve).not.toBe(first);
+    expect(parts.shaper.curve).toEqual(compressorCurve(-18, 6, 0));
+  });
+
+  it('switches its detector between its own signal and the key', () => {
+    const effect = compressor();
+    const parts = partsOf(effect);
+    expect(parts.node.sidechain).toBeTruthy();
+
+    parts.node.setSidechain!(true);
+    expect(parts.key.gain.value).toBe(1);
+    expect(parts.internalKey.gain.value).toBe(0);
+
+    parts.node.setSidechain!(false);
+    expect(parts.key.gain.value).toBe(0);
+    expect(parts.internalKey.gain.value).toBe(1);
+  });
+
+  it('is exactly unity gain when bypassed, makeup and lookahead included', () => {
+    const effect = compressor({ makeupDb: 12 });
+    const parts = partsOf(effect);
+    parts.node.update(effect, 120, false);
+    expect(parts.makeup.gain.value).toBeCloseTo(dbToGain(12), 9);
+
+    parts.node.update({ ...effect, bypass: true }, 120, true);
+    // The VCA's intrinsic gain is zero, so its whole gain comes from the two
+    // control paths: with depth shut and dry open it is the constant 1 exactly.
+    expect(parts.vca.gain.value).toBe(0);
+    expect(parts.depth.gain.value).toBe(0);
+    expect(parts.dry.gain.value).toBe(1);
+    // 12 dB of makeup sits downstream of that crossfade and has to stand down too.
+    expect(parts.makeup.gain.value).toBe(1);
+    // Any look-ahead left in circuit would be a delay nothing else in the
+    // chain has — the comb filter a bypassed insert must never introduce.
+    expect(parts.lookahead.delayTime.value).toBe(0);
+  });
+
+  it('reports gain reduction in dB from the control signal itself', () => {
+    const effect = compressor();
+    const parts = partsOf(effect);
+    parts.node.update(effect, 120, false);
+    const tap = parts.node.tap as unknown as {
+      getFloatTimeDomainData(buffer: Float32Array): void;
+    };
+
+    tap.getFloatTimeDomainData = (b) => b.fill(1);
+    expect(parts.node.gainReductionDb!()).toBe(0);
+    tap.getFloatTimeDomainData = (b) => b.fill(0.5);
+    expect(parts.node.gainReductionDb!()).toBeCloseTo(-6.0206, 3);
+    // A control signal of zero is a shut VCA, not an infinite reading.
+    tap.getFloatTimeDomainData = (b) => b.fill(0);
+    expect(parts.node.gainReductionDb!()).toBe(0);
+  });
+
+  it('opens a key input on exactly the processors that can use one', () => {
+    // The multiband is the deliberate omission: one `EffectNode` carries one
+    // key, and one key across three band detectors is not multiband keying.
+    const keyable = new Set(['compressor', 'gate', 'limiter', 'deesser']);
+    for (const spec of EFFECT_SPECS) {
+      const { ctx } = recordingContext();
+      const node = buildEffectNode(ctx, effectOf(spec.kind));
+      expect(Boolean(node.sidechain), spec.kind).toBe(keyable.has(spec.kind));
+      expect(typeof node.setSidechain === 'function', spec.kind).toBe(keyable.has(spec.kind));
+      node.dispose();
+    }
+  });
+
+  it('hands the engine a key input for a chain that is only a compressor', () => {
+    // What actually broke: the engine builds a key send and connects it to
+    // whatever `sidechainInputs()` returns. For a plain compressor that was an
+    // empty list, so the key went nowhere and nothing said so.
+    const { ctx } = recordingContext();
+    const chain = new InsertChain(ctx);
+    chain.sync([compressor()], 120);
+    expect(chain.sidechainInputs()).toHaveLength(1);
+    chain.dispose();
   });
 });
 

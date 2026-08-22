@@ -568,28 +568,48 @@ function buildTrim(ctx: BaseAudioContext, effect: Effect): EffectNode {
   };
 }
 
+/**
+ * Feed-forward compressor on the shared control VCA.
+ *
+ * A `DynamicsCompressorNode` is fewer nodes and was what this was, but it has
+ * no external key input — so a compressor built on one can never be keyed from
+ * another channel, which is the single thing a mixer's sidechain menu is for.
+ * Sharing the core with the gate, the limiter and the de-esser buys three
+ * things at once: the key input, a transfer curve that is literally the
+ * function the plugin face plots, and a bypass that crossfades to a dry path
+ * instead of flattening a curve in front of the native node's own look-ahead.
+ */
 function buildCompressor(ctx: BaseAudioContext, effect: Effect): EffectNode {
-  const comp = ctx.createDynamicsCompressor();
-  const makeup = ctx.createGain();
-  comp.connect(makeup);
+  const vca = new ControlVca(ctx, 'compress');
+  const makeup = makeGain(ctx, 1);
+  vca.output.connect(makeup);
 
   return {
     id: effect.id,
     kind: effect.kind,
-    input: comp,
+    input: vca.input,
     output: makeup,
-    gainReductionDb: () => comp.reduction,
+    tap: vca.tap,
+    sidechain: vca.keyInput,
+    setSidechain: (external: boolean) => vca.setSidechain(external),
+    gainReductionDb: () => vca.gainReductionDb(),
     update: (e, _bpm, bypass) => {
-      // Bypass flattens the curve instead of rerouting: ratio 1 with a 0 dB
-      // threshold is mathematically transparent.
-      setParam(comp.threshold, bypass ? 0 : paramOf(e, 'threshold'), ctx);
-      setParam(comp.ratio, bypass ? 1 : paramOf(e, 'ratio'), ctx);
-      setParam(comp.attack, paramOf(e, 'attack') / 1000, ctx);
-      setParam(comp.release, paramOf(e, 'release') / 1000, ctx);
-      setParam(comp.knee, bypass ? 0 : paramOf(e, 'knee'), ctx);
+      const threshold = paramOf(e, 'threshold');
+      const ratio = paramOf(e, 'ratio');
+      const knee = paramOf(e, 'knee');
+      vca.setCurve(`${threshold}/${ratio}/${knee}`, () => compressorCurve(threshold, ratio, knee));
+      vca.setBallistics(paramOf(e, 'attack'), paramOf(e, 'release'), 0);
+      vca.setLookahead(0);
+      vca.setActive(!bypass);
+      // Makeup sits downstream of the VCA, so the VCA's dry path cannot undo
+      // it: bypass has to return it to unity itself for the insert to be the
+      // exact unity gain the crossfade promises.
       setParam(makeup.gain, bypass ? 1 : dbToGain(paramOf(e, 'makeupDb')), ctx);
     },
-    dispose: () => kill([comp, makeup]),
+    dispose: () => {
+      vca.dispose();
+      kill([makeup]);
+    },
   };
 }
 
@@ -667,6 +687,15 @@ function buildLimiter(ctx: BaseAudioContext, effect: Effect): EffectNode {
  * `tests/effectCurves.test.ts` against the same coefficient maths the browser
  * uses. Phase is not preserved, which is why bypass crossfades to a dry path
  * rather than relying on neutral compressor settings.
+ *
+ * The bands stay on `DynamicsCompressorNode` where the single-band compressor
+ * no longer does, and deliberately: an `EffectNode` offers one key input, and
+ * one external key driving all three detectors at once is not what keying a
+ * multiband means. With nothing worth exposing, the trade is only fidelity
+ * against weight, and three control VCAs would be some ninety extra nodes on a
+ * processor whose home is a bus. All three bands carry the same node latency,
+ * so the flat sum above is untouched — but this is the one dynamics processor
+ * here that cannot be keyed, and no menu says otherwise.
  */
 function buildMultiband(ctx: BaseAudioContext, effect: Effect): EffectNode {
   const wd = new WetDry(ctx);
