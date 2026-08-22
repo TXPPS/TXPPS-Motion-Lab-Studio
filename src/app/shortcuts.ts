@@ -223,9 +223,10 @@ export const SHORTCUTS: Shortcut[] = [
   // View
   {
     id: 'tools',
-    combo: '1-4',
-    display: '1–4',
-    description: 'Pointer · Split · Erase · Mute tool',
+    combo: '1-9',
+    display: '1–9',
+    description:
+      'Tools, in toolbar order: Pointer · Range · Split · Erase · Mute · Slip · Paint · Listen · Zoom',
     category: 'View',
   },
   {
@@ -253,10 +254,31 @@ export const SHORTCUTS: Shortcut[] = [
   // Audio editing (Milestone 6)
   {
     id: 'tool-slip',
-    combo: '5',
-    display: '5',
+    combo: '6',
+    display: '6',
     description: 'Slip tool: drag audio inside a fixed clip window',
     category: 'Editing',
+  },
+  {
+    id: 'tool-paint',
+    combo: '7',
+    display: '7',
+    description: 'Paint tool: drag an empty instrument or drum lane to draw a MIDI clip',
+    category: 'Editing',
+  },
+  {
+    id: 'tool-listen',
+    combo: '8',
+    display: '8',
+    description: 'Listen tool: hold a clip to hear it from the point pressed',
+    category: 'Editing',
+  },
+  {
+    id: 'tool-zoom',
+    combo: '9',
+    display: '9',
+    description: 'Zoom tool: drag across to zoom, down for taller tracks, click to step in',
+    category: 'View',
   },
   {
     id: 'clip-nudge',

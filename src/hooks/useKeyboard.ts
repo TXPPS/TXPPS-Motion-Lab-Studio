@@ -4,7 +4,7 @@ import { midi } from '../audio/midi';
 import { clamp } from '../model/music';
 import { useProjectStore } from '../state/projectStore';
 import { translateCombo } from '../state/keymapStore';
-import { useUiStore } from '../state/uiStore';
+import { ARRANGE_TOOLS, useUiStore } from '../state/uiStore';
 import { saveCurrent } from '../app/projectActions';
 import {
   copySelection,
@@ -324,10 +324,10 @@ export function useGlobalKeyboard(): void {
         engine.returnToStart();
         return;
       }
-      // Tool selection: 1-5 map to the arrangement tool row.
-      if (k >= '1' && k <= '5') {
-        const tools = ['pointer', 'split', 'erase', 'mute', 'slip'] as const;
-        useUiStore.getState().set({ tool: tools[Number(k) - 1] });
+      // Tool selection: 1-9 map to the arrangement tool row, in its own order.
+      if (k >= '1' && k <= '9') {
+        const tool = ARRANGE_TOOLS[Number(k) - 1];
+        if (tool) useUiStore.getState().set({ tool });
         return;
       }
       if (k === 'escape') {

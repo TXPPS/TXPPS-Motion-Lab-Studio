@@ -266,7 +266,7 @@ test.describe('editing tools', () => {
     ).toBe(before + 1);
 
     // Mute tool: click toggles the muted style.
-    await page.keyboard.press('4');
+    await page.keyboard.press('5'); // mute tool
     const bass = await clipBox(page, 'Bass A');
     await page.mouse.click(bass.x + 40, bass.y + bass.height / 2);
     await page.waitForTimeout(200);
@@ -275,7 +275,7 @@ test.describe('editing tools', () => {
     );
 
     // Erase tool: click deletes. ("Lead Motif" is the unique-named clip.)
-    await page.keyboard.press('3');
+    await page.keyboard.press('4'); // erase tool
     const tex = await clipBox(page, 'Lead Motif');
     await page.mouse.click(tex.x + 30, tex.y + tex.height / 2);
     await page.waitForTimeout(200);

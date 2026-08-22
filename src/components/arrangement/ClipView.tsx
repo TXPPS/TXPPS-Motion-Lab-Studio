@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { copySelection, cutSelection, duplicateSelection } from '../../app/clipboardActions';
 import {
   crossfadeSelection,
@@ -83,6 +83,8 @@ export const ClipView = memo(function ClipView({
 }: ClipViewProps) {
   const selected = useUiStore((s) => s.selectedClipIds.includes(clip.id));
   const snap = useUiStore((s) => s.snap);
+  /** True while the listen tool is holding this clip, for the affordance. */
+  const [listening, setListening] = useState(false);
   // Source seconds per musical beat for THIS clip's span — tempo-map aware.
   const spb = useProjectStore((s) => clipSecondsPerBeat(s.project, clip));
   const store = useProjectStore;
@@ -375,6 +377,32 @@ export const ClipView = memo(function ClipView({
   const locked = !!clip.locked || !!track.locked;
 
   /** Slip tool: slide the source under the fixed clip window. */
+  /**
+   * Listen: hold to hear the clip from the point pressed, release to stop.
+   *
+   * The preview runs beside the transport — it never seeks and never starts or
+   * stops playback — so pressing a clip while the song is running adds it to
+   * what is already sounding rather than taking the song over. Ending it is
+   * the drag hook's job, which is why this is a drag with nothing in its move:
+   * pointerup, pointercancel and losing the window all reach `onEnd`, and a
+   * preview that outlives the finger holding it is the one failure that
+   * matters here.
+   */
+  const listenHold = usePointerDrag<void>({
+    onStart: (e) => {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setListening(true);
+      void engine.previewClip(clip.id, clip.start + (e.clientX - rect.left) / pxPerBeat);
+    },
+    onMove: () => {
+      /* a listen does not scrub: it keeps playing from where it was pressed */
+    },
+    onEnd: () => {
+      setListening(false);
+      engine.stopPreview();
+    },
+  });
+
   const dragSlip = usePointerDrag<{ offset0: number; max?: number }>({
     onStart: () => {
       store.getState().beginGesture();
@@ -431,18 +459,29 @@ export const ClipView = memo(function ClipView({
   const color = track.color;
   return (
     <div
-      className={`clip${selected ? ' selected' : ''}${clip.muted ? ' muted' : ''}`}
+      className={`clip${selected ? ' selected' : ''}${clip.muted ? ' muted' : ''}${
+        listening ? ' listening' : ''
+      }`}
       style={{
         left: clip.start * pxPerBeat,
         width: widthPx,
         ['--clip-bg' as string]: `color-mix(in srgb, ${color} 30%, #10151b)`,
       }}
       data-testid={`clip-${clip.name}`}
+      data-listening={listening || undefined}
       onPointerDown={(e) => {
         // Non-pointer tools act on press and never start a drag. The action
         // uses the exact position under the cursor, snapped like any edit.
         const tool = ui.getState().tool;
+        // Zoom is a gesture on the timeline, not on a clip: let it through to
+        // the lanes container so zooming works over a busy arrangement too.
+        if (tool === 'zoom') return;
         if (tool !== 'pointer' && e.button === 0) {
+          // Listening is not editing, so it works on locked clips as well.
+          if (tool === 'listen') {
+            listenHold(e);
+            return;
+          }
           e.stopPropagation();
           if (locked) {
             ui.getState().toast('info', 'This clip is locked — unlock it to edit.');
@@ -455,6 +494,8 @@ export const ClipView = memo(function ClipView({
           } else if (tool === 'slip') {
             if (clip.type === 'audio') dragSlip(e);
             else ui.getState().toast('info', 'Slip works on audio clips.');
+          } else if (tool === 'paint') {
+            ui.getState().toast('info', 'Paint draws on empty lane space — there is a clip here.');
           } else if (tool === 'split') {
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
             const at = snapBeat(clip.start + (e.clientX - rect.left) / pxPerBeat, snap);
@@ -469,12 +510,17 @@ export const ClipView = memo(function ClipView({
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
+        // Two zoom steps are two zoom steps, not a request for the editor.
+        if (ui.getState().tool === 'zoom') return;
         if (clip.type === 'midi') ui.getState().openEditorFor(clip.id, window.innerWidth < 700);
         else if (clip.type === 'audio' && clip.takes?.length) {
           store.getState().setClipView(clip.id, { takesOpen: !clip.takesOpen });
         }
       }}
       onContextMenu={(e) => {
+        // The zoom tool's right-click is a zoom step: leave it to the timeline
+        // rather than covering the view being zoomed with a clip menu.
+        if (ui.getState().tool === 'zoom') return;
         e.preventDefault();
         openMenu(e.clientX, e.clientY);
       }}

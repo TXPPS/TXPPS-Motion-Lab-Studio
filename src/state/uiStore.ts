@@ -82,9 +82,9 @@ interface UiState {
   exportOpen: boolean;
   /** Channel Overview strip above the console */
   channelOverview: boolean;
-  /** Active arrangement tool */
   /** cue mix being monitored on the main output, or null for the main mix */
   monitorCueId: string | null;
+  /** Active arrangement tool */
   tool: ArrangeTool;
 
   selectedTrackId: string | null;

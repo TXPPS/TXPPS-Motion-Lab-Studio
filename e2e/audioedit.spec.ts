@@ -132,7 +132,7 @@ test.describe('crossfades and healing', () => {
     const before = await clipCount(page);
     const clip = page.locator('[data-testid="clip-Perc 2-bar"]').first();
     const box = (await clip.boundingBox())!;
-    await page.keyboard.press('2'); // split tool
+    await page.keyboard.press('3'); // split tool
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await page.waitForTimeout(200);
     expect(await clipCount(page)).toBe(before + 1);
@@ -277,7 +277,7 @@ test.describe('time editing on the stress fixture', () => {
     // Slip: drag inside "Slip me" with the slip tool.
     let slip = (await clipByName(page, 'Slip me'))!;
     const offset0 = slip.offset!;
-    await page.keyboard.press('5');
+    await page.keyboard.press('6'); // slip tool
     const el = page.locator('[data-testid="clip-Slip me"]');
     await el.scrollIntoViewIfNeeded();
     const sb = (await el.boundingBox())!;
@@ -303,7 +303,7 @@ test.describe('time editing on the stress fixture', () => {
     expect(p4After.start).toBeCloseTo(p4Before.start - p4Before.length, 5);
 
     // Locked track: the erase tool refuses.
-    await page.keyboard.press('3');
+    await page.keyboard.press('4'); // erase tool
     const locked = page.locator('[data-testid="clip-Untouchable"]');
     const lb = (await locked.boundingBox())!;
     await page.mouse.click(lb.x + 20, lb.y + 10);

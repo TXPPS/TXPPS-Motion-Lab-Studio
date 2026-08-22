@@ -35,15 +35,32 @@ import {
 } from '../../app/rangeActions';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import type { AudioClip, Clip } from '../../model/types';
+import {
+  MAX_LANE_SCALE,
+  MIN_LANE_SCALE,
+  ZOOM_STEP,
+  laneScaleFromDrag,
+  nextPxPerBeat,
+  paintSpan,
+  zoomAnchorScroll,
+  zoomFactorFromDrag,
+} from '../../model/arrangeTools';
 
-/** The offered tools. Range/draw/zoom/hand are deferred until fully usable. */
-const TOOLS = [
+/**
+ * The tool row. `ARRANGE_TOOLS` fixes the order and the number keys; this adds
+ * what each one looks like and what it says it does. A unit test holds the two
+ * lists together.
+ */
+export const TOOLS = [
   { id: 'pointer', label: 'Pointer', icon: 'cursor' },
   { id: 'range', label: 'Range (select time across tracks)', icon: 'range' },
   { id: 'split', label: 'Split', icon: 'scissors' },
   { id: 'erase', label: 'Erase', icon: 'eraser' },
   { id: 'mute', label: 'Mute', icon: 'speaker-off' },
   { id: 'slip', label: 'Slip (drag audio inside a fixed clip)', icon: 'wave' },
+  { id: 'paint', label: 'Paint (drag an empty lane to draw a MIDI clip)', icon: 'paint' },
+  { id: 'listen', label: 'Listen (press and hold a clip to hear it)', icon: 'listen' },
+  { id: 'zoom', label: 'Zoom (drag across to zoom, down for taller tracks)', icon: 'zoom-drag' },
 ] as const;
 
 const RULER_H = 42;
@@ -55,13 +72,26 @@ const EDGE_MAX = 22;
 const clampLaneH = (h: number | undefined) => clamp(h ?? AUTO_LANE_H, 26, 120);
 
 /**
+ * Track lane height at a vertical zoom, in whole pixels. Rounded once here so
+ * the lane elements, the band totals and the Y hit-testing all use the same
+ * integer — a fractional height that each of them rounds separately drifts a
+ * pixel per track and lands a cross-track drag on the wrong lane.
+ */
+const laneHeightAt = (scale: number) =>
+  Math.round(LANE_H * clamp(scale, MIN_LANE_SCALE, MAX_LANE_SCALE));
+
+/**
  * A track's vertical band: the clip lane plus its expanded automation lanes.
  * Everything that maps Y to a track (marquee rows, cross-track clip drags)
  * uses these totals so the two columns can never disagree.
  */
-function bandHeights(tracks: Track[], clips: Clip[]): { clip: number; total: number }[] {
+function bandHeights(
+  tracks: Track[],
+  clips: Clip[],
+  laneH: number,
+): { clip: number; total: number }[] {
   return tracks.map((t) => {
-    const clip = t.collapsed ? LANE_H_COLLAPSED : LANE_H;
+    const clip = t.collapsed ? LANE_H_COLLAPSED : laneH;
     const lanes =
       t.automationOpen && t.automation
         ? t.automation.reduce((a, l) => a + clampLaneH(l.height), 0)
@@ -113,6 +143,7 @@ export function Arrangement() {
   const timeSig = useProjectStore((s) => s.project.timeSig);
   const endBeat = useProjectStore((s) => projectEndBeat(s.project));
   const pxPerBeat = useUiStore((s) => s.pxPerBeat);
+  const laneScale = useUiStore((s) => s.laneScale);
   const snap = useUiStore((s) => s.snap);
   const selectedTrackId = useUiStore((s) => s.selectedTrackId);
   const tool = useUiStore((s) => s.tool);
@@ -190,7 +221,8 @@ export function Arrangement() {
   // Always span at least 72 bars so there is real horizontal range to scroll.
   const contentBeats = Math.max(endBeat + bpb * 4, loop.end + bpb, bpb * 72);
   const timelineW = Math.ceil(contentBeats * pxPerBeat);
-  const bands = useMemo(() => bandHeights(tracks, clips), [tracks, clips]);
+  const laneH = laneHeightAt(laneScale);
+  const bands = useMemo(() => bandHeights(tracks, clips, laneH), [tracks, clips, laneH]);
   const heights = useMemo(() => bands.map((b) => b.total), [bands]);
   /** Resolved automation lanes per track (only for expanded tracks). */
   const lanesByTrack = useMemo(() => tracks.map((t) => trackLanes(t, project)), [tracks, project]);
@@ -384,28 +416,47 @@ export function Arrangement() {
   const headerWidth = () =>
     (viewportRef.current?.querySelector('.arr-header-col') as HTMLElement | null)?.clientWidth ?? 0;
 
-  /** Zoom, keeping the beat under the anchor (pointer or viewport centre) fixed. */
-  const zoomBy = useCallback((factor: number, anchorClientX?: number) => {
+  /**
+   * The anchor's distance from the left edge of the lane area, past the sticky
+   * header column — the offset every zoom is measured against.
+   */
+  const anchorOffset = useCallback((anchorClientX?: number) => {
     const vp = viewportRef.current;
-    const ui = useUiStore.getState();
-    const prev = ui.pxPerBeat;
-    const next = clamp(Math.round(prev * factor * 10) / 10, 6, 120);
-    if (!vp || next === prev) {
-      ui.set({ pxPerBeat: next });
-      return;
-    }
+    if (!vp) return 0;
     const headerW = (vp.querySelector('.arr-header-col') as HTMLElement | null)?.clientWidth ?? 0;
-    const rect = vp.getBoundingClientRect();
-    const offsetInView =
-      anchorClientX !== undefined
-        ? anchorClientX - rect.left - headerW
-        : (vp.clientWidth - headerW) / 2;
-    const anchorBeat = (vp.scrollLeft + offsetInView) / prev;
-    ui.set({ pxPerBeat: next });
-    requestAnimationFrame(() => {
-      vp.scrollLeft = Math.max(0, anchorBeat * next - offsetInView);
-    });
+    return anchorClientX !== undefined
+      ? anchorClientX - vp.getBoundingClientRect().left - headerW
+      : (vp.clientWidth - headerW) / 2;
   }, []);
+
+  /** Zoom to a level, keeping the beat under the anchor where it was. */
+  const zoomTo = useCallback(
+    (next: number, anchorClientX?: number) => {
+      const vp = viewportRef.current;
+      const ui = useUiStore.getState();
+      const prev = ui.pxPerBeat;
+      if (!vp || next === prev) {
+        ui.set({ pxPerBeat: next });
+        return;
+      }
+      const target = zoomAnchorScroll(vp.scrollLeft, anchorOffset(anchorClientX), prev, next);
+      ui.set({ pxPerBeat: next });
+      // The scroll has to wait for the re-rendered content width, or the
+      // browser clamps it against a timeline that is still the old size.
+      requestAnimationFrame(() => {
+        vp.scrollLeft = target;
+      });
+    },
+    [anchorOffset],
+  );
+
+  /** Zoom by a factor, keeping the beat under the anchor (or the centre) fixed. */
+  const zoomBy = useCallback(
+    (factor: number, anchorClientX?: number) => {
+      zoomTo(nextPxPerBeat(useUiStore.getState().pxPerBeat, factor), anchorClientX);
+    },
+    [zoomTo],
+  );
 
   // Wheel: vertical by default, horizontal with shift, zoom with ctrl/cmd.
   useEffect(() => {
@@ -530,7 +581,7 @@ export function Arrangement() {
     const y = clientY - rect.top;
     const proj = useProjectStore.getState().project;
     const ts = proj.tracks;
-    const hs = bandHeights(ts, proj.clips);
+    const hs = bandHeights(ts, proj.clips, laneHeightAt(useUiStore.getState().laneScale));
     let acc = 0;
     for (let i = 0; i < ts.length; i++) {
       if (y >= acc && y < acc + hs[i].total) return ts[i];
@@ -588,6 +639,160 @@ export function Arrangement() {
       }),
     [snapMode, snap, project, pxPerBeat, snapEvents],
   );
+
+  /** Beat under a client X, in the lanes' own coordinates. */
+  const beatAtClientX = useCallback(
+    (clientX: number) => {
+      const rect = viewportRef.current?.querySelector('.arr-lanes')?.getBoundingClientRect();
+      return rect ? Math.max(0, (clientX - rect.left) / pxPerBeat) : 0;
+    },
+    [pxPerBeat],
+  );
+
+  interface PaintState {
+    track: Track;
+    /** lane top and height in lanes-local px, for the ghost */
+    top: number;
+    height: number;
+    originBeat: number;
+    /** last beat the pointer reached, so the release knows the span */
+    pointerBeat: number;
+  }
+
+  /**
+   * The lane a paint gesture pressed on. The lane element knows its own track
+   * and its own offset; hit-testing Y a second time from the container would
+   * be a second answer to a question already answered.
+   */
+  const paintLane = useRef<Omit<PaintState, 'originBeat' | 'pointerBeat'> | null>(null);
+  /** The clip a paint drag is asking for, in lanes-local px. */
+  const [paintGhost, setPaintGhost] = useState<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
+
+  /** What a paint gesture would create, given how far the pointer has gone. */
+  const paintedSpan = useCallback(
+    (d: PaintState, moved: boolean) =>
+      paintSpan(d.originBeat, d.pointerBeat, snapTo, {
+        // A click means a bar, measured at the press — under a signature map
+        // that is not always four beats.
+        clickLength: beatsPerBarAt(tempoMapOf(project), d.originBeat),
+        minLength: snap > 0 ? snap : 0.25,
+        moved,
+      }),
+    [snapTo, project, snap],
+  );
+
+  /**
+   * Paint: drag empty lane space to draw a MIDI clip of the dragged length,
+   * click to drop one bar. The clip appears on release rather than growing
+   * live, so an abandoned gesture leaves neither a clip nor an undo step.
+   */
+  const dragPaint = usePointerDrag<PaintState | null>({
+    onStart: (e) => {
+      const lane = paintLane.current;
+      if (!lane) return null;
+      const beat = beatAtClientX(e.clientX);
+      return { ...lane, originBeat: beat, pointerBeat: beat };
+    },
+    onMove: (_dx, _dy, e, d) => {
+      if (!d) return;
+      d.pointerBeat = beatAtClientX(e.clientX);
+      const span = paintedSpan(d, true);
+      setPaintGhost({
+        x: span.start * pxPerBeat,
+        w: Math.max(2, span.length * pxPerBeat),
+        y: d.top,
+        h: d.height,
+      });
+      edgeScroll(e.clientX, e.clientY);
+    },
+    onEnd: (moved, d) => {
+      setPaintGhost(null);
+      paintLane.current = null;
+      if (!d) return;
+      const span = paintedSpan(d, moved);
+      const id = useProjectStore.getState().addMidiClip(d.track.id, span.start, span.length);
+      useUiStore.getState().selectClip(id, d.track.id);
+    },
+  });
+
+  /** Start a paint gesture on a lane, or say why this lane cannot hold a drawn clip. */
+  const paintOnLane = useCallback(
+    (e: React.PointerEvent, track: Track, top: number, height: number) => {
+      if (track.type === 'instrument' || track.type === 'drum') {
+        paintLane.current = { track, top, height };
+        dragPaint(e);
+        return;
+      }
+      useUiStore
+        .getState()
+        .toast(
+          'info',
+          track.type === 'audio'
+            ? 'Paint draws MIDI clips. An audio clip needs media — drop a file here or record.'
+            : `A ${track.type} track holds no clips.`,
+        );
+    },
+    [dragPaint],
+  );
+
+  /**
+   * Zoom: drag across to zoom the timeline around the point pressed, drag down
+   * to make the tracks taller. Every move is measured from the press rather
+   * than from the move before it, so a wandering gesture cannot accumulate
+   * drift, and the axis is locked once so a horizontal drag with a wobble in
+   * it does not quietly resize the tracks too.
+   */
+  const dragZoom = usePointerDrag<{
+    clientX: number;
+    alt: boolean;
+    px: number;
+    scale: number;
+    scrollLeft: number;
+    offset: number;
+    axis: 'x' | 'y' | null;
+  }>({
+    onStart: (e) => {
+      const ui = useUiStore.getState();
+      return {
+        clientX: e.clientX,
+        alt: e.altKey,
+        px: ui.pxPerBeat,
+        scale: ui.laneScale,
+        scrollLeft: viewportRef.current?.scrollLeft ?? 0,
+        offset: anchorOffset(e.clientX),
+        axis: null,
+      };
+    },
+    onMove: (dx, dy, _e, d) => {
+      if (!d.axis && Math.max(Math.abs(dx), Math.abs(dy)) > 8) {
+        d.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+      }
+      if (d.axis === 'y') {
+        useUiStore.getState().set({ laneScale: laneScaleFromDrag(d.scale, dy) });
+        return;
+      }
+      if (d.axis !== 'x') return;
+      const next = nextPxPerBeat(d.px, zoomFactorFromDrag(dx));
+      const vp = viewportRef.current;
+      const target = zoomAnchorScroll(d.scrollLeft, d.offset, d.px, next);
+      useUiStore.getState().set({ pxPerBeat: next });
+      if (vp) {
+        requestAnimationFrame(() => {
+          vp.scrollLeft = target;
+        });
+      }
+    },
+    onEnd: (moved, d) => {
+      // A click is one step in, Alt-click one step out — the same steps the
+      // toolbar's zoom buttons take.
+      if (!moved) zoomTo(nextPxPerBeat(d.px, d.alt ? 1 / ZOOM_STEP : ZOOM_STEP), d.clientX);
+    },
+  });
 
   const rulerPointer = useCallback(
     (e: React.PointerEvent) => {
@@ -876,9 +1081,24 @@ export function Arrangement() {
               className="arr-lanes"
               data-testid="arr-lanes"
               onPointerDown={(e) => {
+                if (e.button !== 0) return;
+                // Zoom works over clips as much as between them, so it is taken
+                // here rather than on whichever lane happened to be pressed.
+                if (tool === 'zoom') {
+                  dragZoom(e);
+                  return;
+                }
+                // A paint press belongs to the lane, which knows its own track;
+                // anything arriving here missed every lane.
+                if (tool === 'paint') return;
                 // Mouse only — see dragMarquee. Not invoking the hook for touch
                 // keeps native scroll untouched.
-                if (e.pointerType === 'mouse' && e.button === 0) dragMarquee(e);
+                if (e.pointerType === 'mouse') dragMarquee(e);
+              }}
+              onContextMenu={(e) => {
+                if (tool !== 'zoom') return;
+                e.preventDefault();
+                zoomBy(1 / ZOOM_STEP, e.clientX);
               }}
             >
               <div className="arr-grid-canvas" style={gridStyle} />
@@ -890,7 +1110,12 @@ export function Arrangement() {
                     }`}
                     style={{ height: bands[i].clip }}
                     data-testid={`lane-${t.name}`}
-                    onPointerDown={() => useUiStore.getState().selectTrack(t.id)}
+                    onPointerDown={(e) => {
+                      useUiStore.getState().selectTrack(t.id);
+                      if (tool === 'paint' && e.button === 0) {
+                        paintOnLane(e, t, laneTops[i], bands[i].clip);
+                      }
+                    }}
                     onDragOver={(e) => {
                       // Only audio tracks can hold a file; anything else keeps the
                       // default "no drop" cursor rather than accepting and failing.
@@ -915,6 +1140,10 @@ export function Arrangement() {
                       importDrop(e.dataTransfer, { trackId: t.id, startBeat: beat });
                     }}
                     onDoubleClick={(e) => {
+                      // The pointer tool's shortcut for a clip. Every other
+                      // tool has its own meaning for a second press — paint
+                      // has already drawn one, zoom has already zoomed twice.
+                      if (tool !== 'pointer') return;
                       if (t.type !== 'instrument' && t.type !== 'drum') return;
                       const lanes = viewportRef.current?.querySelector('.arr-lanes');
                       if (!lanes) return;
@@ -986,6 +1215,18 @@ export function Arrangement() {
                     rangeMenu(e.clientX, e.clientY);
                   }}
                   title="Range — right-click for what you can do with it"
+                />
+              )}
+              {paintGhost && (
+                <div
+                  className="arr-paint-ghost"
+                  data-testid="paint-ghost"
+                  style={{
+                    left: paintGhost.x,
+                    top: paintGhost.y,
+                    width: paintGhost.w,
+                    height: paintGhost.h,
+                  }}
                 />
               )}
               {marquee && (

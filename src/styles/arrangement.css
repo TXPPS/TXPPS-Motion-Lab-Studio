@@ -503,6 +503,23 @@
   border-radius: 2px;
 }
 
+/* The clip under a listen hold, so it is obvious what is sounding. */
+.clip.listening {
+  outline: 1px solid var(--warm);
+  outline-offset: -1px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--warm) 35%, transparent);
+}
+
+/* The clip a paint drag is asking for, before it exists. */
+.arr-paint-ghost {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--accent) 75%, transparent);
+}
+
 /* Tool cursors + handle gating --------------------------------------------- */
 .arr[data-tool='split'] .clip {
   cursor: col-resize;
@@ -512,6 +529,28 @@
 }
 .arr[data-tool='mute'] .clip {
   cursor: pointer;
+}
+/* Each tool owns a cursor it does not share, so the pointer says which tool
+   is armed without a trip back to the toolbar. */
+.arr[data-tool='paint'] .arr-lanes {
+  cursor: copy;
+}
+/* Paint and zoom are drags, so on touch the lanes have to stop being a
+   scroller while they are armed — switching back to any other tool (Escape)
+   gives scrolling back. */
+.arr[data-tool='paint'] .arr-lanes,
+.arr[data-tool='zoom'] .arr-lanes {
+  touch-action: none;
+}
+.arr[data-tool='listen'] .clip {
+  cursor: grab;
+}
+.arr[data-tool='listen'] .clip:active {
+  cursor: grabbing;
+}
+.arr[data-tool='zoom'] .arr-lanes,
+.arr[data-tool='zoom'] .clip {
+  cursor: zoom-in;
 }
 /* Non-pointer tools act on the whole clip; edge and fade handles would
    swallow the press near the borders and make the tool feel unreliable. */

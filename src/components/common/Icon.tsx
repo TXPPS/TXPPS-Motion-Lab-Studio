@@ -46,6 +46,7 @@ export type IconName =
   | 'listen'
   | 'zoom-in'
   | 'zoom-out'
+  | 'zoom-drag'
   | 'hand'
   | 'magnet'
   | 'slip'
@@ -199,6 +200,9 @@ const STROKED: Partial<Record<IconName, string>> = {
   listen: 'M4 12h3l3-5 3 10 3-7 2 2h2',
   'zoom-in': 'M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM16 16l4 4M8.5 11h5M11 8.5v5',
   'zoom-out': 'M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM16 16l4 4M8.5 11h5',
+  // The lens carries a span arrow rather than a +/-: this one is dragged.
+  'zoom-drag':
+    'M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM16 16l4 4M7.5 11h7M7.5 11l1.8-1.8M7.5 11l1.8 1.8M14.5 11l-1.8-1.8M14.5 11l-1.8 1.8',
   hand: 'M8 12V6.5a1.5 1.5 0 0 1 3 0V11m0-1V5.5a1.5 1.5 0 0 1 3 0V11m0-1.5a1.5 1.5 0 0 1 3 0V16a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5v-4.5a1.5 1.5 0 0 1 2-1.4',
   magnet: 'M6 4v8a6 6 0 0 0 12 0V4h-4v8a2 2 0 0 1-4 0V4zM6 8h4M14 8h4',
   slip: 'M4 8h16v8H4zM8 8v8M12 8v8M16 8v8M2 12h2M20 12h2',
