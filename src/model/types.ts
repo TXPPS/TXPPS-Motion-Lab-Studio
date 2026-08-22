@@ -102,7 +102,11 @@ export interface SynthParams {
   waveform: Waveform;
   /** Filter cutoff in Hz (20..18000) */
   cutoff: number;
-  /** Filter resonance Q (0.1..20) */
+  /**
+   * Filter resonance in decibels of lift at the corner, clamped 0.05..24 by
+   * the voice. Not a quality factor: `Voice` writes it to `Q` on a `lowpass`,
+   * and Web Audio reads that field as dB for the pass filters.
+   */
   resonance: number;
   /** ADSR in seconds / sustain 0..1 */
   attack: number;

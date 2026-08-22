@@ -68,14 +68,26 @@ const SAMPLER_PARAMS: {
     format: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)} kHz` : `${Math.round(v)} Hz`),
   },
   {
+    // Decibels, for the same reason the synth's `resonance` below is — the
+    // number lands in `filter.Q.value` in `samplerInstrument.ts` — and here
+    // there is not even a mode where the old `'Q'` label could have been
+    // right: `SamplerParams.filterType` offers `lowpass` and `highpass` and
+    // nothing else, and Web Audio reads Q as decibels of lift at the corner
+    // for both. `SamplerPanel` has displayed the field in dB all along, so a
+    // lane on that very field formatting a bare `0.8` left the two disagreeing
+    // about what the musician was looking at.
+    //
+    // `min`/`max`/`scale` stay put: they are the mapping a stored 0..1 lane
+    // point goes through, so moving them would change how every saved
+    // resonance ride sounds without anyone touching a lane.
     key: 'filterRes',
     name: 'Resonance',
-    unit: 'Q',
+    unit: 'dB',
     min: 0.1,
     max: 20,
     def: 0.8,
     scale: 'log',
-    format: (v) => v.toFixed(1),
+    format: (v) => `${v.toFixed(1)} dB`,
   },
   {
     key: 'attack',
@@ -204,8 +216,64 @@ const SYNTH_PARAMS: {
   },
 ];
 
-/** Every parameter the track can automate, in display order. */
+/**
+ * The one `SynthParams` field a classic kit reads, kept next to the list it
+ * filters so the two cannot drift apart unnoticed: `DrumKit.trigger` in
+ * `audio/synth.ts` starts a buffer and scales it by `volume` and velocity.
+ */
+const DRUM_KIT_READS: ReadonlySet<string> = new Set(['volume']);
+
+/**
+ * The synth parameters the instrument behind this track actually reads.
+ *
+ * The engine picks an instrument as rack → sampler → drum kit → poly synth
+ * (`engine.syncGraph` and `buildInstrument`, mirrored in `exportMix`). The
+ * caller keeps every track that has a sampler out of this branch, so what
+ * reaches here is a rack, a classic kit or a poly synth. A `RackInstrument`
+ * plays its children from their own params and never looks at the track's
+ * `synth`, so it honours none of these. A `DrumKit` builds no filter and no
+ * envelope, so Cutoff, Resonance, Attack and Release reach nothing on a
+ * classic kit — they were offered anyway, and a sweep drawn on a drum track
+ * recorded, played back, bounced, and changed no sound.
+ */
+function readableSynthParams(track: Track): typeof SYNTH_PARAMS {
+  if (track.rack?.items.length) return [];
+  if (track.type === 'drum') return SYNTH_PARAMS.filter((sp) => DRUM_KIT_READS.has(sp.key));
+  return SYNTH_PARAMS;
+}
+
+/**
+ * Every parameter the track can automate, in display order — the choices the
+ * add-lane menu, the macro target picker and the MIDI-link picker are built
+ * from.
+ *
+ * Narrower than what `findAutoParam` resolves, deliberately: see
+ * `collectAutoParams`.
+ */
 export function listAutoParams(track: Track, project: ProjectData): AutoParam[] {
+  return collectAutoParams(track, project, false);
+}
+
+/**
+ * `includeUnread` picks which of the two questions this list is answering.
+ *
+ * "What may a user bind something new to?" is answered by the parameters the
+ * track's instrument reads and by nothing else: a lane that draws, records and
+ * plays back while moving no audio is a promise the app does not keep.
+ *
+ * "What does a parameter id in a saved project mean?" is answered by every
+ * parameter the list has ever offered. A project written before a lane stopped
+ * being offered still holds that lane, and `Arrangement.trackLanes` hides any
+ * lane whose parameter will not resolve — so narrowing resolution as well
+ * would leave the points in the file with no row to see them on and no way to
+ * delete them. Resolution keeps the wide answer; only the pickers take the
+ * narrow one.
+ */
+function collectAutoParams(
+  track: Track,
+  project: ProjectData,
+  includeUnread: boolean,
+): AutoParam[] {
   const out: AutoParam[] = [
     {
       id: 'volume',
@@ -292,7 +360,7 @@ export function listAutoParams(track: Track, project: ProjectData): AutoParam[] 
     }
   }
   if ((track.type === 'instrument' || track.type === 'drum') && track.synth && !track.sampler) {
-    for (const sp of SYNTH_PARAMS) {
+    for (const sp of includeUnread ? SYNTH_PARAMS : readableSynthParams(track)) {
       out.push({
         id: `synth:${sp.key}`,
         name: `Synth · ${sp.name}`,
@@ -332,14 +400,19 @@ function fxParam(effectId: string, fxLabel: string, p: ParamSpec): AutoParam {
   };
 }
 
-/** Resolve one parameter id for a track, or undefined when it no longer exists. */
+/**
+ * Resolve one parameter id for a track, or undefined when it no longer exists.
+ *
+ * Resolves the parameters the instrument does not read as well, so a lane a
+ * saved project already holds keeps its row, keeps playing back and can be
+ * deleted — the reasoning is in `collectAutoParams`.
+ */
 export function findAutoParam(
   track: Track,
   project: ProjectData,
   paramId: string,
 ): AutoParam | undefined {
-  // Fast paths for the fixed ids; list-and-find covers the dynamic ones.
-  return listAutoParams(track, project).find((p) => p.id === paramId);
+  return collectAutoParams(track, project, true).find((p) => p.id === paramId);
 }
 
 /** Map normalized 0..1 to the parameter's real value. */
@@ -383,6 +456,10 @@ export function paramIdExists(track: Track, paramId: string): boolean {
     return !!spec?.params.some((p) => p.key === key);
   }
   if (paramId.startsWith('synth:')) {
+    // Wider than what `listAutoParams` offers, and it has to be: this is the
+    // predicate `validateProject` keeps or DROPS a lane by, so answering "no"
+    // for a classic kit's Cutoff lane would not stop offering it — it would
+    // delete a lane the user drew from the project on the next save.
     if (track.type !== 'instrument' && track.type !== 'drum') return false;
     const key = paramId.slice(6);
     return SYNTH_PARAMS.some((s) => s.key === key);
