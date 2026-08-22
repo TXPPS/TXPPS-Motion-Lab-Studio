@@ -416,8 +416,8 @@ class ControlVca {
      * factor of full scale. Above it the curve runs out and the gain stops
      * moving, however much louder the detector says the signal got.
      *
-     * One spends the whole curve on 0…0 dBFS, which is what a gate and a
-     * compressor want: a gate's range lives entirely below full scale, and
+     * One spends the whole curve on levels up to full scale, which is what a
+     * gate and a compressor want: a gate's range lives entirely below it, and
      * anything a compressor is still asked to reduce above it is a few tenths
      * of a dB at a ratio that has already flattened. A limiter is the opposite
      * case. Its own drive control reaches +24 dB, so a curve stopping at full

@@ -117,7 +117,10 @@
 .de-ruler {
   position: relative;
   flex: none;
-  overflow: hidden;
+  /* The ruler is sized to exactly the grid width and its bar labels are
+     absolutely positioned with no width, so the last one's digits ran past the
+     edge and were cut. `.de-scroll` above it already clips. */
+  overflow: visible;
   background-image: repeating-linear-gradient(
     90deg,
     var(--grid-beat) 0 1px,

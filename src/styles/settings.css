@@ -399,3 +399,27 @@
   color: var(--danger-text);
   text-decoration: line-through;
 }
+
+/* A phone is not wide enough to argue over a two-column setting row: the
+   `auto` control column takes what it needs first, and on a 360px sheet that
+   left the label two pixels and its text painting across the control. Stacked,
+   both are whole. The key-command rows go the same way, and their description
+   wraps rather than overhanging the combo button beside it. */
+@media (max-width: 480px) {
+  .set-row {
+    grid-template-columns: 1fr;
+  }
+  .set-control {
+    justify-content: flex-start;
+  }
+  .kc-row {
+    grid-template-columns: 1fr;
+  }
+}
+.kc-desc {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.kc-desc > * {
+  min-width: 0;
+}

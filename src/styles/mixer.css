@@ -40,6 +40,9 @@
   width: var(--strip-w);
   min-width: var(--strip-w);
   display: grid;
+  /* Explicit, so a future row collision shows up as an overlap someone will
+     see rather than as a silent second column. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows:
     auto /* name            */
     auto /* input stage     */
@@ -121,7 +124,16 @@
   grid-row: 2;
   margin-top: var(--row-tight);
 }
-.dev-rack,
+/* One row each. They shared row 4 while the template reserved row 3 for the
+   rack, so on any channel carrying both inserts and sends the two landed in
+   one cell, grid auto-placement resolved it by inventing a second column, and
+   the whole strip was laid out at half width — the fader lane, the meter and
+   the dB scale all cut. It only hid on a short mixer, where sends are dropped
+   and the collision cannot happen. */
+.dev-rack {
+  grid-row: 3;
+  margin-top: var(--row-tight);
+}
 .strip-sends {
   grid-row: 4;
   margin-top: var(--row-tight);
@@ -261,6 +273,8 @@
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /*
@@ -1569,6 +1583,7 @@
    right — a device that is not bypassed IS signal passing — so it keeps the
    colour and gains the lamp treatment (§2.6). */
 .dev-power {
+  position: relative;
   flex: 0 0 auto;
   width: 5px;
   height: 5px;
@@ -1577,6 +1592,15 @@
   border-radius: 50%;
   background: var(--accent-lamp);
   box-shadow: 0 0 5px -1px color-mix(in srgb, var(--accent-lamp) 60%, transparent);
+}
+/* The lamp is 5px because a lamp that size is what a console rack looks like;
+   a 5px *target* is not something a finger can hit. The hit area grows around
+   it without moving anything, the way `.resize-handle` already does. */
+.dev-power::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
 }
 .dev-slot.bypassed .dev-power {
   background: color-mix(in srgb, var(--text-faint) 35%, transparent);
@@ -1745,6 +1769,7 @@
 }
 /* Bypass is a lamp: lit means engaged, and engaged means signal is passing. */
 .pw-power {
+  position: relative;
   flex: 0 0 auto;
   width: 10px;
   height: 10px;
@@ -1754,6 +1779,14 @@
   --lamp: var(--accent-lamp);
   background: var(--lamp);
   box-shadow: var(--ml-lamp-on);
+}
+/* Same reason as `.dev-power`: the lamp stays a lamp, the target becomes a
+   target. This one is a device's on/off, so missing it is not a small miss. */
+.pw-power::after {
+  content: '';
+  position: absolute;
+  inset: -11px;
+  border-radius: 50%;
 }
 .pw-power[aria-pressed='false'] {
   background: var(--bg-input);
@@ -1945,7 +1978,10 @@
 }
 
 @container mixer (max-height: 26.4em) {
+  /* This tier drops the sends row, so the rack states its row here too rather
+     than inheriting one numbered for a template that no longer applies. */
   .dev-rack {
+    grid-row: 3;
     max-height: calc(var(--dev-rack-h) * 0.6);
   }
   .strip {

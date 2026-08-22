@@ -11,6 +11,7 @@ import {
 } from '../../persistence/sessionLock';
 import { GIT_COMMIT } from '../../diagnostics/report';
 import { Icon } from '../common/Icon';
+import { useViewport } from '../../hooks/useViewport';
 
 /**
  * Whether this tab owns the project.
@@ -62,6 +63,12 @@ export function StatusBar() {
   const dirty = useProjectStore((s) => s.dirty);
   const online = useOnline();
   const lock = useSessionLock();
+  // A phone's status bar is 360px and holds six items that refuse to shrink,
+  // so the last three were cut off with nothing to scroll to. Two of them mean
+  // nothing on a phone — the deployed commit and the live source count are
+  // things you read at a desk — and the rest give way in order of how much
+  // they matter.
+  const phone = useViewport().layout === 'phone';
 
   return (
     <footer className="statusbar" data-testid="statusbar">
@@ -83,8 +90,8 @@ export function StatusBar() {
         Audio: {audioState}
         {sampleRate ? ` · ${(sampleRate / 1000).toFixed(1)}kHz` : ''}
       </span>
-      <span className="sb-item">Sources: {activeSources}</span>
-      <span className="sb-item">
+      {!phone && <span className="sb-item">Sources: {activeSources}</span>}
+      <span className="sb-item shrink">
         {trackCount} tracks · {clipCount} clips
       </span>
       <span className="spacer" />
@@ -99,16 +106,18 @@ export function StatusBar() {
         </button>
       )}
       <span className="sb-item">{online ? 'Online' : 'Offline'}</span>
-      <span className="sb-item">
+      <span className="sb-item shrink">
         {dirty
           ? 'Unsaved'
           : lastSavedAt
             ? `Saved ${new Date(lastSavedAt).toLocaleTimeString()}`
             : '—'}
       </span>
-      <span className="sb-item mono" title="Deployed git commit">
-        {GIT_COMMIT}
-      </span>
+      {!phone && (
+        <span className="sb-item mono" title="Deployed git commit">
+          {GIT_COMMIT}
+        </span>
+      )}
     </footer>
   );
 }

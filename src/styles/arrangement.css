@@ -220,7 +220,13 @@
   top: 3px;
   bottom: 3px;
   border-radius: var(--radius);
-  overflow: hidden;
+  /* `clip` with a margin rather than `hidden`: the waveform, the name and the
+     stripes still stop at the clip's edge, but the fade handles are centred on
+     the fade point and so ride half outside it. Plain `hidden` cut away half
+     of each handle's dot and half of its grab area, at both ends of every clip
+     in the arrangement. */
+  overflow: clip;
+  overflow-clip-margin: 6px;
   /* A clip is a cap at 1px: it sits ON the timeline ground rather than being
      drawn on it (§2.4). The ring keeps the hairline that darkens whatever
      surface it is on — a pure black one was heavier than any other line in
@@ -555,6 +561,8 @@
   background: color-mix(in srgb, var(--text) 85%, transparent);
   border: 1px solid color-mix(in srgb, var(--bg-deep) 55%, transparent);
 }
+/* Centred on the fade point, which means half of each handle sits outside the
+   clip. `.clip` lets them, by clipping with a margin — see the rule there. */
 .fade-handle.in {
   transform: translateX(-5px);
 }

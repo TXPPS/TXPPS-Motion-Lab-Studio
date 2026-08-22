@@ -620,6 +620,12 @@ button.li-main {
 }
 .pool-head .btn {
   flex: 1 1 0;
+  /* `.btn` is nowrap and keeps `min-width: auto`, so neither of these could
+     shrink below its own label and the second was cut at the panel edge with
+     nothing to scroll to. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .pool-stats {
   display: flex;

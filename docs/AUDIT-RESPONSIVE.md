@@ -54,14 +54,14 @@ tap-target advisories.
 The screenshot showed the Inspector's insert row with "Chain…" clipped off the right edge
 at ~430px. On the build served at `localhost:4173` during this audit it fits, everywhere:
 
-| viewport | UI scale | `.fx-add` right edge | viewport edge |
-| --- | --- | --- | --- |
-| 320×700 phone | 1 | 310 | 320 |
-| 360×740 phone | 1 | 350 | 360 |
-| 430×932 phone | 1 | 420 | 430 |
-| 430×932 phone | 1.5 | 416 | 430 |
-| 768×1024 tablet | 1 | 758 | 768 |
-| 1280×800 desktop | 1 | 1270 | 1280 |
+| viewport         | UI scale | `.fx-add` right edge | viewport edge |
+| ---------------- | -------- | -------------------- | ------------- |
+| 320×700 phone    | 1        | 310                  | 320           |
+| 360×740 phone    | 1        | 350                  | 360           |
+| 430×932 phone    | 1        | 420                  | 430           |
+| 430×932 phone    | 1.5      | 416                  | 430           |
+| 768×1024 tablet  | 1        | 758                  | 768           |
+| 1280×800 desktop | 1        | 1270                 | 1280          |
 
 What holds it is `.fx-add { display: flex }` with `.fx-add select { flex: 1 1 0; min-width:
 0 }` (`src/styles/mixer.css:1164-1171`); the second select is capped by `.fx-preset,
@@ -89,7 +89,7 @@ channel strip in half.
 
 `.page` is a grid with only `grid-template-rows` declared
 (`src/styles/pages.css:15-21`), so its single column is an implicit `auto` track — and an
-`auto` track's minimum is the *min-content* of its items. `.page-head`
+`auto` track's minimum is the _min-content_ of its items. `.page-head`
 (`src/styles/pages.css:23-30`) is a `display: flex` row with no `flex-wrap`, holding a back
 button, an `<h1>`, a hint and two more buttons (`src/pages/ShowPage.tsx:77-97`), each `.btn`
 carrying `white-space: nowrap` (`src/styles/base.css:220`). Its min-content is 470.9px,
@@ -111,16 +111,16 @@ nothing.
 
 ```css
 .page {
-  grid-template-columns: minmax(0, 1fr);   /* the column may not floor at min-content */
+  grid-template-columns: minmax(0, 1fr); /* the column may not floor at min-content */
 }
 .page-head {
-  flex-wrap: wrap;                          /* buttons wrap instead of being cut */
+  flex-wrap: wrap; /* buttons wrap instead of being cut */
   row-gap: var(--sp-2);
 }
 ```
 
 The first line is the structural one and fixes both pages at once; the second is what keeps
-the buttons *usable* rather than merely inside the box. `.page-head h1 { min-width: 0 }` is
+the buttons _usable_ rather than merely inside the box. `.page-head h1 { min-width: 0 }` is
 worth adding while there.
 
 ### 2. The status bar hides its last three items on phones, unreachably
@@ -156,7 +156,7 @@ worse than one that abbreviates.
 ```css
 .dev-rack,
 .strip-sends {
-  grid-row: 4;                     /* src/styles/mixer.css:124-128 */
+  grid-row: 4; /* src/styles/mixer.css:124-128 */
   margin-top: var(--row-tight);
 }
 ```
@@ -171,7 +171,7 @@ minmax(0, auto)  /* device rack */   <- row 3, currently left empty
 auto             /* sends       */   <- row 4, currently holds both
 ```
 
-So on any channel that has *both* inserts and sends, two items are placed in the same cell,
+So on any channel that has _both_ inserts and sends, two items are placed in the same cell,
 grid auto-placement resolves the collision by creating an implicit second column, and the
 strip's computed `grid-template-columns` becomes `49px 49px` instead of `98px`. Every
 full-width row — name, input stage, pan, fader + meter, mute/solo/arm, readout, footer — is
@@ -183,8 +183,8 @@ sends) report `grid-template-columns: "49px 49px"` with `.strip-mid` boxed at 49
 69px of content — 20px of the fader lane and the meter's printed dB scale gone — and
 `.strip-pan` clipped by 4px. `strip-Drums`, `strip-Bass`, `strip-Texture` and the buses all
 compute `98px` and are correct. The scale that gets cut is the one
-`src/styles/mixer.css:834-844` explicitly protects: *"a scale that loses its minus sign
-reads '48' and tells the engineer the opposite of the truth."*
+`src/styles/mixer.css:834-844` explicitly protects: _"a scale that loses its minus sign
+reads '48' and tells the engineer the opposite of the truth."_
 
 It hides on desktop because the short-mixer container query sets `.strip-sends { display:
 none }` (`src/styles/mixer.css:1962-1964`) below 26.4em, so the collision never happens in
@@ -228,8 +228,12 @@ control.
 
 ```css
 @media (max-width: 480px) {
-  .set-row { grid-template-columns: 1fr; }
-  .set-control { justify-content: flex-start; }
+  .set-row {
+    grid-template-columns: 1fr;
+  }
+  .set-control {
+    justify-content: flex-start;
+  }
 }
 ```
 
@@ -332,16 +336,16 @@ not need the clip — or pad the ruler's width by one label.
 legitimate — a DAW's mixer is made of small controls, and the mixer scrolls, so they are
 reachable. These are the ones worth a hit area:
 
-| size | element | where |
-| --- | --- | --- |
-| 5×5 | `.dev-power` (`src/styles/mixer.css:1571-1580`) | device on/off lamp in every strip's rack |
-| 10×10 | `.pw-power` (`src/styles/mixer.css:1747-1757`) | plugin window power |
-| 10×14 | `[data-testid="pr-note"]` | piano-roll note |
-| 13×13 | mastering list row control | Release page |
-| 46×6 | `.smeter-over` (`src/styles/mixer.css:798`) | meter overload LED |
-| 18×16 | `.in-flag` | strip input stage |
-| 20×20 | `.th-vol .knob`, inspector `.color-swatches button` | track header, Inspector |
-| 22×22 | `.th-mini` (M/S/arm) | track header, mixer |
+| size  | element                                             | where                                    |
+| ----- | --------------------------------------------------- | ---------------------------------------- |
+| 5×5   | `.dev-power` (`src/styles/mixer.css:1571-1580`)     | device on/off lamp in every strip's rack |
+| 10×10 | `.pw-power` (`src/styles/mixer.css:1747-1757`)      | plugin window power                      |
+| 10×14 | `[data-testid="pr-note"]`                           | piano-roll note                          |
+| 13×13 | mastering list row control                          | Release page                             |
+| 46×6  | `.smeter-over` (`src/styles/mixer.css:798`)         | meter overload LED                       |
+| 18×16 | `.in-flag`                                          | strip input stage                        |
+| 20×20 | `.th-vol .knob`, inspector `.color-swatches button` | track header, Inspector                  |
+| 22×22 | `.th-mini` (M/S/arm)                                | track header, mixer                      |
 
 The pattern to copy is already in the codebase: `.resize-handle::after { position:
 absolute; inset: -3px }` (`src/styles/shell.css:164-169`) grows the hit area without

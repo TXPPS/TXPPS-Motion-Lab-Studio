@@ -13,6 +13,12 @@
 }
 
 .page {
+  /* A grid column with no explicit track floors at the min-content of its
+     items, and `.page-head` is a nowrap flex row of buttons whose min-content
+     is 471px — wider than any phone. Every child was then laid out 471px wide
+     and the shell cut the overflow, taking the header's own buttons and the
+     right edge of the body with it. */
+  grid-template-columns: minmax(0, 1fr);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
@@ -20,7 +26,15 @@
   background: var(--bg-app);
 }
 
+.page-head h1 {
+  min-width: 0;
+}
 .page-head {
+  /* Wrapping is what keeps the buttons usable rather than merely inside the
+     box: on a 360px phone the row cannot hold a back button, a title and three
+     controls on one line. */
+  flex-wrap: wrap;
+  row-gap: var(--sp-2);
   display: flex;
   align-items: center;
   gap: var(--sp-4);
@@ -97,7 +111,14 @@
   gap: var(--sp-7);
   min-height: 100%;
 }
+.start-hero > div {
+  min-width: 0;
+}
 .start-hero {
+  /* The Continue button carries the project's name and never shrinks, so this
+     row overruns its box by however long that name is. It wraps instead. */
+  flex-wrap: wrap;
+  row-gap: var(--sp-4);
   display: flex;
   align-items: center;
   gap: var(--sp-5);

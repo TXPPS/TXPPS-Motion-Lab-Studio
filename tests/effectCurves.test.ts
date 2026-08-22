@@ -745,6 +745,13 @@ function isTransparent(node: RecordingNode, connections: Connection[]): boolean 
   }
 }
 
+/** How a node is named in a complaint: enough to find it in the builder. */
+function nameOf(node: RecordingNode): string {
+  if (node.kind === 'biquad') return `${node.kind} ${node.type}`;
+  if (node.kind === 'waveshaper') return `${node.kind} ${node.oversample}`;
+  return node.kind;
+}
+
 interface Route {
   /** The nodes that are not wires, named — empty for a route that adds nothing. */
   through: string;
@@ -772,9 +779,9 @@ function routesBetween(connections: Connection[], from: RecordingNode, to: Recor
     for (const c of connections) {
       if (c.from !== at || !isNode(c.to) || visited.includes(c.to)) continue;
       const next = c.to;
-      const name = next.kind === 'biquad' ? `${next.kind}:${next.type}` : next.kind;
+      const added = route.through ? `${route.through} → ${nameOf(next)}` : nameOf(next);
       walk(next, [...visited, next], {
-        through: isTransparent(next, connections) ? route.through : `${route.through}${name},`,
+        through: isTransparent(next, connections) ? route.through : added,
         channels:
           c.output === undefined && c.input === undefined
             ? route.channels
@@ -831,7 +838,7 @@ function bypassFaults(kind: EffectKind): string[] {
         faults.push(
           through === ''
             ? `its clear route carries ${sum} rather than unity`
-            : `${sum} of the signal still passes ${through.slice(0, -1)}`,
+            : `${sum} of the signal still passes ${through}`,
         );
       }
     }
@@ -1228,7 +1235,7 @@ describe('the picture a dynamics face draws', () => {
    * still exact. Sixteen times fewer points across that region is not a trade
    * a gate can make, and it has nothing above full scale to gain by it.
    */
-  it('leaves the gate, the compressor and the de-esser sampling their laws over 0…0 dBFS', () => {
+  it('leaves the gate, the compressor and the de-esser sampled up to full scale only', () => {
     for (const kind of ['compressor', 'gate', 'deesser'] as const) {
       const parts = detectorOf(effectOf(kind));
       expect(envelopeTopOf(parts), kind).toBe(1);
@@ -1240,14 +1247,14 @@ describe('the picture a dynamics face draws', () => {
   });
 
   /**
-   * H-3, in the numbers the audit measured. The limiter's own drive reaches
-   * +24 dB and its face plots the law across all of it, but its curve stopped
-   * at an envelope of 1: above full scale the VCA's gain stopped moving, the
-   * hard clipper downstream quietly removed everything the law had asked for
-   * and not delivered, and the meter — which reads the VCA — went on reporting
-   * the four tenths of a dB the curve had managed while 23 dB was being
-   * clipped off. The face was right, the meter was right about the VCA, and
-   * the two together said something false about the device.
+   * The limiter's own drive reaches +24 dB and its face plots the law across
+   * all of it, but its curve used to stop at an envelope of 1. Above full
+   * scale the VCA's gain therefore stopped moving, the hard clipper downstream
+   * quietly removed everything the law had asked for and not delivered, and
+   * the meter — which reads the VCA — went on reporting the four tenths of a
+   * dB the curve had managed while 23 dB was being clipped off. The face was
+   * right, the meter was right about the VCA, and the two together said
+   * something false about the device.
    */
   it('holds the limiter to the law its face draws, above full scale where its drive puts it', () => {
     const limiter = effectOf('limiter');

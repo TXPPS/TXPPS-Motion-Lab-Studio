@@ -202,7 +202,9 @@ function surfacesFor(layout) {
         expect: '[data-testid="browser-panel"]',
       });
     }
-    for (const t of EDITOR_TABS.filter((e) => !['mixer', 'chords', 'synth', 'diagnostics'].includes(e))) {
+    for (const t of EDITOR_TABS.filter(
+      (e) => !['mixer', 'chords', 'synth', 'diagnostics'].includes(e),
+    )) {
       editors.push({
         id: `song-editor-${t}`,
         prime: 'clip',
@@ -350,7 +352,8 @@ const probe = () => {
     return false;
   };
 
-  const label = (el) => (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 48);
+  const label = (el) =>
+    (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 48);
 
   const INTERACTIVE =
     'a[href],button,select,textarea,summary,input:not([type="hidden"]),' +
@@ -508,7 +511,9 @@ async function runStep(page, step, notes) {
     notes.push(`no element for ${step.click}`);
     return;
   }
-  await target.click({ timeout: 4000 }).catch((e) => notes.push(`click ${step.click}: ${e.message.split('\n')[0]}`));
+  await target
+    .click({ timeout: 4000 })
+    .catch((e) => notes.push(`click ${step.click}: ${e.message.split('\n')[0]}`));
   await settle(page);
 }
 
@@ -668,7 +673,8 @@ for (const vp of VIEWPORTS) {
     try {
       if (surface.prime === 'clip' && primed !== 'clip') {
         await runStep(page, TO_SONG, notes);
-        if (layout === 'phone') await runStep(page, { click: '[data-testid="nav-arrange"]' }, notes);
+        if (layout === 'phone')
+          await runStep(page, { click: '[data-testid="nav-arrange"]' }, notes);
         await openClip(page, notes);
         primed = 'clip';
       }
@@ -739,7 +745,10 @@ report.summary = {
       surfaces: [...f.surfaces].sort(),
     }))
     .sort(
-      (a, b) => rank(a) - rank(b) || (b.worstOverPx ?? 0) - (a.worstOverPx ?? 0) || a.sig.localeCompare(b.sig),
+      (a, b) =>
+        rank(a) - rank(b) ||
+        (b.worstOverPx ?? 0) - (a.worstOverPx ?? 0) ||
+        a.sig.localeCompare(b.sig),
     ),
 };
 
