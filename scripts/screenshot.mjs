@@ -9,7 +9,9 @@
  *   SHOT_DIR=/tmp/shots SHOT_NAME=song SHOT_THEME=dark npm run shot
  *
  * Env: SHOT_DIR (required), SHOT_NAME, SHOT_URL, SHOT_THEME (dark|light|contrast),
- * SHOT_W, SHOT_H, SHOT_CLIP (CSS selector to capture instead of the page).
+ * SHOT_W, SHOT_H, SHOT_CLIP (CSS selector to capture instead of the page),
+ * SHOT_CLICK (comma-separated selectors to click first), SHOT_CLICKS (click
+ * count, 2 for a double-click), SHOT_SETTLE (ms to wait after each click).
  */
 import { chromium } from '@playwright/test';
 const OUT = process.env.SHOT_DIR;
@@ -33,6 +35,34 @@ await page.addInitScript((t) => {
 }, theme);
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1400);
+
+/*
+ * Reach a surface that needs a click first.
+ *
+ * SHOT_CLICK is a comma-separated list of selectors, clicked in order with a
+ * settle between each — enough to open an editor tab, a device window or a
+ * panel. Without it the only thing that could ever be looked at was whatever
+ * the app boots into, which is how a device rack invisible in the default
+ * layout survived a full styling pass.
+ *
+ * A selector that matches nothing is reported and skipped rather than
+ * failing: the point is to get a picture, and a partial one still shows
+ * something.
+ */
+for (const sel of (process.env.SHOT_CLICK || '')
+  .split(',')
+  .map((x) => x.trim())
+  .filter(Boolean)) {
+  const el = await page.$(sel);
+  if (!el) {
+    console.log('no element to click for', sel);
+    continue;
+  }
+  await el.click({ clickCount: Number(process.env.SHOT_CLICKS || 1) }).catch((e) => {
+    console.log('could not click', sel, e.message);
+  });
+  await page.waitForTimeout(Number(process.env.SHOT_SETTLE || 500));
+}
 const name = process.env.SHOT_NAME || 'shot';
 if (clipSel) {
   const el = await page.$(clipSel);
