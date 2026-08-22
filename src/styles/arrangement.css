@@ -24,33 +24,19 @@
   overflow: hidden;
 }
 
+/* The toolbar wraps rather than scrolls, at every width. A horizontal scroll
+   with no scrollbar hides controls where nobody will look for them; a second
+   row costs 30 pixels of arrangement and is visible. */
 .arr-toolbar {
-  height: var(--toolbar-h);
+  min-height: var(--toolbar-h);
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
-  padding: 0 8px;
+  row-gap: 4px;
+  padding: 4px 8px;
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border-soft);
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-}
-.arr-toolbar::-webkit-scrollbar {
-  display: none;
-}
-/* Narrow screens: wrap to a second row instead of hiding controls behind an
-   invisible horizontal scroll (RC2.1 — no clipped/undiscoverable controls). */
-@media (max-width: 560px) {
-  .arr-toolbar {
-    height: auto;
-    min-height: var(--toolbar-h);
-    flex-wrap: wrap;
-    overflow: visible;
-    padding: 4px 8px;
-    row-gap: 4px;
-  }
 }
 .arr-toolbar > * {
   flex: none;

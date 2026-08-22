@@ -92,6 +92,31 @@ describe('a cue mix', () => {
     expect(resolveChannels(project(), cue).get(a)!.gain).toBeCloseTo(0.5, 6);
   });
 
+  it('tells the engine when a channel’s automation must not write across it', () => {
+    // A channel nobody has touched still follows the main mix, automation and
+    // all — it just plays at the cue's level.
+    let heard = resolveChannels(project(), cue);
+    expect(heard.get(a)!.cueOverride).toBe(false);
+    expect(heard.get(a)!.cueScale).toBe(1);
+
+    useProjectStore.getState().setCueMix(cue, { level: 0.5 });
+    useProjectStore.getState().setCueSend(cue, a, { level: 1.2 });
+    heard = resolveChannels(project(), cue);
+    expect(heard.get(a)!.cueOverride).toBe(true);
+    expect(heard.get(b)!.cueOverride).toBe(false);
+    expect(heard.get(b)!.cueScale).toBeCloseTo(0.5, 6);
+
+    // muting in the cue is an override too, or a mute lane would reopen it
+    useProjectStore.getState().setCueSend(cue, b, { mute: true });
+    expect(resolveChannels(project(), cue).get(b)!.cueOverride).toBe(true);
+  });
+
+  it('never claims an override when no cue is monitored', () => {
+    const main = resolveChannels(project());
+    expect(main.get(a)!.cueOverride).toBe(false);
+    expect(main.get(a)!.cueScale).toBe(1);
+  });
+
   it('goes back to the main mix on match', () => {
     useProjectStore.getState().setCueSend(cue, a, { level: 1.4 });
     useProjectStore.getState().matchCueToMain(cue);

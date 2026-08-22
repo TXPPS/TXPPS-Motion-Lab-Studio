@@ -351,6 +351,8 @@ export async function renderProject(
     const state = states.get(track.id);
     const audible = state?.audible ?? true;
     const groupGain = state?.groupGain ?? 1;
+    const cueOverride = state?.cueOverride ?? false;
+    const cueScale = state?.cueScale ?? 1;
     for (const lane of appliedLanes(track)) {
       const desc = findAutoParam(track, project, lane.paramId);
       if (!desc) continue;
@@ -359,18 +361,24 @@ export async function renderProject(
       if (id === 'volume') {
         // As live: the lane writes the channel's own fader, and the VCA/folder
         // multiplier is reapplied so a group trim is not lost under automation.
-        scheduleLaneOnParam(ch.volGain.gain, lane, desc, {
-          ...rampOpts,
-          mapValue: (v) => Math.max(0, v) * groupGain,
-        });
+        // A channel a cue has taken over keeps the cue's level — the lane
+        // belongs to the main mix, and this render is not the main mix.
+        if (!cueOverride) {
+          scheduleLaneOnParam(ch.volGain.gain, lane, desc, {
+            ...rampOpts,
+            mapValue: (v) => Math.max(0, v) * groupGain * cueScale,
+          });
+        }
       } else if (id === 'pan') {
-        scheduleLaneOnParam(ch.panner.pan, lane, desc, {
-          ...rampOpts,
-          mapValue: (v) => Math.max(-1, Math.min(1, v)),
-        });
+        if (!cueOverride) {
+          scheduleLaneOnParam(ch.panner.pan, lane, desc, {
+            ...rampOpts,
+            mapValue: (v) => Math.max(-1, Math.min(1, v)),
+          });
+        }
       } else if (id === 'mute') {
         // The mute lane gates the channel; manual mute/solo still wins.
-        if (audible) {
+        if (audible && !cueOverride) {
           scheduleLaneOnParam(ch.muteGain.gain, lane, desc, {
             ...rampOpts,
             mapValue: (v) => (v >= 0.5 ? 0 : 1),

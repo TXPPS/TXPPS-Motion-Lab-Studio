@@ -924,14 +924,26 @@ class AudioEngine {
         case 'volume':
           // The lane writes the channel's own fader; the group multiplier is
           // reapplied here so a VCA or folder trim keeps working under
-          // automation instead of being overwritten by it.
-          ch.volGain.gain.setTargetAtTime(Math.max(0, v) * (state?.groupGain ?? 1), t, AUTO_TAU);
+          // automation instead of being overwritten by it. A channel a cue has
+          // taken over keeps the cue's level: the lane is the main mix's, and
+          // this is not the main mix.
+          ch.volGain.gain.setTargetAtTime(
+            state?.cueOverride
+              ? state.gain
+              : Math.max(0, v) * (state?.groupGain ?? 1) * (state?.cueScale ?? 1),
+            t,
+            AUTO_TAU,
+          );
           break;
         case 'pan':
-          ch.panner.pan.setTargetAtTime(Math.max(-1, Math.min(1, v)), t, AUTO_TAU);
+          ch.panner.pan.setTargetAtTime(
+            state?.cueOverride ? state.pan : Math.max(-1, Math.min(1, v)),
+            t,
+            AUTO_TAU,
+          );
           break;
         case 'mute': {
-          const open = (state?.audible ?? true) && v < 0.5;
+          const open = (state?.audible ?? true) && (state?.cueOverride || v < 0.5);
           ch.muteGain.gain.setTargetAtTime(open ? 1 : 0, t, 0.008);
           break;
         }

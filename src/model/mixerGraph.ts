@@ -40,6 +40,17 @@ export interface ChannelState {
   mutedByGroup: boolean;
   /** true when this track is silent only because something else is soloed */
   mutedBySolo: boolean;
+  /**
+   * A cue mix has taken this channel over: its fader, pan and mute are the
+   * cue's, and a volume or pan lane must not write across them — the whole
+   * point of a headphone mix is that it is not the main mix.
+   */
+  cueOverride: boolean;
+  /**
+   * The monitored cue's master level, or 1. A channel still following the main
+   * mix keeps tracking its automation, scaled by this.
+   */
+  cueScale: number;
 }
 
 /** Walk a track's folder ancestry, outermost last. Cycle-safe. */
@@ -174,6 +185,8 @@ export function resolveChannels(
       pan: t.type === 'vca' || t.type === 'folder' ? 0 : t.pan,
       mutedByGroup: groupMuted && !selfMuted,
       mutedBySolo: !soloOk && !selfMuted && !groupMuted,
+      cueOverride: false,
+      cueScale: 1,
     };
     out.set(t.id, cue ? cueState(base, t, cue, groupGain) : base);
   }
@@ -192,8 +205,9 @@ export function resolveChannels(
 function cueState(base: ChannelState, track: Track, cue: CueMix, groupGain: number): ChannelState {
   if (!isAudioTrackType(track.type)) return base;
   const send = cue.sends[track.id];
-  const level = !send || send.follow ? track.volume : send.level;
-  const pan = !send || send.follow ? base.pan : send.pan;
+  const follows = !send || send.follow;
+  const level = follows ? track.volume : send.level;
+  const pan = follows ? base.pan : send.pan;
   const muted = send?.mute === true || track.mute;
   const soloOk = cue.ignoreSolo ? true : !base.mutedBySolo;
   return {
@@ -202,6 +216,10 @@ function cueState(base: ChannelState, track: Track, cue: CueMix, groupGain: numb
     gain: Math.max(0, level * groupGain * cue.level),
     pan,
     mutedBySolo: !cue.ignoreSolo && base.mutedBySolo,
+    // A channel the cue has taken over ignores the main mix's automation; one
+    // still following it keeps tracking, at the cue's level.
+    cueOverride: !follows || send?.mute === true,
+    cueScale: cue.level,
   };
 }
 
