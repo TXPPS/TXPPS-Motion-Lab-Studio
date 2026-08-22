@@ -1026,7 +1026,7 @@ export function Arrangement() {
           <div
             className="arr-header-col"
             data-testid="track-headers"
-            role="listbox"
+            role="group"
             aria-label="Tracks"
           >
             {/* Corner and the global-track headers stick together so they stay

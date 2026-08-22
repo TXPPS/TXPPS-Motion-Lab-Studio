@@ -256,7 +256,7 @@ export default function MasteringPage() {
               </p>
             </div>
           ) : (
-            <ol className="ms-items" role="listbox" aria-label="Running order">
+            <ol className="ms-items" aria-label="Running order">
               {mastering.items.map((item, i) => {
                 const m = item.measured;
                 const diff = m ? m.integratedLufs - mastering.targetLufs : 0;
@@ -264,9 +264,11 @@ export default function MasteringPage() {
                   <li
                     key={item.id}
                     className={`ms-item${item.id === selectedId ? ' selected' : ''}`}
-                    role="option"
+                    // Not role="option" — the row carries reorder and remove
+                    // buttons, and an option may not contain interactive
+                    // children.
                     tabIndex={0}
-                    aria-selected={item.id === selectedId}
+                    aria-current={item.id === selectedId || undefined}
                     onPointerDown={() => setSelectedId(item.id)}
                     onKeyDown={(e) => {
                       if (e.key !== 'Enter' && e.key !== ' ') return;

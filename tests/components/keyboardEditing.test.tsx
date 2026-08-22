@@ -290,14 +290,16 @@ describe('track header keyboard selection', () => {
     useUiStore.getState().selectTrack(null);
     render(<TrackHeader track={track} height={80} />);
 
-    const option = screen.getByRole('option', { name: 'Bass, instrument track' });
-    expect(option).toHaveAttribute('aria-selected', 'false');
+    // A group, not an option: a header holds mute, solo, arm and a fader, and
+    // an option may not contain interactive children.
+    const header = screen.getByRole('group', { name: 'Bass, instrument track' });
+    expect(header).not.toHaveAttribute('aria-current');
 
-    fireEvent.keyDown(option, { key: 'Enter' });
+    fireEvent.keyDown(header, { key: 'Enter' });
 
     expect(useUiStore.getState().selectedTrackId).toBe(track.id);
-    expect(screen.getByRole('option', { name: 'Bass, instrument track' })).toHaveAttribute(
-      'aria-selected',
+    expect(screen.getByRole('group', { name: 'Bass, instrument track' })).toHaveAttribute(
+      'aria-current',
       'true',
     );
   });
@@ -307,7 +309,7 @@ describe('track header keyboard selection', () => {
     useUiStore.getState().selectTrack(null);
     render(<TrackHeader track={track} height={80} />);
 
-    fireEvent.keyDown(screen.getByRole('option', { name: /^Keys/ }), { key: ' ' });
+    fireEvent.keyDown(screen.getByRole('group', { name: /^Keys/ }), { key: ' ' });
 
     expect(useUiStore.getState().selectedTrackId).toBe(track.id);
   });

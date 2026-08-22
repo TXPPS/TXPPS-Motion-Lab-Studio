@@ -153,9 +153,13 @@ export const TrackHeader = memo(function TrackHeader({
         ['--th-color' as string]: track.color,
         ['--th-depth' as string]: String(depth),
       }}
-      role="option"
+      // Not role="option": an option may not contain interactive children, and
+      // a track header holds mute, solo, arm, a fader and a menu. A focusable
+      // group with aria-current says "this is the selected one" without
+      // promising a listbox the markup cannot honour.
+      role="group"
       tabIndex={0}
-      aria-selected={selected}
+      aria-current={selected || undefined}
       aria-label={`${track.name}, ${track.type} track${track.locked ? ', locked' : ''}`}
       onClick={() => ui.getState().selectTrack(track.id)}
       onKeyDown={(e) => {

@@ -66,6 +66,21 @@ function isCovered(v: Result): boolean {
   );
 }
 
+/**
+ * Findings that are real, in scope, and someone else's open work right now.
+ *
+ * Same reasoning as the contrast carve-out: a suite that is red for a change
+ * nobody reading it can make is a suite people stop reading. Each entry names
+ * the element and the owner, and matches only that element — a second
+ * occurrence of the same rule anywhere else still fails. Delete an entry the
+ * day its owner lands the fix; that deletion is the regression test.
+ */
+const IN_FLIGHT_ELSEWHERE: { rule: string; target: string; owner: string }[] = [];
+
+function isInFlightElsewhere(rule: string, target: string): boolean {
+  return IN_FLIGHT_ELSEWHERE.some((k) => k.rule === rule && target.includes(k.target));
+}
+
 /** A violation the way a person has to read it: rule, why, and where. */
 function report(violations: Result[]): string {
   return violations
@@ -99,12 +114,18 @@ async function bootWithTheme(page: Page, theme: (typeof THEMES)[number]) {
 
 async function violations(page: Page): Promise<Result[]> {
   const results = await new AxeBuilder({ page }).disableRules(CONTRAST_RULES).analyze();
-  const covered = results.violations.filter(isCovered);
-  const rest = results.violations.filter((v) => !isCovered(v));
-  if (rest.length > 0) {
-    // Not a failure — see isCovered. Printed so the backlog stays visible.
-    console.log(`out-of-scope axe findings:\n${report(rest)}`);
+  const covered: Result[] = [];
+  const known: Result[] = [];
+  for (const v of results.violations.filter(isCovered)) {
+    const ours = v.nodes.filter((n) => !isInFlightElsewhere(v.id, n.target.join(' ')));
+    if (ours.length > 0) covered.push({ ...v, nodes: ours });
+    if (ours.length < v.nodes.length) known.push(v);
   }
+  const rest = results.violations.filter((v) => !isCovered(v));
+  // Neither is a failure — see isCovered and IN_FLIGHT_ELSEWHERE. Both are
+  // printed so the backlog stays visible instead of quietly becoming normal.
+  if (known.length > 0) console.log(`known, owned elsewhere:\n${report(known)}`);
+  if (rest.length > 0) console.log(`out-of-scope axe findings:\n${report(rest)}`);
   return covered;
 }
 

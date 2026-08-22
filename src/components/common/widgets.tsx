@@ -304,7 +304,10 @@ export function StereoMeter({
     // an ARIA meter here would be a role with no value — and thirty of them on
     // a mixer is thirty things to swipe past. The number a screen reader wants
     // is the peak readout beside it, which is real text.
-    <div className="smeter" aria-hidden="true">
+    <div className="smeter">
+      {/* Hiding the whole meter would hide this button with it, and
+          aria-hidden over a focusable element is an outright error — so the
+          bars are hidden and the one real control stays exposed. */}
       <button
         ref={overRef}
         className="smeter-over"
@@ -313,7 +316,7 @@ export function StereoMeter({
         aria-label={label ? `Reset over indicator for ${label}` : 'Reset over indicator'}
         onClick={() => engine.resetClipIndicators()}
       />
-      <div className="smeter-bars">
+      <div className="smeter-bars" aria-hidden="true">
         <div className="smeter-ch">
           <div className="smeter-fill" ref={lRef} />
           <div className="smeter-hold" ref={lHold} />
