@@ -73,7 +73,7 @@ the benchmark is parity of the _workflow_, not of the mechanism.
 | MIDI file import and export   | **Yes**     | Format 0 and 1 in, format 1 out, with the tempo and signature map                                                                               |
 | Project merge                 | **No**      | Not built                                                                                                                                       |
 | Key commands                  | **Yes**     | Editable, conflict-checked, restorable, and layout-independent                                                                                  |
-| Control link (MIDI learn)     | **No**      | Not built                                                                                                                                       |
+| Control link (MIDI learn)     | **Yes**     | Learn by moving the control; absolute, relative and toggle modes, a settable range and invert                                                   |
 | Themes                        | **Yes**     | System, dark, light, high contrast                                                                                                              |
 | UI scaling                    | **Yes**     | 85% to 140%                                                                                                                                     |
 

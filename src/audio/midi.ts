@@ -9,6 +9,8 @@ import { useTransportStore } from '../state/transportStore';
 import { useUiStore } from '../state/uiStore';
 import { diagLog } from '../state/diagnostics';
 import { engine } from './engine';
+import { applyControl, offerToLearn } from './controlLink';
+import type { ControlSource } from '../model/controlLink';
 
 function targetTrackId(): string | null {
   const p = useProjectStore.getState().project;
@@ -19,6 +21,29 @@ function targetTrackId(): string | null {
   const selected = p.tracks.find((t) => t.id === sel && playable(t));
   if (selected) return selected.id;
   return p.tracks.find(playable)?.id ?? null;
+}
+
+/**
+ * The bindable half of a message. Sustain (CC 64) is deliberately included:
+ * a pedal is the control most players want on "start/stop" or a macro, and
+ * the instrument path still gets it when nothing is bound to it.
+ */
+function controlSourceOf(status: number, d1: number, chan: number): ControlSource | null {
+  if (status === 0xb0) return { kind: 'cc', cc: d1, channel: chan };
+  if (status === 0xe0) return { kind: 'pitchbend', channel: chan };
+  return null;
+}
+
+/** Pitch bend arrives as 14 bits; a binding only ever wants 0..127 of it. */
+function controlValueOf(status: number, d1: number, d2: number): number {
+  if (status !== 0xe0) return d2;
+  return ((d2 << 7) | d1) >> 7;
+}
+
+function describeRaw(source: ControlSource): string {
+  if (source.kind === 'cc') return `CC ${source.cc} ch ${source.channel}`;
+  if (source.kind === 'note') return `Note ${source.note} ch ${source.channel}`;
+  return `Pitch bend ch ${source.channel}`;
 }
 
 class MidiManager {
@@ -90,6 +115,23 @@ class MidiManager {
     const d2 = data[2] ?? 0;
     let desc: string | null = null;
     const trackId = targetTrackId();
+
+    // Control Link sees continuous controls first: a bound knob moves what it
+    // is bound to rather than reaching the instrument. Notes are never stolen
+    // this way — a keyboard has to keep playing while a mapping is learned.
+    const source = controlSourceOf(status, d1, chan);
+    if (source && offerToLearn(source)) {
+      useTransportStore.getState().set({ midiLastEvent: `Learned ${describeRaw(source)}` });
+      return;
+    }
+    if (source && applyControl(source, controlValueOf(status, d1, d2))) {
+      this.activity++;
+      useTransportStore.getState().set({
+        midiActivity: this.activity,
+        midiLastEvent: `${describeRaw(source)} → linked`,
+      });
+      return;
+    }
 
     if (status === 0x90 && d2 > 0) {
       desc = `Note On ${midiToName(d1)} vel ${d2} ch ${chan}`;

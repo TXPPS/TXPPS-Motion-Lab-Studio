@@ -24,7 +24,15 @@ import type {
   AutomationPoint,
   CurveShape,
 } from '../model/automation';
-import { paramIdExists } from '../model/paramRegistry';
+import { denormParam, findAutoParam, paramIdExists } from '../model/paramRegistry';
+import {
+  MAX_CONTROL_LINKS,
+  createLink,
+  sameSource,
+  type ControlLink,
+  type ControlSource,
+  type ControlTarget,
+} from '../model/controlLink';
 import { createNoteFx } from '../model/noteFx';
 import { MAX_MACROS, createMacro, macroWrites } from '../model/macros';
 import type { NoteFxKind } from '../model/types';
@@ -341,6 +349,15 @@ export interface ProjectStore {
   ) => void;
 
   // ---- macros ----
+  /** Write one automatable parameter from a normalised 0..1, as a fader move. */
+  setParamNorm: (trackId: string, paramId: string, norm: number) => void;
+
+  // ---- control link ----
+  addControlLink: (source: ControlSource, target: ControlTarget) => string | null;
+  removeControlLink: (linkId: string) => void;
+  updateControlLink: (linkId: string, patch: Partial<Omit<ControlLink, 'id'>>) => void;
+  clearControlLinks: () => void;
+
   addMacro: (trackId: string) => string | null;
   removeMacro: (trackId: string, macroId: string) => void;
   renameMacro: (trackId: string, macroId: string, name: string) => void;
@@ -2105,6 +2122,56 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       ),
 
     // -------------------------------------------------------------- macros
+
+    setParamNorm: (trackId, paramId, norm) =>
+      update(
+        (d) => {
+          const t = trackById(d, trackId);
+          if (!t) return;
+          const param = findAutoParam(t, d, paramId);
+          if (!param) return;
+          applyParamValue(d, t, paramId, denormParam(param, norm));
+        },
+        { undoable: false },
+      ),
+
+    addControlLink: (source, target) => {
+      const id = newId('cl');
+      let made = false;
+      update((d) => {
+        const links = d.controlLinks ?? [];
+        if (links.length >= MAX_CONTROL_LINKS) return;
+        // One source drives one thing. Learning a control that is already bound
+        // re-points it rather than stacking a second, invisible binding on it.
+        const next = links.filter((l) => !sameSource(l.source, source));
+        next.push(createLink(id, source, target));
+        d.controlLinks = next;
+        made = true;
+      });
+      return made ? id : null;
+    },
+
+    removeControlLink: (linkId) =>
+      update((d) => {
+        d.controlLinks = (d.controlLinks ?? []).filter((l) => l.id !== linkId);
+      }),
+
+    updateControlLink: (linkId, patch) =>
+      update((d) => {
+        const link = (d.controlLinks ?? []).find((l) => l.id === linkId);
+        if (!link) return;
+        if (patch.mode) link.mode = patch.mode;
+        if (patch.source) link.source = patch.source;
+        if (patch.target) link.target = patch.target;
+        if (typeof patch.invert === 'boolean') link.invert = patch.invert;
+        if (typeof patch.min === 'number') link.min = clamp(patch.min, 0, 1);
+        if (typeof patch.max === 'number') link.max = clamp(patch.max, 0, 1);
+      }),
+
+    clearControlLinks: () =>
+      update((d) => {
+        d.controlLinks = [];
+      }),
 
     addMacro: (trackId) => {
       const id = newId('mac');

@@ -8,6 +8,7 @@ import type { EffectKind, ProjectData, ProjectMeta, Track } from '../model/types
 import { isKnownEffect, MAX_INSERTS, normaliseParams } from '../model/effects';
 import { normalizeTempoMap } from '../model/tempo';
 import { normalizeChords, normalizeMarkers, normalizeSections } from '../model/arrangement';
+import { normalizeLinks } from '../model/controlLink';
 import { AUDIO_TRACK_TYPES } from '../model/types';
 import { isAutomationMode, validateLane } from '../model/automation';
 import { paramIdExists } from '../model/paramRegistry';
@@ -433,6 +434,7 @@ export function validateProject(raw: unknown): ProjectData {
       typeof raw.masterVolume === 'number' ? raw.masterVolume : 0.9,
     ),
     scratchPads: validateScratchPads(raw.scratchPads, trackIds),
+    controlLinks: normalizeLinks(raw.controlLinks),
     ...(typeof raw.activePadId === 'string' ? { activePadId: raw.activePadId } : {}),
     countIn: clampNum(raw.countIn, 0, 8, 1),
     preRoll: clampNum(raw.preRoll, 0, 8, 0),

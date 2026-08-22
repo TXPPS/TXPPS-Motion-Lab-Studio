@@ -13,6 +13,7 @@ import { useUiStore } from '../../state/uiStore';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import { Icon, type IconName } from '../common/Icon';
+import { ControlLinks } from './ControlLinks';
 import { KeyCommands } from './KeyCommands';
 
 const THEMES: { id: ThemeChoice; label: string; icon: IconName; blurb: string }[] = [
@@ -231,6 +232,15 @@ export function SettingsSheet() {
           <section>
             <h3 className="t-label">Key commands</h3>
             <KeyCommands />
+          </section>
+
+          <section>
+            <h3 className="t-label">Control Link</h3>
+            <p className="hint">
+              Bind a hardware knob, fader, pedal or button to anything in the product: pick the
+              target, press Learn, then move the control.
+            </p>
+            <ControlLinks />
           </section>
 
           <section>

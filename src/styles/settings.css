@@ -286,3 +286,65 @@
   color: var(--warm);
   font-size: var(--fs-sm);
 }
+
+/* ---------------------------------------------------------------- control link */
+.ctl-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.ctl-learn {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+.ctl-learn select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ctl-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ctl-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+.ctl-src {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-size: var(--fs-sm);
+}
+.ctl-tgt {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+}
+.ctl-row select.mini {
+  flex: 0 0 auto;
+  height: 24px;
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-xs);
+}
+/* A binding whose target was deleted still exists; saying so is better than
+   leaving a row that looks fine and does nothing. */
+.ctl-row.broken {
+  border-color: var(--danger-line);
+}
+.ctl-row.broken .ctl-tgt {
+  color: var(--danger-text);
+  text-decoration: line-through;
+}
