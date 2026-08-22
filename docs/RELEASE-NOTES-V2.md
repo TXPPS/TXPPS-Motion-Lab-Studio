@@ -56,12 +56,26 @@ channels, a real master channel with its own chain, and a Channel Overview.
 the compressor's transfer curve and live gain reduction, the waveshaper's curve, the
 modulator's LFO, live spectrum and scope.
 
-**Six editors** from one registry: piano roll, drum grid, score engraving, audio editor,
-chord assistant, console.
+**Six editors** from one registry: piano roll, drum grid, an editable score, audio
+editor, chord assistant, console.
+
+**Recording that keeps what was played.** An armed instrument or drum track records MIDI
+from every input — hardware, the on-screen keys, the computer keyboard — with a chord
+still held at the stop kept rather than dropped.
+
+**Cue mixes.** A separate headphone balance per performer off the same channels, where
+every channel nobody has touched follows the main mix, and any cue bounces to its own
+file.
+
+**Control Link.** Bind a knob, fader, pedal or button to the transport, a macro or any
+automatable parameter by moving it.
+
+**Project merge.** Another song's tracks, routing, sends, automation and global tracks
+land at the playhead, re-identified so nothing collides.
 
 **Audio intelligence**, all local and offline: Audio→Notes (mono and poly), Vocal Tune,
-stem separation, transient and tempo detection, warp and pitch-preserving timestretch,
-groove extraction, chord detection.
+stem separation, transient and tempo detection, draggable warp markers rendered through a
+pitch-preserving stretcher, groove extraction and application, chord detection.
 
 **Delivery.** Stems and per-track bounces through the same signal path the mix used, WAV
 and FLAC at any depth and rate, TPDF and shaped dither, true-peak normalisation, metadata,
@@ -79,5 +93,8 @@ The ones worth knowing before you start:
   mix usefully and a dense one only partly. The four stems always sum back to the input.
 - **The offline bounce resamples stretched clips** rather than waiting on the
   pitch-preserving stretch cache, so a tempo-followed clip's pitch moves in an export.
-- **The score editor engraves but does not edit.** Notes are edited in the piano roll.
+- **The score edits pitch, timing and duration.** Velocity, mute, per-note pan and
+  detune, off-grid placement and the quantize tools stay piano-roll work.
+- **A warp render lands a moment after the drag**, like a tempo-follow stretch: a clip
+  already sounding keeps playing the previous render until the new one is ready.
 - **No third-party plugin hosting.** The web has no equivalent sandbox.
