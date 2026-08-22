@@ -38,7 +38,7 @@ export default tseslint.config(
   {
     // QA/audit scripts are Node programs that also contain browser code inside
     // page.evaluate() callbacks, so they legitimately reference both.
-    files: ['scripts/audit-*.mjs'],
+    files: ['scripts/audit-*.mjs', 'scripts/*-audit.mjs'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
 );

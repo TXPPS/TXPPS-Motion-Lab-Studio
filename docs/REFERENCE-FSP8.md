@@ -901,3 +901,898 @@ Press and training material:
   are a MotionLab addition; do not claim parity.
 - **Number of visible insert slots before scrolling.** The reference sizes the rack by the
   Insert/Send divider rather than by a slot count, so there is no fixed number to match.
+
+---
+
+## 13. Stock effect devices, face by face
+
+This section deepens §5.3. That section stated the conventions each _family_ follows; this
+one takes the devices individually — what each does, how its own face groups its controls,
+and, the part that drives our build, what it **draws**.
+
+Fender Studio Pro 8 inherits the Studio One device set essentially whole and adds its own
+native plug-ins on top of it (§1). The device and parameter names below are the Studio One
+names as they appear in the vendor manual and in PreSonus/press documentation; where Pro 8
+adds or supersedes something, that is called out in place. Sourcing is as §0 describes —
+search extraction of pages this environment cannot fetch directly — so a control **name** is
+marked **[C]** only where the extract read as manual text quoting it, and a claim about
+_where_ something sits on the face is marked **[U]** unless a source described the position.
+
+### 13.1 Dynamics
+
+#### Compressor
+
+The general-purpose compressor, and the device §5.3 describes the transfer graph for. Its
+face groups as: the **graph** with the level meters beside it; a row of **timing and law**
+knobs (Threshold, Ratio, Knee, Attack, Release); a **behaviour** row of buttons (Auto,
+Auto Gain, Look Ahead, Adaptive); and the **sidechain** controls. **[R]** for the grouping.
+
+Ranges the manual states: **Threshold −48 dB to 0 dB**, **Ratio 1:1 to 20:1**, **Knee 0.1 dB
+to 20 dB**, and **Look Ahead is a fixed 2 ms** engaged by a button rather than a time knob.
+**Auto Gain** makes a 0 dB input produce a 0 dB output. **[C]**
+
+**Displayed.** Three things, and they are separate objects on the face, not one composite
+meter:
+
+- The **compression curve**, whose **handles are clickable and draggable in the display** —
+  the graph is an input surface, not a readout. **[C]** This is the same idea as the EQ's
+  band handles and it is worth copying: the threshold is set on the picture.
+- An **Input Level** meter showing **peak _and_ RMS together**. **[C]**
+- A **Reduction** display reading **−60 dB to +3 dB** which shows both the instantaneous
+  attenuation **and the maximum reduction reached** — a held peak-GR figure, not just a
+  bouncing bar. **[C]**
+
+The **Sidechain** button sits **at the top of the effect window**, next to the preset menu —
+i.e. it is part of the host-drawn header region described in §5.1, not of the device body.
+**[C]** The sidechain filter can be applied to an external key signal _or_ to the internal
+detector signal, so "key filter" is not exclusively a sidechain feature. **[C]**
+
+#### Limiter2
+
+The brickwall limiter, and the device the Main Out reaches for. Studio One 5 overhauled it;
+it carries **three attack speeds** and **two modes controlling distortion character**.
+**[R]**
+
+Controls: **Input** (gain into the limiter), **Ceiling** (maximum output), **Threshold**,
+**Release**, **True Peak (TP)**, **Soft Clip**, and **K-System metering as an option**.
+**[R]** The Threshold behaviour is the distinctive part: when Threshold is set _below_ the
+Ceiling the device becomes a levelling amp using a **soft knee and a fixed 1:20 ratio between
+the threshold and ceiling values**, and the numeric readout is an absolute value **variable
+from the ceiling down to 12 dB below it**. **[R]**
+
+**Displayed.** Gain reduction, output level, and — when K-System metering is engaged — the
+output meter switches to the **K-20 / K-14 / K-12 / True Peak / R128** scales that §4.8
+describes for output channels. **[R]** I could not confirm whether Limiter2 draws a transfer
+graph at all; the sources describe it as a knob-and-meter face rather than a curve face.
+**[U]**
+
+> The transferable idea: a limiter's picture is **not** a transfer curve. On the 0…−60 dB
+> axis every other dynamics processor uses, a brickwall's whole law is one pixel in the
+> corner. Its meters and its over-count are the display. Our `axisTopOf()` already works
+> around this by giving the limiter a +24 dB axis; the reference's answer is to not draw the
+> curve at all.
+
+#### Gate
+
+An expander with a **1:∞ ratio** — everything below threshold is attenuated by the Range
+amount rather than muted outright. **[R]**
+
+Controls: **Threshold Open** (the level at which the gate opens) and **Threshold Close**
+(the close level, set _relative to_ Threshold Open) — which is hysteresis expressed as two
+thresholds rather than as one "hysteresis" knob; **Range** (maximum attenuation, stated
+elsewhere as 0 to −84 dB); **Attack** (0.02–500 ms); **Hold**; **Release** (0.05–2 s); a
+**Key Filter** frequency; and a **Sidechain** button. **[R]** for the two-threshold form and
+the ranges; the 0/−84 dB figures come from PreSonus knowledge-base articles that describe the
+StudioLive/Fat Channel gate as well, so treat them as the family's ranges rather than as
+Studio One Gate's exact ones. **[U]**
+
+**Displayed.** A gain-reduction indication and a level meter with the threshold marked on
+it. I could not confirm that the Gate draws a transfer graph. **[U]** — do not assume it
+mirrors the Compressor's face.
+
+#### Expander
+
+A separate device from the Gate: a **downward expander with sidechain**. Controls:
+**Threshold**, **Range**, **Ratio**, **Attack**, and the same **2 ms Look Ahead** button the
+Compressor has. **[R]** Its display is **[U]**.
+
+#### Multiband Dynamics
+
+**Five** bands — Low, Low-Mid, Mid, High-Mid, High — not three. A frequency knob sets each
+crossover. Per band there are **Mute, Solo and Bypass** toggles plus **Low Threshold and High
+Threshold** (the pair defines the window within which the band is processed, which is what
+makes this device an expander _and_ a compressor per band), **Ratio**, **Attack** and a
+**Gain**. **[R]**
+
+**Displayed.** The single most copyable meter in the whole device set: **the main display
+shows each band's input level along the top and its output level along the bottom**, and the
+output half **deepens toward red as compression attenuates the band, or shows green when the
+band is being boosted**. **[R]** That is per-band gain reduction rendered as a colour-coded
+input/output pair rather than as five separate GR bars, and it reads at a glance.
+
+#### De-Esser
+
+Controls: **Frequency** (target centre frequency), **S-Reduction** (amount), and two
+audition buttons — **Listen** (hear the targeted band) and **Solo** (hear the reduced
+signal). A **Shape** control (with at least a "Wide" setting) and a **Range** control (with
+at least a "Full" setting) are named in the sources but not explained. **[R]** for Frequency,
+S-Reduction, Listen and Solo; **[U]** for Shape and Range semantics.
+
+**Displayed.** I could not confirm what the De-Esser draws. **[U]** Our own `DynamicsFace`
+band strip (the detection band drawn as an EQ shape under the transfer curve) is a
+MotionLab decision, not a copy — §5.3's claim that the reference does this is not something
+I could re-confirm, so do not cite it as parity.
+
+The two audition buttons **are** confirmed and we do not have them. A de-esser without a
+listen/solo button is a de-esser you tune by guesswork.
+
+#### Tricomp
+
+A three-band compressor whose selling point is that it **sets threshold and ratio
+automatically for all three bands**, leaving the user a **relative** control for the low and
+high bands and a **switchable automatic attack and release** (`Auto`). Controls: **In Gain**,
+the three band controls, **Auto**, **Mix** (parallel-compression blend), and an output gain.
+**[R]**
+
+**Displayed.** **Separate input and output meters, each paired with its own gain knob**, plus
+a **dedicated gain-reduction meter**. **[R]** The pairing of a meter with the knob that feeds
+it is the layout idea here: gain staging is done by looking at the meter immediately beside
+the control.
+
+#### Fat Channel XT
+
+The channel strip, modelled on the StudioLive console strip. It contains **five processors in
+fixed order: high-pass filter, gate/expander, compressor, EQ, limiter**, and the
+**compressor and EQ order can be reversed**. **[C]** for the five processors and the
+reversible order.
+
+It ships **three compressor models** — StudioLive Standard plus State-Space-modelled **Tube**
+and **FET** — and **three EQ models** — StudioLive Standard plus **Passive** and **Vintage**.
+All three compressor models have **Key Listen**. The Fat Channel Plug-in Collection adds
+**eight further compressor and seven further EQ models** which appear inside the same face.
+**[C]**
+
+**Layout — the important part.** Fat Channel XT has **Processor Select buttons** (HPF/Gate,
+Compressor, Equalizer, Limiter) **and a Stacked Mode toggle**: with Stacked Mode off only the
+selected processor block is drawn; with it on **all four are drawn at once, stacked**. Each
+processor has a **round on/off button beside its name** in the selector row _and_ its own
+enable switch inside its module. **[C]**
+
+That is a genuinely different answer to the "too many controls" problem from Micro View: the
+device itself has a density mode. A multi-processor face should be **selectable or stacked**,
+user's choice, with the processor on/off buttons always visible whichever mode is active.
+
+**Displayed.** The EQ module draws a curve with **LS/HS shelving toggles** on the low and
+high bands and per-band enable, Freq, Gain and Q. **[C]** Per-module gain reduction and level
+metering are near-certain given the strip's purpose but I could not confirm their form.
+**[U]**
+
+#### Channel Strip
+
+The small, plain channel strip — dynamics plus equaliser in one device, distinct from Fat
+Channel XT. **[R]** Its input stage carries **Gain** and **polarity/phase**. **[R]** I could
+not confirm its band count, its control layout or anything it draws. **[U]** Do not build to
+this one without better sourcing; Fat Channel XT is the better model anyway.
+
+### 13.2 Equalisation and filters
+
+#### Pro EQ3
+
+The flagship EQ, and the most thoroughly documented face in the set. §5.3 already covers the
+curve, the draggable band handles, the Show Curves behaviour, the spectrum modes and the
+per-band slopes. What it does not cover:
+
+- **Eight bands with fixed roles**: **LC** and **HC** (low-cut and high-cut), **LF** and
+  **HF** (each switchable between **shelf and peaking**), and **LMF, MF, HMF** (peaking).
+  **[C]**
+- **Dynamic Mode** on the **LF, LMF, MF, HMF and HF** bands — not on LC/HC. With it engaged,
+  the band's gain change is **triggered by the signal crossing an amplitude threshold**,
+  which makes Pro EQ3 a dynamic EQ. **[C]**
+- **Band Solo**, which auditions the selected band **as a band-pass** to find the exact spot.
+  It does not change the mix, and **on a dynamic band the dynamics stay active while
+  soloed**, so what you hear is what the band is doing. **[C]**
+- **Auto Gain**, which compensates for the EQ's own gain change. **[C]**
+- A **Level Range** field selecting **6 dB / 12 dB / 24 dB** for the display's vertical
+  scale, affecting the picture only and not the audio. **[C]**
+- The **Spectrum Display Type** field selecting **Third Octave, 12th Octave, FFT Curve,
+  Waterfall — or None** to switch the analyser off entirely. **[C]**
+- A **piano keyboard graphic below the spectrum display**, whose keys line up with the
+  12th-octave bands so any point on the curve **reads as a musical note**. **[C]**
+
+**Layout convention.** The display occupies the top of the face and the per-band controls sit
+in a row beneath it, with the display-configuration fields (Level Range, Spectrum Display
+Type, Show Curves) grouped as display settings rather than mixed in with the audio
+parameters. **[U]** for the exact arrangement; **[C]** that the keyboard graphic is _below_
+the spectrum.
+
+Three ideas here that our EQ does not have and should: an analyser that can be **turned off**,
+a **vertical scale the user chooses**, and a **note-name axis**. The last one costs almost
+nothing and answers the question every EQ user actually asks.
+
+#### Autofilter
+
+A filter device with an envelope follower and an LFO — the reference's "secret equaliser".
+Two filters with a **Chained/Parallel** switch between them. Filter models: **Ladder LP 12,
+18 and 24 dB; Analog SVF 12 and 24 dB; Digital SVF 12 dB; Comb; Zero Delay LP 24 dB**.
+Controls: **Cutoff**, **Reso**, **Drive** (filter overdrive), **FLT Spread** (the offset
+between filter 1's and filter 2's cutoffs), **Envelope Length** (one knob setting both the
+attack and release of the follower), and **LFO Speed**. **[R]**
+
+**Displayed.** Not confirmed. **[U]** The interesting modelling detail is that this device has
+**two** filters with a spread and a series/parallel switch, which our single `filter` device
+does not.
+
+### 13.3 Distortion, saturation and amp modelling
+
+#### Ampire / Ampire XT
+
+The amp, cabinet and pedalboard device. Three stacked regions, top to bottom: **amp**,
+**cabinet and microphones**, **pedalboard**. **[R]**
+
+- **Amp**: five amplifier models in the base Ampire, State-Space modelled, with the usual
+  tone stack. **[R]**
+- **Cabinet**: sixteen cabinet emulations built from State-Space modelling **combined with
+  impulse responses**. A **User Cabinet** option turns the cabinet section into an **IR
+  loader taking up to three IRs, one per microphone**, each added with a **`+` beside the
+  mic**. **[R]**
+- **Microphones**: an SM57-style dynamic, a Royer-style ribbon, a Neumann-style
+  large-diaphragm condenser, and a crossed stereo pair of small-diaphragm capacitors; three
+  of the four are configured per cabinet. You **blend between them relatively or
+  independently**, **invert polarity** per mic, and **mics B and C have a Delay parameter**
+  that moves them nearer or further from the source. **[R]**
+- **Pedalboard, along the bottom**: **eight slots** drawn from **thirteen pedals** (five
+  State-Space modelled on a Big Muff, a RAT, a Tube Screamer, an MXR Phase 90 and a Boss CE-1
+  chorus). Pedals are **arranged in any order by dragging**, and **a metal bar on the
+  pedalboard is itself draggable left and right**: pedals to the left of the bar are in front
+  of the amp, pedals to the right are in the amp's effects loop. **[R]**
+- **Tuner**: a full-size version of the standalone Tuner device with **standard and strobe
+  modes and a calibration knob**, built into the amp face. **[R]**
+
+**Displayed.** The pedalboard _is_ the display — chain order is shown as a physical row of
+objects with a movable divider marking the amp's position in the chain. This is the
+reference's only device that draws its own signal order, and it is the right answer for any
+device that hosts sub-devices. The mic blend is the second display: three mics with levels,
+polarity and distance is a spatial picture, not a knob row. **[U]** on whether Ampire draws a
+level or GR meter anywhere.
+
+Ampire XT (5.5) added **fast preset switching for the Show Page** so presets can be recalled
+from a MIDI pedalboard live. **[R]**
+
+#### Mustang Native and Rumble Native (Pro 8)
+
+Pro 8's Fender-derived guitar and bass amp devices, derived from the hardware Mustang and
+Rumble DSP amp lines. Each carries **amp models, the shared stompbox set, a built-in tuner,
+and a large preset library**. One Fender article states **39 amp models each and 73 pedals
+shared, with 200+ presets for Mustang and 100+ for Rumble**; other Fender-sourced material
+states **57 guitar and bass amp models** in total. §12 already flags this conflict and it
+remains unresolved — **do not quote a model count.** **[R]** for the structure, **[U]** for
+the numbers.
+
+One first-look review notes that the plug-in **shows a smaller window with nothing editable
+until the plug-in finishes loading**, and treats that as an under-used idea. **[R]** The
+transferable point is that a heavy device should draw a **legible loading state**, not a
+blank rectangle.
+
+#### RedLight Distortion
+
+Analog distortion emulation with **six selectable models: Soft Tube, Hard Tube, Bad Tube,
+Transistor, Fuzz, OpAmp**; **two EQ controls**; a **Mix** control; and **independent Drive and
+Distortion controls** — two separate gain stages, which is the distinction our single `drive`
+knob collapses. **[R]** Display **[U]**.
+
+#### Bitcrusher
+
+Controls: **Overdrive** (clean through fuzz), **Bit Depth** (down to **1 bit**), **Dirt** (a
+button adding high-frequency instability to the bit-depth reduction for more pronounced
+artefacts), **Downsample**, **Zero** (a button emphasising the high-frequency ringing the
+downsampler produces), and **Clip** (a threshold; at 0 the signal is untouched, below 0 it is
+clipped by whichever of three distortion algorithms is selected). **[R]**
+
+Note the shape: **two knobs and two character _buttons_**. The buttons are the interesting
+part — a lo-fi device's personality lives in switches, not in more knobs. Display **[U]**.
+
+#### Console Shaper
+
+The first generation of **Mix Engine FX** — a device class that runs on the summing engine
+rather than as an ordinary insert, Pro-tier only. **[R]** Its face and its metering are
+**[U]**. Worth knowing it exists because it is a _fourth_ device location (not insert, not
+send, not instrument) and our model has no concept of it.
+
+### 13.4 Delay
+
+Three delay devices, deliberately different from one another rather than three presets of
+one engine. **[C]** that the set is Analog Delay, Beat Delay and Groove Delay.
+
+#### Analog Delay
+
+A bucket-brigade/tape-style delay with a **vintage-styled panel face and no menus** — every
+control is on the surface. **[R]**
+
+Controls, grouped: **time** (**Sync** on/off, **Beats** subdivision, **Factor** — a tape-speed
+multiplier from **0.5**, doubling the delay length, to **2**, halving it — and **Inertia**,
+which sets how fast a time change is allowed to happen, i.e. the tape's pitch-glide when you
+move the knob); **feedback and drive** (a **State-Space modelled Drive** stage); **Color**
+(**Low Cut** and **High Cut** filters acting **on the repeats only, not on the dry signal**);
+**modulation** (**Mod** depth and **Shape** LFO waveform, simulating an unstable tape);
+and **stereo** (a ping-pong mode with three settings — **Off, Sum, 2-CH** — plus **Width**
+taking the output from mono to full ping-pong). **[R]**
+
+**Displayed.** No graphical display is described in any source I could reach; the face reads
+as a panel of knobs and switches. **[U]** — §5.3's note that the reference draws a tap/echo
+diagram is **not** confirmed for Analog Delay and should not be treated as parity.
+
+#### Beat Delay
+
+The tempo-locked delay. Controls: **Beats** (delay expressed as a beat subdivision),
+**Offset** (a time offset of **−30% to +30% of the Beats value** — swing, in other words),
+**Pingfactor** (a multiplier on the delay time following rhythmic subdivisions), **Cross
+delay** (routes the input to one channel and the delayed signal to the other), **Feedback**,
+**Width** and **Low Cut**. **[R]**
+
+**Displayed.** **[U]**. One extraction described a "grid-based interface" but that phrasing
+did not come from a source I can attribute, so treat Beat Delay's display as unknown.
+
+#### Groove Delay
+
+The four-tap delay, and the one with a real visualisation. Each of four taps has its own
+**Beats** (one beat to two bars), **Groove** (delay time as a percentage of the beat
+setting), **Feedback**, **Level**, **Pan**, and its own **resonant multi-mode filter**, so
+every tap can have a different timbre. **[R]**
+
+**Displayed.** A **Grid display**: rows are the four taps, columns are rhythmic subdivisions,
+and a row of **Grid Display buttons switches which parameter the grid is showing and
+editing — Level, Pan, Cutoff or Swing**. **[C]**
+
+That is the pattern to copy for anything with N parallel elements and M parameters each:
+**one grid, and a selector that changes which parameter the grid means.** It avoids both the
+wall of knobs and the drill-down. Our delay devices have a single time and feedback and no
+grid at all.
+
+### 13.5 Reverb
+
+#### Room Reverb
+
+A geometric room simulator, and the best-documented reverb display in the set.
+
+Controls: a **room model** selector — **Small Room, Room, Medium Hall, Large Hall**; **Size**
+(average size of the virtual room), **Width** and **Height** (each relative to Size);
+**Pre** (an offset applied to the room's own naturally-derived pre-delay, so the pre-delay
+floor moves with the room rather than starting at zero); **Population** (0–1, the relative
+number of people in the room — 0 gives enhanced bass and a static tail, 1 gives attenuated
+bass and a moving tail); and **Reflexivity** (0–1, surface smoothness, higher values giving a
+more echo-like tail). **[C]**
+
+**Displayed — two separate readouts:**
+
+1. A **W, D, H display** showing the **approximate room dimensions in real units** derived
+   from the current Size/Width/Height settings. The abstract knobs are translated into
+   metres. **[C]**
+2. The **reverb display**, showing overall reverb characteristics **on a self-adjusting time
+   scale**, with **early reflections drawn as individual vertical lines** and the **late tail
+   drawn as a coloured envelope**. **[C]**
+
+Both are worth taking. The self-adjusting time axis is why the display stays readable from a
+0.4 s room to a 6 s hall, and drawing ERs as discrete lines against a continuous tail is what
+makes the ER/LR balance visible at all. Our `ReverbFace` draws a single continuous envelope
+with a shaded pre-delay gap and no early reflections.
+
+#### Mixverb
+
+The small, cheap reverb. Controls: **Pre-delay** (0–500 ms), **Size** (0–100%), **Damping**
+(0–100%, attenuation of the upper frequencies of the reverberated signal), **Width**, **Mix**,
+and a **gate on the tail** — **Gate Tail** on/off, **Gate Threshold** (−36 dB to +12 dB) and
+**Gate Release** (10–250 ms). **[C]** for the ranges.
+
+A gated-reverb control group built into the reverb, rather than requiring a gate after it, is
+a small idea with an obvious payoff. Display **[U]**.
+
+#### Open AIR
+
+The convolution reverb. Controls: an **IR Name** field associating an impulse response with
+the device; **Predelay**; **Length**, which shortens or lengthens the reverb time; a
+**Shorten with Stretch** option which, when the requested length is shorter than the IR,
+**timestretches the region between the ER/LR breakpoint and the end of the IR instead of
+truncating it**, preserving the early reflections; and an **ER/LR** knob which **scales the
+volumes before and after the ER/LR crossover point**. **[C]**
+
+**Displayed.** The **impulse response itself**, with a **Log Time** toggle that **expands the
+early part of the time axis so the early reflections are legible**, which is what makes the
+ER/LR crossover point settable by eye. **[C]** for Log Time's purpose.
+
+The lesson generalises past reverb: when a display's interesting detail is crammed into the
+first 5% of the axis, give the axis a log mode rather than a zoom control.
+
+#### Studio Verb (Pro 8)
+
+Covered in §1: parameter sliders, a spectral display, and the **Ping** button that fires a
+noise burst through the tail. **[R]** The only thing to add is why Ping matters as a face
+element: it makes the display **useful with the transport stopped**, which no other reverb
+display in the set is. An audition button belongs on any device whose picture is otherwise
+blank until something plays.
+
+#### IR Maker
+
+A utility that **captures impulse responses** for use in Open AIR and in Ampire's cabinet
+section. It is inserted on an audio track whose output feeds a physical output (into a room,
+or into an amp's effects return) and whose input takes the microphone return; it plays a
+sweep and computes the IR. An **Open** checkbox opens the resulting file in the system file
+browser afterwards, and the IR can then be dragged onto a track to view and edit it, or
+dragged straight into Open AIR or Ampire. **[C]**
+
+Note what this implies about the reference's file model: **an IR is an ordinary file that
+drags between the file browser, an audio track, and two different devices.** Nothing about it
+is special-cased.
+
+### 13.6 Modulation
+
+#### Chorus
+
+A voice chorus with LFO delay-time modulation and stereo width. Controls: **Delay** (the
+delay of the chorus voices), a **Mode** switch between **Doubler** and **Chorus**, **LFO
+Speed**, an **LFO Shape** switch across **Triangle, Sine, Sawtooth, Square**, and **LFO
+Width** (the range of the modulation spacing). **[R]**
+
+#### Flanger
+
+Swept short delay with tempo sync. **Speed** sets the modulation rate; **Depth** is a
+**dry-to-flanged blend**, not a modulation depth — the sources are explicit that fully left is
+dry and fully right is flanged. **[R]** That is a meaningfully different meaning of "depth"
+from ours and worth not copying blindly.
+
+#### Phaser
+
+A variable number of all-pass filters in series with **one overall feedback loop**. Its sweep
+is bounded by **two range controls, not by a depth**: **Range Low** sets the lowest centre
+frequency for the all-pass filters (10 Hz to 8 kHz, or up to the Range High value) and Range
+High sets the top. **Speed/Beats** is one control whose meaning changes with the **Sync**
+switch — in Hz when Sync is off, in beats when it is on. **[R]**
+
+A swept effect specified by **where the sweep starts and stops** rather than by a centre and
+a depth is more musical to set and is trivial for us to adopt.
+
+#### Rotor
+
+Rotary speaker emulation. Controls: **Slow/Fast** switches; **Woofer Speed** and **Horn
+Speed** sliders **which set the actual rotation rates used in each of the slow and fast
+modes** (so four values, not two); **On/Off** for the rotation itself; **Drive** (tube-amp
+drive); **Horn Q** (blends in a midrange peak emulating the resonance of a rotating horn);
+**Distance** (virtual microphone distance); **Spread** (stereo width of the rotating
+elements); and a horn/woofer balance. Speed changes are **ramped with realistic braking and
+acceleration**. **[R]**
+
+**Displayed.** Not confirmed. **[U]** The state worth drawing is the ramp: a rotary that
+snaps between two speeds when you press Fast is wrong, and the only way a user can tell the
+ramp is happening is if something on the face moves.
+
+#### Tremolo and Auto Pan
+
+I could **not** confirm that FSP8 ships a device called Tremolo or one called Auto Pan.
+**[U]** The level- and pan-modulation ground is covered by Autofilter's LFO, by Rotor and by
+the panning devices in §13.7. Our `tremolo` and `autopan` may be devices the reference does
+not have — see `docs/DEVICE-PARITY.md`.
+
+### 13.7 Stereo, panning and routing utilities
+
+#### Mixtool
+
+The utility device. Functions: **Gain**; **independent left- and right-channel polarity
+inversion** (two separate inverts, not one global Ø); **left/right channel swap**; **MS
+Transform** on the input channels; and **Block DC Offset**, which re-centres the incoming
+waveform. **[R]**
+
+That is five distinct functions in one small device, and the separate per-channel inverts are
+the reason it exists — a stereo track with one flipped side is a real problem and a single
+polarity button cannot fix it. Display **[U]**, and probably none.
+
+#### Dual Pan
+
+A stereo panner with **independent left and right pan controls**, an **Input Balance** knob
+(full left to full right, applied before the panners), and a **Pan Law** selector offering
+**−6 dB Linear, −3 dB Constant Power Sin/Cos, −3 dB Constant Power Sqrt, 0 dB Balance
+Sin/Cos, and 0 dB Linear**. **[R]**
+
+The pan law being a **per-device choice from a named list** is the notable part: it makes the
+law explicit and automatable instead of a global preference.
+
+#### Binaural Pan
+
+An HRTF-based panner for headphone placement. Its control set and its display are **[U]** —
+I could not reach a description beyond the device's existence and purpose. Do not build to
+this one from memory.
+
+#### Pipeline
+
+The hardware-insert device: it sends audio out of a physical output and brings it back on a
+physical input so an outboard processor sits in the chain like a plug-in. It has a **ping
+function that measures the round-trip I/O latency** and then compensates for it
+automatically. **[R]**
+
+Not implementable in a browser, but the **ping-and-measure** pattern is: any latency we
+cannot know statically should be measured with a probe and shown, rather than guessed.
+
+### 13.8 Metering and analysis
+
+These four are the reference's dedicated meter devices, described in the manual's **Analysis
+and Tools** chapter. They matter to us disproportionately because a meter device is nothing
+_but_ its display.
+
+#### Level Meter
+
+**Sizeable as either a horizontal or a vertical display** — the device reflows, it does not
+have one fixed orientation. **[C]** Parameters: **Mode** (**True Peak, K-20, K-14, K-12,
+R128**), **Corr** (a toggle that adds a **phase-correlation** readout to the level meter),
+and **RMS Len** and **Hold Len**, each chosen from a menu of length values. **[C]**
+
+Two things we do not do: the meter's **integration time and hold time are user-set from
+menus**, and correlation is available **on the level meter itself** rather than only in a
+separate phase device.
+
+#### Spectrum Meter
+
+Display modes: **Oct-Band, 3rd-Oct-Band, 12th-Oct-Band, FFT, Waterfall (WF), Sonogram (Sono)
+and Segments**. **[C]** Seven modes, of which three (Waterfall, Sonogram, Segments) are
+time-history displays rather than instantaneous curves.
+
+Note that Pro EQ3's embedded analyser offers a **subset** — Third Octave, 12th Octave, FFT
+Curve, Waterfall — plus **None**. The dedicated device is the fuller instrument; the embedded
+one is trimmed to what is useful behind a curve. That is a deliberate distinction and the
+right one.
+
+#### Phase Meter
+
+Two components, and the manual describes them as such: a **goniometer occupying the centre of
+the plug-in window**, and a **correlation meter across the very bottom**. **[C]** The
+goniometer plots **left against right amplitude on an X/Y oscilloscope**, on which **a
+vertical line means a mono signal**; the horizontal correlation meter shows the **average
+amount of in-phase versus out-of-phase content**. **[C]**
+
+#### Scope
+
+An oscilloscope for debugging — the manual frames it as being for studio problems such as
+**analysing crosstalk and noise levels**, not for musical use. It has **three signal channels
+and one math channel**. **[C]**
+
+A math channel (a derived trace, e.g. A−B) is what makes an oscilloscope useful for crosstalk
+work, and it is the reason this device is not just a waveform view.
+
+#### VU Meter
+
+An **analogue-style VU** with **clip indicators**, alongside **peak level meters** and a
+**correlation meter** on the same face. **[R]** In Pro 8 it is **pre-installed as part of the
+native FX set** rather than being a separate download. **[R]** Its ballistics have been the
+subject of user complaints that they do not match true analogue behaviour — if we build one,
+the ballistics (300 ms integration, the standard overshoot) are the whole point. **[R]**
+
+#### Tuner
+
+Controls: a **Strobe Mode** toggle switching the display between **standard and strobe**, and
+a **Calibration** knob setting the reference from **415 Hz to 465 Hz** by drag or by typing a
+value into its number field. **[C]**
+
+**Displayed**, and this is precise enough to build from: a **centre-note indicator with an
+arrow to either side** — the **left arrow lights when the signal is flat**, the **right arrow
+when it is sharp**; the **deviation is shown as a signed number**, positive for sharp and
+negative for flat; and the **exact Frequency and Difference readouts sit in the lower left
+corner** of the face. In strobe mode the **rotation speed of the strobe is the measure of how
+far out of tune the note is**. **[C]**
+
+Ours draws a time-domain oscilloscope trace and no note name at all.
+
+### 13.9 Pitch
+
+#### Melodyne (ARA)
+
+Pitch and time editing arrives through **ARA (Audio Random Access)**, which lets the editor
+exchange audio with the host directly rather than streaming through a plug-in. **[C]** The
+display is the **blob** view: analysed notes drawn as blobs positioned by pitch and time,
+with a **pitch ruler down the left-hand side**; **dragging a blob vertically changes its
+pitch and dragging it horizontally changes its timing**. Melodic mode is the monophonic
+algorithm used for vocals. **[R]**
+
+#### Vocal Tune (Pro 8.1)
+
+Pro 8.1's **native real-time pitch correction** device, added alongside the Melodyne
+integration rather than replacing it. Controls: a **root note** and a **scale**, a
+**correction percentage**, **vibrato** shaping, and a **formant shift** that changes timbre
+without changing pitch. **[R]** Its display is **[U]** — I found no description of a pitch
+trace, a scale grid or any graph, and should not assume one exists.
+
+#### Voice FX (Pro 8)
+
+A single device offering **six effect types: De-Tuner, Delay, Transformer, Filters, Ring
+Modulator and Vocoder**, added for compatibility with the free Fender Studio app. **[R]** Its
+face and any display are **[U]**.
+
+### 13.10 What the device faces have in common
+
+Pulling §13 together, the conventions that actually repeat across the set — these are the
+rules to hold our own faces to:
+
+1. **The display is an input surface.** Pro EQ3's band handles and the Compressor's curve
+   handles are both dragged directly. A picture that can only be read is a wasted third of
+   the face.
+2. **The display has its own settings, and they are on the face.** Level Range, Spectrum
+   Display Type, Show Curves, Log Time, Stacked Mode, Grid Display, standard-vs-strobe,
+   horizontal-vs-vertical. In every case the user chooses what the picture shows, and in
+   several cases can turn it off. None of our faces has a single display setting.
+3. **Gain reduction is reported three ways, not one**: as a line on the transfer graph, as a
+   dedicated meter with a **maximum-reduction hold**, and back into the console strip (§4.8).
+4. **Input and output are metered separately and each sits beside the knob that sets it**
+   (Tricomp is the clearest case).
+5. **Audition affordances are first-class controls**: Listen and Solo on the De-Esser, Band
+   Solo on Pro EQ3, Key Listen on Fat Channel XT's compressors, Ping on Studio Verb, the ping
+   probe on Pipeline, the sweep on IR Maker. Roughly one device in three has a button whose
+   only job is to let you hear or see what the device is keying on.
+6. **A device that hosts sub-devices draws its chain** (Ampire's pedalboard with its movable
+   pre/post-amp divider).
+7. **N parallel elements get one grid and a parameter selector**, not N copies of the control
+   set (Groove Delay).
+8. **A crowded device gets a density mode of its own** (Fat Channel XT's Stacked Mode) rather
+   than relying on the host's Micro View.
+9. **Character lives in switches.** Bitcrusher's Dirt and Zero, RedLight's six models,
+   Ampire's mic selection, Fat Channel's Tube/FET/Passive/Vintage. Adding a knob is the lazy
+   answer.
+10. **Ranges are stated, and units are real.** Room Reverb converts abstract size knobs into
+    **metres**; Pro EQ3's spectrum carries a **piano keyboard**; the Tuner reads out **Hz and
+    cents**. Every one of those turns a number the DSP wants into a number a musician has an
+    opinion about.
+
+---
+
+## 14. Stock instruments, face by face
+
+This deepens §6, which stated the family conventions. §6's list of the stock set stands;
+what follows is per-instrument detail on the face and on what each one draws.
+
+### 14.1 Impact XT — drum machine
+
+**The pad grid is the face.** It is a **4×4 grid of 16 pads**, and there are **eight banks of
+16 within a single patch** — 128 pad slots per instrument, switched by bank rather than by
+loading a second instrument. **[R]**
+
+A pad holds **one-shot hits, loops or pitched instrument sounds**, and **more than one sample
+can be assigned to a pad with velocity switching between them**. **[R]**
+
+Face regions:
+
+- **The pads themselves**, with **Solo and Mute controls and an Output Channel assignment
+  beneath each pad**. **[R]**
+- **A waveform display at the top of the window** showing the currently selected sample, with
+  **start and end point controls**, plus **normalise and reverse**. It is **zoomable**.
+  **[R]**
+- **A velocity range bar** used both to define the velocity layers and to **audition a layer
+  by selecting it in the bar**. **[R]**
+- The pad's own parameters below, swapped in when a different pad is selected (§6).
+
+**Routing is part of the instrument's design, not an afterthought**: each pad can be assigned
+to **its own stereo output**, which **appears as a separate channel in the console with full
+insert capability**. **[R]** A drum machine whose pads cannot reach the mixer individually is
+a toy, and this is the single biggest structural gap between the reference's drum machine and
+ours.
+
+Pro 7's in-place Impact editor inside the Note Editor (§6) means the pad grid appears in the
+_editor_ as well as in the instrument window, so pads are reachable while drawing notes.
+**[C]**
+
+### 14.2 SampleOne XT — sampler
+
+Organised around the sample and its map, as §6 says. The detail:
+
+- **Up to 128 zones**, each holding its own sample. Zones can be **layered on the same key
+  range** for stacking or **split across the keyboard** for a multisample. **[R]**
+- **A waveform display** with **Reverse and Normalize buttons directly above it** and an
+  **Edit Sample** button opening the per-sample parameters — **sample trim and loop
+  playback** among them. **[R]**
+- **Slicing**: a loop can be sliced and the slices **mapped to individual keys**. **[R]**
+- **A filter section with nine filter models**, plus a **Drive** knob adding saturation in the
+  filter and a **Punch** control adding percussive attack to the start of the note. **[R]**
+- **An amp module** carrying gain, pan and an ADSR. **[R]**
+- **An Envelopes tab at the top of the face** which switches the display to **a graphical view
+  of all the envelopes at once**. **[R]**
+
+The Envelopes tab is the structural idea worth taking: the envelopes are **not** each drawn
+beside their own knob row; there is one place where **all** of them are drawn together and
+compared. Ours draws a single amplitude envelope and has no filter or pitch envelope graph at
+all.
+
+### 14.3 Presence XT — sample player
+
+A preset-first instrument, and the reference's answer to "I need a piano in four seconds".
+
+- Plays a **generic multisample format packaged into Sound Sets**, and **also loads EXS,
+  Giga, Kontakt (version 4 and below) and SoundFont presets** directly. **[R]**
+- The playing face offers **filter, LFOs, envelopes, a modulation matrix and effects** —
+  enough to shape a preset, not enough to build one. **[R]**
+- **The Edit Page is locked by default.** Zone, layer and program editing, and the ability to
+  script **eight assignable knobs and buttons**, are unlocked by the separately-sold
+  **Presence XT Editor** add-on. **[R]**
+
+That split — a **play face** everyone gets and an **edit face** behind a door — is a product
+decision rather than a design one, but the shape of it is instructive: the sound-selection
+surface and the sound-construction surface are genuinely different faces of one device, and
+most users never see the second.
+
+### 14.4 Mai Tai — polysynth
+
+§6 covers the signal-ordered layout. Additional detail:
+
+- The **central control panel** holds, in order, **Osc 1 and Osc 2 with their attached sine
+  sub-oscillators**, the **noise** source, the **Character** processor, the **Filter**, and
+  then the **LFOs and Envelope Generators**. The sub-oscillator plays the same relative pitch
+  an octave down and is attached to its oscillator rather than being a separate source.
+  **[R]**
+- **The Mod/FX section runs along the bottom of the window** and contains **both** the
+  modulation matrix and the built-in effects. **[C]** for the position.
+- **The modulation matrix** works as: a **source drop-down** per row, a **target drop-down in
+  a field at the bottom of the matrix**, and **the routing number itself doubles as the row's
+  enable button**. **[R]**
+
+A numbered row where the number is the enable toggle is a nice piece of economy and exactly
+the sort of detail that reads as designed.
+
+### 14.5 Mojito — mono synth
+
+The small synth, and a good model for a compact face.
+
+- **One oscillator with a continuous morph**: a single **Shape** control blends from **saw at
+  full left to square at full right**, with a mix of the two in between — not a waveform
+  selector. **Width** sets the pulse width when the oscillator is square-side, **Pitch** sets
+  the pitch, and a **sub oscillator** can be dialled in. **[R]**
+- **One filter**: a **resonant 24 dB low-pass**, with **Cutoff (20 Hz to 16 kHz)**, **Reso**,
+  and **Drive (0–100%)**. It occupies the **upper right** of the face. **[R]**
+- **One LFO**, with **Speed** (free or tempo-synced) sitting **under the oscillator section**,
+  and **separate modulation-amount dials under Pitch, Wave and Width** — the routing is fixed
+  and the depths are per-destination, which is a matrix without a matrix. **[R]**
+- **Portamento** under the oscillator, and the **amp envelope beside it**. **[R]**
+
+The continuous saw→square morph and the three fixed mod-depth dials are both worth copying:
+they make a small synth feel deep without adding a page.
+
+### 14.6 Multi Instrument
+
+The layering and splitting container.
+
+**Displayed — and this is the whole point of the device**: a **keyboard display in which each
+loaded instrument is drawn as a coloured bar**. Each instrument's bar is a **range slider
+whose ends are dragged to set its key range**. **Overlapping ranges layer**; non-overlapping
+ranges split. **[C]**
+
+Selecting an instrument in that display switches **the controls to the left** to that
+instrument's **pan, level and transposition**, and **each instrument has its own inserts**.
+**[C]**
+
+**Velocity splits are not made here** — they are made with the **Input Filter Note FX**
+placed before the instrument. **[R]** So the Multi Instrument's map is a **key** map only,
+and velocity layering is a separate, composable mechanism. That is a defensible split and
+worth knowing before we copy the shape, because our sampler's zone map is a **key _and_
+velocity** map, which is the other choice.
+
+### 14.7 Instrument face conventions
+
+1. **The performance surface is the largest element and it is at the top** — pad grid,
+   keyboard/zone map, waveform. Everything else is the tail.
+2. **Selecting on the performance surface swaps the editor below it.** One pad editor, one
+   zone editor, one instrument-parameter panel, re-pointed by selection rather than
+   duplicated per element.
+3. **A sample-based instrument's waveform display carries edit affordances directly** —
+   start/end handles, loop handles, slice marks, and buttons (reverse, normalise) sitting
+   immediately above it.
+4. **Envelopes get one shared graphical view**, tabbed, rather than a small graph per
+   envelope.
+5. **Pads and layers reach the console individually.** Per-pad outputs in Impact XT, per-
+   instrument inserts in the Multi Instrument.
+6. **Fixed layout, signal-ordered left to right, with the modulation and effects section
+   along the bottom.** Mai Tai is the canonical example; Mojito is the same idea at a
+   quarter of the size.
+
+---
+
+## 15. Additional sources for §§13–14
+
+All reached by search extraction; direct fetch remains blocked in this environment (§0).
+
+Vendor manual pages (PreSonus/Fender Studio One reference manual):
+
+- _Built-In Effects_ (chapter index):
+  <https://s1manual.presonus.com/en/Content/Built-In_Effects_Topics/Chapter-Built_In_Effects.htm>
+- _Dynamics_: <https://s1manual.presonus.com/Content/Built-In_Effects_Topics/Dynamics.htm>
+- _Pro EQ3_: <https://s1manual.presonus.com/Content/Built-In_Effects_Topics/EQ.htm>
+- _Delay_: <https://s1manual.presonus.com/Content/Built-In_Effects_Topics/Delay.htm>
+- _Reverb_: <https://s1manual.presonus.com/Content/Built-In_Effects_Topics/Reverb.htm>
+- _Mixing_ (Channel Strip, Fat Channel XT, Mixtool, Dual Pan, Binaural Pan, Tricomp):
+  <https://s1manual.presonus.com/Content/Built-In_Effects_Topics/Mixing.htm>
+- _Analysis and Tools_ (Level Meter, Spectrum Meter, Phase Meter, Scope, Tuner, IR Maker,
+  Pipeline):
+  <https://s1manual.presonus.com/en/Content/Built-In_Effects_Topics/Analysis_and_Tools.htm>
+- _Mojito_: <https://s1manual.presonus.com/Content/Built-In_Instruments_Topics/Mojito.htm>
+- _Presence XT_: <https://s1manual.presonus.com/Content/Built-In_Instruments_Topics/Presence_XT.htm>
+- _Multi Instruments_:
+  <https://s1manual.presonus.com/Content/Built-In_Instruments_Topics/Multi_Instruments.htm>
+- _Pitch Correction with Melodyne Integration_:
+  <https://s1manual.presonus.com/Content/Editing_Topics/Pitch_Correction_with.htm>
+
+PreSonus first-party (knowledge base, blog, product pages):
+
+- Knowledge Base — _Limiter_, _Expander_, _Gate Threshold_, _Gate Range_, _Gate Attack_,
+  _Gate Release_, _Noise Gate_, _Digital Delay_, _K-System Metering Explained_,
+  _MultiBand Dynamics Parts 1–2_, _Mixtool_, _Dual Pan_, _Binaural Pan_, _Mai Tai_
+- Blog — _Limiter2 Deep Dive_, _Friday Tips: Limiter Demystified_,
+  _Plug-In Matrimony: Pro EQ3 Weds Dynamics_, _The Surprising Channel Strip EQ_,
+  _Solve Vocal Problems with the De-Esser_, _Fix Mixes with Multiband Dynamics_,
+  _Grab Cab Impulses for Ampire from Any Amp Sim_
+- Product pages — _Ampire_, _Rotor_, _Tricomp_, _Analog Delay_, _Red Light Distortion_,
+  _Fat Channel XT_, _Fat Channel Collection Vol. 1_, _Channel Strip Collection_, _CTC-1_
+
+Fender:
+
+- _A Look at Mustang Guitar and Rumble Bass Native Plug-Ins in Fender Studio Pro 8_:
+  <https://www.fender.com/articles/fender-studio/mustang-guitar-rumble-bass-plugins>
+- _Fender Studio Pro 8 — Version History and Release Notes_ (PDF)
+
+Press and training:
+
+- Sound On Sound — _Studio One: Impact XT_, _Patterns & Impact XT In Studio One 4_,
+  _Live Performance Loops With Impact XT_, _Using SampleOne XT In Studio One_,
+  _Studio One: Presence XT_, _Studio One: Exploring Mai Tai_,
+  _Studio One: Mai Tai's Modulation Matrix_, _Studio One: Mai Tai Timbral Variation_,
+  _Studio One: Layering Synths Using Multi Instruments_, _Studio One: All Amped Up_,
+  _Studio One: Exploring Analog Delay_, _Repeat After Me_ (delays),
+  _Studio One: Console Shaper_, _Studio One: Melodyne Essential_,
+  _M/S Processing In Studio One_, _Circular Panning In Studio One_,
+  _Making Masters In Studio One_, _Inside Studio One Project Window_
+- PCAudioLabs — per-device _How to use…_ articles for Pro EQ, ProEQ3, Compressor, Limiter,
+  Gate, Expander, Multiband Dynamics, De-Esser, Tricomp, Mixverb, Room Reverb, Open AIR,
+  Analog Delay, Beat Delay, Groove Delay, Chorus, Phaser, Rotor, Bitcrusher, RedLightDist,
+  Auto Filter, Binaural Pan, Dual Pan, Channel Strip, Level Meter, Spectrum Meter, Phase
+  Meter, and the Fat Channel and Ampire section series (_Cabinet Section in Ampire_,
+  _Tuner Section in Ampire_)
+- OBEDIA — _How To Use PreSonus Tricomp_, _How To Use Groove Delay_, _How To Use The
+  PreSonus Rotor Plugin_
+- MusicTech — _Making an impact with Impact XT_, _Capturing life with Sample One XT_,
+  _How to get the best from Presence XT_, _How to build synth textures with Mai Tai and
+  Mojito_, _Fender Studio Pro 8.1 review_
+- Production Expert — _Fender Studio Pro 8: First Look_
+- Audeobox — _Sample One XT Guide_, _Impact XT Drum Machine: Complete Guide_
+- Loopmasters — _Working with Samples in Studio One's SampleOne XT_
+- macProVideo / Ask.Audio — _Subtractive Synthesis with Studio One's Mojito_,
+  _Using Studio One's Console Shaper Mix Effect_, _4 Delay Tips in PreSonus Studio One_
+- KVR Audio — _Fender Updates Studio Pro to 8.1_ (Vocal Tune, Studio Assistant, Moises)
+- Bedroom Producers Blog — _PreSonus VU Meter Is Now FREE_
+- Sweetwater InSync — _Studio One's Secret Equalizer — Autofilter_, _Setting Up Keyboard
+  Layers and Splits in Studio One_
+- Celemony — _Working with ARA_ (Melodyne 5 help centre)
+
+---
+
+## 16. Additional unconfirmed items (extends §12)
+
+Everything here is something §§13–14 needed and could not establish. Do not build to any of
+it without checking.
+
+- **Whether the Gate, the Expander, the De-Esser, the Limiter2 or Ampire draw a graph at
+  all.** Only the Compressor's transfer graph, Pro EQ3's curve, Room Reverb's two displays,
+  Open AIR's IR view, Groove Delay's grid, Multiband Dynamics' input/output bands and the
+  four meter devices are confirmed as having displays. For the rest the sources describe
+  knobs and switches and say nothing about a picture.
+- **Whether FSP8 ships devices named Tremolo or Auto Pan.** I found none. Our `tremolo` and
+  `autopan` may have no counterpart.
+- **The De-Esser's Shape and Range controls.** Named in one source, unexplained everywhere.
+- **The Channel Strip device's band count and layout**, as distinct from Fat Channel XT.
+- **Binaural Pan's controls and display** beyond the fact that it is an HRTF panner.
+- **Analog Delay's and Beat Delay's displays.** One extraction described a Beat Delay "grid"
+  but could not be attributed; treat as unknown. Note that §5.3's statement that the
+  reference draws a tap/echo diagram is confirmed **only** for Groove Delay.
+- **Vocal Tune's display.** No source describes a pitch trace, a scale grid or any graph.
+- **Voice FX's face.** Only the six effect-type names are confirmed.
+- **Whether Fat Channel XT meters gain reduction per module**, and in what form.
+- **Mustang Native / Rumble Native model counts.** Now conflicting from two Fender-sourced
+  places (39 + 39 versus 57 total) as well as from press. Still unquotable.
+- **Exact on-face positions** for most devices. Confirmed positions are: Pro EQ3's piano
+  keyboard below the spectrum; the Compressor's Sidechain button at the top of the window;
+  Ampire's pedalboard along the bottom; Mai Tai's Mod/FX along the bottom; Impact XT's
+  waveform at the top; the Phase Meter's goniometer centred with the correlation meter along
+  the bottom; SampleOne XT's Envelopes tab at the top; Mojito's filter upper-right. Every
+  other position claim in §13 is inference.
+- **Whether Studio One's Gate exposes Threshold Open / Threshold Close under exactly those
+  labels**, or whether those are the StudioLive/Fat Channel gate's labels reused by the
+  secondary sources.

@@ -89,9 +89,13 @@ export function TopBar({ layout }: { layout: Layout }) {
 
   return (
     <header className="topbar">
+      {/* On a phone the wordmark is the least useful thing in the bar — the
+          user knows which app they opened, and what they need to see is which
+          song is. The name stays in the document outline and in the
+          accessibility tree; only the pixels go. */}
       <div className="brand">
         <Icon name="logo" size={22} />
-        <h1 className="brand-name">
+        <h1 className={`brand-name${layout === 'phone' ? ' sr-only' : ''}`}>
           MotionLab
           {layout === 'desktop' && <span className="brand-sub"> Studio</span>}
         </h1>

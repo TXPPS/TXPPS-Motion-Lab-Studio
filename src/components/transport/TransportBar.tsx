@@ -34,7 +34,20 @@ export function AudioStatusChip({ compact }: { compact?: boolean }) {
             : audioState === 'interrupted'
               ? 'Interrupted — tap'
               : 'Audio Error — retry';
-  const short = audioState === 'running' ? 'ON' : audioState === 'error' ? 'ERR' : 'START';
+  /**
+   * On the phone bar the chip is a lamp, and a word only while the word is an
+   * instruction. Once audio is running the colour says everything the label
+   * did, and the pixels are worth more to the position readout beside it —
+   * but "audio has not started" is a thing the user must act on, so that state
+   * keeps a word they can read rather than an abbreviation clipped to "STA…".
+   */
+  const short =
+    audioState === 'running' || audioState === 'starting'
+      ? null
+      : audioState === 'error'
+        ? 'Retry'
+        : 'Start';
+  const label = compact ? short : full;
   return (
     <button
       className={`chip audio-chip ${cls}`}
@@ -45,7 +58,7 @@ export function AudioStatusChip({ compact }: { compact?: boolean }) {
       data-audio-state={audioState}
     >
       <span className="dot" />
-      <span className="chip-label">{compact ? short : full}</span>
+      {label && <span className="chip-label">{label}</span>}
     </button>
   );
 }
@@ -115,7 +128,10 @@ function PositionDisplay({ compact }: { compact?: boolean }) {
             1.1.000
           </span>
         )}
-        <span className="l">Bars · Beats</span>
+        {/* The compact bar has room for the reading, not for its full name;
+            a label sliced through its first letter is worse than a short
+            one. */}
+        <span className="l">{compact ? 'Bars' : 'Bars · Beats'}</span>
       </button>
       {!compact && (
         <div

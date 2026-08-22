@@ -460,6 +460,11 @@
   padding: 0 8px;
   box-shadow: var(--ml-seam-r);
   flex: none;
+  /* The display clips what will not fit, so a cell that is narrower than its
+     own caption must shorten the caption rather than slice it: "Bars · Beats"
+     was arriving on a phone with its first letter cut in half. */
+  min-width: 0;
+  overflow: hidden;
 }
 .t-cell:last-child {
   box-shadow: none;
@@ -477,6 +482,9 @@
   white-space: nowrap;
 }
 .t-cell .l {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-family: var(--font-cond);
   font-size: var(--fs-2xs);
   font-weight: var(--fw-semibold);
@@ -804,6 +812,19 @@
 }
 .transport.compact .t-cell input {
   font-size: 13px;
+}
+/* An element whose only job is to consume free space costs two gaps on a bar
+   that is four pixels short of fitting — which is why the position readout
+   arrived with its caption sliced and the audio button said "ST…". Pushing
+   the chip right with a margin does the same job for nothing. */
+.transport.compact .spacer {
+  display: none;
+}
+.transport.compact .audio-chip {
+  margin-left: auto;
+  /* Its label is already as short as it can be and still be an instruction,
+     so it does not shrink: what would give way is the only word on it. */
+  flex: none;
 }
 /* Very narrow phones: position readout only, tempo moves to the overflow menu */
 @media (max-width: 400px) {
