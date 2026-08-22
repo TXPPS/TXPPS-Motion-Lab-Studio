@@ -117,6 +117,19 @@ const ENVELOPE_WINDOW_SEC = 0.012;
 const ENVELOPE_HOP_SEC = 0.003;
 /** Fraction of a note's own peak level that counts as the note having stopped. */
 const RELEASE_FRACTION = 0.12;
+/**
+ * How much of a note has to be seen before its median means "the centre of this
+ * note". Less than one cycle of a slow vibrato and the median can sit at the top
+ * or the bottom of the wobble instead of the middle of it.
+ */
+const REFERENCE_WARMUP_SEC = 0.2;
+/**
+ * Level rise, in dB, that an onset inside a sounding note has to bring with it
+ * before it is treated as a new note. Vibrato and a moving filter both put
+ * energy into new bins and so both produce spectral flux; neither is an
+ * articulation, and neither raises the level.
+ */
+const ARTICULATION_RISE_DB = 3;
 
 function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
@@ -217,6 +230,30 @@ function envelopePeak(env: Envelope, fromSec: number, toSec: number): number {
   return peak;
 }
 
+/**
+ * Rise in level across an instant, in dB: the loudest moment just after it over
+ * the quietest just before. A struck or tongued note shows several dB here; a
+ * sustained one that merely changed timbre shows none.
+ */
+function levelRiseDb(env: Envelope, timeSec: number): number {
+  if (env.values.length === 0) return 0;
+  const before = envelopeFloor(env, timeSec - 0.03, timeSec + 0.005);
+  const after = envelopePeak(env, timeSec, timeSec + 0.025);
+  if (!(after > 0)) return 0;
+  if (!(before > 0)) return Infinity;
+  return 20 * Math.log10(after / before);
+}
+
+function envelopeFloor(env: Envelope, fromSec: number, toSec: number): number {
+  const from = envelopeIndexAt(env, fromSec);
+  const to = envelopeIndexAt(env, toSec);
+  let floor = Infinity;
+  for (let i = Math.min(from, to); i <= Math.max(from, to); i++) {
+    if (env.values[i] < floor) floor = env.values[i];
+  }
+  return Number.isFinite(floor) ? floor : 0;
+}
+
 /** Walk back from `fromSec` to where the level last came up through the threshold. */
 function refineStart(env: Envelope, fromSec: number, limitSec: number, threshold: number): number {
   if (env.values.length === 0 || !(threshold > 0)) return fromSec;
@@ -252,13 +289,58 @@ function nearestOnset(onsets: readonly Transient[], timeSec: number, toleranceSe
   return best;
 }
 
-interface PitchFrame {
+/** One frame of the pitch track. Shared by the note detector and by Vocal Tune. */
+export interface PitchFrame {
+  /** Centre of the analysis window, in seconds into the buffer. */
   timeSec: number;
-  /** Fractional MIDI number, or 0 when the frame is unvoiced. */
+  /** Detected fundamental, or 0 when the frame is unvoiced. */
+  hz: number;
+  /** The same reading as a fractional MIDI number, or 0 when unvoiced. */
   midi: number;
+  /** YIN confidence, 0..1, reported whether or not the frame counts as voiced. */
   confidence: number;
   rms: number;
   voiced: boolean;
+}
+
+export interface PitchTrack {
+  frames: PitchFrame[];
+  /** Length of the analysis window, in seconds. */
+  windowSec: number;
+  /** Time between frames, in seconds. */
+  hopSec: number;
+}
+
+export interface PitchTrackOptions {
+  minHz?: number;
+  maxHz?: number;
+  referenceHz?: number;
+  /** Confidence a frame needs before it counts as voiced. */
+  minConfidence?: number;
+}
+
+/**
+ * Frame-wise pitch over a whole buffer, median filtered.
+ *
+ * Exposed because Vocal Tune needs exactly the track the note detector works
+ * from — two pitch trackers disagreeing about the same recording would put the
+ * tuning curve and the detected notes in different places.
+ */
+export function analysePitchTrack(
+  samples: Float32Array,
+  sampleRate: number,
+  options: PitchTrackOptions = {},
+): PitchTrack {
+  const track = analysePitchFrames(
+    samples,
+    sampleRate,
+    options.minHz ?? DEFAULT_MIN_HZ,
+    options.maxHz ?? DEFAULT_MAX_HZ,
+    options.referenceHz ?? DEFAULT_REFERENCE_HZ,
+    options.minConfidence ?? 0.5,
+  );
+  medianFilterPitch(track.frames, options.referenceHz ?? DEFAULT_REFERENCE_HZ);
+  return track;
 }
 
 function analysePitchFrames(
@@ -268,13 +350,14 @@ function analysePitchFrames(
   maxHz: number,
   referenceHz: number,
   minConfidence: number,
-): { frames: PitchFrame[]; windowSec: number } {
+): { frames: PitchFrame[]; windowSec: number; hopSec: number } {
   // YIN compares a window against itself shifted by up to one period, so the
   // window has to hold two periods of the lowest note asked for.
   const size = nextPowerOfTwo(Math.ceil((2 * sampleRate) / minHz));
   const hop = Math.max(1, Math.round(size / PITCH_OVERLAP));
   const frames: PitchFrame[] = [];
-  if (samples.length < size) return { frames, windowSec: size / sampleRate };
+  const hopSec = hop / sampleRate;
+  if (samples.length < size) return { frames, windowSec: size / sampleRate, hopSec };
 
   const detector = new PitchDetector(sampleRate);
   const window = new Float32Array(size);
@@ -289,13 +372,14 @@ function analysePitchFrames(
     const voiced = reading.hz > 0 && reading.confidence >= minConfidence;
     frames.push({
       timeSec: (start + size / 2) / sampleRate,
+      hz: voiced ? reading.hz : 0,
       midi: voiced ? hzToMidi(reading.hz, referenceHz) : 0,
       confidence: reading.confidence,
       rms,
       voiced,
     });
   }
-  return { frames, windowSec: size / sampleRate };
+  return { frames, windowSec: size / sampleRate, hopSec };
 }
 
 /**
@@ -304,7 +388,7 @@ function analysePitchFrames(
  * rounding off a real glide, and skipping unvoiced neighbours stops silence from
  * being averaged into the note either side of it.
  */
-function medianFilterPitch(frames: PitchFrame[]): void {
+function medianFilterPitch(frames: PitchFrame[], referenceHz: number): void {
   const radius = (PITCH_MEDIAN_FRAMES - 1) / 2;
   const source = frames.map((f) => (f.voiced ? f.midi : NaN));
   const neighbourhood: number[] = [];
@@ -317,6 +401,7 @@ function medianFilterPitch(frames: PitchFrame[]): void {
       if (Number.isFinite(v)) neighbourhood.push(v);
     }
     frames[i].midi = median(neighbourhood);
+    frames[i].hz = midiToHz(frames[i].midi, referenceHz);
   }
 }
 
@@ -378,7 +463,7 @@ function monophonicNotes(
     minConfidence,
   );
   if (frames.length === 0) return [];
-  medianFilterPitch(frames);
+  medianFilterPitch(frames, referenceHz);
 
   const env = rmsEnvelope(samples, sampleRate);
   const onsets = detectTransients(samples, sampleRate, {
@@ -388,6 +473,7 @@ function monophonicNotes(
 
   const hopSec = frames.length > 1 ? frames[1].timeSec - frames[0].timeSec : windowSec;
   const breakFrames = Math.max(1, Math.round(hysteresisSec / hopSec));
+  const warmupFrames = Math.max(2, Math.round(REFERENCE_WARMUP_SEC / hopSec));
   const notes: DetectedNote[] = [];
 
   let build: NoteBuild | null = null;
@@ -414,7 +500,11 @@ function monophonicNotes(
       const onset = onsets.find(
         (o) => o.timeSec > previousSec && o.timeSec <= frame.timeSec && o.timeSec > build!.startSec,
       );
-      if (onset && onset.timeSec - build.startSec >= minNoteSec) {
+      if (
+        onset &&
+        onset.timeSec - build.startSec >= minNoteSec &&
+        levelRiseDb(env, onset.timeSec) >= ARTICULATION_RISE_DB
+      ) {
         closeAt(onset.timeSec);
         forcedStart = onset.timeSec;
         breakFrom = -1;
@@ -458,7 +548,10 @@ function monophonicNotes(
       continue;
     }
 
-    const inRange = frame.voiced && Math.abs(frame.midi - reference) <= splitSemitones;
+    // Until the reference is built from enough of the note to mean its centre,
+    // only a departure too large to be any kind of expression counts as a split.
+    const limit = build.midis.length < warmupFrames ? splitSemitones * 2 : splitSemitones;
+    const inRange = frame.voiced && Math.abs(frame.midi - reference) <= limit;
     if (inRange) {
       build.midis.push(frame.midi);
       build.weights.push(frame.confidence * frame.rms);
@@ -517,33 +610,81 @@ function harmonicWeight(h: number): number {
   return 1 / h;
 }
 
+/** How far off an ideal harmonic a partial may sit and still be counted. */
+const HARMONIC_TOLERANCE_CENTS = 45;
+/** Fraction of a cancelled partial left behind for whatever else shares the bin. */
+const CANCEL_RESIDUE = 0.1;
+/** Peaks this far under the loudest one in the frame are the window's own skirts. */
+const PEAK_FLOOR_DB = -70;
+
+interface SpectralPeaks {
+  /** Interpolated frequencies, ascending. */
+  hz: Float64Array;
+  /** Amplitudes at those frequencies. Mutated in place by cancellation. */
+  amp: Float64Array;
+  count: number;
+}
+
 /**
- * Strongest magnitude within a semitone-wide neighbourhood of a bin position.
- * A partial never lands exactly on a bin, and vibrato and inharmonicity move it
- * further, so a single-bin read would under-report every real instrument.
+ * Local maxima of the magnitude spectrum, each refined by fitting a parabola
+ * through the three bins around it.
+ *
+ * Working in peaks rather than in bins is what makes the note grid usable at
+ * all down here: at a 4096-point transform a semitone around middle C is under
+ * two bins wide, so a candidate that reads whole bins cannot tell C from C sharp
+ * and every chord comes back as a cluster. An interpolated peak resolves the
+ * frequency to a small fraction of a bin, and a candidate then has to match it
+ * to within a fraction of a semitone.
  */
-function peakNear(magnitude: Float32Array, position: number, halfWidthBins: number): number {
-  const from = Math.max(0, Math.floor(position - halfWidthBins));
-  const to = Math.min(magnitude.length - 1, Math.ceil(position + halfWidthBins));
-  let peak = 0;
-  for (let k = from; k <= to; k++) if (magnitude[k] > peak) peak = magnitude[k];
-  return peak;
-}
-
-function suppressNear(
+function findPeaks(
   magnitude: Float32Array,
-  position: number,
-  halfWidthBins: number,
-  amount: number,
+  sampleRate: number,
+  fftSize: number,
+  out: SpectralPeaks,
 ): void {
-  const from = Math.max(0, Math.floor(position - halfWidthBins));
-  const to = Math.min(magnitude.length - 1, Math.ceil(position + halfWidthBins));
-  for (let k = from; k <= to; k++) magnitude[k] *= 1 - amount;
+  out.count = 0;
+  let loudest = 0;
+  for (let k = 1; k < magnitude.length - 1; k++) if (magnitude[k] > loudest) loudest = magnitude[k];
+  if (!(loudest > 0)) return;
+  const floor = loudest * Math.pow(10, PEAK_FLOOR_DB / 20);
+  const binHz = sampleRate / fftSize;
+
+  for (let k = 1; k < magnitude.length - 1; k++) {
+    const b = magnitude[k];
+    if (b < floor || b < magnitude[k - 1] || b < magnitude[k + 1]) continue;
+    // Parabolic interpolation in dB: the log of a windowed peak is close to a
+    // parabola, which is why the vertex lands on the true frequency.
+    const a = 20 * Math.log10(Math.max(magnitude[k - 1], 1e-20));
+    const c = 20 * Math.log10(Math.max(magnitude[k + 1], 1e-20));
+    const bDb = 20 * Math.log10(b);
+    const denom = a - 2 * bDb + c;
+    const delta = denom === 0 ? 0 : clamp((0.5 * (a - c)) / denom, -0.5, 0.5);
+    if (out.count >= out.hz.length) break;
+    out.hz[out.count] = (k + delta) * binHz;
+    out.amp[out.count] = b * Math.pow(10, (-0.25 * (a - c) * delta) / 20);
+    out.count++;
+  }
 }
 
-/** Bins spanned by a quarter tone at this position, never less than one bin. */
-function toleranceBins(position: number): number {
-  return Math.max(1, position * (Math.pow(2, 1 / 24) - 1));
+/** Index of the loudest peak within `toleranceCents` of `hz`, or -1. */
+function matchPeak(peaks: SpectralPeaks, hz: number, binHz: number): number {
+  const spread = hz * (Math.pow(2, HARMONIC_TOLERANCE_CENTS / 1200) - 1);
+  // Never narrower than a bin: a peak that lands between two bins is only ever
+  // located to about that accuracy however good the interpolation is.
+  const tolerance = Math.max(spread, binHz * 0.6);
+  const lo = hz - tolerance;
+  const hi = hz + tolerance;
+  let best = -1;
+  let bestAmp = 0;
+  for (let i = 0; i < peaks.count; i++) {
+    if (peaks.hz[i] < lo) continue;
+    if (peaks.hz[i] > hi) break;
+    if (peaks.amp[i] > bestAmp) {
+      bestAmp = peaks.amp[i];
+      best = i;
+    }
+  }
+  return best;
 }
 
 interface Candidate {
@@ -552,37 +693,39 @@ interface Candidate {
 }
 
 function frameCandidates(
-  magnitude: Float32Array,
-  residual: Float32Array,
+  peaks: SpectralPeaks,
   sampleRate: number,
   opts: PolyOptions,
 ): Candidate[] {
-  residual.set(magnitude);
-  const binsPerHz = opts.fftSize / sampleRate;
-  const nyquistBin = magnitude.length - 1;
+  const binHz = sampleRate / opts.fftSize;
+  const nyquist = sampleRate / 2;
   const found: Candidate[] = [];
+  const matched: number[] = [];
   let frameBest = 0;
 
   for (let round = 0; round < opts.maxPolyphony; round++) {
     let bestMidi = -1;
     let bestSalience = 0;
     for (let midi = opts.midiLow; midi <= opts.midiHigh; midi++) {
-      const f0Bin = midiToHz(midi, opts.referenceHz) * binsPerHz;
-      if (f0Bin < 1 || f0Bin > nyquistBin) continue;
-      const fundamental = peakNear(residual, f0Bin, toleranceBins(f0Bin));
-      if (fundamental <= 0) continue;
-      let salience = fundamental;
-      let strongest = fundamental;
+      const f0 = midiToHz(midi, opts.referenceHz);
+      if (f0 >= nyquist) break;
+      const fundamental = matchPeak(peaks, f0, binHz);
+      // Without the fundamental present every note is shadowed by a candidate an
+      // octave or a twelfth below it, scoring on the real note's own partials.
+      // Requiring it is also why an instrument with a weak fundamental can be
+      // reported an octave high.
+      if (fundamental < 0) continue;
+      let salience = peaks.amp[fundamental];
+      let strongest = salience;
       for (let h = 2; h <= opts.harmonics; h++) {
-        const bin = f0Bin * h;
-        if (bin > nyquistBin) break;
-        const mag = peakNear(residual, bin, toleranceBins(bin));
-        if (mag > strongest) strongest = mag;
-        salience += harmonicWeight(h) * mag;
+        const hz = f0 * h;
+        if (hz >= nyquist) break;
+        const idx = matchPeak(peaks, hz, binHz);
+        if (idx < 0) continue;
+        if (peaks.amp[idx] > strongest) strongest = peaks.amp[idx];
+        salience += harmonicWeight(h) * peaks.amp[idx];
       }
-      // Without the fundamental present, every note is shadowed by a candidate an
-      // octave and a twelfth below it that scores on the real note's partials.
-      if (fundamental < 0.25 * strongest) continue;
+      if (peaks.amp[fundamental] < 0.25 * strongest) continue;
       if (salience > bestSalience) {
         bestSalience = salience;
         bestMidi = midi;
@@ -594,14 +737,17 @@ function frameCandidates(
     if (found.some((c) => c.midi === bestMidi)) break;
     found.push({ midi: bestMidi, salience: bestSalience });
 
-    const f0Bin = midiToHz(bestMidi, opts.referenceHz) * binsPerHz;
+    // Estimate and cancel: take this note's partials out of the spectrum so the
+    // next round scores what is left rather than the same energy again.
+    matched.length = 0;
+    const f0 = midiToHz(bestMidi, opts.referenceHz);
     for (let h = 1; h <= opts.harmonics; h++) {
-      const bin = f0Bin * h;
-      if (bin > nyquistBin) break;
-      // Cancelling most, not all, of the partial leaves something behind for a
-      // note that genuinely shares the bin instead of erasing it.
-      suppressNear(residual, bin, toleranceBins(bin), 0.9);
+      const hz = f0 * h;
+      if (hz >= nyquist) break;
+      const idx = matchPeak(peaks, hz, binHz);
+      if (idx >= 0) matched.push(idx);
     }
+    for (const idx of matched) peaks.amp[idx] *= CANCEL_RESIDUE;
   }
   return found;
 }
@@ -635,7 +781,11 @@ function polyphonicNotes(
   const frame = new Float32Array(fftSize);
   const bins = fftSize / 2 + 1;
   const magnitude = new Float32Array(bins);
-  const residual = new Float32Array(bins);
+  const peaks: SpectralPeaks = {
+    hz: new Float64Array(bins),
+    amp: new Float64Array(bins),
+    count: 0,
+  };
 
   const frameCount = Math.floor((samples.length - fftSize) / hop) + 1;
   const perFrame: Candidate[][] = [];
@@ -651,7 +801,8 @@ function polyphonicNotes(
     applyWindow(frame, window, re, im);
     fftInPlace(re, im);
     magnitudeInto(re, im, magnitude);
-    perFrame.push(frameCandidates(magnitude, residual, sampleRate, opts));
+    findPeaks(magnitude, sampleRate, fftSize, peaks);
+    perFrame.push(frameCandidates(peaks, sampleRate, opts));
   }
 
   // 60 dB below the loudest frame is the noise floor of anything worth

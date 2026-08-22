@@ -16,6 +16,7 @@
  */
 import { isAudioTrackType } from '../model/types';
 import { resolveChannels } from '../model/mixerGraph';
+import { clipRatePlan } from '../model/clipRate';
 import { playedNotes } from './notePipeline';
 import {
   clipSecondsPerBeat,
@@ -526,6 +527,12 @@ export async function renderProject(
         const when = Math.max(0, projectBeatToSec(project, enterBeat) - rangeStartSec);
         const src = ctx.createBufferSource();
         src.buffer = buffer;
+        // Stretch and transpose render by resampling here: an offline bounce
+        // cannot wait on the WSOLA cache, and a render that silently omitted a
+        // stretched clip would be worse than one that resamples it. The
+        // difference is stated in docs/KNOWN-LIMITATIONS.md.
+        const rate = clipRatePlan(project, part, spb).fallbackRate;
+        if (rate !== 1) src.playbackRate.value = rate;
         const g = ctx.createGain();
         if (part.monoSum) {
           g.channelCount = 1;

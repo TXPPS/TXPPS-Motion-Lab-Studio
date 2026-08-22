@@ -8,6 +8,7 @@ import { PanKnob } from '../common/widgets';
 import { TrackInputControls } from '../recording/RecordControls';
 import { InsertRack, SendRack } from '../mixer/InsertRack';
 import { NoteFxRack } from './NoteFxRack';
+import { TimePitchPanel } from './TimePitchPanel';
 import {
   analyzeClip,
   clipBufferReady,
@@ -230,6 +231,9 @@ export function Inspector() {
             </div>
           )}
           {clip.type === 'audio' && <AudioClipTools clip={clip} />}
+        </div>
+        {clip.type === 'audio' && <TimePitchPanel clip={clip} />}
+        <div className="panel-section">
           {clip.type === 'midi' && (
             <>
               <div className="insp-row">

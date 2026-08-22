@@ -2,6 +2,7 @@ import type { MediaRef } from './media';
 import type { AutomationLane, AutomationMode } from './automation';
 import type { SamplerParams } from './sampler';
 import type { TempoMap } from './tempo';
+import type { WarpMap } from './warp';
 import type { ArrangerSection, ChordEvent, Marker } from './arrangement';
 
 /** Core project data model. Everything here is plain serializable data. */
@@ -240,7 +241,11 @@ export interface AudioClip extends ClipBase {
   takesOpen?: boolean;
   /** audition one take by itself (UI state, persisted harmlessly) */
   soloTakeId?: string;
-  /** playback rate multiplier from timestretch; 1 = original speed */
+  /**
+   * Speed multiplier: 2 plays the material twice as fast (and half as long),
+   * 0.5 half as fast. Named for what the control does, not for what happens to
+   * the waveform, because "stretch 2" reads both ways and speed does not.
+   */
   stretch?: number;
   /** follow the song tempo: the clip re-stretches when the tempo map changes */
   followTempo?: boolean;
@@ -250,6 +255,18 @@ export interface AudioClip extends ClipBase {
   transpose?: number;
   /** detected transient positions in seconds into the source, for slicing/warp */
   transients?: number[];
+  /**
+   * Warp markers tying source time to musical time. When present they decide
+   * playback rate over the clip; `stretch` is the simple constant-rate case.
+   */
+  warp?: WarpMap;
+  /**
+   * Keep the pitch while stretching. Resampling is free but moves the pitch
+   * with the rate; preserving it means rendering the clip through the time
+   * stretcher, which costs a render but is what "follow the tempo" means for
+   * anything but a one-shot.
+   */
+  preservePitch?: boolean;
 }
 
 export interface MidiClip extends ClipBase {

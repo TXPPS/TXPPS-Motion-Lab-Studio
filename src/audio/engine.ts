@@ -6,6 +6,8 @@
  */
 import { clipSecondsPerBeat } from '../model/music';
 import { resolveChannels } from '../model/mixerGraph';
+import { clipRatePlan } from '../model/clipRate';
+import { stretchedBuffer } from './stretchCache';
 import { isAudioTrackType, MASTER_ID } from '../model/types';
 import type { AudioClip, ProjectData, SynthParams } from '../model/types';
 import { useProjectStore } from '../state/projectStore';
@@ -1004,25 +1006,50 @@ class AudioEngine {
     const ctx = this.ctx;
     const ch = this.channels.get(clip.trackId);
     if (!ctx || !ch || !this.canAllocate()) return;
-    const buffer = getBufferSync(clip.mediaId);
-    if (!buffer) return;
     const p = useProjectStore.getState().project;
     const spb = clipSecondsPerBeat(p, clip);
+
+    // Playback rate and which buffer to use are one decision. A clip that
+    // follows the tempo, is stretched, or is transposed either resamples
+    // (cheap, and takes the pitch with it) or plays a pre-rendered stretch
+    // (pitch preserved). While that render is in flight the resampled path
+    // keeps sounding, because a silent clip is worse than a briefly wrong one.
+    const plan = clipRatePlan(p, clip, spb);
+    let buffer =
+      plan.preservePitch && plan.timeRatio !== 1
+        ? stretchedBuffer(ctx, clip.mediaId, plan.timeRatio, plan.semitones)
+        : getBufferSync(clip.mediaId);
+    let rate = plan.rate;
+    if (!buffer) {
+      buffer = getBufferSync(clip.mediaId);
+      // The pre-render is not ready: fall back to resampling at the same speed.
+      rate = plan.fallbackRate;
+    } else if (plan.preservePitch && plan.timeRatio !== 1) {
+      // The stretched buffer already carries the tempo and the transposition.
+      rate = 1;
+      offsetSec = offsetSec / plan.timeRatio;
+    }
+    if (!buffer) return;
     // Duration and gain envelope come from the shared scheduler so that an
     // exported bounce is sample-for-sample the same decision as live playback.
-    const plan = computeClipSchedule(clip, offsetSec, buffer.duration, spb);
-    if (!plan) return;
-    const durSec = plan.durSec;
+    const schedule = computeClipSchedule(
+      clip,
+      offsetSec,
+      buffer.duration,
+      plan.preservePitch && plan.timeRatio !== 1 ? spb / plan.timeRatio : spb,
+    );
+    if (!schedule) return;
 
     const src = ctx.createBufferSource();
     src.buffer = buffer;
+    if (rate !== 1) src.playbackRate.value = rate;
     const g = ctx.createGain();
     if (clip.monoSum) {
       // Explicit mono forces an equal-weight downmix through this node.
       g.channelCount = 1;
       g.channelCountMode = 'explicit';
     }
-    applyEnvelope(g.gain, plan.envelope, when);
+    applyEnvelope(g.gain, schedule.envelope, when);
 
     src.connect(g);
     g.connect(ch.input);
@@ -1048,7 +1075,9 @@ class AudioEngine {
       } catch {}
     };
     this.registerSource(handle);
-    src.start(when, offsetSec, durSec);
+    // `duration` is in SOURCE seconds; a resampled clip consumes that much
+    // material and simply finishes sooner, which is what the rate means.
+    src.start(when, schedule.offsetSec, schedule.durSec);
   }
 
   private auditionState: { src: AudioBufferSourceNode; g: GainNode; mediaId: string } | null = null;

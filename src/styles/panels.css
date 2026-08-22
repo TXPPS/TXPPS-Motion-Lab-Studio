@@ -743,3 +743,11 @@ button.li-main {
   align-items: center;
   flex-wrap: wrap;
 }
+
+.insp-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: var(--sp-3) 0 0;
+}
