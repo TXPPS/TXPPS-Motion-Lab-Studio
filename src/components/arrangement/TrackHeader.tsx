@@ -11,11 +11,14 @@ import { isFrozen } from '../../model/freeze';
 import { freezeTrack, unfreezeTrack } from '../../audio/freeze';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
+import { useWorkspaceStore } from '../../state/workspaceStore';
 import { longPress } from '../../hooks/usePointerDrag';
 import { Icon, type IconName } from '../common/Icon';
 import { PanKnob } from '../common/widgets';
 import { captureParamChange, captureParamRelease } from '../../app/automationActions';
 import { usePrefsStore } from '../../state/prefsStore';
+import { isMonitoring, toggleMonitoring } from '../../app/monitorActions';
+import { useTransportStore } from '../../state/transportStore';
 
 const TYPE_ICON: Record<Track['type'], IconName> = {
   audio: 'wave',
@@ -31,13 +34,27 @@ export const TrackHeader = memo(function TrackHeader({
   track,
   height,
   depth = 0,
+  silencedBySolo = false,
 }: {
   track: Track;
   height: number;
   /** How many folders deep this track sits, for the indent guide. */
   depth?: number;
+  /**
+   * True when this track is silent because something else is soloed. Passed in
+   * rather than resolved here: the mixer graph resolves every channel at once,
+   * and a header that worked it out for itself would be a second opinion about
+   * what is audible — the exact thing that lets a header and a meter disagree.
+   */
+  silencedBySolo?: boolean;
 }) {
   const selected = useUiStore((s) => s.selectedTrackId === track.id);
+  // `engine.isMonitoring` is the truth; the stored flag is what survives a
+  // reload. Subscribing to the transport's stream count is what re-renders this
+  // when monitoring is started or stopped from another surface.
+  useTransportStore((s) => s.audioState);
+  const monitoring = track.type === 'audio' && isMonitoring(track.id);
+  const toggleMonitor = () => toggleMonitoring(track.id);
   const store = useProjectStore;
   const ui = useUiStore;
 
@@ -140,6 +157,38 @@ export const TrackHeader = memo(function TrackHeader({
             },
           ]
         : []),
+      // What the control strip gives up on a narrow or collapsed header has to
+      // be reachable, not gone: the strip drops the fader and the pan knob on
+      // touch, and drops everything when the track is collapsed.
+      {
+        label: track.automationOpen ? 'Hide automation lanes' : 'Show automation lanes',
+        action: () =>
+          store.getState().setTrack(track.id, { automationOpen: !track.automationOpen }),
+      },
+      {
+        label: track.mute ? 'Unmute' : 'Mute',
+        testId: `menu-mute-${track.name}`,
+        action: () => store.getState().setTrack(track.id, { mute: !track.mute }),
+      },
+      {
+        label: track.solo ? 'Unsolo' : 'Solo',
+        action: () => store.getState().setTrack(track.id, { solo: !track.solo }),
+      },
+      ...(track.type === 'audio'
+        ? [
+            {
+              label: monitoring ? 'Stop monitoring input' : 'Monitor input',
+              action: () => void toggleMonitoring(track.id),
+            },
+          ]
+        : []),
+      {
+        label: 'Level and pan…',
+        action: () => {
+          useWorkspaceStore.getState().reveal('inspector');
+          ui.getState().selectTrack(track.id);
+        },
+      },
       {
         label: 'Delete track',
         danger: true,
@@ -283,8 +332,16 @@ export const TrackHeader = memo(function TrackHeader({
       {!collapsed && (
         <div className="th-controls" onClick={(e) => e.stopPropagation()}>
           <button
-            className={`th-mini${track.mute ? ' m-on' : ''}`}
-            title="Mute"
+            className={`th-mini${track.mute ? ' m-on' : ''}${
+              !track.mute && silencedBySolo ? ' m-implicit' : ''
+            }`}
+            title={
+              track.mute
+                ? 'Muted'
+                : silencedBySolo
+                  ? 'Silent because another track is soloed — this track is not muted'
+                  : 'Mute'
+            }
             aria-label={`Mute ${track.name}`}
             aria-pressed={track.mute}
             onClick={() => store.getState().setTrack(track.id, { mute: !track.mute })}
@@ -302,6 +359,22 @@ export const TrackHeader = memo(function TrackHeader({
           >
             S
           </button>
+          {track.type === 'audio' && (
+            <button
+              className={`th-mini th-monitor${monitoring ? ' mon-on' : ''}`}
+              title={
+                monitoring
+                  ? 'Input monitoring on — you are hearing the live input'
+                  : 'Monitor the live input through this channel'
+              }
+              aria-label={`Input monitoring ${track.name}`}
+              aria-pressed={monitoring}
+              data-testid={`monitor-${track.name}`}
+              onClick={() => void toggleMonitor()}
+            >
+              <Icon name={monitoring ? 'speaker' : 'speaker-off'} size={12} />
+            </button>
+          )}
           {track.type !== 'bus' && (
             <button
               className={`th-mini${track.armed ? ' r-on' : ''}`}

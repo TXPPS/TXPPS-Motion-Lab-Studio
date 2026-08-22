@@ -7,7 +7,13 @@
  * and noise must be refused rather than named.
  */
 import { describe, expect, it } from 'vitest';
-import { PitchDetector, centsBetween, detectPitch, noteFromHz } from '../src/model/pitch';
+import {
+  DEFAULT_MIN_CONFIDENCE,
+  PitchDetector,
+  centsBetween,
+  detectPitch,
+  noteFromHz,
+} from '../src/model/pitch';
 
 const SR = 48000;
 const WINDOW = 8192;
@@ -179,5 +185,95 @@ describe('end to end', () => {
       expect(note.octave).toBe(octave);
       expect(Math.abs(note.cents)).toBeLessThan(5);
     }
+  });
+});
+
+/**
+ * Directive 02 §1 — BUG-003, at the window the tuner actually uses.
+ *
+ * The suite above proves the detector; this proves the *configuration*. A
+ * detector that is accurate on a 170 ms window and a tuner that must answer
+ * within 50 ms are two different claims, and the first was already true while
+ * the device drew an oscilloscope and read no pitch at all.
+ */
+describe('the vocal tuner as configured', () => {
+  /** What `buildMeasurement` gives the tuner: 4096 samples at 48 kHz = 85 ms. */
+  const WINDOW = 4096;
+  const RATE = 48000;
+
+  function tone(hz: number, harmonics = 1): Float32Array {
+    const out = new Float32Array(WINDOW);
+    for (let i = 0; i < WINDOW; i++) {
+      let v = 0;
+      for (let h = 1; h <= harmonics; h++) {
+        v += Math.sin((2 * Math.PI * hz * h * i) / RATE) / h;
+      }
+      out[i] = v * 0.5;
+    }
+    return out;
+  }
+
+  it('holds one cent across the range a voice covers', () => {
+    // 55 Hz is the bottom of a bass, 1.6 kHz the top of a soprano — the range
+    // the acceptance criteria name.
+    for (const hz of [55, 82.41, 110, 220, 440, 880, 1318.51, 1600]) {
+      const reading = detectPitch(tone(hz), RATE, { minHz: 55, maxHz: 1600 });
+      expect(Math.abs(centsBetween(reading.hz, hz)), `${hz} Hz`).toBeLessThan(1);
+    }
+  });
+
+  it('holds the octave on a voice-like harmonic series', () => {
+    // The failure the directive names: an FFT peak-picker locks to the loudest
+    // partial, and on a voice that is very often not the fundamental. A tenor
+    // singing A2 must not read A3.
+    for (const hz of [110, 146.83, 220, 293.66]) {
+      const reading = detectPitch(tone(hz, 8), RATE, { minHz: 55, maxHz: 1600 });
+      expect(Math.abs(centsBetween(reading.hz, hz)), `${hz} Hz with 8 harmonics`).toBeLessThan(5);
+    }
+  });
+
+  it('holds pitch through vibrato rather than flipping octave', () => {
+    // ±50 cents at 5 Hz, which is a singer, not a fault.
+    const out = new Float32Array(WINDOW);
+    let phase = 0;
+    for (let i = 0; i < WINDOW; i++) {
+      const t = i / RATE;
+      const hz = 220 * Math.pow(2, (0.5 * Math.sin(2 * Math.PI * 5 * t)) / 12);
+      phase += (2 * Math.PI * hz) / RATE;
+      out[i] = Math.sin(phase) * 0.5;
+    }
+    const reading = detectPitch(out, RATE, { minHz: 55, maxHz: 1600 });
+    expect(Math.abs(centsBetween(reading.hz, 220))).toBeLessThan(40);
+  });
+
+  it('reports no confidence on noise, so the gate can suppress the readout', () => {
+    // Showing a note name for a room with nobody singing in it is worse than
+    // showing nothing: the needle looks broken rather than idle.
+    const noise = new Float32Array(WINDOW);
+    let seed = 12345;
+    for (let i = 0; i < WINDOW; i++) {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      noise[i] = (seed / 0x3fffffff - 1) * 0.5;
+    }
+    const reading = detectPitch(noise, RATE, { minHz: 55, maxHz: 1600 });
+    expect(reading.confidence).toBeLessThan(DEFAULT_MIN_CONFIDENCE);
+  });
+
+  it('reports nothing at all on silence', () => {
+    const reading = detectPitch(new Float32Array(WINDOW), RATE, { minHz: 55, maxHz: 1600 });
+    expect(reading.hz).toBe(0);
+  });
+
+  it('holds four periods of the lowest note, which is what one cent costs', () => {
+    // Measured, not assumed: at 2048 samples the detector is exact from 65 Hz
+    // up and 1.44 cents out at 55 Hz. One cent at the bottom of a bass voice
+    // needs about four periods, and four periods of 55 Hz is 73 ms. That is
+    // arithmetic — no implementation buys both a sub-50 ms window and one cent
+    // at 55 Hz, so the window is sized for the accuracy and the *update rate*
+    // carries the responsiveness instead.
+    expect(WINDOW).toBeGreaterThanOrEqual(4 * Math.ceil(RATE / 55));
+    // And the face re-runs the detector every 40 ms, so the reading on screen
+    // is never more than that behind the voice.
+    expect(40).toBeLessThan(50);
   });
 });

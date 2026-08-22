@@ -36,6 +36,7 @@ import {
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import type { AudioClip, Clip } from '../../model/types';
 import { usePrefsStore } from '../../state/prefsStore';
+import { resolveChannels } from '../../model/mixerGraph';
 import {
   MAX_LANE_SCALE,
   MIN_LANE_SCALE,
@@ -284,6 +285,15 @@ export function Arrangement() {
     for (const list of byTrack.values()) list.sort((a, b) => a.start - b.start);
     return byTrack;
   }, [clips, tracks, laneTops, heights, viewWin, pxPerBeat, selectedClipIds]);
+
+  // Resolved once for the whole arrangement. A header that worked out its own
+  // audibility would be a second opinion about what the mixer is doing, and the
+  // two would disagree the first time solo-safe or a VCA got involved.
+  const monitorCueId = useUiStore((s) => s.monitorCueId);
+  const channelStates = useMemo(
+    () => resolveChannels(project, monitorCueId),
+    [project, monitorCueId],
+  );
 
   // One rAF subscription drives the lane playhead, the ruler marker, and follow.
   useEffect(() => {
@@ -1044,7 +1054,12 @@ export function Arrangement() {
             </div>
             {tracks.map((t, i) => (
               <Fragment key={t.id}>
-                <TrackHeader track={t} height={bands[i].clip} depth={folderDepth(allTracks, t)} />
+                <TrackHeader
+                  track={t}
+                  height={bands[i].clip}
+                  depth={folderDepth(allTracks, t)}
+                  silencedBySolo={channelStates.get(t.id)?.mutedBySolo ?? false}
+                />
                 {lanesByTrack[i].map((le) => (
                   <AutoLaneHeader
                     key={le.lane.id}

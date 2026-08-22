@@ -7,10 +7,13 @@ instrument for MotionLab Studio.
 
 Same rules and confidence markers as `syn-04-six-op-fm.md`:
 
-- **[C]** confirmed against a primary source — the manufacturer's own MIDI implementation
-  specification, or source code I read directly in this session.
+- **[C]** confirmed against a primary source — here, the manufacturer's own MIDI implementation
+  specification (see §0.1 for why a GPL mirror of it still counts as documentation).
 - **[R]** reported by a reputable secondary source, not cross-checked against a primary one.
 - **[U]** unconfirmed or inferred. **Do not build to a [U] value without checking it.**
+- **[I]** **implementation-derived** — the value's only source is a third-party *editor
+  application*, not the manufacturer's specification and not a measurement. **Re-derive or
+  re-confirm before writing it into `src/`.**
 - **[X]** explicitly unknown. Listed in §14.
 - **[derived]** computed by me from a primary source; the derivation is shown.
 
@@ -21,10 +24,45 @@ badge may be reproduced or traced. §13 describes the *era's* design language on
 
 Sourcing note: the egress proxy on this machine blocks manufacturer sites, archive.org and
 manual hosts. `github.com` is reachable, and the manufacturer's own **Matrix-12/Xpander MIDI
-Specification** — the document that defines the patch structure, the parameter ranges, the
-modulation source and destination enumerations and the multi-patch/zone structure — is mirrored
-in a public repository, which I cloned and read. Every table in §§4–9 comes from that document or
-from an editor built directly against it. See §12.
+Specification** is mirrored in a public repository, which I cloned and read. See §0.1 and §12.
+
+### 0.1 Provenance and licence — read before using any value here
+
+| Class | What it is | Sources used here | May a value be written into `src/`? |
+|---|---|---|---|
+| **Documentation** | The manufacturer's own specification | The **Matrix-12/Xpander MIDI Specification** and its accompanying reference C header, both authored by the manufacturer | Yes |
+| **Measurement** | Instrumented observation of hardware | *None.* I obtained no measurements of this instrument. | n/a |
+| **Implementation** | A third-party editor application | **Xplorer** (`xplorer2716/XplorerEditor`), licence **AGPL-3.0** | **No — re-confirm first** |
+
+**Why the GPL mirror of the specification is still documentation.** The repository
+`xplorer2716/OberheimXpanderMidiSpec` is licensed GPL-3.0, but what it *contains* is a rework of
+three original plain-text files published by the manufacturer, and its reference header
+`XpanderSysEx.h` states in terms that the code below a certain point is "as is from the original
+MIDI spec". The **facts** it carries — the 27-entry modulation source enumeration, the 47-entry
+destination enumeration, the fifteen filter-mode codes, the patch structure, the flag bitfields,
+the zone and multi-patch structures, the modulation-edit protocol — are the manufacturer's
+published interface definition, not the mirror author's design decisions. Interface enumerations
+of this kind are facts about a documented protocol. They are marked **[C]**, and the mirror is
+cited so the chain is auditable.
+
+**What came from the editor instead, and is therefore [I].** The **numeric ranges** of the
+continuous controls (0..63, 0..127, −31..+31) and the capacity constants (20 routings, ≤6 sources
+per destination, 5 envelopes, 5 LFOs, 4 ramps, 3 tracking generators, 5 track points, amount
+0..63) were read from Xplorer's parameter map and constants header, which is **AGPL-3.0**. Several
+of them are also implied by the specification's own bit masks — the 6-bit amount mask, the sign
+bit and the quantise bit are in the manufacturer's header directly, so the ±63 amount range is
+**[C]**. The rest are **[I]**: almost certainly correct, since the editor is built against real
+hardware, but not independently confirmed by me.
+
+**AGPL-3.0 is the strictest licence in play across the three reference sheets.** No code,
+structure or table from Xplorer may enter `src/`. Reading it to learn what a control's range is,
+and then confirming that range against the manufacturer's specification or by measurement, is
+fine. Copying its parameter map is not.
+
+**What is safe to copy from this sheet:** the architecture (§1), the source and destination
+enumerations (§9.3, §9.4), the filter-mode list (§4.1), the flag bitfields (§5.1, §7, §9.5), the
+zone and multi structures (§10), the editor design recommendations (§9.6), the verification
+targets and the era-language notes. **What is not:** any range marked [I], until confirmed.
 
 **A correction to the brief.** The brief asked for "the dual multimode filters". The primary
 source shows **one multimode VCF per voice, with fifteen modes, flanked by two VCAs** (VCA 1
@@ -116,7 +154,7 @@ design, and it is why the matrix editor is the product.
 | Single patches | 100 | [C] |
 | Multi patches | 100 | [C] |
 | Single-patch SysEx dump | 399 bytes: 6 intro + 188 double-byte values + 8 double-byte name + 1 EOX | [C] |
-| Editable parameters per voice | ~1200 controls across the paged front panel; 226 in a full editor's parameter map | [C]/[R] |
+| Editable parameters per voice | ~1200 controls across the paged front panel **[C]**; 226 in a full third-party editor's parameter map **[I]** | |
 | Zones (keyboard model) | 6 | [C] |
 | Zones (expander model) | 3 | [C] |
 
@@ -134,8 +172,9 @@ instrument that exposes one plug-in instance with per-zone MIDI channel routing.
 
 ## 3. Oscillators
 
-Per voice, two VCOs. All parameters below are stored per single patch. **[C]** — MIDI spec patch
-struct and editor parameter map.
+Per voice, two VCOs. All parameters below are stored per single patch. Structure and field names **[C]** (manufacturer patch struct); the numeric **ranges** in the
+table below **[I]** (third-party editor parameter map, AGPL-3.0 — confirm against the owner's
+manual).
 
 | Parameter | Range | Unit | Notes |
 |---|---|---|---|
@@ -183,7 +222,10 @@ One multimode VCF per voice.
 | VCA 2 VOL | 0..63 | post-filter |
 | VCF fixed mods | bitfield | KEYB / LAG / LEV1 / VIB |
 
-**[C]** — editor parameter map generated from the MIDI specification.
+Field names and the mode enumeration **[C]** (manufacturer specification); the numeric ranges,
+including the 0..127 on VCF FREQ, **[I]** (third-party editor parameter map). The
+7-bit-versus-6-bit asymmetry matters enough that it should be confirmed against the manual before
+we build the parameter model around it.
 
 ### 4.1 Complete mode table
 
@@ -248,8 +290,9 @@ phase shift plus one-pole low pass").
 | AMP (amplitude) | 0..63 | level | overall envelope output scaling — also a matrix destination |
 | LFO TRIG SOURCE | 0..5 | enum | LFO1..LFO5, VIB |
 
-**[C]** — patch struct and editor parameter map. So the shape is **DADSR**, five segments, with a
-separate output amplitude.
+Field names and the five-segment-plus-amplitude shape **[C]** (manufacturer patch struct); the
+0..63 ranges **[I]** (third-party editor parameter map). So the shape is **DADSR**, five segments,
+with a separate output amplitude.
 
 ### 5.1 Modes and triggering — bit flags
 
@@ -303,7 +346,8 @@ The **real-world time units** of the 0..63 time parameters are **[X]** — see �
 | LAG | 0/1 | routes the LFO output through the lag processor |
 | RETRIG MODE | 0..3 | OFF / SINGLE / MULTI / EXTRIG |
 
-**[C]** — patch struct `lfo[5]` and editor parameter map.
+Field names **[C]** (manufacturer patch struct `lfo[5]`); ranges **[I]** (third-party editor
+parameter map).
 
 ### 6.1 Waveforms
 
@@ -358,7 +402,8 @@ GATED makes the ramp fall back when the gate releases; MULTI restarts it on ever
 | INPUT | 0..26 | any modulation source |
 | POINT 1..5 | 0..63 each | output value at five equally spaced input points |
 
-**[C]** — patch struct `track[3]`, editor parameter map (`TRACK_n_POINT_1..5`, each 0..63).
+Field names and the five-point structure **[C]** (manufacturer patch struct `track[3]`); the
+0..63 point range **[I]** (third-party editor parameter map).
 
 This is a **five-point piecewise-linear transfer function** applied to any source, whose output is
 itself a modulation source (`TRK1`, `TRK2`, `TRK3`). Input is divided into four equal segments;
@@ -384,7 +429,8 @@ matrix itself.
 | LAG RATE | 0..63 | slew rate; also a matrix destination (`LAG_SPD`) |
 | LAG MODE | bitfield | LEGATO 0x01, EXPO 0x02, EQUAL TIME 0x04 |
 
-**[C]** — patch struct `fm_lag`, `LagModeFlags`, editor parameter map.
+Field names and the mode bitfield **[C]** (manufacturer patch struct `fm_lag`, `LagModeFlags`);
+ranges **[I]** (third-party editor parameter map).
 
 - **LEGATO** — lag applies only when notes overlap, i.e. fingered portamento.
 - **EXPO** — exponential slew instead of linear.
@@ -438,10 +484,12 @@ This is the instrument's identity. Build the editor from this section.
 | Amount sign | separate bit | [C] |
 | Quantise | separate bit, per routing | [C] |
 
-**[C]** — `MODULATION_SOURCE_COUNT = 27`, `MODULATION_DEST_COUNT = 47`,
-`MODULATION_MAX_ENTRIES = 20`, `MODULATION_VALUE_MASK = 0x3F`, `MODULATION_SIGN_MASK = 0x40`,
-`MODULATION_QTZ_MASK = 0x80` in the manufacturer specification's reference source; and
-`MAX_MODULATION_SOURCE = 6` in an editor built against it.
+**[C]** for the first six rows — the counts and the three bit masks are declared as named
+constants in the **manufacturer specification's own reference header**. **[I]** for the
+≤6-sources-per-destination limit, whose only source is the third-party editor's
+`MAX_MODULATION_SOURCE = 6` and its comment that this is "the instrument's hard limit". That limit
+drives the whole editor design in §9.6, so **confirm it against the owner's manual before building
+to it** — see test 11.6.
 
 So a routing is **three bytes**: source code, packed amount/sign/quantise, destination code.
 The 20 routings are stored as a flat array; there is no per-destination sub-structure in the data,
@@ -508,8 +556,9 @@ Codes are the enum ordinals, which are the values written in the patch byte and 
 | 26 | LEV2 | lever 2 (broadcast; default CC 1) | performance |
 
 The same 0..26 enumeration is reused for **LAG IN**, **LFO SAMPLE INPUT** and **TRACK INPUT**.
-**[C]** — those three parameters are declared with range `KBD .. LEV2` in the editor's parameter
-map. That is a genuine architectural simplification for us: one source-selection widget, one
+The reuse itself is **[C]** by inspection of the manufacturer's patch struct, where each of those
+three fields is a source code; the declared bounds `KBD .. LEV2` are **[I]** (third-party editor
+parameter map). That is a genuine architectural simplification for us: one source-selection widget, one
 source-resolution function, used in four places.
 
 ### 9.4 Complete destination list — 47 destinations
@@ -749,7 +798,7 @@ first; several other tests' expected results depend on their outcome.
 
 ## 12. Sources
 
-Primary, read directly in this session:
+### Documentation (the manufacturer's own specification)
 
 - **Matrix-12/Xpander MIDI Specification**, the manufacturer's own document (a consolidation of
   three original plain-text specification files), together with its accompanying reference C
@@ -758,14 +807,16 @@ Primary, read directly in this session:
   LFO flag bitfields, the multi-patch and zone structures, and the modulation-edit SysEx protocol.
   Cloned from <https://github.com/xplorer2716/OberheimXpanderMidiSpec>. This is the source of
   every [C] in §§2–10 unless another is named.
-- **Xplorer**, a GPL-3.0 real-time editor built against that specification, cloned from
+### Implementation (**[I]** — re-confirm before use)
+
+- **Xplorer**, an **AGPL-3.0** real-time editor built against that specification, cloned from
   <https://github.com/xplorer2716/XplorerEditor>. Read for the exact parameter ranges
   (`XpanderToneFixedParameters.inc`, `XpanderTone.cpp`) and the capacity constants
   (`XpanderConstants.hpp`: `MODENTRIES_COUNT = 20`, `MAX_MODULATION_SOURCE = 6`, `LFO_COUNT = 5`,
   `ENV_COUNT = 5`, `TRACK_COUNT = 3`, `TRACK_POINTS_COUNTS = 5`, `RAMP_COUNT = 4`) and the amount
   bounds (`ModulationMatrixEntry::MAX_AMOUNT = 63`).
 
-Secondary, via search-engine extraction:
+### Secondary, via search-engine extraction (all [R])
 
 - Manufacturer owner's manual, via ManualsLib page extracts — filter pole discussion.
   <https://www.manualslib.com/manual/803278/Oberheim-Matrix-12.html>
@@ -882,3 +933,11 @@ budget readout. The matrix grid visualisation itself should be our own design �
     (singular), which implies channel pressure.
 11. **Unused envelope flag bit 0x02.** Documented in the reference source as absent from the
     original specification. Behaviour when set is **[X]**.
+12. **Provenance of the numeric ranges.** Every 0..63 / 0..127 / ±31 range in this sheet was read
+    from a third-party AGPL-3.0 editor, not from the manufacturer's manual (§0.1). They are almost
+    certainly right — the editor is used against real hardware — but they are **[I]**, and combined
+    with item 2 above (no real-world units for any of them) the whole parameter model rests on one
+    unverified source. **Obtaining the owner's manual is the single highest-value follow-up for
+    this sheet.**
+13. **The ≤6-sources-per-destination limit** is [I] from that same editor. It shapes the entire
+    matrix-editor design in §9.6. Confirm it before building.

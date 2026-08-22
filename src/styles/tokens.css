@@ -286,7 +286,12 @@
   /* -- semantic: blue = MUTE + the data domain --------------------------- */
   --mute: #63a0dc;
   --mute-hi: #7abafc;
-  --mute-lamp: #63a0dc;
+  --mute-lamp: #e0973a;
+  /* Monitoring owns blue, so mute cannot. See LEGAL of the eye: a lit blue
+     button next to a record arm reads as "listening", and it was mute. */
+  --monitor: #63a0dc;
+  --monitor-lamp: #63a0dc;
+  --monitor-line: rgba(99, 160, 220, 0.45);
   --mute-bg: rgba(99, 160, 220, 0.16);
   --mute-line: rgba(99, 160, 220, 0.45);
   --info: #63a0dc; /* the data domain and mute are one family       */
@@ -433,7 +438,10 @@
 
     --mute: #0e60a4;
     --mute-hi: #004f8c;
-    --mute-lamp: #4e9be5;
+    --mute-lamp: #c47d1e;
+    --monitor: #2f7ec4;
+    --monitor-lamp: #2f7ec4;
+    --monitor-line: rgba(47, 126, 196, 0.5);
     --mute-bg: rgba(14, 96, 164, 0.13);
     --mute-line: rgba(14, 96, 164, 0.42);
     --info: #0e60a4;
@@ -578,7 +586,10 @@
 
   --mute: #0e60a4;
   --mute-hi: #004f8c;
-  --mute-lamp: #4e9be5;
+  --mute-lamp: #c47d1e;
+  --monitor: #2f7ec4;
+  --monitor-lamp: #2f7ec4;
+  --monitor-line: rgba(47, 126, 196, 0.5);
   --mute-bg: rgba(14, 96, 164, 0.13);
   --mute-line: rgba(14, 96, 164, 0.42);
   --info: #0e60a4;
@@ -699,6 +710,10 @@
   --solo: #ffe082;
   --solo-hi: #fff4d0;
   --solo-lamp: #ffe082;
+  --mute-lamp: #ffb74d;
+  --monitor: #82b1ff;
+  --monitor-lamp: #82b1ff;
+  --monitor-line: rgba(130, 177, 255, 0.6);
   --solo-bg: rgba(255, 224, 130, 0.24);
   --solo-line: rgba(255, 224, 130, 0.65);
   --warm: #ffe082;
@@ -708,7 +723,7 @@
 
   --mute: #8ec6ff;
   --mute-hi: #b8dbff;
-  --mute-lamp: #8ec6ff;
+  --mute-lamp: #ffb74d;
   --mute-bg: rgba(142, 198, 255, 0.24);
   --mute-line: rgba(142, 198, 255, 0.65);
   --info: #8ec6ff;
@@ -837,7 +852,7 @@
 
     --mute: #8ec6ff;
     --mute-hi: #b8dbff;
-    --mute-lamp: #8ec6ff;
+    --mute-lamp: #ffb74d;
     --mute-bg: rgba(142, 198, 255, 0.24);
     --mute-line: rgba(142, 198, 255, 0.65);
     --info: #8ec6ff;

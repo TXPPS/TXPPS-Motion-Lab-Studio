@@ -402,8 +402,16 @@
 }
 .th-controls {
   display: flex;
+  /* The strip reserves its own width before the rest of the header gets any.
+     It was `min-width: 0` with fixed-width, non-shrinking children, which is
+     the combination that lets a row run out of room without anything being
+     able to give — measured at 360px the name had 37px for a five-letter
+     track. */
+  flex: none;
   align-items: center;
-  gap: 3px;
+  /* 4px, which is the directive's minimum separation between adjacent
+     controls. At 3px the strip measured one pixel short of it on every track. */
+  gap: 4px;
   margin-top: 3px;
   min-width: 0;
 }
@@ -446,6 +454,60 @@
     box-shadow var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out);
 }
+/* Monitoring: a loudspeaker, blue when the live input is coming through this
+   channel. Blue is monitoring's alone — mute used to light blue, which is why
+   a lit M read as "listening" to anyone who had used another DAW. */
+.th-mini.th-monitor.mon-on {
+  --lamp: var(--monitor-lamp);
+}
+
+/* Silenced by somebody else's solo. Not the same state as muted and must not
+   look like it: the track's own mute is off, and pressing M here would mute it
+   *as well*, which is the mistake this hatching exists to prevent. */
+.th-mini.m-implicit {
+  color: var(--text-dim);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0 3px,
+    color-mix(in srgb, var(--mute-lamp) 30%, transparent) 3px 5px
+  );
+}
+
+/*
+ * Touch sizing.
+ *
+ * The buttons measured 32x30 against the 44pt minimum, and the header column is
+ * a fixed 176px that does not answer the viewport at all — so there was no room
+ * to grow into and the controls simply stayed too small. Four controls at 44pt
+ * with 4pt gaps need 188px, so the column widens to 208 on a coarse pointer and
+ * the fader and pan knob step aside: a fader is not a 44pt control and the Mix
+ * workspace is where one belongs on a phone. They are reachable from the track
+ * menu rather than gone (§1 forbids silently disappearing).
+ */
+@media (pointer: coarse) {
+  :root {
+    --header-w: calc(208px * var(--ui-scale));
+  }
+  .th-controls .th-mini {
+    width: 44px;
+    height: 44px;
+  }
+  .th-controls .th-vol,
+  .th-controls .knob {
+    display: none;
+  }
+  .th-row .th-mini {
+    width: 36px;
+    height: 36px;
+  }
+  /* Automation mode is second-lowest in the collapse priority, so on a phone
+     it leaves the name row and lives in the track menu. Nine characters of
+     track name mattered more than a button that opens a lane. */
+  .th-row .th-auto {
+    display: none;
+  }
+}
+
 /* Mute, solo and arm are the buttons a mix gets driven from; they have to
    answer the pointer before they are pressed. An unlit lamp brightens its
    glyph rather than changing colour — colour here would mean a state. */

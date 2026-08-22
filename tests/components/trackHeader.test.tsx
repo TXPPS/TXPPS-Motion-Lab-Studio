@@ -41,6 +41,11 @@ function firstTrack() {
   return useProjectStore.getState().project.tracks[0];
 }
 
+/** A fresh track of a given type, for the cases that need one they own. */
+function makeTrack(type: 'audio' | 'instrument'): string {
+  return useProjectStore.getState().addTrack(type);
+}
+
 describe('TrackHeader rename', () => {
   it('renames the track from the dialog a double-click opens', async () => {
     const user = setupUser();
@@ -231,5 +236,89 @@ describe('TrackHeader freeze', () => {
 
     await user.click(screen.getByTestId(`track-menu-${audio.name}`));
     expect(screen.queryByTestId(`freeze-menu-${audio.name}`)).toBeNull();
+  });
+});
+
+/**
+ * Directive 02 §1 — BUG-001 and BUG-002.
+ *
+ * The report said the `M` button was doing monitoring. It was not: it was, and
+ * is, mute, correctly wired to the engine. What was true is that mute lit
+ * **blue**, which is the colour monitoring owns in every DAW the user has met —
+ * so a lit M read as "listening". These pin the corrected taxonomy so it cannot
+ * drift back.
+ */
+describe('the track header control strip', () => {
+  const trackOf = (id: string) => trackNow(id);
+
+  it('binds M to mute and drives the stored state, not just the button', () => {
+    const id = makeTrack('audio');
+    render(<HeaderHost trackId={id} />);
+    const mute = screen.getByTestId(`mute-${trackOf(id).name}`);
+    expect(mute.textContent).toBe('M');
+    expect(trackOf(id).mute).toBe(false);
+    fireEvent.click(mute);
+    expect(trackOf(id).mute).toBe(true);
+    expect(mute).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(mute);
+    expect(trackOf(id).mute).toBe(false);
+  });
+
+  it('gives an audio track a monitor control that is not the mute button', () => {
+    const id = makeTrack('audio');
+    render(<HeaderHost trackId={id} />);
+    const monitor = screen.getByTestId(`monitor-${trackOf(id).name}`);
+    // Distinct elements with distinct jobs. The whole of BUG-002 was that a
+    // user could not tell these apart, because one of them was blue.
+    expect(monitor).not.toBe(screen.getByTestId(`mute-${trackOf(id).name}`));
+    expect(monitor).toHaveAttribute('aria-pressed', 'false');
+    expect(monitor.querySelector('svg')).not.toBeNull(); // a loudspeaker, not a letter
+  });
+
+  it('offers no monitor control on a track that has no input', () => {
+    const id = makeTrack('instrument');
+    render(<HeaderHost trackId={id} />);
+    expect(screen.queryByTestId(`monitor-${trackOf(id).name}`)).toBeNull();
+  });
+
+  it('shows solo and arm as their own controls', () => {
+    const id = makeTrack('audio');
+    render(<HeaderHost trackId={id} />);
+    const name = trackOf(id).name;
+    fireEvent.click(screen.getByTestId(`solo-${name}`));
+    expect(trackOf(id).solo).toBe(true);
+    fireEvent.click(screen.getByTestId(`arm-${name}`));
+    expect(trackOf(id).armed).toBe(true);
+  });
+
+  it('marks a track silenced by another track solo without claiming it is muted', () => {
+    // Pressing M on a track that is already inaudible would mute it *as well*,
+    // and the user would then have two things to undo. The hatching says the
+    // track is silent; `aria-pressed` still says the mute is off, because it is.
+    const id = makeTrack('audio');
+    const track = trackOf(id);
+    render(
+      <>
+        <TrackHeader track={track} height={80} silencedBySolo />
+        <DialogHost />
+        <ContextMenuHost />
+      </>,
+    );
+    const mute = screen.getByTestId(`mute-${track.name}`);
+    expect(mute.className).toContain('m-implicit');
+    expect(mute.className).not.toContain('m-on');
+    expect(mute).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('keeps every control the strip drops reachable from the menu', () => {
+    // §1 forbids a collapsed control disappearing silently. The strip sheds the
+    // fader, the pan knob and the automation button on a touch layout.
+    const id = makeTrack('audio');
+    render(<HeaderHost trackId={id} />);
+    fireEvent.click(screen.getByTestId(`track-menu-${trackOf(id).name}`));
+    const labels = screen.getAllByRole('menuitem').map((el) => el.textContent ?? '');
+    for (const wanted of ['Mute', 'Solo', 'Monitor input', 'Level and pan…']) {
+      expect(labels.some((l) => l.includes(wanted))).toBe(true);
+    }
   });
 });

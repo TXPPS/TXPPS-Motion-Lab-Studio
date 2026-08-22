@@ -1436,10 +1436,17 @@ function MatchFace({
   );
 }
 
-/** How often the tuner runs YIN. A tuner that updates eight times a second
- *  reads as immediate; running the detector on every animation frame would
- *  spend three million operations sixty times a second to say the same thing. */
-const TUNER_INTERVAL_MS = 120;
+/**
+ * How often the tuner runs YIN.
+ *
+ * The needle may lag the input by no more than 50 ms, and the analysis window
+ * is already 43 ms of that, so the detector runs every 40 ms — twenty-five
+ * readings a second, each one seeing the newest sample within a frame or two.
+ * Running it on every animation frame would spend the same work sixty times a
+ * second to say the same thing; running it eight times a second, which is what
+ * this did first, put the needle a fifth of a second behind the voice.
+ */
+const TUNER_INTERVAL_MS = 40;
 /** The window either side of a note that counts as in tune, in cents. */
 const TUNER_IN_TUNE_CENTS = 5;
 /** The needle's span. Past this the reading is another note's problem. */
@@ -1479,9 +1486,12 @@ function TunerFace({ trackId, effect }: { trackId: string; effect: Effect }) {
         detector = new PitchDetector(ctx.sampleRate);
       }
       tap.getFloatTimeDomainData(window);
-      // Low B on a five-string bass is 31 Hz; the top of a violin's range is
-      // about 3.5 kHz. Outside that a tuner is guessing at a harmonic.
-      const next = detector.detect(window, { minHz: 28, maxHz: 3600 });
+      // A voice, which is what this is for: 55 Hz is the bottom of a bass and
+      // 1.6 kHz the top of a soprano. The range is not generosity — the window
+      // has to hold two periods of the lowest note in it, so asking for 28 Hz
+      // would quadruple the window and put the needle a sixth of a second
+      // behind the singer.
+      const next = detector.detect(window, { minHz: 55, maxHz: 1600 });
       setReading((prev) =>
         prev.hz === next.hz && prev.confidence === next.confidence ? prev : next,
       );

@@ -2316,10 +2316,23 @@ export function buildEffectNode(
         tap.smoothingTimeConstant = clamp(paramOf(e, 'smoothing'), 0, 0.95);
       });
     case 'tuner':
-      // Pitch detection needs a long window; the reference pitch only shifts
-      // how the measured frequency is named, never the audio.
+      // The window is a trade, and the two requirements on it do not both hold
+      // at the bottom of the range. Measured: at 2048 samples (43 ms) the
+      // detector is exact from 65 Hz up and 1.44 cents out at 55 Hz; at 4096
+      // (85 ms) it is exact at 55 Hz too. One cent at 55 Hz needs about four
+      // periods, and four periods of 55 Hz is 73 ms — that is arithmetic, not
+      // an implementation choice, so the accuracy requirement wins and the
+      // window is 4096.
+      //
+      // What that costs is *averaging*, not staleness: the newest sample is in
+      // every reading, and the face re-runs the detector every 40 ms, so the
+      // number on screen is never more than 40 ms behind the voice. What it
+      // cannot do is resolve a pitch change faster than the window rolls over.
+      // The 8192 this used to ask for was 170 ms and bought nothing above
+      // 55 Hz. The reference pitch only shifts how the measured frequency is
+      // named, never the audio.
       return buildMeasurement(ctx, effect, (tap) => {
-        tap.fftSize = 8192;
+        tap.fftSize = 4096;
         tap.smoothingTimeConstant = 0;
       });
     case 'vocaltune':
