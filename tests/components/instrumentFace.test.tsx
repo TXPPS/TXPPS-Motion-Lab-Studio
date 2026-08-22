@@ -153,7 +153,10 @@ describe('MotionSynth', () => {
     render(<SynthPanel />);
 
     expect(trackOf(id).synth!.shape).toBeUndefined();
-    expect(screen.getByRole('slider', { name: 'Shape' })).toHaveAttribute('aria-valuetext', 'Square');
+    expect(screen.getByRole('slider', { name: 'Shape' })).toHaveAttribute(
+      'aria-valuetext',
+      'Square',
+    );
     expect(screen.getByLabelText(/^Oscillator:/)).toHaveAccessibleName(/Square/);
     // And the family it belongs to is the one that is lit — pressing it again
     // must not answer, or the square would become the sawtooth underneath it.
@@ -169,9 +172,7 @@ describe('MotionSynth', () => {
       .getState()
       .setSynthParams(id, { waveform: 'sawtooth', shape: 1, pulseWidth: 0.5, subLevel: 0.6 });
     render(<SynthPanel />);
-    expect(screen.getByLabelText(/^Oscillator:/)).toHaveAccessibleName(
-      /sub an octave down at 60%/,
-    );
+    expect(screen.getByLabelText(/^Oscillator:/)).toHaveAccessibleName(/sub an octave down at 60%/);
     // No modulator yet, so the panel says the voice builds none.
     expect(screen.getByTestId('syn-lfo-off')).toBeInTheDocument();
 

@@ -25,6 +25,7 @@ import { usePrefsStore } from '../state/prefsStore';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
 import { RackInstrument, SamplerInstrument, type RackChild } from './samplerInstrument';
 import { defaultSamplerParams, type SamplerParams } from '../model/sampler';
+import type { ModulationClock } from './effectChain';
 import { InsertChain } from './effectChain';
 import { onPluginsResolved, preloadPlugins } from './wam/pluginPool';
 import { useUiStore } from '../state/uiStore';
@@ -309,10 +310,28 @@ class AudioEngine {
     }
   }
 
+  /**
+   * The song time a chain being built should phase its modulators from.
+   *
+   * A chain is rebuilt whenever the project changes — including mid-playback,
+   * when a device is added — and its modulators used to start at phase zero at
+   * that instant, so two synced tremolos on two channels disagreed simply
+   * because one of them was added later. Anchoring them to song time puts them
+   * in step with each other and with `renderProject`'s bounce, which phases
+   * from the same number.
+   *
+   * Null before the transport has ever run: a graph built with no position to
+   * speak of gets `clockOf`'s "start now at phase zero", which is exactly what
+   * it always did.
+   */
+  private modulationClock(): ModulationClock | undefined {
+    return this.scheduler.modulationClock() ?? undefined;
+  }
+
   private buildMasterChain(ctx: AudioContext): void {
     const p = useProjectStore.getState().project;
     this.masterInput = ctx.createGain();
-    this.masterInserts = new InsertChain(ctx);
+    this.masterInserts = new InsertChain(ctx, this.modulationClock());
     this.masterGain = ctx.createGain();
     this.masterGain.gain.value = p.master?.volume ?? p.masterVolume;
     this.masterPan = ctx.createStereoPanner();
@@ -803,7 +822,7 @@ class AudioEngine {
     const ctx = this.ctx!;
     const input = ctx.createGain();
     const trim = ctx.createGain();
-    const inserts = new InsertChain(ctx);
+    const inserts = new InsertChain(ctx, this.modulationClock());
     const muteGain = ctx.createGain();
     const volGain = ctx.createGain();
     const panner = ctx.createStereoPanner();
@@ -1385,7 +1404,7 @@ class AudioEngine {
      */
     let eventChain: InsertChain | null = null;
     if (clip.eventFx?.length) {
-      eventChain = new InsertChain(ctx);
+      eventChain = new InsertChain(ctx, this.modulationClock());
       eventChain.sync(clip.eventFx, p.bpm);
       g.connect(eventChain.entry);
       eventChain.exit.connect(dest);

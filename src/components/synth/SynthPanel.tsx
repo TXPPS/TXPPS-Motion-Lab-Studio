@@ -703,8 +703,7 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
                   norm={clamp(Math.log(lfoRate / SYNTH_LFO_MIN_HZ) / lfoSpan, 0, 1)}
                   onNorm={(n) =>
                     set({
-                      lfoRate:
-                        Math.round(SYNTH_LFO_MIN_HZ * Math.exp(n * lfoSpan) * 100) / 100,
+                      lfoRate: Math.round(SYNTH_LFO_MIN_HZ * Math.exp(n * lfoSpan) * 100) / 100,
                     })
                   }
                   display={`${lfoRate.toFixed(2)} Hz`}

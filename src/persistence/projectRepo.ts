@@ -445,6 +445,27 @@ export function validateProject(raw: unknown): ProjectData {
       tr.output = 'master';
     }
   }
+  /**
+   * Parameters that changed key, and the lanes that pointed at the old one.
+   *
+   * A lane names its target as a string, so a parameter that is renamed takes
+   * every lane written against it down with it — the load path drops what it
+   * cannot resolve, which is right for a deleted insert and wrong for a control
+   * that is still there under another name. The tremolo's stereo phase became
+   * `phaseOffset` when it stopped pretending to be continuous; the values map
+   * over unchanged, because a normalised lane value is a position in the
+   * control's own range and the new control has the same three positions the
+   * audio always had.
+   */
+  const RENAMED_FX_PARAMS: Record<string, string> = { stereoPhase: 'phaseOffset' };
+
+  function renameMovedParams<T extends { paramId: string }>(lane: T): T {
+    const parts = lane.paramId.split(':');
+    if (parts.length !== 3 || parts[0] !== 'fx') return lane;
+    const renamed = RENAMED_FX_PARAMS[parts[2]];
+    return renamed ? { ...lane, paramId: `fx:${parts[1]}:${renamed}` } : lane;
+  }
+
   // --- v2 → v3 migration: automation lanes -------------------------------
   // Additive and defensive: malformed lanes/points are dropped, values are
   // clamped and re-sorted, and a lane whose parameter no longer exists on the
@@ -456,6 +477,7 @@ export function validateProject(raw: unknown): ProjectData {
       const lanes = (tr.automation as unknown[])
         .map((l) => validateLane(l))
         .filter((l): l is NonNullable<ReturnType<typeof validateLane>> => l !== null)
+        .map(renameMovedParams)
         .filter(
           (l) => paramIdExists(t as unknown as Track, l.paramId) || targetsPlugin(t, l.paramId),
         );

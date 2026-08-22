@@ -263,6 +263,27 @@ export class Scheduler {
     }
   }
 
+  /**
+   * Where the song is, right now, as a modulator needs it.
+   *
+   * `positionBeats` answers the same question in beats, but a modulator is
+   * phase-locked in *seconds* — its rate is in hertz — and converting beats
+   * back to seconds through the tempo map to get here would go round the map
+   * twice for a number the anchor already holds. Returns null when nothing has
+   * played yet, which is the honest answer for a graph built before the
+   * transport has any position to speak of.
+   */
+  modulationClock(): { startAt: number; songSec: number } | null {
+    if (this.anchors.length === 0) return null;
+    const now = this.deps.now();
+    let a = this.anchors[0];
+    for (const cand of this.anchors) {
+      if (cand.ctx <= now) a = cand;
+      else break;
+    }
+    return { startAt: now, songSec: Math.max(0, a.sec + (now - a.ctx)) };
+  }
+
   positionBeats(): number {
     if (this.anchors.length === 0) return this.nextBeat;
     const now = this.deps.now();

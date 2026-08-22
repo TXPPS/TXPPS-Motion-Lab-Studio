@@ -326,7 +326,7 @@ npm run format     # Prettier
 
 **Type-check with `npm run typecheck`, never with a bare `npx tsc --noEmit`.**
 The root `tsconfig.json` is `files: []` with project references, so a bare
-`tsc --noEmit` type-checks *nothing*, reports success, and lets a broken build
+`tsc --noEmit` type-checks _nothing_, reports success, and lets a broken build
 through. `npm run typecheck` runs `tsc -b`, which is the same check
 `npm run build` performs.
 

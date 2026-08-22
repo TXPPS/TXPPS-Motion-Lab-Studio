@@ -558,7 +558,10 @@ describe('the oscillator the face draws is the one the voice sums', () => {
     expect(rec.oscillators).toHaveLength(2);
     expect(rec.oscillators[1].type).toBe(SYNTH_SUB_WAVE);
     expect(rec.oscillators[1].frequency.value).toBeCloseTo(sub.freqHz, 12);
-    expect(rec.oscillators[1].frequency.value * 2).toBeCloseTo(rec.oscillators[0].frequency.value, 12);
+    expect(rec.oscillators[1].frequency.value * 2).toBeCloseTo(
+      rec.oscillators[0].frequency.value,
+      12,
+    );
     expect(rec.gains.some((g) => g.value === sub.gain)).toBe(true);
 
     expect(synthSubOf({ ...SYNTH, subLevel: 0 })).toBeNull();

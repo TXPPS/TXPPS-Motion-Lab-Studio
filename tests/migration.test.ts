@@ -3,6 +3,7 @@ import { validateProject } from '../src/persistence/projectRepo';
 import { SCHEMA_VERSION } from '../src/model/types';
 import type { AudioClip } from '../src/model/types';
 import { MAX_INSERTS } from '../src/model/effects';
+import { createEmptyProject } from '../src/model/demoProject';
 
 /**
  * A minimal but realistic Milestone 1 project: schema v1, audio clips with no
@@ -221,5 +222,37 @@ describe('hostile and corrupt project data', () => {
 
     clips[0].warp = { sourceBpm: 120, markers: 'nonsense' };
     expect((validateProject(raw).clips[0] as AudioClip).warp).toBeUndefined();
+  });
+});
+
+describe('a parameter that changed key keeps its automation', () => {
+  it('carries a tremolo stereo-phase lane onto the key that replaced it', async () => {
+    // The control stopped pretending to be continuous — 181 settings for three
+    // reachable positions — and became a choice under a new key. A lane naming
+    // the old key would otherwise be dropped at load, which is right for a
+    // deleted insert and wrong for a control that is still there.
+    const project = validateProject({
+      ...createEmptyProject('Renamed'),
+      tracks: [
+        {
+          ...createEmptyProject('x').tracks[0],
+          id: 't1',
+          type: 'audio',
+          effects: [{ id: 'fx1', kind: 'tremolo', bypass: false, params: {} }],
+          automation: [
+            {
+              id: 'l1',
+              paramId: 'fx:fx1:stereoPhase',
+              enabled: true,
+              points: [{ id: 'p1', beat: 0, value: 1 }],
+            },
+          ],
+        },
+      ],
+    });
+    const lane = project?.tracks[0].automation?.[0];
+    expect(lane?.paramId).toBe('fx:fx1:phaseOffset');
+    expect(lane?.points).toHaveLength(1);
+    expect(lane?.points[0].value).toBe(1);
   });
 });

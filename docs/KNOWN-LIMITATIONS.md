@@ -53,9 +53,24 @@ where a capability is missing the UI says so.
     still built on the browser's own `DynamicsCompressorNode`. Bypassing it
     takes that back out, because its bypass crossfades to a dry path.
 
+  - **The bitcrusher costs (2^k − 1)/2 samples at a rate reduction of k** —
+    31.5 samples (0.71 ms at 44.1 kHz) at its highest setting — from the
+    boxcar hold cascade that does the reduction. This one is exactly known
+    rather than measured, and its _own_ dry path is compensated, so its Mix
+    control blends rather than combs; what is not compensated is the insert
+    against the rest of the session. The delay no longer varies with Mix, so
+    automating Mix does not sweep it.
+
   Every other insert is sample-aligned, the de-esser's band split and the
-  compressor's detector included. Running any of the three on one track of a
+  compressor's detector included. Running any of these on one track of a
   doubled part will comb against the other.
+
+  The saturator's and the distortion's parallel Mix is the one place a comb
+  is _not_ compensated: both run their shapers at `oversample: '4x'`, whose
+  up- and down-sampling filters are the browser's and are neither documented
+  nor latency-free. A guessed compensation would be wrong in a way nobody
+  could see, so the parameter says so where it is declared. Fully wet and
+  fully dry are exact; the settings between them comb.
 
 - **Sidechain keying reaches the compressor, gate, de-esser and limiter**, not
   the multiband: an insert carries one key input, and one key across three band

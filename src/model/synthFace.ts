@@ -351,15 +351,9 @@ export function synthOscillatorSample(osc: SynthOscillator, phase: number): numb
 }
 
 /** `cycles` cycles of the voice's own wave, sampled for a scope. */
-export function synthOscillatorPoints(
-  osc: SynthOscillator,
-  count = 160,
-  cycles = 2,
-): number[] {
+export function synthOscillatorPoints(osc: SynthOscillator, count = 160, cycles = 2): number[] {
   const n = Math.max(2, Math.floor(count));
-  return Array.from({ length: n }, (_, i) =>
-    synthOscillatorSample(osc, (i / (n - 1)) * cycles),
-  );
+  return Array.from({ length: n }, (_, i) => synthOscillatorSample(osc, (i / (n - 1)) * cycles));
 }
 
 // --------------------------------------------------------------- sub, glide

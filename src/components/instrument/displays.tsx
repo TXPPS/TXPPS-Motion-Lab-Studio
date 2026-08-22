@@ -99,7 +99,10 @@ export function OscScope({
     const atDuty = (duty: number) =>
       Array.from({ length: SCOPE_POINTS }, (_, i) =>
         synthOscillatorSample(
-          { type: osc.type, morph: { shape: osc.morph!.shape, width: duty, delayCycles: 1 - duty } },
+          {
+            type: osc.type,
+            morph: { shape: osc.morph!.shape, width: duty, delayCycles: 1 - duty },
+          },
           (i / (SCOPE_POINTS - 1)) * SCOPE_CYCLES,
         ),
       );

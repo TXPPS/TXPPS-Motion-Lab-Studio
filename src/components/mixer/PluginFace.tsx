@@ -953,7 +953,9 @@ function WidthFace({ field }: { field: WidthField }) {
       height={H}
       className="fx-curve"
       viewBox={`0 0 ${W} ${H}`}
-      aria-label={`Stereo width ${field.width.toFixed(2)}, mono below ${Math.round(field.bassMonoHz)} hertz`}
+      aria-label={`Stereo width ${field.width.toFixed(2)}${
+        field.bassMonoOn ? `, mono below ${Math.round(field.bassMonoHz)} hertz` : ''
+      }`}
     >
       <line x1={cx} y1={4} x2={cx} y2={H - 4} stroke="var(--grid-sub)" />
       <path
@@ -968,7 +970,12 @@ function WidthFace({ field }: { field: WidthField }) {
           wider than source
         </text>
       )}
-      {field.bassMonoHz > 21 && (
+      {/* The processor's own answer, not a guess at it: `bassMonoActive` is
+          what decides whether the side path's filter is in circuit, and a
+          hand-written threshold left a one-hertz window where the face drew
+          nothing while the filter was still working — reachable by
+          automation, because that lane is continuous. */}
+      {field.bassMonoOn && (
         <>
           <line
             x1={4}
