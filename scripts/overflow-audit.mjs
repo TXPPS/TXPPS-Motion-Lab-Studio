@@ -1005,7 +1005,7 @@ async function toMixer(page, layout, notes) {
  * `addAndOpen` in `DeviceRack.tsx` opens the window for a device you just
  * added, so inserting is also the gesture that opens the editor.
  */
-async function sweepPlugins(page, layout, minTap, safe, onSurface) {
+async function sweepPlugins(page, vpName, layout, minTap, safe, onSurface) {
   const notes = [];
   await toMixer(page, layout, notes);
   const adders = page.locator('[data-testid^="device-add-"]');
@@ -1082,7 +1082,7 @@ async function sweepPlugins(page, layout, minTap, safe, onSurface) {
     }
     await page.keyboard.press('Escape').catch(() => {});
     await settle(page, 150);
-    await onSurface(`plugin-${label.replace(/\s+/g, '-').toLowerCase()}`, {
+    await onSurface(surfaceId, {
       notes: one,
       error,
       modal,
@@ -1391,7 +1391,7 @@ for (const vp of VIEWPORTS) {
   }
 
   if (PLUGINS !== 'none') {
-    const swept = await sweepPlugins(page, layout, minTap, safe, record);
+    const swept = await sweepPlugins(page, vp.name, layout, minTap, safe, record);
     for (const n of swept.notes) console.log(`  . plugins: ${n}`);
     vpReport.pluginNotes = swept.notes;
   }

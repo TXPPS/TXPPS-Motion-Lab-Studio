@@ -19,7 +19,15 @@ export interface WriteEvent {
   /** Dotted path, e.g. "gain#3.gain" or "waveshaper#1.curve". */
   path: string;
   /** 'assign' is a jump; every other kind is scheduled. */
-  how: 'assign' | 'setTarget' | 'setValue' | 'linearRamp' | 'expRamp' | 'valueCurve' | 'field';
+  how:
+    | 'assign'
+    | 'setTarget'
+    | 'setValue'
+    | 'linearRamp'
+    | 'expRamp'
+    | 'valueCurve'
+    | 'cancel'
+    | 'field';
   value: number | string;
   /**
    * True when the write landed the value it already held.
@@ -121,6 +129,10 @@ export function createProbeContext(sampleRate = 48000): ProbeContext {
         return p;
       },
       cancelScheduledValues() {
+        // Recorded because it is the one call that separates a voice being cut
+        // short from a voice being released: `Voice.stopNow` cancels first and
+        // `Voice.release` does not, and both then ramp the same gain to zero.
+        writes.push({ path, how: 'cancel', value: target, same: false });
         return p;
       },
     };
@@ -213,8 +225,9 @@ export function createProbeContext(sampleRate = 48000): ProbeContext {
     makeNode(kind, params, fields, {
       ...extra,
       start(when?: number) {
-        writes.push({ path: `${kind}.start`, how: 'field', value: when ?? 0, same: false });
-        (this as ProbeNode).startedAt = when ?? 0;
+        const self = this as ProbeNode;
+        writes.push({ path: `${self.name}.start`, how: 'field', value: when ?? 0, same: false });
+        self.startedAt = when ?? 0;
       },
       stop(when?: number) {
         (this as ProbeNode).stoppedAt = when ?? 0;
