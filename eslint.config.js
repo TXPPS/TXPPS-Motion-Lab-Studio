@@ -41,4 +41,19 @@ export default tseslint.config(
     files: ['scripts/audit-*.mjs', 'scripts/*-audit.mjs'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
+  {
+    // Audio worklets run in `AudioWorkletGlobalScope`, which is neither the
+    // window nor a worker: it has no DOM, no timers and no fetch, and its own
+    // globals are the two below. Linted rather than ignored, because a real
+    // mistake in a processor is a mistake on the audio thread.
+    files: ['public/worklets/*.js'],
+    languageOptions: {
+      globals: {
+        AudioWorkletProcessor: 'readonly',
+        registerProcessor: 'readonly',
+        sampleRate: 'readonly',
+        currentTime: 'readonly',
+      },
+    },
+  },
 );

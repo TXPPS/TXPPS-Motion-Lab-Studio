@@ -24,6 +24,7 @@ import { useInputStore } from '../state/inputStore';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { engine } from './engine';
+import { livePeakTap } from './peakTap';
 import { audioInput, DEFAULT_INPUT } from './inputManager';
 import { commitTake, recorderSupported, stashRecovery, TakeRecorder } from './recorder';
 
@@ -229,6 +230,13 @@ class RecordingController {
     this.window = plan.window;
     if (!engine.isPlaying()) await engine.play(plan.rollBeat);
     this.armPunchOut();
+
+    // The live waveform taps the same source the take is captured from, so the
+    // picture and the file are one performance rather than two measurements of
+    // it. It is attached without awaiting: the take must not wait on a
+    // decoration, and a tap that arrives a few milliseconds late simply starts
+    // its envelope a few milliseconds in.
+    void livePeakTap.attach(ctx, source);
 
     const started = this.recorder.start(stream);
     if (!started) {
@@ -509,6 +517,10 @@ class RecordingController {
   }
 
   private cleanupInput(): void {
+    // The tap comes down with the input it was reading. Left attached it would
+    // keep appending to an envelope nothing is drawing, which is a leak whose
+    // symptom is memory rather than sound.
+    livePeakTap.detach();
     if (this.trackId) audioInput.release(this.deviceId, `record:${this.trackId}`);
   }
 

@@ -1194,6 +1194,7 @@ export function Arrangement() {
                         the moment the recorder commits one. */}
                     <LiveTakeLane
                       trackId={t.id}
+                      kind={t.type === 'audio' ? 'audio' : 'midi'}
                       pxPerBeat={pxPerBeat}
                       height={bands[i].clip}
                       color={t.color}

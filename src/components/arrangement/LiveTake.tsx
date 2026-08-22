@@ -20,6 +20,8 @@
 import { useEffect, useRef } from 'react';
 import { engine } from '../../audio/engine';
 import { midiRecorder } from '../../audio/midiRecorder';
+import { BASE_SAMPLES_PER_BUCKET } from '../../audio/livePeaks';
+import { livePeakTap } from '../../audio/peakTap';
 import { useInputStore } from '../../state/inputStore';
 import { useProjectStore } from '../../state/projectStore';
 
@@ -29,20 +31,27 @@ const PITCH_HI = 108;
 
 export function LiveTakeLane({
   trackId,
+  kind,
   pxPerBeat,
   height,
   color,
 }: {
   trackId: string;
+  /** Audio draws a growing waveform; MIDI draws notes as they are held. */
+  kind: 'audio' | 'midi';
   pxPerBeat: number;
   height: number;
   /** The track's colour, so the take reads as belonging to it before it exists. */
   color: string;
 }) {
   const phase = useInputStore((s) => s.phase);
+  const armed = useProjectStore((s) => s.project.tracks.find((t) => t.id === trackId)?.armed);
+  const bpm = useProjectStore((s) => s.project.bpm);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const recording = phase === 'recording' && midiRecorder.recordingTrackId === trackId;
+  const recording =
+    phase === 'recording' &&
+    (kind === 'midi' ? midiRecorder.recordingTrackId === trackId : armed === true);
 
   useEffect(() => {
     if (!recording) return;
@@ -80,6 +89,9 @@ export function LiveTakeLane({
       return true;
     };
 
+    /** Where the take begins, in lane pixels. */
+    const startPx = () => midiRecorder.snapshot(engine.getPositionBeats()).startBeat * pxPerBeat;
+
     const yOf = (pitch: number) => {
       const span = PITCH_HI - PITCH_LO;
       const t = 1 - (Math.min(PITCH_HI, Math.max(PITCH_LO, pitch)) - PITCH_LO) / span;
@@ -105,6 +117,51 @@ export function LiveTakeLane({
       c.globalAlpha = 1;
     };
 
+    // ---------------------------------------------------------------- audio
+    //
+    // The envelope arrives as min/max buckets of a fixed number of samples, so
+    // a bucket is a fixed slice of *time*. Its width in pixels comes from the
+    // tempo, which means a tempo change mid-take would put the take's internal
+    // spacing slightly out — the right edge stays correct because it is the
+    // playhead. That is a live drawing of a take in progress; the committed
+    // clip is drawn from the file, under the tempo map, and is exact.
+    if (kind === 'audio') {
+      let drawn = 0;
+      const secondsPerBucket = BASE_SAMPLES_PER_BUCKET / (engine.context?.sampleRate ?? 48000);
+      const pxPerBucket = secondsPerBucket * pxPerBeat * (bpm / 60);
+      const scratchMin = new Float32Array(4096);
+      const scratchMax = new Float32Array(4096);
+      const mid = height / 2;
+
+      return engine.onFrame(() => {
+        const peaks = livePeakTap.peaks;
+        const total = peaks.count(0);
+        const widthPx = total * pxPerBucket;
+        root.style.transform = `translateX(${startPx()}px)`;
+        sizeTo(widthPx);
+        if (!ctx || total <= drawn) return;
+
+        // Only what has arrived since the last frame — the whole point of the
+        // mip chain is that this cost is set by the frame rate and not by how
+        // long the take has been running.
+        let from = drawn;
+        ctx.fillStyle = color;
+        while (from < total) {
+          const to = Math.min(total, from + scratchMin.length);
+          const n = peaks.read(0, from, to, scratchMin, scratchMax);
+          for (let i = 0; i < n; i++) {
+            const x = (from + i) * pxPerBucket;
+            const top = mid - scratchMax[i] * mid;
+            const bottom = mid - scratchMin[i] * mid;
+            ctx.fillRect(x, top, Math.max(1, pxPerBucket), Math.max(1, bottom - top));
+          }
+          from = to;
+        }
+        drawn = total;
+      });
+    }
+
+    // ----------------------------------------------------------------- midi
     return engine.onFrame(() => {
       const nowBeat = engine.getPositionBeats();
       const take = midiRecorder.snapshot(nowBeat);
@@ -132,7 +189,7 @@ export function LiveTakeLane({
         drawNote(ctx, n.start, n.length, n.pitch, n.velocity, true);
       }
     });
-  }, [recording, trackId, pxPerBeat, height, color]);
+  }, [recording, trackId, kind, pxPerBeat, height, color, bpm]);
 
   if (!recording) return null;
   return (
