@@ -98,35 +98,6 @@ const isParam = (x: unknown): x is RecParam =>
   typeof x === 'object' && x !== null && Array.isArray((x as RecParam).calls);
 
 /**
- * jsdom has no `AudioBuffer`, and the sampler constructs one to play a zone
- * backwards. The constructor's options are the whole of what the reverser
- * needs, so a stand-in for it is four fields and an array.
- */
-class AudioBufferStub {
-  numberOfChannels: number;
-  length: number;
-  sampleRate: number;
-  duration: number;
-  private channels: Float32Array[];
-  constructor(opts: { numberOfChannels: number; length: number; sampleRate: number }) {
-    this.numberOfChannels = opts.numberOfChannels;
-    this.length = opts.length;
-    this.sampleRate = opts.sampleRate;
-    this.duration = opts.length / opts.sampleRate;
-    this.channels = Array.from(
-      { length: opts.numberOfChannels },
-      () => new Float32Array(opts.length),
-    );
-  }
-  getChannelData(i: number): Float32Array {
-    return this.channels[i];
-  }
-}
-if (typeof globalThis.AudioBuffer === 'undefined') {
-  globalThis.AudioBuffer = AudioBufferStub as unknown as typeof AudioBuffer;
-}
-
-/**
  * Enough of an audio graph to run the real voice engines against.
  *
  * Every node handed back *is* the object the recorder holds, rather than a copy

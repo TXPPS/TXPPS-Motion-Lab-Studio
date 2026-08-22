@@ -86,11 +86,18 @@ export function getPreset(name: string): SynthParams {
   return { ...(p ?? SYNTH_PRESETS[0]) };
 }
 
-/** Drum map used by the drum synth and the drum piano roll. */
-export const DRUM_PITCHES: { pitch: number; name: string }[] = [
-  { pitch: 36, name: 'Kick' },
-  { pitch: 38, name: 'Snare' },
-  { pitch: 39, name: 'Clap' },
-  { pitch: 42, name: 'Hat' },
-  { pitch: 46, name: 'Open Hat' },
+/**
+ * The classic kit's map: which key plays which hit, and which media the hit is.
+ *
+ * The media id is here rather than only inside the audio engine because the
+ * pads draw the hit's waveform and the rack conversion loads the same sounds —
+ * three places that must agree about what "Kick" is, and now do because there
+ * is one table saying so.
+ */
+export const DRUM_PITCHES: { pitch: number; name: string; mediaId: string }[] = [
+  { pitch: 36, name: 'Kick', mediaId: 'hit-kick' },
+  { pitch: 38, name: 'Snare', mediaId: 'hit-snare' },
+  { pitch: 39, name: 'Clap', mediaId: 'hit-clap' },
+  { pitch: 42, name: 'Hat', mediaId: 'hit-hat' },
+  { pitch: 46, name: 'Open Hat', mediaId: 'hit-openhat' },
 ];

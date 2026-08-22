@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bucketNotesByPitch,
   buildPadDrumMap,
+  CLASSIC_KIT_MAP,
   DRUM_GROUPS,
   ESSENTIAL_DRUM_MAP,
   firstIndexFrom,
@@ -10,11 +11,36 @@ import {
   laneList,
   laneOf,
   pitchesInGroup,
+  trackDrumMap,
   usedLanes,
   type DrumGroup,
 } from '../src/model/drumMap';
-import { defaultSamplerParams, makePadZone, makeZone } from '../src/model/sampler';
-import type { Note } from '../src/model/types';
+import { DRUM_PITCHES } from '../src/model/presets';
+import {
+  buildClassicKitRack,
+  buildDrumKit,
+  defaultSamplerParams,
+  makePadZone,
+  makeZone,
+} from '../src/model/sampler';
+import type { Note, Track } from '../src/model/types';
+
+function drumTrack(patch: Partial<Track> = {}): Track {
+  return {
+    id: 't1',
+    type: 'drum',
+    name: 'Drums',
+    color: '#37b89a',
+    volume: 1,
+    pan: 0,
+    mute: false,
+    solo: false,
+    armed: false,
+    collapsed: false,
+    output: 'master',
+    ...patch,
+  };
+}
 
 let seq = 0;
 function note(pitch: number, start: number, velocity = 100): Note {
@@ -204,5 +230,87 @@ describe('bucketing', () => {
     expect(firstIndexFrom(sorted, 3)).toBe(3);
     expect(firstIndexFrom(sorted, 9)).toBe(4);
     expect(firstIndexFrom([], 1)).toBe(0);
+  });
+});
+
+describe('the map a track plays', () => {
+  it('names the classic kit from its own five hits, not from GM', () => {
+    const map = trackDrumMap(drumTrack());
+    expect(map).toBe(CLASSIC_KIT_MAP);
+    expect(map?.lanes.map((l) => l.pitch)).toEqual(DRUM_PITCHES.map((d) => d.pitch));
+    // GM calls 38 "Acoustic Snare" and 39 "Hand Clap"; this kit calls them what
+    // its own pads are called, because it knows.
+    expect(laneOf(map!, 38)?.name).toBe('Snare');
+    expect(laneOf(map!, 39)?.name).toBe('Clap');
+  });
+
+  it('prefers the track own pads once it has a rack', () => {
+    const map = trackDrumMap(drumTrack({ sampler: buildDrumKit() }));
+    expect(map?.lanes.map((l) => l.name)).toEqual([
+      'Kick',
+      'Snare',
+      'Clap',
+      'Hat',
+      'Open Hat',
+      'Kick 2',
+      'Rim',
+      'Hat 2',
+    ]);
+  });
+
+  it('answers for a rack on an instrument track: the device decides, not the type', () => {
+    const map = trackDrumMap(drumTrack({ type: 'instrument', sampler: buildDrumKit() }));
+    expect(map?.lanes).toHaveLength(8);
+  });
+
+  it('is null for a melodic instrument and for a layered rack', () => {
+    expect(trackDrumMap(drumTrack({ type: 'instrument' }))).toBeNull();
+    expect(trackDrumMap(drumTrack({ rack: { items: [] } }))).toBeNull();
+    expect(trackDrumMap(null)).toBeNull();
+  });
+
+  it('is null for a drum track holding a multisample, which has no pads', () => {
+    const sampler = defaultSamplerParams('multi');
+    sampler.zones = [makeZone({ mediaId: 'm', name: 'Piano', keyLo: 0, keyHi: 127 })];
+    expect(trackDrumMap(drumTrack({ sampler }))).toBeNull();
+  });
+});
+
+describe('converting the classic kit to a rack', () => {
+  it('keeps the keys the part is already written on', () => {
+    const rack = buildClassicKitRack();
+    expect(rack.view).toBe('drum');
+    expect(rack.zones.map((z) => z.keyLo)).toEqual(DRUM_PITCHES.map((d) => d.pitch));
+    // The generic kit starts at C1; converting to that would point every note
+    // already written at silence.
+    expect(buildDrumKit().zones[0].keyLo).not.toBe(rack.zones[0].keyLo);
+  });
+
+  it('loads the same sounds under the same names, pinned and one-shot', () => {
+    for (const z of buildClassicKitRack().zones) {
+      expect(z.keyLo).toBe(z.keyHi);
+      expect(z.rootNote).toBe(z.keyLo);
+      expect(z.keyTrack).toBe(false);
+      expect(z.oneShot).toBe(true);
+    }
+    expect(buildClassicKitRack().zones.map((z) => z.mediaId)).toEqual(
+      DRUM_PITCHES.map((d) => d.mediaId),
+    );
+  });
+
+  it('chokes the two hats against each other', () => {
+    const rack = buildClassicKitRack();
+    const hats = rack.zones.filter((z) => z.name.includes('Hat'));
+    expect(hats).toHaveLength(2);
+    expect(new Set(hats.map((z) => z.chokeGroup))).toEqual(new Set([1]));
+    expect(rack.zones.filter((z) => !z.name.includes('Hat')).every((z) => !z.chokeGroup)).toBe(
+      true,
+    );
+  });
+
+  it('reads back through the map it produces', () => {
+    const map = trackDrumMap(drumTrack({ sampler: buildClassicKitRack() }));
+    expect(map?.lanes.map((l) => l.name)).toEqual(DRUM_PITCHES.map((d) => d.name));
+    expect(map?.lanes.map((l) => l.pitch)).toEqual(DRUM_PITCHES.map((d) => d.pitch));
   });
 });

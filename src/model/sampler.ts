@@ -5,6 +5,7 @@
  * engine lives in audio/samplerInstrument.ts.
  */
 import { newId } from './ids';
+import { DRUM_PITCHES } from './presets';
 import { TRACK_COLORS } from './types';
 
 export interface SampleZone {
@@ -266,6 +267,36 @@ export function detectTransients(
     prevRms = Math.max(rms, prevRms * 0.7);
   }
   return out;
+}
+
+/**
+ * The classic kit rebuilt as a drum rack **on the keys it already answers to**.
+ *
+ * The 808 kit below starts its pads at C1, so converting a song's drum track to
+ * it would leave every note already written pointing at silence. Keeping
+ * 36/38/39/42/46 is what makes this a way to gain per-pad level, tune, pan and
+ * choke on a finished part rather than a way to lose the part.
+ */
+export function buildClassicKitRack(name = 'TX Drum Kit'): SamplerParams {
+  const p = defaultSamplerParams('drum');
+  p.zones = DRUM_PITCHES.map((d, i) => {
+    const z = makeZone({
+      mediaId: d.mediaId,
+      name: d.name,
+      keyLo: d.pitch,
+      keyHi: d.pitch,
+      rootNote: d.pitch,
+      keyTrack: false,
+      oneShot: true,
+      color: TRACK_COLORS[i % TRACK_COLORS.length],
+    });
+    // The two hats are one hat: an open hat still ringing when the closed one
+    // is struck has to stop, or the kit does something a kit cannot do.
+    if (d.name.includes('Hat')) z.chokeGroup = 1;
+    return z;
+  });
+  p.presetName = name;
+  return p;
 }
 
 /** Built-in kits/presets (procedural media only — repository-safe). */

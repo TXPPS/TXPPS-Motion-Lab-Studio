@@ -14,7 +14,6 @@
   display: flex;
   flex-direction: column;
 }
-
 .syn-empty {
   flex: 1;
   display: flex;
@@ -120,32 +119,99 @@
   min-height: 0;
 }
 
-/* Drum pads */
+/* Drum pads.
+   The pad grid is the drum kit's face, so it fills the width of the section it
+   is in and wraps; a pad is something you hit, and past about 120px it stops
+   reading as a pad and starts reading as a tile. */
 .pads {
   display: grid;
-  grid-template-columns: repeat(5, minmax(56px, 86px));
-  gap: 8px;
-  padding: 10px;
+  /* A pad has a size: it is something you hit, not a cell of a table. They
+     wrap and sit left rather than stretching to whatever width the panel
+     happens to have. */
+  grid-template-columns: repeat(auto-fill, minmax(104px, 148px));
+  grid-auto-rows: minmax(88px, 132px);
+  justify-content: start;
+  gap: var(--sp-3);
+}
+/* Pinned under the body on the phone's perform page: there the row is
+   deliberately short, because the controls above it must stay reachable. */
+.pads.compact {
+  flex: 0 0 auto;
+  grid-template-columns: repeat(5, minmax(56px, 1fr));
+  grid-auto-rows: minmax(52px, 72px);
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-deep);
+  box-shadow: var(--ml-seam-t);
 }
 /* A performance pad is a cap: a milled body with a hard waist, not two
    hand-written greys. */
 .pad {
-  aspect-ratio: 1;
+  /* The grid sizes it; the pad fills its cell. Name and key across the top,
+     the hit itself under them — a pad you can read at a glance and still tell
+     the closed hat from the open one without reading either name. */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: var(--sp-1);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: var(--sp-2);
   border-radius: var(--radius-lg);
   background: var(--grad-cap);
   border: none;
   box-shadow: var(--sh-2);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
   color: var(--text-dim);
+  text-align: left;
   user-select: none;
   touch-action: none;
 }
+.pad-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.pad-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.pad .hint {
+  flex: none;
+  font-family: var(--font-num);
+  font-size: var(--fs-2xs);
+}
+/* The hit itself, taking whatever the name and key leave. `min-height: 0` is
+   what stops an SVG's intrinsic ratio from setting the pad's height. */
+.pad-wave {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  opacity: 0.42;
+  pointer-events: none;
+}
+.pad-wave path {
+  fill: var(--text);
+}
+.pad:active .pad-wave path,
+.pad.hit .pad-wave path {
+  fill: var(--lamp-ink);
+}
+.pad:active .pad-wave,
+.pad.hit .pad-wave {
+  opacity: 0.5;
+}
+.pads.compact .pad-wave {
+  display: none;
+}
+
 .pad:active,
 .pad.hit {
   --lamp: var(--accent-lamp);
@@ -220,6 +286,9 @@
 }
 .ins-section.wide {
   flex: 2 1 calc(340px * var(--ui-scale));
+}
+.ins-section.full {
+  flex: 1 1 100%;
 }
 .ins-section-head {
   display: flex;

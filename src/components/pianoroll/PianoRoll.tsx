@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { engine } from '../../audio/engine';
 import { longPress, usePointerDrag } from '../../hooks/usePointerDrag';
 import { clamp, formatPosition, midiToName, snapBeat, snapBeatFloor } from '../../model/music';
-import { DRUM_PITCHES } from '../../model/presets';
+import { laneOf, trackDrumMap } from '../../model/drumMap';
 import {
   buildChord,
   CHORD_QUALITIES,
@@ -417,7 +417,15 @@ export function PianoRoll() {
   );
 
   const track = clip ? project.tracks.find((t) => t.id === clip.trackId) : null;
-  const isDrum = track?.type === 'drum';
+  // What makes an editor a drum editor is the device on the track, not the
+  // track's type: a drum rack loaded onto an instrument track is still a kit,
+  // and its own pad names are the only correct labels for its keys.
+  const drumMap = trackDrumMap(track);
+  // Where the editor opens on a kit: the middle of the pads it actually has,
+  // rather than a constant that assumed everyone's kit was the classic five.
+  const openAtPitch = drumMap
+    ? (drumMap.lanes[0].pitch + drumMap.lanes[drumMap.lanes.length - 1].pitch) / 2
+    : 60;
   const rows = PITCH_MAX - PITCH_MIN + 1;
   const gridH = rows * ROW_H;
   const contentBeats = clip ? Math.max(clip.length + 4, 16) : 16;
@@ -455,15 +463,11 @@ export function PianoRoll() {
     if (!sc || didInitScroll.current || !clip) return;
     didInitScroll.current = true;
     const pitches = clip.notes.map((n) => n.pitch);
-    const center = pitches.length
-      ? (Math.min(...pitches) + Math.max(...pitches)) / 2
-      : isDrum
-        ? 41
-        : 60;
+    const center = pitches.length ? (Math.min(...pitches) + Math.max(...pitches)) / 2 : openAtPitch;
     sc.scrollTop = Math.max(0, (PITCH_MAX - center) * ROW_H - sc.clientHeight / 2);
     sc.scrollLeft = 0;
     updateWin();
-  }, [clip, isDrum, updateWin]);
+  }, [clip, openAtPitch, updateWin]);
 
   // Keep the keyboard cursor on screen, but only when the cursor itself moves.
   // Focus was in this dependency list, which meant clicking the grid scrolled
@@ -1200,9 +1204,7 @@ export function PianoRoll() {
               if (rowTop > win.bottom || rowTop + ROW_H < win.top) {
                 return <div key={pitch} style={{ height: ROW_H }} />;
               }
-              const drumName = isDrum
-                ? DRUM_PITCHES.find((d) => d.pitch === pitch)?.name
-                : undefined;
+              const drumName = drumMap ? laneOf(drumMap, pitch)?.name : undefined;
               const outOfScale = prScale !== 'chromatic' && !inScale(pitch, prKey, prScale);
               return (
                 <div

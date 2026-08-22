@@ -15,9 +15,11 @@
 import { useMemo } from 'react';
 import { engine } from '../../audio/engine';
 import { midi } from '../../audio/midi';
+import { getPeaksSync } from '../../audio/mediaLibrary';
 import { formatHz } from '../../model/effects';
 import { clamp, midiToName } from '../../model/music';
 import { DRUM_PITCHES, SYNTH_PRESETS } from '../../model/presets';
+import { buildClassicKitRack } from '../../model/sampler';
 import {
   formatSeconds,
   SYNTH_CUTOFF_MAX_HZ,
@@ -34,7 +36,13 @@ import { useTransportStore } from '../../state/transportStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
 import { ParamKnob } from '../common/widgets';
-import { EnvelopeGraph, FilterCurve, InstrumentSection, OscScope } from '../instrument/displays';
+import {
+  EnvelopeGraph,
+  FilterCurve,
+  InstrumentSection,
+  OscScope,
+  PadWave,
+} from '../instrument/displays';
 import { InstrumentFrame } from '../instrument/InstrumentFrame';
 import { InstrumentKindSelect, SamplerPanel } from '../sampler/SamplerPanel';
 import { Keyboard } from './Keyboard';
@@ -68,24 +76,89 @@ const WAVES: { id: Waveform; short: string; name: string }[] = [
 /** The keys the key-tracking ghosts are drawn at: two octaves either side. */
 const GHOST_KEYS = [SYNTH_ROOT_KEY - 24, SYNTH_ROOT_KEY + 24];
 
-function DrumPads({ track }: { track: Track }) {
+/**
+ * The kit's pads.
+ *
+ * The reference's drum machine puts a pad grid first and everything else under
+ * it, and the pads carry their sound: the envelope drawn on each one is what
+ * tells the closed hat from the open one at a glance. Velocity comes from where
+ * on the pad it was struck — the top edge is a rimshot, the bottom a ghost note
+ * — which is what a pad is for and what a fixed 110 could not do.
+ */
+function DrumPads({ track, compact }: { track: Track; compact?: boolean }) {
   return (
-    <div className="pads" data-testid="drum-pads">
+    <div className={`pads${compact ? ' compact' : ''}`} data-testid="drum-pads">
       {DRUM_PITCHES.map((d) => (
         <button
           key={d.pitch}
           className="pad"
+          title={`${d.name} · ${midiToName(d.pitch)} — strike high for hard, low for soft`}
           onPointerDown={(e) => {
             e.preventDefault();
-            engine.liveNoteOn(track.id, d.pitch, 110);
+            const box = e.currentTarget.getBoundingClientRect();
+            const y = box.height > 0 ? (e.clientY - box.top) / box.height : 0.3;
+            engine.liveNoteOn(track.id, d.pitch, padVelocity(y));
           }}
         >
-          <Icon name="grid" size={15} />
-          {d.name}
-          <span className="hint">{midiToName(d.pitch)}</span>
+          <span className="pad-head">
+            <span className="pad-name">{d.name}</span>
+            <span className="hint">{midiToName(d.pitch)}</span>
+          </span>
+          <PadWave peaks={hitPeaks(d.mediaId)} />
         </button>
       ))}
     </div>
+  );
+}
+
+/** Softest at the bottom of the pad, hardest at the top — never silent. */
+function padVelocity(y: number): number {
+  return Math.round(clamp(127 - clamp(y, 0, 1) * 90, 30, 127));
+}
+
+/**
+ * The hit's envelope, if the media library already has it.
+ *
+ * Procedural hits resolve synchronously, so there is nothing to await and no
+ * state to hold; anything else simply draws no wave rather than making the pad
+ * bank wait on a decode it does not need.
+ */
+function hitPeaks(mediaId: string): { min: Float32Array; max: Float32Array } | null {
+  const p = getPeaksSync(mediaId);
+  return p ? { min: p.min, max: p.max } : null;
+}
+
+/**
+ * What this kit is, and the way out of it.
+ *
+ * The classic kit is five fixed one-shots sharing one level — no per-pad tune,
+ * pan, choke or sample of its own. That is a real limit rather than a missing
+ * screen, so the panel says so and offers the upgrade instead of pretending
+ * there are controls to find. The conversion keeps the keys the part is
+ * already written on, so nothing in the arrangement stops making a sound.
+ */
+function KitSection({ track }: { track: Track }) {
+  return (
+    <InstrumentSection title="Kit" aside="5 fixed hits">
+      <div className="hint">
+        TX Drum Kit plays five built-in hits at one shared level. The Drum Rack plays the same
+        sounds with a level, tune, pan and choke group per pad, and takes your own samples.
+      </div>
+      <button
+        className="btn primary"
+        data-testid="kit-to-rack"
+        title="Rebuild this kit as a Drum Rack on the same keys"
+        onClick={() =>
+          useProjectStore.getState().applySamplerPreset(track.id, buildClassicKitRack())
+        }
+      >
+        <Icon name="grid" size={12} /> Load into Drum Rack
+      </button>
+      <div className="hint">
+        Keeps {DRUM_PITCHES.map((d) => midiToName(d.pitch)).join(' · ')}, so the parts you have
+        written keep playing.
+      </div>
+    </InstrumentSection>
   );
 }
 
@@ -203,10 +276,20 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
       name={isDrum ? 'TX Drum Kit' : 'MotionSynth'}
       track={track}
       testId="synth-panel"
-      className={performMode ? 'perform-page' : undefined}
+      className={
+        `${isDrum ? 'is-drum' : ''}${performMode ? ' perform-page' : ''}`.trim() || undefined
+      }
       summary={describePatch(p, isDrum)}
       compare={{ take: () => ({ ...p }), put: (v) => set(v) }}
-      performance={isDrum ? <DrumPads track={track} /> : <Keyboard track={track} octaves={2} />}
+      performance={
+        isDrum ? (
+          performMode ? (
+            <DrumPads track={track} compact />
+          ) : undefined
+        ) : (
+          <Keyboard track={track} octaves={2} />
+        )
+      }
       controls={
         <>
           <InstrumentKindSelect track={track} />
@@ -240,6 +323,17 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
       }
     >
       <div className="ins-sections">
+        {/* Pads first, and widest: the reference's convention for a drum
+            machine is that the pad grid IS the face and everything else sits
+            under it. On the phone's perform page they are pinned below the
+            body instead, because there the controls are the thing you scroll
+            to and the pads are the thing you play. */}
+        {isDrum && !performMode && (
+          <InstrumentSection title="Pads" full aside={`${DRUM_PITCHES.length} hits`}>
+            <DrumPads track={track} />
+          </InstrumentSection>
+        )}
+
         {!isDrum && (
           <>
             <InstrumentSection
@@ -413,6 +507,8 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
             />
           </div>
         </InstrumentSection>
+
+        {isDrum && <KitSection track={track} />}
 
         <MidiSection />
       </div>

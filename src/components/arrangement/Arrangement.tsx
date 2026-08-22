@@ -840,8 +840,12 @@ export function Arrangement() {
   const addTrackMenu = (x: number, y: number) => {
     const store = useProjectStore.getState();
     const ui = useUiStore.getState();
+    // A drum rack makes the track a drum track, not an instrument track that
+    // happens to hold pads: what opens the drum editor, names the lanes and
+    // decides the note colours is the track's type, and a kit that landed on
+    // an instrument track got the melodic editor for a part made of hits.
     const addInstrument = (kind?: 'quick' | 'drum' | 'multi') => {
-      const id = store.addTrack('instrument');
+      const id = store.addTrack(kind === 'drum' ? 'drum' : 'instrument');
       if (kind) store.setInstrument(id, kind);
       ui.selectTrack(id);
       if (kind) ui.set({ editorTab: 'synth' });
@@ -855,7 +859,6 @@ export function Arrangement() {
         { label: 'Quick Sampler Track', action: () => addInstrument('quick') },
         { label: 'Drum Rack Track', action: () => addInstrument('drum') },
         { label: 'Multisample Track', action: () => addInstrument('multi') },
-        { label: 'Drum Track (classic kit)', action: () => ui.selectTrack(store.addTrack('drum')) },
         { label: 'Bus', action: () => ui.selectTrack(store.addTrack('bus')) },
         { label: 'FX Channel (send target)', action: () => ui.selectTrack(store.addTrack('fx')) },
         { label: 'VCA Fader', action: () => ui.selectTrack(store.addVca()) },

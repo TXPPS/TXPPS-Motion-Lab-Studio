@@ -407,6 +407,7 @@ export function InstrumentSection({
   title,
   aside,
   wide,
+  full,
   testId,
   children,
 }: {
@@ -414,16 +415,78 @@ export function InstrumentSection({
   aside?: string;
   /** Sections built around a display take two columns where there is room. */
   wide?: boolean;
+  /** A performance surface takes the whole row: it is the face, not a column. */
+  full?: boolean;
   testId?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className={`ins-section${wide ? ' wide' : ''}`} data-testid={testId}>
+    <section
+      className={`ins-section${wide ? ' wide' : ''}${full ? ' full' : ''}`}
+      data-testid={testId}
+    >
       <div className="ins-section-head">
         <span className="t-label">{title}</span>
         {aside && <span className="ins-aside t-num">{aside}</span>}
       </div>
       {children}
     </section>
+  );
+}
+
+// ------------------------------------------------------------ pad waveform
+
+/** How many columns a pad's envelope is drawn with — enough to read a shape. */
+const PAD_WAVE_COLUMNS = 56;
+
+/**
+ * The hit a pad plays, drawn on the pad.
+ *
+ * A drum pad without its sound on it is a labelled button, and the reference's
+ * point about a pad grid is that it is the *sample* map: you should be able to
+ * tell the closed hat from the open one without reading either name. The
+ * envelope is the media library's own, so it is the same picture the
+ * arrangement draws for the same audio.
+ *
+ * Returns nothing at all when the envelope has not resolved: a flat line would
+ * claim the sample is silent, which is a worse answer than no answer.
+ */
+export function PadWave({ peaks }: { peaks: { min: Float32Array; max: Float32Array } | null }) {
+  const d = useMemo(() => {
+    if (!peaks || peaks.max.length === 0) return null;
+    const n = peaks.max.length;
+    const per = Math.max(1, Math.floor(n / PAD_WAVE_COLUMNS));
+    const cols = Math.min(PAD_WAVE_COLUMNS, Math.ceil(n / per));
+    const top: { x: number; y: number }[] = [];
+    const bottom: { x: number; y: number }[] = [];
+    let loudest = 0;
+    for (let c = 0; c < cols; c++) {
+      let lo = 0;
+      let hi = 0;
+      for (let i = c * per; i < Math.min(n, (c + 1) * per); i++) {
+        if (peaks.min[i] < lo) lo = peaks.min[i];
+        if (peaks.max[i] > hi) hi = peaks.max[i];
+      }
+      loudest = Math.max(loudest, hi, -lo);
+      const x = (c / Math.max(1, cols - 1)) * W;
+      top.push({ x, y: hi });
+      bottom.push({ x, y: lo });
+    }
+    if (loudest <= 0) return null;
+    // Normalised, because a pad is read against the other pads: a hat drawn at
+    // its true level next to a kick is a flat line.
+    const scale = (H / 2 / loudest) * 0.92;
+    const toY = (v: number) => H / 2 - v * scale;
+    return `${path(top.map((p) => ({ x: p.x, y: toY(p.y) })))} ${bottom
+      .reverse()
+      .map((p) => `L ${p.x.toFixed(2)} ${toY(p.y).toFixed(2)}`)
+      .join(' ')} Z`;
+  }, [peaks]);
+
+  if (!d) return null;
+  return (
+    <svg className="pad-wave" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
+      <path d={d} />
+    </svg>
   );
 }

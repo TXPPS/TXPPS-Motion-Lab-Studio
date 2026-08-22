@@ -9,8 +9,9 @@
  * Everything here is pure data and pure lookup. Nothing reads a store.
  */
 import { midiToName } from './music';
+import { DRUM_PITCHES } from './presets';
 import type { SamplerParams } from './sampler';
-import type { Note } from './types';
+import type { Note, Track } from './types';
 
 /**
  * Kit families. This is the axis a drummer reads a grid by — where the
@@ -224,6 +225,39 @@ export function buildPadDrumMap(
   if (lanes.length === 0) return null;
   lanes.sort((a, b) => a.pitch - b.pitch);
   return { id: 'pads', name, lanes };
+}
+
+/**
+ * The classic kit's own five slots.
+ *
+ * The stock drum kit is not a sampler, so it has no pads to derive a map from
+ * — but it answers to five specific keys with five specific sounds, and a row
+ * labelled "Acoustic Snare" on a track playing this kit's snare is a guess
+ * where an answer exists.
+ */
+export const CLASSIC_KIT_MAP: DrumMap = {
+  id: 'pads',
+  name: 'TX Drum Kit',
+  lanes: DRUM_PITCHES.map((d) => {
+    const group = groupForName(d.name);
+    return { pitch: d.pitch, name: d.name, group, color: GROUP_COLOR[group] };
+  }),
+};
+
+/**
+ * The kit a track plays, or null when it is not a drum instrument.
+ *
+ * This is the question every surface outside the drum editor has — the piano
+ * roll's key column, a note readout — and answering it from the track means a
+ * rack loaded onto an instrument track still names its own keys, while a rack
+ * of layered instruments (addressed as one instrument, not as pads) correctly
+ * has no map at all.
+ */
+export function trackDrumMap(track: Track | null | undefined): DrumMap | null {
+  if (!track || track.rack) return null;
+  const pads = buildPadDrumMap(track.sampler);
+  if (pads) return pads;
+  return track.type === 'drum' && !track.sampler ? CLASSIC_KIT_MAP : null;
 }
 
 // -------------------------------------------------------------- lane lookup

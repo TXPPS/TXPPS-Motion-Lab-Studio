@@ -156,6 +156,65 @@ describe('MotionSynth', () => {
   });
 });
 
+describe('the classic drum kit', () => {
+  const padsOf = () => within(screen.getByTestId('drum-pads')).getAllByRole('button');
+
+  it('lays out one pad per hit, each naming its key', () => {
+    setup('drum');
+    render(<SynthPanel />);
+    const pads = padsOf();
+    expect(pads.map((p) => p.textContent)).toEqual([
+      'KickC2',
+      'SnareD2',
+      'ClapD#2',
+      'HatF#2',
+      'Open HatA#2',
+    ]);
+  });
+
+  it('strikes harder at the top of a pad than at the bottom', () => {
+    setup('drum');
+    render(<SynthPanel />);
+    const pad = padsOf()[0];
+    // jsdom lays nothing out, so the pad has to be given a box for the strike
+    // position to mean anything.
+    vi.spyOn(pad, 'getBoundingClientRect').mockReturnValue({
+      top: 0,
+      height: 100,
+    } as DOMRect);
+
+    fireEvent(pad, pointer('pointerdown', 0, 4));
+    fireEvent(pad, pointer('pointerdown', 0, 96));
+    const [hard, soft] = engineStub.liveNoteOn.mock.calls.map((c) => c[2] as number);
+    expect(engineStub.liveNoteOn.mock.calls.map((c) => c[1])).toEqual([36, 36]);
+    expect(hard).toBeGreaterThan(soft);
+    expect(hard).toBeLessThanOrEqual(127);
+    // A pad struck at its very bottom edge still sounds: a silent hit reads as
+    // a broken pad, not as a soft one.
+    expect(soft).toBeGreaterThan(0);
+  });
+
+  it('loads the kit into a drum rack on the keys the part already uses', () => {
+    const id = setup('drum');
+    render(<SynthPanel />);
+    fireEvent.click(screen.getByTestId('kit-to-rack'));
+
+    const sampler = trackOf(id).sampler!;
+    expect(sampler.view).toBe('drum');
+    expect(sampler.zones.map((z) => z.keyLo)).toEqual([36, 38, 39, 42, 46]);
+    // And the face follows the device: the panel is the sampler's now.
+    expect(screen.queryByTestId('synth-panel')).toBeNull();
+  });
+
+  it('makes the conversion one step of undo', () => {
+    const id = setup('drum');
+    render(<SynthPanel />);
+    fireEvent.click(screen.getByTestId('kit-to-rack'));
+    act(() => useProjectStore.getState().undo());
+    expect(trackOf(id).sampler).toBeUndefined();
+  });
+});
+
 // ---------------------------------------------------------------- samplers
 
 function quickTrack(patch: Partial<SamplerParams> = {}): string {
