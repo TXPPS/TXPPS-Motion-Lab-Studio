@@ -47,7 +47,13 @@ export function RecordButton({ compact, big }: { compact?: boolean; big?: boolea
   const phase = useInputStore((s) => s.phase);
   const seconds = useInputStore((s) => s.recordSeconds);
   const countIn = useInputStore((s) => s.countInBeatsLeft);
-  const supported = recorderSupported();
+  // MIDI recording needs no MediaRecorder and no microphone, so an armed
+  // instrument track makes the button live even where audio capture is not
+  // available at all.
+  const midiArmed = useProjectStore((s) =>
+    s.project.tracks.some((t) => t.armed && (t.type === 'instrument' || t.type === 'drum')),
+  );
+  const supported = recorderSupported() || midiArmed;
 
   const isRecording = phase === 'recording';
   const isCountIn = phase === 'countIn';
@@ -63,8 +69,10 @@ export function RecordButton({ compact, big }: { compact?: boolean; big?: boolea
     : isCountIn
       ? `Count-in, ${countIn} beats remaining — click to cancel`
       : supported
-        ? 'Record'
-        : 'Recording is not supported in this browser';
+        ? midiArmed
+          ? 'Record MIDI'
+          : 'Record'
+        : 'Audio recording is not supported in this browser — arm an instrument track to record MIDI';
 
   return (
     <button
