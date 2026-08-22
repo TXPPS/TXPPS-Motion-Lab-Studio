@@ -92,6 +92,14 @@
  *
  * The JSON is sorted and free of coordinates that jitter between runs, so two
  * runs can be diffed to prove a fix removed findings and added none.
+ *
+ * On the ~400-line house rule: this file is over it and knowingly stays one
+ * file. An audit that reports one number from two instruments is an audit
+ * nobody can diff — the de-duplication key, the reachable-by-scroll
+ * suppression and the ellipsis calibration have to be the same code for a
+ * before/after comparison to mean anything. The natural split is the in-page
+ * probe (which closes over nothing and could live alone) from the driver; if
+ * this is ever allowed to become two modules, that is the seam.
  */
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';

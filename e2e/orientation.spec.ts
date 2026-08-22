@@ -73,8 +73,10 @@ test.describe('landscape is an arrangement, not a squashed portrait', () => {
       // RA-001. Nothing in the layout answers orientation — there is no
       // `@media (orientation: …)` rule in the product and `useViewport` keys
       // off size alone — so a rotated phone is the portrait arrangement with
-      // 380px less height, and the chrome eats all of it.
-      test.fail();
+      // 380px less height, and the chrome eats all of it. The largest phone
+      // scrapes one row and so clears this floor; the comparison test below is
+      // what catches it.
+      if (phone.name !== 'large') test.fail();
       const context = await browser.newContext({
         viewport: rotate(phone.portrait),
         hasTouch: true,
@@ -173,7 +175,9 @@ test.describe('a plugin editor opens where it can be used', () => {
       // and the window has `min-width: 320px`, so on anything narrower than
       // 540px the editor opens mostly off the right edge. `max-width` cannot
       // save it: the window is placed, not laid out.
-      if (cell.viewport.width < 560) test.fail();
+      // A landscape phone is wide enough for the window and 240px too short
+      // for it, so the cell is keyed by form factor rather than by width.
+      if (cell.name.startsWith('phone')) test.fail();
       const context = await browser.newContext({
         viewport: cell.viewport,
         hasTouch: cell.touch,
@@ -263,12 +267,38 @@ test.describe('sheets stay inside the screen and can be got rid of', () => {
         expect(box!.y + box!.height, `${sheet.menu} runs past the bottom edge`).toBeLessThanOrEqual(
           size.height + 1,
         );
-        await page.keyboard.press('Escape');
-        await expect(page.locator(sheet.sel), `${sheet.menu} survived Escape`).toHaveCount(0);
+        // The control the sheet offers, not the keyboard: a phone has no
+        // Escape key, so the close button is the dismissal that has to work.
+        await page.locator(`${sheet.sel} [aria-label^="Close"]`).first().click();
+        await expect(page.locator(sheet.sel), `${sheet.menu} would not close`).toHaveCount(0);
       }
       await context.close();
     });
   }
+
+  test('every sheet closes on Escape', async ({ browser }) => {
+    // RA-016. Preferences, Export and Keyboard shortcuts each install their own
+    // Escape handler; the Diagnostics sheet installs none, and the global
+    // Escape ladder in useKeyboard.ts only knows about `dialog` and
+    // `contextMenu`, so `diagnosticsOpen` is not in the list of overlays a
+    // press closes.
+    test.fail();
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const page = await context.newPage();
+    await boot(page);
+    const survived: string[] = [];
+    for (const sheet of SHEETS) {
+      await openFromOverflow(page, sheet.menu);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(250);
+      if (await page.locator(sheet.sel).count()) {
+        survived.push(sheet.menu);
+        await page.locator(`${sheet.sel} [aria-label^="Close"]`).first().click();
+      }
+    }
+    expect(survived, `these sheets ignored Escape: ${survived.join(', ')}`).toEqual([]);
+    await context.close();
+  });
 
   test('the keyboard shortcuts sheet can be read to its end', async ({ browser }) => {
     // RA-004. `.sc-sheet` is declared twice — the shortcuts sheet in
