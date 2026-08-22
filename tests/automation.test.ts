@@ -1,3 +1,4 @@
+import { SCHEMA_VERSION } from '../src/model/types';
 import { describe, expect, it } from 'vitest';
 import {
   laneValueAt,
@@ -191,7 +192,7 @@ describe('serialization', () => {
     expect(lane!.paramId).toBe('volume');
     expect(lane!.points).toHaveLength(2);
     expect(lane!.points[1].curve).toBe('s');
-    expect(revived.schemaVersion).toBe(5);
+    expect(revived.schemaVersion).toBe(SCHEMA_VERSION);
   });
 
   it('drops lanes whose parameter no longer exists', () => {

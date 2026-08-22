@@ -1,3 +1,4 @@
+import { SCHEMA_VERSION } from '../src/model/types';
 import { describe, expect, it } from 'vitest';
 import { computeClipSchedule, fadeGain } from '../src/audio/clipSchedule';
 import {
@@ -312,6 +313,6 @@ describe('store: heal, ripple, crossfade, takes, locks', () => {
     const packed = revived.clips.find((c) => c.id === packedId) as AudioClip;
     expect(packed.takes).toHaveLength(2);
     expect(packed.comp![0].at).toBe(0);
-    expect(revived.schemaVersion).toBe(5);
+    expect(revived.schemaVersion).toBe(SCHEMA_VERSION);
   });
 });

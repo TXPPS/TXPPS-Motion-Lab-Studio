@@ -6,6 +6,9 @@ import { newId } from '../model/ids';
 import { SCHEMA_VERSION } from '../model/types';
 import type { EffectKind, ProjectData, ProjectMeta, Track } from '../model/types';
 import { isKnownEffect, MAX_INSERTS, normaliseParams } from '../model/effects';
+import { normalizeTempoMap } from '../model/tempo';
+import { normalizeChords, normalizeMarkers, normalizeSections } from '../model/arrangement';
+import { AUDIO_TRACK_TYPES } from '../model/types';
 import { isAutomationMode, validateLane } from '../model/automation';
 import { paramIdExists } from '../model/paramRegistry';
 import { normalizeComp } from '../model/comping';
@@ -212,6 +215,65 @@ export function validateProject(raw: unknown): ProjectData {
           };
         });
     }
+
+    // --- v6 -------------------------------------------------------------
+    // Unknown track kinds (a newer project opened by an older build, or a
+    // hand-edited file) become plain audio tracks rather than vanishing, so
+    // their clips survive.
+    if (!KNOWN_TRACK_TYPES.has(tr.type as string)) tr.type = 'audio';
+    clampOptionalNumber(tr, 'height', 24, 400);
+    clampOptionalNumber(tr, 'inputGainDb', -48, 24);
+    clampOptionalNumber(tr, 'midiChannel', 0, 16, true);
+    dropUnlessBoolean(tr, 'phaseInvert');
+    dropUnlessBoolean(tr, 'monoSum');
+    dropUnlessBoolean(tr, 'soloSafe');
+    dropUnlessBoolean(tr, 'folded');
+    if (typeof tr.notes !== 'string') delete tr.notes;
+    else tr.notes = (tr.notes as string).slice(0, 4000);
+    if (tr.noteFx !== undefined) tr.noteFx = validateNoteFx(tr.noteFx);
+    if (!isRecord(tr.freeze) || typeof tr.freeze.mediaId !== 'string') delete tr.freeze;
+  }
+
+  // Reference integrity for the v6 grouping fields. A folder parent must be a
+  // folder track, a VCA must be a VCA track, and neither may point at itself —
+  // otherwise a corrupted file could hide every track or build a gain loop.
+  const byId = new Map(tracks.map((t) => [t.id, t as unknown as Record<string, unknown>]));
+  const folderIds = new Set(tracks.filter((t) => t.type === 'folder').map((t) => t.id));
+  const vcaIds = new Set(tracks.filter((t) => t.type === 'vca').map((t) => t.id));
+  for (const t of tracks) {
+    const tr = t as unknown as Record<string, unknown>;
+    if (typeof tr.folderId !== 'string' || !folderIds.has(tr.folderId) || tr.folderId === tr.id) {
+      delete tr.folderId;
+    }
+    if (typeof tr.vcaId !== 'string' || !vcaIds.has(tr.vcaId) || tr.vcaId === tr.id) {
+      delete tr.vcaId;
+    }
+    if (typeof tr.sidechainFrom !== 'string' || !byId.has(tr.sidechainFrom) || tr.sidechainFrom === tr.id) {
+      delete tr.sidechainFrom;
+    }
+  }
+  // A folder cycle (A inside B inside A) would make the arrangement unpaintable.
+  for (const t of tracks) {
+    const tr = t as unknown as Record<string, unknown>;
+    const seen = new Set<string>([t.id]);
+    let cursor = tr.folderId as string | undefined;
+    while (typeof cursor === 'string') {
+      if (seen.has(cursor)) {
+        delete tr.folderId;
+        break;
+      }
+      seen.add(cursor);
+      cursor = byId.get(cursor)?.folderId as string | undefined;
+    }
+  }
+  // Routing targets must exist and must be a summing destination.
+  const busIds = new Set(tracks.filter((t) => t.type === 'bus' || t.type === 'fx').map((t) => t.id));
+  for (const t of tracks) {
+    const tr = t as unknown as Record<string, unknown>;
+    if (!AUDIO_TRACK_TYPES.includes(t.type)) continue;
+    if (typeof tr.output !== 'string' || (tr.output !== 'master' && !busIds.has(tr.output))) {
+      tr.output = 'master';
+    }
   }
   // --- v2 → v3 migration: automation lanes -------------------------------
   // Additive and defensive: malformed lanes/points are dropped, values are
@@ -321,7 +383,173 @@ export function validateProject(raw: unknown): ProjectData {
     // The return is a fresh object, so optional fields must be carried across
     // explicitly or a save/load cycle would silently drop them.
     ...(typeof raw.notes === 'string' ? { notes: raw.notes } : {}),
+    // --- v6 song-level structure ---
+    tempoMap: normalizeTempoMap(
+      isRecord(raw.tempoMap) ? (raw.tempoMap as never) : undefined,
+      bpm,
+      {
+        num: typeof ts.num === 'number' ? ts.num : 4,
+        den: typeof ts.den === 'number' ? ts.den : 4,
+      },
+    ),
+    markers: normalizeMarkers(raw.markers),
+    sections: normalizeSections(raw.sections),
+    chords: normalizeChords(raw.chords),
+    master: validateMaster(raw.master, typeof raw.masterVolume === 'number' ? raw.masterVolume : 0.9),
+    scratchPads: validateScratchPads(raw.scratchPads, trackIds),
+    ...(typeof raw.activePadId === 'string' ? { activePadId: raw.activePadId } : {}),
+    countIn: clampNum(raw.countIn, 0, 8, 1),
+    preRoll: clampNum(raw.preRoll, 0, 8, 0),
+    punch: isRecord(raw.punch)
+      ? {
+          enabled: raw.punch.enabled === true,
+          start: clampNum(raw.punch.start, 0, 1e7, 0),
+          end: clampNum(raw.punch.end, 0, 1e7, 16),
+        }
+      : { enabled: false, start: 0, end: 16 },
+    clickLevel: clampNum(raw.clickLevel, 0, 2, 0.7),
+    clickRecordOnly: raw.clickRecordOnly === true,
+    ...(typeof raw.artist === 'string' ? { artist: raw.artist.slice(0, 160) } : {}),
+    ...(typeof raw.genre === 'string' ? { genre: raw.genre.slice(0, 80) } : {}),
   };
+}
+
+// ---------------------------------------------------------------- v6 helpers
+
+const KNOWN_TRACK_TYPES = new Set<string>([
+  'audio',
+  'instrument',
+  'drum',
+  'bus',
+  'fx',
+  'folder',
+  'vca',
+]);
+
+const NOTE_FX_KINDS = new Set(['arpeggiator', 'chorder', 'repeater', 'noteFilter', 'velocityCurve']);
+
+function clampNum(v: unknown, min: number, max: number, fallback: number): number {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
+}
+
+function clampOptionalNumber(
+  rec: Record<string, unknown>,
+  key: string,
+  min: number,
+  max: number,
+  integer = false,
+): void {
+  const v = rec[key];
+  if (typeof v !== 'number' || !Number.isFinite(v)) {
+    delete rec[key];
+    return;
+  }
+  const clamped = Math.min(max, Math.max(min, v));
+  rec[key] = integer ? Math.round(clamped) : clamped;
+}
+
+function dropUnlessBoolean(rec: Record<string, unknown>, key: string): void {
+  if (typeof rec[key] !== 'boolean') delete rec[key];
+}
+
+function validateNoteFx(raw: unknown): unknown {
+  if (!Array.isArray(raw)) return undefined;
+  const out = raw
+    .filter(
+      (n) =>
+        isRecord(n) &&
+        typeof n.id === 'string' &&
+        typeof n.kind === 'string' &&
+        NOTE_FX_KINDS.has(n.kind),
+    )
+    .slice(0, 4)
+    .map((n) => {
+      const rec = n as Record<string, unknown>;
+      const params: Record<string, number> = {};
+      if (isRecord(rec.params)) {
+        for (const [k, v] of Object.entries(rec.params)) {
+          if (typeof v === 'number' && Number.isFinite(v)) params[k] = v;
+        }
+      }
+      return {
+        id: rec.id as string,
+        kind: rec.kind as string,
+        bypass: rec.bypass === true,
+        params,
+        ...(Array.isArray(rec.list)
+          ? {
+              list: (rec.list as unknown[])
+                .filter((x): x is number => typeof x === 'number' && Number.isFinite(x))
+                .slice(0, 24)
+                .map((x) => Math.round(x)),
+            }
+          : {}),
+      };
+    });
+  return out.length ? out : undefined;
+}
+
+function validateMaster(raw: unknown, fallbackVolume: number): ProjectData['master'] {
+  const rec = isRecord(raw) ? raw : {};
+  const effects = Array.isArray(rec.effects)
+    ? (rec.effects as unknown[])
+        .filter(
+          (e) =>
+            isRecord(e) &&
+            typeof e.id === 'string' &&
+            typeof e.kind === 'string' &&
+            isKnownEffect(e.kind),
+        )
+        .slice(0, MAX_INSERTS)
+        .map((e) => {
+          const r = e as Record<string, unknown>;
+          const kind = r.kind as EffectKind;
+          return {
+            id: r.id as string,
+            kind,
+            bypass: r.bypass === true,
+            params: normaliseParams(kind, isRecord(r.params) ? r.params : undefined),
+          };
+        })
+    : [];
+  return {
+    volume: clampNum(rec.volume, 0, 1.5, fallbackVolume),
+    pan: clampNum(rec.pan, -1, 1, 0),
+    effects,
+    limiter: rec.limiter !== false,
+    monoCheck: rec.monoCheck === true,
+    dim: rec.dim === true,
+  };
+}
+
+function validateScratchPads(raw: unknown, trackIds: Set<string>): ProjectData['scratchPads'] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as unknown[])
+    .filter((p) => isRecord(p) && typeof p.id === 'string')
+    .slice(0, 12)
+    .map((p) => {
+      const rec = p as Record<string, unknown>;
+      const clips = Array.isArray(rec.clips)
+        ? (rec.clips as unknown[]).filter(
+            (c) =>
+              isRecord(c) &&
+              typeof c.id === 'string' &&
+              typeof c.trackId === 'string' &&
+              trackIds.has(c.trackId) &&
+              typeof c.start === 'number' &&
+              Number.isFinite(c.start) &&
+              typeof c.length === 'number' &&
+              Number.isFinite(c.length),
+          )
+        : [];
+      return {
+        id: rec.id as string,
+        name: typeof rec.name === 'string' ? rec.name.slice(0, 60) : 'Pad',
+        clips: clips as ProjectData['clips'],
+        length: clampNum(rec.length, 1, 1e7, 32),
+        createdAt: clampNum(rec.createdAt, 0, 1e15, Date.now()),
+      };
+    });
 }
 
 /**

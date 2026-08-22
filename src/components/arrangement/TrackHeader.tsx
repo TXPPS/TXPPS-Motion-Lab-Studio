@@ -14,6 +14,9 @@ const TYPE_ICON: Record<Track['type'], IconName> = {
   instrument: 'piano',
   drum: 'grid',
   bus: 'mixer',
+  fx: 'zap',
+  folder: 'folder',
+  vca: 'vca',
 };
 
 export const TrackHeader = memo(function TrackHeader({
