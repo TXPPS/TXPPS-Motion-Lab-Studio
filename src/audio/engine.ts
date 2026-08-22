@@ -83,6 +83,10 @@ interface MeterTap {
 
 interface Channel {
   trackId: string;
+  /** Tap feeding another channel's dynamics detector, when one keys from this. */
+  keySend: GainNode | null;
+  /** Which track this channel's own detectors are currently keyed from. */
+  keyedFrom: string | null;
   /** Everything feeding this channel connects here. */
   input: GainNode;
   /** Input trim, polarity and mono sum, ahead of the inserts. */
@@ -394,6 +398,11 @@ class AudioEngine {
           }
         }
         ch.sends.clear();
+        try {
+          ch.keySend?.disconnect();
+        } catch {
+          /* already gone */
+        }
         this.disposeTap(id);
         this.meterWatchers.delete(id);
         ch.inserts.dispose();
@@ -448,6 +457,41 @@ class AudioEngine {
             : this.masterInput;
         ch.analyser.connect(target);
         ch.routedTo = dest;
+      }
+
+      // Sidechain: another channel's post-fader signal keys this one's dynamics
+      // detectors. The key tap is post-fader on the source because a kick that
+      // is faded down should duck less, which is what an engineer expects.
+      const keySource = track.sidechainFrom ?? null;
+      if (ch.keyedFrom !== keySource) {
+        if (ch.keySend) {
+          try {
+            ch.keySend.disconnect();
+          } catch {
+            /* already gone */
+          }
+          ch.keySend = null;
+        }
+        const src = keySource ? this.channels.get(keySource) : undefined;
+        if (src && keySource !== track.id) {
+          const node = ctx.createGain();
+          src.panner.connect(node);
+          for (const input of ch.inserts.sidechainInputs()) node.connect(input);
+          ch.keySend = node;
+          ch.inserts.setSidechain(true);
+        } else {
+          ch.inserts.setSidechain(false);
+        }
+        ch.keyedFrom = keySource;
+      } else if (ch.keySend) {
+        // The chain may have been rebuilt under the same routing; reconnect.
+        try {
+          ch.keySend.disconnect();
+        } catch {
+          /* already gone */
+        }
+        for (const input of ch.inserts.sidechainInputs()) ch.keySend.connect(input);
+        ch.inserts.setSidechain(true);
       }
 
       // Sends: post-fader taps the panner output, pre-fader taps the channel
@@ -637,6 +681,8 @@ class AudioEngine {
     analyser.connect(this.masterInput!);
     return {
       trackId,
+      keySend: null,
+      keyedFrom: null,
       input,
       trim,
       inserts,

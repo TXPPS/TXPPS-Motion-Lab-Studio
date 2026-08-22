@@ -258,6 +258,7 @@ export function validateProject(raw: unknown): ProjectData {
     if (typeof tr.notes !== 'string') delete tr.notes;
     else tr.notes = (tr.notes as string).slice(0, 4000);
     if (tr.noteFx !== undefined) tr.noteFx = validateNoteFx(tr.noteFx);
+    if (tr.macros !== undefined) tr.macros = validateMacros(tr.macros);
     if (!isRecord(tr.freeze) || typeof tr.freeze.mediaId !== 'string') delete tr.freeze;
   }
 
@@ -596,6 +597,35 @@ function clampOptionalNumber(
 
 function dropUnlessBoolean(rec: Record<string, unknown>, key: string): void {
   if (typeof rec[key] !== 'boolean') delete rec[key];
+}
+
+function validateMacros(raw: unknown): unknown {
+  if (!Array.isArray(raw)) return undefined;
+  const out = raw
+    .filter((m) => isRecord(m) && typeof m.id === 'string')
+    .slice(0, 8)
+    .map((m, i) => {
+      const rec = m as Record<string, unknown>;
+      return {
+        id: rec.id as string,
+        name: typeof rec.name === 'string' ? rec.name.slice(0, 40) : `Macro ${i + 1}`,
+        value: clampNum(rec.value, 0, 1, 0),
+        targets: Array.isArray(rec.targets)
+          ? (rec.targets as unknown[])
+              .filter((t) => isRecord(t) && typeof t.paramId === 'string')
+              .slice(0, 24)
+              .map((t) => {
+                const r = t as Record<string, unknown>;
+                return {
+                  paramId: r.paramId as string,
+                  from: clampNum(r.from, 0, 1, 0),
+                  to: clampNum(r.to, 0, 1, 1),
+                };
+              })
+          : [],
+      };
+    });
+  return out.length ? out : undefined;
 }
 
 function validateNoteFx(raw: unknown): unknown {

@@ -1318,3 +1318,9 @@
     grid-row: 4;
   }
 }
+
+.co-key select {
+  min-width: 118px;
+  height: var(--control-h-sm);
+  font-size: var(--fs-2xs);
+}

@@ -26,6 +26,7 @@ import type {
 } from '../model/automation';
 import { paramIdExists } from '../model/paramRegistry';
 import { createNoteFx } from '../model/noteFx';
+import { MAX_MACROS, createMacro, macroWrites } from '../model/macros';
 import type { NoteFxKind } from '../model/types';
 import { normalizeTempoMap, type TempoCurve } from '../model/tempo';
 import {
@@ -338,6 +339,22 @@ export interface ProjectStore {
     delta: number,
     sinceBeat: number,
   ) => void;
+
+  // ---- macros ----
+  addMacro: (trackId: string) => string | null;
+  removeMacro: (trackId: string, macroId: string) => void;
+  renameMacro: (trackId: string, macroId: string, name: string) => void;
+  /** Move a macro; writes every target parameter it drives. */
+  setMacroValue: (trackId: string, macroId: string, value: number) => void;
+  assignMacroTarget: (trackId: string, macroId: string, paramId: string) => void;
+  setMacroTargetRange: (
+    trackId: string,
+    macroId: string,
+    paramId: string,
+    from: number,
+    to: number,
+  ) => void;
+  removeMacroTarget: (trackId: string, macroId: string, paramId: string) => void;
 
   // ---- event (per-clip) effects ----
   addEventFx: (clipId: string, kind: EffectKind) => string | null;
@@ -2087,6 +2104,84 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         { undoable: false },
       ),
 
+    // -------------------------------------------------------------- macros
+
+    addMacro: (trackId) => {
+      const id = newId('mac');
+      let ok = false;
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t) return;
+        const list = (t.macros ??= []);
+        if (list.length >= MAX_MACROS) return;
+        list.push(createMacro(id, list.length));
+        ok = true;
+      });
+      return ok ? id : null;
+    },
+
+    removeMacro: (trackId, macroId) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t?.macros) return;
+        t.macros = t.macros.filter((m) => m.id !== macroId);
+        if (t.macros.length === 0) delete t.macros;
+      }),
+
+    renameMacro: (trackId, macroId, name) =>
+      update((d) => {
+        const m = trackById(d, trackId)?.macros?.find((x) => x.id === macroId);
+        if (m) m.name = name.slice(0, 40) || m.name;
+      }),
+
+    setMacroValue: (trackId, macroId, value) =>
+      update(
+        (d) => {
+          const t = trackById(d, trackId);
+          const m = t?.macros?.find((x) => x.id === macroId);
+          if (!t || !m) return;
+          m.value = clamp(value, 0, 1);
+          // A macro writes the real parameters. Applying them here rather than
+          // in the engine means the mixer, the inspector and an offline bounce
+          // all see ordinary values and need to know nothing about macros.
+          for (const write of macroWrites(t, d, m, m.value)) {
+            applyParamValue(d, t, write.paramId, write.value);
+          }
+        },
+        { undoable: false },
+      ),
+
+    assignMacroTarget: (trackId, macroId, paramId) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        const m = t?.macros?.find((x) => x.id === macroId);
+        if (!t || !m || !paramIdExists(t, paramId)) return;
+        if (m.targets.some((x) => x.paramId === paramId)) return;
+        // A new assignment spans the whole range by default: the useful thing
+        // to do with a fresh macro is sweep it, and a zero-width target does
+        // nothing and looks broken.
+        m.targets.push({ paramId, from: 0, to: 1 });
+      }),
+
+    setMacroTargetRange: (trackId, macroId, paramId, from, to) =>
+      update(
+        (d) => {
+          const target = trackById(d, trackId)
+            ?.macros?.find((x) => x.id === macroId)
+            ?.targets.find((x) => x.paramId === paramId);
+          if (!target) return;
+          target.from = clamp(from, 0, 1);
+          target.to = clamp(to, 0, 1);
+        },
+        { undoable: false },
+      ),
+
+    removeMacroTarget: (trackId, macroId, paramId) =>
+      update((d) => {
+        const m = trackById(d, trackId)?.macros?.find((x) => x.id === macroId);
+        if (m) m.targets = m.targets.filter((x) => x.paramId !== paramId);
+      }),
+
     // ------------------------------------------------------- event effects
 
     addEventFx: (clipId, kind) => {
@@ -2283,6 +2378,56 @@ function ensureMaster(d: ProjectData): NonNullable<ProjectData['master']> {
     limiter: true,
   };
   return d.master;
+}
+
+/**
+ * Write one parameter by its registry id.
+ *
+ * The registry knows how to READ every automatable parameter; a macro needs to
+ * write them, and the id already says exactly where the value goes. Anything
+ * the id does not name is ignored rather than guessed at.
+ */
+function applyParamValue(d: ProjectData, track: Track, paramId: string, value: number): void {
+  if (paramId === 'volume') {
+    track.volume = clamp(value, 0, 1.5);
+    return;
+  }
+  if (paramId === 'pan') {
+    track.pan = clamp(value, -1, 1);
+    return;
+  }
+  if (paramId === 'mute') {
+    track.mute = value >= 0.5;
+    return;
+  }
+  if (paramId.startsWith('send:')) {
+    const busId = paramId.slice(5);
+    const send = track.sends?.find((s) => s.busId === busId);
+    if (send) send.amount = Math.max(0, value);
+    return;
+  }
+  if (paramId.startsWith('fx:')) {
+    const [, effectId, key] = paramId.split(':');
+    const fx = track.effects?.find((e) => e.id === effectId);
+    if (!fx) return;
+    const spec = effectSpec(fx.kind)?.params.find((p) => p.key === key);
+    fx.params[key] = spec ? clamp(value, spec.min, spec.max) : value;
+    return;
+  }
+  if (paramId.startsWith('synth:') && track.synth) {
+    const key = paramId.slice(6) as keyof SynthParams;
+    if (typeof track.synth[key] === 'number') {
+      (track.synth as unknown as Record<string, number>)[key] = value;
+    }
+    return;
+  }
+  if (paramId.startsWith('smp:') && track.sampler) {
+    const key = paramId.slice(4);
+    if (typeof (track.sampler as unknown as Record<string, unknown>)[key] === 'number') {
+      (track.sampler as unknown as Record<string, number>)[key] = value;
+    }
+  }
+  void d;
 }
 
 function isUndoableTrackPatch(patch: Partial<Track>): boolean {

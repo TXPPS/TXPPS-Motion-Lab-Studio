@@ -8,6 +8,7 @@ import { PanKnob } from '../common/widgets';
 import { TrackInputControls } from '../recording/RecordControls';
 import { InsertRack, SendRack, type ChainHost } from '../mixer/InsertRack';
 import { NoteFxRack } from './NoteFxRack';
+import { MacroPanel } from './MacroPanel';
 import { TimePitchPanel } from './TimePitchPanel';
 import {
   analyzeClip,
@@ -402,6 +403,9 @@ export function Inspector() {
             <NoteFxRack track={track} />
           </div>
         )}
+        <div className="panel-section">
+          <MacroPanel track={track} />
+        </div>
         <div className="panel-section">
           <InsertRack track={track} />
         </div>

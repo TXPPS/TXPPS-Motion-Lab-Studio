@@ -60,6 +60,13 @@ export interface EffectNode {
   gainReductionDb?(): number;
   /** Measurement tap for spectrum, scope and tuner displays. Never in series. */
   tap?: AnalyserNode;
+  /**
+   * Where another channel's signal is connected to key this effect's detector.
+   * Only the dynamics processors have one.
+   */
+  sidechain?: AudioNode;
+  /** Switch the detector between the channel's own signal and the key input. */
+  setSidechain?(external: boolean): void;
   dispose(): void;
 }
 
@@ -265,6 +272,13 @@ class ControlVca {
   private readonly unity: ConstantSourceNode;
   private readonly rect: WaveShaperNode;
   private readonly probe: Float32Array;
+  /**
+   * What the detector listens to. By default the channel's own signal; an
+   * external key swaps it for another channel's, which is what makes a kick
+   * duck a bass rather than the bass ducking itself.
+   */
+  readonly keyInput: GainNode;
+  private readonly internalKey: GainNode;
   private curveKey = '';
 
   constructor(
@@ -295,7 +309,11 @@ class ControlVca {
     this.tap.fftSize = 256;
     this.probe = new Float32Array(this.tap.fftSize);
 
-    this.input.connect(this.rect).connect(this.detector).connect(this.shaper);
+    this.internalKey = makeGain(ctx, 1);
+    this.keyInput = makeGain(ctx, 0);
+    this.input.connect(this.internalKey).connect(this.rect);
+    this.keyInput.connect(this.rect);
+    this.rect.connect(this.detector).connect(this.shaper);
     this.shaper.connect(this.holdMix.a);
     this.shaper.connect(this.holdDelay).connect(this.holdMix.b);
     this.holdMix.out.connect(this.fast).connect(this.ballistics.a);
@@ -322,6 +340,15 @@ class ControlVca {
     setParam(this.fast.frequency, clamp(timeConstantHz(attack), 1, 2000), this.ctx);
     setParam(this.slow.frequency, clamp(timeConstantHz(release), 0.2, 400), this.ctx);
     setParam(this.holdDelay.delayTime, clamp(holdMs / 1000, 0, MAX_HOLD_SEC), this.ctx);
+  }
+
+  /**
+   * Cross-fade between the channel's own signal and the external key.
+   * Both paths stay connected so the swap cannot click.
+   */
+  setSidechain(external: boolean): void {
+    setParam(this.internalKey.gain, external ? 0 : 1, this.ctx);
+    setParam(this.keyInput.gain, external ? 1 : 0, this.ctx);
   }
 
   setLookahead(ms: number): void {
@@ -574,6 +601,8 @@ function buildGate(ctx: BaseAudioContext, effect: Effect): EffectNode {
     input: vca.input,
     output: vca.output,
     tap: vca.tap,
+    sidechain: vca.keyInput,
+    setSidechain: (external: boolean) => vca.setSidechain(external),
     gainReductionDb: () => vca.gainReductionDb(),
     update: (e, _bpm, bypass) => {
       const threshold = paramOf(e, 'threshold');
@@ -606,6 +635,8 @@ function buildLimiter(ctx: BaseAudioContext, effect: Effect): EffectNode {
     input: drive,
     output: postClip,
     tap: vca.tap,
+    sidechain: vca.keyInput,
+    setSidechain: (external: boolean) => vca.setSidechain(external),
     gainReductionDb: () => vca.gainReductionDb(),
     update: (e, _bpm, bypass) => {
       const ceiling = paramOf(e, 'ceiling');
@@ -720,6 +751,8 @@ function buildDeesser(ctx: BaseAudioContext, effect: Effect): EffectNode {
     input,
     output,
     tap: vca.tap,
+    sidechain: vca.keyInput,
+    setSidechain: (external: boolean) => vca.setSidechain(external),
     gainReductionDb: () => vca.gainReductionDb(),
     update: (e, _bpm, bypass) => {
       setParam(band.frequency, paramOf(e, 'freq'), ctx);
@@ -1928,6 +1961,19 @@ export class InsertChain {
   /** Measurement tap of one insert, for spectrum, scope and tuner displays. */
   tapOf(effectId: string): AnalyserNode | undefined {
     return this.nodes.find((n) => n.id === effectId)?.tap;
+  }
+
+  /**
+   * Every key input in this chain, so the engine can feed them from another
+   * channel — and switch each detector over — in one pass.
+   */
+  sidechainInputs(): AudioNode[] {
+    return this.nodes.map((n) => n.sidechain).filter((n): n is AudioNode => !!n);
+  }
+
+  /** Point every dynamics detector at the external key, or back at the channel. */
+  setSidechain(external: boolean): void {
+    for (const n of this.nodes) n.setSidechain?.(external);
   }
 
   private rebuild(effects: Effect[]): void {

@@ -170,6 +170,8 @@ export interface Track {
   midiChannel?: number;
   /** note effects applied to this track's MIDI before it reaches the instrument */
   noteFx?: NoteFx[];
+  /** assignable macro knobs; up to eight, like the hardware they model */
+  macros?: Macro[];
   /** frozen tracks play a rendered media file instead of their instrument */
   freeze?: { mediaId: string; renderedAt: number };
 }
@@ -355,6 +357,33 @@ export interface Effect {
   bypass: boolean;
   /** Parameter values by name; see EFFECT_SPECS for ranges and defaults. */
   params: Record<string, number>;
+}
+
+/**
+ * One macro knob.
+ *
+ * A macro is a single control that moves several parameters at once, each over
+ * its own range and in its own direction — one "Intensity" knob that opens a
+ * filter, adds drive and pulls a reverb back. It writes the real parameters, so
+ * everything downstream (the mixer, the engine, an export) sees ordinary
+ * values and needs to know nothing about macros.
+ */
+export interface MacroTarget {
+  /** Parameter id from model/paramRegistry: volume | pan | fx:<id>:<key> | synth:<key>… */
+  paramId: string;
+  /** Normalised 0..1 value the target takes when the macro is at 0 and at 1.
+   *  `from` above `to` inverts the target, which is how one knob can open one
+   *  thing while closing another. */
+  from: number;
+  to: number;
+}
+
+export interface Macro {
+  id: string;
+  name: string;
+  /** 0..1 */
+  value: number;
+  targets: MacroTarget[];
 }
 
 /**

@@ -153,6 +153,29 @@ export const ChannelOverview = memo(function ChannelOverview({ track }: { track:
         </div>
       </Section>
 
+      <Section title="Key">
+        <div className="co-key">
+          <select
+            value={track.sidechainFrom ?? ''}
+            aria-label={`${track.name} sidechain source`}
+            title="Which channel keys this one's dynamics. A kick keying a bass compressor is the classic case."
+            onChange={(e) =>
+              store.getState().setTrack(track.id, { sidechainFrom: e.target.value || undefined })
+            }
+            data-testid={`sidechain-${track.name}`}
+          >
+            <option value="">Own signal</option>
+            {project.tracks
+              .filter((t) => t.id !== track.id && t.type !== 'folder' && t.type !== 'vca')
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+          </select>
+        </div>
+      </Section>
+
       <Section title="Sends">
         <div className="co-sends">
           {sends.map((s) => (
