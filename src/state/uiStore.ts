@@ -1,3 +1,4 @@
+import type { SnapMode } from '../model/snap';
 import { create } from 'zustand';
 
 /**
@@ -88,7 +89,14 @@ interface UiState {
   range: { fromBeat: number; toBeat: number; trackIds: string[] } | null;
 
   pxPerBeat: number;
+  /** Grid size in beats. 0 means the grid itself is off. */
   snap: number;
+  /**
+   * How a position is snapped. The grid size and the snap MODE are separate
+   * because 'events' and 'zero crossing' still want a grid to fall back to,
+   * and 'adaptive' picks its own grid from the zoom.
+   */
+  snapMode: SnapMode;
   prPxPerBeat: number;
   prSnap: number;
   /** Piano roll key (tonic pitch class 0-11) and scale id; 'chromatic' = off */
@@ -148,6 +156,7 @@ export const useUiStore = create<UiState>((set, get) => ({
 
   pxPerBeat: 26,
   snap: 0.25,
+  snapMode: 'grid',
   prPxPerBeat: 32,
   prSnap: 0.25,
   prKey: 0,

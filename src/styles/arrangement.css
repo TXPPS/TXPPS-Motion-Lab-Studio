@@ -809,3 +809,12 @@
 .arr[data-tool='range'] .arr-lanes {
   cursor: crosshair;
 }
+
+.arr-toolbar .snap-mode {
+  height: var(--control-h-sm);
+  font-size: var(--fs-2xs);
+  padding: 0 var(--sp-5) 0 var(--sp-2);
+  background-position:
+    right var(--sp-3) center,
+    right var(--sp-2) center;
+}

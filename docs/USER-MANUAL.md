@@ -1,14 +1,50 @@
-# MotionLab Studio — User Manual
+# User Manual
 
-A browser DAW: multitrack audio + MIDI arrangement, recording, comping,
-automation, synths, samplers, drum racks, mixing with effects and sends,
-and offline WAV export. Everything runs locally in your browser; projects
-persist in browser storage.
+MotionLab Studio is a complete DAW that runs in a browser. This manual is the
+short version: what each surface is for and the handful of gestures that are not
+obvious. [`PARITY.md`](PARITY.md) says what exists and what does not;
+[`KNOWN-LIMITATIONS.md`](KNOWN-LIMITATIONS.md) says where the edges are.
 
-For a first session, read the [Quick Start](QUICK-START.md). Keyboard
-shortcuts: press **?** in the app.
+## The four pages
 
----
+The top bar switches between them.
+
+- **Start** — recent projects, and six templates that build a routed session
+  rather than an empty timeline.
+- **Song** — the workstation. Everything below is here.
+- **Release** — put finished mixes in order, measure them to BS.1770 against a
+  delivery target, and export the set.
+- **Live** — a setlist. Each entry carries its own tempo, signature, start point
+  and a note; stage mode makes it readable from the back line.
+
+## The song page in ninety seconds
+
+- **Global tracks** sit above your tracks: markers, arranger sections, chords
+  and tempo. The toolbar's section button shows and hides them.
+- **The overview strip** above the ruler maps the whole song. Click it to jump;
+  drag its window to scroll.
+- **The ruler** reads wall clock over bars and beats. Drag its upper half to set
+  the loop, click its lower half to move the playhead.
+- **Tools** are 1–6: Pointer, Range, Split, Erase, Mute, Slip. The Range tool
+  selects time across tracks — right-click the range for what you can do to it.
+- **The editor panel** at the bottom holds the mixer, piano roll, drum grid,
+  score, audio editor, chord assistant, instrument and diagnostics. A tab that
+  is dimmed says what it needs.
+- **The inspector** on the right is everything about what is selected: the
+  track, the clip, its inserts, sends, note effects, macros and time/pitch.
+
+## Gestures worth knowing
+
+- **A knob**: drag to change, Shift for a ten-times finer ride, double-click for
+  the default. Every knob in the product works this way.
+- **Solo**: click to solo, right-click for solo-safe (a reverb return that
+  should survive any solo).
+- **An insert slot in the console**: click to open it in the inspector,
+  right-click to bypass.
+- **A tempo event**: drag up and down to change the tempo, sideways to move it,
+  right-click to make it a ramp.
+- **A section**: drag its right edge to resize, right-click to reorder — and the
+  clips, automation, markers and chords inside it move with it.
 
 ## 1. The workspace
 
@@ -21,7 +57,8 @@ shortcuts: press **?** in the app.
 - **Arrangement** (center) — tracks and clips on a beat timeline.
 - **Inspector** (right) — the selected track's or clip's parameters,
   inserts and sends.
-- **Editor** (bottom) — Mixer, Piano Roll, Synth/Sampler, Diagnostics tabs.
+- **Editor** (bottom) — Mixer, Piano Roll, Drums, Score, Audio, Chords,
+  Instrument and Diagnostics tabs.
 
 On tablets the side panels become drawers; on phones the bottom navigation
 switches whole workspaces (Arrange / Record / Perform / Edit / Mix /
@@ -38,7 +75,8 @@ available. The choice persists with your workspace layout.
 ## 2. Tracks and clips
 
 **+ Track** (or right-click the track area) creates Audio, Instrument,
-Quick Sampler, Drum Rack, Multisample, classic Drum, or Bus tracks. Track
+Quick Sampler, Drum Rack, Multisample, classic Drum, Bus, FX Channel, VCA
+fader or Folder tracks. Track
 headers carry arm, mute, solo, volume, pan, collapse, and the **⋯** menu
 (duplicate, delete, color, lock, edit group).
 
@@ -46,8 +84,9 @@ Clips: drag to move, drag edges to resize/trim, **Alt-drag** to copy,
 double-click MIDI clips to edit notes, right-click for the full menu
 (split, join, duplicate, fades, normalize, phase invert, mono sum, lock…).
 Marquee-drag selects many; **Ctrl+C/V/X** work across tracks. Snap and
-zoom controls live in the arrangement toolbar; the slip tool (**5**)
-slides audio inside a clip without moving the clip.
+zoom controls live in the arrangement toolbar; the slip tool (**6**)
+slides audio inside a clip without moving the clip, and the range tool
+(**2**) selects time across tracks for the range edits.
 
 Locked clips/tracks refuse timing edits. Edit groups link selection across
 their member tracks.

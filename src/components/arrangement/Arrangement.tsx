@@ -16,6 +16,7 @@ import { TrackHeader } from './TrackHeader';
 import { AUTO_LANE_H, AutoLaneHeader, AutoLaneRow } from './AutomationLanes';
 import { TAKE_LANE_H, TakeLaneHeader, TakeLaneRow } from './TakeLanes';
 import { visibleTracks, folderDepth } from '../../model/mixerGraph';
+import { snapBeatTo, type SnapMode } from '../../model/snap';
 import { MaximizeButton } from '../shell/MaximizeButton';
 import { GlobalTrackHeaders, GlobalTrackLanes, globalTrackMenuItems } from './GlobalTracks';
 import { ArrangementOverview } from './Overview';
@@ -478,8 +479,8 @@ export function Arrangement() {
         // parts of clips, is what the range edits act on.
         useUiStore.getState().set({
           range: {
-            fromBeat: snapBeat(Math.max(0, beat0), snap),
-            toBeat: snapBeat(Math.max(0, beat1), snap),
+            fromBeat: snapTo(Math.max(0, beat0)),
+            toBeat: snapTo(Math.max(0, beat1)),
             trackIds: [...rows],
           },
         });
@@ -559,6 +560,35 @@ export function Arrangement() {
   }, []);
 
   /** Ruler: lower half seeks/scrubs, upper half drags the loop region. */
+  const showOverview = useWorkspaceStore((w) => w.showOverview);
+  const range = useUiStore((s) => s.range);
+  const snapMode = useUiStore((s) => s.snapMode);
+
+  /**
+   * Clip and note starts, for event snap. Built once per edit rather than per
+   * pointermove: at the 50,000-clip fixture the difference is the whole frame.
+   */
+  const snapEvents = useMemo(() => {
+    if (snapMode !== 'events') return [];
+    const out: number[] = [];
+    for (const c of clips) {
+      out.push(c.start, c.start + c.length);
+    }
+    return out;
+  }, [clips, snapMode]);
+
+  /** Snap a beat the way the toolbar says to. */
+  const snapTo = useCallback(
+    (beat: number) =>
+      snapBeatTo(beat, snapMode, {
+        grid: snap,
+        tempoMap: tempoMapOf(project),
+        pxPerBeat,
+        events: snapEvents,
+      }),
+    [snapMode, snap, project, pxPerBeat, snapEvents],
+  );
+
   const rulerPointer = useCallback(
     (e: React.PointerEvent) => {
       const el = e.currentTarget as HTMLElement;
@@ -575,7 +605,7 @@ export function Arrangement() {
       if (isLoopZone) {
         useProjectStore.getState().setLoop({ start: startBeat, end: startBeat + 1, enabled: true });
       } else {
-        engine.seek(snapBeat(beatAt(e.clientX), snap));
+        engine.seek(snapTo(beatAt(e.clientX)));
       }
       const onMove = (ev: PointerEvent) => {
         if (ev.pointerId !== pid) return;
@@ -583,7 +613,7 @@ export function Arrangement() {
           const b = Math.max(startBeat + 1, Math.ceil(beatAt(ev.clientX)));
           useProjectStore.getState().setLoop({ start: startBeat, end: snapBeat(b, 1) });
         } else {
-          engine.seek(snapBeat(beatAt(ev.clientX), snap));
+          engine.seek(snapTo(beatAt(ev.clientX)));
         }
       };
       const onUp = (ev: PointerEvent) => {
@@ -596,7 +626,7 @@ export function Arrangement() {
       el.addEventListener('pointerup', onUp);
       el.addEventListener('pointercancel', onUp);
     },
-    [pxPerBeat, snap],
+    [pxPerBeat, snap, snapTo],
   );
 
   const addTrackMenu = (x: number, y: number) => {
@@ -633,8 +663,6 @@ export function Arrangement() {
     });
   };
 
-  const showOverview = useWorkspaceStore((w) => w.showOverview);
-  const range = useUiStore((s) => s.range);
   /**
    * The overview maps the SONG, not the scrollable canvas. The timeline keeps a
    * 72-bar minimum so there is always somewhere to scroll to; drawing that
@@ -673,6 +701,19 @@ export function Arrangement() {
           ))}
         </div>
         <span className="hint">Snap</span>
+        <select
+          className="snap-mode"
+          value={snapMode}
+          aria-label="Snap mode"
+          title="Grid snaps to the division; Events snap to clip edges; Adaptive picks a division from the zoom"
+          onChange={(e) => useUiStore.getState().set({ snapMode: e.target.value as SnapMode })}
+          data-testid="snap-mode"
+        >
+          <option value="grid">Grid</option>
+          <option value="adaptive">Adaptive</option>
+          <option value="events">Events</option>
+          <option value="off">Off</option>
+        </select>
         <div className="seg" role="group" aria-label="Snap">
           {[
             { v: bpb, l: 'Bar' },

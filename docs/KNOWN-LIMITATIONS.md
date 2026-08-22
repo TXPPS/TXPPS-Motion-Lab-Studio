@@ -3,20 +3,36 @@
 Honest boundaries of the current release. None of these fail silently —
 where a capability is missing the UI says so.
 
-## By design (feature freeze)
+## By design
 
 - No accounts, cloud sync, or collaboration — projects live in one
-  browser's storage. Export WAV (and use your browser's profile sync
-  backup habits) to move work between machines.
-- No plugin hosting (VST/AU/CLAP), no marketplace, no notation, no video.
-- No AI-assisted features.
+  browser's storage. Export audio or MIDI to move work between machines.
+- No plugin hosting (VST/AU/CLAP) and no marketplace: the web has no
+  equivalent sandbox for native plugin code.
+- No video track, no disc burning or DDP, and no control-surface protocols
+  beyond Web MIDI. All four are named in
+  [the reference benchmark](REFERENCE-FSP8.md) §4 with the reason.
+- The analysis features (Audio→Notes, Vocal Tune, stem separation, chord
+  detection) are classical DSP running locally. They are not trained
+  models, they never upload anything, and each panel says what its
+  technique separates well and what it does not.
 
 ## Audio engine
 
-- **No time-stretch.** Audio clips trim and slip but do not stretch to
-  tempo; the M6 decision to avoid an unreliable global stretch stands.
-- **Sample-rate follows the device.** The engine runs at the hardware rate
-  (typically 44.1/48 kHz); export renders at 44.1 kHz.
+- **Time-stretch is WSOLA**, so it is honest about transients: an isolated
+  click in silence is spread across the frames containing it. Pitch-preserving
+  stretch is rendered and cached per (media, speed, semitones); until that
+  render lands, playback resamples at the same speed, so a clip can briefly be
+  the wrong pitch — which is better than a clip that is silent for the first
+  bar of a take.
+- **The offline bounce resamples stretched clips** rather than waiting on that
+  cache, so a tempo-followed clip's pitch moves in an export. Render it in
+  place first if that matters.
+- **Sample-rate follows the device** for playback (typically 44.1/48 kHz);
+  export renders at whichever of 44.1–96 kHz you choose.
+- **No plugin latency compensation.** Every insert here is latency-free except
+  the limiter's lookahead and the de-esser's band split, which are compensated
+  internally.
 - **All media decodes into memory** (~10 MB per stereo minute). There is
   no disk streaming; hour-long multitrack sessions of recorded audio will
   grow memory accordingly. Decode caches are evicted when you switch
@@ -62,5 +78,13 @@ Measured on this project's CI hardware — see
 - One undo history per session (60 steps), cleared when switching
   projects.
 - The piano roll edits one clip at a time.
+- **The score editor engraves but does not edit.** Notes are edited in the
+  piano roll or the drum grid; the score reflects them.
+- **Warp markers are detected, not dragged.** A clip can follow the tempo, be
+  stretched and be transposed, and its transients can be detected; moving an
+  individual warp marker on the waveform is not built.
+- **Paint, Listen and drag-zoom tools** are not built. Pointer, Range, Split,
+  Erase, Mute and Slip are.
+- **Cue mixes and project merge** are not built.
 - Crossfades require real trim headroom on both clips (the app checks and
   says so).
