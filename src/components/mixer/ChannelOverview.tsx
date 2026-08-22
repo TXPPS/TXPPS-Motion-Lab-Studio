@@ -158,7 +158,7 @@ export const ChannelOverview = memo(function ChannelOverview({ track }: { track:
           <select
             value={track.sidechainFrom ?? ''}
             aria-label={`${track.name} sidechain source`}
-            title="Which channel keys this one's dynamics. A kick keying a bass compressor is the classic case."
+            title="Which channel keys this one's compressor, gate, de-esser and limiter — a kick keying a bass compressor is the classic case. The key is taken after that channel's fader, and the multiband is the one dynamics insert it does not reach."
             onChange={(e) =>
               store.getState().setTrack(track.id, { sidechainFrom: e.target.value || undefined })
             }

@@ -147,6 +147,14 @@ value did not move do not touch the graph.
   detector input; a real implementation needs an AudioWorklet compressor,
   which deserves its own DSP milestone. Nothing fake is shipped: no routing
   UI exists that does not do what it says.
+
+  _Resolved in v2._ The diagnosis was right and the prescription was not: no
+  AudioWorklet was needed. `ControlVca` builds a detector out of ordinary
+  nodes, so every dynamics processor has a real external key input. The
+  routing UI shipped ahead of the compressor being keyable, though, which
+  left exactly the situation this bullet was written to prevent — see
+  [`PARITY.md`](PARITY.md) for what a key reaches today.
+
 - **Tempo automation** — the scheduler's beat↔time mapping and every open
   anchor assume constant tempo inside a window; automating BPM means
   integrating the tempo curve through the scheduler, export and recording
