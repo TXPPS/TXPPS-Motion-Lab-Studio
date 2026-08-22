@@ -90,7 +90,7 @@ them.
 **MotionLab Studio** (the shipping web app) remains green: 1500 unit tests
 across 80 files, 222 e2e, typecheck, lint and build clean.
 
-## Directive 02 — §1 and §2
+## Directive 02 — §1, §2 and §3
 
 ### §1 P0 defects — all three closed, with regression tests
 
@@ -148,6 +148,38 @@ BLOCKED here.
 | # | Severity | Description | Owner |
 | --- | --- | --- | --- |
 | — | — | none open against Motion Wave | |
+
+### §3 plugin and instrument audit — complete, three P1s closed
+
+`docs/audit/PLUGIN_AUDIT.md`. Twenty-seven effect kinds and five instrument rows
+against the fifteen-point matrix — **480 cells**, backed by **57 executable
+probes** in `tests/audit/`, not by reading. **Thirteen findings: no P0, three
+P1, ten P2.** The P1s are fixed and their probes are now the regression tests.
+
+| ID | Was | Is now |
+| --- | --- | --- |
+| PA-001 | Reverb Size sweep: 90 impulse re-renders, 27.1 M samples, **2396 ms** of synchronous main-thread work. Damping: 180 / 31.1 M / 2525 ms | **30 / 5.1 M / 192 ms** and **26 / 4.5 M / 158 ms**. Tabulated decay curve (5× faster, worst sample difference 5.96e-8 — half a Float32 step) plus a sixth-octave re-render grid in place of a flat threshold that was ¼ of the shortest tail and <1 % of the longest |
+| PA-002 | Every tempo-synced insert ran at the tempo of beat 0. A 6/16 delay at bar 9 of a 120→160 song: **0.7500 s where the bar wants 0.5625 s**, 33 % long | **0.5625 s.** All seven drivers sample the map — at the playhead live, at the beat being rendered offline. Re-driving gated at 0.5 % relative, so a 120→160 ramp costs **55 insert passes over 480 frames**, not 480 |
+| PA-003 | 60 notes at one instant: **60 oscillators, 1 voice cut** against a ceiling of 24. Sampler: 80 live against 48 | **24 live, 36 steals on 36 distinct voices**; sampler 48 of 80. Stealing loops and removes each voice as it takes it |
+
+The ten P2s are open and listed in the report. The three worth naming: insert
+automation runs on a 25 ms offline grid that widens to 375 ms on a half-hour
+bounce while playback applies it at 60–100 Hz, and `KNOWN-LIMITATIONS.md` calls
+the bounce exact (PA-006); no insert declares a latency and seven have one, so
+they shift their channel against the rest of the session (PA-010); eighteen
+controls rebuild a WaveShaper table on every automation frame (PA-004 — the same
+shape as PA-001, one tier down in cost).
+
+What the audit could **not** claim, and does not: the bypass null test to
+−120 dBFS, latency measurement, and aliasing through the browser's own 4×
+oversampling are all BLOCKED under ADR-0005 — jsdom has no Web Audio, no device
+and no real-time thread. A structural proof stands in for the null test, and the
+shaper curves were measured directly instead of the rendered aliasing
+(−14.3 dBc at 1×, −35.5 dBc with an ideal 4×, at full drive).
+
+Two hypotheses the audit formed and disproved before publishing are recorded in
+the report's Method section, which is the part of an audit that usually goes
+missing.
 
 Carried from MotionLab Studio, unrelated to Motion Wave:
 
