@@ -11,6 +11,7 @@
  * a time and says so.
  */
 import { beatsPerBar, projectBeatsForSeconds } from '../model/music';
+import { midiRecorder } from './midiRecorder';
 import type { Track } from '../model/types';
 import { diagLog } from '../state/diagnostics';
 import { useInputStore } from '../state/inputStore';
@@ -42,6 +43,20 @@ export function recordTargetTrack(): Track | null {
   return audio.find((t) => t.armed) ?? audio.find((t) => t.id === sel) ?? null;
 }
 
+/**
+ * The instrument track a MIDI take would land on.
+ *
+ * An armed instrument track wins over an armed audio track: pressing record
+ * with a keyboard part armed should record the keyboard, and the audio path
+ * needs a microphone permission it should not be asking for in that case.
+ */
+export function midiRecordTargetTrack(): Track | null {
+  const p = useProjectStore.getState().project;
+  const sel = useUiStore.getState().selectedTrackId;
+  const playable = p.tracks.filter((t) => t.type === 'instrument' || t.type === 'drum');
+  return playable.find((t) => t.armed) ?? playable.find((t) => t.id === sel) ?? null;
+}
+
 class RecordingController {
   private recorder = new TakeRecorder();
   private countInTimer: ReturnType<typeof setInterval> | null = null;
@@ -50,6 +65,8 @@ class RecordingController {
   private trackId: string | null = null;
   private trackName = '';
   private deviceId = DEFAULT_INPUT;
+  /** True while this take is MIDI rather than audio. */
+  private midi = false;
   private cancelled = false;
   private unloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
 
@@ -82,6 +99,11 @@ class RecordingController {
     const store = useInputStore.getState();
     if (this.isBusy) return false;
 
+    // MIDI first: an armed instrument track records what is played, and does
+    // not need a microphone permission to do it.
+    const midiTrack = midiRecordTargetTrack();
+    if (midiTrack?.armed) return this.startMidi(midiTrack);
+
     if (!recorderSupported()) {
       store.set({ phase: 'error', lastRecordError: 'Recording is not supported in this browser.' });
       diagLog('error', 'MediaRecorder unavailable — cannot record');
@@ -91,7 +113,7 @@ class RecordingController {
     if (!track) {
       store.set({
         phase: 'error',
-        lastRecordError: 'Arm an audio track before recording.',
+        lastRecordError: 'Arm an audio or instrument track before recording.',
       });
       return false;
     }
@@ -214,7 +236,77 @@ class RecordingController {
   }
 
   /** Stop capturing and turn the take into a clip. */
+  /**
+   * Record MIDI rather than audio. There is no input device, no permission and
+   * no encoder — only a count-in, the transport, and what is played.
+   */
+  private async startMidi(track: Track): Promise<boolean> {
+    const store = useInputStore.getState();
+    this.cancelled = false;
+    this.trackId = track.id;
+    this.trackName = track.name;
+    this.midi = true;
+    store.set({
+      phase: 'arming',
+      lastRecordError: null,
+      recordTrackId: track.id,
+      recordSeconds: 0,
+    });
+
+    const ok = await engine.start();
+    if (!ok) {
+      store.set({ phase: 'error', lastRecordError: 'Audio engine could not start.' });
+      this.midi = false;
+      return false;
+    }
+
+    this.installUnloadGuard();
+
+    if (settings.countInBars > 0) {
+      const counted = await this.runCountIn();
+      if (!counted || this.cancelled) {
+        this.midi = false;
+        this.reset();
+        return false;
+      }
+    }
+
+    // Capture begins at the transport's current position, and the transport
+    // starts in the same tick, so notes and timeline share an origin.
+    const startBeat = engine.getPositionBeats();
+    this.captureStartBeat = startBeat;
+    midiRecorder.start(track.id, startBeat);
+    if (!engine.isPlaying()) await engine.play(startBeat);
+
+    store.set({
+      phase: 'recording',
+      recordingActive: true,
+      recordSeconds: 0,
+      countInBeatsLeft: 0,
+    });
+    const startedAt = performance.now();
+    this.tickTimer = setInterval(() => {
+      useInputStore.getState().set({ recordSeconds: (performance.now() - startedAt) / 1000 });
+    }, 200);
+    diagLog('info', `MIDI recording started on "${track.name}"`);
+    return true;
+  }
+
   async stop(): Promise<void> {
+    if (this.midi) {
+      this.midi = false;
+      this.clearTick();
+      const endBeat = engine.getPositionBeats();
+      engine.stop();
+      const clipId = midiRecorder.stop(endBeat);
+      useInputStore.getState().set({
+        phase: 'idle',
+        recordingActive: false,
+        ...(clipId ? {} : { lastRecordError: 'Nothing was played.' }),
+      });
+      this.reset();
+      return;
+    }
     const store = useInputStore.getState();
     if (store.phase === 'countIn') {
       this.cancel();
@@ -319,6 +411,21 @@ class RecordingController {
     this.cancelled = true;
     this.clearCountIn();
     this.clearTick();
+
+    if (this.midi) {
+      this.midi = false;
+      midiRecorder.cancel();
+      engine.stop();
+      useInputStore.getState().set({
+        phase: 'idle',
+        recordingActive: false,
+        countInBeatsLeft: 0,
+        recordSeconds: 0,
+      });
+      diagLog('info', 'MIDI recording cancelled');
+      this.reset();
+      return;
+    }
 
     // If audio was already captured, keep it recoverable rather than dropping it.
     const snapshot = this.recorder.snapshot();

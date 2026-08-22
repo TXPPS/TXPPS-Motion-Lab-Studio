@@ -32,12 +32,12 @@ the benchmark is parity of the _workflow_, not of the mechanism.
 | Tempo track               | **Yes**     | Jump and linear-ramp tempo events, and signature changes                                                                                           |
 | Video track               | **No**      | Out of scope; stated in the reference document                                                                                                     |
 | Track types               | **Yes**     | Audio, instrument, drum, bus, FX channel, folder, VCA                                                                                              |
-| Tools                     | **Partial** | Pointer, split, erase, mute, slip. Range, paint, listen and zoom-drag are not built                                                                |
-| Snap                      | **Partial** | Grid and zero-crossing. Snap-to-events and adaptive snap are not built                                                                             |
+| Tools                     | **Partial** | Pointer, range, split, erase, mute, slip. Paint, listen and zoom-drag are not built                                                                |
+| Snap                      | **Yes**     | Off, grid, events, zero-crossing and adaptive, with a magnet strength                                                                              |
 | Console                   | **Yes**     | Input trim/polarity/mono, named inserts, sends, pan, stereo meter with a printed dB scale, mute/solo/solo-safe/arm, routing, VCA assignment        |
 | Channel Overview          | **Yes**     | One channel laid out horizontally with its EQ curve and gain reduction                                                                             |
 | Cue mixes                 | **No**      | Not built                                                                                                                                          |
-| Sidechain routing         | **Partial** | The schema carries a sidechain source; the dynamics processors do not yet key from it                                                              |
+| Sidechain routing         | **Yes**     | Any track keys the compressor, gate, expander or ducker on any other                                                                               |
 | Metering                  | **Yes**     | Peak, RMS, stereo, peak hold, over-indicator, LUFS (M/S/I), LRA, true peak, correlation, spectrum, oscilloscope                                    |
 | Browser                   | **Yes**     | Instruments, Effects, Loops, Samples, Pool, Projects                                                                                               |
 | Inspector                 | **Yes**     | Track, clip, inserts, sends, note FX, time and pitch                                                                                               |
@@ -51,9 +51,10 @@ the benchmark is parity of the _workflow_, not of the mechanism.
 
 | Reference                     | MotionLab   |                                                                                                                                                 |
 | ----------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| MIDI recording                | **Yes**     | Count-in, capture from every input, held notes closed at the stop, clip rounded to the bar                                                      |
 | Comping and take lanes        | **Yes**     | Swipe comping with micro-fades at the joins                                                                                                     |
 | Non-destructive audio editing | **Yes**     | Trim, split, heal, fades, crossfades, gain, normalise, polarity, mono sum, slip, ripple delete, nudge                                           |
-| Strip / insert silence        | **No**      | Not built                                                                                                                                       |
+| Strip / insert silence        | **Yes**     | Over a range: strip silence, insert and delete time, cut/copy/paste, mute, fade, gain, reverse                                                  |
 | Audio bend / warp             | **Partial** | Transient detection, tempo detection, tempo-follow, speed and transpose with pitch preservation. Per-marker warp dragging is not in the UI      |
 | Groove extraction             | **Partial** | The model extracts and applies grooves; no UI surface yet                                                                                       |
 | Vocal Tune                    | **Yes**     | Analysis, scale-aware correction, retune speed, vibrato preservation, rendered as a new clip                                                    |
@@ -61,17 +62,17 @@ the benchmark is parity of the _workflow_, not of the mechanism.
 | Stem separation               | **Partial** | Classical DSP, not a trained model — separates a well-recorded mix usefully and a dense one only partly. The stems always sum back to the input |
 | Chord detection and Assistant | **Yes**     | Detection, functional suggestions with reasons, six progressions, four follow modes                                                             |
 | Arranger sections             | **Yes**     |                                                                                                                                                 |
-| Scratch pads                  | **Partial** | Schema and store actions; no UI surface yet                                                                                                     |
+| Scratch pads                  | **Yes**     | Parallel arrangements over the same tracks, with copy in and out                                                                                |
 | Note FX                       | **Yes**     | Arpeggiator, chorder, repeater, note filter, velocity curve                                                                                     |
-| Event FX                      | **No**      | The schema carries per-clip inserts; the engine does not apply them yet                                                                         |
+| Event FX                      | **Yes**     | Per-clip note inserts, applied identically in playback and in export                                                                            |
 | Instruments                   | **Yes**     | Virtual-analogue synth, quick sampler, drum rack, multisample, instrument rack                                                                  |
-| Macro controls                | **No**      | Not built                                                                                                                                       |
+| Macro controls                | **Yes**     | Eight per track, each mapping several parameters with range and curve                                                                           |
 | Effects                       | **Yes**     | 27 kinds across dynamics, tone, modulation, time, stereo and utility, with plugin faces                                                         |
 | Automation                    | **Yes**     | Read, touch, latch, write, trim, off                                                                                                            |
 | Mixdown and export            | **Yes**     | Master, stems by bus, per track; WAV 16/24/32-bit and float, FLAC; 44.1–96 kHz; TPDF and shaped dither; true-peak normalisation; metadata       |
 | MIDI file import and export   | **Yes**     | Format 0 and 1 in, format 1 out, with the tempo and signature map                                                                               |
 | Project merge                 | **No**      | Not built                                                                                                                                       |
-| Key commands                  | **Partial** | A conflict-checked registry drives the help sheet; the bindings are not user-editable                                                           |
+| Key commands                  | **Yes**     | Editable, conflict-checked, restorable, and layout-independent                                                                                  |
 | Control link (MIDI learn)     | **No**      | Not built                                                                                                                                       |
 | Themes                        | **Yes**     | System, dark, light, high contrast                                                                                                              |
 | UI scaling                    | **Yes**     | 85% to 140%                                                                                                                                     |

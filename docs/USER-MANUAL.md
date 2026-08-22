@@ -93,9 +93,15 @@ their member tracks.
 
 ## 3. Recording and comping
 
-Arm an audio track, optionally enable input monitoring, then press
-transport **Record**: a count-in plays, capture starts at the playhead,
-and the take becomes a clip when you stop. Recording over an existing clip
+Arm a track and press transport **Record**: a count-in plays, capture
+starts at the playhead, and the take becomes a clip when you stop.
+
+An armed **instrument or drum track records MIDI** — whatever you play on a
+hardware keyboard, the on-screen keys or the computer keyboard, at the beat
+you played it. A chord still held when you stop is kept, not dropped, and the
+clip is rounded out to a whole bar. No microphone permission is involved.
+
+An armed **audio track records audio**, with input monitoring optional. Recording over an existing clip
 stacks **takes**: open the take lanes (clip menu), swipe across a lane to
 comp that range from that take, click a lane to audition it, and promote,
 mute, reorder or delete takes. Comp joins get micro-fades automatically.

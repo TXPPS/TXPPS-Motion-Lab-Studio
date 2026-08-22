@@ -6,6 +6,7 @@
  */
 import { clipSecondsPerBeat } from '../model/music';
 import { resolveChannels } from '../model/mixerGraph';
+import { midiRecorder } from './midiRecorder';
 import { clipRatePlan } from '../model/clipRate';
 import { stretchedBuffer } from './stretchCache';
 import { isAudioTrackType, MASTER_ID } from '../model/types';
@@ -1320,6 +1321,12 @@ class AudioEngine {
   // ---------- live input ----------
 
   liveNoteOn(trackId: string, pitch: number, velocity: number): void {
+    // Capture happens here rather than in the Web MIDI handler: hardware MIDI,
+    // the on-screen keyboard and the computer keyboard all arrive through this
+    // one method, so one hook records all three.
+    if (midiRecorder.isRecording) {
+      midiRecorder.noteOn(trackId, pitch, velocity, this.getPositionBeats());
+    }
     if (!this.isRunning()) {
       // Preserve the first note request: unlock, then trigger.
       void this.start().then((ok) => {
@@ -1331,6 +1338,9 @@ class AudioEngine {
   }
 
   liveNoteOff(trackId: string, pitch: number): void {
+    if (midiRecorder.isRecording) {
+      midiRecorder.noteOff(trackId, pitch, this.getPositionBeats());
+    }
     this.instruments.get(trackId)?.noteOff(pitch);
   }
 
