@@ -67,7 +67,14 @@ export function OscScope({ shape, label }: { shape: Waveform; label: string }) {
   return (
     <div className="ins-plot ins-plot-sm">
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label}>
-        <line x1={0} y1={H / 2} x2={W} y2={H / 2} stroke="var(--grid-beat)" vectorEffect="non-scaling-stroke" />
+        <line
+          x1={0}
+          y1={H / 2}
+          x2={W}
+          y2={H / 2}
+          stroke="var(--grid-beat)"
+          vectorEffect="non-scaling-stroke"
+        />
         <path
           d={d}
           fill="none"
@@ -122,23 +129,25 @@ export function FilterCurve({
   testId?: string;
 }) {
   const freqs = useMemo(() => logFrequencies(160, MIN_HZ, MAX_HZ), []);
+  // Keyed on the filter's three numbers rather than on the object, which the
+  // panel rebuilds every render — a memo on the object would never hit.
+  const { type, freqHz, qDb } = filter;
   const curve = useMemo(
     () =>
       path(
-        filterResponseDb(filter, freqs).map((db, i) => ({ x: xOfHz(freqs[i]), y: yOfDb(db) })),
+        filterResponseDb({ type, freqHz, qDb }, freqs).map((db, i) => ({
+          x: xOfHz(freqs[i]),
+          y: yOfDb(db),
+        })),
       ),
-    [filter, freqs],
+    [type, freqHz, qDb, freqs],
   );
-  const ghostPaths = useMemo(
-    () =>
-      (ghosts ?? []).map((g) => ({
-        label: g.label,
-        d: path(
-          filterResponseDb(g.filter, freqs).map((db, i) => ({ x: xOfHz(freqs[i]), y: yOfDb(db) })),
-        ),
-      })),
-    [ghosts, freqs],
-  );
+  const ghostPaths = (ghosts ?? []).map((g) => ({
+    label: g.label,
+    d: path(
+      filterResponseDb(g.filter, freqs).map((db, i) => ({ x: xOfHz(freqs[i]), y: yOfDb(db) })),
+    ),
+  }));
 
   const cornerDb = filterResponseDb(filter, [filter.freqHz])[0];
   const handleX = (xOfHz(filter.freqHz) / W) * 100;
@@ -190,7 +199,12 @@ export function FilterCurve({
 
   return (
     <div className="ins-plot ins-plot-filter" data-testid={testId}>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={`${label}: ${readout}`}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`${label}: ${readout}`}
+      >
         {sweep && (
           <rect
             x={xOfHz(sweep.lowHz)}
@@ -393,16 +407,18 @@ export function InstrumentSection({
   title,
   aside,
   wide,
+  testId,
   children,
 }: {
   title: string;
   aside?: string;
   /** Sections built around a display take two columns where there is room. */
   wide?: boolean;
+  testId?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className={`ins-section${wide ? ' wide' : ''}`}>
+    <section className={`ins-section${wide ? ' wide' : ''}`} data-testid={testId}>
       <div className="ins-section-head">
         <span className="t-label">{title}</span>
         {aside && <span className="ins-aside t-num">{aside}</span>}

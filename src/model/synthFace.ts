@@ -322,7 +322,10 @@ export function samplerLfoOf(p: SamplerParams): SamplerLfo | null {
 }
 
 /** The band a filter-target LFO sweeps the cutoff through, clamped to audio. */
-export function lfoSweepHz(filter: VoiceFilter, lfo: SamplerLfo): { lowHz: number; highHz: number } {
+export function lfoSweepHz(
+  filter: VoiceFilter,
+  lfo: SamplerLfo,
+): { lowHz: number; highHz: number } {
   const depth = lfo.depthHz ?? 0;
   return {
     lowHz: Math.max(20, filter.freqHz - depth),
@@ -394,7 +397,9 @@ export function zoneKeyProfile(
   keys: readonly number[],
 ): number[] {
   const list = [...zones];
-  return keys.map((key) => matchZones(list, key, velocity).find((h) => h.zone.id === zoneId)?.xfGain ?? 0);
+  return keys.map(
+    (key) => matchZones(list, key, velocity).find((h) => h.zone.id === zoneId)?.xfGain ?? 0,
+  );
 }
 
 // ---------------------------------------------------------------- the rack

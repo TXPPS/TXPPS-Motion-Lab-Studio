@@ -78,12 +78,15 @@ export function InstrumentFrame<T>({
     >
       <header className="pw-head ins-head">
         {/* Lit means signal is passing, which for the source of a channel is
-            the channel not being muted — the one thing that silences it. */}
+            the channel not being muted — the one thing that silences it.
+            Named for what it is rather than for what pressing it does: a
+            button labelled "Mute" that reports itself pressed while the track
+            is *not* muted is a state a screen reader cannot recover. */}
         <button
           className="pw-power"
           aria-pressed={!track.mute}
-          aria-label={track.mute ? `Unmute ${track.name}` : `Mute ${track.name}`}
-          title={track.mute ? 'Muted' : 'Passing'}
+          aria-label={`${track.name} output`}
+          title={track.mute ? 'Muted — click to pass' : 'Passing — click to mute'}
           onClick={() => store.getState().setTrack(track.id, { mute: !track.mute })}
         />
         <div className="pw-title">

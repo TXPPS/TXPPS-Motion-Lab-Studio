@@ -1,25 +1,10 @@
 /* Sampler workstation: quick sampler, drum rack, multisample, instrument rack */
 
-.smp-head {
-  flex-wrap: wrap;
-}
-.smp-head label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--fs-xs);
-  color: var(--text-dim);
-  white-space: nowrap;
-}
-.smp-head input[type='range'] {
-  width: 62px;
-}
-
 .smp-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: var(--sp-4);
+  padding: var(--sp-1) 0;
   flex-wrap: wrap;
 }
 .smp-row label {
@@ -40,8 +25,7 @@
 /* Empty quick-sampler drop target. A drop target is a WELL that lights its
    rail, not a dashed rectangle (§2.11.9) — this was the third of five. */
 .smp-drop {
-  margin: 10px;
-  min-height: 110px;
+  min-height: calc(110px * var(--ui-scale));
   border: none;
   background: var(--bg-input);
   box-shadow: var(--sh-well);
@@ -57,11 +41,11 @@
   padding: 12px;
 }
 
-/* Waveform trim editor */
+/* Waveform trim editor. It lives inside an instrument section now, which
+   owns the spacing around it. */
 .smp-wave {
   position: relative;
-  height: 96px;
-  margin: 6px 10px 0;
+  height: calc(104px * var(--ui-scale));
   background: var(--bg-deep);
   border: none;
   box-shadow: var(--sh-well-deep);
@@ -111,13 +95,23 @@
   border: 4px solid transparent;
   border-top-color: var(--solo-hi);
 }
+/* A marker is a button, so the browser's own button chrome has to go before
+   the grip below can be the whole of what is drawn. */
 .smp-handle {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 10px;
+  padding: 0;
+  border: none;
+  background: none;
   cursor: ew-resize;
+  touch-action: none;
   z-index: 3;
+}
+.smp-handle:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -1px;
 }
 /* A trim handle marks where the selection ends. */
 .smp-handle::before {
@@ -141,47 +135,90 @@
   box-shadow: var(--sh-2);
 }
 
-/* Drum pad grid (distinct from the classic .pads performance pads) */
+/*
+ * The drum rack's pads.
+ *
+ * A pad is a CAP — a milled body you strike — seated in the rail of the grid,
+ * with a rail of its own in the pad's colour along the top edge. It was a
+ * hand-written two-stop gradient and a 1px border, which is a web card with a
+ * coloured edge; the gradient is now the one the whole product's controls
+ * share, so a pad, a knob cap and a fader cap are visibly the same material.
+ */
 .pad-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
-  gap: 7px;
-  padding: 8px 10px 2px;
-  max-width: 760px;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: var(--sp-1);
+  padding: var(--sp-1);
+  border-radius: var(--radius);
+  background: var(--bg-well);
+  box-shadow: var(--sh-well);
+  max-width: 780px;
 }
 .pad-grid .pad {
+  position: relative;
   aspect-ratio: auto;
-  min-height: 54px;
-  padding: 5px 4px;
+  min-height: calc(58px * var(--ui-scale));
+  padding: var(--sp-3) var(--sp-2) var(--sp-2);
   border-radius: var(--radius);
-  background: linear-gradient(#232a33, #161b22);
-  border: 1px solid var(--border-strong);
-  border-top: 3px solid var(--pad-color, var(--border-strong));
+  background: var(--grad-cap);
+  border: none;
+  box-shadow:
+    inset 0 3px 0 var(--pad-color, var(--edge-hi)),
+    var(--sh-2);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
+  color: var(--text-dim);
   cursor: pointer;
   overflow: hidden;
 }
+/* An empty pad is the bare rail, not a dashed rectangle (§2.11.9). */
 .pad-grid .pad.empty {
-  background: var(--bg-input);
+  background: var(--bg-well);
   box-shadow: var(--sh-well);
   color: var(--text-faint);
   cursor: default;
 }
+/* Selection is a musical selection: yellow, like every other one. */
 .pad-grid .pad.selected {
   outline: 2px solid var(--solo);
   outline-offset: -2px;
 }
-.pad-grid .pad.muted {
-  opacity: 0.45;
+/* A silenced pad is switched off, not unavailable: it sinks into the rail and
+   keeps every one of its labels legible. */
+.pad-grid .pad.muted:not(.empty) {
+  background: var(--bg-panel-2);
+  box-shadow:
+    inset 0 3px 0 var(--pad-color, var(--edge-hi)),
+    var(--sh-pressed);
+  color: var(--text-faint);
 }
-/* A pad being struck IS signal present. */
+/* A pad being struck IS signal present — the one green. */
 .pad-grid .pad:active:not(.empty) {
-  background: var(--accent-lamp);
+  --lamp: var(--accent-lamp);
+  background: var(--lamp);
+  box-shadow: var(--ml-lamp-on);
   color: var(--lamp-ink);
+}
+/* The three readouts sit on the cap gradient, which is a much lighter ground
+   than the hand-written one they used to have: --text-faint measures 3.55:1
+   against it and --text-dim 5.47:1. A pad's own number has to be readable at a
+   glance from across a desk, so it takes the higher one. */
+.pad-grid .pad .pad-index {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: var(--fs-2xs);
+  color: var(--text-dim);
+}
+.pad-grid .pad .pad-choke {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: var(--fs-2xs);
+  color: var(--text-dim);
 }
 .pad-grid .pad .pad-name {
   font-size: var(--fs-xs);
@@ -193,19 +230,24 @@
 }
 .pad-grid .pad .pad-key {
   font-size: var(--fs-2xs);
-  color: var(--text-faint);
+  color: var(--text-dim);
 }
 .pad-detail {
-  border-top: 1px solid var(--border-soft);
-  margin-top: 4px;
+  box-shadow: var(--ml-seam-t);
+  margin-top: var(--sp-2);
+  align-items: flex-end;
 }
 
 /* Multisample zone list */
 .zone-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 4px 10px 0;
+  gap: var(--sp-1);
+  /* 512 zones is a supported project size; the list scrolls inside its own
+     section rather than making the whole instrument a mile long. */
+  max-height: calc(280px * var(--ui-scale));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .zone-row {
   display: flex;
@@ -259,16 +301,19 @@
 
 /* Instrument rack */
 .smp-rack {
-  padding: 4px 0 8px;
-  border-top: 1px solid var(--border-soft);
-  margin-top: 6px;
+  padding: var(--sp-2) 0 var(--sp-4);
+  box-shadow: var(--ml-seam-t);
+  margin-top: var(--sp-3);
 }
 .smp-rack .ps-title {
   /* type comes from the one micro-label definition in base.css */
   padding: 4px 10px 2px;
 }
 .smp-rack .zone-row {
-  margin: 2px 10px;
+  margin: var(--sp-1) var(--sp-4);
+}
+.smp-rack .smp-row {
+  padding: var(--sp-1) var(--sp-4);
 }
 
 /* Browser → Samples tab */
@@ -330,4 +375,85 @@ button.chip.on {
   .smp-head input[type='range'] {
     width: 48px;
   }
+}
+
+/* --------------------------------------------------------- the zone map */
+/* The map is a well with a keyboard printed along its bottom edge, which is
+   the axis a musician actually reads a key range against. */
+.zone-map > svg {
+  height: calc(150px * var(--ui-scale));
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+}
+.zone-map-keys {
+  display: flex;
+  height: calc(9px * var(--ui-scale));
+  background: var(--bg-input);
+}
+.zone-map-keys > span {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.zone-map-keys > .white {
+  background: var(--text-faint);
+  box-shadow: inset -1px 0 0 var(--bg-input);
+}
+.zone-map-keys > .black {
+  background: var(--bg-deep);
+}
+.zone-map-axis {
+  position: relative;
+  height: calc(13px * var(--ui-scale));
+}
+.zone-map-axis > span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+
+/* A zone row is a module seated in the list; the focused one is the one the
+   map is tracing, and chrome selection is light, never colour (§2.1). */
+.zone-row.selected {
+  background: var(--bg-active);
+  box-shadow: var(--sh-inset);
+}
+.zone-row .zone-strip {
+  flex: 1 1 90px;
+}
+
+/* The rack's layer stack: each layer's key span drawn on one shared axis, so
+   splits and overlaps are visible without reading eight numbers. */
+.layer-bar {
+  position: relative;
+  flex: 1 1 120px;
+  min-width: 80px;
+  height: calc(12px * var(--ui-scale));
+  border-radius: var(--radius-xs);
+  background: var(--bg-well);
+  box-shadow: var(--sh-well);
+  overflow: hidden;
+}
+.layer-bar > div {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--radius-xs);
+}
+/* A layer another layer's solo has silenced is switched off, not disabled. */
+.layer-bar.off > div {
+  opacity: 0.28;
+}
+
+/* The waveform's window markers. Four of them now — trim and loop — so the
+   loop pair is distinguished by the colour the loop band already uses. */
+.smp-handle.loop::before {
+  background: var(--solo);
+}
+.smp-handle.loop::after {
+  height: 18%;
+  top: 60%;
+}
+.smp-wave-axis {
+  padding: 0 var(--sp-1);
 }

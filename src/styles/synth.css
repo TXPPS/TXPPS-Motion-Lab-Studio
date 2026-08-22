@@ -27,78 +27,10 @@
   text-align: center;
 }
 
-.syn-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px 4px;
-  min-width: 0;
-}
-.syn-title {
-  font-family: var(--font-cond);
-  font-weight: var(--fw-semibold);
-  letter-spacing: var(--ls-caps);
-  text-transform: uppercase;
-  font-size: var(--fs-md);
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  /* long track names truncate rather than pushing the preset/panic controls
-     off the edge */
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.syn-head > select {
-  flex: 0 1 auto;
-  min-width: 90px;
-}
-.syn-head > .btn {
-  flex: none;
-  margin-left: auto;
-}
-.syn-title .swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-xs);
-  flex: none;
-}
-/* The track's name is text the user typed: never uppercased by CSS (§2.5). */
-.syn-title .syn-title-text {
-  font-family: var(--font);
-  letter-spacing: 0;
-  text-transform: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.syn-controls {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 6px 10px 10px;
-  flex-wrap: wrap;
-}
-
-.syn-group {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 8px 10px;
-  background: var(--bg-panel-2);
-  border: none;
-  box-shadow: var(--sh-1);
-  border-radius: var(--radius-lg);
-}
-.syn-group .g-title {
-  /* type comes from the one micro-label definition in base.css */
-}
+/* A knob and its readout: value above label, both under the cap (§2.6). */
 .syn-knobs {
   display: flex;
-  gap: 10px;
+  gap: var(--sp-5);
 }
 .syn-knob {
   display: flex;
@@ -244,6 +176,11 @@
   padding: var(--sp-1) var(--sp-3);
   cursor: default;
 }
+/* The window's grab cursor is on `:active` too, and that selector outweighs
+   a bare class — so the docked header has to answer it in kind. */
+.ins-head:active {
+  cursor: default;
+}
 .ins-head .pw-on {
   max-width: 22ch;
 }
@@ -254,15 +191,24 @@
   margin-right: var(--sp-2);
 }
 
-/* One column on a phone, as many as fit anywhere else. A section built around
-   a display asks for two, so the curve gets the width it needs to be read. */
+/*
+ * One column on a phone, as many as fit anywhere else — decided by the panel's
+ * own width, not the viewport's. An instrument lives in a resizable editor
+ * pane, so a viewport media query would give a 400px pane the layout of a
+ * 1400px screen; flex wrapping answers to the box it is actually in.
+ *
+ * A section built around a display asks for twice the share, so the curve gets
+ * the width it needs to be read, and falls back to a whole row when the panel
+ * is too narrow to give it that.
+ */
 .ins-sections {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--sp-4);
-  align-content: start;
 }
 .ins-section {
+  flex: 1 1 calc(230px * var(--ui-scale));
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
@@ -272,10 +218,8 @@
   box-shadow: var(--sh-1);
   min-width: 0;
 }
-@media (min-width: 620px) {
-  .ins-section.wide {
-    grid-column: span 2;
-  }
+.ins-section.wide {
+  flex: 2 1 calc(340px * var(--ui-scale));
 }
 .ins-section-head {
   display: flex;
@@ -385,11 +329,13 @@
   padding: 0 var(--sp-4) var(--sp-3);
 }
 
-/* Perform mode is one column of controls above a large keyboard: on a phone
-   the sections would otherwise each be too narrow to hold a knob row. */
+/* Perform mode is one column of controls above a large keyboard: two sections
+   side by side on a phone leaves neither wide enough for a knob row. */
 .perform-page .ins-sections {
-  grid-template-columns: minmax(0, 1fr);
+  flex-direction: column;
 }
+.perform-page .ins-section,
 .perform-page .ins-section.wide {
-  grid-column: auto;
+  flex: 0 0 auto;
+  width: 100%;
 }

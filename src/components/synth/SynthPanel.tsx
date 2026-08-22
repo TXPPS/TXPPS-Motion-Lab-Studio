@@ -34,12 +34,7 @@ import { useTransportStore } from '../../state/transportStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
 import { ParamKnob } from '../common/widgets';
-import {
-  EnvelopeGraph,
-  FilterCurve,
-  InstrumentSection,
-  OscScope,
-} from '../instrument/displays';
+import { EnvelopeGraph, FilterCurve, InstrumentSection, OscScope } from '../instrument/displays';
 import { InstrumentFrame } from '../instrument/InstrumentFrame';
 import { InstrumentKindSelect, SamplerPanel } from '../sampler/SamplerPanel';
 import { Keyboard } from './Keyboard';
@@ -194,7 +189,10 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
 
   const filter = synthVoiceFilter(p);
   const envelope = synthAmpEnvelope(p);
-  const cutoffNorm = Math.log(p.cutoff / 40) / Math.log(12000 / 40);
+  // One range for the knob, the curve handle, the automation lane and the
+  // voice: the knob used to stop at 12 kHz while everything else reached 18.
+  const cutoffSpan = Math.log(SYNTH_CUTOFF_MAX_HZ / SYNTH_CUTOFF_MIN_HZ);
+  const cutoffNorm = Math.log(p.cutoff / SYNTH_CUTOFF_MIN_HZ) / cutoffSpan;
 
   return (
     <InstrumentFrame<SynthParams>
@@ -286,7 +284,10 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
                   value: p.resonance,
                   min: SYNTH_Q_MIN_DB,
                   max: SYNTH_Q_MAX_DB,
-                  onChange: (db) => set({ resonance: Math.round(db * 10) / 10 }),
+                  // Two decimals, not one: the voice's floor is 0.05 dB, and
+                  // a coarser grid would make the bottom of the range a place
+                  // the control could not actually reach.
+                  onChange: (db) => set({ resonance: Math.round(db * 100) / 100 }),
                 }}
                 {...gesture}
               />
@@ -299,7 +300,9 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
                 <ParamKnob
                   label="Cutoff"
                   norm={clamp(cutoffNorm, 0, 1)}
-                  onNorm={(n) => set({ cutoff: Math.round(40 * Math.pow(12000 / 40, n)) })}
+                  onNorm={(n) =>
+                    set({ cutoff: Math.round(SYNTH_CUTOFF_MIN_HZ * Math.exp(n * cutoffSpan)) })
+                  }
                   display={formatHz(p.cutoff)}
                 />
                 <ParamKnob
@@ -312,9 +315,8 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
                   onNorm={(n) =>
                     set({
                       resonance:
-                        Math.round(
-                          (SYNTH_Q_MIN_DB + n * (SYNTH_Q_MAX_DB - SYNTH_Q_MIN_DB)) * 10,
-                        ) / 10,
+                        Math.round((SYNTH_Q_MIN_DB + n * (SYNTH_Q_MAX_DB - SYNTH_Q_MIN_DB)) * 100) /
+                        100,
                     })
                   }
                   // The filter's magnitude at its own corner is its Q, and this

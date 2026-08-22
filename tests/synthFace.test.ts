@@ -113,7 +113,10 @@ class AudioBufferStub {
     this.length = opts.length;
     this.sampleRate = opts.sampleRate;
     this.duration = opts.length / opts.sampleRate;
-    this.channels = Array.from({ length: opts.numberOfChannels }, () => new Float32Array(opts.length));
+    this.channels = Array.from(
+      { length: opts.numberOfChannels },
+      () => new Float32Array(opts.length),
+    );
   }
   getChannelData(i: number): Float32Array {
     return this.channels[i];
@@ -229,7 +232,8 @@ function automationValueAt(calls: readonly Call[], t: number): number {
   const events: Call[] = [];
   for (const c of calls) {
     if (c.method === 'cancel') {
-      for (let i = events.length - 1; i >= 0; i--) if (events[i].time >= c.time) events.splice(i, 1);
+      for (let i = events.length - 1; i >= 0; i--)
+        if (events[i].time >= c.time) events.splice(i, 1);
       continue;
     }
     events.push(c);

@@ -1,31 +1,58 @@
 /**
- * Sampler workstation panel: Quick, Drum Rack and Multisample are three views
- * over one zone model, plus the instrument-rack section. Mounted wherever the
- * synth panel mounts; the synth panel delegates here when the track has a
- * sampler or a rack.
+ * The four sampler instruments.
+ *
+ * Quick Sampler, Drum Rack, Multisample and Instrument Rack are four different
+ * instruments over one zone model, and the reference's rule is that an
+ * instrument's face is signal-ordered and that its *performance* surface — the
+ * waveform, the pad grid, the key map, the layer stack — is the largest thing
+ * on it. A sampler that looks like a synth is a tell that nobody designed it,
+ * and so is four samplers that look like each other.
+ *
+ * So each view owns its own top half, and they share the tail every sampler
+ * has: filter, amplitude envelope, modulator, output. Everything drawn there
+ * comes from `model/synthFace.ts`, which reports what
+ * `audio/samplerInstrument.ts` builds — including the places it builds nothing,
+ * which is why "LFO → filter" with no filter now says so instead of offering
+ * two controls that reach nothing.
  */
-import { memo, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { engine } from '../../audio/engine';
 import { getBufferSync } from '../../audio/mediaLibrary';
-import { midiToName } from '../../model/music';
+import { formatHz } from '../../model/effects';
+import { clamp, midiToName } from '../../model/music';
 import {
   buildDrumKit,
   detectTransients,
   makeZone,
   snapToZeroCrossing,
+  zonePlaybackRate,
   DRUM_PAD_BASE,
   MAX_DRUM_PADS,
   type SamplerParams,
   type SampleZone,
 } from '../../model/sampler';
+import {
+  formatSeconds,
+  lfoSweepHz,
+  rackLayersAt,
+  samplerAmpEnvelope,
+  samplerLfoOf,
+  samplerVoiceFilter,
+  zonePlaySeconds,
+  zoneWindowOf,
+} from '../../model/synthFace';
 import { PROCEDURAL_MEDIA_IDS } from '../../model/media';
-import type { Track } from '../../model/types';
+import type { RackItem, Track } from '../../model/types';
 import { TRACK_COLORS } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
+import { ParamKnob } from '../common/widgets';
+import { EnvelopeGraph, FilterCurve, InstrumentSection, LfoScope } from '../instrument/displays';
+import { InstrumentFrame } from '../instrument/InstrumentFrame';
 import { Waveform } from '../arrangement/Waveform';
 import { Keyboard } from '../synth/Keyboard';
+import { ZoneMap } from './ZoneMap';
 
 const preview = (trackId: string, pitch: number, vel = 110) => {
   void engine.start().then(() => {
@@ -40,16 +67,86 @@ function droppedMediaId(e: React.DragEvent): string | null {
   return id || null;
 }
 
-/** Drag handler for one trim edge of the wave editor. */
-function useDragEdge(track: Track, zone: SampleZone, dur: number, which: 'start' | 'end') {
+function num(v: string, d: number): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : d;
+}
+
+/** The four edges of a zone's playback window that can be dragged. */
+type Edge = 'start' | 'end' | 'loopStart' | 'loopEnd';
+
+const EDGE_LABEL: Record<Edge, string> = {
+  start: 'Window start',
+  end: 'Window end',
+  loopStart: 'Loop start',
+  loopEnd: 'Loop end',
+};
+
+/**
+ * Move one edge of the window, with the bounds the voice will apply anyway.
+ *
+ * Clamping here rather than only in the drawing means the number stored is the
+ * number the audio uses, so the marker cannot be pulled somewhere the voice
+ * will quietly ignore.
+ */
+function edgePatch(edge: Edge, sec: number, zone: SampleZone, dur: number): Partial<SampleZone> {
+  const w = zoneWindowOf(zone, dur);
+  switch (edge) {
+    case 'start':
+      return { startSec: clamp(sec, 0, w.endSec - 0.01) };
+    case 'end':
+      return { endSec: clamp(sec, w.startSec + 0.01, dur) };
+    case 'loopStart':
+      return { loopStartSec: clamp(sec, w.startSec, w.loopEndSec - 0.003) };
+    case 'loopEnd':
+      return { loopEndSec: clamp(sec, w.loopStartSec + 0.003, w.endSec) };
+  }
+}
+
+const edgeValue = (edge: Edge, zone: SampleZone, dur: number): number => {
+  const w = zoneWindowOf(zone, dur);
+  return edge === 'start'
+    ? w.startSec
+    : edge === 'end'
+      ? w.endSec
+      : edge === 'loopStart'
+        ? w.loopStartSec
+        : w.loopEndSec;
+};
+
+/** How far one arrow key moves a marker, and how far Shift makes it. */
+const NUDGE_SEC = 0.01;
+
+/**
+ * One draggable marker on the waveform.
+ *
+ * A slider, not a decorated div: it carries the second it is on as its value,
+ * it takes the arrow keys, and it says which edge it is. The four markers were
+ * previously two divs with a `title` and no keyboard route at all.
+ */
+function WindowHandle({
+  edge,
+  track,
+  zone,
+  dur,
+}: {
+  edge: Edge;
+  track: Track;
+  zone: SampleZone;
+  dur: number;
+}) {
   const store = useProjectStore;
   const buf = getBufferSync(zone.mediaId);
-  const endSec = zone.endSec ?? dur;
-  return usePointerDrag<{ v0: number; w: number }>({
+  const value = edgeValue(edge, zone, dur);
+
+  const apply = (sec: number) =>
+    store.getState().updateSamplerZones(track.id, [zone.id], () => edgePatch(edge, sec, zone, dur));
+
+  const onPointerDown = usePointerDrag<{ v0: number; w: number }>({
     onStart: (e) => {
       store.getState().beginGesture();
-      const host = (e.currentTarget as HTMLElement).parentElement!;
-      return { v0: which === 'start' ? zone.startSec : endSec, w: host.clientWidth };
+      const host = (e.currentTarget as HTMLElement).parentElement;
+      return { v0: value, w: host?.clientWidth || 1 };
     },
     onMove: (dx, _dy, e2, d) => {
       let sec = d.v0 + (dx / d.w) * dur;
@@ -57,84 +154,110 @@ function useDragEdge(track: Track, zone: SampleZone, dur: number, which: 'start'
       if (buf && !e2.altKey) {
         sec = snapToZeroCrossing(buf.getChannelData(0), buf.sampleRate, sec, 0.008);
       }
-      store
-        .getState()
-        .updateSamplerZones(track.id, [zone.id], () =>
-          which === 'start'
-            ? { startSec: Math.max(0, Math.min(sec, endSec - 0.01)) }
-            : { endSec: Math.max(zone.startSec + 0.01, Math.min(sec, dur)) },
-        );
+      apply(sec);
     },
     onEnd: () => store.getState().endGesture(),
   });
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const dir = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+    if (dir === 0) return;
+    e.preventDefault();
+    store.getState().beginGesture();
+    apply(value + dir * NUDGE_SEC * (e.shiftKey ? 10 : 1));
+    store.getState().endGesture();
+  };
+
+  const loop = edge === 'loopStart' || edge === 'loopEnd';
+  return (
+    <button
+      type="button"
+      className={`smp-handle ${edge === 'start' || edge === 'loopStart' ? 'l' : 'r'}${
+        loop ? ' loop' : ''
+      }`}
+      style={{
+        // The clamp keeps the 10px grip fully inside the clipped container at
+        // the extremes — Firefox hit-tests overflow-clipped children strictly,
+        // so a half-outside handle would be ungrabbable at 0% and 100% there.
+        left: `clamp(0px, calc(${(value / dur) * 100}% - 5px), calc(100% - 10px))`,
+      }}
+      role="slider"
+      aria-label={EDGE_LABEL[edge]}
+      aria-valuemin={0}
+      aria-valuemax={Math.round(dur * 1000) / 1000}
+      aria-valuenow={Math.round(value * 1000) / 1000}
+      aria-valuetext={`${value.toFixed(3)} seconds`}
+      title={`${EDGE_LABEL[edge]} — drag, or arrow keys (Alt bypasses zero-crossing snap)`}
+      data-testid={
+        edge === 'start' ? 'smp-trim-start' : edge === 'end' ? 'smp-trim-end' : `smp-${edge}`
+      }
+      onPointerDown={onPointerDown}
+      onKeyDown={onKeyDown}
+    />
+  );
 }
 
 function ZoneWaveEditor({ track, zone }: { track: Track; zone: SampleZone }) {
   const buf = getBufferSync(zone.mediaId);
   const dur = buf?.duration ?? 4;
-  const endSec = zone.endSec ?? dur;
-  const dragStart = useDragEdge(track, zone, dur, 'start');
-  const dragEnd = useDragEdge(track, zone, dur, 'end');
+  // The window the voice will actually play, not the raw fields: a loop point
+  // authored outside the trim is pulled inside it before a note sounds, and
+  // drawing the raw number puts the band where nothing happens.
+  const w = zoneWindowOf(zone, dur);
+  const pct = (sec: number) => `${(sec / dur) * 100}%`;
 
   return (
-    <div className="smp-wave" data-testid="smp-wave">
-      <Waveform
-        mediaId={zone.mediaId}
-        offsetSec={0}
-        durationSec={dur}
-        color="#37b89a"
-        gain={zone.gain}
-        fadeIn={0}
-        fadeOut={0}
-        widthPx={640}
-        heightPx={90}
-      />
-      {/* dimmed outside the playback window */}
-      <div className="smp-dim" style={{ left: 0, width: `${(zone.startSec / dur) * 100}%` }} />
-      <div className="smp-dim" style={{ left: `${(endSec / dur) * 100}%`, right: 0 }} />
-      {zone.loop && (
-        <div
-          className="smp-loop"
-          style={{
-            left: `${((zone.loopStartSec ?? zone.startSec) / dur) * 100}%`,
-            width: `${(((zone.loopEndSec ?? endSec) - (zone.loopStartSec ?? zone.startSec)) / dur) * 100}%`,
-          }}
+    <>
+      <div className="smp-wave" data-testid="smp-wave">
+        <Waveform
+          mediaId={zone.mediaId}
+          offsetSec={0}
+          durationSec={dur}
+          // A canvas cannot resolve a custom property, so this has to be a
+          // real colour. The track's is the right one: a sample loaded into a
+          // channel is that channel's material, and identity is track colour.
+          color={track.color}
+          gain={zone.gain}
+          fadeIn={0}
+          fadeOut={0}
+          widthPx={640}
+          heightPx={90}
         />
-      )}
-      {(zone.slices ?? []).map((s, i) => (
-        <div
-          key={i}
-          className="smp-slice"
-          style={{ left: `${(s / dur) * 100}%` }}
-          title={`Slice ${i + 1}`}
-        />
-      ))}
-      {/* clamp keeps the 10px grips fully inside the clipped container at the
-          extremes — Firefox hit-tests overflow-clipped children strictly, so a
-          half-outside handle would be ungrabbable at 0%/100% there */}
-      <div
-        className="smp-handle l"
-        style={{
-          left: `clamp(0px, calc(${(zone.startSec / dur) * 100}% - 5px), calc(100% - 10px))`,
-        }}
-        title="Trim start (Alt bypasses zero-crossing snap)"
-        onPointerDown={dragStart}
-        data-testid="smp-trim-start"
-      />
-      <div
-        className="smp-handle r"
-        style={{ left: `clamp(0px, calc(${(endSec / dur) * 100}% - 5px), calc(100% - 10px))` }}
-        title="Trim end (Alt bypasses zero-crossing snap)"
-        onPointerDown={dragEnd}
-        data-testid="smp-trim-end"
-      />
-    </div>
+        {/* dimmed outside the playback window */}
+        <div className="smp-dim" style={{ left: 0, width: pct(w.startSec) }} />
+        <div className="smp-dim" style={{ left: pct(w.endSec), right: 0 }} />
+        {w.loop && (
+          <div
+            className="smp-loop"
+            style={{ left: pct(w.loopStartSec), width: pct(w.loopEndSec - w.loopStartSec) }}
+          />
+        )}
+        {(zone.slices ?? []).map((s, i) => (
+          <div
+            key={i}
+            className="smp-slice"
+            style={{ left: pct(s) }}
+            title={`Slice ${i + 1}`}
+            aria-hidden
+          />
+        ))}
+        <WindowHandle edge="start" track={track} zone={zone} dur={dur} />
+        <WindowHandle edge="end" track={track} zone={zone} dur={dur} />
+        {w.loop && <WindowHandle edge="loopStart" track={track} zone={zone} dur={dur} />}
+        {w.loop && <WindowHandle edge="loopEnd" track={track} zone={zone} dur={dur} />}
+      </div>
+      <div className="ins-legend smp-wave-axis">
+        <span className="t-label">
+          Window <span className="t-num">{formatSeconds(w.windowSec)}</span>
+        </span>
+        <span className="grow" />
+        <span className="t-label">
+          At root, plays{' '}
+          <span className="t-num">{formatSeconds(zonePlaySeconds(zone, dur, zone.rootNote))}</span>
+        </span>
+      </div>
+    </>
   );
-}
-
-function num(v: string, d: number): number {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : d;
 }
 
 function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
@@ -143,33 +266,35 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
   const zone = params.zones[0];
   if (!zone) {
     return (
-      <div
-        className="smp-drop"
-        data-testid="smp-drop"
-        onDragOver={(e) => {
-          if (e.dataTransfer.types.includes('text/x-ml-media')) e.preventDefault();
-        }}
-        onDrop={(e) => {
-          const id = droppedMediaId(e);
-          if (!id) return;
-          e.preventDefault();
-          store.getState().addSamplerZones(track.id, [makeZone({ mediaId: id, name: id })]);
-        }}
-      >
-        Drag a sample here from the Browser → Samples tab
-        <button
-          className="btn"
-          onClick={() =>
-            store
-              .getState()
-              .addSamplerZones(track.id, [
-                makeZone({ mediaId: PROCEDURAL_MEDIA_IDS[0], name: 'Perc Loop' }),
-              ])
-          }
+      <InstrumentSection title="Sample" wide testId="smp-quick">
+        <div
+          className="smp-drop"
+          data-testid="smp-drop"
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes('text/x-ml-media')) e.preventDefault();
+          }}
+          onDrop={(e) => {
+            const id = droppedMediaId(e);
+            if (!id) return;
+            e.preventDefault();
+            store.getState().addSamplerZones(track.id, [makeZone({ mediaId: id, name: id })]);
+          }}
         >
-          Load demo loop
-        </button>
-      </div>
+          Drag a sample here from the Browser → Samples tab
+          <button
+            className="btn"
+            onClick={() =>
+              store
+                .getState()
+                .addSamplerZones(track.id, [
+                  makeZone({ mediaId: PROCEDURAL_MEDIA_IDS[0], name: 'Perc Loop' }),
+                ])
+            }
+          >
+            Load demo loop
+          </button>
+        </div>
+      </InstrumentSection>
     );
   }
   const upd = (patch: Partial<SampleZone>) =>
@@ -177,7 +302,12 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
   const buf = getBufferSync(zone.mediaId);
 
   return (
-    <div className="smp-quick" data-testid="smp-quick">
+    <InstrumentSection
+      title="Sample"
+      aside={`${zone.name} · ${midiToName(zone.rootNote)}`}
+      wide
+      testId="smp-quick"
+    >
       <ZoneWaveEditor track={track} zone={zone} />
       <div className="smp-row">
         <button
@@ -185,7 +315,7 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
           onClick={() => preview(track.id, zone.rootNote)}
           data-testid="smp-preview"
         >
-          ▶ Preview
+          Preview
         </button>
         <label>
           Root
@@ -221,7 +351,7 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
           ct
         </label>
         <button
-          className={`th-mini${zone.loop ? ' s-on' : ''}`}
+          className={`th-mini wide${zone.loop ? ' on' : ''}`}
           aria-pressed={zone.loop}
           onClick={() => upd({ loop: !zone.loop })}
           title="Loop the playback window"
@@ -229,7 +359,7 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
           LOOP
         </button>
         <button
-          className={`th-mini${zone.reverse ? ' s-on' : ''}`}
+          className={`th-mini wide${zone.reverse ? ' on' : ''}`}
           aria-pressed={zone.reverse}
           onClick={() => upd({ reverse: !zone.reverse })}
           title="Reverse playback"
@@ -238,7 +368,7 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
           REV
         </button>
         <button
-          className={`th-mini${zone.oneShot ? ' s-on' : ''}`}
+          className={`th-mini wide${zone.oneShot ? ' on' : ''}`}
           aria-pressed={zone.oneShot}
           onClick={() => upd({ oneShot: !zone.oneShot })}
           title="One-shot: ignore note-off"
@@ -254,11 +384,9 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
               return;
             }
             const data = buf.getChannelData(0);
-            const from = Math.floor(zone.startSec * buf.sampleRate);
-            const to = Math.min(
-              data.length,
-              Math.floor((zone.endSec ?? buf.duration) * buf.sampleRate),
-            );
+            const w = zoneWindowOf(zone, buf.duration);
+            const from = Math.floor(w.startSec * buf.sampleRate);
+            const to = Math.min(data.length, Math.floor(w.endSec * buf.sampleRate));
             let peak = 0;
             for (let i = from; i < to; i++) {
               const a = Math.abs(data[i]);
@@ -280,8 +408,9 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
               ui.getState().toast('error', 'Start audio once so the sample can be decoded.');
               return;
             }
+            const w = zoneWindowOf(zone, buf.duration);
             const markers = detectTransients(buf.getChannelData(0), buf.sampleRate).filter(
-              (s) => s >= zone.startSec && s <= (zone.endSec ?? buf.duration),
+              (s) => s >= w.startSec && s <= w.endSec,
             );
             store.getState().setZoneSlices(track.id, zone.id, markers);
             ui.getState().toast(
@@ -322,8 +451,24 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
           Slices → MIDI
         </button>
       </div>
-    </div>
+    </InstrumentSection>
   );
+}
+
+/**
+ * Velocity from where the pad was struck.
+ *
+ * A pad grid is a performance surface, and the one thing a real one has that a
+ * button does not is that it answers to how you hit it. The top of the pad is
+ * full velocity and the bottom is a ghost note; the keyboard route plays the
+ * pad at a fixed strong velocity, because a key press has no position.
+ */
+const PAD_MIN_VELOCITY = 34;
+function padVelocity(e: React.MouseEvent<HTMLElement>): number {
+  const box = e.currentTarget.getBoundingClientRect();
+  if (box.height <= 0) return 110;
+  const down = clamp((e.clientY - box.top) / box.height, 0, 1);
+  return Math.round(PAD_MIN_VELOCITY + (1 - down) * (127 - PAD_MIN_VELOCITY));
 }
 
 function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
@@ -340,22 +485,29 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
   const maxIndex = Math.max(15, ...[...byIndex.keys()]);
   const count = Math.min(MAX_DRUM_PADS, Math.max(padCount, maxIndex + 1));
   const sel = params.zones.find((z) => z.id === selected) ?? null;
+  const anySolo = params.zones.some((z) => z.solo);
 
   return (
     <div className="smp-drum" data-testid="smp-drum">
       <div className="pad-grid" data-testid="pad-grid">
         {Array.from({ length: count }, (_, i) => {
           const z = byIndex.get(i);
-          const trigger = () => {
-            if (z) {
-              setSelected(z.id);
-              preview(track.id, DRUM_PAD_BASE + i);
-            }
+          const key = DRUM_PAD_BASE + i;
+          // A pad that will not sound reads as switched off, not as disabled:
+          // the zone matcher drops muted zones, and un-soloed ones whenever
+          // anything is soloed.
+          const silenced = !!z && (z.muted || (anySolo && !z.solo));
+          const trigger = (velocity: number) => {
+            if (!z) return;
+            setSelected(z.id);
+            preview(track.id, key, velocity);
           };
           return (
             <div
               key={i}
-              className={`pad${z ? '' : ' empty'}${z && z.id === selected ? ' selected' : ''}${z?.muted ? ' muted' : ''}`}
+              className={`pad${z ? '' : ' empty'}${z && z.id === selected ? ' selected' : ''}${
+                silenced ? ' muted' : ''
+              }`}
               style={
                 z?.color
                   ? ({ ['--pad-color' as string]: z.color } as React.CSSProperties)
@@ -366,14 +518,14 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
               tabIndex={z ? 0 : -1}
               aria-label={
                 z
-                  ? `Pad ${i + 1}: ${z.name} (${midiToName(DRUM_PAD_BASE + i)})`
+                  ? `Pad ${i + 1}: ${z.name} (${midiToName(key)})${silenced ? ', silent' : ''}`
                   : `Empty pad ${i + 1}`
               }
-              onClick={trigger}
+              onClick={(e) => trigger(padVelocity(e))}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  trigger();
+                  trigger(110);
                 }
               }}
               onDragOver={(e) => {
@@ -386,11 +538,19 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
                 store.getState().assignPad(track.id, i, id, id.replace(/^hit-/, ''));
               }}
               title={
-                z ? `${z.name} — click to preview, drop a sample to replace` : 'Drop a sample here'
+                z
+                  ? `${z.name} — strike low for soft, high for hard; drop a sample to replace`
+                  : 'Drop a sample here'
               }
             >
+              <span className="pad-index t-num">{i + 1}</span>
+              {z?.chokeGroup !== undefined && (
+                <span className="pad-choke t-num" title={`Choke group ${z.chokeGroup}`}>
+                  C{z.chokeGroup}
+                </span>
+              )}
               <span className="pad-name">{z?.name ?? '—'}</span>
-              <span className="pad-key mono">{midiToName(DRUM_PAD_BASE + i)}</span>
+              <span className="pad-key mono">{midiToName(key)}</span>
             </div>
           );
         })}
@@ -406,6 +566,7 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
         >
           Load 808-ish kit
         </button>
+        <span className="hint">Strike a pad low for soft, high for hard.</span>
       </div>
       {sel && (
         <div className="smp-row pad-detail" data-testid="pad-detail">
@@ -438,6 +599,7 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
           <button
             className={`th-mini${sel.muted ? ' m-on' : ''}`}
             aria-pressed={!!sel.muted}
+            aria-label="Mute pad"
             onClick={() =>
               store.getState().updateSamplerZones(track.id, [sel.id], (z) => ({ muted: !z.muted }))
             }
@@ -447,44 +609,39 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
           <button
             className={`th-mini${sel.solo ? ' s-on' : ''}`}
             aria-pressed={!!sel.solo}
+            aria-label="Solo pad"
             onClick={() =>
               store.getState().updateSamplerZones(track.id, [sel.id], (z) => ({ solo: !z.solo }))
             }
           >
             S
           </button>
-          <label>
-            Gain
-            <input
-              type="range"
-              min={0}
-              max={2}
-              step={0.01}
-              value={sel.gain}
-              onChange={(e) =>
-                store
-                  .getState()
-                  .updateSamplerZones(track.id, [sel.id], () => ({ gain: num(e.target.value, 1) }))
-              }
-              aria-label="Pad gain"
-            />
-          </label>
-          <label>
-            Pan
-            <input
-              type="range"
-              min={-1}
-              max={1}
-              step={0.01}
-              value={sel.pan}
-              onChange={(e) =>
-                store
-                  .getState()
-                  .updateSamplerZones(track.id, [sel.id], () => ({ pan: num(e.target.value, 0) }))
-              }
-              aria-label="Pad pan"
-            />
-          </label>
+          <ParamKnob
+            label="Gain"
+            norm={clamp(sel.gain / 2, 0, 1)}
+            onNorm={(n) =>
+              store.getState().updateSamplerZones(track.id, [sel.id], () => ({
+                gain: Math.round(n * 2 * 100) / 100,
+              }))
+            }
+            display={`${Math.round(sel.gain * 100)}%`}
+            size={34}
+          />
+          <ParamKnob
+            label="Pan"
+            norm={(sel.pan + 1) / 2}
+            onNorm={(n) =>
+              store.getState().updateSamplerZones(track.id, [sel.id], () => ({
+                pan: Math.round((n * 2 - 1) * 100) / 100,
+              }))
+            }
+            display={
+              sel.pan === 0
+                ? 'C'
+                : `${Math.abs(Math.round(sel.pan * 100))}${sel.pan < 0 ? 'L' : 'R'}`
+            }
+            size={34}
+          />
           <label>
             Pitch
             <input
@@ -499,6 +656,7 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
               }
               aria-label="Pad pitch (semitones)"
             />
+            <span className="hint t-num">{zonePlaybackRate(sel, sel.rootNote).toFixed(2)}×</span>
           </label>
           <label>
             Choke
@@ -519,6 +677,7 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
           <button
             className="th-mini"
             title="Remove pad"
+            aria-label="Remove pad"
             onClick={() => {
               store.getState().removeSamplerZones(track.id, [sel.id]);
               setSelected(null);
@@ -550,15 +709,34 @@ const zoneRowEq = (a: SampleZone, b: SampleZone) =>
   a.rrGroup === b.rrGroup;
 
 const ZoneRow = memo(
-  function ZoneRow({ trackId, z }: { trackId: string; z: SampleZone }) {
+  function ZoneRow({
+    trackId,
+    z,
+    selected,
+    onSelect,
+  }: {
+    trackId: string;
+    z: SampleZone;
+    selected: boolean;
+    onSelect: (id: string) => void;
+  }) {
     const store = useProjectStore;
     const upd = (patch: Partial<SampleZone>) =>
       store.getState().updateSamplerZones(trackId, [z.id], () => patch);
     return (
-      <div className="zone-row" data-testid="zone-row">
+      // Reaching a row — by pointer or by tab — is what selects it on the map
+      // above. Selection is a consequence of where you are, so it needs no
+      // control of its own and no second keyboard route.
+      <div
+        className={`zone-row${selected ? ' selected' : ''}`}
+        data-testid="zone-row"
+        onFocusCapture={() => onSelect(z.id)}
+        onPointerDown={() => onSelect(z.id)}
+      >
         <button
           className="th-mini"
           title="Preview at root"
+          aria-label={`Preview ${z.name}`}
           onClick={() => preview(trackId, z.rootNote)}
         >
           ▶
@@ -642,6 +820,7 @@ const ZoneRow = memo(
         <button
           className="th-mini"
           title="Remove zone"
+          aria-label={`Remove ${z.name}`}
           onClick={() => store.getState().removeSamplerZones(trackId, [z.id])}
         >
           ×
@@ -649,44 +828,96 @@ const ZoneRow = memo(
       </div>
     );
   },
-  (prev, next) => prev.trackId === next.trackId && zoneRowEq(prev.z, next.z),
+  (prev, next) =>
+    prev.trackId === next.trackId && prev.selected === next.selected && zoneRowEq(prev.z, next.z),
 );
 
 function MultiView({ track, params }: { track: Track; params: SamplerParams }) {
   const store = useProjectStore;
+  const [selected, setSelected] = useState<string | null>(null);
+  const onSelect = useCallback((id: string) => setSelected(id), []);
+  const selectedId = params.zones.some((z) => z.id === selected) ? selected : null;
+
   return (
-    <div className="smp-multi" data-testid="smp-multi">
-      <div className="zone-list">
-        {params.zones.map((z) => (
-          <ZoneRow key={z.id} trackId={track.id} z={z} />
-        ))}
-      </div>
-      <div className="smp-row">
-        <button
-          className="btn"
-          data-testid="add-zone"
-          onClick={() =>
-            store.getState().addSamplerZones(track.id, [
-              makeZone({
-                mediaId: PROCEDURAL_MEDIA_IDS[1],
-                name: `Zone ${params.zones.length + 1}`,
-              }),
-            ])
-          }
-        >
-          + Zone
-        </button>
-        <span className="hint">
-          Overlapping key ranges crossfade; drop samples from the browser onto rows to replace.
-        </span>
-      </div>
+    <>
+      <InstrumentSection
+        title="Key and velocity map"
+        wide
+        testId="smp-multi"
+        aside={`${params.zones.length} zone${params.zones.length === 1 ? '' : 's'}`}
+      >
+        <ZoneMap zones={params.zones} selectedId={selectedId} />
+        <div className="ins-legend">
+          <span className="t-label">Overlaps crossfade</span>
+          <span className="grow" />
+          <span className="t-label">Focus a zone below to trace it</span>
+        </div>
+      </InstrumentSection>
+      <InstrumentSection title="Zones" wide>
+        <div className="zone-list">
+          {params.zones.map((z) => (
+            <ZoneRow
+              key={z.id}
+              trackId={track.id}
+              z={z}
+              selected={z.id === selectedId}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+        <div className="smp-row">
+          <button
+            className="btn"
+            data-testid="add-zone"
+            onClick={() =>
+              store.getState().addSamplerZones(track.id, [
+                makeZone({
+                  mediaId: PROCEDURAL_MEDIA_IDS[1],
+                  name: `Zone ${params.zones.length + 1}`,
+                }),
+              ])
+            }
+          >
+            + Zone
+          </button>
+          <span className="hint">
+            Overlapping key ranges crossfade; drop samples from the browser onto rows to replace.
+          </span>
+        </div>
+      </InstrumentSection>
+    </>
+  );
+}
+
+/** The key span of one layer, drawn where the rack will actually reach it. */
+function LayerBar({ item, audible }: { item: RackItem; audible: boolean }) {
+  return (
+    <div className={`layer-bar${audible ? '' : ' off'}`} aria-hidden="true">
+      <div
+        style={{
+          left: `${(item.keyLo / 127) * 100}%`,
+          width: `${(Math.max(1, item.keyHi - item.keyLo) / 127) * 100}%`,
+          background: item.color,
+        }}
+      />
     </div>
   );
 }
 
 function RackSection({ track }: { track: Track }) {
   const store = useProjectStore;
-  const items = track.rack?.items ?? [];
+  const items = useMemo(() => track.rack?.items ?? [], [track.rack]);
+  // A layer is audible where the rack sends it anything at all: the middle of
+  // its own range is the honest place to ask.
+  const audible = useMemo(() => {
+    const set = new Set<string>();
+    for (const i of items) {
+      const mid = Math.round((i.keyLo + i.keyHi) / 2);
+      for (const l of rackLayersAt(items, mid)) set.add(l.id);
+    }
+    return set;
+  }, [items]);
+
   return (
     <div className="smp-rack" data-testid="smp-rack">
       <div className="ps-title">
@@ -694,7 +925,7 @@ function RackSection({ track }: { track: Track }) {
         <span className="hint">{items.length ? '(overrides the instrument above)' : ''}</span>
       </div>
       {items.map((it) => (
-        <div key={it.id} className="zone-row" data-testid="rack-item">
+        <div key={it.id} className="zone-row layer-row" data-testid="rack-item">
           <span className="alh-dot" style={{ background: it.color }} />
           <input
             type="text"
@@ -732,9 +963,14 @@ function RackSection({ track }: { track: Track }) {
               }
             />
           </label>
+          <LayerBar item={it} audible={audible.has(it.id)} />
+          <span className="hint t-num" title="Key range">
+            {midiToName(it.keyLo)}–{midiToName(it.keyHi)}
+          </span>
           <button
             className={`th-mini${it.muted ? ' m-on' : ''}`}
             aria-pressed={it.muted}
+            aria-label={`Mute ${it.name}`}
             onClick={() => store.getState().rackUpdateItem(track.id, it.id, { muted: !it.muted })}
           >
             M
@@ -742,6 +978,7 @@ function RackSection({ track }: { track: Track }) {
           <button
             className={`th-mini${it.solo ? ' s-on' : ''}`}
             aria-pressed={it.solo}
+            aria-label={`Solo ${it.name}`}
             onClick={() => store.getState().rackUpdateItem(track.id, it.id, { solo: !it.solo })}
           >
             S
@@ -749,6 +986,7 @@ function RackSection({ track }: { track: Track }) {
           <button
             className="th-mini"
             title="Move up"
+            aria-label={`Move ${it.name} up`}
             onClick={() => store.getState().rackMoveItem(track.id, it.id, -1)}
           >
             ↑
@@ -756,6 +994,7 @@ function RackSection({ track }: { track: Track }) {
           <button
             className="th-mini"
             title="Remove layer"
+            aria-label={`Remove ${it.name}`}
             onClick={() => store.getState().rackRemoveItem(track.id, it.id)}
           >
             ×
@@ -790,6 +1029,7 @@ export function InstrumentKindSelect({ track }: { track: Track }) {
       value={value}
       aria-label="Instrument type"
       data-testid="instrument-kind"
+      className="pw-preset"
       onChange={(e) => {
         const v = e.target.value;
         if (v === 'rack') {
@@ -808,158 +1048,276 @@ export function InstrumentKindSelect({ track }: { track: Track }) {
   );
 }
 
+/** The filter, envelope, modulator and output every sampler view shares. */
+function VoiceSections({ track, params }: { track: Track; params: SamplerParams }) {
+  const store = useProjectStore;
+  const setP = (patch: Partial<SamplerParams>) =>
+    store.getState().setSamplerParams(track.id, patch);
+  const gesture = {
+    onGestureStart: () => store.getState().beginGesture(),
+    onGestureEnd: () => store.getState().endGesture(),
+  };
+
+  const filter = samplerVoiceFilter(params);
+  const lfo = samplerLfoOf(params);
+  const envelope = samplerAmpEnvelope(params);
+
+  return (
+    <>
+      <InstrumentSection
+        title="Filter"
+        wide
+        aside={filter ? `${formatHz(filter.freqHz)} · ${filter.qDb.toFixed(1)} dB` : 'Off'}
+      >
+        <div className="seg" role="group" aria-label="Filter type">
+          {(['off', 'lowpass', 'highpass'] as const).map((t) => (
+            <button
+              key={t}
+              className={params.filterType === t ? 'on' : ''}
+              aria-pressed={params.filterType === t}
+              onClick={() => setP({ filterType: t })}
+            >
+              {t === 'off' ? 'Off' : t === 'lowpass' ? 'Low-pass' : 'High-pass'}
+            </button>
+          ))}
+        </div>
+        {filter ? (
+          <>
+            <FilterCurve
+              filter={filter}
+              testId="smp-filter"
+              label="Sampler filter response"
+              sweep={lfo?.target === 'filter' ? lfoSweepHz(filter, lfo) : null}
+              cutoff={{
+                value: params.filterCutoff,
+                min: 40,
+                max: 18000,
+                onChange: (hz) => setP({ filterCutoff: Math.round(hz) }),
+              }}
+              resonance={{
+                value: params.filterRes,
+                min: 0.1,
+                max: 20,
+                onChange: (db) => setP({ filterRes: Math.round(db * 100) / 100 }),
+              }}
+              {...gesture}
+            />
+            <div className="syn-knobs">
+              <ParamKnob
+                label="Cutoff"
+                norm={clamp(Math.log(params.filterCutoff / 40) / Math.log(18000 / 40), 0, 1)}
+                onNorm={(n) => setP({ filterCutoff: Math.round(40 * Math.pow(18000 / 40, n)) })}
+                display={formatHz(params.filterCutoff)}
+              />
+              <ParamKnob
+                label="Res"
+                norm={clamp((params.filterRes - 0.1) / 19.9, 0, 1)}
+                onNorm={(n) => setP({ filterRes: Math.round((0.1 + n * 19.9) * 10) / 10 })}
+                // Q on a pass filter is decibels, so this is the lift at the
+                // corner rather than an abstract quality factor.
+                display={`${params.filterRes.toFixed(1)} dB`}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="hint">
+            No filter node is built, so the voice passes the sample through.
+          </div>
+        )}
+      </InstrumentSection>
+
+      <InstrumentSection
+        title="Amp envelope"
+        wide
+        aside={`${formatSeconds(params.attack)} · ${formatSeconds(params.decay)} · ${Math.round(
+          params.sustain * 100,
+        )}% · ${formatSeconds(params.release)}`}
+      >
+        <EnvelopeGraph env={envelope} label="Sampler amplitude envelope" testId="smp-env" />
+        <div className="syn-knobs">
+          <ParamKnob
+            label="A"
+            norm={Math.pow(params.attack / 2, 1 / 3)}
+            onNorm={(n) => setP({ attack: Math.round(Math.pow(n, 3) * 2 * 1000) / 1000 })}
+            display={formatSeconds(params.attack)}
+          />
+          <ParamKnob
+            label="D"
+            norm={Math.pow(params.decay / 2, 1 / 3)}
+            onNorm={(n) =>
+              setP({ decay: Math.max(0.001, Math.round(Math.pow(n, 3) * 2 * 1000) / 1000) })
+            }
+            display={formatSeconds(params.decay)}
+          />
+          <ParamKnob
+            label="S"
+            norm={params.sustain}
+            onNorm={(n) => setP({ sustain: Math.round(n * 100) / 100 })}
+            display={`${Math.round(params.sustain * 100)}%`}
+          />
+          <ParamKnob
+            label="R"
+            norm={Math.pow(params.release / 3, 1 / 3)}
+            onNorm={(n) =>
+              setP({ release: Math.max(0.005, Math.round(Math.pow(n, 3) * 3 * 1000) / 1000) })
+            }
+            display={formatSeconds(params.release)}
+          />
+          <ParamKnob
+            label="Vel"
+            norm={params.velToGain}
+            onNorm={(n) => setP({ velToGain: Math.round(n * 100) / 100 })}
+            display={`${Math.round(params.velToGain * 100)}%`}
+          />
+        </div>
+      </InstrumentSection>
+
+      <InstrumentSection
+        title="LFO"
+        aside={
+          lfo
+            ? `${lfo.rateHz.toFixed(2)} Hz · ${
+                lfo.target === 'pitch'
+                  ? `±${Math.round(lfo.depthCents ?? 0)} cents`
+                  : `±${formatHz(lfo.depthHz ?? 0)}`
+              }`
+            : 'Off'
+        }
+      >
+        <div className="seg" role="group" aria-label="LFO target">
+          {(['off', 'pitch', 'filter'] as const).map((t) => (
+            <button
+              key={t}
+              className={params.lfoTarget === t ? 'on' : ''}
+              aria-pressed={params.lfoTarget === t}
+              onClick={() => setP({ lfoTarget: t })}
+            >
+              {t === 'off' ? 'Off' : t === 'pitch' ? 'Pitch' : 'Filter'}
+            </button>
+          ))}
+        </div>
+        {lfo && <LfoScope lfo={lfo} label={`Modulator, ${lfo.rateHz.toFixed(2)} Hz`} />}
+        {params.lfoTarget !== 'off' && !lfo && (
+          <div className="hint" data-testid="lfo-inert">
+            {params.lfoDepth <= 0
+              ? 'Depth is zero, so no modulator is built.'
+              : 'The filter is off, so this modulator reaches nothing.'}
+          </div>
+        )}
+        {params.lfoTarget !== 'off' && (
+          <div className="syn-knobs">
+            <ParamKnob
+              label="Rate"
+              norm={clamp(Math.log(params.lfoRate / 0.05) / Math.log(20 / 0.05), 0, 1)}
+              onNorm={(n) =>
+                setP({ lfoRate: Math.round(0.05 * Math.pow(20 / 0.05, n) * 100) / 100 })
+              }
+              display={`${params.lfoRate.toFixed(2)} Hz`}
+            />
+            <ParamKnob
+              label="Depth"
+              norm={params.lfoDepth}
+              onNorm={(n) => setP({ lfoDepth: Math.round(n * 100) / 100 })}
+              display={`${Math.round(params.lfoDepth * 100)}%`}
+            />
+          </div>
+        )}
+      </InstrumentSection>
+
+      <InstrumentSection title="Output">
+        <div className="syn-knobs">
+          <ParamKnob
+            label="Volume"
+            norm={clamp(params.volume / 1.5, 0, 1)}
+            onNorm={(n) => setP({ volume: Math.round(n * 1.5 * 100) / 100 })}
+            display={`${Math.round(params.volume * 100)}%`}
+          />
+          <ParamKnob
+            label="Pan"
+            norm={(track.pan + 1) / 2}
+            onNorm={(n) =>
+              store.getState().setTrack(track.id, { pan: Math.round((n * 2 - 1) * 100) / 100 })
+            }
+            display={
+              track.pan === 0
+                ? 'C'
+                : `${Math.abs(Math.round(track.pan * 100))}${track.pan < 0 ? 'L' : 'R'}`
+            }
+          />
+        </div>
+      </InstrumentSection>
+    </>
+  );
+}
+
+const VIEW_NAME: Record<SamplerParams['view'], string> = {
+  quick: 'Quick Sampler',
+  drum: 'Drum Rack',
+  multi: 'Multisample',
+};
+
+/** One line for the frame's footer: what this instrument is, right now. */
+function describeSampler(
+  params: SamplerParams | undefined,
+  hasRack: boolean,
+  track: Track,
+): string {
+  if (hasRack) {
+    const items = track.rack?.items ?? [];
+    return `${items.length} layer${items.length === 1 ? '' : 's'} · ${items
+      .map((i) => `${midiToName(i.keyLo)}–${midiToName(i.keyHi)}`)
+      .join(', ')}`;
+  }
+  if (!params) return 'No sampler loaded';
+  const filter = samplerVoiceFilter(params);
+  const lfo = samplerLfoOf(params);
+  return [
+    `${params.zones.length} zone${params.zones.length === 1 ? '' : 's'}`,
+    filter ? `${filter.type === 'lowpass' ? 'LP' : 'HP'} ${formatHz(filter.freqHz)}` : 'no filter',
+    `A ${formatSeconds(params.attack)} · R ${formatSeconds(params.release)}`,
+    lfo ? `LFO ${lfo.rateHz.toFixed(2)} Hz → ${lfo.target}` : 'no LFO',
+  ].join(' · ');
+}
+
 export function SamplerPanel({ track, performMode }: { track: Track; performMode?: boolean }) {
   const store = useProjectStore;
   const params = track.sampler;
   const hasRack = !!track.rack?.items.length;
-  const setP = (patch: Partial<SamplerParams>) =>
-    store.getState().setSamplerParams(track.id, patch);
+  const name = hasRack ? 'Instrument Rack' : params ? VIEW_NAME[params.view] : 'TX Sampler';
 
   return (
-    <div className={`syn smp${performMode ? ' perform-page' : ''}`} data-testid="sampler-panel">
-      <div className="syn-scroll">
-        <div className="smp-row smp-head">
-          <span className="syn-title" title={track.name}>
-            <span className="swatch" style={{ background: track.color }} />
-            <span className="syn-title-text">
-              {hasRack ? 'Instrument Rack' : params?.view === 'drum' ? 'Drum Rack' : 'TX Sampler'} —{' '}
-              {track.name}
-            </span>
-          </span>
-          <InstrumentKindSelect track={track} />
-          {params && !hasRack && (
-            <>
-              <label>
-                A
-                <input
-                  type="range"
-                  min={0.001}
-                  max={2}
-                  step={0.001}
-                  value={params.attack}
-                  onChange={(e) => setP({ attack: num(e.target.value, 0.002) })}
-                  aria-label="Attack"
-                />
-              </label>
-              <label>
-                D
-                <input
-                  type="range"
-                  min={0.001}
-                  max={2}
-                  step={0.001}
-                  value={params.decay}
-                  onChange={(e) => setP({ decay: num(e.target.value, 0.08) })}
-                  aria-label="Decay"
-                />
-              </label>
-              <label>
-                S
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={params.sustain}
-                  onChange={(e) => setP({ sustain: num(e.target.value, 1) })}
-                  aria-label="Sustain"
-                />
-              </label>
-              <label>
-                R
-                <input
-                  type="range"
-                  min={0.005}
-                  max={3}
-                  step={0.005}
-                  value={params.release}
-                  onChange={(e) => setP({ release: num(e.target.value, 0.12) })}
-                  aria-label="Release"
-                />
-              </label>
-              <label>
-                Vol
-                <input
-                  type="range"
-                  min={0}
-                  max={1.5}
-                  step={0.01}
-                  value={params.volume}
-                  onChange={(e) => setP({ volume: num(e.target.value, 0.9) })}
-                  aria-label="Sampler volume"
-                />
-              </label>
-              <select
-                value={params.filterType}
-                aria-label="Filter type"
-                onChange={(e) =>
-                  setP({ filterType: e.target.value as SamplerParams['filterType'] })
-                }
-              >
-                <option value="off">No filter</option>
-                <option value="lowpass">Low-pass</option>
-                <option value="highpass">High-pass</option>
-              </select>
-              {params.filterType !== 'off' && (
-                <label>
-                  Cutoff
-                  <input
-                    type="range"
-                    min={40}
-                    max={18000}
-                    step={10}
-                    value={params.filterCutoff}
-                    onChange={(e) => setP({ filterCutoff: num(e.target.value, 12000) })}
-                    aria-label="Filter cutoff"
-                  />
-                </label>
-              )}
-              <select
-                value={params.lfoTarget}
-                aria-label="LFO target"
-                onChange={(e) => setP({ lfoTarget: e.target.value as SamplerParams['lfoTarget'] })}
-              >
-                <option value="off">LFO off</option>
-                <option value="pitch">LFO → pitch</option>
-                <option value="filter">LFO → filter</option>
-              </select>
-              {params.lfoTarget !== 'off' && (
-                <>
-                  <label>
-                    Rate
-                    <input
-                      type="range"
-                      min={0.05}
-                      max={20}
-                      step={0.05}
-                      value={params.lfoRate}
-                      onChange={(e) => setP({ lfoRate: num(e.target.value, 4) })}
-                      aria-label="LFO rate"
-                    />
-                  </label>
-                  <label>
-                    Depth
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={params.lfoDepth}
-                      onChange={(e) => setP({ lfoDepth: num(e.target.value, 0) })}
-                      aria-label="LFO depth"
-                    />
-                  </label>
-                </>
-              )}
-            </>
+    <InstrumentFrame<SamplerParams>
+      name={name}
+      track={track}
+      testId="sampler-panel"
+      className={`smp${performMode ? ' perform-page' : ''}`}
+      summary={describeSampler(params, hasRack, track)}
+      controls={<InstrumentKindSelect track={track} />}
+      compare={
+        params && !hasRack
+          ? {
+              take: () => ({ ...params, zones: params.zones.map((z) => ({ ...z })) }),
+              put: (v) => store.getState().applySamplerPreset(track.id, v),
+            }
+          : undefined
+      }
+      performance={hasRack || params?.view !== 'drum' ? <Keyboard track={track} /> : undefined}
+    >
+      {/* A rack has no instrument of its own: its layers each carry theirs, so
+          the voice sections would be four displays of nothing. */}
+      {!hasRack && params && (
+        <div className="ins-sections">
+          {params.view === 'quick' && <QuickView track={track} params={params} />}
+          {params.view === 'drum' && (
+            <InstrumentSection title="Pads" wide aside={`${params.zones.length} assigned`}>
+              <DrumView track={track} params={params} />
+            </InstrumentSection>
           )}
+          {params.view === 'multi' && <MultiView track={track} params={params} />}
+          <VoiceSections track={track} params={params} />
         </div>
-        {!hasRack && params?.view === 'quick' && <QuickView track={track} params={params} />}
-        {!hasRack && params?.view === 'drum' && <DrumView track={track} params={params} />}
-        {!hasRack && params?.view === 'multi' && <MultiView track={track} params={params} />}
-        <RackSection track={track} />
-      </div>
-      {(hasRack || params?.view !== 'drum') && <Keyboard track={track} />}
-    </div>
+      )}
+      <RackSection track={track} />
+    </InstrumentFrame>
   );
 }
