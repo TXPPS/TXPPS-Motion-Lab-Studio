@@ -64,6 +64,10 @@ import {
   paramOf,
   shaperCurveKey,
   shaperCurveOf,
+  REVERB_DECAY_EXPONENT,
+  delayLayoutOf,
+  reverbTailOf,
+  widthFieldOf,
 } from '../src/model/effects';
 import type { DynamicsLaw } from '../src/model/effects';
 import { DETECTOR_HEADROOM, InsertChain, buildEffectNode } from '../src/audio/effectChain';
@@ -1219,5 +1223,91 @@ describe('the picture a waveshaping face draws', () => {
     expect(shaperCurveKey(sat), 'output level does not change the curve').toBe(before);
     sat.params.drive = (sat.params.drive ?? 0) + 6;
     expect(shaperCurveKey(sat)).not.toBe(before);
+  });
+});
+
+describe('the picture a time or stereo face draws', () => {
+  const make = (kind: EffectKind): Effect => ({
+    id: `e-${kind}`,
+    kind,
+    bypass: false,
+    params: Object.fromEntries(effectSpec(kind)!.params.map((p) => [p.key, p.default])),
+  });
+
+  it('gives delay, reverb and width a description, and nothing else one', () => {
+    expect(delayLayoutOf(make('delay'), 120)).not.toBeNull();
+    expect(delayLayoutOf(make('pingpong'), 120)).not.toBeNull();
+    expect(reverbTailOf(make('reverb'))).not.toBeNull();
+    expect(widthFieldOf(make('width'))).not.toBeNull();
+    // These four had no face at all, which is why they are the ones tested.
+    expect(delayLayoutOf(make('reverb'), 120)).toBeNull();
+    expect(reverbTailOf(make('delay'))).toBeNull();
+    expect(widthFieldOf(make('delay'))).toBeNull();
+  });
+
+  it('spaces the echoes by the same conversion the audio uses', () => {
+    const d = make('delay');
+    d.params.timeSixteenths = 4; // one quarter note
+    // At 120 bpm a quarter note is half a second, and that is syncSeconds' job
+    // — the face must not do its own tempo maths.
+    expect(delayLayoutOf(d, 120)!.timeSec).toBeCloseTo(syncSeconds(4, 120, 'straight'), 9);
+    expect(delayLayoutOf(d, 120)!.timeSec).toBeCloseTo(0.5, 6);
+    expect(delayLayoutOf(d, 60)!.timeSec).toBeCloseTo(1, 6);
+  });
+
+  it('stops drawing repeats once they fall under the noise floor', () => {
+    const quiet = make('delay');
+    quiet.params.feedback = 0.1;
+    const long = make('delay');
+    long.params.feedback = 0.85;
+    const few = delayLayoutOf(quiet, 120)!.taps;
+    const many = delayLayoutOf(long, 120)!.taps;
+    expect(few.length).toBeLessThan(many.length);
+    // Each repeat is the previous one times the feedback — that is what makes
+    // the picture a promise rather than a decoration.
+    expect(few[1] / few[0]).toBeCloseTo(0.1, 6);
+    expect(many[1] / many[0]).toBeCloseTo(0.85, 6);
+    expect(few.every((t) => t > 0.001 || t === few[few.length - 1])).toBe(true);
+  });
+
+  it('draws one repeat and no tail when there is no feedback', () => {
+    const dry = make('delay');
+    dry.params.feedback = 0;
+    expect(delayLayoutOf(dry, 120)!.taps).toEqual([1]);
+  });
+
+  it('honours the clamp the builder applies to feedback', () => {
+    const runaway = make('delay');
+    runaway.params.feedback = 5;
+    // buildDelay clamps at 0.9; a face showing an endless tail would be
+    // promising a runaway the audio refuses to make.
+    expect(delayLayoutOf(runaway, 120)!.feedback).toBe(0.9);
+  });
+
+  it('marks a ping-pong as alternating and a plain delay as not', () => {
+    expect(delayLayoutOf(make('pingpong'), 120)!.pingPong).toBe(true);
+    expect(delayLayoutOf(make('delay'), 120)!.pingPong).toBe(false);
+  });
+
+  it('shapes the reverb tail with the exponent the impulse generator uses', () => {
+    const tail = reverbTailOf(make('reverb'), 8)!;
+    expect(tail.envelope[0]).toBeCloseTo(1, 6);
+    // renderImpulse shapes its noise by (1 - i/len) ** 2.2.
+    expect(tail.envelope[4]).toBeCloseTo(Math.pow(1 - 4 / 8, REVERB_DECAY_EXPONENT), 9);
+    expect(tail.envelope.every((v, i, a) => i === 0 || v <= a[i - 1])).toBe(true);
+  });
+
+  it('reports the pre-delay in seconds, because the parameter is in milliseconds', () => {
+    const r = make('reverb');
+    r.params.predelay = 40;
+    expect(reverbTailOf(r)!.preDelaySec).toBeCloseTo(0.04, 9);
+  });
+
+  it('reads width as the mid/side gain it is', () => {
+    const w = make('width');
+    w.params.width = 0;
+    expect(widthFieldOf(w)!.width).toBe(0); // mono
+    w.params.width = 2;
+    expect(widthFieldOf(w)!.width).toBe(2); // sides doubled
   });
 });

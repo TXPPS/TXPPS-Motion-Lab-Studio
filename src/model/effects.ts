@@ -19,6 +19,7 @@ import {
   saturationCurve,
   SATURATION_MODELS,
   syncModifierByIndex,
+  syncSeconds,
   transferCurve,
 } from '../audio/dsp/curves';
 import type { BiquadType, EqBandSpec, SaturationModel } from '../audio/dsp/curves';
@@ -812,6 +813,105 @@ export function dynamicsCurveKey(law: DynamicsLaw): string {
 }
 
 /**
+ * What a delay does, in the terms its own audio uses.
+ *
+ * The face draws the echoes this describes and the builder sets the same
+ * delay time and feedback from it, so a picture of four decaying taps is a
+ * promise the audio keeps. `syncSeconds` is the same conversion the builder
+ * calls, so a tempo change moves both together.
+ */
+export interface DelayLayout {
+  /** Seconds between echoes at the project tempo. */
+  timeSec: number;
+  /** How much of each echo returns, 0..0.9 — the builder clamps at 0.9. */
+  feedback: number;
+  /** Damping corner the repeats pass through, in Hz. */
+  toneHz: number;
+  /** Wet level, 0..1. */
+  mix: number;
+  /** True when the repeats alternate channels. */
+  pingPong: boolean;
+  /** Amplitude of each echo, until it falls below audibility. */
+  taps: number[];
+}
+
+export function delayLayoutOf(effect: Effect, bpm: number): DelayLayout | null {
+  if (effect.kind !== 'delay' && effect.kind !== 'pingpong') return null;
+  const feedback = Math.min(0.9, Math.max(0, paramOf(effect, 'feedback')));
+  const taps: number[] = [];
+  // Stop where a repeat passes under -60 dB: past that it is not an echo the
+  // musician is placing, it is the noise floor.
+  for (let level = 1, i = 0; level > 0.001 && i < 32; i++, level *= feedback) {
+    taps.push(level);
+    if (feedback <= 0) break;
+  }
+  return {
+    timeSec: syncSeconds(paramOf(effect, 'timeSixteenths'), bpm, 'straight'),
+    feedback,
+    toneHz: paramOf(effect, 'tone'),
+    mix: paramOf(effect, 'mix'),
+    pingPong: effect.kind === 'pingpong',
+    taps,
+  };
+}
+
+/**
+ * A reverb tail, sampled from the same decay the impulse generator uses.
+ *
+ * `renderImpulse` shapes noise by `(1 - i/len) ** 2.2` after a one-pole
+ * lowpass at the damping frequency; this is that envelope, so the curve on
+ * screen is the tail in the convolver rather than a generic exponential.
+ */
+export interface ReverbTail {
+  preDelaySec: number;
+  decaySec: number;
+  dampingHz: number;
+  mix: number;
+  /** Normalised envelope over the tail, 0..1 in and out. */
+  envelope: number[];
+}
+
+/** The exponent renderImpulse shapes its noise with. */
+export const REVERB_DECAY_EXPONENT = 2.2;
+
+export function reverbTailOf(effect: Effect, points = 96): ReverbTail | null {
+  if (effect.kind !== 'reverb') return null;
+  const envelope: number[] = [];
+  for (let i = 0; i < points; i++) {
+    envelope.push(Math.pow(1 - i / points, REVERB_DECAY_EXPONENT));
+  }
+  return {
+    preDelaySec: paramOf(effect, 'predelay') / 1000,
+    decaySec: paramOf(effect, 'size'),
+    dampingHz: paramOf(effect, 'damping'),
+    mix: paramOf(effect, 'mix'),
+    envelope,
+  };
+}
+
+/**
+ * The stereo field a width processor produces.
+ *
+ * Width is a mid/side gain: 0 is mono, 1 is unchanged, 2 is the sides at
+ * double. Below `bassMonoHz` the sides are removed entirely, which is the
+ * part a number cannot show and a picture can.
+ */
+export interface WidthField {
+  width: number;
+  bassMonoHz: number;
+  outputDb: number;
+}
+
+export function widthFieldOf(effect: Effect): WidthField | null {
+  if (effect.kind !== 'width') return null;
+  return {
+    width: paramOf(effect, 'width'),
+    bassMonoHz: paramOf(effect, 'bassMono'),
+    outputDb: paramOf(effect, 'output'),
+  };
+}
+
+/**
  * Preamp voicings: how hard an amp model drives its front end before the tone
  * stack. The audio fills its shaper from this and the face draws from it too,
  * so a model that sounds harder looks harder.
@@ -895,7 +995,34 @@ export function multibandSplits(effect: Effect): { lowHz: number; highHz: number
   return { lowHz, highHz: Math.max(paramOf(effect, 'highSplit'), lowHz * 1.2) };
 }
 
-const BY_KIND = new Map(EFFECT_SPECS.map((s) => [s.kind, s]));
+/**
+ * The stand-in spec for a third-party plugin.
+ *
+ * A plugin has no declared parameters — they are discovered by asking the
+ * plugin at load time — so there is nothing to put in `params` here. The spec
+ * exists so that `effectSpec`, `describeEffect` and every UI that reads them
+ * work on a plugin slot without a special case, and so `isKnownEffect('wam')`
+ * is true, which is what stops the load path from filtering plugins out.
+ *
+ * It is deliberately *not* in `EFFECT_SPECS`: a bare "Plugin" is not something
+ * the insert picker can add, because a plugin is chosen from the shelf by name.
+ */
+export const WAM_SPEC: EffectSpec = {
+  kind: 'wam',
+  label: 'Plugin',
+  blurb: 'A third-party Web Audio Modules plugin.',
+  group: 'utility',
+  params: [],
+};
+
+const BY_KIND = new Map<EffectKind, EffectSpec>([
+  ...EFFECT_SPECS.map((s): [EffectKind, EffectSpec] => [s.kind, s]),
+  ['wam', WAM_SPEC],
+]);
+
+/** How many parameters we will keep for one plugin. Well past any real plugin;
+ *  a ceiling only so a corrupt file cannot make the load path unbounded. */
+const MAX_PLUGIN_PARAMS = 512;
 
 export function effectSpec(kind: EffectKind): EffectSpec | undefined {
   return BY_KIND.get(kind);
@@ -923,6 +1050,21 @@ export function normaliseParams(
 ): Record<string, number> {
   const spec = BY_KIND.get(kind);
   if (!spec) return {};
+  // A plugin's parameters come from the plugin, not from a spec here. Rebuilding
+  // them from `spec.params` — which is empty, and has to be — would delete every
+  // value the user had set. Keep every finite number under its own key instead;
+  // the plugin is the only thing that knows what its ranges are, and it clamps
+  // them itself when the value is handed back to it.
+  if (kind === 'wam') {
+    const out: Record<string, number> = {};
+    if (!params) return out;
+    for (const [k, v] of Object.entries(params)) {
+      if (typeof v !== 'number' || !Number.isFinite(v)) continue;
+      out[k] = v;
+      if (Object.keys(out).length >= MAX_PLUGIN_PARAMS) break;
+    }
+    return out;
+  }
   const out: Record<string, number> = {};
   for (const p of spec.params) {
     const raw = params?.[p.key];
@@ -1082,6 +1224,10 @@ export function describeEffect(effect: Effect): string {
       return `A = ${paramOf(effect, 'reference').toFixed(1)} Hz`;
     case 'vocaltune':
       return `${Math.round(paramOf(effect, 'strength') * 100)}% · offline`;
+    case 'wam':
+      // Whether it actually loaded is runtime state, not project data, so the
+      // rack decides how to say so; this is only what the project knows.
+      return effect.plugin ? `${effect.plugin.vendor} · ${effect.plugin.version}` : 'no plugin';
   }
 }
 

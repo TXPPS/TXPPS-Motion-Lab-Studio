@@ -22,6 +22,7 @@ import {
   type EqBandSpec,
 } from '../../audio/dsp/curves';
 import { engine } from '../../audio/engine';
+import { useProjectStore } from '../../state/projectStore';
 import {
   EQ8_BANDS,
   choiceName,
@@ -37,6 +38,12 @@ import {
   type DynamicsLaw,
   type ParamSpec,
   shaperCurveOf,
+  delayLayoutOf,
+  reverbTailOf,
+  widthFieldOf,
+  type DelayLayout,
+  type ReverbTail,
+  type WidthField,
 } from '../../model/effects';
 import { clamp } from '../../model/music';
 import type { Effect } from '../../model/types';
@@ -700,6 +707,171 @@ function MultibandFace({ effect, trackId }: { effect: Effect; trackId: string })
 
 // ------------------------------------------------------- saturation curve
 
+/**
+ * A delay, drawn as the echoes it makes.
+ *
+ * A knob row tells you 6/16 and 32% and leaves you to imagine the result.
+ * The taps are the result: where each repeat lands in time, how loud it is,
+ * and — for a ping-pong — which side it lands on.
+ */
+function DelayFace({ layout }: { layout: DelayLayout }) {
+  const W = 200;
+  const H = CURVE_H;
+  const mid = H / 2;
+  // Show four bars of echoes or the whole tail, whichever is shorter, so a
+  // long delay does not squash a short one into the left edge.
+  const span = Math.max(layout.timeSec * Math.min(layout.taps.length, 8), 0.001);
+  return (
+    <svg
+      width={W}
+      height={H}
+      className="fx-curve"
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      aria-label={`Delay: ${layout.taps.length} audible repeats, ${Math.round(layout.timeSec * 1000)} milliseconds apart`}
+    >
+      <line x1={0} y1={mid} x2={W} y2={mid} stroke="var(--grid-sub)" />
+      {layout.taps.map((level, i) => {
+        const x = ((i * layout.timeSec) / span) * (W - 8) + 4;
+        // A ping-pong alternates sides; a plain delay keeps both.
+        const up = !layout.pingPong || i % 2 === 0;
+        const down = !layout.pingPong || i % 2 === 1;
+        const h = level * (mid - 6);
+        return (
+          <g key={i}>
+            {up && (
+              <line
+                x1={x}
+                y1={mid}
+                x2={x}
+                y2={mid - h}
+                stroke="var(--accent)"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            )}
+            {down && (
+              <line
+                x1={x}
+                y1={mid}
+                x2={x}
+                y2={mid + h}
+                stroke="var(--accent)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                opacity={layout.pingPong ? 1 : 0.55}
+              />
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/**
+ * A reverb, drawn as its tail.
+ *
+ * The pre-delay is the gap before anything happens, which is the parameter
+ * people most often set by ear and never see; the curve after it is the same
+ * envelope the impulse generator shapes its noise with.
+ */
+function ReverbFace({ tail }: { tail: ReverbTail }) {
+  const W = 200;
+  const H = CURVE_H;
+  const total = tail.preDelaySec + tail.decaySec;
+  const preW = total > 0 ? (tail.preDelaySec / total) * W : 0;
+  const points = tail.envelope
+    .map((v, i) => {
+      const x = preW + (i / (tail.envelope.length - 1)) * (W - preW);
+      return `${x.toFixed(1)} ${(H - 4 - v * (H - 10)).toFixed(1)}`;
+    })
+    .join(' L ');
+  return (
+    <svg
+      width={W}
+      height={H}
+      className="fx-curve"
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      aria-label={`Reverb: ${Math.round(tail.preDelaySec * 1000)} millisecond pre-delay, ${tail.decaySec.toFixed(1)} second tail, damped at ${Math.round(tail.dampingHz)} hertz`}
+    >
+      <line x1={0} y1={H - 4} x2={W} y2={H - 4} stroke="var(--grid-sub)" />
+      {preW > 1 && (
+        <>
+          <rect x={0} y={0} width={preW} height={H} fill="var(--bg-deep)" opacity="0.6" />
+          <line x1={preW} y1={0} x2={preW} y2={H} stroke="var(--grid-bar)" strokeDasharray="2 2" />
+        </>
+      )}
+      <path
+        d={`M ${preW} ${H - 4} L ${points}`}
+        fill="none"
+        stroke="var(--accent)"
+        strokeWidth="1.8"
+      />
+      <path
+        d={`M ${preW} ${H - 4} L ${points} L ${W} ${H - 4} Z`}
+        fill="var(--accent)"
+        opacity="0.14"
+      />
+    </svg>
+  );
+}
+
+/**
+ * A stereo width control, drawn as the field it produces.
+ *
+ * The wedge is the image: narrow at mono, wide at two. The band across the
+ * bottom is the frequency below which the sides are removed entirely, which
+ * is the part of this processor a number cannot convey.
+ */
+function WidthFace({ field }: { field: WidthField }) {
+  const W = 200;
+  const H = CURVE_H;
+  const cx = W / 2;
+  // 0..2 maps to nothing..the full half-width.
+  const half = Math.min(1, field.width / 2) * (W / 2 - 6);
+  const bassY = H - 12;
+  return (
+    <svg
+      width={W}
+      height={H}
+      className="fx-curve"
+      viewBox={`0 0 ${W} ${H}`}
+      aria-label={`Stereo width ${field.width.toFixed(2)}, mono below ${Math.round(field.bassMonoHz)} hertz`}
+    >
+      <line x1={cx} y1={4} x2={cx} y2={H - 4} stroke="var(--grid-sub)" />
+      <path
+        d={`M ${cx} ${H - 8} L ${cx - half} 6 L ${cx + half} 6 Z`}
+        fill="var(--accent)"
+        opacity="0.18"
+        stroke="var(--accent)"
+        strokeWidth="1.4"
+      />
+      {field.width > 1.02 && (
+        <text x={cx} y={16} textAnchor="middle" fontSize="8" fill="var(--text-faint)">
+          wider than source
+        </text>
+      )}
+      {field.bassMonoHz > 21 && (
+        <>
+          <line
+            x1={4}
+            y1={bassY}
+            x2={W - 4}
+            y2={bassY}
+            stroke="var(--warm, var(--accent))"
+            strokeDasharray="3 2"
+          />
+          <text x={6} y={bassY - 3} fontSize="8" fill="var(--text-faint)">
+            mono below {Math.round(field.bassMonoHz)} Hz
+          </text>
+        </>
+      )}
+    </svg>
+  );
+}
+
 /** What the picture is of, for the reader who cannot see it. */
 function shaperLabel(effect: Effect): string {
   switch (effect.kind) {
@@ -874,7 +1046,18 @@ function TapFace({
  */
 export function faceKindOf(
   kind: string,
-): 'eq' | 'comp' | 'gate' | 'shaper' | 'lfo' | 'spectrum' | 'scope' | null {
+):
+  | 'eq'
+  | 'comp'
+  | 'gate'
+  | 'shaper'
+  | 'lfo'
+  | 'delay'
+  | 'reverb'
+  | 'width'
+  | 'spectrum'
+  | 'scope'
+  | null {
   switch (kind) {
     case 'eq3':
     case 'eq8':
@@ -899,6 +1082,13 @@ export function faceKindOf(
     case 'autopan':
     case 'rotary':
       return 'lfo';
+    case 'delay':
+    case 'pingpong':
+      return 'delay';
+    case 'reverb':
+      return 'reverb';
+    case 'width':
+      return 'width';
     case 'analyser':
       return 'spectrum';
     case 'tuner':
@@ -956,6 +1146,20 @@ export function EffectVisual({
         cycles={2}
       />
     );
+  }
+  if (face === 'delay') {
+    // The tempo is the project's: a synced delay's picture has to move when
+    // the song does.
+    const layout = delayLayoutOf(effect, useProjectStore.getState().project.bpm);
+    return layout ? <DelayFace layout={layout} /> : null;
+  }
+  if (face === 'reverb') {
+    const tail = reverbTailOf(effect);
+    return tail ? <ReverbFace tail={tail} /> : null;
+  }
+  if (face === 'width') {
+    const field = widthFieldOf(effect);
+    return field ? <WidthFace field={field} /> : null;
   }
   if (face === 'spectrum' || face === 'scope') {
     return <TapFace trackId={trackId} effect={effect} mode={face} />;
