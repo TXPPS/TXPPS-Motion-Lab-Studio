@@ -50,7 +50,11 @@
 .kbd {
   flex: none;
   position: relative;
-  height: 130px;
+  /* The face above it is fixed-layout, so a tall panel leaves room under the
+     controls; the keyboard is the thing worth spending it on, because a taller
+     key is an easier key to hit and the black keys grow with it. It never
+     shrinks below the 130px it always had. */
+  height: clamp(130px, 22%, 240px);
   min-height: 0;
   display: flex;
   background: var(--bg-deep);
