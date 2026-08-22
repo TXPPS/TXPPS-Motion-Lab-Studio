@@ -7,15 +7,24 @@ fuzz behaviour the device-function audit (`docs/AUDIT-DEVICE-FUNCTION.md`) expli
 not cover. Third-party WAM plugins are out of scope except where the built-in matrix
 touches them. The native `motionwave/` core has no processors and is out of scope.
 
-Nothing in `src/` was changed. Everything measured here is reproducible with
+**Status: the three P1s are fixed and the probes that found them are now the regression
+tests for them.** The audit itself changed nothing under `src/`; the fixes landed
+afterwards, in `704d18d`, and each finding below carries a *Fixed* note with the
+re-measured number. The ten P2s remain open. Everything measured here is reproducible with
 `npx vitest run tests/audit/` — seven files, fifty-seven cases, all passing against the tree
 as audited. Every number below came out of one of them or out of `grep` over the named
 line; nothing is quoted from memory and nothing is asserted from a name.
 
-**Thirteen findings, none P0: three P1 and ten P2.** The three P1s are a reverb whose
+**Thirteen findings, none P0: three P1 and ten P2.** The three P1s were a reverb whose
 automation re-renders an impulse response ninety times over one sweep, tempo-synced
 inserts that ignore the tempo map, and a voice cap that is not enforced for notes sharing
-a start time.
+a start time. All three are closed:
+
+| ID     | Was                                                  | Is now                                              |
+| ------ | ---------------------------------------------------- | --------------------------------------------------- |
+| PA-001 | 90 re-renders / 27.1 M samples / 2396 ms per Size sweep | 30 / 5.1 M / 192 ms — and 180 → 26 for Damping       |
+| PA-002 | 6/16 delay at 0.7500 s where the bar wants 0.5625 s   | 0.5625 s, sampled from the map at the playhead       |
+| PA-003 | 60 simultaneous notes → 60 voices, 1 steal            | 24 live, 36 steals on 36 distinct voices             |
 
 ---
 
@@ -64,9 +73,9 @@ connected to. It proves nothing about what the resulting audio sounds like.
 
 | #      | Sev | Device(s)                                                                       | Finding                                                                                                                                                                         |
 | ------ | --- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PA-001 | P1  | Reverb                                                                          | Automating Size or Damping re-renders the impulse response and hot-swaps the convolver buffer, tens of times per sweep, synchronously on the main thread                        |
-| PA-002 | P1  | Delay, Ping-Pong, Tremolo, Auto Pan                                             | Tempo-synced divisions resolve at the tempo of beat 0, not at the tempo in force                                                                                                |
-| PA-003 | P1  | MotionSynth, Sampler, Drum Rack                                                 | The voice cap is not enforced for notes that share a start time; one voice is stolen repeatedly while the rest all sound                                                        |
+| PA-001 | P1 ✅ | Reverb                                                                          | Automating Size or Damping re-renders the impulse response and hot-swaps the convolver buffer, tens of times per sweep, synchronously on the main thread                        |
+| PA-002 | P1 ✅ | Delay, Ping-Pong, Tremolo, Auto Pan                                             | Tempo-synced divisions resolve at the tempo of beat 0, not at the tempo in force                                                                                                |
+| PA-003 | P1 ✅ | MotionSynth, Sampler, Drum Rack                                                 | The voice cap is not enforced for notes that share a start time; one voice is stolen repeatedly while the rest all sound                                                        |
 | PA-004 | P2  | Compressor, Gate, Limiter, De-esser, Saturator, Distortion, Amp Sim, Bitcrusher | Eighteen controls rebuild and swap a WaveShaper table on every automation frame instead of ramping                                                                              |
 | PA-005 | P2  | Vocal Tune                                                                      | Six automation lanes are offered against a node that is a declared pass-through                                                                                                 |
 | PA-006 | P2  | all twenty-seven                                                                | Insert automation renders on a 25 ms offline grid that widens to 375 ms on a long bounce, while playback applies it at 60–100 Hz; `KNOWN-LIMITATIONS.md` calls the bounce exact |
@@ -108,6 +117,32 @@ host, which runs the same V8 as the browser but is not the browser.
 Note the interaction with PA-006: offline the same update runs on a 25 ms grid, so a
 bounce re-renders at a different rate from the monitor path.
 
+**Fixed** (`704d18d`). Two changes, only one of which is allowed to be audible.
+
+The decay envelope now reads from a 4096-point table with linear interpolation instead of
+calling `Math.pow(x, 2.2)` once per sample per channel — 576,000 calls for a six-second
+stereo tail. That is a pure speed change and is tested as one: the worst sample difference
+against the original across the whole Size range is 5.96e-8, half of one Float32 step, so
+it is below what the `AudioBuffer` can store (`tests/reverbImpulse.test.ts`).
+
+The re-render trigger is now a sixth-octave grid on each of Size and Damping rather than a
+flat 0.05 s / 50 Hz threshold. The flat one was a quarter of the shortest tail the control
+offers and under one per cent of the longest, which is why it fired constantly at the low
+end. Decay time and damping frequency are both heard proportionally, so the grid is too.
+
+| Sweep                  | Re-renders | Samples generated | Synchronous work |
+| ---------------------- | ---------- | ----------------- | ---------------- |
+| Size 0.2 → 6.0 s       | 90 → **30**  | 27,062,336 → **5,132,460** | 2396 ms → **192 ms** |
+| Damping 800 → 16000 Hz | 180 → **26** | 31,104,000 → **4,492,800** | 2525 ms → **158 ms** |
+
+The tail discontinuities scale with the swap count, so they fall by the same factor. They
+are not eliminated: a convolver whose buffer is replaced still cuts what it was ringing.
+Removing them entirely means two convolvers and a crossfade, which doubles the reverb's
+steady-state cost permanently to fix an artefact of an uncommon gesture — the wrong trade,
+and a design change rather than a fix. A sweep that reverses direction re-renders tails it
+has already built; a small LRU cache would make that free, at 2–3 MB per reverb instance.
+Not taken, for the same reason: real cost against a rare gesture.
+
 ### PA-002 (P1) — Tempo-synced inserts resolve at the tempo of beat 0
 
 **Claimed.** The Delay's Time parameter is declared "Expressed in sixteenths so it follows
@@ -131,6 +166,22 @@ _ramp_ the error is continuous rather than stepped.
 Time signature is correctly ignored: a sixteenth is a sixteenth in any meter and none of
 the four devices declares a bar-length division. Asserted in the same file so the matrix
 row reads "correct" rather than "untested".
+
+**Fixed** (`704d18d`). Every driver now samples the map instead of the pinned scalar:
+`projectBpmAt` at the playhead in `engine.syncGraph` and in the automation applier, and at
+the beat being rendered in `exportMix` — including the per-clip event chain, which gets the
+tempo at the clip's own start. The scalar stays pinned to beat 0, which is what it is for.
+
+The second half is *how often* to re-read it. A tempo ramp moves continuously, so
+re-driving a chain per frame would put a full insert update pass — including the
+waveshaper rebuilds of PA-004 — on the frame loop for the ramp's whole length, which is
+the shape of PA-001. `src/audio/tempoSync.ts` gates it on a relative move of half a per
+cent: on a half-second delay that tolerance is 2.5 ms, and a 120→160 ramp costs **55
+insert passes over 480 frames** instead of 480, with the held tempo landing inside the gate
+of the real one. The offline renderer only buys tracking when the map actually moves *and*
+something reads it, so a bounce of a project with no synced insert pays nothing.
+
+A 6/16 delay at bar 9 of the 120→160 song is now 0.5625 s, which is what the bar wants.
 
 ### PA-003 (P1) — The synth voice cap is not enforced for simultaneous notes
 
@@ -169,6 +220,24 @@ against `MAX_SAMPLER_VOICES`, and it was reproduced: with a cached buffer behind
 the synth, because a sampler voice's ordinary release also cancels before it ramps, so the
 "stolen once, repeatedly" half of the mechanism is read off the code rather than measured
 on this instrument.
+
+**Fixed** (`704d18d`). `src/audio/voiceCap.ts` holds the corrected steal, shared by both
+instruments: loop until there is room rather than steal once, and remove each voice from
+the allocation set as it is taken. Removing is what makes the loop terminate and the count
+honest — the set is the ledger, not the lifetime, and the voice's own cleanup still runs on
+its own schedule. That also dissolves the tie-break problem: with the stolen voice gone,
+the walk cannot return it again.
+
+Sixty simultaneous notes against a ceiling of 24 now leave **24 live, with 36 steals
+landing on 36 distinct voices** (was: 60 live, 1 steal). Thirty notes give 6 steals on 6
+voices (was 6 on 1). The sampler holds **48 of 80** (was 80). Stealing policy is
+deliberately unchanged — oldest first, ties to whichever was inserted first — because the
+finding is that the ceiling did not hold, not that the wrong voice was chosen. Preferring
+voices already in their release phase would be less audible still and is a separate change.
+
+Sixty oscillators are still *created* for a sixty-note instant; 36 are cut at their own
+start time and produce about 30 ms each. That is what a hard voice cap does, and refusing
+to spawn instead would mean the newest note never sounds, which is the wrong end to drop.
 
 ### PA-004 (P2) — Eighteen controls swap a table on every automation frame
 
@@ -699,6 +768,15 @@ reached this document, which is the reason the probes exist rather than a readin
 
 ## Regression status
 
-`npm run typecheck`, `npm run lint` and `npx vitest run` are all clean against the tree as
-audited: 89 files, 1597 unit tests, of which 57 are the probes added here. No file under
-`src/` was modified.
+`npm run typecheck`, `npm run lint` and `npx vitest run` were all clean against the tree as
+audited: 89 files, 1597 unit tests, of which 57 were the probes added here. No file under
+`src/` was modified by the audit.
+
+After the P1 fixes: 91 files, 1610 tests, all passing. The five probes that asserted the
+three defects now assert the corrected behaviour, and each keeps the original measurement
+in its comment and its log line — a regression test that has forgotten what it is guarding
+against is one nobody will recognise when it fails. Two new files cover the machinery the
+fixes introduced: `tests/tempoSync.test.ts` (the re-drive gate, including that a 120→160
+ramp costs 55 insert passes over 480 frames rather than 480) and
+`tests/reverbImpulse.test.ts` (that the tabulated decay curve is inaudible — worst sample
+difference 5.96e-8 against the `pow`-per-sample original, half of one Float32 step).
