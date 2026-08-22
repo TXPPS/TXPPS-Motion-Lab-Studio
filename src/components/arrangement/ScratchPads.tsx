@@ -90,9 +90,13 @@ export function scratchPadMenuItems(): { label: string; action: () => void; dang
 
 /** Toolbar button: the pad list, and which one is live. */
 export function ScratchPadButton() {
-  const pads = useProjectStore((s) => s.project.scratchPads ?? []);
+  // Select the stored reference, not a defaulted copy: `?? []` builds a new
+  // array on every render, which zustand reads as a changed snapshot and turns
+  // into an infinite update loop.
+  const pads = useProjectStore((s) => s.project.scratchPads);
   const active = useProjectStore((s) => s.project.activePadId);
-  const live = pads.find((p) => p.id === active);
+  const count = pads?.length ?? 0;
+  const live = pads?.find((p) => p.id === active);
 
   return (
     <button
@@ -113,7 +117,7 @@ export function ScratchPadButton() {
       data-testid="scratch-pads"
     >
       <Icon name="scratchpad" size={14} />
-      {pads.length > 0 && <span className="t-badge">{pads.length}</span>}
+      {count > 0 && <span className="t-badge">{count}</span>}
     </button>
   );
 }

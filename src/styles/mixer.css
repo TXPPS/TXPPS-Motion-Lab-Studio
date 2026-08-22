@@ -1200,9 +1200,13 @@
    the Channel Overview, the input stage has one in the overview, and the pan
    knob has one in the track header. The row template is rewritten at each step
    rather than collapsing rows to zero, because a zero-height row still costs a
-   row-gap — exactly the space a cramped strip cannot spare. */
+   row-gap — exactly the space a cramped strip cannot spare.
 
-@container mixer (max-height: 400px) {
+   Each threshold is what the level BELOW it needs plus a little: the full nine
+   rows want about 307px, eight want 277, seven want 251 and five want 209. A
+   step that fires earlier than that throws away a row that would have fitted. */
+
+@container mixer (max-height: 330px) {
   .strip {
     grid-template-rows:
       auto /* name    */
@@ -1235,7 +1239,7 @@
   }
 }
 
-@container mixer (max-height: 340px) {
+@container mixer (max-height: 280px) {
   .strip {
     grid-template-rows:
       auto
@@ -1268,7 +1272,7 @@
   }
 }
 
-@container mixer (max-height: 280px) {
+@container mixer (max-height: 255px) {
   .strip {
     grid-template-rows:
       auto

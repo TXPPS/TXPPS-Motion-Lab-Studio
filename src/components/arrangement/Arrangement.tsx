@@ -20,12 +20,25 @@ import { MaximizeButton } from '../shell/MaximizeButton';
 import { GlobalTrackHeaders, GlobalTrackLanes, globalTrackMenuItems } from './GlobalTracks';
 import { ArrangementOverview } from './Overview';
 import { ScratchPadButton } from './ScratchPads';
+import {
+  hasRangeClipboard,
+  rangeCopy,
+  rangeCrop,
+  rangeCut,
+  rangeDelete,
+  rangeDuplicate,
+  rangeFade,
+  rangeInsertSilence,
+  rangePaste,
+  rangeSplit,
+} from '../../app/rangeActions';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import type { AudioClip, Clip } from '../../model/types';
 
 /** The offered tools. Range/draw/zoom/hand are deferred until fully usable. */
 const TOOLS = [
   { id: 'pointer', label: 'Pointer', icon: 'cursor' },
+  { id: 'range', label: 'Range (select time across tracks)', icon: 'range' },
   { id: 'split', label: 'Split', icon: 'scissors' },
   { id: 'erase', label: 'Erase', icon: 'eraser' },
   { id: 'mute', label: 'Mute', icon: 'speaker-off' },
@@ -460,6 +473,19 @@ export function Arrangement() {
         if (bottom > y0 && top < y1) rows.add(tracks[i].id);
         top = bottom;
       }
+      if (tool === 'range') {
+        // The range tool selects TIME, not clips: what is inside it, including
+        // parts of clips, is what the range edits act on.
+        useUiStore.getState().set({
+          range: {
+            fromBeat: snapBeat(Math.max(0, beat0), snap),
+            toBeat: snapBeat(Math.max(0, beat1), snap),
+            trackIds: [...rows],
+          },
+        });
+        edgeScroll(e.clientX, e.clientY);
+        return;
+      }
       const hits = clips
         .filter((c) => rows.has(c.trackId) && c.start < beat1 && c.start + c.length > beat0)
         .map((c) => c.id);
@@ -468,6 +494,33 @@ export function Arrangement() {
     },
     onEnd: () => setMarquee(null),
   });
+
+  /** What the range tool offers on the selection it just made. */
+  const rangeMenu = (x: number, y: number) => {
+    const r = useUiStore.getState().range;
+    if (!r || r.toBeat <= r.fromBeat) return;
+    useUiStore.getState().showMenu({
+      x,
+      y,
+      items: [
+        { label: 'Split at the edges', action: () => rangeSplit(r) },
+        { label: 'Clear', action: () => rangeDelete(r, false) },
+        { label: 'Delete and close the gap', action: () => rangeDelete(r, true) },
+        { label: 'Insert silence', action: () => rangeInsertSilence(r) },
+        { label: 'Copy', shortcut: 'Ctrl+C', action: () => rangeCopy(r) },
+        { label: 'Cut', shortcut: 'Ctrl+X', action: () => rangeCut(r) },
+        {
+          label: 'Paste here',
+          disabled: !hasRangeClipboard(),
+          action: () => rangePaste(r.fromBeat, r.trackIds),
+        },
+        { label: 'Duplicate', action: () => rangeDuplicate(r) },
+        { label: 'Crop the song to this range', action: () => rangeCrop(r) },
+        { label: 'Fade in across the range', action: () => rangeFade(r, 'in') },
+        { label: 'Fade out across the range', action: () => rangeFade(r, 'out') },
+      ],
+    });
+  };
 
   const laneAt = useCallback((clientY: number): Track | null => {
     const lanes = viewportRef.current?.querySelector('.arr-lanes');
@@ -581,6 +634,7 @@ export function Arrangement() {
   };
 
   const showOverview = useWorkspaceStore((w) => w.showOverview);
+  const range = useUiStore((s) => s.range);
   /**
    * The overview maps the SONG, not the scrollable canvas. The timeline keeps a
    * 72-bar minimum so there is always somewhere to scroll to; drawing that
@@ -878,6 +932,21 @@ export function Arrangement() {
                     ))}
                 </Fragment>
               ))}
+              {range && range.toBeat > range.fromBeat && (
+                <div
+                  className="arr-range"
+                  data-testid="range-selection"
+                  style={{
+                    left: range.fromBeat * pxPerBeat,
+                    width: (range.toBeat - range.fromBeat) * pxPerBeat,
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    rangeMenu(e.clientX, e.clientY);
+                  }}
+                  title="Range — right-click for what you can do with it"
+                />
+              )}
               {marquee && (
                 <div
                   className="arr-marquee"

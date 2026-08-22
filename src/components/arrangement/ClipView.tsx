@@ -8,6 +8,7 @@ import {
   packSelectionIntoTakes,
   rippleDeleteSelection,
 } from '../../app/audioEditActions';
+import { stripSilenceFromClip } from '../../app/rangeActions';
 import { shortcutLabel } from '../../app/shortcuts';
 import { usePointerDrag, longPress } from '../../hooks/usePointerDrag';
 import { Waveform } from './Waveform';
@@ -215,6 +216,10 @@ export const ClipView = memo(function ClipView({
           }
           if (clip.type === 'audio' && !many) {
             items.push({ label: 'Normalize to −0.3 dB', action: () => normalizeClip(clip.id) });
+            items.push({
+              label: 'Strip silence',
+              action: () => stripSilenceFromClip(clip.id),
+            });
             items.push({
               label: clip.phaseInvert ? 'Phase: inverted ✓' : 'Phase invert',
               action: () => store.getState().setClip(clip.id, { phaseInvert: !clip.phaseInvert }),

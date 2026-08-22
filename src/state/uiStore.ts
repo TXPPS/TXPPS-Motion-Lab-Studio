@@ -9,7 +9,7 @@ export type EditorTab =
 export type PhoneMode = 'arrange' | 'record' | 'perform' | 'edit' | 'mix' | 'browse';
 export type BrowserTab = 'projects' | 'instruments' | 'effects' | 'loops' | 'samples' | 'pool';
 /** Arrangement editing tools. Only fully-usable tools are offered. */
-export type ArrangeTool = 'pointer' | 'split' | 'erase' | 'mute' | 'slip';
+export type ArrangeTool = 'pointer' | 'range' | 'split' | 'erase' | 'mute' | 'slip';
 
 export interface DialogState {
   kind: 'prompt' | 'confirm';
@@ -80,6 +80,12 @@ interface UiState {
   editClipId: string | null;
   /** Automation point selection — one lane at a time, like every point tool. */
   autoSel: { trackId: string; laneId: string; pointIds: string[] } | null;
+  /**
+   * Time-range selection: a span across a set of tracks. It is not a clip
+   * selection — a range covers whatever is inside it, including parts of clips —
+   * so it lives beside `selectedClipIds` rather than inside it.
+   */
+  range: { fromBeat: number; toBeat: number; trackIds: string[] } | null;
 
   pxPerBeat: number;
   snap: number;
@@ -138,6 +144,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   selectedNoteIds: [],
   editClipId: null,
   autoSel: null,
+  range: null,
 
   pxPerBeat: 26,
   snap: 0.25,

@@ -428,7 +428,12 @@ test.describe('render correctness', () => {
       copy.name = 'Phase Copy';
       copy.mute = false;
       src.tracks.push(copy);
-      const percClips = src.clips.filter((c) => c.trackId === perc.id && c.type === 'audio');
+      // A type predicate, so the clone below is known to be an audio clip and
+      // `phaseInvert` is a field it actually has.
+      const percClips = src.clips.filter(
+        (c): c is Extract<typeof c, { type: 'audio' }> =>
+          c.trackId === perc.id && c.type === 'audio',
+      );
       for (const c of percClips) {
         const cc = structuredClone(c);
         cc.id = `${c.id}-inv`;

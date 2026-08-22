@@ -792,3 +792,20 @@
   color: var(--warm);
   pointer-events: none;
 }
+
+/* A time range covers every track it spans, so it is drawn as a full-height
+   band rather than as a rectangle per lane. */
+.arr-range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: var(--z-clip);
+  background: color-mix(in srgb, var(--warm) 14%, transparent);
+  border-left: 1px solid var(--warm);
+  border-right: 1px solid var(--warm);
+  pointer-events: auto;
+  cursor: context-menu;
+}
+.arr[data-tool='range'] .arr-lanes {
+  cursor: crosshair;
+}
