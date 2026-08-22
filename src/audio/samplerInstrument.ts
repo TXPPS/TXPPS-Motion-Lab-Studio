@@ -237,7 +237,7 @@ export class SamplerInstrument implements Instrument {
         kind: 'voice',
         trackId: this.trackId,
         clipId,
-        stop: (hard) => voice.stop(hard === true),
+        stop: (hard, at) => voice.stop(hard === true, at),
       },
     };
 

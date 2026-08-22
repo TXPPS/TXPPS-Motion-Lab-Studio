@@ -19,8 +19,15 @@ export interface ActiveHandle {
   kind: 'voice' | 'buffer' | 'metronome';
   trackId?: string;
   clipId?: string;
-  /** stop with a short fade; hard=true stops as fast as possible */
-  stop: (hard?: boolean) => void;
+  /**
+   * Stop with a short fade; `hard` stops as fast as possible.
+   *
+   * `at` is when the stop should happen, in context time. It matters wherever
+   * the decision is made ahead of the moment — a loop wrap is scheduled a
+   * lookahead early, and stopping the outgoing pass immediately would cut the
+   * audio before the wrap it belongs to.
+   */
+  stop: (hard?: boolean, at?: number) => void;
 }
 
 export interface Instrument {
@@ -101,7 +108,7 @@ class Voice {
     };
     this.osc.start(when);
     this.releaseTau = Math.max(0.01, params.release) / 3;
-    this.handle = { kind: 'voice', trackId, clipId, stop: (hard) => this.stopNow(hard) };
+    this.handle = { kind: 'voice', trackId, clipId, stop: (hard, at) => this.stopNow(hard, at) };
   }
 
   private releaseTau: number;
@@ -272,8 +279,8 @@ export class DrumKit implements Instrument {
         kind: 'buffer' as const,
         trackId: this.trackId,
         clipId,
-        stop: (hard?: boolean) => {
-          const t = this.ctx.currentTime;
+        stop: (hard?: boolean, at?: number) => {
+          const t = Math.max(this.ctx.currentTime, at ?? this.ctx.currentTime);
           g.gain.setTargetAtTime(0, t, hard ? 0.004 : 0.015);
           try {
             src.stop(t + 0.06);

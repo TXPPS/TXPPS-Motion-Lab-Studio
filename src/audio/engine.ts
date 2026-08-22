@@ -235,6 +235,7 @@ class AudioEngine {
         this.instruments.get(trackId)?.scheduleNote(pitch, vel, when, durSec, clipId);
       },
       scheduleMetronome: (when, accent) => this.scheduleTransportClick(when, accent),
+      onLoopWrap: (at) => this.retireSoundingAt(at),
       // Automation must keep moving in a hidden tab; the animation frame does
       // not fire there, but the transport tick does.
       onTick: () => this.applyAutomation(),
@@ -1107,6 +1108,25 @@ class AudioEngine {
     this.activeSources.delete(h);
   }
 
+  /**
+   * Retire everything the timeline is sounding, at a given moment.
+   *
+   * A loop wrap re-enters whatever spans the loop start, which is right — the
+   * material under the loop point has to be heard. What was missing is the
+   * other half: nothing stopped the pass that was still playing, so a clip or
+   * a note longer than the loop gained a voice on every lap until the source
+   * cap swallowed the track.
+   *
+   * The metronome is left alone: its clicks are scheduled one at a time and
+   * are already over by the time the next one is due.
+   */
+  private retireSoundingAt(at: number): void {
+    for (const h of [...this.activeSources]) {
+      if (h.kind === 'metronome') continue;
+      h.stop(false, at);
+    }
+  }
+
   activeSourceCount(): number {
     return this.activeSources.size;
   }
@@ -1331,8 +1351,8 @@ class AudioEngine {
       // Comp spans carry synthetic ids (`<clipId>~<takeId>~<n>`); the registry
       // must track the real clip so mute/delete stops its running spans.
       clipId: clip.id.split('~')[0],
-      stop: (hard) => {
-        const t = ctx.currentTime;
+      stop: (hard, at) => {
+        const t = Math.max(ctx.currentTime, at ?? ctx.currentTime);
         g.gain.setTargetAtTime(0, t, hard ? 0.004 : 0.012);
         try {
           src.stop(t + 0.05);

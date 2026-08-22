@@ -154,7 +154,12 @@ export interface SchedulerDeps {
     durSec: number,
   ) => void;
   scheduleMetronome: (when: number, accent: boolean) => void;
-  onLoopWrap?: () => void;
+  /**
+   * The transport is about to wrap, at `atCtxTime`. Called before the new pass
+   * is scheduled, so a listener that stops the outgoing one cannot catch the
+   * incoming one by mistake.
+   */
+  onLoopWrap?: (atCtxTime: number) => void;
   /**
    * Called at the end of every tick. Control-rate work that must survive a
    * backgrounded tab (automation) rides this rather than the animation frame,
@@ -335,8 +340,11 @@ export class Scheduler {
         this.nextCtxTime = windowEndCtx;
         this.anchors.push({ ctx: windowEndCtx, sec: beatToSec(map, loop.start) });
         this.trimAnchors();
+        // Order matters: the outgoing pass is retired first, then the new one
+        // is entered. Reversed, a listener stopping "everything sounding"
+        // would stop the pass it had just been handed.
+        this.deps.onLoopWrap?.(windowEndCtx);
         this.scheduleSounding(loop.start, windowEndCtx);
-        this.deps.onLoopWrap?.();
       } else {
         this.nextBeat = windowEndBeat;
         this.nextCtxTime = windowEndCtx;
