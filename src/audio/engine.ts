@@ -4,7 +4,8 @@
  * methods here. The engine reacts to project-store changes (syncGraph) and
  * mirrors its status into the transport store.
  */
-import { clipSecondsPerBeat, tempoMapOf } from '../model/music';
+import { clipSecondsPerBeat, projectBpmAt, tempoMapOf } from '../model/music';
+import { shouldRetempo, tempoVaries } from './tempoSync';
 import { beatToSec, secToBeat } from '../model/tempo';
 import { playedNotes } from './notePipeline';
 import { resolveChannels } from '../model/mixerGraph';
@@ -203,6 +204,8 @@ class AudioEngine {
   private masterTap: MeterTap | null = null;
   private scratch = new Float32Array(2048);
   private rafId: number | null = null;
+  /** Tempo the synced inserts were last driven at; 0 until the first pass. */
+  private syncedBpm = 0;
   private frameCbs = new Set<(dt: number) => void>();
   private lastFrameTime = 0;
   private frameCount = 0;
@@ -471,10 +474,51 @@ class AudioEngine {
     });
   }
 
+  /**
+   * The tempo that tempo-synced inserts are driven by: the one at the
+   * playhead, not the one at beat 0.
+   *
+   * `p.bpm` is pinned to the map's value at beat 0 (`syncScalarTempo`), so
+   * every insert that syncs to the grid — delay time, tremolo rate, the
+   * filter LFO, the phaser sweep — was set from the tempo the song *starts*
+   * at however far into a tempo map the playhead had travelled. At a 120→160
+   * change a 6/16 delay came out 0.75 s where the bar wants 0.5625 s: a third
+   * long, and audibly not in time.
+   */
+  private syncBpm(p: ProjectData): number {
+    return projectBpmAt(p, this.getPositionBeats());
+  }
+
+  /**
+   * Re-drive the inserts when the playhead crosses into a different tempo.
+   *
+   * Gated on a relative change rather than run every frame — see
+   * `tempoSync.ts` for why, and for the size of the error that buys.
+   */
+  private applyTempoSync(): void {
+    if (!this.ctx) return;
+    const p = useProjectStore.getState().project;
+    if (!tempoVaries(p)) return;
+    const bpm = this.syncBpm(p);
+    if (!shouldRetempo(this.syncedBpm, bpm)) return;
+    this.syncedBpm = bpm;
+    for (const [trackId, ch] of this.channels) {
+      const track = p.tracks.find((x) => x.id === trackId);
+      if (track?.effects?.length) ch.inserts.sync(track.effects, bpm, this.fxOverrides.get(trackId));
+    }
+    if (p.master?.effects?.length) {
+      this.masterInserts?.sync(p.master.effects, bpm, this.fxOverrides.get(MASTER_ID));
+    }
+  }
+
   private syncGraph(p: ProjectData, initial: boolean): void {
     const ctx = this.ctx;
     if (!ctx || !this.masterInput || !this.masterGain) return;
     const t = ctx.currentTime;
+    // Sampled once so every chain in this pass is driven by the same tempo,
+    // and recorded so the frame-loop check knows what the inserts are holding.
+    const syncBpm = this.syncBpm(p);
+    this.syncedBpm = syncBpm;
     // `autoApplied` is a frame-to-frame de-duplicator keyed on the lane's own
     // value, not a record of what the nodes hold. A cue, a VCA or folder fader
     // and a solo all move the value a lane *should* produce while leaving the
@@ -570,7 +614,7 @@ class AudioEngine {
       const audible = state.audible;
       const smooth = initial ? 0.001 : PARAM_TAU;
       const owned = this.autoOwned.get(track.id);
-      ch.inserts.sync(track.effects ?? [], p.bpm, this.fxOverrides.get(track.id));
+      ch.inserts.sync(track.effects ?? [], syncBpm, this.fxOverrides.get(track.id));
       // Input trim carries polarity: a negative gain IS the polarity flip, so
       // the two never need separate nodes and can never fight each other.
       const trimGain = Math.pow(10, (track.inputGainDb ?? 0) / 20) * (track.phaseInvert ? -1 : 1);
@@ -673,7 +717,7 @@ class AudioEngine {
     const masterSmooth = initial ? 0.001 : PARAM_TAU;
     this.masterGain.gain.setTargetAtTime(master?.volume ?? p.masterVolume, t, masterSmooth);
     this.masterPan?.pan.setTargetAtTime(master?.pan ?? 0, t, masterSmooth);
-    this.masterInserts?.sync(master?.effects ?? [], p.bpm, this.fxOverrides.get(MASTER_ID));
+    this.masterInserts?.sync(master?.effects ?? [], syncBpm, this.fxOverrides.get(MASTER_ID));
     if (this.masterMono) {
       const mono = master?.monoCheck === true;
       if ((this.masterMono.channelCount === 1) !== mono) {
@@ -1144,7 +1188,7 @@ class AudioEngine {
       const track = p.tracks.find((x) => x.id === trackId);
       const fx = track?.effects?.find((x) => x.id === effectId);
       const params = this.fxOverrides.get(trackId)?.get(effectId);
-      if (ch && fx && params) ch.inserts.updateOne(fx, p.bpm, params);
+      if (ch && fx && params) ch.inserts.updateOne(fx, this.syncBpm(p), params);
     }
   }
 
@@ -1840,6 +1884,7 @@ class AudioEngine {
       const dt = this.lastFrameTime ? (time - this.lastFrameTime) / 1000 : 0.016;
       this.lastFrameTime = time;
       this.updateMeters(dt);
+      this.applyTempoSync();
       this.applyAutomation();
       for (const cb of this.frameCbs) cb(dt);
       this.frameCount++;

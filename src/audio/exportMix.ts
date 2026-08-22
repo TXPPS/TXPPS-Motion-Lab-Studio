@@ -24,11 +24,13 @@ import {
   projectBeatRangeSec,
   projectBeatToSec,
   projectSecToBeat,
+  projectBpmAt,
 } from '../model/music';
 import type { AudioClip, Effect, MidiClip, ProjectData, SynthParams, Track } from '../model/types';
 import { diagLog } from '../state/diagnostics';
 import { applyEnvelope, computeClipSchedule } from './clipSchedule';
 import { InsertChain } from './effectChain';
+import { hasTempoSyncedInsert, shouldRetempo, tempoVaries } from './tempoSync';
 import type { ModulationClock } from './effectChain';
 import { getBufferSync, loadBuffer } from './mediaLibrary';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
@@ -431,6 +433,11 @@ export async function renderProject(
   // measured from here, so it must exist before the first insert chain is
   // built and before the first ramp is scheduled.
   const rangeStartSec = projectBeatToSec(project, startBeat);
+  // Tempo-synced inserts are built at the tempo of the beat this render starts
+  // from, not at `project.bpm` — which is pinned to beat 0 and so would put
+  // every synced division in a bounce of bars 33-40 at the tempo of bar 1. The
+  // suspension grid below keeps it tracking from there.
+  const startBpm = projectBpmAt(project, startBeat);
   // Every insert chain below is handed this, so a modulator starts where the
   // song says it is rather than where the render's own clock happens to be.
   const modulation = renderModulationClock(rangeStartSec, preRoll);
@@ -449,10 +456,14 @@ export async function renderProject(
   // A bounce that does not run the master inserts is not the mix the engineer
   // approved, so the offline chain carries the same stages in the same order.
   const masterInput = ctx.createGain();
+  // Held beyond the block so the tempo-tracking grid below can re-drive it;
+  // null when the master is bypassed and there is no chain to drive.
+  let masterChain: InsertChain | null = null;
   if (opts.bypassMaster) {
     masterInput.connect(ctx.destination);
   } else {
     const masterInserts = new InsertChain(ctx, modulation);
+    masterChain = masterInserts;
     const masterGain = ctx.createGain();
     masterGain.gain.value = project.master?.volume ?? project.masterVolume;
     const masterPan = ctx.createStereoPanner();
@@ -463,7 +474,7 @@ export async function renderProject(
     limiter.ratio.value = 20;
     limiter.attack.value = 0.002;
     limiter.release.value = 0.08;
-    masterInserts.sync(project.master?.effects ?? [], project.bpm);
+    masterInserts.sync(project.master?.effects ?? [], startBpm);
     masterInput.connect(masterInserts.entry);
     masterInserts.exit.connect(masterGain);
     masterGain.connect(masterPan);
@@ -504,7 +515,7 @@ export async function renderProject(
     volGain.connect(panner);
     panner.connect(out);
 
-    inserts.sync(track.effects ?? [], project.bpm);
+    inserts.sync(track.effects ?? [], startBpm);
     trim.gain.value = Math.pow(10, (track.inputGainDb ?? 0) / 20) * (track.phaseInvert ? -1 : 1);
     if (track.monoSum) {
       trim.channelCount = 1;
@@ -658,7 +669,14 @@ export async function renderProject(
   // Insert-parameter automation: apply merged values at a control-rate grid
   // via suspend/resume. 25ms grid, capped at 4800 suspensions for very long
   // renders (the grid widens rather than the render failing).
-  if (fxAuto.length > 0) {
+  //
+  // The same grid carries tempo tracking, so a synced delay follows the map
+  // through the bounce rather than holding the tempo it was built at. It is
+  // only worth adding the grid for tempo when the map moves *and* something
+  // reads it — thousands of suspensions a bounce cannot use is a pure cost.
+  const trackTempo = tempoVaries(project) && hasTempoSyncedInsert(project);
+  let heldBpm = startBpm;
+  if (fxAuto.length > 0 || trackTempo) {
     let grid = 0.025;
     const usable = durationSec - 0.001;
     if (usable / grid > 4800) grid = usable / 4800;
@@ -667,6 +685,11 @@ export async function renderProject(
       const at = t;
       void ctx.suspend(preRoll + at).then(() => {
         const beat = beatAt(at);
+        const bpm = projectBpmAt(project, beat);
+        // Gated the same way the live engine gates it, so monitor and bounce
+        // re-drive the chain at the same points in the song.
+        const retempo = trackTempo && shouldRetempo(heldBpm, bpm);
+        if (retempo) heldBpm = bpm;
         const merged = new Map<string, Record<string, number>>();
         for (const fa of fxAuto) {
           const n = laneValueAt(fa.lane.points, beat);
@@ -680,7 +703,16 @@ export async function renderProject(
           const track = project.tracks.find((x) => x.id === trackId);
           const fx = track?.effects?.find((x) => x.id === effectId);
           const chan = channels.get(trackId);
-          if (track && fx && chan) chan.inserts.updateOne(fx, project.bpm, params);
+          if (track && fx && chan) chan.inserts.updateOne(fx, bpm, params);
+        }
+        if (retempo) {
+          for (const track of project.tracks) {
+            const chan = channels.get(track.id);
+            if (chan && track.effects?.length) chan.inserts.sync(track.effects, bpm);
+          }
+          if (masterChain && project.master?.effects?.length) {
+            masterChain.sync(project.master.effects, bpm);
+          }
         }
         void ctx.resume();
       });
@@ -854,7 +886,7 @@ export async function renderProject(
         if (part.eventFx?.length) {
           // Same shape as live: the clip's own chain between it and the channel.
           const eventChain = new InsertChain(ctx, modulation);
-          eventChain.sync(part.eventFx, project.bpm);
+          eventChain.sync(part.eventFx, projectBpmAt(project, part.start));
           g.connect(eventChain.entry);
           eventChain.exit.connect(dest);
         } else {

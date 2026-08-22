@@ -560,12 +560,22 @@ const probe = (opts) => {
     const oy = cs.overflowY;
     const scrollableX = ox === 'auto' || ox === 'scroll';
     const scrollableY = oy === 'auto' || oy === 'scroll';
+    /*
+     * `overflow: clip` with an `overflow-clip-margin` is a declared bleed, not
+     * a clip: the author has said how far past the box content may paint, and
+     * within that distance nothing is lost. `.clip` in the arrangement uses it
+     * so a fade handle can ride half outside the clip it belongs to — which is
+     * the fix for a defect this audit reported last time. Counting it as a
+     * hard clip would re-report that fix as the bug it removed, on every
+     * viewport, forever.
+     */
+    const bleed = parseFloat(cs.overflowClipMargin) || 0;
     const over = el.scrollWidth - el.clientWidth;
     const overY = el.scrollHeight - el.clientHeight;
 
     // 1 + 3: content wider than the box, with no scrollbar of its own.
     if (!scrollableX && over > SLOP && el.clientWidth > 0) {
-      const clipped = ox === 'hidden' || ox === 'clip';
+      const clipped = ox === 'hidden' || (ox === 'clip' && bleed <= 0);
       if (clipped || !reachableByScroll(el)) {
         out.push({
           kind: clipped ? 'clipped' : 'spill',
@@ -612,7 +622,7 @@ const probe = (opts) => {
      * ancestor already reported is the ancestor's bug, not a second one.
      */
     if (!scrollableY && overY > 2 && el.clientHeight > 0) {
-      const vclipped = oy === 'hidden' || oy === 'clip';
+      const vclipped = oy === 'hidden' || (oy === 'clip' && bleed <= 0);
       const cascade = ancestorAlreadyPast(reportedVClip, el, Math.round(overY));
       if ((vclipped || !reachableByScrollY(el)) && !cascade) {
         reportedVClip.set(el, Math.round(overY));
@@ -715,24 +725,40 @@ const probe = (opts) => {
       }
     }
 
-    // 7: an interactive control inside a device safe area.
-    if (safe && interactive) {
+    /*
+     * 7: an interactive control inside a device safe area.
+     *
+     * Two calibrations, both learned from a first run that produced 6447
+     * occurrences of almost nothing. A control inside a scroller is not under
+     * the home indicator — it is one flick away from not being, exactly as a
+     * clipped-but-scrollable box is not a clipped box — so scrollable content
+     * is excluded the same way it is everywhere else here. And the threshold
+     * is 2px, because `.app` pads itself by the inset exactly, which leaves
+     * every edge control sitting on the boundary and rounding to an intrusion
+     * of zero. What is left is chrome that ignores the inset, which is the
+     * question.
+     */
+    if (safe && interactive && !reachableByScroll(el) && !reachableByScrollY(el)) {
       const bands = [];
-      if (safe.t > 0 && rect.top < safe.t) bands.push(`top ${Math.round(safe.t - rect.top)}px`);
-      if (safe.b > 0 && rect.bottom > vh - safe.b) {
-        bands.push(`bottom ${Math.round(rect.bottom - (vh - safe.b))}px`);
-      }
-      if (safe.l > 0 && rect.left < safe.l) bands.push(`left ${Math.round(safe.l - rect.left)}px`);
-      if (safe.r > 0 && rect.right > vw - safe.r) {
-        bands.push(`right ${Math.round(rect.right - (vw - safe.r))}px`);
-      }
+      let worst = 0;
+      const band = (name, px) => {
+        if (px > 2) {
+          bands.push(name);
+          worst = Math.max(worst, px);
+        }
+      };
+      if (safe.t > 0) band('top', safe.t - rect.top);
+      if (safe.b > 0) band('bottom', rect.bottom - (vh - safe.b));
+      if (safe.l > 0) band('left', safe.l - rect.left);
+      if (safe.r > 0) band('right', rect.right - (vw - safe.r));
       if (bands.length) {
         out.push({
           kind: 'safe',
-          reason: bands.join(', '),
+          reason: bands.join('+'),
           sel: cssPath(el),
           sig: sigOf(el),
           text: label(el),
+          over: Math.round(worst),
           boxW: Math.round(rect.width),
           boxH: Math.round(rect.height),
         });
@@ -821,6 +847,18 @@ const probeTrackHeader = (minTouch) => {
       const gap = controls[i + 1].box.left - controls[i].box.right;
       if (gap < -0.5) problems.push(`${id}: controls overlap by ${Math.round(-gap)}px`);
       else if (gap < 3.5) problems.push(`${id}: gap is ${Math.round(gap)}px`);
+    }
+    /*
+     * The strip can be the right size and still be invisible. `@media (pointer:
+     * coarse)` grew the mute/solo/arm buttons to 44px, but the lane row they
+     * live in is a constant, so the header's own `overflow: hidden` takes the
+     * difference out of the bottom of the strip. Measuring the controls alone
+     * misses that entirely, which is how it survived the last two audits.
+     */
+    if (header.scrollHeight > header.clientHeight + 1) {
+      problems.push(
+        `header row is ${header.clientHeight}px and holds ${header.scrollHeight}px of controls`,
+      );
     }
     const headerBox = rect(header);
     const stripBox = rect(strip);

@@ -68,7 +68,7 @@ describe('PA-003 · polyphony and voice stealing', () => {
     expect(steals.length).toBe(0);
   });
 
-  it('does not hold the synth to 24 voices when the notes share a start time', () => {
+  it('holds the synth to 24 voices when every note shares a start time', () => {
     const probe = createProbeContext();
     const reg = countingRegistry();
     const out = probe.ctx.createGain();
@@ -83,12 +83,15 @@ describe('PA-003 · polyphony and voice stealing', () => {
     );
     console.log(
       `60 notes at one instant → ${built.size} oscillators started, ` +
-        `${cut.size} voice(s) cut short (the cap is 24 voices)`,
+        `${cut.size} voice(s) cut short, ${synth.activeVoices()} live (the cap is 24)`,
     );
-    expect(cut.size).toBe(1);
+    // The first 24 fill the ceiling; each of the remaining 36 steals one, and
+    // each steal lands on a *different* voice. Before the fix this was one.
+    expect(cut.size).toBe(36);
+    expect(synth.activeVoices()).toBe(24);
   });
 
-  it('does not hold the sampler to its stated 48 voices either', () => {
+  it('holds the sampler to its stated 48 voices', () => {
     resetMediaCaches();
     // A one-second stereo buffer, so `spawn` gets past `getBufferSync` and
     // actually builds voices. The stub `AudioBuffer` in `tests/setup.ts` is
@@ -108,20 +111,21 @@ describe('PA-003 · polyphony and voice stealing', () => {
     for (let i = 0; i < 80; i++) sampler.scheduleNote(60 + (i % 24), 100, 1, 4);
     // The steal itself cannot be counted here the way it can on the synth: a
     // sampler voice's ordinary `release` also cancels before it ramps, so a
-    // cancel no longer separates the two. What the voice set says is enough —
-    // eighty voices are live against a ceiling of forty-eight.
+    // cancel no longer separates the two. What the voice set says is enough.
     console.log(
       `80 sampler notes at one instant → ${sampler.activeVoices()} live voices ` +
         `(the cap is 48)`,
     );
-    expect(sampler.activeVoices()).toBe(80);
+    expect(sampler.activeVoices()).toBe(48);
     resetMediaCaches();
   });
 
-  it('steals the same voice repeatedly instead of the next oldest', () => {
-    // The mechanism behind the row above, isolated: `spawn` picks the voice with
-    // the smallest `startedAt`, stops it, and leaves it in the set. Stopping is
-    // not removing, so the next spawn finds the same voice and stops it again.
+  it('steals a different voice each time rather than the same one over again', () => {
+    // The mechanism behind the row above, isolated. The defect was that `spawn`
+    // picked the voice with the smallest `startedAt`, stopped it, and left it in
+    // the set — stopping is not removing, so the next spawn found the same voice
+    // and stopped it again while 23 others ran on untouched. Six steals now land
+    // on six voices.
     const probe = createProbeContext();
     const reg = countingRegistry();
     const out = probe.ctx.createGain();
@@ -136,7 +140,8 @@ describe('PA-003 · polyphony and voice stealing', () => {
       `30 simultaneous notes, cap 24 → ${cancels.length} steals landing on ${paths.size} voice(s)`,
     );
     expect(cancels.length).toBe(6);
-    expect(paths.size).toBe(1);
+    expect(paths.size).toBe(6);
+    expect(synth.activeVoices()).toBe(24);
   });
 });
 

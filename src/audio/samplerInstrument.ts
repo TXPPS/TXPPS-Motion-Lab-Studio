@@ -16,6 +16,7 @@ import {
 } from '../model/sampler';
 import { getBufferSync } from './mediaLibrary';
 import type { ActiveHandle, Instrument, SourceRegistry } from './synth';
+import { stealToFit } from './voiceCap';
 
 const MAX_SAMPLER_VOICES = 48;
 
@@ -85,11 +86,9 @@ export class SamplerInstrument implements Instrument {
   ): void {
     if (!this.registry.canAllocate()) return;
     this.retireBy(when);
-    if (this.voices.size >= MAX_SAMPLER_VOICES) {
-      let oldest: SamplerVoice | null = null;
-      for (const v of this.voices) if (!oldest || v.startedAt < oldest.startedAt) oldest = v;
-      oldest?.stop(true, when);
-    }
+    // Loop, and drop each stolen voice from the set as it goes — see
+    // `voiceCap.ts`. A single steal left this ceiling breached by 32 voices.
+    stealToFit(this.voices, MAX_SAMPLER_VOICES, (v) => v.stop(true, when));
     const p = this.getParams();
     const raw = getBufferSync(zone.mediaId);
     if (!raw) return;

@@ -10,6 +10,13 @@
  * The project also holds a tempo *map*, and `model/music.ts` exports
  * `projectBpmAt`, whose own doc comment says "use for delay sync". This asks
  * what the two answer at the same bar.
+ *
+ * They answered differently, which was PA-002. The drivers now sample the map
+ * at the playhead (live) and at the beat being rendered (offline), and re-drive
+ * the chain as the playhead crosses into a new tempo. The probes below are kept
+ * as the regression: they assert the corrected arithmetic and still record what
+ * the pinned scalar would have produced, because that number is the reason the
+ * fix exists.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -81,31 +88,54 @@ describe('PA-002 · tempo-synced inserts and the tempo map', () => {
     expect(delaySecondsAt('pingpong', 120, { modifier: 2 })).toBeCloseTo(0.25, 12);
   });
 
-  it('leaves the scalar bpm pinned to beat 0 while the map moves', () => {
+  it('resolves a division at the tempo of the bar being played, not of bar 1', () => {
     const p = twoTempoProject();
     const map = tempoMapOf(p);
     expect(p.bpm).toBe(120);
     expect(projectBpmAt(p, 0)).toBe(120);
     expect(projectBpmAt(p, 40)).toBe(160);
-    // The delay every driver builds is the one taken from `p.bpm`.
-    const asBuilt = delaySecondsAt('delay', p.bpm);
+    // The scalar stays pinned — that is deliberate, it is what old projects and
+    // export headers read. What changed is that no driver builds a delay from
+    // it any more: they sample the map at the beat in hand.
+    const fromTheMap = delaySecondsAt('delay', projectBpmAt(p, 40));
+    const fromTheScalar = delaySecondsAt('delay', p.bpm);
     const asTheBarSounds = syncSeconds(6, projectBpmAt(p, 40), 'straight');
     console.log(
-      `bar 9 at 160 bpm: 6/16 should be ${asTheBarSounds.toFixed(4)} s; ` +
-        `the insert is set to ${asBuilt.toFixed(4)} s ` +
-        `(${((asBuilt / asTheBarSounds - 1) * 100).toFixed(1)}% long, ` +
-        `${((asBuilt - asTheBarSounds) * 1000).toFixed(0)} ms per repeat)`,
+      `bar 9 at 160 bpm: 6/16 wants ${asTheBarSounds.toFixed(4)} s; ` +
+        `driven from the map the insert is ${fromTheMap.toFixed(4)} s, ` +
+        `driven from the pinned scalar it was ${fromTheScalar.toFixed(4)} s ` +
+        `(${((fromTheScalar / asTheBarSounds - 1) * 100).toFixed(1)}% long, ` +
+        `${((fromTheScalar - asTheBarSounds) * 1000).toFixed(0)} ms per repeat)`,
     );
-    expect(asBuilt).toBeCloseTo(0.75, 12);
+    expect(fromTheMap).toBeCloseTo(0.5625, 12);
     expect(asTheBarSounds).toBeCloseTo(0.5625, 12);
+    expect(fromTheScalar).toBeCloseTo(0.75, 12);
     void map;
   });
 
-  it('has no caller for the tempo-map lookup its own doc comment names for delay sync', () => {
+  it('drives every chain from the tempo map rather than from the pinned scalar', () => {
+    // A static check because the alternative — standing up a live engine and an
+    // offline render in jsdom — cannot run here, and because the failure this
+    // guards is precisely a call site reverting to `p.bpm`. Both drivers must
+    // reach for the map; `effectChain` must not, since it is handed a bpm and
+    // has no project to look one up in.
     const src = join(__dirname, '..', '..', 'src');
-    const files = ['audio/engine.ts', 'audio/exportMix.ts', 'audio/effectChain.ts'];
-    for (const f of files) {
-      expect(readFileSync(join(src, f), 'utf8'), f).not.toContain('projectBpmAt');
+    for (const f of ['audio/engine.ts', 'audio/exportMix.ts']) {
+      expect(readFileSync(join(src, f), 'utf8'), f).toContain('projectBpmAt');
+    }
+    expect(readFileSync(join(src, 'audio/effectChain.ts'), 'utf8')).not.toContain('projectBpmAt');
+
+    // And no driver may hand a chain the pinned scalar again.
+    for (const [f, calls] of [
+      ['audio/engine.ts', ['inserts.sync(', 'inserts.updateOne(']],
+      ['audio/exportMix.ts', ['inserts.sync(', 'inserts.updateOne(', 'Chain.sync(']],
+    ] as const) {
+      const text = readFileSync(join(src, f), 'utf8');
+      for (const call of calls) {
+        for (const line of text.split('\n').filter((l) => l.includes(call))) {
+          expect(line, `${f}: ${line.trim()}`).not.toMatch(/\bp(roject)?\.bpm\b/);
+        }
+      }
     }
   });
 

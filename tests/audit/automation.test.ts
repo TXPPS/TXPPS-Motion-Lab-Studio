@@ -76,26 +76,43 @@ function sweep(
 }
 
 describe('PA-004 · automating an insert parameter rewrites a table instead of ramping', () => {
-  it('re-renders the reverb impulse many times over one Size sweep', () => {
+  it('bounds the reverb impulse re-renders over a full Size sweep', () => {
     // Six seconds of automation at the frame rate the engine runs its applier
-    // on: 360 frames. The reverb's own guard re-renders when Size has moved
-    // more than 0.05 s.
+    // on: 360 frames. This was PA-001 — the old linear guard re-rendered when
+    // Size had moved 0.05 s, which over the control's own range meant 90
+    // re-renders, 27 million samples and 2396 ms of synchronous main-thread
+    // work for one gesture. Size is now quantised to a sixth of an octave, and
+    // the decay curve comes from a table rather than a `pow` per sample.
     const r = sweep('reverb', 'size', 0.2, 6, 360);
     console.log(
       `reverb Size 0.2→6.0 s over 360 frames: ${r.updates} updates, ` +
         `${r.bufferSwaps} impulse re-renders, ${r.bufferSamples.toLocaleString()} samples ` +
         `generated, ${r.ms.toFixed(1)} ms of synchronous work`,
     );
-    expect(r.bufferSwaps).toBeGreaterThan(50);
+    // 0.2→6 s is 4.9 octaves, so a sixth-octave grid can cross at most 30 steps.
+    expect(r.bufferSwaps).toBeLessThanOrEqual(30);
+    // And it must still follow the gesture rather than latching on one tail.
+    expect(r.bufferSwaps).toBeGreaterThan(20);
   });
 
-  it('re-renders the reverb impulse over a Damping sweep too', () => {
+  it('bounds them over a Damping sweep too', () => {
+    // 180 re-renders before the fix; 800→16000 Hz is 4.3 octaves.
     const r = sweep('reverb', 'damping', 800, 16000, 360);
     console.log(
       `reverb Damping 800→16000 Hz over 360 frames: ${r.bufferSwaps} impulse re-renders, ` +
         `${r.bufferSamples.toLocaleString()} samples, ${r.ms.toFixed(1)} ms`,
     );
-    expect(r.bufferSwaps).toBeGreaterThan(50);
+    expect(r.bufferSwaps).toBeLessThanOrEqual(27);
+    expect(r.bufferSwaps).toBeGreaterThan(15);
+  });
+
+  it('does not re-render at all while Size sits still', () => {
+    // The case that matters far more often than a sweep: any unrelated edit,
+    // or an automation lane on a *different* parameter of the same reverb,
+    // must not touch the tail.
+    const r = sweep('reverb', 'mix', 0, 1, 360);
+    console.log(`reverb Mix 0→1 over 360 frames: ${r.bufferSwaps} impulse re-renders`);
+    expect(r.bufferSwaps).toBe(0);
   });
 
   it('rebuilds a WaveShaper curve on all but a handful of frames', () => {

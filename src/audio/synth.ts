@@ -17,6 +17,7 @@ import {
 } from '../model/synthFace';
 import type { SynthParams } from '../model/types';
 import { getDrumBuffer } from './demoAudio';
+import { stealToFit } from './voiceCap';
 
 export interface SourceRegistry {
   register: (h: ActiveHandle) => void;
@@ -356,12 +357,10 @@ export class PolySynth implements Instrument {
   private spawn(pitch: number, velocity: number, when: number, clipId?: string): Voice | null {
     if (!this.registry.canAllocate()) return null;
     this.retireBy(when);
-    if (this.voices.size >= MAX_VOICES) {
-      // steal the oldest voice
-      let oldest: Voice | null = null;
-      for (const v of this.voices) if (!oldest || v.startedAt < oldest.startedAt) oldest = v;
-      oldest?.stopNow(true, when);
-    }
+    // Steal the oldest voices until there is room for this one. Loop rather
+    // than steal once: a stopped voice is still in the set until its tail
+    // retires it, so a single steal leaves the ceiling breached.
+    stealToFit(this.voices, MAX_VOICES, (v) => v.stopNow(true, when));
     const v = new Voice(
       this.ctx,
       this.out,
@@ -439,6 +438,11 @@ export class PolySynth implements Instrument {
     // note starts on its own pitch rather than sliding in from whatever was
     // playing before everything was cut.
     this.lastNote.clear();
+  }
+
+  /** Test/diagnostic probe: how many voices are live against `MAX_VOICES`. */
+  activeVoices(): number {
+    return this.voices.size;
   }
 
   dispose(): void {
