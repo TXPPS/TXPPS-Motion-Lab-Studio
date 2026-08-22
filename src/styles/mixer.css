@@ -46,7 +46,7 @@
     minmax(0, auto) /* device rack     */
     auto /* sends           */
     auto /* pan             */
-    minmax(var(--fader-min-h), 1fr) /* fader + meter */
+    minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr) /* fader + meter */
     auto /* mute/solo/arm   */
     auto /* dB + peak       */
     auto; /* routing + VCA   */
@@ -60,6 +60,9 @@
    * margin, which makes the nine rows read as four groups — identity, signal
    * path in, level, console footer — separated by 8px or by a seam.
    */
+  /* Rows are pulled together by this much. The fader's track adds it back to
+     its own minimum: --fader-min-h is a floor for the fader, and a track that
+     is exactly the floor leaves the fader short by the margin. */
   --row-tight: 2px;
   --row-group: 8px;
   --strip-pad-x: 6px;
@@ -1887,7 +1890,7 @@
       auto /* input   */
       auto /* inserts */
       auto /* pan     */
-      minmax(var(--fader-min-h), 1fr)
+      minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr)
       auto /* buttons */
       auto /* readout */
       auto; /* footer  */
@@ -1919,7 +1922,7 @@
       auto
       auto
       auto
-      minmax(var(--fader-min-h), 1fr)
+      minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr)
       auto
       auto
       auto;
@@ -1947,12 +1950,17 @@
   .strip {
     grid-template-rows:
       auto
-      minmax(var(--fader-min-h), 1fr)
+      minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr)
       auto
       auto
       auto;
   }
+  /* The rack's row is gone from the template here, so the rack has to go with
+     it: an element assigned to a row that no longer exists stacks into the
+     next one and takes its height from the fader. The chain stays reachable
+     in the inspector and in the Channel Editor. */
   .strip-input,
+  .dev-rack,
   .strip-pan {
     display: none;
   }
@@ -1975,7 +1983,7 @@
   .strip {
     grid-template-rows:
       auto
-      minmax(var(--fader-min-h), 1fr)
+      minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr)
       auto
       auto;
   }

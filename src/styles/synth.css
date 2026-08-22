@@ -221,3 +221,175 @@
   box-shadow: var(--ml-lamp-on);
   color: var(--lamp-ink);
 }
+
+/* ==========================================================================
+   The instrument frame, and the displays inside it.
+
+   The frame borrows the plugin window's header and footer classes (mixer.css)
+   so a device's chrome is described in exactly one place; everything here is
+   either the docked-instead-of-floating difference, or the body — which is
+   where a synth is allowed to look like a synth.
+   ========================================================================== */
+
+.ins-frame {
+  background: var(--bg-panel);
+}
+/* Docked, not dragged: the window's grab cursor would be a promise this
+   header cannot keep. It also wraps, because an instrument header carries a
+   kind switch and a preset menu and a phone is 360px wide. */
+.ins-head {
+  height: auto;
+  min-height: var(--toolbar-h);
+  flex-wrap: wrap;
+  padding: var(--sp-1) var(--sp-3);
+  cursor: default;
+}
+.ins-head .pw-on {
+  max-width: 22ch;
+}
+.ins-body {
+  padding: var(--sp-4);
+}
+.ins-foot .t-label {
+  margin-right: var(--sp-2);
+}
+
+/* One column on a phone, as many as fit anywhere else. A section built around
+   a display asks for two, so the curve gets the width it needs to be read. */
+.ins-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--sp-4);
+  align-content: start;
+}
+.ins-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel-2);
+  box-shadow: var(--sh-1);
+  min-width: 0;
+}
+@media (min-width: 620px) {
+  .ins-section.wide {
+    grid-column: span 2;
+  }
+}
+.ins-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+.ins-section-head .ins-aside {
+  margin-left: auto;
+  font-size: var(--fs-2xs);
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ins-section .seg,
+.ins-section select,
+.ins-section .btn {
+  align-self: flex-start;
+}
+.ins-section .syn-knobs {
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+/* A display is CUT INTO the panel: the well is its frame, so nothing inside
+   it carries a border of its own. */
+.ins-plot {
+  position: relative;
+  background: var(--bg-deep);
+  box-shadow: var(--sh-well-deep);
+  border-radius: var(--radius-xs);
+  overflow: visible;
+}
+.ins-plot > svg {
+  display: block;
+  width: 100%;
+  height: calc(96px * var(--ui-scale));
+  border-radius: var(--radius-xs);
+}
+.ins-plot-sm > svg {
+  height: calc(54px * var(--ui-scale));
+}
+.ins-plot-filter > svg {
+  height: calc(116px * var(--ui-scale));
+}
+.ins-plot-env > svg {
+  height: calc(104px * var(--ui-scale));
+}
+/* The axis strip belongs to the well, so it sits inside it rather than adding
+   a second box below. */
+.ins-plot-axis {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-2) var(--sp-1);
+}
+.ins-plot-axis .grow,
+.ins-legend .grow {
+  flex: 1 1 auto;
+}
+.ins-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* The corner handle. A cap seated on the curve — the same machined body every
+   other grabbable thing in the product has, at the smallest size it works at. */
+.ins-handle {
+  position: absolute;
+  width: calc(13px * var(--ui-scale));
+  height: calc(13px * var(--ui-scale));
+  margin: calc(-7px * var(--ui-scale)) 0 0 calc(-7px * var(--ui-scale));
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--grad-cap);
+  box-shadow: var(--sh-2);
+  cursor: grab;
+  touch-action: none;
+  z-index: 2;
+}
+.ins-handle::after {
+  content: '';
+  position: absolute;
+  inset: calc(4px * var(--ui-scale));
+  border-radius: 50%;
+  background: var(--fx-eq);
+}
+.ins-handle:active {
+  cursor: grabbing;
+}
+/* Coarse pointers get a target that survives a fingertip without the dot
+   growing with it. */
+@media (pointer: coarse) {
+  .ins-handle {
+    width: calc(22px * var(--ui-scale));
+    height: calc(22px * var(--ui-scale));
+    margin: calc(-11px * var(--ui-scale)) 0 0 calc(-11px * var(--ui-scale));
+  }
+  .ins-handle::after {
+    inset: calc(7px * var(--ui-scale));
+  }
+}
+
+.ins-hint {
+  padding: 0 var(--sp-4) var(--sp-3);
+}
+
+/* Perform mode is one column of controls above a large keyboard: on a phone
+   the sections would otherwise each be too narrow to hold a knob row. */
+.perform-page .ins-sections {
+  grid-template-columns: minmax(0, 1fr);
+}
+.perform-page .ins-section.wide {
+  grid-column: auto;
+}
