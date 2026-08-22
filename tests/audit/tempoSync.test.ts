@@ -14,7 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { defaultParams } from '../../src/model/effects';
+import { EFFECT_SPECS, defaultParams, describeEffect, formatParam } from '../../src/model/effects';
 import { buildEffectNode } from '../../src/audio/effectChain';
 import { syncSeconds } from '../../src/audio/dsp/curves';
 import { projectBpmAt, tempoMapOf } from '../../src/model/music';
@@ -23,11 +23,20 @@ import type { Effect, EffectKind, ProjectData } from '../../src/model/types';
 import { createProbeContext } from './probeContext';
 
 function effectOf(kind: EffectKind, overrides: Record<string, number> = {}): Effect {
-  return { id: `fx-${kind}`, kind, bypass: false, params: { ...defaultParams(kind), ...overrides } };
+  return {
+    id: `fx-${kind}`,
+    kind,
+    bypass: false,
+    params: { ...defaultParams(kind), ...overrides },
+  };
 }
 
 /** The delay time one insert is actually set to, at a given bpm. */
-function delaySecondsAt(kind: EffectKind, bpm: number, overrides: Record<string, number> = {}): number {
+function delaySecondsAt(
+  kind: EffectKind,
+  bpm: number,
+  overrides: Record<string, number> = {},
+): number {
   const probe = createProbeContext();
   const e = effectOf(kind, overrides);
   const node = buildEffectNode(probe.ctx, e);
@@ -109,5 +118,37 @@ describe('PA-002 · tempo-synced inserts and the tempo map', () => {
     expect(beatsPerBarAt(map, barToBeat(map, 0))).toBe(4);
     expect(beatsPerBarAt(map, barToBeat(map, 9))).toBe(3.5);
     expect(syncSeconds(6, 120, 'straight')).toBe(syncSeconds(6, 120, 'straight'));
+  });
+
+  it('PA-011 · reads a division on the knob without the Feel the audio applies', () => {
+    // `formatParam` is handed a `ParamSpec` and a number and nothing else, so
+    // its `'div'` case can only ask `describeDivision` for the straight name.
+    // The collapsed slot has the whole effect and asks for the real one, and so
+    // does the audio. Three devices carry both a division and a Feel.
+    const rows: string[] = [];
+    for (const [kind, key] of [
+      ['pingpong', 'timeSixteenths'],
+      ['tremolo', 'division'],
+      ['autopan', 'division'],
+    ] as [EffectKind, string][]) {
+      const spec = EFFECT_SPECS.find((s2) => s2.kind === kind)!.params.find((p) => p.key === key)!;
+      for (const modifier of [1, 2]) {
+        const e = effectOf(kind, {
+          modifier,
+          ...(kind === 'tremolo' || kind === 'autopan' ? { sync: 1 } : {}),
+        });
+        const knob = formatParam(spec, e.params[key]);
+        const slot = describeEffect(e);
+        const suffix = modifier === 1 ? 'D' : 'T';
+        rows.push(
+          `${kind} Feel=${modifier === 1 ? 'Dotted' : 'Triplet'}: knob reads "${knob}", ` +
+            `slot reads "${slot}"`,
+        );
+        // The knob never carries the Feel; the slot always does.
+        expect(knob.endsWith(suffix)).toBe(false);
+        expect(slot).toContain(`${knob} ${suffix}`);
+      }
+    }
+    console.log(`Division readouts that disagree with each other:\n  ${rows.join('\n  ')}`);
   });
 });

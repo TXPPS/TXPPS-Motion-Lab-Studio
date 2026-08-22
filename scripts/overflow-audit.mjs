@@ -137,16 +137,44 @@ const VIEWPORTS = [
   { name: 'tablet-sm-portrait', w: 768, h: 1024, cls: 'tablet', orient: 'portrait', touch: true },
   { name: 'tablet-sm-landscape', w: 1024, h: 768, cls: 'tablet', orient: 'landscape', touch: true },
   { name: 'tablet-lg-portrait', w: 1024, h: 1366, cls: 'tablet', orient: 'portrait', touch: true },
-  { name: 'tablet-lg-landscape', w: 1366, h: 1024, cls: 'tablet', orient: 'landscape', touch: true },
+  {
+    name: 'tablet-lg-landscape',
+    w: 1366,
+    h: 1024,
+    cls: 'tablet',
+    orient: 'landscape',
+    touch: true,
+  },
   { name: 'split-sm-half', w: 512, h: 768, cls: 'split', orient: 'landscape', touch: true },
   { name: 'split-sm-third', w: 341, h: 768, cls: 'split', orient: 'landscape', touch: true },
   { name: 'split-lg-half', w: 683, h: 1024, cls: 'split', orient: 'landscape', touch: true },
   { name: 'split-lg-third', w: 455, h: 1024, cls: 'split', orient: 'landscape', touch: true },
   { name: 'laptop-1280x800', w: 1280, h: 800, cls: 'laptop', orient: 'landscape', touch: false },
   { name: 'laptop-1440x900', w: 1440, h: 900, cls: 'laptop', orient: 'landscape', touch: false },
-  { name: 'desktop-1920x1080', w: 1920, h: 1080, cls: 'desktop', orient: 'landscape', touch: false },
-  { name: 'desktop-2560x1440', w: 2560, h: 1440, cls: 'desktop', orient: 'landscape', touch: false },
-  { name: 'ultrawide-3440x1440', w: 3440, h: 1440, cls: 'ultra', orient: 'landscape', touch: false },
+  {
+    name: 'desktop-1920x1080',
+    w: 1920,
+    h: 1080,
+    cls: 'desktop',
+    orient: 'landscape',
+    touch: false,
+  },
+  {
+    name: 'desktop-2560x1440',
+    w: 2560,
+    h: 1440,
+    cls: 'desktop',
+    orient: 'landscape',
+    touch: false,
+  },
+  {
+    name: 'ultrawide-3440x1440',
+    w: 3440,
+    h: 1440,
+    cls: 'ultra',
+    orient: 'landscape',
+    touch: false,
+  },
 ];
 
 /**
@@ -497,7 +525,16 @@ const probe = (opts) => {
     return false;
   };
 
-  const all = document.querySelectorAll('body *');
+  /*
+   * A surface that is a floating window is measured through the window only.
+   * Probing the whole document there would re-report the console behind it on
+   * every one of the thirty devices, which buries the window's own defects and
+   * costs thirty times the CPU for the same answer.
+   */
+  const rootEl = opts.root ? document.querySelector(opts.root) : null;
+  const all = rootEl
+    ? [rootEl, ...rootEl.querySelectorAll('*')]
+    : document.querySelectorAll('body *');
   /* Overlap is a question about siblings, so the candidates are collected per
      parent on the way past and answered in one pass at the end. */
   const overlapCandidates = new Map();
@@ -788,7 +825,9 @@ const probeTrackHeader = (minTouch) => {
     const headerBox = rect(header);
     const stripBox = rect(strip);
     if (stripBox.right > headerBox.right + 0.5) {
-      problems.push(`${id}: strip overflows its header by ${Math.round(stripBox.right - headerBox.right)}px`);
+      problems.push(
+        `${id}: strip overflows its header by ${Math.round(stripBox.right - headerBox.right)}px`,
+      );
     }
     const name = header.querySelector('.th-name');
     if (name && name.scrollWidth > name.clientWidth + 1) {
@@ -827,15 +866,23 @@ const probeChrome = () => {
   };
   const lanes = document.querySelector('.arr-lanes');
   const scroll = document.querySelector('[data-testid="arr-scroll"]');
-  /* The lanes start below whatever sits inside the scroller (ruler, markers),
-     so the height actually available to tracks is what is left under it. */
-  const laneViewport =
+  /*
+   * The lanes start below whatever sits inside the scroller (the ruler and the
+   * marker row), so the height actually available to tracks is what is left
+   * under it. Measured from the content offset rather than from the current
+   * rects: the scroller may already have been scrolled by an earlier click,
+   * and the number that matters is what a user lands on, which is scrollTop 0.
+   */
+  const laneOffset =
     lanes && scroll
-      ? Math.max(
-          0,
-          scroll.getBoundingClientRect().bottom - lanes.getBoundingClientRect().top,
-        )
+      ? lanes.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop
       : null;
+  const laneViewport = laneOffset === null ? null : Math.max(0, scroll.clientHeight - laneOffset);
+  /* How many whole track rows a user sees before touching anything. */
+  const rowH = (() => {
+    const th = document.querySelector('[data-testid^="track-header-"]');
+    return th ? th.getBoundingClientRect().height : 0;
+  })();
   return {
     viewportH: document.documentElement.clientHeight,
     topbar: h('header.topbar'),
@@ -845,7 +892,10 @@ const probeChrome = () => {
     arrToolbar: h('.arr-toolbar'),
     arrOverview: h('[data-testid="arrangement-overview"]'),
     arrScroll: scroller('[data-testid="arr-scroll"]'),
+    rulerH: laneOffset === null ? null : Math.round(laneOffset),
     laneViewportH: laneViewport === null ? null : Math.round(laneViewport),
+    wholeTrackRowsVisible:
+      laneViewport === null || rowH < 1 ? null : Math.floor(laneViewport / rowH),
     trackRowH: (() => {
       const th = document.querySelector('[data-testid^="track-header-"]');
       return th ? Math.round(th.getBoundingClientRect().height) : null;
@@ -1025,12 +1075,19 @@ async function sweepPlugins(page, vpName, layout, minTap, safe, onSurface) {
    * pointer sequence entirely — recording which route it needed so the report
    * can say the control is unclickable rather than quietly working around it.
    */
+  let pickerRoute = null;
   const openPicker = async (adder, log) => {
+    if (pickerRoute === 'scripted') {
+      await adder.evaluate((el) => el.click()).catch(() => {});
+      await settle(page, 200);
+      return (await page.locator('.ctx-menu [role="menuitem"]').count()) ? 'scripted' : null;
+    }
     for (let attempt = 1; attempt <= 2; attempt++) {
       await adder.click({ timeout: 4000 }).catch(() => {});
       await settle(page, 250);
       if (await page.locator('.ctx-menu [role="menuitem"]').count()) {
         if (attempt > 1) log.push(`Insert needed ${attempt} presses — the strip reflows under it`);
+        pickerRoute = 'pointer';
         return 'pointer';
       }
     }
@@ -1038,6 +1095,7 @@ async function sweepPlugins(page, vpName, layout, minTap, safe, onSurface) {
     await settle(page, 250);
     if (await page.locator('.ctx-menu [role="menuitem"]').count()) {
       log.push('Insert never answered a real pointer press; opened programmatically');
+      pickerRoute = 'scripted';
       return 'scripted';
     }
     return null;
@@ -1065,7 +1123,9 @@ async function sweepPlugins(page, vpName, layout, minTap, safe, onSurface) {
   await settle(page, 150);
 
   const wanted =
-    PLUGINS === 'all' ? labels : labels.filter((l) => l.toLowerCase().includes(PLUGINS.toLowerCase()));
+    PLUGINS === 'all'
+      ? labels
+      : labels.filter((l) => l.toLowerCase().includes(PLUGINS.toLowerCase()));
   notes.push(`${labels.length} devices in the picker, ${wanted.length} swept`);
 
   for (const label of wanted) {
@@ -1089,10 +1149,7 @@ async function sweepPlugins(page, vpName, layout, minTap, safe, onSurface) {
           one.push('the Insert picker would not open');
           break;
         }
-        const item = page
-          .locator('.ctx-menu [role="menuitem"]')
-          .filter({ hasText: label })
-          .first();
+        const item = page.locator('.ctx-menu [role="menuitem"]').filter({ hasText: label }).first();
         if (!(await item.count())) {
           await page.keyboard.press('Escape');
           one.push(`"${label}" is not in this rack's picker`);
@@ -1108,20 +1165,21 @@ async function sweepPlugins(page, vpName, layout, minTap, safe, onSurface) {
       } else {
         const win = page.locator('[data-testid="plugin-window"]');
         if (!(await win.count())) one.push('device added but no window opened');
-        measured = await page.evaluate(probe, { minTap, safe });
+        measured = await page.evaluate(probe, {
+          minTap,
+          safe,
+          root: '[data-testid="plugin-window"]',
+        });
         modal = await page.evaluate(probeModal, '[data-testid="plugin-window"]');
       }
     } catch (e) {
       error = e.message.split('\n')[0];
     }
+    /* Filed while the window is still up: `record` takes the screenshot, and a
+       picture of the console with the editor already dismissed proves nothing. */
+    await onSurface(surfaceId, { notes: one, error, modal, measured });
     await page.keyboard.press('Escape').catch(() => {});
     await settle(page, 150);
-    await onSurface(surfaceId, {
-      notes: one,
-      error,
-      modal,
-      measured,
-    });
   }
   return { notes };
 }
@@ -1274,8 +1332,14 @@ for (const vp of VIEWPORTS) {
 
   const page = await context.newPage();
   page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
-  await page.goto(`${BASE}/#/song`, { waitUntil: 'networkidle' });
-  await page.waitForSelector('[data-testid="app-root"]');
+  /* `networkidle` is the honest signal that the app has finished booting, but
+     it is also the first thing to time out when several passes share one
+     preview server. Falling back to the document being parsed loses nothing:
+     the shell marker and the settle below are what the measurement waits on. */
+  await page
+    .goto(`${BASE}/#/song`, { waitUntil: 'networkidle', timeout: 60000 })
+    .catch(() => page.goto(`${BASE}/#/song`, { waitUntil: 'domcontentloaded', timeout: 60000 }));
+  await page.waitForSelector('[data-testid="app-root"]', { timeout: 30000 });
 
   /*
    * Text scaling, two ways, because they are two mechanisms.
@@ -1294,6 +1358,16 @@ for (const vp of VIEWPORTS) {
   }));
   if (TEXT_SCALE !== 100) {
     await page.addStyleTag({ content: `html { font-size: ${TEXT_SCALE}% !important; }` });
+  }
+  /*
+   * `prefsStore.clampScale` caps the product's own scale at 1.4, so 200% — the
+   * figure WCAG 1.4.4 names — cannot be reached through the Preferences sheet
+   * at all. Injecting the variable is how the audit finds out what a 200%
+   * layout would do, which is the question the fix engineer has to answer
+   * before the cap can be raised.
+   */
+  if (UI_SCALE !== 1) {
+    await page.addStyleTag({ content: `:root { --ui-scale: ${UI_SCALE} !important; }` });
   }
   if (safe) {
     await page.addStyleTag({
@@ -1345,8 +1419,8 @@ for (const vp of VIEWPORTS) {
       `  chrome: topbar ${c.topbar} + transport ${c.transport} + ` +
         `arr-toolbar ${c.arrToolbar} + overview ${c.arrOverview} + ` +
         `${c.bottomnav ? `bottomnav ${c.bottomnav}` : `statusbar ${c.statusbar}`} ` +
-        `-> lanes get ${c.laneViewportH}px of ${c.viewportH} ` +
-        `(${c.trackRowH ? (c.laneViewportH / c.trackRowH).toFixed(1) : '?'} track rows); ` +
+        `-> ruler ${c.rulerH} + lanes ${c.laneViewportH}px of ${c.viewportH} ` +
+        `(${c.wholeTrackRowsVisible} whole track rows); ` +
         `header row ${c.trackRowH}px holds ${c.trackHeaderNeedsH}px of controls`,
     );
   }

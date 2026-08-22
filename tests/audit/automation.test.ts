@@ -24,7 +24,12 @@ const BPM = 120;
 const AUTO_EPSILON = 0.0008;
 
 function effectOf(kind: EffectKind, overrides: Record<string, number> = {}): Effect {
-  return { id: `fx-${kind}`, kind, bypass: false, params: { ...defaultParams(kind), ...overrides } };
+  return {
+    id: `fx-${kind}`,
+    kind,
+    bypass: false,
+    params: { ...defaultParams(kind), ...overrides },
+  };
 }
 
 /**
@@ -123,8 +128,8 @@ describe('PA-004 · automating an insert parameter rewrites a table instead of r
   });
 });
 
-describe('PA-005 · every fx automation lane round-trips through its own mapping', () => {
-  it('recovers the value a lane point was written from, for all 165 parameters', () => {
+describe('PA · fx automation lanes: taper round-trip, and PA-005', () => {
+  it('recovers the value a lane point was written from, for every declared parameter', () => {
     const track: Track = {
       id: 't1',
       name: 'T',
@@ -195,7 +200,9 @@ describe('PA-006 · the offline grid an insert lane is rendered on', () => {
       hz: 1 / gridFor(sec),
     }));
     console.log(
-      rows.map((r) => `${r.sec}s render → ${r.gridMs.toFixed(1)} ms grid (${r.hz.toFixed(1)} Hz)`).join('\n'),
+      rows
+        .map((r) => `${r.sec}s render → ${r.gridMs.toFixed(1)} ms grid (${r.hz.toFixed(1)} Hz)`)
+        .join('\n'),
     );
     expect(gridFor(30) * 1000).toBeCloseTo(25, 6);
     expect(gridFor(600) * 1000).toBeCloseTo(125, 3);

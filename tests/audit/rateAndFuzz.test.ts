@@ -23,7 +23,12 @@ const BPM = 120;
 const RATES = [44100, 48000, 88200, 96000, 192000];
 
 function effectOf(kind: EffectKind, overrides: Record<string, number> = {}): Effect {
-  return { id: `fx-${kind}`, kind, bypass: false, params: { ...defaultParams(kind), ...overrides } };
+  return {
+    id: `fx-${kind}`,
+    kind,
+    bypass: false,
+    params: { ...defaultParams(kind), ...overrides },
+  };
 }
 
 /** Every settled parameter target in the graph, keyed by node and field. */
@@ -85,7 +90,9 @@ describe('PA · sample-rate independence, 44.1 / 48 / 88.2 / 96 / 192 kHz', () =
     for (const [key, samples] of drifting) {
       const ratios = samples.map((s) => (s.value * s.rate) / (samples[0].value * samples[0].rate));
       if (ratios.every((r) => Math.abs(r - 1) < 1e-9)) {
-        holds.push(`${key} = ${(samples[0].value * samples[0].rate).toFixed(3)} samples at every rate`);
+        holds.push(
+          `${key} = ${(samples[0].value * samples[0].rate).toFixed(3)} samples at every rate`,
+        );
         continue;
       }
       // The pole, or the tap gain that complements it.
@@ -139,7 +146,9 @@ describe('PA · sample-rate independence, 44.1 / 48 / 88.2 / 96 / 192 kHz', () =
     });
     console.log(
       'reverb impulse: ' +
-        lengths.map((l) => `${l.rate} Hz → ${l.frames} frames (${(l.frames / l.rate).toFixed(3)} s)`).join(', '),
+        lengths
+          .map((l) => `${l.rate} Hz → ${l.frames} frames (${(l.frames / l.rate).toFixed(3)} s)`)
+          .join(', '),
     );
     for (const l of lengths) expect(l.frames / l.rate).toBeCloseTo(1.8, 4);
   });
@@ -195,11 +204,20 @@ interface Fault {
   params: string;
 }
 
-function faultsIn(probe: ReturnType<typeof createProbeContext>, kind: string, params: Effect['params']): Fault[] {
+function faultsIn(
+  probe: ReturnType<typeof createProbeContext>,
+  kind: string,
+  params: Effect['params'],
+): Fault[] {
   const out: Fault[] = [];
   for (const w of probe.writes) {
     if (typeof w.value === 'number' && !Number.isFinite(w.value)) {
-      out.push({ kind, where: `${w.path} (${w.how})`, value: String(w.value), params: JSON.stringify(params) });
+      out.push({
+        kind,
+        where: `${w.path} (${w.how})`,
+        value: String(w.value),
+        params: JSON.stringify(params),
+      });
     }
     if (typeof w.value === 'string' && /NaN|Infinity/.test(w.value)) {
       out.push({ kind, where: w.path, value: w.value, params: JSON.stringify(params) });
@@ -231,7 +249,8 @@ describe('PA · parameter-space fuzz, every kind', () => {
         }
       }
     }
-    if (faults.length > 0) console.log('NON-FINITE WRITES:', JSON.stringify(faults.slice(0, 10), null, 1));
+    if (faults.length > 0)
+      console.log('NON-FINITE WRITES:', JSON.stringify(faults.slice(0, 10), null, 1));
     expect(faults).toEqual([]);
   });
 
@@ -253,7 +272,12 @@ describe('PA · parameter-space fuzz, every kind', () => {
           faults.push(...faultsIn(probe, spec.kind, params));
           const tables = scanTables(probe);
           for (const t of tables) {
-            faults.push({ kind: spec.kind, where: t, value: 'table holds NaN', params: JSON.stringify(params) });
+            faults.push({
+              kind: spec.kind,
+              where: t,
+              value: 'table holds NaN',
+              params: JSON.stringify(params),
+            });
           }
           node.dispose();
         }

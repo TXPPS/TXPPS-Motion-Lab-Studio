@@ -25,7 +25,12 @@ import { createProbeContext } from './probeContext';
 const BPM = 120;
 
 function effectOf(kind: EffectKind, overrides: Record<string, number> = {}): Effect {
-  return { id: `fx-${kind}`, kind, bypass: false, params: { ...defaultParams(kind), ...overrides } };
+  return {
+    id: `fx-${kind}`,
+    kind,
+    bypass: false,
+    params: { ...defaultParams(kind), ...overrides },
+  };
 }
 
 /** A value clearly different from `from`, inside the spec's own range. */
@@ -177,9 +182,7 @@ describe('PA · bypass is written as a ramp, never as a jump', () => {
       }
       probe.clear();
       node.update(on, BPM, false);
-      const back = probe.writes.filter(
-        (w) => !w.same && (w.how === 'assign' || w.how === 'field'),
-      );
+      const back = probe.writes.filter((w) => !w.same && (w.how === 'assign' || w.how === 'field'));
       if (back.length > 0) {
         faults.push(`${spec.kind} (back in): ${[...new Set(back.map((j) => j.path))].join(' ')}`);
       }

@@ -26,13 +26,14 @@ import { EFFECT_SPECS, defaultParams, normaliseParams } from '../../src/model/ef
 import { buildEffectNode } from '../../src/audio/effectChain';
 import { validateProject } from '../../src/persistence/projectRepo';
 import { createDemoProject } from '../../src/model/demoProject';
+import { saturationCurve, clipCurve, quantiserCurve, dbToGain } from '../../src/audio/dsp/curves';
 import {
-  saturationCurve,
-  clipCurve,
-  quantiserCurve,
-  dbToGain,
-} from '../../src/audio/dsp/curves';
-import { fftInPlace, ifftInPlace, realFft, magnitudeSpectrum } from '../../src/model/fft';
+  fftInPlace,
+  ifftInPlace,
+  realFft,
+  magnitudeSpectrum,
+  makeWindow,
+} from '../../src/model/fft';
 import type { Effect, EffectKind, ProjectData } from '../../src/model/types';
 import { createProbeContext } from './probeContext';
 
@@ -75,7 +76,9 @@ describe('PA · preset save / load round-trip', () => {
         if (!(k in params)) mismatches.push(`${preset.id}.${k}: invented on load`);
       }
     }
-    console.log(`${EFFECT_PRESETS.length} factory presets round-tripped, ${mismatches.length} mismatches`);
+    console.log(
+      `${EFFECT_PRESETS.length} factory presets round-tripped, ${mismatches.length} mismatches`,
+    );
     expect(mismatches).toEqual([]);
   });
 
@@ -96,15 +99,21 @@ describe('PA · preset save / load round-trip', () => {
       };
       const back = validateProject(JSON.parse(JSON.stringify(project)));
       const reloaded = back.tracks.find((t) => t.id === track.id)?.effects ?? [];
-      expect(reloaded.map((e) => e.kind), chain.id).toEqual(effects.map((e) => e.kind));
-      expect(reloaded.map((e) => e.bypass), chain.id).toEqual(effects.map((e) => e.bypass));
+      expect(
+        reloaded.map((e) => e.kind),
+        chain.id,
+      ).toEqual(effects.map((e) => e.kind));
+      expect(
+        reloaded.map((e) => e.bypass),
+        chain.id,
+      ).toEqual(effects.map((e) => e.bypass));
       for (let i = 0; i < effects.length; i++) {
         expect(reloaded[i].params, `${chain.id} step ${i}`).toEqual(effects[i].params);
       }
     }
   });
 
-  it('reloads a value that is not on a parameter\'s own step grid, unrounded', () => {
+  it("reloads a value that is not on a parameter's own step grid, unrounded", () => {
     // A knob dragged with a pointer, a macro, and every automation write land
     // between steps. Snapping on load would move a mix the user made.
     const params = { ...defaultParams('compressor'), threshold: -17.3719, ratio: 3.14159 };
@@ -194,43 +203,63 @@ const N = 8192;
 const F0 = 5000;
 const OS = 4;
 
-/** An ideal 4× oversampled shaping: shape at 4·SR, brickwall, then decimate. */
-function shapedOversampled(curve: Float32Array, amp: number): Float32Array {
-  const long = N * OS;
+/**
+ * Ideal oversampled shaping: shape at `os`·SR, brickwall at 24 kHz, decimate.
+ *
+ * "Ideal" is the decimation filter, not the result. Oversampling by any finite
+ * factor still folds whatever the curve generates above that factor's own
+ * Nyquist, which is why the residual falls with `os` rather than vanishing.
+ */
+function shapedOversampled(curve: Float32Array, amp: number, os = OS): Float32Array {
+  const long = N * os;
   const re = new Float32Array(long);
   const im = new Float32Array(long);
   for (let i = 0; i < long; i++) {
     // The 4× version of the same tone is its exact band-limited interpolation.
-    re[i] = readShaper(curve, amp * Math.sin((2 * Math.PI * F0 * i) / (SR * OS)));
+    re[i] = readShaper(curve, amp * Math.sin((2 * Math.PI * F0 * i) / (SR * os)));
   }
   fftInPlace(re, im);
   // Keep only what fits under the 48 kHz Nyquist; discard the rest, which is
   // exactly what a perfect decimation filter would remove.
-  const keep = Math.floor(long / (2 * OS));
+  const keep = Math.floor(long / (2 * os));
   for (let k = keep; k < long - keep + 1; k++) {
     re[k] = 0;
     im[k] = 0;
   }
   ifftInPlace(re, im);
   const out = new Float32Array(N);
-  for (let i = 0; i < N; i++) out[i] = re[i * OS];
+  for (let i = 0; i < N; i++) out[i] = re[i * os];
   return out;
 }
 
 function shapedPlain(curve: Float32Array, amp: number): Float32Array {
   const out = new Float32Array(N);
-  for (let i = 0; i < N; i++) out[i] = readShaper(curve, amp * Math.sin((2 * Math.PI * F0 * i) / SR));
+  for (let i = 0; i < N; i++)
+    out[i] = readShaper(curve, amp * Math.sin((2 * Math.PI * F0 * i) / SR));
   return out;
 }
 
-/** Peak magnitude in dB, relative to the fundamental, at a set of frequencies. */
+/**
+ * Peak magnitude in dB, relative to the fundamental, at a set of frequencies.
+ *
+ * Windowed with Blackman-Harris first, and that is not cosmetic: 5 kHz at
+ * 48 kHz over 8192 points is 853.33 bins, so a rectangular window leaks skirts
+ * at about −31 dBc and every alias measured against it would read as that
+ * number whatever the curve did. The window puts the leakage floor near
+ * −90 dBc, which is below anything being looked for here.
+ */
+const WINDOW = makeWindow('blackmanHarris', N);
+
 function levelsAt(signal: Float32Array, freqs: number[]): { hz: number; db: number }[] {
-  const mag = magnitudeSpectrum(realFft(signal));
+  const windowed = new Float32Array(N);
+  for (let i = 0; i < N; i++) windowed[i] = signal[i] * WINDOW[i];
+  const mag = magnitudeSpectrum(realFft(windowed));
   const binOf = (hz: number) => Math.round((hz * N) / SR);
   const peakNear = (hz: number) => {
     const b = binOf(hz);
     let peak = 0;
-    for (let k = Math.max(0, b - 2); k <= Math.min(mag.length - 1, b + 2); k++) {
+    // Blackman-Harris spreads a tone over about four bins either side.
+    for (let k = Math.max(0, b - 4); k <= Math.min(mag.length - 1, b + 4); k++) {
       peak = Math.max(peak, mag[k]);
     }
     return peak;
@@ -268,9 +297,13 @@ describe('PA · aliasing of the shaper curves at high drive', () => {
       const over = levelsAt(shapedOversampled(curve, amp), aliases);
       const worstPlain = Math.max(...plain.map((p) => p.db));
       const worstOver = Math.max(...over.map((p) => p.db));
+      // The 5th harmonic folds to 23 kHz, which most listeners never hear; the
+      // one that matters is the worst alias inside the band people work in.
+      const audible = Math.max(...plain.filter((p) => p.hz <= 16000).map((p) => p.db));
       rows.push(
-        `${name.padEnd(40)} worst alias ${worstPlain.toFixed(1)} dBc at 1×, ` +
-          `${worstOver.toFixed(1)} dBc with ideal 4× — ${(worstPlain - worstOver).toFixed(1)} dB removed`,
+        `${name.padEnd(42)} worst ${worstPlain.toFixed(1)} dBc at 1× ` +
+          `(${audible.toFixed(1)} dBc below 16 kHz), ${worstOver.toFixed(1)} dBc with ideal 4× ` +
+          `— ${(worstPlain - worstOver).toFixed(1)} dB removed`,
       );
       expect(Number.isFinite(worstPlain)).toBe(true);
     }
@@ -278,6 +311,29 @@ describe('PA · aliasing of the shaper curves at high drive', () => {
       `Alias energy relative to a ${F0} Hz fundamental at ${SR} Hz, ` +
         `measured at ${aliases.join(', ')} Hz:\n  ${rows.join('\n  ')}`,
     );
+  });
+
+  it('keeps falling as the oversampling factor rises, which is what proves it is folding', () => {
+    const aliases = foldedAliases();
+    const curve = saturationCurve('tube', 36);
+    const rows = [1, 2, 4, 8, 16].map((os) => {
+      const sig = os === 1 ? shapedPlain(curve, 1) : shapedOversampled(curve, 1, os);
+      return { os, worst: Math.max(...levelsAt(sig, aliases).map((p) => p.db)) };
+    });
+    console.log(
+      'saturator tube @36 dB, worst alias by oversampling factor: ' +
+        rows.map((r) => `${r.os}× ${r.worst.toFixed(1)} dBc`).join(', '),
+    );
+    // Not monotonic, and it should not be expected to be: which harmonic order
+    // lands on which probe frequency changes with the factor, so 2× happens to
+    // put nothing near 23 kHz while 4× puts the 21st there. What the ladder
+    // shows is the thing worth showing — that the 1× figure is folding rather
+    // than genuine in-band harmonic content, and that it keeps falling as the
+    // fold point moves up.
+    const at = (os: number) => rows.find((r) => r.os === os)!.worst;
+    expect(at(1)).toBe(Math.max(...rows.map((r) => r.worst)));
+    expect(at(16)).toBeLessThan(at(1) - 40);
+    expect(at(4)).toBeLessThan(at(1) - 15);
   });
 
   it('finds no alias energy worth removing on the bitcrusher quantiser, which runs at 1×', () => {
@@ -291,4 +347,3 @@ describe('PA · aliasing of the shaper curves at high drive', () => {
     expect(worst).toBeGreaterThan(-60);
   });
 });
-

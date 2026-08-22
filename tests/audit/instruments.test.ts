@@ -22,9 +22,17 @@ import {
   suggestedHoldSec,
 } from '../../src/model/synthFace';
 import { midiToFreq } from '../../src/model/music';
-import { defaultSamplerParams, makeZone, zonePlaybackRate } from '../../src/model/sampler';
+import {
+  defaultSamplerParams,
+  makeZone,
+  validateSampler,
+  zonePlaybackRate,
+} from '../../src/model/sampler';
 import type { SamplerParams } from '../../src/model/sampler';
 import type { SynthParams } from '../../src/model/types';
+import { validateProject } from '../../src/persistence/projectRepo';
+import { createDemoProject } from '../../src/model/demoProject';
+import { cacheBuffer, resetMediaCaches } from '../../src/audio/mediaLibrary';
 import { createProbeContext } from './probeContext';
 
 function countingRegistry(): SourceRegistry & { live: Set<ActiveHandle>; peak: number } {
@@ -81,16 +89,33 @@ describe('PA-003 · polyphony and voice stealing', () => {
   });
 
   it('does not hold the sampler to its stated 48 voices either', () => {
+    resetMediaCaches();
+    // A one-second stereo buffer, so `spawn` gets past `getBufferSync` and
+    // actually builds voices. The stub `AudioBuffer` in `tests/setup.ts` is
+    // enough: nothing here reads a sample.
+    cacheBuffer(
+      'm-sampler',
+      new AudioBuffer({ numberOfChannels: 2, length: 48000, sampleRate: 48000 }),
+    );
     const probe = createProbeContext();
     const reg = countingRegistry();
     const out = probe.ctx.createGain();
-    // No media is registered, so `getBufferSync` returns nothing and `spawn`
-    // returns before it builds anything — which is exactly why this case is
-    // reported from the synth's numbers and only cross-checked here.
-    const p: SamplerParams = { ...defaultSamplerParams('quick'), zones: [] };
+    const p: SamplerParams = {
+      ...defaultSamplerParams('quick'),
+      zones: [makeZone({ mediaId: 'm-sampler', rootNote: 60 })],
+    };
     const sampler = new SamplerInstrument(probe.ctx, out, 't1', () => p, reg);
-    for (let i = 0; i < 80; i++) sampler.scheduleNote(60, 100, 1, 1);
-    expect(sampler.activeVoices()).toBe(0);
+    for (let i = 0; i < 80; i++) sampler.scheduleNote(60 + (i % 24), 100, 1, 4);
+    // The steal itself cannot be counted here the way it can on the synth: a
+    // sampler voice's ordinary `release` also cancels before it ramps, so a
+    // cancel no longer separates the two. What the voice set says is enough —
+    // eighty voices are live against a ceiling of forty-eight.
+    console.log(
+      `80 sampler notes at one instant → ${sampler.activeVoices()} live voices ` +
+        `(the cap is 48)`,
+    );
+    expect(sampler.activeVoices()).toBe(80);
+    resetMediaCaches();
   });
 
   it('steals the same voice repeatedly instead of the next oldest', () => {
@@ -273,5 +298,77 @@ describe('PA-007 · a non-finite instrument parameter reaches the node unguarded
     const env = synthAmpEnvelope({ ...PATCH, volume: NaN }, 100);
     expect(Number.isFinite(env.peak)).toBe(false);
     expect(Number.isFinite(ampEnvelopeGain(env, 0.1, 1))).toBe(false);
+  });
+});
+
+describe('PA · instrument preset round-trip', () => {
+  it('reloads every synth factory preset field for field', () => {
+    const base = createDemoProject('p-synth');
+    const track = base.tracks.find((t) => t.type === 'instrument');
+    expect(track).toBeTruthy();
+    for (const preset of SYNTH_PRESETS) {
+      const project = {
+        ...base,
+        tracks: base.tracks.map((t) => (t.id === track!.id ? { ...t, synth: { ...preset } } : t)),
+      };
+      const back = validateProject(JSON.parse(JSON.stringify(project)));
+      const reloaded = back.tracks.find((t) => t.id === track!.id)?.synth;
+      expect(reloaded, preset.presetName).toEqual(preset);
+    }
+  });
+
+  it('reloads a synth patch with a non-finite field as a patch with a missing field', () => {
+    // `validateProject` normalises through JSON first, and JSON has no NaN — it
+    // becomes null. Nothing then clamps or drops it, so the field arrives at the
+    // voice as `null`, which is not a number and not the default either.
+    const base = createDemoProject('p-nan');
+    const track = base.tracks.find((t) => t.type === 'instrument')!;
+    const project = {
+      ...base,
+      tracks: base.tracks.map((t) =>
+        t.id === track.id ? { ...t, synth: { ...SYNTH_PRESETS[0], cutoff: NaN } } : t,
+      ),
+    };
+    const back = validateProject(JSON.parse(JSON.stringify(project)));
+    const reloaded = back.tracks.find((t) => t.id === track.id)?.synth as unknown as Record<
+      string,
+      unknown
+    >;
+    console.log(`a NaN cutoff reloads as ${JSON.stringify(reloaded.cutoff)}`);
+    expect(reloaded.cutoff).toBe(null);
+    // And that is what `synthVoiceFilter` multiplies by the key-track factor.
+    const filter = synthVoiceFilter(reloaded as unknown as SynthParams, 60);
+    expect(filter.freqHz).toBe(40);
+  });
+});
+
+describe('PA · sampler and drum-rack state round-trip', () => {
+  it('reloads a sampler patch in all three views, zones and all', () => {
+    const base = createDemoProject('p-smp');
+    const track = base.tracks.find((t) => t.type === 'instrument')!;
+    for (const view of ['quick', 'drum', 'multi'] as const) {
+      const sampler: SamplerParams = {
+        ...defaultSamplerParams(view),
+        filterType: 'lowpass',
+        filterCutoff: 4321.5,
+        filterRes: 6.25,
+        lfoTarget: 'pitch',
+        lfoRate: 3.75,
+        lfoDepth: 0.42,
+        zones: [
+          makeZone({ mediaId: 'hit-kick', rootNote: 36, keyLo: 36, keyHi: 36, tuneFine: -17 }),
+          makeZone({ mediaId: 'hit-snare', rootNote: 38, keyLo: 38, keyHi: 40, chokeGroup: 1 }),
+        ],
+      };
+      const project = {
+        ...base,
+        tracks: base.tracks.map((t) => (t.id === track.id ? { ...t, sampler } : t)),
+      };
+      const back = validateProject(JSON.parse(JSON.stringify(project)));
+      const reloaded = back.tracks.find((t) => t.id === track.id)?.sampler;
+      expect(reloaded, view).toEqual(sampler);
+      // And the validator is a fixpoint, so a second save cannot drift.
+      expect(validateSampler(JSON.parse(JSON.stringify(reloaded))), view).toEqual(reloaded);
+    }
   });
 });

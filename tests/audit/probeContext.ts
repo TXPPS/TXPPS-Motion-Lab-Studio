@@ -77,7 +77,8 @@ function hashNumbers(a: ArrayLike<number>): string {
 export function createProbeContext(sampleRate = 48000): ProbeContext {
   const writes: WriteEvent[] = [];
   const connections: { from: string; to: string; output?: number; input?: number }[] = [];
-  const nodes: { name: string; state: Record<string, unknown>; node: Record<string, unknown> }[] = [];
+  const nodes: { name: string; state: Record<string, unknown>; node: Record<string, unknown> }[] =
+    [];
   const counters = new Map<string, number>();
 
   const nameFor = (kind: string): string => {
@@ -253,11 +254,7 @@ export function createProbeContext(sampleRate = 48000): ProbeContext {
         { channelCount: 2, channelCountMode: 'max', channelInterpretation: 'speakers' },
       ),
     createBiquadFilter: () =>
-      makeNode(
-        'biquad',
-        { frequency: 350, Q: 1, gain: 0, detune: 0 },
-        { type: 'lowpass' },
-      ),
+      makeNode('biquad', { frequency: 350, Q: 1, gain: 0, detune: 0 }, { type: 'lowpass' }),
     createWaveShaper: () => makeNode('waveshaper', {}, { curve: null, oversample: 'none' }),
     createDelay: (max?: number) => makeNode('delay', { delayTime: 0 }, {}, { maxDelayTime: max }),
     createConvolver: () => makeNode('convolver', {}, { buffer: null, normalize: true }),
@@ -295,7 +292,12 @@ export function createProbeContext(sampleRate = 48000): ProbeContext {
       return osc;
     },
     createConstantSource: () => source('constant', { offset: 1 }),
-    createBufferSource: () => source('bufferSource', { playbackRate: 1, detune: 0 }, { buffer: null, loop: false, loopStart: 0, loopEnd: 0 }),
+    createBufferSource: () =>
+      source(
+        'bufferSource',
+        { playbackRate: 1, detune: 0 },
+        { buffer: null, loop: false, loopStart: 0, loopEnd: 0 },
+      ),
     createPeriodicWave: (real: Float32Array, imag: Float32Array) => ({ real, imag }),
     createBuffer: (channels: number, length: number, rate?: number) => {
       const data = Array.from({ length: channels }, () => new Float32Array(length));
