@@ -105,6 +105,15 @@ interface WorkspaceState extends WorkspaceLayout {
   ) => void;
   /** Toggle full-screen for a pane (passing the current pane restores). */
   setMaximized: (pane: MaximizedPane) => void;
+  /**
+   * Show a pane, whatever it takes.
+   *
+   * "Open this in the editor" has to actually open the editor. The panels a
+   * command wants are hidden two different ways — switched off, or standing
+   * behind another pane's full screen — and a command that only knew about one
+   * of them silently did nothing in the other case.
+   */
+  reveal: (pane: 'browser' | 'inspector' | 'editor') => void;
   reset: () => void;
 }
 
@@ -218,6 +227,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
   toggle: (key) => {
     set({ [key]: !get()[key] } as Partial<WorkspaceState>);
+    persist(get());
+  },
+  reveal: (pane) => {
+    const key =
+      pane === 'browser' ? 'showBrowser' : pane === 'inspector' ? 'showInspector' : 'showEditor';
+    const state = get();
+    // Another pane's full screen hides this one however visible it is, so step
+    // out of it — but leave this pane maximized if it already is, because the
+    // caller asked to see it and it could not be more visible than that.
+    if (state.maximized !== null && state.maximized !== pane) set({ maximized: null });
+    if (!state[key]) set({ [key]: true } as Partial<WorkspaceState>);
     persist(get());
   },
   setMaximized: (pane) => {

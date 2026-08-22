@@ -27,6 +27,7 @@ import { CHAIN_PRESETS } from '../../model/effectPresets';
 import type { Effect, EffectKind, Track } from '../../model/types';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
 import { useProjectStore } from '../../state/projectStore';
+import { useWorkspaceStore } from '../../state/workspaceStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
 import { SHELF, addShelfPlugin } from '../../audio/wam/shelf';
@@ -71,7 +72,8 @@ export function trackRack(track: Track): RackHost {
           frozen: !!track.freeze,
           open: () => {
             useUiStore.getState().selectTrack(track.id);
-            useUiStore.getState().set({ panelEditor: true, editorTab: 'synth' });
+            useWorkspaceStore.getState().reveal('editor');
+            useUiStore.getState().set({ editorTab: 'synth' });
           },
         }
       : undefined,

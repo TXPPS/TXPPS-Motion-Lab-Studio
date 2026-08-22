@@ -1,5 +1,6 @@
 import type { SnapMode } from '../model/snap';
 import { create } from 'zustand';
+import { useWorkspaceStore } from './workspaceStore';
 
 /**
  * Which editor the bottom panel is showing. The list of editors themselves
@@ -63,9 +64,6 @@ export interface Toast {
 }
 
 interface UiState {
-  panelBrowser: boolean;
-  panelInspector: boolean;
-  panelEditor: boolean;
   editorTab: EditorTab;
   browserTab: BrowserTab;
   phoneMode: PhoneMode;
@@ -165,9 +163,6 @@ interface UiState {
 let toastId = 0;
 
 export const useUiStore = create<UiState>((set, get) => ({
-  panelBrowser: true,
-  panelInspector: true,
-  panelEditor: true,
   editorTab: 'mixer',
   browserTab: 'projects',
   phoneMode: 'arrange',
@@ -233,16 +228,22 @@ export const useUiStore = create<UiState>((set, get) => ({
       selectedClipId: ids[ids.length - 1] ?? null,
       ...(ids.length === 0 ? { selectedNoteIds: [] } : {}),
     }),
-  openEditorFor: (clipId, phone) =>
+  openEditorFor: (clipId, phone) => {
+    // Opening a clip for editing has to open the editor. Which panes are on
+    // screen is the workspace's business, not this store's — the boolean that
+    // used to be set here was read by nothing, so double-clicking a clip while
+    // the bottom panel was hidden or another pane was full screen selected the
+    // clip and showed the user nothing.
+    useWorkspaceStore.getState().reveal('editor');
     set({
       editClipId: clipId,
       selectedClipId: clipId,
       selectedClipIds: [clipId],
       selectedNoteIds: [],
-      panelEditor: true,
       editorTab: 'piano',
       ...(phone ? { phoneMode: 'edit' } : {}),
-    }),
+    });
+  },
   showDialog: (dialog) => set({ dialog }),
   closeDialog: () => set({ dialog: null }),
   showMenu: (contextMenu) => set({ contextMenu }),

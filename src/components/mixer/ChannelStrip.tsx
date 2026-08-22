@@ -19,6 +19,7 @@ import { formatDb, linToDb } from '../../model/music';
 import { resolveChannels } from '../../model/mixerGraph';
 import type { Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
+import { useWorkspaceStore } from '../../state/workspaceStore';
 import { useUiStore } from '../../state/uiStore';
 import { Fader, PanKnob, PeakReadout, StereoMeter, panText } from '../common/widgets';
 import { DeviceRack, masterRack, trackRack } from './DeviceRack';
@@ -46,7 +47,8 @@ const TYPE_ICON: Record<Track['type'], IconName> = {
 /** Open the inspector on this track — where there is room to edit a chain. */
 function focusTrack(id: string): void {
   useUiStore.getState().selectTrack(id);
-  useUiStore.getState().set({ panelInspector: true, phoneMode: 'browse' });
+  useWorkspaceStore.getState().reveal('inspector');
+  useUiStore.getState().set({ phoneMode: 'browse' });
 }
 
 /** Sends a strip shows before it summarises the rest. */
