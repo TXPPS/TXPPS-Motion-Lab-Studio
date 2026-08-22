@@ -183,6 +183,9 @@ class WetDry {
   }
 }
 
+/** Difference the min/max identity stays exact over. */
+const COMBINER_HEADROOM = 4;
+
 /**
  * Sample-accurate max() or min() of two control signals, from nothing but a
  * summing node and an absolute-value shaper:
@@ -205,10 +208,16 @@ class Combiner {
     this.b = makeGain(ctx, 1);
     this.out = makeGain(ctx, 1);
     const sum = makeGain(ctx, 0.5);
-    const diff = makeGain(ctx, 1);
+    // A WaveShaper holds its end value for anything outside -1…+1, so a raw
+    // |a - b| silently saturates and the identity above stops being true past
+    // a difference of one. Dividing into the shaper and multiplying back out
+    // costs nothing — |x| is piecewise linear and the curve has a point at
+    // exactly zero, so interpolation is exact at any scale — and buys the
+    // headroom for nothing here to be quietly wrong.
+    const diff = makeGain(ctx, 1 / COMBINER_HEADROOM);
     const negate = makeGain(ctx, -1);
     const abs = makeShaper(ctx, rectifierCurve());
-    const half = makeGain(ctx, mode === 'max' ? 0.5 : -0.5);
+    const half = makeGain(ctx, (mode === 'max' ? 0.5 : -0.5) * COMBINER_HEADROOM);
 
     this.a.connect(sum);
     this.b.connect(sum);
@@ -229,6 +238,82 @@ const MAX_LOOKAHEAD_SEC = 0.02;
 const MAX_HOLD_SEC = 0.6;
 /** Critically damped smoothing: an envelope follower must not overshoot. */
 const SMOOTHING_Q_DB = qToDb(0.5);
+
+/** Web Audio's render quantum, fixed at 128 frames by the specification. */
+const RENDER_QUANTUM = 128;
+
+/**
+ * The lowest corner a `BiquadFilterNode` can be trusted to smooth with.
+ *
+ * A lowpass biquad is the obvious envelope smoother, and the corner an
+ * envelope wants is sub-Hz — a 180 ms release is 0.9 Hz. At 44.1 kHz that puts
+ * both poles so close to z = 1 that the coefficients lose their precision:
+ * measured in Chrome, a 0.9 Hz lowpass fed a constant 1 settles at eleven and
+ * is still climbing, 2 Hz settles at 1.73 and 4 Hz at 1.18. Above about 60 Hz
+ * the DC gain is inside 0.1% at 44.1 kHz and 0.4% at 96 kHz, which is where
+ * the biquads stop and `Smoother`'s own pole takes over.
+ */
+const MIN_SMOOTHING_HZ = 60;
+
+/**
+ * Envelope smoother with a time constant of any length and a DC gain of
+ * exactly one.
+ *
+ * Unity at DC is the property the whole control chain rests on: the transfer
+ * curves never return more than 1, so a smoother that cannot hold that promise
+ * turns a gate into an amplifier. Two stages, because neither alone can keep
+ * it. A feedback loop round a delay — y = (1 - g)·x + g·y[-T] — sums to
+ * exactly one at DC whatever g is, and Web Audio pins any delay inside a cycle
+ * to one render quantum, so T is known, is the same online and offline, and
+ * the pole can be placed from it. But T is 2.9 ms at 44.1 kHz, so left alone
+ * the loop walks the gain in audible steps. A biquad in front, held above
+ * `MIN_SMOOTHING_HZ` where its arithmetic still holds, carries the first two
+ * or three milliseconds and rounds those steps off; the loop carries the rest.
+ */
+class Smoother {
+  /** Feed the control signal here. */
+  readonly input: BiquadFilterNode;
+  /** The smoothed control signal. */
+  readonly output: GainNode;
+  private readonly tap: GainNode;
+  private readonly delay: DelayNode;
+  private readonly feedback: GainNode;
+  private readonly period: number;
+
+  constructor(private ctx: BaseAudioContext) {
+    this.period = RENDER_QUANTUM / ctx.sampleRate;
+    this.input = makeFilter(ctx, 'lowpass', 2000, SMOOTHING_Q_DB);
+    this.tap = makeGain(ctx, 1);
+    this.output = makeGain(ctx, 1);
+    // Room for the render quantum at any rate the app can be asked to render.
+    this.delay = ctx.createDelay(MAX_LOOKAHEAD_SEC);
+    this.feedback = makeGain(ctx, 0);
+    this.input.connect(this.tap).connect(this.output);
+    // Leaving delayTime at zero is deliberate: the cycle is what sets it, and
+    // one render quantum is exactly the sample period the pole is placed for.
+    this.output.connect(this.delay).connect(this.feedback).connect(this.output);
+  }
+
+  /** Time to reach 1 - 1/e of a step, in seconds, across both stages. */
+  setTimeConstant(seconds: number): void {
+    const tau = Math.max(seconds, 0);
+    // The biquad takes as much as it can hold accurately and the pole takes
+    // what is left, so the two add back up to the time that was asked for.
+    const held = Math.min(tau, 1 / (2 * Math.PI * MIN_SMOOTHING_HZ));
+    setParam(this.input.frequency, clamp(timeConstantHz(held), MIN_SMOOTHING_HZ, 2000), this.ctx);
+    const rest = tau - held;
+    const g = rest > 0 ? Math.exp(-this.period / rest) : 0;
+    // Ramped as exact complements — `setTargetAtTime` is affine in its target,
+    // so the pair still sums to one at every instant of the ramp and moving
+    // the ballistics cannot nudge the gain on its way.
+    setParam(this.feedback.gain, g, this.ctx);
+    setParam(this.tap.gain, 1 - g, this.ctx);
+  }
+
+  dispose(): void {
+    kill([this.input, this.tap, this.output, this.delay, this.feedback]);
+  }
+}
 
 /**
  * The core every dynamics processor here is built from: an envelope detector
@@ -264,8 +349,8 @@ class ControlVca {
   private readonly shaper: WaveShaperNode;
   private readonly holdDelay: DelayNode;
   private readonly holdMix: Combiner;
-  private readonly fast: BiquadFilterNode;
-  private readonly slow: BiquadFilterNode;
+  private readonly fast: Smoother;
+  private readonly slow: Smoother;
   private readonly ballistics: Combiner;
   private readonly depth: GainNode;
   private readonly dry: GainNode;
@@ -299,8 +384,8 @@ class ControlVca {
     this.shaper = makeShaper(ctx, new Float32Array([1, 1]));
     this.holdDelay = ctx.createDelay(MAX_HOLD_SEC);
     this.holdMix = new Combiner(ctx, mode);
-    this.fast = makeFilter(ctx, 'lowpass', 200, SMOOTHING_Q_DB);
-    this.slow = makeFilter(ctx, 'lowpass', 4, SMOOTHING_Q_DB);
+    this.fast = new Smoother(ctx);
+    this.slow = new Smoother(ctx);
     this.ballistics = new Combiner(ctx, mode);
     this.depth = makeGain(ctx, 1);
     this.dry = makeGain(ctx, 0);
@@ -316,8 +401,10 @@ class ControlVca {
     this.rect.connect(this.detector).connect(this.shaper);
     this.shaper.connect(this.holdMix.a);
     this.shaper.connect(this.holdDelay).connect(this.holdMix.b);
-    this.holdMix.out.connect(this.fast).connect(this.ballistics.a);
-    this.holdMix.out.connect(this.slow).connect(this.ballistics.b);
+    this.holdMix.out.connect(this.fast.input);
+    this.fast.output.connect(this.ballistics.a);
+    this.holdMix.out.connect(this.slow.input);
+    this.slow.output.connect(this.ballistics.b);
     this.ballistics.out.connect(this.depth);
     this.depth.connect(this.vca.gain);
     this.depth.connect(this.tap);
@@ -337,8 +424,8 @@ class ControlVca {
     const release = Math.max(releaseMs, 1) / 1000;
     // The detector only has to strip ripple; the timing lives in the ballistics.
     setParam(this.detector.frequency, clamp(timeConstantHz(attack), 25, 400), this.ctx);
-    setParam(this.fast.frequency, clamp(timeConstantHz(attack), 1, 2000), this.ctx);
-    setParam(this.slow.frequency, clamp(timeConstantHz(release), 0.2, 400), this.ctx);
+    this.fast.setTimeConstant(attack);
+    this.slow.setTimeConstant(release);
     setParam(this.holdDelay.delayTime, clamp(holdMs / 1000, 0, MAX_HOLD_SEC), this.ctx);
   }
 
@@ -374,6 +461,8 @@ class ControlVca {
     stopSource(this.unity);
     this.holdMix.dispose();
     this.ballistics.dispose();
+    this.fast.dispose();
+    this.slow.dispose();
     kill([
       this.input,
       this.output,
@@ -383,8 +472,6 @@ class ControlVca {
       this.detector,
       this.shaper,
       this.holdDelay,
-      this.fast,
-      this.slow,
       this.depth,
       this.dry,
       this.unity,

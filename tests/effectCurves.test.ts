@@ -828,6 +828,96 @@ describe('the keyable compressor', () => {
   });
 });
 
+/**
+ * The core every dynamics processor here is built on. Its one hard promise is
+ * that the control signal driving the VCA never exceeds one — every transfer
+ * curve only ever attenuates — and the smoothers are where that promise was
+ * being broken: a release of 180 ms asks a biquad for a 0.9 Hz corner, and at
+ * audio rates those coefficients have no precision left, so the "smoothed"
+ * control signal settled well above unity and a wide-open gate amplified.
+ */
+describe('the dynamics control VCA', () => {
+  /**
+   * Both ballistics smoothers of a built processor, found by the cycle that
+   * makes them: output → delay → feedback → output.
+   */
+  function smoothersOf(effect: Effect) {
+    const { ctx, connections } = recordingContext();
+    const node = buildEffectNode(ctx, effect);
+    const out = (n: unknown) => connections.filter((c) => c.from === n).map((c) => c.to);
+    const into = (n: unknown) => connections.filter((c) => c.to === n).map((c) => c.from);
+    const found: {
+      biquad: { frequency: RecordingParam };
+      tap: { gain: RecordingParam };
+      feedback: { gain: RecordingParam };
+    }[] = [];
+    for (const c of connections) {
+      const delay = c.to as RecordingNode;
+      if (delay.kind !== 'delay') continue;
+      const feedback = out(delay)[0] as RecordingNode | undefined;
+      if (!feedback || !out(feedback).includes(c.from)) continue;
+      const tap = into(c.from).find((n) => n !== feedback)!;
+      found.push({
+        biquad: into(tap)[0] as unknown as { frequency: RecordingParam },
+        tap: tap as unknown as { gain: RecordingParam },
+        feedback: feedback as unknown as { gain: RecordingParam },
+      });
+    }
+    return { node, found };
+  }
+
+  const dynamics = (params: Record<string, number>): Effect => ({
+    id: 'dyn',
+    kind: 'compressor',
+    bypass: false,
+    params: { threshold: -20, ratio: 4, knee: 6, makeupDb: 0, ...params },
+  });
+
+  it('carries a long time constant on a pole that passes DC at exactly one', () => {
+    const effect = dynamics({ attack: 50, release: 800 });
+    const { node, found } = smoothersOf(effect);
+    node.update(effect, 120, false);
+
+    expect(found, 'attack and release each get a smoother').toHaveLength(2);
+    for (const s of found) {
+      // y = (1 - g)·x + g·y[-T] sums to one at DC for any g, which is the
+      // whole reason the pole exists — and the two halves are set as exact
+      // complements so a ballistics change cannot break it mid-ramp either.
+      expect(s.tap.gain.value + s.feedback.gain.value).toBeCloseTo(1, 12);
+      expect(s.feedback.gain.value).toBeGreaterThan(0);
+      expect(s.feedback.gain.value).toBeLessThan(1);
+      // The biquad is never asked for a corner it cannot compute.
+      expect(s.biquad.frequency.value).toBeGreaterThanOrEqual(60);
+    }
+  });
+
+  it('leaves the pole out of it when a biquad can hold the whole time constant', () => {
+    const effect = dynamics({ attack: 0.5, release: 1 });
+    const { node, found } = smoothersOf(effect);
+    node.update(effect, 120, false);
+
+    for (const s of found) {
+      expect(s.feedback.gain.value).toBe(0);
+      expect(s.tap.gain.value).toBe(1);
+      expect(s.biquad.frequency.value).toBeGreaterThan(60);
+    }
+  });
+
+  it('lengthens the pole as the release lengthens', () => {
+    const short = dynamics({ attack: 5, release: 50 });
+    const long = dynamics({ attack: 5, release: 900 });
+    const a = smoothersOf(short);
+    a.node.update(short, 120, false);
+    const b = smoothersOf(long);
+    b.node.update(long, 120, false);
+
+    const slowest = (xs: { feedback: { gain: RecordingParam } }[]) =>
+      Math.max(...xs.map((x) => x.feedback.gain.value));
+    expect(slowest(b.found)).toBeGreaterThan(slowest(a.found));
+    expect(slowest(b.found)).toBeLessThan(1);
+  });
+});
+
 describe('effect groups', () => {
   it('puts every effect in exactly one known picker group', () => {
     for (const spec of EFFECT_SPECS) {

@@ -2,11 +2,12 @@ import { test, expect, type Page } from '@playwright/test';
 import { existsSync } from 'node:fs';
 
 /**
- * Two audit findings could only be argued from the code, because both need a
- * real OfflineAudioContext: a bounce that starts silent because the dynamics
- * ballistics have not settled, and a sidechain that keys in playback and not
- * in the render. This proves both in a browser, by measuring the rendered
- * audio rather than by reading the graph.
+ * Some findings can only be argued from the code, because they need a real
+ * OfflineAudioContext: a bounce that starts silent because the dynamics
+ * ballistics have not settled, a sidechain that keys in playback and not in
+ * the render, and a dynamics core that amplifies where it can only attenuate.
+ * This proves all three in a browser, by measuring the rendered audio rather
+ * than by reading the graph.
  */
 const preinstalledChromium = '/opt/pw-browsers/chromium';
 test.use({
@@ -102,7 +103,7 @@ test.describe('the bounce settles before the music starts', () => {
     const bypassed = await renderWindows(
       page,
       holdingNote(
-        `[{ id: 'f1', kind: 'compressor', bypass: true, params: { thresholdDb: -24, ratio: 8, attackMs: 5, releaseMs: 1000 } }]`,
+        `[{ id: 'f1', kind: 'compressor', bypass: true, params: { threshold: -24, ratio: 8, attack: 5, release: 1000 } }]`,
       ),
       windows,
       4,
@@ -131,7 +132,7 @@ test.describe('the bounce settles before the music starts', () => {
     const out = await renderWindows(
       page,
       holdingNote(
-        `[{ id: 'f1', kind: 'compressor', bypass: false, params: { thresholdDb: -30, ratio: 6, attackMs: 5, releaseMs: 1000, makeupDb: 0 } }]`,
+        `[{ id: 'f1', kind: 'compressor', bypass: false, params: { threshold: -30, ratio: 6, attack: 5, release: 1000, makeupDb: 0 } }]`,
       ),
       windows,
       8,
@@ -145,8 +146,49 @@ test.describe('the bounce settles before the music starts', () => {
   });
 });
 
+test.describe('a dynamics processor can only turn the gain down', () => {
+  /**
+   * Every transfer curve in the suite returns at most one, and the control VCA
+   * multiplies by that, so a processor whose curve is flat has to be a wire.
+   * It was not: the release smoother was a sub-Hz biquad, and at audio rates
+   * those coefficients have no precision left — a lowpass at 0.9 Hz fed a
+   * constant one settles above eleven — so a wide-open gate came back
+   * seventeen decibels up and no dynamics setting meant what it said. Nothing
+   * in the unit suite can see this; it needs a real audio thread.
+   */
+  const windows = { steady: [1.0, 1.5] as [number, number] };
+  const idle: Record<string, string> = {
+    'a gate held wide open': `[{ id: 'f1', kind: 'gate', bypass: false, params: { threshold: -80, ratio: 20, attack: 2, hold: 0, release: 150, range: 60 } }]`,
+    'a compressor at 1:1': `[{ id: 'f1', kind: 'compressor', bypass: false, params: { threshold: -20, ratio: 1, knee: 0, attack: 5, release: 200, makeupDb: 0 } }]`,
+    'a de-esser at 1:1': `[{ id: 'f1', kind: 'deesser', bypass: false, params: { freq: 6500, q: 3.5, threshold: 0, ratio: 1, release: 90 } }]`,
+  };
+
+  test('a processor whose curve is flat renders exactly what it was given', async ({ page }) => {
+    await boot(page);
+    const flat = await renderWindows(page, holdingNote('[]'), windows, 8);
+    expect(flat.rms.steady, 'the reference render is silent').toBeGreaterThan(0.001);
+
+    for (const [name, effects] of Object.entries(idle)) {
+      const out = await renderWindows(page, holdingNote(effects), windows, 8);
+      const ratio = out.rms.steady / flat.rms.steady;
+      expect(ratio, `${name} attenuates`).toBeGreaterThan(0.99);
+      expect(ratio, `${name} amplifies`).toBeLessThan(1.01);
+    }
+  });
+});
+
 test.describe('sidechain keying reaches the bounce', () => {
-  /** A quiet clicky kick and a loud held bass, the bass keyed from the kick. */
+  /**
+   * A clicky kick and a loud held bass, the bass keyed from the kick.
+   *
+   * The kick runs its own fader up and its output into a bus held at silence.
+   * Both halves of that matter. The key tap is post-fader on the source — a
+   * kick faded down is meant to duck less — so a kick mixed quiet also keys
+   * quiet, and a kick on a 0.12 fader reaches the detector 33 dB down, below
+   * anything the threshold control can reach. Sending it to a silent bus keeps
+   * it out of the windows measured below, so what they measure is the bass and
+   * only the bass, rather than the kick's own energy landing in the first one.
+   */
   const keyed = (sidechain: boolean) => `(mod) => {
     const p = mod.createEmptyProject('Sidechain');
     const bass = p.tracks[0];
@@ -155,14 +197,18 @@ test.describe('sidechain keying reaches the bounce', () => {
     bass.volume = 0.9;
     bass.effects = [{
       id: 'f1', kind: 'compressor', bypass: false,
-      params: { thresholdDb: -34, ratio: 12, attackMs: 1, releaseMs: 160, makeupDb: 0 },
+      params: { threshold: -34, ratio: 12, attack: 1, release: 160, makeupDb: 0 },
     }];
     const kick = {
-      ...bass, id: 'kick', name: 'Kick', volume: 0.12, effects: [], sends: [],
-      automation: [], macros: [], noteFx: [],
+      ...bass, id: 'kick', name: 'Kick', volume: 0.9, output: 'keybus',
+      effects: [], sends: [], automation: [], macros: [], noteFx: [],
+    };
+    const keybus = {
+      id: 'keybus', type: 'bus', name: 'Key', color: '#888', volume: 0, pan: 0,
+      mute: false, solo: false, armed: false, collapsed: false, output: 'master',
     };
     ${sidechain ? "bass.sidechainFrom = 'kick';" : ''}
-    p.tracks = [bass, kick];
+    p.tracks = [bass, kick, keybus];
     p.clips = [
       { id: 'cb', trackId: bass.id, type: 'midi', name: 'bass', start: 0, length: 8, muted: false,
         notes: [{ id: 'nb', pitch: 45, start: 0, length: 8, velocity: 120 }] },

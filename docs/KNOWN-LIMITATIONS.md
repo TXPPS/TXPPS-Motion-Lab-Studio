@@ -34,7 +34,15 @@ where a capability is missing the UI says so.
   export renders at whichever of 44.1–96 kHz you choose.
 - **No plugin latency compensation.** Every insert here is latency-free except
   the limiter's lookahead and the de-esser's band split, which are compensated
-  internally.
+  internally, and the multiband, which is the last processor still built on the
+  browser's own `DynamicsCompressorNode` and inherits its roughly 6 ms of
+  undisclosed look-ahead. Bypassing it takes that back out; running it on one
+  track of a doubled part will comb against the other.
+- **Sidechain keying reaches the compressor, gate, de-esser and limiter**, not
+  the multiband: an insert carries one key input, and one key across three band
+  detectors is not what keying a multiband would mean. The key is tapped
+  post-fader on the source, so a key track that is faded down — or muted —
+  keys weakly or not at all.
 - **Automation is smoothed while monitoring and exact in the bounce.** Live,
   every automated value approaches its target over a 15 ms time constant at
   frame rate, so a 20 ms fader dip is heard as roughly 45 ms; the offline

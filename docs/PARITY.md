@@ -37,7 +37,7 @@ the benchmark is parity of the _workflow_, not of the mechanism.
 | Console                   | **Yes**   | Input trim/polarity/mono, named inserts, sends, pan, stereo meter with a printed dB scale, mute/solo/solo-safe/arm, routing, VCA assignment                             |
 | Channel Overview          | **Yes**   | One channel laid out horizontally with its EQ curve and gain reduction                                                                                                  |
 | Cue mixes                 | **Yes**   | Up to eight headphone mixes; untouched channels follow the main mix, solo is optional, and any cue bounces to its own file                                              |
-| Sidechain routing         | **Yes**   | Any track keys the compressor, gate, expander or ducker on any other                                                                                                    |
+| Sidechain routing         | **Yes**   | Any track's post-fader signal keys the compressor, gate, de-esser and limiter on any other, in playback and in the bounce alike                                         |
 | Metering                  | **Yes**   | Peak, RMS, stereo, peak hold, over-indicator, LUFS (M/S/I), LRA, true peak, correlation, spectrum, oscilloscope                                                         |
 | Browser                   | **Yes**   | Instruments, Effects, Loops, Samples, Pool, Projects                                                                                                                    |
 | Inspector                 | **Yes**   | Track, clip, inserts, sends, note FX, time and pitch                                                                                                                    |

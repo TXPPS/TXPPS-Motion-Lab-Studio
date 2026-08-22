@@ -160,6 +160,15 @@ per effect. **Sends** feed bus tracks (pre/post fader); buses route to
 master or other buses (cycles are rejected). Automation modes (read /
 touch / latch / write) sit at the top of each strip.
 
+**Sidechain keying** lives in the Channel Overview's **Key** menu: pick
+another channel and its post-fader signal drives this channel's compressor,
+gate, de-esser and limiter detectors instead of its own — a kick keying a
+bass compressor is the classic case. Post-fader is deliberate, so a key
+source you pull down ducks less; a key source you want loud into the
+detector but quiet in the mix belongs on a bus of its own. The multiband is
+the one dynamics insert a key does not reach. Keying renders in a bounce
+exactly as it monitors.
+
 **Cue mixes** are the bar above the console: a separate headphone balance
 per performer, off the same channels. A new cue starts as a copy of the main
 mix and only the channels you touch ever leave it, so a twenty-track session
