@@ -2,7 +2,7 @@
   "name": "txpps-motionlab-studio",
   "private": true,
   "version": "0.1.0",
-  "description": "TXPPS MotionLab Studio — Professional Music Production. Anywhere.",
+  "description": "TXPPS MotionLab Studio \u2014 Professional Music Production. Anywhere.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "shot": "node scripts/screenshot.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

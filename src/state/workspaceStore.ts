@@ -27,6 +27,13 @@ export interface WorkspaceLayout {
   showInspector: boolean;
   showEditor: boolean;
   maximized: MaximizedPane;
+  /** Global-track lanes shown above the tracks. */
+  showMarkers: boolean;
+  showSections: boolean;
+  showChords: boolean;
+  showTempoLane: boolean;
+  /** Bird's-eye navigator strip above the arrangement. */
+  showOverview: boolean;
 }
 
 export const DEFAULT_LAYOUT: WorkspaceLayout = {
@@ -37,6 +44,11 @@ export const DEFAULT_LAYOUT: WorkspaceLayout = {
   showInspector: true,
   showEditor: true,
   maximized: null,
+  showMarkers: true,
+  showSections: true,
+  showChords: false,
+  showTempoLane: false,
+  showOverview: true,
 };
 
 const MAXIMIZABLE = new Set(['arrange', 'editor', 'browser', 'inspector']);
@@ -55,6 +67,11 @@ export function normalizeLayout(raw: unknown): WorkspaceLayout {
     showBrowser: bool(r.showBrowser, DEFAULT_LAYOUT.showBrowser),
     showInspector: bool(r.showInspector, DEFAULT_LAYOUT.showInspector),
     showEditor: bool(r.showEditor, DEFAULT_LAYOUT.showEditor),
+    showMarkers: bool(r.showMarkers, DEFAULT_LAYOUT.showMarkers),
+    showSections: bool(r.showSections, DEFAULT_LAYOUT.showSections),
+    showChords: bool(r.showChords, DEFAULT_LAYOUT.showChords),
+    showTempoLane: bool(r.showTempoLane, DEFAULT_LAYOUT.showTempoLane),
+    showOverview: bool(r.showOverview, DEFAULT_LAYOUT.showOverview),
     maximized:
       typeof r.maximized === 'string' && MAXIMIZABLE.has(r.maximized)
         ? (r.maximized as MaximizedPane)
@@ -75,7 +92,17 @@ function load(): WorkspaceLayout {
 
 interface WorkspaceState extends WorkspaceLayout {
   setSizes: (patch: Partial<WorkspaceLayout>) => void;
-  toggle: (key: 'showBrowser' | 'showInspector' | 'showEditor') => void;
+  toggle: (
+    key:
+      | 'showBrowser'
+      | 'showInspector'
+      | 'showEditor'
+      | 'showMarkers'
+      | 'showSections'
+      | 'showChords'
+      | 'showTempoLane'
+      | 'showOverview',
+  ) => void;
   /** Toggle full-screen for a pane (passing the current pane restores). */
   setMaximized: (pane: MaximizedPane) => void;
   reset: () => void;
@@ -154,6 +181,11 @@ function persist(state: WorkspaceLayout): void {
         showInspector,
         showEditor,
         maximized,
+        showMarkers,
+        showSections,
+        showChords,
+        showTempoLane,
+        showOverview,
       } = state;
       localStorage.setItem(
         STORAGE_KEY,
@@ -165,6 +197,11 @@ function persist(state: WorkspaceLayout): void {
           showInspector,
           showEditor,
           maximized,
+          showMarkers,
+          showSections,
+          showChords,
+          showTempoLane,
+          showOverview,
         }),
       );
     } catch {

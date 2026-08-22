@@ -18,7 +18,8 @@
   min-height: 0;
   min-width: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  /* toolbar · overview (present only when enabled) · the one scroller */
+  grid-template-rows: auto auto minmax(0, 1fr);
   background: var(--bg-deep);
   overflow: hidden;
 }
@@ -114,10 +115,17 @@
   border-right: 1px solid var(--border);
 }
 
-.arr-corner {
+/* The corner and the global-track headers scroll horizontally with nothing and
+   stick to the top together, so they stay level with the ruler stack opposite
+   them however far the timeline is scrolled. */
+.arr-corner-stack {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 3;
+  background: var(--bg-panel);
+}
+
+.arr-corner {
   height: var(--ruler-h);
   display: flex;
   align-items: center;
@@ -510,4 +518,231 @@
 .arr:not([data-tool='pointer']) .clip .clip-edge,
 .arr:not([data-tool='pointer']) .clip .fade-handle {
   pointer-events: none;
+}
+
+/* ============================================================
+   Global tracks — markers, arranger, chords, tempo.
+   One fixed-height row each, sharing the timeline's scroll and
+   zoom, stuck beneath the ruler.
+   ============================================================ */
+
+.arr-top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.gt-lane {
+  position: relative;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-soft);
+  overflow: hidden;
+  touch-action: none;
+}
+.gt-lane:last-child {
+  border-bottom: 1px solid var(--border);
+}
+
+.gt-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-2) 0 var(--sp-4);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-soft);
+}
+.gt-header span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gt-header .gt-hide {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-xs);
+  color: var(--text-faint);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.gt-header:hover .gt-hide,
+.gt-header .gt-hide:focus-visible {
+  opacity: 1;
+}
+.gt-header .gt-hide:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* --- markers --- */
+.gt-marker {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3) 0 var(--sp-1);
+  max-width: 200px;
+  color: var(--text);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+  background: color-mix(in srgb, var(--mk-color) 22%, transparent);
+  border-left: 2px solid var(--mk-color);
+  cursor: grab;
+}
+.gt-marker:hover {
+  background: color-mix(in srgb, var(--mk-color) 34%, transparent);
+}
+.gt-marker-flag {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  background: var(--mk-color);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+.gt-marker-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- arranger sections --- */
+.gt-section {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--sec-color) 26%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sec-color) 55%, transparent);
+  border-left-width: 3px;
+  overflow: hidden;
+}
+.gt-section-name {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gt-section-edge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 7px;
+  cursor: ew-resize;
+}
+.gt-section-edge:hover {
+  background: color-mix(in srgb, var(--sec-color) 60%, transparent);
+}
+
+/* --- chords --- */
+.gt-chord {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  color: var(--warm-hi);
+  background: var(--warm-bg);
+  border: 1px solid var(--warm-line);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+.gt-chord:hover {
+  background: color-mix(in srgb, var(--warm) 28%, transparent);
+}
+
+/* --- tempo --- */
+.gt-tempo {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-2);
+  font-family: var(--font-num);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: var(--accent-hi);
+  background: var(--accent-bg);
+  border-left: 2px solid var(--accent);
+  cursor: ns-resize;
+}
+.gt-tempo.ramp {
+  border-left-style: dashed;
+}
+.gt-tempo:hover {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+}
+.gt-sig {
+  position: absolute;
+  top: 2px;
+  padding: 0 var(--sp-1);
+  font-family: var(--font-num);
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+/* ============================================================
+   Arrangement overview — the bird's-eye navigator.
+   ============================================================ */
+
+.arr-overview {
+  position: relative;
+  flex: none;
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  overflow: hidden;
+  touch-action: none;
+  --ov-text: var(--text);
+}
+.arr-overview canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+}
+.arr-overview .ov-window {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  cursor: grab;
+}
+.arr-overview .ov-window:active {
+  cursor: grabbing;
+  background: color-mix(in srgb, var(--text) 16%, transparent);
+}
+.arr-overview .ov-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--playhead);
+  pointer-events: none;
+  will-change: transform;
 }

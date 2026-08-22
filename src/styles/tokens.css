@@ -106,7 +106,7 @@
   --track-h-collapsed: calc(30px * var(--ui-scale));
   --header-w: calc(176px * var(--ui-scale));
   --bottomnav-h: calc(54px * var(--ui-scale));
-  --ruler-h: calc(30px * var(--ui-scale));
+  --ruler-h: calc(42px * var(--ui-scale));
   --global-lane-h: calc(20px * var(--ui-scale));
   --toolbar-h: calc(34px * var(--ui-scale));
   --control-h: calc(28px * var(--ui-scale));

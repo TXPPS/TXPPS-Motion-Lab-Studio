@@ -3,7 +3,8 @@ import { engine } from '../../audio/engine';
 import { dragHasFiles, importDrop } from '../../app/importActions';
 import { zoomToSelection } from '../../app/audioEditActions';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
-import { beatsPerBar, clamp, snapBeat, snapBeatFloor } from '../../model/music';
+import { beatsPerBar, clamp, snapBeat, snapBeatFloor, tempoMapOf } from '../../model/music';
+import { beatToSec, beatsPerBarAt, formatClock, sigAtBar } from '../../model/tempo';
 import type { ProjectData, Track } from '../../model/types';
 import { projectEndBeat, useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
@@ -15,6 +16,9 @@ import { TrackHeader } from './TrackHeader';
 import { AUTO_LANE_H, AutoLaneHeader, AutoLaneRow } from './AutomationLanes';
 import { TAKE_LANE_H, TakeLaneHeader, TakeLaneRow } from './TakeLanes';
 import { MaximizeButton } from '../shell/MaximizeButton';
+import { GlobalTrackHeaders, GlobalTrackLanes, globalTrackMenuItems } from './GlobalTracks';
+import { ArrangementOverview } from './Overview';
+import { useWorkspaceStore } from '../../state/workspaceStore';
 import type { AudioClip, Clip } from '../../model/types';
 
 /** The offered tools. Range/draw/zoom/hand are deferred until fully usable. */
@@ -26,7 +30,7 @@ const TOOLS = [
   { id: 'slip', label: 'Slip (drag audio inside a fixed clip)', icon: 'wave' },
 ] as const;
 
-const RULER_H = 30;
+const RULER_H = 42;
 const LANE_H = 64;
 const LANE_H_COLLAPSED = 30;
 const EDGE_ZONE = 48;
@@ -101,6 +105,8 @@ export function Arrangement() {
    * actually moves a meaningful amount.
    */
   const [viewWin, setViewWin] = useState({ left: 0, right: 4000, top: 0, bottom: 3000 });
+  /** Scroll metrics the overview needs to draw its viewport window. */
+  const [scrollX, setScrollX] = useState({ left: 0, width: 0 });
   const winFrame = useRef(0);
 
   const updateViewWin = useCallback(() => {
@@ -116,6 +122,11 @@ export function Arrangement() {
       top: q(Math.max(0, vp.scrollTop - vh)),
       bottom: q(vp.scrollTop + vh * 2) + 200,
     };
+    setScrollX((cur) =>
+      Math.abs(cur.left - vp.scrollLeft) < 1 && cur.width === vw
+        ? cur
+        : { left: vp.scrollLeft, width: vw },
+    );
     setViewWin((cur) =>
       cur.left === next.left &&
       cur.right === next.right &&
@@ -234,7 +245,13 @@ export function Arrangement() {
     });
   }, [pxPerBeat]);
 
-  // Ruler bars/beats
+  /**
+   * Ruler: a wall-clock row above a bars-and-beats row.
+   *
+   * Bar positions come from the signature map, not from one constant, so a
+   * 2/4 bar before the chorus shifts every bar number after it — exactly as it
+   * shifts every clip. Label density adapts to zoom so numbers never collide.
+   */
   useEffect(() => {
     const canvas = rulerCanvasRef.current;
     if (!canvas) return;
@@ -245,36 +262,84 @@ export function Arrangement() {
     canvas.style.height = `${RULER_H}px`;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, timelineW, RULER_H);
-    ctx.font = '9.5px system-ui, sans-serif';
-    const bars = Math.ceil(contentBeats / bpb);
-    const barPx = bpb * pxPerBeat;
-    // Label density adapts to zoom so bar numbers never collide.
-    const labelEvery = barPx >= 46 ? 1 : barPx >= 24 ? 2 : barPx >= 12 ? 4 : 8;
-    for (let bar = 0; bar <= bars; bar++) {
-      const x = bar * barPx + 0.5;
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    const css = getComputedStyle(canvas);
+    const font = css.fontFamily || 'system-ui, sans-serif';
+    const dim = css.getPropertyValue('--text-faint').trim() || 'rgba(232,228,218,0.55)';
+    const bright = css.getPropertyValue('--text-dim').trim() || 'rgba(232,228,218,0.8)';
+    const tick = css.getPropertyValue('--grid-bar').trim() || 'rgba(255,255,255,0.3)';
+    const subtick = css.getPropertyValue('--grid-beat').trim() || 'rgba(255,255,255,0.12)';
+
+    const TIME_H = 15;
+    ctx.strokeStyle = subtick;
+    ctx.beginPath();
+    ctx.moveTo(0, TIME_H + 0.5);
+    ctx.lineTo(timelineW, TIME_H + 0.5);
+    ctx.stroke();
+
+    // --- wall-clock row: a label every 1, 5, 15, 30 or 60 seconds, whichever
+    // keeps them at least 54px apart at this zoom.
+    const map = tempoMapOf(project);
+    const totalSec = beatToSec(map, contentBeats);
+    if (totalSec > 0) {
+      const pxPerSec = timelineW / totalSec;
+      const steps = [1, 2, 5, 10, 15, 30, 60, 120, 300];
+      const step = steps.find((sv) => sv * pxPerSec >= 54) ?? 600;
+      ctx.font = `10px ${font}`;
+      ctx.fillStyle = dim;
+      ctx.strokeStyle = subtick;
+      for (let sec = 0; sec <= totalSec; sec += step) {
+        const x = Math.round(sec * pxPerSec) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x, 4);
+        ctx.lineTo(x, TIME_H);
+        ctx.stroke();
+        ctx.fillText(formatClock(sec, false), x + 3, 11);
+      }
+    }
+
+    // --- bars and beats row, walked bar by bar through the signature map.
+    ctx.font = `600 10px ${font}`;
+    let beat = 0;
+    let bar = 0;
+    let lastLabelX = -Infinity;
+    let guard = 0;
+    while (beat <= contentBeats && guard++ < 20000) {
+      const x = beat * pxPerBeat + 0.5;
+      const sig = sigAtBar(map, bar);
+      const barBeatCount = beatsPerBarAt(map, beat);
+      ctx.strokeStyle = tick;
       ctx.beginPath();
-      ctx.moveTo(x, RULER_H - 12);
+      ctx.moveTo(x, TIME_H + 4);
       ctx.lineTo(x, RULER_H);
       ctx.stroke();
-      if (bar % labelEvery === 0) {
-        ctx.fillStyle = 'rgba(232,228,218,0.66)';
-        ctx.fillText(String(bar + 1), x + 3, RULER_H - 15);
+      // Only label a bar if the previous label has cleared out of its way.
+      if (x - lastLabelX >= 26) {
+        ctx.fillStyle = bright;
+        ctx.fillText(String(bar + 1), x + 3, RULER_H - 12);
+        lastLabelX = x;
+      }
+      // A signature change is announced on the bar it takes effect.
+      if (sig.bar === bar && bar > 0) {
+        ctx.fillStyle = css.getPropertyValue('--warm').trim() || '#d9a13c';
+        ctx.fillText(`${sig.num}/${sig.den}`, x + 3, RULER_H - 2);
       }
       if (pxPerBeat >= 14) {
-        for (let b = 1; b < bpb; b++) {
-          const bx = bar * barPx + b * pxPerBeat + 0.5;
-          ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        const unit = 4 / sig.den;
+        for (let b = unit; b < barBeatCount - 1e-9; b += unit) {
+          const bx = (beat + b) * pxPerBeat + 0.5;
+          ctx.strokeStyle = subtick;
           ctx.beginPath();
           ctx.moveTo(bx, RULER_H - 7);
           ctx.lineTo(bx, RULER_H);
           ctx.stroke();
         }
       }
+      beat += barBeatCount;
+      bar++;
     }
-  }, [timelineW, contentBeats, pxPerBeat, bpb]);
+  }, [timelineW, contentBeats, pxPerBeat, project]);
 
   // Lane grid: repeating CSS gradients instead of one full-content canvas.
   // A canvas spanning the whole timeline is a width×height bitmap — at the
@@ -497,6 +562,13 @@ export function Arrangement() {
     });
   };
 
+  const showOverview = useWorkspaceStore((w) => w.showOverview);
+  /**
+   * The overview maps the SONG, not the scrollable canvas. The timeline keeps a
+   * 72-bar minimum so there is always somewhere to scroll to; drawing that
+   * minimum here would squeeze an eight-bar sketch into a ninth of the strip.
+   */
+  const overviewBeats = Math.max(endBeat, loop.end, bpb * 8) * 1.04;
   const setSnap = (v: number) => useUiStore.getState().set({ snap: v });
   const loopStyle = {
     left: loop.start * pxPerBeat,
@@ -550,12 +622,37 @@ export function Arrangement() {
         <span className="spacer" style={{ flex: '1 1 auto' }} />
         <button
           className="icon-btn"
+          onClick={(e) =>
+            useUiStore.getState().showMenu({
+              x: e.clientX,
+              y: e.clientY,
+              items: globalTrackMenuItems(),
+            })
+          }
+          title="Show or hide the marker, arranger, chord and tempo tracks"
+          aria-label="Global tracks"
+          data-testid="global-tracks-menu"
+        >
+          <Icon name="section" size={14} />
+        </button>
+        <button
+          className={`icon-btn${showOverview ? ' on' : ''}`}
+          onClick={() => useWorkspaceStore.getState().toggle('showOverview')}
+          title="Arrangement overview"
+          aria-label="Arrangement overview"
+          aria-pressed={showOverview}
+          data-testid="toggle-overview"
+        >
+          <Icon name="layers" size={14} />
+        </button>
+        <button
+          className="icon-btn"
           onClick={() => zoomToSelection()}
           title="Zoom to the selected clips"
           aria-label="Zoom to selection"
           data-testid="zoom-selection"
         >
-          ⛶
+          <Icon name="maximize" size={14} />
         </button>
         <button
           className="icon-btn"
@@ -563,7 +660,7 @@ export function Arrangement() {
           title="Zoom out (Ctrl + wheel)"
           aria-label="Zoom out"
         >
-          &minus;
+          <Icon name="zoom-out" size={14} />
         </button>
         <button
           className="icon-btn"
@@ -571,10 +668,24 @@ export function Arrangement() {
           title="Zoom in (Ctrl + wheel)"
           aria-label="Zoom in"
         >
-          +
+          <Icon name="zoom-in" size={14} />
         </button>
         <MaximizeButton pane="arrange" label="arrangement" />
       </div>
+
+      {showOverview && (
+        <ArrangementOverview
+          project={project}
+          contentBeats={overviewBeats}
+          scrollLeft={scrollX.left}
+          viewportW={scrollX.width}
+          pxPerBeat={pxPerBeat}
+          onScrollTo={(beat) => {
+            const vp = viewportRef.current;
+            if (vp) vp.scrollLeft = Math.max(0, beat * pxPerBeat);
+          }}
+        />
+      )}
 
       <div
         className="arr-viewport"
@@ -591,7 +702,12 @@ export function Arrangement() {
       >
         <div className="arr-content">
           <div className="arr-header-col" data-testid="track-headers">
-            <div className="arr-corner">Tracks</div>
+            {/* Corner and the global-track headers stick together so they stay
+                aligned with the ruler stack opposite them. */}
+            <div className="arr-corner-stack">
+              <div className="arr-corner">Tracks</div>
+              <GlobalTrackHeaders />
+            </div>
             {tracks.map((t, i) => (
               <Fragment key={t.id}>
                 <TrackHeader track={t} height={bands[i].clip} />
@@ -619,19 +735,27 @@ export function Arrangement() {
           </div>
 
           <div className="arr-timeline-col" style={{ width: timelineW }}>
-            <div
-              className="arr-ruler"
-              onPointerDown={rulerPointer}
-              data-testid="ruler"
-              title="Click to set position · drag the upper edge to set the loop"
-            >
-              <canvas ref={rulerCanvasRef} />
+            <div className="arr-top">
               <div
-                className={`arr-loop${loop.enabled ? '' : ' off'}`}
-                style={loopStyle}
-                data-testid="loop-region"
+                className="arr-ruler"
+                onPointerDown={rulerPointer}
+                data-testid="ruler"
+                title="Click to set position · drag the upper edge to set the loop"
+              >
+                <canvas ref={rulerCanvasRef} />
+                <div
+                  className={`arr-loop${loop.enabled ? '' : ' off'}`}
+                  style={loopStyle}
+                  data-testid="loop-region"
+                />
+                <div ref={rulerHeadRef} className="ruler-playhead" />
+              </div>
+              <GlobalTrackLanes
+                pxPerBeat={pxPerBeat}
+                snap={snap}
+                timelineW={timelineW}
+                project={project}
               />
-              <div ref={rulerHeadRef} className="ruler-playhead" />
             </div>
 
             <div
