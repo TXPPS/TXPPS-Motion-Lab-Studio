@@ -465,13 +465,15 @@ export function PianoRoll() {
     updateWin();
   }, [clip, isDrum, updateWin]);
 
-  // Keep the keyboard cursor on screen, but only while the grid is the thing
-  // being driven — an unfocused grid must never yank the view.
+  // Keep the keyboard cursor on screen, but only when the cursor itself moves.
+  // Focus was in this dependency list, which meant clicking the grid scrolled
+  // it to wherever the cursor had been left — under the pointer, mid-click, so
+  // the note landed several rows from where it was aimed.
   useEffect(() => {
     const el = cellCursorRef.current;
     if (!el || document.activeElement !== gridRef.current) return;
     el.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-  }, [gridCursor, gridFocused]);
+  }, [gridCursor]);
 
   // The key column moves its focus rather than its tab stop alone: a roving
   // tabindex that nothing follows leaves the arrow keys silent.
@@ -615,6 +617,11 @@ export function PianoRoll() {
         velocity: 100,
       });
       useUiStore.getState().set({ selectedNoteIds: [id] });
+      // The cursor follows the pointer, so the next arrow key carries on from
+      // where the last click was rather than from wherever it was abandoned.
+      const at = { pitch, beat: start };
+      gridCursorRef.current = at;
+      setGridCursor(at);
       if (track) previewNote(track.id, pitch);
     },
     [clip, ppb, snap, track, prScaleLock, prScale, prKey],
@@ -725,6 +732,11 @@ export function PianoRoll() {
     // Notes own their own keys and stop them; anything arriving here is the
     // grid's own cursor.
     if (e.target !== e.currentTarget) return;
+    // A selection wins the arrow keys. Someone who has just marquee-selected
+    // eight notes and presses Up means transpose those eight, not move a
+    // cursor they were not using — and the registered transpose and nudge
+    // shortcuts only ever see the key if this handler lets it past.
+    if (useUiStore.getState().selectedNoteIds.length > 0 && e.key.startsWith('Arrow')) return;
     const step = snap || 0.25;
     switch (e.key) {
       case 'ArrowLeft':

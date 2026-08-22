@@ -54,23 +54,44 @@ const keysNotes = (page: Page): Promise<NoteShape[]> =>
  * the visible grid band first (the velocity lane owns the bottom 56px), then
  * maps content coordinates through the live scroll offsets.
  */
+/**
+ * A viewport point on the grid for a beat and a pitch.
+ *
+ * Derived from what is actually rendered — the key row for that pitch, and the
+ * grid's own pixels-per-beat — rather than from copied layout constants. The
+ * constants version silently pointed at a different row when the roll's
+ * sticky header changed height, and reported the feature broken.
+ */
 async function gridPoint(page: Page, beat: number, pitch: number) {
-  const pt = page.evaluate(
+  // Bring the row into view first; the roll virtualises rows outside it.
+  await page.evaluate(
     ([b, p]) => {
       const sc = document.querySelector('.pr-scroll') as HTMLElement;
-      const gridBand = sc.clientHeight - 56;
-      sc.scrollTop = Math.max(0, (108 - p) * 16 + 8 - gridBand / 2);
-      sc.scrollLeft = Math.max(0, 52 + b * 32 - sc.clientWidth / 2);
-      const box = sc.getBoundingClientRect();
-      return {
-        x: box.left + 52 + b * 32 - sc.scrollLeft,
-        y: box.top + (108 - p) * 16 + 8 - sc.scrollTop,
-      };
+      const row = document.querySelector('.pr-keys')?.firstElementChild as HTMLElement | null;
+      const rowH = row?.getBoundingClientRect().height || 16;
+      const ppb = (
+        window as unknown as { __ml: { uiStore: { getState(): { prPxPerBeat: number } } } }
+      ).__ml.uiStore.getState().prPxPerBeat;
+      sc.scrollTop = Math.max(0, (108 - p) * rowH - sc.clientHeight / 2);
+      sc.scrollLeft = Math.max(0, b * ppb - sc.clientWidth / 2);
     },
     [beat, pitch] as const,
   );
-  await page.waitForTimeout(150);
-  return pt;
+  await page.waitForTimeout(200);
+  return page.evaluate(
+    ([b, p]) => {
+      const key = document.querySelector(`.pr-key[data-pitch="${p}"]`) as HTMLElement | null;
+      if (!key) throw new Error(`pitch ${p} is not rendered — scroll it into view first`);
+      const keyBox = key.getBoundingClientRect();
+      const grid = document.querySelector('[data-testid="pr-grid"]') as HTMLElement;
+      const gridBox = grid.getBoundingClientRect();
+      const ppb = (
+        window as unknown as { __ml: { uiStore: { getState(): { prPxPerBeat: number } } } }
+      ).__ml.uiStore.getState().prPxPerBeat;
+      return { x: gridBox.left + b * ppb, y: keyBox.top + keyBox.height / 2 };
+    },
+    [beat, pitch] as const,
+  );
 }
 
 const noteCount = (page: Page) =>
