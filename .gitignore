@@ -31,3 +31,6 @@ npm-debug.log*
 # Local QA output (screenshots + measurements)
 audit-out/
 *.tsbuildinfo
+
+# Motion Wave native build output
+motionwave/build/
