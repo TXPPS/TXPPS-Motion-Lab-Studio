@@ -13,6 +13,7 @@ import { useUiStore } from '../../state/uiStore';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import { Icon, type IconName } from '../common/Icon';
+import { KeyCommands } from './KeyCommands';
 
 const THEMES: { id: ThemeChoice; label: string; icon: IconName; blurb: string }[] = [
   { id: 'system', label: 'System', icon: 'settings', blurb: 'Follow the operating system' },
@@ -225,6 +226,11 @@ export function SettingsSheet() {
                 label="Always show values"
               />
             </Row>
+          </section>
+
+          <section>
+            <h3 className="t-label">Key commands</h3>
+            <KeyCommands />
           </section>
 
           <section>

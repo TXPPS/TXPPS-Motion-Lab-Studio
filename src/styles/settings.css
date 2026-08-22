@@ -206,3 +206,83 @@
 .export-status.preparing {
   color: var(--warm);
 }
+
+/* ---------------------------------------------------------- key commands */
+.key-commands {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.key-commands section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kc-head {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+}
+.kc-head input {
+  flex: 1 1 auto;
+}
+.kc-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.kc-row:last-child {
+  border-bottom: none;
+}
+.kc-desc {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.kc-when {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.kc-combo {
+  min-width: 96px;
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+  background: var(--bg-deep);
+  color: var(--text);
+  font-family: var(--font-num);
+  font-size: var(--fs-xs);
+}
+.kc-combo:hover {
+  border-color: var(--border-strong);
+}
+.kc-combo.changed {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--accent-bg);
+}
+/* Recording is a mode: it has to be unmistakable, because every key on the
+   keyboard means something different while it lasts. */
+.kc-row.recording .kc-combo {
+  color: var(--danger-text);
+  border-color: var(--danger-line);
+  background: var(--danger-bg);
+  animation: ml-pulse 1.1s ease-in-out infinite;
+}
+.kc-conflict {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--radius);
+  background: var(--warm-bg);
+  color: var(--warm);
+  font-size: var(--fs-sm);
+}

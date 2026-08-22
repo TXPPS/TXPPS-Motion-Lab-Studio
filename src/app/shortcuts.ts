@@ -353,6 +353,58 @@ export const SHORTCUTS: Shortcut[] = [
 const BY_ID = new Map(SHORTCUTS.map((s) => [s.id, s]));
 
 /** Display string for a shortcut id — used by menus. Empty when unknown. */
+/**
+ * The combo string for a keyboard event, in the registry's own format.
+ *
+ * Modifiers are sorted so `Ctrl+Shift+E` and `Shift+Ctrl+E` are one string, and
+ * Cmd is folded into `mod` so a Mac binding and a Windows binding are the same
+ * entry rather than two that can disagree.
+ */
+export function comboOf(e: {
+  key: string;
+  code?: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+}): string {
+  const parts: string[] = [];
+  if (e.ctrlKey || e.metaKey) parts.push('mod');
+  if (e.altKey) parts.push('alt');
+  if (e.shiftKey) parts.push('shift');
+  const key = e.code === 'Space' || e.key === ' ' ? 'space' : e.key.toLowerCase();
+  // A bare modifier is not a shortcut; the caller filters those out.
+  if (['control', 'meta', 'shift', 'alt'].includes(key)) return '';
+  parts.push(key);
+  return parts.join('+');
+}
+
+/** How a combo string reads to a musician: `mod+shift+e` → `Ctrl+Shift+E`. */
+export function comboLabel(combo: string): string {
+  return combo
+    .split('+')
+    .map((part) =>
+      part === 'mod'
+        ? MOD
+        : part === 'alt'
+          ? IS_MAC
+            ? '⌥'
+            : 'Alt'
+          : part === 'shift'
+            ? 'Shift'
+            : part === 'space'
+              ? 'Space'
+              : part.length === 1
+                ? part.toUpperCase()
+                : part[0].toUpperCase() + part.slice(1),
+    )
+    .join(IS_MAC ? '' : '+');
+}
+
+export function shortcutById(id: string): Shortcut | undefined {
+  return SHORTCUTS.find((s) => s.id === id);
+}
+
 export function shortcutLabel(id: string): string {
   return BY_ID.get(id)?.display ?? '';
 }

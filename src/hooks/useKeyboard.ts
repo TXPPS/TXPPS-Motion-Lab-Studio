@@ -3,6 +3,7 @@ import { engine } from '../audio/engine';
 import { midi } from '../audio/midi';
 import { clamp } from '../model/music';
 import { useProjectStore } from '../state/projectStore';
+import { translateCombo } from '../state/keymapStore';
 import { useUiStore } from '../state/uiStore';
 import { saveCurrent } from '../app/projectActions';
 import {
@@ -120,11 +121,40 @@ function spaceBelongsToFocus(el: EventTarget | null): boolean {
   return false;
 }
 
+/**
+ * A stand-in event carrying a combo's keys, delegating everything that has a
+ * side effect to the real event. It exists so a rebound key can be handled by
+ * the same branches as its default without those branches knowing.
+ */
+function eventForCombo(combo: string, real: KeyboardEvent): KeyboardEvent {
+  const parts = combo.split('+');
+  const key = parts[parts.length - 1];
+  return {
+    key: key === 'space' ? ' ' : key,
+    code: key === 'space' ? 'Space' : `Key${key.toUpperCase()}`,
+    ctrlKey: parts.includes('mod'),
+    metaKey: false,
+    shiftKey: parts.includes('shift'),
+    altKey: parts.includes('alt'),
+    repeat: real.repeat,
+    target: real.target,
+    preventDefault: () => real.preventDefault(),
+    stopPropagation: () => real.stopPropagation(),
+  } as unknown as KeyboardEvent;
+}
+
 export function useGlobalKeyboard(): void {
   useEffect(() => {
     const held = new Set<string>();
 
-    const down = (e: KeyboardEvent) => {
+    const down = (rawEvent: KeyboardEvent) => {
+      // A rebound key is translated into the combo the handlers below already
+      // understand, so user key commands cost one map lookup rather than a
+      // rewrite of every branch. `''` means this key's default action has been
+      // given to something else and must not fire.
+      const remapped = translateCombo(rawEvent);
+      if (remapped === '') return;
+      const e = remapped === null ? rawEvent : eventForCombo(remapped, rawEvent);
       const k = e.key.toLowerCase();
       // Save is the one shortcut that must work even while typing in a field —
       // otherwise the browser's own "save page" dialog steals it mid-edit.
