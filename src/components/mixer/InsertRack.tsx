@@ -196,6 +196,10 @@ function InsertSlot({
 export interface ChainHost {
   /** stable id used for meter and gain-reduction lookups ('master' for the master) */
   id: string;
+  /** Section heading; defaults to "Inserts". */
+  title?: string;
+  /** Shown when the chain is empty. */
+  emptyHint?: string;
   effects: Effect[];
   add: (kind: EffectKind) => string | null;
   remove: (effectId: string) => void;
@@ -226,8 +230,10 @@ export function InsertRack({ track, host }: { track?: Track; host?: ChainHost })
 
   return (
     <div className="fx-rack" data-testid={`fx-rack-${chain.id}`}>
-      <div className="ps-title">Inserts</div>
-      {effects.length === 0 && <div className="hint">No inserts. Signal passes through.</div>}
+      <div className="ps-title">{chain.title ?? 'Inserts'}</div>
+      {effects.length === 0 && (
+        <div className="hint">{chain.emptyHint ?? 'No inserts. Signal passes through.'}</div>
+      )}
       {effects.map((fx, i) => (
         <InsertSlot key={fx.id} chain={chain} effect={fx} index={i} total={effects.length} />
       ))}

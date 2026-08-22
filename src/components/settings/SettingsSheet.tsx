@@ -6,10 +6,11 @@
  * the product could reach them, which made them features that did not exist.
  * This is where they live.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { engine } from '../../audio/engine';
 import { DEFAULT_PREFS, usePrefsStore, type ThemeChoice } from '../../state/prefsStore';
 import { useUiStore } from '../../state/uiStore';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import { Icon, type IconName } from '../common/Icon';
 
@@ -66,6 +67,8 @@ function Toggle({
 
 export function SettingsSheet() {
   const open = useUiStore((s) => s.settingsOpen);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, open);
   const prefs = usePrefsStore();
   const set = usePrefsStore((s) => s.set);
 
@@ -89,6 +92,8 @@ export function SettingsSheet() {
     >
       <div
         className="sheet settings-sheet"
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label="Preferences"

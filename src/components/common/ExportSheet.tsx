@@ -6,7 +6,7 @@
  * makes before delivering is here, the size is estimated before anything runs,
  * and the render reports what it is doing while it does it.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_EXPORT,
   cancelExport,
@@ -19,6 +19,7 @@ import { AUDIO_FORMATS, estimateSize, type EncodeBitDepth } from '../../audio/en
 import { projectBeatRangeSec } from '../../model/music';
 import { useProjectStore, projectEndBeat } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { Icon } from '../common/Icon';
 
 const RATES = [44100, 48000, 88200, 96000];
@@ -29,6 +30,8 @@ function bytesLabel(n: number): string {
 
 export function ExportSheet() {
   const open = useUiStore((s) => s.exportOpen);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, open);
   const project = useProjectStore((s) => s.project);
   const [settings, setSettings] = useState<ExportSettings>(() => ({
     ...DEFAULT_EXPORT,
@@ -93,6 +96,8 @@ export function ExportSheet() {
     >
       <div
         className="sheet export-sheet"
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label="Export"

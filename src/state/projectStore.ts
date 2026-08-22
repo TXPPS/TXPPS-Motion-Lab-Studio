@@ -339,6 +339,13 @@ export interface ProjectStore {
     sinceBeat: number,
   ) => void;
 
+  // ---- event (per-clip) effects ----
+  addEventFx: (clipId: string, kind: EffectKind) => string | null;
+  removeEventFx: (clipId: string, effectId: string) => void;
+  setEventFxParam: (clipId: string, effectId: string, key: string, value: number) => void;
+  setEventFxBypass: (clipId: string, effectId: string, bypass: boolean) => void;
+  moveEventFx: (clipId: string, effectId: string, delta: number) => void;
+
   // ---- note effects ----
   addNoteFx: (trackId: string, kind: NoteFxKind) => string | null;
   removeNoteFx: (trackId: string, fxId: string) => void;
@@ -2079,6 +2086,59 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         },
         { undoable: false },
       ),
+
+    // ------------------------------------------------------- event effects
+
+    addEventFx: (clipId, kind) => {
+      const id = newId('efx');
+      let ok = false;
+      update((d) => {
+        const c = clipById(d, clipId);
+        if (!c) return;
+        const list = (c.eventFx ??= []);
+        // Four is deliberate: an event chain is a shaping pass on one clip, and
+        // anything longer belongs on the channel where it can be reused.
+        if (list.length >= 4) return;
+        list.push({ id, kind, bypass: false, params: defaultParams(kind) });
+        ok = true;
+      });
+      return ok ? id : null;
+    },
+
+    removeEventFx: (clipId, effectId) =>
+      update((d) => {
+        const c = clipById(d, clipId);
+        if (!c?.eventFx) return;
+        c.eventFx = c.eventFx.filter((e) => e.id !== effectId);
+        if (c.eventFx.length === 0) delete c.eventFx;
+      }),
+
+    setEventFxParam: (clipId, effectId, key, value) =>
+      update(
+        (d) => {
+          const e = clipById(d, clipId)?.eventFx?.find((x) => x.id === effectId);
+          if (!e) return;
+          const spec = effectSpec(e.kind)?.params.find((pp) => pp.key === key);
+          e.params[key] = spec ? clamp(value, spec.min, spec.max) : value;
+        },
+        { undoable: false },
+      ),
+
+    setEventFxBypass: (clipId, effectId, bypass) =>
+      update((d) => {
+        const e = clipById(d, clipId)?.eventFx?.find((x) => x.id === effectId);
+        if (e) e.bypass = bypass;
+      }),
+
+    moveEventFx: (clipId, effectId, delta) =>
+      update((d) => {
+        const list = clipById(d, clipId)?.eventFx;
+        if (!list) return;
+        const i = list.findIndex((e) => e.id === effectId);
+        const j = i + delta;
+        if (i < 0 || j < 0 || j >= list.length) return;
+        [list[i], list[j]] = [list[j], list[i]];
+      }),
 
     // -------------------------------------------------------- note effects
 

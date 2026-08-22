@@ -540,7 +540,15 @@ export async function renderProject(
         }
         applyEnvelope(g.gain, plan.envelope, when);
         src.connect(g);
-        g.connect(ch.input);
+        if (part.eventFx?.length) {
+          // Same shape as live: the clip's own chain between it and the channel.
+          const eventChain = new InsertChain(ctx);
+          eventChain.sync(part.eventFx, project.bpm);
+          g.connect(eventChain.entry);
+          eventChain.exit.connect(ch.input);
+        } else {
+          g.connect(ch.input);
+        }
         src.start(when, plan.offsetSec, plan.durSec);
         scheduledAny = true;
       }

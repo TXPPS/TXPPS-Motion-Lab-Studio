@@ -2,9 +2,83 @@
 
 **Professional Music Production. Anywhere.**
 
-A responsive, browser-based digital audio workstation proof-of-concept built with React,
-TypeScript, and the Web Audio API. Local-first (IndexedDB), offline-capable (PWA), and
-deployable to Cloudflare Pages.
+A complete, browser-native digital audio workstation built with React, TypeScript and the
+Web Audio API. Local-first (IndexedDB), offline-capable (PWA), installable, and deployable
+to Cloudflare Workers.
+
+It is benchmarked against **Fender Studio Pro 8** — the January 2026 rebrand of PreSonus
+Studio One Pro. [`docs/REFERENCE-FSP8.md`](docs/REFERENCE-FSP8.md) states what that
+benchmark means, and [`docs/PARITY.md`](docs/PARITY.md) answers it feature by feature,
+including what is deliberately not attempted and why.
+
+## What it is
+
+Four pages, the way a professional DAW is organised:
+
+| Page        | What it does                                                                    |
+| ----------- | ------------------------------------------------------------------------------- |
+| **Start**   | Recent work, six session templates that build a routed session, machine status  |
+| **Song**    | The workstation: arrange, console, browser, inspector and six editors           |
+| **Release** | Mastering: an ordered release measured to BS.1770 against a delivery target     |
+| **Live**    | A setlist with per-song tempo, signature, cue point and stage-legible transport |
+
+### The song page
+
+- **Arrangement** with marker, arranger, chord and tempo global tracks, an Arrangement
+  Overview navigator, folder tracks, take lanes, automation lanes, and a ruler that reads
+  wall clock over bars and beats walked through the signature map.
+- **A tempo map**, not a number: tempo jumps and linear ramps, mid-song time-signature
+  changes, and one integral-based conversion that playback, recording, waveform layout,
+  automation and the offline bounce all share.
+- **A console**: input trim with polarity and mono sum, named insert slots, sends, pan,
+  a stereo meter with peak hold, an over indicator and a printed dB scale, solo-safe,
+  routing, VCA assignment, folder and FX channels, a real master with its own chain, and
+  a Channel Overview that lays one channel out horizontally.
+- **27 effects** across dynamics, tone, modulation, time, stereo and utility — each with
+  a plugin face showing what it does: the EQ's magnitude curve with draggable band
+  handles, the compressor's transfer curve and live gain reduction, the waveshaper's
+  actual curve, the modulator's LFO shape, live spectrum and scope.
+- **Six editors**: piano roll, drum grid, score engraving, audio editor, chord assistant
+  and the console, all lazily loaded from one registry.
+- **Instruments**: virtual-analogue synth, quick sampler, drum rack, multisample and
+  instrument racks, plus note effects (arpeggiator, chorder, repeater, note filter,
+  velocity curve) that transform what is played without touching what is written.
+
+### Audio intelligence
+
+Running locally, offline, with no model download and no upload:
+
+- **Audio → Notes**, monophonic and polyphonic.
+- **Vocal Tune**: pitch analysis, per-note error in cents, scale-aware correction with a
+  retune speed and vibrato preservation.
+- **Stem separation** into vocals, drums, bass and other — classical DSP, honest about
+  what that separates well and what it does not, and the stems always sum back.
+- **Transient and tempo detection**, tempo-follow, speed and transposition with pitch
+  preservation, and groove extraction.
+- **Chord detection and a Chord Assistant** that says _why_ it suggests what it suggests.
+
+### Delivery
+
+- Master mix, stems by bus, or one file per track — rendered through the same signal path
+  the mix used.
+- WAV (16/24/32-bit integer, 32-bit float) and FLAC, 44.1–96 kHz, TPDF or noise-shaped
+  dither, true-peak normalisation, metadata, and a BS.1770 measurement of every file.
+- MIDI file import and export, format 0 and 1, with the tempo and signature map.
+
+### The product around it
+
+Four themes (system, dark, light, high contrast), interface scaling from 85% to 140%,
+a conflict-checked keyboard-shortcut registry, one writer per project across tabs, an
+autosave that never marks an in-flight edit as saved, an atomic backup of every save, and
+a diagnostics panel with a copyable report.
+
+---
+
+## History
+
+The milestones below are how it was built. Each has an architecture document in
+[`docs/`](docs/) stating what is verified, what is untested, and what is deliberately not
+offered.
 
 ## Milestone 1 scope
 
@@ -215,7 +289,8 @@ The feature set above is frozen; RC1 is stability, compatibility and polish:
   wraps instead of clipping on narrow screens; six sizes asserted in CI
   (`e2e/workspace.spec.ts`)
 
-Guides: [User Manual](docs/USER-MANUAL.md) ·
+Guides: [Parity table](docs/PARITY.md) · [Build plan](docs/BUILD-PLAN-V2.md) ·
+[Reference benchmark](docs/REFERENCE-FSP8.md) · [User Manual](docs/USER-MANUAL.md) ·
 [Quick Start](docs/QUICK-START.md) · [FAQ](docs/FAQ.md) ·
 [Known Limitations](docs/KNOWN-LIMITATIONS.md) ·
 [Browser Compatibility](docs/BROWSER-COMPATIBILITY.md) ·

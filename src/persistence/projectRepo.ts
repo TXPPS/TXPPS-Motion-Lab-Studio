@@ -94,6 +94,33 @@ export function validateProject(raw: unknown): ProjectData {
   for (const c of clips) {
     const base = c as unknown as Record<string, unknown>;
     if (base.locked !== undefined && typeof base.locked !== 'boolean') delete base.locked;
+    // v6: per-clip inserts, validated exactly like a channel's.
+    if (base.eventFx !== undefined) {
+      const list = Array.isArray(base.eventFx)
+        ? (base.eventFx as unknown[])
+            .filter(
+              (e) =>
+                isRecord(e) &&
+                typeof e.id === 'string' &&
+                typeof e.kind === 'string' &&
+                isKnownEffect(e.kind),
+            )
+            .slice(0, 4)
+            .map((e) => {
+              const r = e as Record<string, unknown>;
+              const kind = r.kind as EffectKind;
+              return {
+                id: r.id as string,
+                kind,
+                bypass: r.bypass === true,
+                params: normaliseParams(kind, isRecord(r.params) ? r.params : undefined),
+              };
+            })
+        : [];
+      if (list.length) base.eventFx = list;
+      else delete base.eventFx;
+    }
+    if (typeof base.color !== 'string') delete base.color;
     if (c.type === 'midi') {
       // Notes with non-finite numerics (NaN/Infinity survive `typeof ===
       // 'number'`) would corrupt scheduling and JSON round-trips — drop them,

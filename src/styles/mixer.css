@@ -221,12 +221,20 @@
 
 /* The only flexible row. Fader and meter FILL it — they are never
    given a pixel height, which is what previously broke the layout. */
+/* Every row clips its own content. A strip is a fixed box by design, and a row
+   that is a pixel too tall must lose a pixel rather than paint into its
+   neighbour — the container queries above are what stop it coming to that. */
+.strip > * {
+  overflow: hidden;
+  min-width: 0;
+}
 .strip-mid {
   min-height: 0;
+  min-width: 0;
   display: flex;
   justify-content: center;
   align-items: stretch;
-  gap: 7px;
+  gap: var(--sp-3);
   overflow: hidden;
 }
 
@@ -235,6 +243,15 @@
   justify-content: center;
   gap: 3px;
   min-height: 0;
+  min-width: 0;
+}
+/* The buttons share the strip's fixed width rather than each demanding a
+   minimum: three of them plus gaps is exactly the case that used to push the
+   last one over the edge. */
+.strip-btns .th-mini {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .strip-readout {
@@ -571,45 +588,6 @@
   font-size: 8.5px;
 }
 
-/* Short-mixer strip layout -------------------------------------------------
-   Declared last so it wins over the base .strip-* rules at equal specificity.
-
-   On a short mixer there is not enough height for every row, and squeezing
-   them all makes the whole strip unreadable. The insert/send chips are the one
-   row with a full equivalent elsewhere (the inspector rack), so they are what
-   goes. The template drops to six tracks and the rows are re-mapped, rather
-   than leaving a collapsed track behind — a zero-height row still costs a
-   row-gap, which is exactly the space a cramped strip cannot spare. */
-@container mixer (max-height: 229px) {
-  .strip {
-    grid-template-rows:
-      auto
-      auto
-      minmax(var(--fader-min-h), 1fr)
-      auto
-      auto
-      auto;
-  }
-  .strip-fx {
-    display: none;
-  }
-  .strip-pan {
-    grid-row: 2;
-  }
-  .strip-mid {
-    grid-row: 3;
-  }
-  .strip-btns {
-    grid-row: 4;
-  }
-  .strip-readout {
-    grid-row: 5;
-  }
-  .strip-route {
-    grid-row: 6;
-  }
-}
-
 /* ------------------------------------------------------ input stage row */
 .strip-input {
   display: flex;
@@ -745,13 +723,18 @@
 }
 
 /* -------------------------------------------------------- stereo meter */
+/* The meter shares the fader's row inside a fixed-width strip, so it shrinks
+   rather than pushing itself out of the strip: the scale is the first thing to
+   go, then the bars narrow, and the strip's own overflow never has to clip it. */
 .smeter {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 2px;
-  flex: none;
+  flex: 0 1 auto;
   width: calc(var(--meter-w) * 2 + 16px);
+  max-width: 100%;
+  min-width: 18px;
   min-height: 0;
 }
 .smeter-over {
@@ -807,8 +790,9 @@
    -18 dB should not require hovering to find out where -18 is. */
 .smeter-scale {
   position: relative;
-  flex: none;
-  width: 14px;
+  flex: 0 1 14px;
+  min-width: 0;
+  overflow: hidden;
 }
 .smeter-scale span {
   position: absolute;
@@ -1205,4 +1189,132 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
+}
+
+/* Short-mixer strip layout -------------------------------------------------
+   Declared after the base .strip-* rules so it wins at equal specificity.
+
+   A short console cannot show every row, and squeezing them all makes the whole
+   strip unreadable. Rows drop in order of how well they are covered elsewhere:
+   sends and inserts both have a full equivalent in the inspector rack and in
+   the Channel Overview, the input stage has one in the overview, and the pan
+   knob has one in the track header. The row template is rewritten at each step
+   rather than collapsing rows to zero, because a zero-height row still costs a
+   row-gap — exactly the space a cramped strip cannot spare. */
+
+@container mixer (max-height: 400px) {
+  .strip {
+    grid-template-rows:
+      auto /* name    */
+      auto /* input   */
+      auto /* inserts */
+      auto /* pan     */
+      minmax(var(--fader-min-h), 1fr)
+      auto /* buttons */
+      auto /* readout */
+      auto; /* footer  */
+  }
+  .strip-sends {
+    display: none;
+  }
+  .strip-pan {
+    grid-row: 4;
+  }
+  .strip-mid {
+    grid-row: 5;
+  }
+  .strip-btns {
+    grid-row: 6;
+  }
+  .strip-readout {
+    grid-row: 7;
+  }
+  .strip-foot,
+  .strip-route {
+    grid-row: 8;
+  }
+}
+
+@container mixer (max-height: 340px) {
+  .strip {
+    grid-template-rows:
+      auto
+      auto
+      auto
+      minmax(var(--fader-min-h), 1fr)
+      auto
+      auto
+      auto;
+  }
+  .strip-inserts,
+  .strip-fx {
+    display: none;
+  }
+  .strip-pan {
+    grid-row: 3;
+  }
+  .strip-mid {
+    grid-row: 4;
+  }
+  .strip-btns {
+    grid-row: 5;
+  }
+  .strip-readout {
+    grid-row: 6;
+  }
+  .strip-foot,
+  .strip-route {
+    grid-row: 7;
+  }
+}
+
+@container mixer (max-height: 280px) {
+  .strip {
+    grid-template-rows:
+      auto
+      minmax(var(--fader-min-h), 1fr)
+      auto
+      auto
+      auto;
+  }
+  .strip-input,
+  .strip-pan {
+    display: none;
+  }
+  .strip-mid {
+    grid-row: 2;
+  }
+  .strip-btns {
+    grid-row: 3;
+  }
+  .strip-readout {
+    grid-row: 4;
+  }
+  .strip-foot,
+  .strip-route {
+    grid-row: 5;
+  }
+}
+
+@container mixer (max-height: 212px) {
+  .strip {
+    grid-template-rows:
+      auto
+      minmax(var(--fader-min-h), 1fr)
+      auto
+      auto;
+  }
+  .strip-readout {
+    display: none;
+  }
+  .strip-mid {
+    grid-row: 2;
+  }
+  .strip-btns {
+    grid-row: 3;
+  }
+  .strip-foot,
+  .strip-route {
+    grid-row: 4;
+  }
 }

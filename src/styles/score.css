@@ -1,0 +1,238 @@
+/**
+ * Score editor.
+ *
+ * The staff is drawn in SVG, so every glyph inherits `currentColor` and one
+ * `color` on an element recolours its heads, stem, flags, beams and dots
+ * together. Selection and hover are exactly that: a colour change on the
+ * element group, never a per-glyph override.
+ *
+ * Geometry comes from the component in staff spaces; this file owns only
+ * colour, weight and the panel chrome around the sheet.
+ */
+
+.sc {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+}
+
+.sc-toolbar {
+  height: var(--toolbar-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4);
+  background: var(--bg-panel-2);
+  border-bottom: 1px solid var(--border-soft);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.sc-toolbar::-webkit-scrollbar {
+  display: none;
+}
+/* Controls keep their natural width; the toolbar scrolls when the panel is
+   narrow, rather than shrinking the selects into unreadable slivers. */
+.sc-toolbar > * {
+  flex-shrink: 0;
+}
+.sc-toolbar label {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  white-space: nowrap;
+}
+.sc-toolbar select {
+  height: var(--control-h-sm);
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: var(--fs-xs);
+}
+
+.sc-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+  max-width: calc(140px * var(--ui-scale));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sc-readout {
+  font-family: var(--font-num);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  padding: var(--sp-1) var(--sp-3);
+}
+
+.sc-zoom {
+  display: inline-flex;
+  gap: var(--sp-1);
+  margin-left: auto;
+}
+
+.sc-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  color: var(--text-dim);
+  padding: var(--sp-7);
+  text-align: center;
+  font-size: var(--fs-sm);
+}
+
+.sc-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+  overscroll-behavior: contain;
+}
+
+.sc-inner {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  width: max-content;
+}
+
+/* Clef and key signature stay readable at any scroll position. */
+.sc-gutter {
+  position: sticky;
+  left: 0;
+  flex: none;
+  z-index: var(--z-sticky);
+  background: var(--bg-panel);
+  color: var(--text);
+}
+
+.sc-sheet {
+  flex: none;
+  display: block;
+  color: var(--text);
+  touch-action: pan-x pan-y;
+}
+
+.sc-playhead {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  background: var(--playhead);
+  opacity: 0;
+  pointer-events: none;
+  z-index: var(--z-playhead);
+}
+
+/* ------------------------------------------------------------ staff + ink */
+
+.sc-staff-line,
+.sc-ledger {
+  stroke: var(--text-dim);
+  stroke-linecap: butt;
+}
+
+.sc-barline {
+  stroke: var(--text-dim);
+  stroke-linecap: butt;
+}
+
+.sc-barnum {
+  fill: var(--text-faint);
+  font-family: var(--font);
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.sc-brace {
+  fill: none;
+  stroke: var(--text-dim);
+  stroke-width: 2px;
+  stroke-linecap: round;
+}
+
+/* Filled glyphs: heads, beams, flags, dots, rest blobs, flats, tie crescents. */
+.sc-head,
+.sc-beam,
+.sc-flag,
+.sc-rest,
+.sc-acc,
+.sc-clef-dot,
+.sc-tie {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* Stroked glyphs. Round joins are what make a hand-drawn clef read as one
+   continuous line rather than a chain of segments. */
+.sc-clef,
+.sc-acc-stroke,
+.sc-rest-stroke,
+.sc-timesig {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sc-stem {
+  stroke: currentColor;
+  stroke-linecap: butt;
+}
+
+/* ------------------------------------------------------------- interaction */
+
+.sc-el-note {
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.sc-el-rest {
+  color: var(--text-dim);
+}
+
+.sc-hit {
+  fill: transparent;
+  stroke: none;
+}
+
+.sc-el-note:hover {
+  color: var(--accent-hi);
+}
+
+.sc-el-note.selected {
+  color: var(--warm-hi);
+}
+
+/*
+ * Focus ring. The global `:focus-visible` rule paints a box-shadow, which SVG
+ * shapes do not render — so the element's own hit rectangle becomes the ring.
+ */
+.sc-el:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.sc-el:focus-visible .sc-hit {
+  fill: var(--accent-bg);
+  stroke: var(--border-focus);
+  stroke-width: 2px;
+  rx: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-el-note {
+    transition: none;
+  }
+}

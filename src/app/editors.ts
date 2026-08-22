@@ -41,6 +41,12 @@ const Mixer = lazy(() => import('../components/mixer/Mixer').then((m) => ({ defa
 const PianoRoll = lazy(() =>
   import('../components/pianoroll/PianoRoll').then((m) => ({ default: m.PianoRoll })),
 );
+const DrumEditor = lazy(() =>
+  import('../components/drumeditor/DrumEditor').then((m) => ({ default: m.DrumEditor })),
+);
+const ScoreView = lazy(() =>
+  import('../components/score/ScoreView').then((m) => ({ default: m.ScoreView })),
+);
 const AudioEditor = lazy(() =>
   import('../components/audioeditor/AudioEditor').then((m) => ({ default: m.AudioEditor })),
 );
@@ -73,6 +79,24 @@ export const EDITORS: EditorDef[] = [
     icon: 'piano',
     hint: 'Note editing for the open MIDI clip',
     component: PianoRoll,
+    appliesTo: isMidiClipOpen,
+    unavailable: 'Open a MIDI clip',
+  },
+  {
+    id: 'drums',
+    label: 'Drums',
+    icon: 'drum',
+    hint: 'A lane per drum, a step per hit',
+    component: DrumEditor,
+    appliesTo: isMidiClipOpen,
+    unavailable: 'Open a MIDI clip',
+  },
+  {
+    id: 'score',
+    label: 'Score',
+    icon: 'score',
+    hint: 'Engraved notation for the open MIDI clip',
+    component: ScoreView,
     appliesTo: isMidiClipOpen,
     unavailable: 'Open a MIDI clip',
   },

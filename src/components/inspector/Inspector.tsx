@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { formatDb } from '../../model/music';
 import { TRACK_COLORS } from '../../model/types';
-import type { AudioClip, FadeShape } from '../../model/types';
+import type { AudioClip, Effect, FadeShape } from '../../model/types';
 import { getClip, getTrack, useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { PanKnob } from '../common/widgets';
 import { TrackInputControls } from '../recording/RecordControls';
-import { InsertRack, SendRack } from '../mixer/InsertRack';
+import { InsertRack, SendRack, type ChainHost } from '../mixer/InsertRack';
 import { NoteFxRack } from './NoteFxRack';
 import { TimePitchPanel } from './TimePitchPanel';
 import {
@@ -152,6 +152,28 @@ function AudioClipTools({ clip }: { clip: AudioClip }) {
   );
 }
 
+/**
+ * A clip's own insert chain, as a chain host.
+ *
+ * Event FX process one clip and nothing else on its track, which is why they
+ * cannot live on the channel — and why they reuse the same rack rather than
+ * growing a second copy of it.
+ */
+function eventChainHost(clip: { id: string; eventFx?: Effect[] }): ChainHost {
+  const store = useProjectStore;
+  return {
+    id: `clip:${clip.id}`,
+    title: 'Event FX',
+    emptyHint: 'Inserts that process this clip alone, before it reaches the channel.',
+    effects: clip.eventFx ?? [],
+    add: (kind) => store.getState().addEventFx(clip.id, kind),
+    remove: (id) => store.getState().removeEventFx(clip.id, id),
+    setParam: (id, key, v) => store.getState().setEventFxParam(clip.id, id, key, v),
+    setBypass: (id, bypass) => store.getState().setEventFxBypass(clip.id, id, bypass),
+    move: (id, delta) => store.getState().moveEventFx(clip.id, id, delta),
+  };
+}
+
 export function Inspector() {
   const project = useProjectStore((s) => s.project);
   const selectedClipId = useUiStore((s) => s.selectedClipId);
@@ -233,6 +255,11 @@ export function Inspector() {
           {clip.type === 'audio' && <AudioClipTools clip={clip} />}
         </div>
         {clip.type === 'audio' && <TimePitchPanel clip={clip} />}
+        {clip.type === 'audio' && (
+          <div className="panel-section">
+            <InsertRack host={eventChainHost(clip)} />
+          </div>
+        )}
         <div className="panel-section">
           {clip.type === 'midi' && (
             <>

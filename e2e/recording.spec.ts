@@ -228,10 +228,14 @@ test.describe('mixer insert processing', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await boot(page);
     await page.click('[data-testid="editor-tab-mixer"]');
+    // The console drops its least-covered rows on a short panel (the insert row
+    // has a full equivalent in the inspector), so the row is asserted where it
+    // is actually shown: a full-height console.
+    await page.click('[data-testid="maximize-editor"]');
     await page.waitForTimeout(400);
 
     const info = await page.evaluate(() => {
-      const chips = [...document.querySelectorAll<HTMLElement>('.strip-fx .fx-chip')];
+      const chips = [...document.querySelectorAll<HTMLElement>('.strip-inserts .ins-slot')];
       const escaping = chips.filter((c) => {
         const strip = c.closest('.strip')!.getBoundingClientRect();
         const box = c.getBoundingClientRect();
@@ -241,7 +245,9 @@ test.describe('mixer insert processing', () => {
         count: chips.length,
         escaping,
         // the demo project ships a compressed drum bus, so at least one is active
-        active: chips.filter((c) => c.classList.contains('on')).length,
+        // A named, non-bypassed insert slot is the active case; the empty slot
+        // carries the `empty` class.
+        active: chips.filter((c) => !c.classList.contains('empty')).length,
       };
     });
 

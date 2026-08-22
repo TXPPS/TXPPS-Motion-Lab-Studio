@@ -29,7 +29,16 @@ function note(start: number, length: number, pitch: number, velocity = 100): Not
 }
 
 function clip(notes: Note[], length = 4, start = 0): MidiClip {
-  return { id: 'c1', trackId: 't1', name: 'Part', type: 'midi', start, length, muted: false, notes };
+  return {
+    id: 'c1',
+    trackId: 't1',
+    name: 'Part',
+    type: 'midi',
+    start,
+    length,
+    muted: false,
+    notes,
+  };
 }
 
 /** Compact "value.dots" spelling of a fit, e.g. ['4.1'] for a dotted quarter. */
@@ -246,6 +255,16 @@ describe('notation — measures, ties and rests', () => {
     }
   });
 
+  it('splits rests at the strong divisions instead of dotting across them', () => {
+    // Three beats of silence from the downbeat of 4/4 is a half plus a quarter:
+    // a dotted half rest would hide beat 3.
+    expect(spell(fitDuration(0, 3, FOUR_FOUR, { rest: true }))).toEqual(['2.0', '4.0']);
+    // A whole beat of 6/8 is one node, so it takes the dot.
+    expect(spell(fitDuration(0, 1.5, SIX_EIGHT, { rest: true }))).toEqual(['4.1']);
+    // Silence never syncopates.
+    expect(spell(fitDuration(0.5, 1.5, FOUR_FOUR, { rest: true }))).toEqual(['8.0', '8.0']);
+  });
+
   it('fills the gaps around a note with valued rests', () => {
     const score = buildScore(clip([note(1, 1, 60)], 4), map());
     const els = score.measures[0].voices[0].elements;
@@ -259,7 +278,12 @@ describe('notation — measures, ties and rests', () => {
 
   it('follows a signature change inside the clip', () => {
     const changing = normalizeTempoMap(
-      { sigs: [{ id: 's0', bar: 0, num: 4, den: 4 }, { id: 's1', bar: 1, num: 3, den: 4 }] },
+      {
+        sigs: [
+          { id: 's0', bar: 0, num: 4, den: 4 },
+          { id: 's1', bar: 1, num: 3, den: 4 },
+        ],
+      },
       120,
       { num: 4, den: 4 },
     );
@@ -344,5 +368,24 @@ describe('notation — quantisation', () => {
     const score = buildScore(clip([muted], 4), map());
     expect(notesOf(score.measures[0])).toHaveLength(0);
     expect(score.measures[0].voices[0].elements[0].wholeMeasure).toBe(true);
+  });
+});
+
+describe('notation — beam stems', () => {
+  it('gives one beam group a single stem direction', () => {
+    // A run that straddles the middle line would otherwise stem both ways.
+    const eighths = [0, 0.5, 1, 1.5].map((s, i) => note(s, 0.5, i < 2 ? 62 : 79));
+    const score = buildScore(clip(eighths, 2), map(), { grid: 0.5 });
+    const bar = score.measures[0];
+    for (const group of bar.beams) {
+      const stems = new Set(
+        group.elementIds.map(
+          (id) => bar.voices[group.voice].elements.find((e) => e.id === id)?.stem,
+        ),
+      );
+      expect(stems.size).toBe(1);
+    }
+    expect(bar.beams).toHaveLength(2);
+    expect(notesOf(bar)[2].stem).toBe('down');
   });
 });

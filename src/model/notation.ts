@@ -304,7 +304,11 @@ export function metricTree(sig: TimeSig, grid: number): MetricTree {
     p += groups[i];
   }
   const positions = [...out.keys()].sort((a, b) => a - b).map((k) => k / 1024);
-  const tree: MetricTree = { beats, positions, levels: positions.map((x) => out.get(posKey(x)) ?? 1) };
+  const tree: MetricTree = {
+    beats,
+    positions,
+    levels: positions.map((x) => out.get(posKey(x)) ?? 1),
+  };
   treeCache.set(cacheKey, tree);
   return tree;
 }
@@ -345,11 +349,11 @@ export function fitDuration(
   start: number,
   end: number,
   sig: TimeSig,
-  opts: FitOptions = {},
+  opts: FitOptions & { rest?: boolean } = {},
 ): DurationUnit[] {
   const tree = metricTree(sig, opts.grid ?? 0.25);
   const out: DurationUnit[] = [];
-  fitSpan(start, end, tree, opts.maxDots ?? 1, out, 0);
+  fitSpan(start, end, tree, opts.maxDots ?? 1, out, 0, opts.rest ?? false);
   return out;
 }
 
@@ -360,11 +364,12 @@ function fitSpan(
   maxDots: number,
   out: DurationUnit[],
   depth: number,
+  forRest = false,
 ): void {
   const duration = e - s;
   if (duration <= EPS) return;
   const v = depth > 12 ? null : valueFor(duration, maxDots);
-  if (v && isWritable(s, e, tree, v.dots)) {
+  if (v && isWritable(s, e, tree, v.dots, forRest)) {
     out.push({ start: s, duration, ...v });
     return;
   }
@@ -376,11 +381,11 @@ function fitSpan(
     const fallback = largestValueAtMost(duration);
     const len = noteValueBeats(fallback.value, fallback.dots);
     out.push({ start: s, duration: len, ...fallback });
-    fitSpan(s + len, e, tree, maxDots, out, depth + 1);
+    fitSpan(s + len, e, tree, maxDots, out, depth + 1, forRest);
     return;
   }
-  fitSpan(s, split, tree, maxDots, out, depth + 1);
-  fitSpan(split, e, tree, maxDots, out, depth + 1);
+  fitSpan(s, split, tree, maxDots, out, depth + 1, forRest);
+  fitSpan(split, e, tree, maxDots, out, depth + 1, forRest);
 }
 
 /** Division points strictly inside a span. */
@@ -399,6 +404,12 @@ function strongestInside(s: number, e: number, tree: MetricTree): number | null 
   return best ? best.pos : null;
 }
 
+/** Does the span cover exactly one node of the metric tree? */
+function isNode(s: number, e: number, tree: MetricTree): boolean {
+  const bound = Math.max(levelAt(tree, s), levelAt(tree, e));
+  return insideLevels(s, e, tree).every((b) => b.level > bound);
+}
+
 /**
  * May this span be written as a single value?
  *
@@ -406,10 +417,22 @@ function strongestInside(s: number, e: number, tree: MetricTree): number | null 
  * concession is symmetric syncopation: an undotted value centred on a single
  * stronger point is how a reader expects syncopation to look, so the quarter
  * on the "and of 2" in 4/4 stays one note rather than two tied eighths.
+ *
+ * Rests are held to a stricter standard, because silence has no rhythm to
+ * carry across a beat: they never syncopate, and a dotted rest has to fill a
+ * whole metric node — which is why a beat of rest in 6/8 is one dotted quarter
+ * rest while three beats of rest in 4/4 is a half rest plus a quarter rest.
  */
-function isWritable(s: number, e: number, tree: MetricTree, dots: number): boolean {
+function isWritable(
+  s: number,
+  e: number,
+  tree: MetricTree,
+  dots: number,
+  forRest: boolean,
+): boolean {
   const ls = levelAt(tree, s);
   const stronger = insideLevels(s, e, tree).filter((b) => b.level < ls);
+  if (forRest) return dots > 0 ? isNode(s, e, tree) : stronger.length === 0;
   if (stronger.length === 0) return true;
   if (dots > 0 || stronger.length > 1) return false;
   const p = stronger[0].pos;
@@ -623,10 +646,8 @@ function buildVoice(
     if (to - from <= EPS) return;
     const whole = from <= EPS && to >= beats - EPS;
     // A bar of silence is one whole rest in every meter, 3/4 and 7/8 included.
-    const units: DurationUnit[] = whole
-      ? [{ start: 0, duration: beats, value: 1, dots: 0 }]
-      : [];
-    if (!whole) fitSpan(from, to, tree, maxDots, units, 0);
+    const units: DurationUnit[] = whole ? [{ start: 0, duration: beats, value: 1, dots: 0 }] : [];
+    if (!whole) fitSpan(from, to, tree, maxDots, units, 0, true);
     for (const u of units) {
       elements.push({
         id: `${idBase}-e${seq++}`,
@@ -737,7 +758,11 @@ function buildBeams(
       const id = `b${barIndex}-${voice.index}-${groups.length}`;
       const levels = run.map((e) => beamCount(e.value));
       const members = run;
+      // One beam, one stem direction: the group is stemmed as a whole, by the
+      // head that sits furthest from the middle line anywhere in it.
+      const dir = fixedStem ?? stemOf(members.flatMap((e) => e.notes.map((n) => n.staffPos)));
       members.forEach((e, i) => {
+        e.stem = dir;
         e.beam = { groupId: id, index: i, size: members.length, level: levels[i] };
       });
       groups.push({ id, voice: voice.index, elementIds: members.map((e) => e.id), levels });
@@ -833,7 +858,9 @@ export function buildScore(clip: MidiClip, map: TempoMap, opts: ScoreOptions = {
       buildVoice(bar, beats, fs, i, tree, key, clef, maxDots, parts.length > 1),
     );
     applyAccidentals(voices, key);
-    const beams = voices.flatMap((v) => buildBeams(v, sig, bar));
+    const beams = voices.flatMap((v) =>
+      buildBeams(v, sig, bar, parts.length > 1 ? (v.index === 0 ? 'up' : 'down') : null),
+    );
 
     measures.push({
       index: bar,

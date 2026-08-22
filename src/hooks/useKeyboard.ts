@@ -97,6 +97,29 @@ function isTypingTarget(el: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || el.isContentEditable;
 }
 
+/**
+ * Space activates the focused control before it reaches the transport.
+ *
+ * Space is both "play/stop" and the platform's activation key for a focused
+ * button. Swallowing it globally means a keyboard user who has tabbed to Mute
+ * gets playback instead of a mute — the control they are looking at does
+ * nothing. So when focus is on something Space already means something to, the
+ * transport does not see it.
+ */
+function spaceBelongsToFocus(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+  if (el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'SUMMARY') return true;
+  const role = el.getAttribute('role');
+  if (
+    role &&
+    ['button', 'checkbox', 'switch', 'tab', 'radio', 'menuitem', 'option'].includes(role)
+  ) {
+    return true;
+  }
+  // Sliders own the arrow keys, not Space — a fader should still start playback.
+  return false;
+}
+
 export function useGlobalKeyboard(): void {
   useEffect(() => {
     const held = new Set<string>();
@@ -114,6 +137,7 @@ export function useGlobalKeyboard(): void {
 
       // Transport / editing shortcuts
       if (e.code === 'Space') {
+        if (spaceBelongsToFocus(document.activeElement)) return;
         e.preventDefault();
         engine.togglePlay();
         return;

@@ -64,7 +64,11 @@ export function headKindFor(value: NoteValue): HeadKind {
 export function NoteHead({ x, y, space, kind }: Placed & { kind: HeadKind }) {
   if (kind === 'filled') {
     return (
-      <path className="sc-head" transform={`${at(x, y, space)} rotate(-20)`} d={ellipse(0.62, 0.4)} />
+      <path
+        className="sc-head"
+        transform={`${at(x, y, space)} rotate(-20)`}
+        d={ellipse(0.62, 0.4)}
+      />
     );
   }
   if (kind === 'half') {
@@ -94,16 +98,20 @@ export function Dots({ x, y, space, count }: Placed & { count: number }) {
   const out: ReactNode[] = [];
   for (let i = 0; i < count; i++) {
     out.push(
-      <circle key={i} className="sc-head" cx={x + (0.35 + i * 0.45) * space} cy={y} r={0.16 * space} />,
+      <circle
+        key={i}
+        className="sc-head"
+        cx={x + (0.35 + i * 0.45) * space}
+        cy={y}
+        r={0.16 * space}
+      />,
     );
   }
   return <>{out}</>;
 }
 
 export function Stem({ x, y1, y2, space }: { x: number; y1: number; y2: number; space: number }) {
-  return (
-    <line className="sc-stem" x1={x} y1={y1} x2={x} y2={y2} strokeWidth={STEM_W * space} />
-  );
+  return <line className="sc-stem" x1={x} y1={y1} x2={x} y2={y2} strokeWidth={STEM_W * space} />;
 }
 
 /** Ledger lines for a head that sits off the staff. */
@@ -123,12 +131,28 @@ export function Ledgers({
   const w = HEAD_W * 0.82 * space;
   for (let p = 10; p <= staffPos; p += 2) {
     out.push(
-      <line key={`a${p}`} className="sc-ledger" x1={x - w} y1={lineY(p)} x2={x + w} y2={lineY(p)} strokeWidth={LINE_W * space} />,
+      <line
+        key={`a${p}`}
+        className="sc-ledger"
+        x1={x - w}
+        y1={lineY(p)}
+        x2={x + w}
+        y2={lineY(p)}
+        strokeWidth={LINE_W * space}
+      />,
     );
   }
   for (let p = -2; p >= staffPos; p -= 2) {
     out.push(
-      <line key={`b${p}`} className="sc-ledger" x1={x - w} y1={lineY(p)} x2={x + w} y2={lineY(p)} strokeWidth={LINE_W * space} />,
+      <line
+        key={`b${p}`}
+        className="sc-ledger"
+        x1={x - w}
+        y1={lineY(p)}
+        x2={x + w}
+        y2={lineY(p)}
+        strokeWidth={LINE_W * space}
+      />,
     );
   }
   return <>{out}</>;
@@ -185,7 +209,12 @@ export function Beam({
   dir: 'up' | 'down';
 }) {
   const h = BEAM_H * space * (dir === 'up' ? 1 : -1);
-  return <path className="sc-beam" d={`M ${x1} ${y1} L ${x2} ${y2} L ${x2} ${y2 + h} L ${x1} ${y1 + h} Z`} />;
+  return (
+    <path
+      className="sc-beam"
+      d={`M ${x1} ${y1} L ${x2} ${y2} L ${x2} ${y2 + h} L ${x1} ${y1 + h} Z`}
+    />
+  );
 }
 
 // ------------------------------------------------------------------- rests
@@ -270,7 +299,11 @@ export function Accidental({ x, y, space, alter }: Placed & { alter: number }) {
   if (alter === 1) {
     return g(
       <>
-        <path className="sc-acc-stroke" strokeWidth={0.11} d="M -0.2 -0.95 L -0.2 0.78 M 0.2 -0.78 L 0.2 0.95" />
+        <path
+          className="sc-acc-stroke"
+          strokeWidth={0.11}
+          d="M -0.2 -0.95 L -0.2 0.78 M 0.2 -0.78 L 0.2 0.95"
+        />
         <path className="sc-acc-stroke" strokeWidth={0.26} d={SHARP_BARS} />
       </>,
     );
@@ -278,7 +311,11 @@ export function Accidental({ x, y, space, alter }: Placed & { alter: number }) {
   if (alter === 0) {
     return g(
       <>
-        <path className="sc-acc-stroke" strokeWidth={0.11} d="M -0.24 -0.95 L -0.24 0.5 M 0.24 -0.5 L 0.24 0.95" />
+        <path
+          className="sc-acc-stroke"
+          strokeWidth={0.11}
+          d="M -0.24 -0.95 L -0.24 0.5 M 0.24 -0.5 L 0.24 0.95"
+        />
         <path className="sc-acc-stroke" strokeWidth={0.24} d={NATURAL_BARS} />
       </>,
     );
@@ -286,7 +323,10 @@ export function Accidental({ x, y, space, alter }: Placed & { alter: number }) {
   const flat = (dx: number) => (
     <g key={dx} transform={`translate(${dx} 0)`}>
       <path className="sc-acc-stroke" strokeWidth={0.12} d="M -0.22 -1.32 L -0.22 0.52" />
-      <path className="sc-acc" d="M -0.22 0.52 C 0.42 0.08 0.58 -0.3 0.24 -0.46 C 0.0 -0.57 -0.16 -0.34 -0.22 -0.08 L -0.22 0.16 C -0.06 -0.1 0.1 -0.2 0.2 -0.14 C 0.34 -0.05 0.22 0.16 -0.22 0.52 Z" />
+      <path
+        className="sc-acc"
+        d="M -0.22 0.52 C 0.42 0.08 0.58 -0.3 0.24 -0.46 C 0.0 -0.57 -0.16 -0.34 -0.22 -0.08 L -0.22 0.16 C -0.06 -0.1 0.1 -0.2 0.2 -0.14 C 0.34 -0.05 0.22 0.16 -0.22 0.52 Z"
+      />
     </g>
   );
   return g(alter === -1 ? flat(0) : [flat(-0.42), flat(0.42)]);
@@ -354,15 +394,17 @@ const DIGIT_W = 1.24;
 
 function digits(text: string, x: number, y: number, space: number) {
   const w = text.length * DIGIT_W;
-  return text.split('').map((ch, i) => (
-    <path
-      key={i}
-      className="sc-timesig"
-      transform={at(x - (w / 2 - i * DIGIT_W - DIGIT_W / 2) * space, y, space)}
-      strokeWidth={0.3}
-      d={DIGITS[ch] ?? DIGITS['0']}
-    />
-  ));
+  return text
+    .split('')
+    .map((ch, i) => (
+      <path
+        key={i}
+        className="sc-timesig"
+        transform={at(x - (w / 2 - i * DIGIT_W - DIGIT_W / 2) * space, y, space)}
+        strokeWidth={0.3}
+        d={DIGITS[ch] ?? DIGITS['0']}
+      />
+    ));
 }
 
 /** Numerator and denominator, centred on the two halves of the staff. */
@@ -423,5 +465,10 @@ export function Tie({
   const rise = sign * Math.min(1.5 * space, 0.28 * span + 0.5 * space);
   const my = (y1 + y2) / 2 + rise;
   const thin = my - sign * 0.26 * space;
-  return <path className="sc-tie" d={`M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2} Q ${mx} ${thin} ${x1} ${y1} Z`} />;
+  return (
+    <path
+      className="sc-tie"
+      d={`M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2} Q ${mx} ${thin} ${x1} ${y1} Z`}
+    />
+  );
 }

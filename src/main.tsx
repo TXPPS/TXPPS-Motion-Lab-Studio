@@ -14,6 +14,8 @@ import './styles/automation.css';
 import './styles/sampler.css';
 import './styles/pages.css';
 import './styles/audioeditor.css';
+import './styles/drumeditor.css';
+import './styles/score.css';
 import './styles/settings.css';
 import { installConsoleCapture, diagLog } from './state/diagnostics';
 import { applyAppearance } from './state/prefsStore';

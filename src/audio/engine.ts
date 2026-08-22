@@ -1052,7 +1052,23 @@ class AudioEngine {
     applyEnvelope(g.gain, schedule.envelope, when);
 
     src.connect(g);
-    g.connect(ch.input);
+
+    /**
+     * Event FX: a clip's own insert chain, built per scheduled source and torn
+     * down with it. It sits between the clip and the channel, so it processes
+     * this clip and nothing else on the track — which is the whole point of a
+     * per-event effect, and why it cannot live on the channel.
+     */
+    let eventChain: InsertChain | null = null;
+    if (clip.eventFx?.length) {
+      eventChain = new InsertChain(ctx);
+      eventChain.sync(clip.eventFx, p.bpm);
+      g.connect(eventChain.entry);
+      eventChain.exit.connect(ch.input);
+    } else {
+      g.connect(ch.input);
+    }
+
     const handle: ActiveHandle = {
       kind: 'buffer',
       trackId: clip.trackId,
@@ -1072,7 +1088,10 @@ class AudioEngine {
       try {
         src.disconnect();
         g.disconnect();
-      } catch {}
+        eventChain?.dispose();
+      } catch {
+        /* already gone */
+      }
     };
     this.registerSource(handle);
     // `duration` is in SOURCE seconds; a resampled clip consumes that much
