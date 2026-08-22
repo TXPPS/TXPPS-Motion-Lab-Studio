@@ -111,6 +111,13 @@ export const SHORTCUTS: Shortcut[] = [
     category: 'Selection',
     when: 'arrangement',
   },
+  {
+    id: 'context-menu',
+    combo: 'contextmenu',
+    display: 'Menu / Shift+F10',
+    description: 'Open the menu for the focused object',
+    category: 'Selection',
+  },
 
   // Editing
   {
@@ -369,6 +376,115 @@ export const SHORTCUTS: Shortcut[] = [
     description: 'Duplicate the selected points after themselves',
     category: 'Automation',
     when: 'points selected',
+  },
+
+  // Keyboard editing of the three musical surfaces. Every entry here is
+  // handled by the focused object itself, which is why each combo carries the
+  // object it belongs to: the same arrow key means four things depending on
+  // what has focus, and the registry has to say which is which.
+  {
+    id: 'clip-select',
+    combo: 'enter (clip)',
+    display: 'Enter',
+    description: 'Select the focused clip (Shift: add it to the selection)',
+    category: 'Selection',
+    when: 'a clip is focused',
+  },
+  {
+    id: 'clip-trim-start',
+    combo: '[/] (clip)',
+    display: '[ ]',
+    description: 'Trim the focused clip’s start edge by the grid',
+    category: 'Editing',
+    when: 'a clip is focused',
+  },
+  {
+    id: 'clip-trim-end',
+    combo: 'shift+[/] (clip)',
+    display: 'Shift+[ ]',
+    description: 'Trim the focused clip’s end edge by the grid',
+    category: 'Editing',
+    when: 'a clip is focused',
+  },
+  {
+    id: 'clip-fade-in',
+    combo: ',/. (clip)',
+    display: ', .',
+    description: 'Shorten / lengthen the fade in of the focused audio clip',
+    category: 'Editing',
+    when: 'a clip is focused',
+  },
+  {
+    id: 'clip-fade-out',
+    combo: 'shift+,/. (clip)',
+    display: 'Shift+, .',
+    description: 'Shorten / lengthen the fade out of the focused audio clip',
+    category: 'Editing',
+    when: 'a clip is focused',
+  },
+  {
+    id: 'pr-note-select',
+    combo: 'enter (note)',
+    display: 'Enter',
+    description: 'Select the focused note (Shift: add it to the selection)',
+    category: 'Piano roll',
+    when: 'a note is focused',
+  },
+  {
+    id: 'pr-note-resize',
+    combo: 'alt+arrowleft/right (note)',
+    display: 'Alt+← →',
+    description: 'Shorten / lengthen the focused note by the snap',
+    category: 'Piano roll',
+    when: 'a note is focused',
+  },
+  {
+    id: 'pr-grid-cursor',
+    combo: 'arrows (note grid)',
+    display: '← → ↑ ↓',
+    description: 'Move the note cursor by the snap and by a semitone',
+    category: 'Piano roll',
+    when: 'the grid is focused',
+  },
+  {
+    id: 'pr-grid-add',
+    combo: 'enter (note grid)',
+    display: 'Enter',
+    description: 'Add a note at the cursor, or remove the one already there',
+    category: 'Piano roll',
+    when: 'the grid is focused',
+  },
+  {
+    id: 'pr-velocity',
+    combo: 'arrowup/down (velocity lane)',
+    display: '↑ ↓',
+    description: 'Set the velocity of the focused note (Shift: ±10)',
+    category: 'Piano roll',
+    when: 'a velocity bar is focused',
+  },
+  {
+    id: 'auto-point-keys',
+    combo: 'arrows (automation point)',
+    display: '↑ ↓ ← →',
+    description: 'Change the value (Shift: fine) · move by the snap',
+    category: 'Automation',
+    when: 'a point is focused',
+  },
+  {
+    id: 'auto-point-select',
+    combo: 'enter (automation point)',
+    display: 'Enter',
+    description: 'Add or remove the focused point from the selection',
+    category: 'Automation',
+    when: 'a point is focused',
+  },
+  {
+    id: 'auto-add-at-playhead',
+    combo: 'enter (automation lane)',
+    display: 'Enter',
+    description: 'Add a point at the playhead',
+    category: 'Automation',
+    when: 'the lane is focused',
   },
 ];
 

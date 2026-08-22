@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useUiStore } from '../../state/uiStore';
 import { Icon, type IconName } from './Icon';
 
@@ -51,6 +52,7 @@ const STEPS: { icon: IconName; title: string; body: string }[] = [
 
 export function WelcomeSheet() {
   const open = useUiStore((s) => s.welcomeOpen);
+  const panelRef = useRef<HTMLDivElement>(null);
   const close = () => {
     try {
       localStorage.setItem(WELCOME_SEEN_KEY, String(Date.now()));
@@ -59,6 +61,8 @@ export function WelcomeSheet() {
     }
     useUiStore.getState().set({ welcomeOpen: false });
   };
+
+  useFocusTrap(panelRef, open);
 
   useEffect(() => {
     if (!open) return;
@@ -81,6 +85,8 @@ export function WelcomeSheet() {
     >
       <div
         className="welcome-sheet"
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label="Welcome to MotionLab Studio"

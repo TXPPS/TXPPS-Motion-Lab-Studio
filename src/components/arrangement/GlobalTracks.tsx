@@ -278,7 +278,10 @@ export const SectionLane = memo(function SectionLane({
             e.preventDefault();
             menu(sec, i, e.clientX, e.clientY);
           }}
-          title={`${sec.name} — right-click to reorder or loop`}
+          // Reachable by Tab so the Menu key has something to open on: the
+          // section menu is the only way to reorder or loop a section.
+          tabIndex={0}
+          title={`${sec.name} — right-click or press the Menu key to reorder or loop`}
         >
           <span className="gt-section-name">{sec.name}</span>
           <span

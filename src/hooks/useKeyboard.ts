@@ -122,6 +122,44 @@ function spaceBelongsToFocus(el: EventTarget | null): boolean {
 }
 
 /**
+ * The keyboard's right-click.
+ *
+ * Every per-object menu declares its items inside its own `onContextMenu`,
+ * next to the object and the selection rules the items depend on. Rather than
+ * lifting eighteen of those lists somewhere a global handler could read them —
+ * two copies of every menu, one of which would rot — this replays the pointer
+ * path: it dispatches a real `contextmenu` event on the focused element, at
+ * that element's own box. One item list, one code path, and a menu written
+ * next year is keyboard-reachable the day it is written.
+ *
+ * Returns whether a menu actually opened, so the key is only swallowed when
+ * the app had something to show and the browser's own menu still appears where
+ * it does not.
+ */
+function openMenuForFocus(): boolean {
+  const el = document.activeElement;
+  if (!(el instanceof HTMLElement) || el === document.body) return false;
+  const r = el.getBoundingClientRect();
+  // Just inside the top-left corner, the way a deliberate right-click on the
+  // object reads to the handlers that map x back to a beat — not the centre,
+  // which on a long clip would land bars away from where the object starts.
+  const x = Math.round(r.left + Math.min(12, r.width / 2));
+  const y = Math.round(r.top + Math.min(12, r.height / 2));
+  const before = useUiStore.getState().contextMenu;
+  el.dispatchEvent(
+    new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      button: 2,
+      buttons: 2,
+      clientX: x,
+      clientY: y,
+    }),
+  );
+  return useUiStore.getState().contextMenu !== before;
+}
+
+/**
  * A stand-in event carrying a combo's keys, delegating everything that has a
  * side effect to the real event. It exists so a rebound key can be handled by
  * the same branches as its default without those branches knowing.
@@ -164,6 +202,13 @@ export function useGlobalKeyboard(): void {
         return;
       }
       if (isTypingTarget(e.target)) return;
+
+      // The Menu key and Shift+F10 open the focused object's menu — until now
+      // the only way to reach one was a right-click.
+      if (k === 'contextmenu' || (e.shiftKey && k === 'f10')) {
+        if (openMenuForFocus()) e.preventDefault();
+        return;
+      }
 
       // Transport / editing shortcuts
       if (e.code === 'Space') {

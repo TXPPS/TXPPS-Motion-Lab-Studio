@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { engine } from '../../audio/engine';
 import { longPress, usePointerDrag } from '../../hooks/usePointerDrag';
-import { clamp, midiToName, snapBeat, snapBeatFloor } from '../../model/music';
+import { clamp, formatPosition, midiToName, snapBeat, snapBeatFloor } from '../../model/music';
 import { DRUM_PITCHES } from '../../model/presets';
 import {
   buildChord,
@@ -36,6 +36,19 @@ const KEYS_W = 52;
 const ROW_H = 16;
 const VEL_H = 56;
 
+/**
+ * Visually hidden, still spoken. The piano-roll stylesheet is owned elsewhere
+ * this week, so the rule the live region needs travels with the element.
+ */
+const SR_ONLY: React.CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  overflow: 'hidden',
+  clipPath: 'inset(50%)',
+  whiteSpace: 'nowrap',
+};
+
 function isBlack(pitch: number): boolean {
   return [1, 3, 6, 8, 10].includes(((pitch % 12) + 12) % 12);
 }
@@ -50,9 +63,11 @@ interface NoteViewProps {
   clip: MidiClip;
   ppb: number;
   trackId: string;
+  /** Renders a beat inside the clip as bar.beat.step, for labels and speech. */
+  positionLabel: (beat: number) => string;
 }
 
-function NoteView({ note, clip, ppb, trackId }: NoteViewProps) {
+function NoteView({ note, clip, ppb, trackId, positionLabel }: NoteViewProps) {
   const selected = useUiStore((s) => s.selectedNoteIds.includes(note.id));
   const snap = useUiStore((s) => s.prSnap);
   const store = useProjectStore;
@@ -145,9 +160,86 @@ function NoteView({ note, clip, ppb, trackId }: NoteViewProps) {
     onEnd: () => store.getState().endGesture(),
   });
 
+  const gesture = (edit: () => void) => {
+    store.getState().beginGesture();
+    edit();
+    store.getState().endGesture();
+  };
+
+  /**
+   * Keyboard editing.
+   *
+   * A key on a note acts on the selection when the note is in it, exactly as a
+   * drag on a selected note moves the whole group, and every branch ends in the
+   * store action its drag already calls.
+   */
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const uiState = ui.getState();
+    const ids = uiState.selectedNoteIds.includes(note.id) ? uiState.selectedNoteIds : [note.id];
+    const step = snap || 0.25;
+    switch (e.key) {
+      case 'Enter':
+      case ' ':
+        if (e.shiftKey || e.ctrlKey || e.metaKey) select(true);
+        else ui.getState().set({ selectedNoteIds: [note.id] });
+        break;
+      case 'Delete':
+      case 'Backspace':
+        store.getState().deleteNotes(clip.id, ids);
+        ui.getState().set({
+          selectedNoteIds: uiState.selectedNoteIds.filter((i) => !ids.includes(i)),
+        });
+        break;
+      case 'ArrowLeft':
+      case 'ArrowRight': {
+        const dir = e.key === 'ArrowRight' ? 1 : -1;
+        if (e.altKey) {
+          // Alt turns the arrows into the resize edge, which is otherwise a
+          // 4px drag handle and nothing else.
+          gesture(() =>
+            store.getState().updateNotes(clip.id, ids, (n) => ({
+              length: Math.max(step, n.length + dir * step),
+            })),
+          );
+          break;
+        }
+        const d = dir * (e.shiftKey ? step / 4 : step);
+        gesture(() =>
+          store.getState().updateNotes(clip.id, ids, (n) => ({ start: Math.max(0, n.start + d) })),
+        );
+        break;
+      }
+      case 'ArrowUp':
+      case 'ArrowDown': {
+        const semis = (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 12 : 1);
+        const locked = uiState.prScaleLock && uiState.prScale !== 'chromatic';
+        gesture(() =>
+          store.getState().updateNotes(clip.id, ids, (n) => {
+            const raw = clamp(n.pitch + semis, PITCH_MIN, PITCH_MAX);
+            return { pitch: locked ? snapToScale(raw, uiState.prKey, uiState.prScale) : raw };
+          }),
+        );
+        previewNote(trackId, clamp(note.pitch + semis, PITCH_MIN, PITCH_MAX), 70);
+        break;
+      }
+      default:
+        return;
+    }
+    e.preventDefault();
+    // The window handler nudges this same selection; one press is one edit.
+    e.stopPropagation();
+  };
+
   return (
     <div
       className={`pr-note${selected ? ' selected' : ''}${note.muted ? ' muted' : ''}`}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      aria-label={`${midiToName(note.pitch)}, ${positionLabel(note.start)}, velocity ${
+        note.velocity
+      }${note.muted ? ', muted' : ''}`}
+      onKeyDown={onKeyDown}
       style={{
         left: note.start * ppb,
         width: Math.max(5, note.length * ppb),
@@ -184,13 +276,24 @@ function NoteView({ note, clip, ppb, trackId }: NoteViewProps) {
       title={`${midiToName(note.pitch)} · vel ${note.velocity}${note.muted ? ' · muted' : ''}`}
     >
       {note.length * ppb > 34 && <span className="pr-note-label">{midiToName(note.pitch)}</span>}
-      <div className="pr-note-edge" onPointerDown={dragResize} />
+      {/* The edge is a drag handle; its keyboard route is Alt+←/→ on the note. */}
+      <div className="pr-note-edge" onPointerDown={dragResize} aria-hidden="true" />
     </div>
   );
 }
 
 /** One velocity bar. Vertical drag writes velocity to the note (or selection). */
-function VelBar({ note, clip, ppb }: { note: Note; clip: MidiClip; ppb: number }) {
+function VelBar({
+  note,
+  clip,
+  ppb,
+  positionLabel,
+}: {
+  note: Note;
+  clip: MidiClip;
+  ppb: number;
+  positionLabel: (beat: number) => string;
+}) {
   const selected = useUiStore((s) => s.selectedNoteIds.includes(note.id));
   const store = useProjectStore;
 
@@ -207,6 +310,39 @@ function VelBar({ note, clip, ppb }: { note: Note; clip: MidiClip; ppb: number }
     onEnd: () => store.getState().endGesture(),
   });
 
+  /** The drag's target rule, so a typed velocity lands on the same notes. */
+  const setVelocity = (velocity: number) => {
+    const sel = useUiStore.getState().selectedNoteIds;
+    const ids = sel.includes(note.id) ? sel : [note.id];
+    store.getState().beginGesture();
+    store.getState().updateNotes(clip.id, ids, () => ({ velocity: clamp(velocity, 1, 127) }));
+    store.getState().endGesture();
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 10 : 1;
+    switch (e.key) {
+      case 'ArrowUp':
+      case 'ArrowRight':
+        setVelocity(note.velocity + step);
+        break;
+      case 'ArrowDown':
+      case 'ArrowLeft':
+        setVelocity(note.velocity - step);
+        break;
+      case 'Home':
+        setVelocity(1);
+        break;
+      case 'End':
+        setVelocity(127);
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   return (
     <div
       className={`pr-vel-bar${selected ? ' selected' : ''}${note.muted ? ' muted' : ''}`}
@@ -215,8 +351,17 @@ function VelBar({ note, clip, ppb }: { note: Note; clip: MidiClip; ppb: number }
         width: Math.max(3, Math.min(9, note.length * ppb - 1)),
         height: Math.max(2, (note.velocity / 127) * (VEL_H - 6)),
       }}
+      role="slider"
+      tabIndex={0}
+      aria-label={`${midiToName(note.pitch)} velocity at ${positionLabel(note.start)}`}
+      aria-valuemin={1}
+      aria-valuemax={127}
+      aria-valuenow={note.velocity}
+      aria-valuetext={`velocity ${note.velocity}`}
+      onKeyDown={onKeyDown}
       onPointerDown={drag}
       title={`vel ${note.velocity}`}
+      data-testid="pr-vel-bar"
     />
   );
 }
@@ -240,6 +385,20 @@ export function PianoRoll() {
   /** Visible px window for windowed note rendering (both axes, 200px quanta). */
   const [win, setWin] = useState({ left: 0, right: 3000, top: 0, bottom: 2000 });
   const winFrame = useRef(0);
+  /** Where the keyboard is pointing on the grid: one pitch, one beat. */
+  const [gridCursor, setGridCursor] = useState({ pitch: 60, beat: 0 });
+  /**
+   * The cursor's live position. Key repeat delivers several keydowns inside one
+   * React batch, where the rendered `gridCursor` is still the value from before
+   * the batch — reading state there would collapse three presses into one.
+   */
+  const gridCursorRef = useRef(gridCursor);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const cellCursorRef = useRef<HTMLDivElement>(null);
+  /** The key column's single tab stop, so the roll is not 88 stops deep. */
+  const [keyCursor, setKeyCursor] = useState(60);
+  const keysRef = useRef<HTMLDivElement>(null);
+  const liveId = useId();
 
   const clip = useMemo((): MidiClip | null => {
     const byId = (id: string | null) => {
@@ -248,6 +407,12 @@ export function PianoRoll() {
     };
     return byId(editClipId) ?? byId(selectedClipId) ?? null;
   }, [project.clips, editClipId, selectedClipId]);
+
+  /** A beat inside the clip as bar.beat.step, for labels and speech. */
+  const positionLabel = useCallback(
+    (beat: number) => formatPosition((clip?.start ?? 0) + beat, project.timeSig),
+    [clip?.start, project.timeSig],
+  );
 
   const track = clip ? project.tracks.find((t) => t.id === clip.trackId) : null;
   const isDrum = track?.type === 'drum';
@@ -297,6 +462,25 @@ export function PianoRoll() {
     sc.scrollLeft = 0;
     updateWin();
   }, [clip, isDrum, updateWin]);
+
+  // Keep the keyboard cursor on screen, but only while the grid is the thing
+  // being driven — an unfocused grid must never yank the view.
+  useEffect(() => {
+    const el = cellCursorRef.current;
+    if (!el || document.activeElement !== gridRef.current) return;
+    el.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [gridCursor]);
+
+  // The key column moves its focus rather than its tab stop alone: a roving
+  // tabindex that nothing follows leaves the arrow keys silent.
+  useEffect(() => {
+    const col = keysRef.current;
+    if (!col || !col.contains(document.activeElement)) return;
+    const target = col.querySelector<HTMLElement>(`[data-pitch="${keyCursor}"]`);
+    if (!target || target === document.activeElement) return;
+    target.focus();
+    target.scrollIntoView?.({ block: 'nearest' });
+  }, [keyCursor]);
 
   /**
    * Grid as layered CSS gradients (rows, black-key shading, C lines, beat and
@@ -488,6 +672,93 @@ export function PianoRoll() {
     );
   }
 
+  /** The note under the cursor, if the cursor is standing on one. */
+  const noteAtCursor = (pitch: number, beat: number): Note | undefined =>
+    clip.notes.find(
+      (n) => n.pitch === pitch && n.start <= beat + 1e-6 && n.start + n.length > beat + 1e-6,
+    );
+
+  const moveGridCursor = (dPitch: number, dBeat: number) => {
+    const at = gridCursorRef.current;
+    const step = snap || 0.25;
+    const next = {
+      pitch: clamp(at.pitch + dPitch, PITCH_MIN, PITCH_MAX),
+      // Snapped rather than accumulated: a hundred presses must not drift the
+      // cursor off the grid it is drawing on.
+      beat: clamp(snapBeat(at.beat + dBeat, step), 0, Math.max(0, clip.length - step)),
+    };
+    gridCursorRef.current = next;
+    setGridCursor(next);
+  };
+
+  /** Enter on the grid: the click that adds a note, and its undo. */
+  const toggleAtCursor = () => {
+    const at = gridCursorRef.current;
+    const hit = noteAtCursor(at.pitch, at.beat);
+    if (hit) {
+      useProjectStore.getState().deleteNotes(clip.id, [hit.id]);
+      useUiStore.getState().set({
+        selectedNoteIds: useUiStore.getState().selectedNoteIds.filter((i) => i !== hit.id),
+      });
+      return;
+    }
+    const pitch =
+      prScaleLock && prScale !== 'chromatic' ? snapToScale(at.pitch, prKey, prScale) : at.pitch;
+    const id = useProjectStore.getState().addNote(clip.id, {
+      start: at.beat,
+      length: Math.max(snap || 0.25, 0.25),
+      pitch,
+      velocity: 100,
+    });
+    useUiStore.getState().set({ selectedNoteIds: [id] });
+    if (pitch !== at.pitch) {
+      const next = { ...at, pitch };
+      gridCursorRef.current = next;
+      setGridCursor(next);
+    }
+    if (track) previewNote(track.id, pitch);
+  };
+
+  const onGridKey = (e: React.KeyboardEvent) => {
+    // Notes own their own keys and stop them; anything arriving here is the
+    // grid's own cursor.
+    if (e.target !== e.currentTarget) return;
+    const step = snap || 0.25;
+    switch (e.key) {
+      case 'ArrowLeft':
+        moveGridCursor(0, -step);
+        break;
+      case 'ArrowRight':
+        moveGridCursor(0, step);
+        break;
+      case 'ArrowUp':
+        moveGridCursor(1, 0);
+        break;
+      case 'ArrowDown':
+        moveGridCursor(-1, 0);
+        break;
+      case 'Home':
+        moveGridCursor(0, -clip.length);
+        break;
+      case 'End':
+        moveGridCursor(0, clip.length);
+        break;
+      case 'Enter':
+      case ' ':
+        toggleAtCursor();
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const cursorNote = noteAtCursor(gridCursor.pitch, gridCursor.beat);
+  const cursorText = `${midiToName(gridCursor.pitch)}, ${positionLabel(gridCursor.beat)}, ${
+    cursorNote ? `note, velocity ${cursorNote.velocity}` : 'empty'
+  }`;
+
   const midiClips = project.clips.filter((c) => c.type === 'midi');
   const selVel =
     selectedNoteIds.length > 0
@@ -513,6 +784,17 @@ export function PianoRoll() {
     const x0 = n.start * ppb;
     return x0 < win.right && x0 + Math.max(3, n.length * ppb) > win.left;
   });
+
+  /**
+   * The key column's single tab stop. Off-window rows render as spacers, so a
+   * cursor that has scrolled away would leave the column unreachable; the
+   * topmost mounted row stands in until focus brings the cursor back.
+   */
+  const cursorRowTop = (PITCH_MAX - keyCursor) * ROW_H;
+  const tabPitch =
+    cursorRowTop <= win.bottom && cursorRowTop + ROW_H >= win.top
+      ? keyCursor
+      : PITCH_MAX - clamp(Math.ceil(win.top / ROW_H), 0, rows - 1);
 
   const openToolsMenu = (x: number, y: number) => {
     const clipId = clip.id;
@@ -891,7 +1173,13 @@ export function PianoRoll() {
           className="pr-inner"
           style={{ width: KEYS_W + gridW, height: gridH + VEL_H, display: 'flex' }}
         >
-          <div className="pr-keys" style={{ height: gridH }}>
+          <div
+            className="pr-keys"
+            style={{ height: gridH }}
+            ref={keysRef}
+            role="group"
+            aria-label="Piano keys"
+          >
             {Array.from({ length: rows }, (_, i) => {
               const pitch = PITCH_MAX - i;
               const rowTop = i * ROW_H;
@@ -907,7 +1195,41 @@ export function PianoRoll() {
                   key={pitch}
                   className={`pr-key${isBlack(pitch) ? ' black' : ''}${pitch % 12 === 0 ? ' c-note' : ''}${outOfScale ? ' oos' : ''}`}
                   style={{ height: ROW_H }}
+                  data-pitch={pitch}
+                  role="button"
+                  tabIndex={pitch === tabPitch ? 0 : -1}
+                  aria-label={`Play ${drumName ?? midiToName(pitch)}`}
                   onPointerDown={() => track && previewNote(track.id, pitch)}
+                  onFocus={() => setKeyCursor(pitch)}
+                  onKeyDown={(e) => {
+                    const step = (to: number) => {
+                      const next = clamp(to, PITCH_MIN, PITCH_MAX);
+                      setKeyCursor(next);
+                      if (track) previewNote(track.id, next, 70);
+                    };
+                    switch (e.key) {
+                      case 'ArrowUp':
+                        step(pitch + 1);
+                        break;
+                      case 'ArrowDown':
+                        step(pitch - 1);
+                        break;
+                      case 'PageUp':
+                        step(pitch + 12);
+                        break;
+                      case 'PageDown':
+                        step(pitch - 12);
+                        break;
+                      case 'Enter':
+                      case ' ':
+                        if (track) previewNote(track.id, pitch);
+                        break;
+                      default:
+                        return;
+                    }
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
                 >
                   {drumName ?? (pitch % 12 === 0 ? midiToName(pitch) : '')}
                 </div>
@@ -916,6 +1238,12 @@ export function PianoRoll() {
           </div>
           <div
             className="pr-grid-area"
+            ref={gridRef}
+            role="group"
+            tabIndex={0}
+            aria-label="Note grid"
+            aria-describedby={liveId}
+            onKeyDown={onGridKey}
             style={{ width: gridW, height: gridH, position: 'relative', ...gridStyle }}
             onClick={(e) => {
               if ((e.target as HTMLElement).closest('.pr-note')) return;
@@ -937,8 +1265,34 @@ export function PianoRoll() {
               style={{ left: clip.length * ppb, width: Math.max(0, gridW - clip.length * ppb) }}
             />
             {visibleNotes.map((n) => (
-              <NoteView key={n.id} note={n} clip={clip} ppb={ppb} trackId={clip.trackId} />
+              <NoteView
+                key={n.id}
+                note={n}
+                clip={clip}
+                ppb={ppb}
+                trackId={clip.trackId}
+                positionLabel={positionLabel}
+              />
             ))}
+            <div
+              ref={cellCursorRef}
+              data-testid="pr-cell-cursor"
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                left: gridCursor.beat * ppb,
+                top: (PITCH_MAX - gridCursor.pitch) * ROW_H,
+                width: Math.max(4, (snap || 0.25) * ppb),
+                height: ROW_H,
+                border: '1px solid rgba(255, 255, 255, 0.65)',
+                borderRadius: 2,
+                pointerEvents: 'none',
+                zIndex: 5,
+              }}
+            />
+            <div id={liveId} style={SR_ONLY} role="status" aria-live="polite">
+              {cursorText}
+            </div>
             {marquee && (
               <div
                 className="pr-marquee"
@@ -957,7 +1311,7 @@ export function PianoRoll() {
             data-testid="pr-vel-lane"
           >
             {velNotes.map((n) => (
-              <VelBar key={n.id} note={n} clip={clip} ppb={ppb} />
+              <VelBar key={n.id} note={n} clip={clip} ppb={ppb} positionLabel={positionLabel} />
             ))}
           </div>
         </div>

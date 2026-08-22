@@ -10,7 +10,7 @@
  */
 import { memo, useMemo, useRef, useState } from 'react';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
-import { clamp, snapBeat } from '../../model/music';
+import { clamp, formatPosition, snapBeat } from '../../model/music';
 import {
   CURVE_SHAPES,
   laneValueAt,
@@ -27,6 +27,20 @@ import { engine } from '../../audio/engine';
 
 export const AUTO_LANE_H = 44;
 const PAD = 5;
+
+/**
+ * What a point reads out to a screen reader.
+ *
+ * Most formatters carry their own unit ("12.0 kHz", "45%", "L50"); the decibel
+ * and Q ones return a bare number, and a lone "-3.5" spoken aloud is a number
+ * with no meaning — so the unit is appended exactly when the formatter left it
+ * off.
+ */
+function valueText(param: AutoParam, value: number): string {
+  const text = param.format(value);
+  const bare = !/[a-zA-Z]/.test(text) && !text.endsWith(param.unit);
+  return bare && param.unit ? `${text} ${param.unit}` : text;
+}
 
 interface RowProps {
   track: Track;
@@ -52,6 +66,7 @@ export const AutoLaneRow = memo(function AutoLaneRow({
   snap,
 }: RowProps) {
   const autoSel = useUiStore((s) => s.autoSel);
+  const timeSig = useProjectStore((s) => s.project.timeSig);
   const selIds = useMemo(
     () => (autoSel?.laneId === lane.id ? autoSel.pointIds : []),
     [autoSel, lane.id],
@@ -273,6 +288,67 @@ export const AutoLaneRow = memo(function AutoLaneRow({
     onEnd: () => setMarquee(null),
   });
 
+  /**
+   * Add a point at the playhead.
+   *
+   * The pointer reads a beat and a value off the press coordinates; the
+   * keyboard has neither, so the transport position — the one place the user
+   * and the lane already agree on — stands in for the x, and the curve's own
+   * value there stands in for the y, which keeps the shape unchanged until it
+   * is nudged.
+   */
+  const addPointAtPlayhead = () => {
+    const raw = Math.max(0, engine.getPositionBeats());
+    const beat = snap > 0 ? snapBeat(raw, snap) : raw;
+    const value = laneValueAt(lane.points, beat) ?? normParam(param, param.get(track));
+    const id = store.getState().addAutomationPoint(track.id, lane.id, beat, value);
+    if (id) select([id]);
+  };
+
+  /** Point edits are non-undoable on their own, exactly as the drag is. */
+  const editPoints = (ids: string[], patch: (p: AutomationPoint) => Partial<AutomationPoint>) => {
+    store.getState().beginGesture();
+    store.getState().updateAutomationPoints(track.id, lane.id, ids, patch);
+    store.getState().endGesture();
+  };
+
+  const onPointKey = (e: React.KeyboardEvent, p: AutomationPoint) => {
+    // A key on a point edits the whole selection when the point is in it, the
+    // way a drag on a selected point moves the group.
+    const ids = selIds.includes(p.id) ? selIds : [p.id];
+    const beatStep = snap > 0 ? snap : 0.25;
+    // A stepped parameter has two states, so one press must cross the middle.
+    const valueStep = param.stepped ? 0.5 : e.shiftKey ? 0.01 : 0.05;
+    switch (e.key) {
+      case 'ArrowUp':
+      case 'ArrowDown':
+        editPoints(ids, (pt) => ({
+          value: clamp(pt.value + (e.key === 'ArrowUp' ? valueStep : -valueStep), 0, 1),
+        }));
+        break;
+      case 'ArrowLeft':
+      case 'ArrowRight':
+        editPoints(ids, (pt) => ({
+          beat: Math.max(0, pt.beat + (e.key === 'ArrowRight' ? beatStep : -beatStep)),
+        }));
+        break;
+      case 'Delete':
+      case 'Backspace':
+        store.getState().deleteAutomationPoints(track.id, lane.id, ids);
+        select([]);
+        break;
+      case 'Enter':
+        select(selIds.includes(p.id) ? selIds.filter((i) => i !== p.id) : [...selIds, p.id]);
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    // The global Delete and the transport's Enter act on this same lane; the
+    // point has already done the work, so the event stops here.
+    e.stopPropagation();
+  };
+
   const addPointAt = (e: React.MouseEvent) => {
     const rect = rowRef.current!.getBoundingClientRect();
     const rawBeat = (e.clientX - rect.left) / pxPerBeat;
@@ -289,6 +365,16 @@ export const AutoLaneRow = memo(function AutoLaneRow({
       className={`auto-lane${lane.enabled ? '' : ' disabled'}`}
       style={{ height, ['--al-color' as string]: color }}
       data-testid={`auto-lane-${track.name}-${param.name}`}
+      role="group"
+      tabIndex={0}
+      aria-label={`${param.name} automation on ${track.name}`}
+      onKeyDown={(e) => {
+        // Points handle their own keys; only the lane itself adds one.
+        if (e.target !== e.currentTarget || e.key !== 'Enter') return;
+        e.preventDefault();
+        e.stopPropagation();
+        addPointAtPlayhead();
+      }}
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('.auto-pt')) return;
         // Mouse selects with a marquee; touch keeps native scrolling.
@@ -336,14 +422,26 @@ export const AutoLaneRow = memo(function AutoLaneRow({
         if (left < winL - 20 || left > winR + 20) {
           if (!selIds.includes(p.id)) return null;
         }
+        const selected = selIds.includes(p.id);
+        const value = denormParam(param, p.value);
         return (
           <div
             key={p.id}
-            className={`auto-pt${selIds.includes(p.id) ? ' selected' : ''}`}
+            className={`auto-pt${selected ? ' selected' : ''}`}
             style={{ left, top: yOf(p.value) - 4.5 }}
             data-pid={p.id}
             data-testid="auto-pt"
-            title={`${param.format(denormParam(param, p.value))} · beat ${p.beat.toFixed(2)} · ${p.curve}`}
+            title={`${param.format(value)} · beat ${p.beat.toFixed(2)} · ${p.curve}`}
+            role="slider"
+            tabIndex={0}
+            aria-label={`${param.name} point at ${formatPosition(p.beat, timeSig)}${
+              selected ? ', selected' : ''
+            }`}
+            aria-valuemin={param.min}
+            aria-valuemax={param.max}
+            aria-valuenow={value}
+            aria-valuetext={valueText(param, value)}
+            onKeyDown={(e) => onPointKey(e, p)}
             onPointerDown={(e) => {
               if (e.button !== 0) return;
               e.stopPropagation();

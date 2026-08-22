@@ -8,6 +8,8 @@ vi.mock('../../src/audio/engine', async () => ({
 
 const { ContextMenuHost, DialogHost, ToastHost } =
   await import('../../src/components/common/overlays');
+const { ShortcutsSheet } = await import('../../src/components/common/ShortcutsSheet');
+const { WelcomeSheet } = await import('../../src/components/common/WelcomeSheet');
 const { useGlobalKeyboard } = await import('../../src/hooks/useKeyboard');
 const { useUiStore } = await import('../../src/state/uiStore');
 
@@ -230,5 +232,296 @@ describe('ToastHost', () => {
 
     act(() => vi.advanceTimersByTime(3000));
     expect(screen.queryByText('Import failed')).not.toBeInTheDocument();
+  });
+});
+
+describe('ContextMenuHost keyboard', () => {
+  const items = [
+    { label: 'Rename…', action: vi.fn() },
+    { label: 'Nothing to do here', disabled: true, action: vi.fn() },
+    { label: 'Duplicate', action: vi.fn() },
+    { label: 'Delete', danger: true, action: vi.fn() },
+  ];
+  const open = () => act(() => useUiStore.getState().showMenu({ x: 20, y: 20, items }));
+  const label = () => document.activeElement?.textContent;
+
+  it('is a vertical menu whose items are not tab stops', () => {
+    render(<OverlayHost />);
+    open();
+
+    expect(screen.getByRole('menu')).toHaveAttribute('aria-orientation', 'vertical');
+    for (const item of screen.getAllByRole('menuitem')) {
+      expect(item).toHaveAttribute('tabindex', '-1');
+    }
+  });
+
+  it('takes focus on the first item a user can actually choose', () => {
+    render(<OverlayHost />);
+    open();
+
+    expect(screen.getByRole('menuitem', { name: 'Rename…' })).toHaveFocus();
+  });
+
+  it('walks with the arrows, skipping what is disabled, and wraps at both ends', async () => {
+    const user = setupUser();
+    render(<OverlayHost />);
+    open();
+
+    await user.keyboard('{ArrowDown}');
+    expect(label()).toBe('Duplicate');
+    await user.keyboard('{ArrowDown}');
+    expect(label()).toBe('Delete');
+    await user.keyboard('{ArrowDown}');
+    expect(label()).toBe('Rename…');
+    await user.keyboard('{ArrowUp}');
+    expect(label()).toBe('Delete');
+  });
+
+  it('jumps to the ends with Home and End', async () => {
+    const user = setupUser();
+    render(<OverlayHost />);
+    open();
+
+    await user.keyboard('{End}');
+    expect(label()).toBe('Delete');
+    await user.keyboard('{Home}');
+    expect(label()).toBe('Rename…');
+  });
+
+  it('closes on Escape and gives focus back to what opened it', async () => {
+    const user = setupUser();
+    render(<OverlayHost />);
+    const opener = screen.getByRole('button', { name: 'Behind the overlay' });
+    act(() => opener.focus());
+    open();
+    expect(opener).not.toHaveFocus();
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
+  it('gives focus back after an item is chosen', async () => {
+    const user = setupUser();
+    render(<OverlayHost />);
+    const opener = screen.getByRole('button', { name: 'Behind the overlay' });
+    act(() => opener.focus());
+    open();
+
+    await user.keyboard('{Enter}');
+
+    expect(items[0].action).toHaveBeenCalled();
+    expect(opener).toHaveFocus();
+  });
+});
+
+describe('the Menu key opens the focused object’s menu', () => {
+  const rename = vi.fn();
+
+  /** An object that declares its menu the way every app surface does. */
+  function MenuTarget() {
+    return (
+      <div
+        data-testid="target"
+        tabIndex={0}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          useUiStore.getState().showMenu({
+            x: e.clientX,
+            y: e.clientY,
+            items: [{ label: 'Rename…', action: rename }],
+          });
+        }}
+      />
+    );
+  }
+
+  function Host() {
+    useGlobalKeyboard();
+    return (
+      <>
+        <MenuTarget />
+        <ContextMenuHost />
+      </>
+    );
+  }
+
+  /** Focus the target and give it a box, since jsdom lays nothing out. */
+  function focusTarget(): HTMLElement {
+    const el = screen.getByTestId('target');
+    vi.spyOn(el, 'getBoundingClientRect').mockReturnValue(new DOMRect(200, 120, 300, 40));
+    act(() => el.focus());
+    return el;
+  }
+
+  it('opens the same menu the pointer opens, at the focused object’s box', () => {
+    render(<Host />);
+    focusTarget();
+
+    fireEvent.keyDown(document.activeElement!, { key: 'ContextMenu' });
+
+    expect(useUiStore.getState().contextMenu).toMatchObject({ x: 212, y: 132 });
+    expect(screen.getByRole('menuitem', { name: 'Rename…' })).toHaveFocus();
+  });
+
+  it('answers Shift+F10 as well, for keyboards without a Menu key', () => {
+    render(<Host />);
+    focusTarget();
+
+    fireEvent.keyDown(document.activeElement!, { key: 'F10', shiftKey: true });
+
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
+  it('leaves the browser its own menu when nothing focused has one', () => {
+    render(<Host />);
+
+    fireEvent.keyDown(document.body, { key: 'ContextMenu' });
+
+    expect(useUiStore.getState().contextMenu).toBeNull();
+  });
+});
+
+describe('dialog focus', () => {
+  it('is a modal dialog that takes focus on its input', () => {
+    render(<OverlayHost />);
+    act(() =>
+      useUiStore
+        .getState()
+        .showDialog({ kind: 'prompt', title: 'Rename track', onSubmit: vi.fn() }),
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Rename track' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(within(dialog).getByRole('textbox')).toHaveFocus();
+  });
+
+  it('takes focus on a confirm, which has no field to fall back on', () => {
+    render(<OverlayHost />);
+    act(() =>
+      useUiStore.getState().showDialog({
+        kind: 'confirm',
+        title: 'Delete "Drums"?',
+        confirmLabel: 'Delete',
+        onSubmit: vi.fn(),
+      }),
+    );
+
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+  });
+
+  it('keeps Tab inside itself', async () => {
+    const user = setupUser();
+    render(<OverlayHost />);
+    act(() =>
+      useUiStore.getState().showDialog({
+        kind: 'confirm',
+        title: 'Delete "Drums"?',
+        confirmLabel: 'Delete',
+        onSubmit: vi.fn(),
+      }),
+    );
+
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveFocus();
+    // The last control wraps to the first rather than escaping to the page.
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+  });
+
+  it('gives focus back to whatever opened it', async () => {
+    const user = setupUser();
+    render(<OverlayHost />);
+    const opener = screen.getByRole('button', { name: 'Behind the overlay' });
+    act(() => opener.focus());
+    act(() =>
+      useUiStore.getState().showDialog({
+        kind: 'confirm',
+        title: 'Delete "Drums"?',
+        confirmLabel: 'Delete',
+        onSubmit: vi.fn(),
+      }),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(opener).toHaveFocus();
+  });
+});
+
+describe('sheet focus', () => {
+  it('the shortcuts sheet takes focus and keeps it', async () => {
+    const user = setupUser();
+    render(
+      <>
+        <button type="button">Behind the overlay</button>
+        <ShortcutsSheet />
+      </>,
+    );
+    const opener = screen.getByRole('button', { name: 'Behind the overlay' });
+    act(() => opener.focus());
+    act(() => useUiStore.getState().set({ shortcutsOpen: true }));
+
+    const sheet = screen.getByRole('dialog', { name: 'Keyboard shortcuts' });
+    expect(within(sheet).getByRole('button', { name: 'Close' })).toHaveFocus();
+
+    // One control, so Tab can only land back on it — never on the page behind.
+    await user.tab();
+    expect(sheet).toContainElement(document.activeElement as HTMLElement | null);
+  });
+
+  it('the welcome sheet takes focus and hands it back on close', async () => {
+    const user = setupUser();
+    render(
+      <>
+        <button type="button">Behind the overlay</button>
+        <WelcomeSheet />
+      </>,
+    );
+    const opener = screen.getByRole('button', { name: 'Behind the overlay' });
+    act(() => opener.focus());
+    act(() => useUiStore.getState().set({ welcomeOpen: true }));
+
+    const sheet = screen.getByRole('dialog', { name: 'Welcome to MotionLab Studio' });
+    expect(sheet).toContainElement(document.activeElement as HTMLElement | null);
+
+    await user.click(within(sheet).getByRole('button', { name: 'Start making music' }));
+
+    expect(opener).toHaveFocus();
+  });
+});
+
+describe('toast announcement', () => {
+  it('announces notices politely and failures at once, in separate regions', () => {
+    render(<OverlayHost />);
+    act(() => useUiStore.getState().toast('info', 'Saved'));
+    act(() => useUiStore.getState().toast('error', 'Import failed'));
+
+    const polite = screen.getByRole('status');
+    expect(polite).toHaveAttribute('aria-live', 'polite');
+    expect(polite).toHaveAttribute('aria-atomic', 'false');
+    expect(within(polite).getByText('Saved')).toBeInTheDocument();
+    expect(within(polite).queryByText('Import failed')).not.toBeInTheDocument();
+
+    expect(within(screen.getByRole('alert')).getByText('Import failed')).toBeInTheDocument();
+  });
+
+  it('keeps both regions mounted so the first message is not missed', () => {
+    render(<OverlayHost />);
+
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('is a button that says what it will do', async () => {
+    const user = setupUser();
+    render(<OverlayHost />);
+    act(() => useUiStore.getState().toast('info', 'Added "Perc Loop"'));
+
+    const toast = screen.getByRole('button', { name: 'Added "Perc Loop". Dismiss' });
+    await user.click(toast);
+
+    expect(useUiStore.getState().toasts).toHaveLength(0);
   });
 });

@@ -153,7 +153,20 @@ export const TrackHeader = memo(function TrackHeader({
         ['--th-color' as string]: track.color,
         ['--th-depth' as string]: String(depth),
       }}
+      role="option"
+      tabIndex={0}
+      aria-selected={selected}
+      aria-label={`${track.name}, ${track.type} track${track.locked ? ', locked' : ''}`}
       onClick={() => ui.getState().selectTrack(track.id)}
+      onKeyDown={(e) => {
+        // Selecting a track is what arming and recording are gated on, so the
+        // header answers the same two keys any option in a list would.
+        if (e.target !== e.currentTarget) return;
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        e.stopPropagation();
+        ui.getState().selectTrack(track.id);
+      }}
       onDoubleClick={rename}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -236,6 +249,7 @@ export const TrackHeader = memo(function TrackHeader({
           <button
             className={`th-mini${track.mute ? ' m-on' : ''}`}
             title="Mute"
+            aria-label={`Mute ${track.name}`}
             aria-pressed={track.mute}
             onClick={() => store.getState().setTrack(track.id, { mute: !track.mute })}
             data-testid={`mute-${track.name}`}
@@ -245,6 +259,7 @@ export const TrackHeader = memo(function TrackHeader({
           <button
             className={`th-mini${track.solo ? ' s-on' : ''}`}
             title="Solo"
+            aria-label={`Solo ${track.name}`}
             aria-pressed={track.solo}
             onClick={() => store.getState().setTrack(track.id, { solo: !track.solo })}
             data-testid={`solo-${track.name}`}

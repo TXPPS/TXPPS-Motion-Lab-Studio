@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { SHORTCUTS } from '../../app/shortcuts';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useUiStore } from '../../state/uiStore';
 
 const CATEGORIES = [
@@ -20,6 +21,9 @@ const CATEGORIES = [
 export function ShortcutsSheet() {
   const open = useUiStore((s) => s.shortcutsOpen);
   const close = () => useUiStore.getState().set({ shortcutsOpen: false });
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(panelRef, open);
 
   useEffect(() => {
     if (!open) return;
@@ -43,6 +47,8 @@ export function ShortcutsSheet() {
     >
       <div
         className="sc-sheet"
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label="Keyboard shortcuts"

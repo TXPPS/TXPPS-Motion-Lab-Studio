@@ -278,6 +278,9 @@ export function Arrangement() {
       if (list) list.push(c);
       else byTrack.set(c.trackId, [c]);
     }
+    // Clips are focusable, so DOM order is the order a keyboard walks them in;
+    // a lane read left to right is the only order that means anything here.
+    for (const list of byTrack.values()) list.sort((a, b) => a.start - b.start);
     return byTrack;
   }, [clips, tracks, laneTops, heights, viewWin, pxPerBeat, selectedClipIds]);
 
@@ -1020,7 +1023,12 @@ export function Arrangement() {
         }}
       >
         <div className="arr-content">
-          <div className="arr-header-col" data-testid="track-headers">
+          <div
+            className="arr-header-col"
+            data-testid="track-headers"
+            role="listbox"
+            aria-label="Tracks"
+          >
             {/* Corner and the global-track headers stick together so they stay
                 aligned with the ruler stack opposite them. */}
             <div className="arr-corner-stack">
@@ -1110,6 +1118,8 @@ export function Arrangement() {
                     }`}
                     style={{ height: bands[i].clip }}
                     data-testid={`lane-${t.name}`}
+                    role="group"
+                    aria-label={`${t.name} clips`}
                     onPointerDown={(e) => {
                       useUiStore.getState().selectTrack(t.id);
                       if (tool === 'paint' && e.button === 0) {
@@ -1214,7 +1224,10 @@ export function Arrangement() {
                     e.preventDefault();
                     rangeMenu(e.clientX, e.clientY);
                   }}
-                  title="Range — right-click for what you can do with it"
+                  // Reachable by Tab so the Menu key has something to open on:
+                  // every range edit lives behind this one menu.
+                  tabIndex={0}
+                  title="Range — right-click or press the Menu key for what you can do with it"
                 />
               )}
               {paintGhost && (

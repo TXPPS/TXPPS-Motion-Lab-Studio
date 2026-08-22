@@ -12,7 +12,13 @@ import { stripSilenceFromClip } from '../../app/rangeActions';
 import { shortcutLabel } from '../../app/shortcuts';
 import { usePointerDrag, longPress } from '../../hooks/usePointerDrag';
 import { Waveform } from './Waveform';
-import { clamp, clipSecondsPerBeat, snapBeat } from '../../model/music';
+import {
+  beatsPerBar,
+  clamp,
+  clipSecondsPerBeat,
+  formatPosition,
+  snapBeat,
+} from '../../model/music';
 import type { Clip, Track } from '../../model/types';
 import { TRACK_COLORS } from '../../model/types';
 import { compSpans } from '../../model/comping';
@@ -64,6 +70,17 @@ function MidiPreview({ clip, height }: { clip: Extract<Clip, { type: 'midi' }>; 
   );
 }
 
+/** A length as a musician says it: whole bars when it is whole bars. */
+function lengthLabel(beats: number, barBeats: number): string {
+  const bars = beats / barBeats;
+  if (bars >= 1 && Math.abs(bars - Math.round(bars)) < 1e-6) {
+    const n = Math.round(bars);
+    return `${n} bar${n === 1 ? '' : 's'}`;
+  }
+  const n = Math.round(beats * 100) / 100;
+  return `${n} beat${n === 1 ? '' : 's'}`;
+}
+
 interface ClipViewProps {
   clip: Clip;
   track: Track;
@@ -87,6 +104,7 @@ export const ClipView = memo(function ClipView({
   const [listening, setListening] = useState(false);
   // Source seconds per musical beat for THIS clip's span — tempo-map aware.
   const spb = useProjectStore((s) => clipSecondsPerBeat(s.project, clip));
+  const timeSig = useProjectStore((s) => s.project.timeSig);
   const store = useProjectStore;
   const ui = useUiStore;
 
@@ -456,12 +474,124 @@ export const ClipView = memo(function ClipView({
     onEnd: () => store.getState().endGesture(),
   });
 
+  /**
+   * Keyboard editing.
+   *
+   * Every branch calls the same store action its drag calls, wrapped in the
+   * same gesture, so one press is one undo step and a trim typed with the
+   * keyboard is indistinguishable from a trim dragged with a mouse.
+   */
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const uiState = ui.getState();
+    /** The selection when this clip is in it, else this clip alone. */
+    const ids = uiState.selectedClipIds.includes(clip.id) ? uiState.selectedClipIds : [clip.id];
+    const step = snap || 0.25;
+    const editable = () => {
+      if (!locked) return true;
+      ui.getState().toast('info', 'This clip is locked — unlock it to edit.');
+      return false;
+    };
+    const gesture = (edit: () => void) => {
+      store.getState().beginGesture();
+      edit();
+      store.getState().endGesture();
+    };
+    const trimStart = (dir: -1 | 1) => {
+      if (!editable()) return;
+      const end = clip.start + clip.length;
+      const raw = snapBeat(clip.start + dir * step, snap);
+      const start = Math.min(Math.max(0, raw), end - step);
+      gesture(() => {
+        if (clip.type === 'audio') store.getState().trimClipStart(clip.id, start);
+        else store.getState().resizeClip(clip.id, start, end - start);
+      });
+    };
+    const trimEnd = (dir: -1 | 1) => {
+      if (!editable()) return;
+      const len = Math.max(step, snapBeat(clip.length + dir * step, snap));
+      gesture(() => {
+        if (clip.type === 'audio') store.getState().trimClipEnd(clip.id, len);
+        else store.getState().resizeClip(clip.id, clip.start, len);
+      });
+    };
+    /** Fades are seconds of source, so the grid step is spent in seconds. */
+    const fade = (which: 'in' | 'out', dir: -1 | 1) => {
+      if (clip.type !== 'audio') return;
+      if (!editable()) return;
+      const cur = which === 'in' ? clip.fadeIn : clip.fadeOut;
+      const next = clamp(cur + dir * step * spb, 0, srcSec);
+      gesture(() =>
+        store
+          .getState()
+          .setClipFades(
+            clip.id,
+            which === 'in' ? next : undefined,
+            which === 'out' ? next : undefined,
+          ),
+      );
+    };
+    switch (e.key) {
+      case 'Enter':
+      case ' ':
+        if (e.shiftKey || e.ctrlKey || e.metaKey)
+          uiState.toggleClipSelection(clip.id, clip.trackId);
+        else uiState.selectClip(clip.id, clip.trackId);
+        break;
+      case 'Delete':
+      case 'Backspace':
+        if (!editable()) break;
+        store.getState().deleteClips(ids);
+        ui.getState().selectClips([]);
+        break;
+      case '[':
+        trimStart(-1);
+        break;
+      case ']':
+        trimStart(1);
+        break;
+      case '{':
+        trimEnd(-1);
+        break;
+      case '}':
+        trimEnd(1);
+        break;
+      case ',':
+        fade('in', -1);
+        break;
+      case '.':
+        fade('in', 1);
+        break;
+      case '<':
+        fade('out', -1);
+        break;
+      case '>':
+        fade('out', 1);
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    // Space is play/stop and Delete clears the selection globally; the clip has
+    // just answered both, so neither may run a second time.
+    e.stopPropagation();
+  };
+
   const color = track.color;
   return (
     <div
       className={`clip${selected ? ' selected' : ''}${clip.muted ? ' muted' : ''}${
         listening ? ' listening' : ''
       }`}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      aria-label={`${clip.name}, ${clip.type} clip on ${track.name}, bar ${formatPosition(
+        clip.start,
+        timeSig,
+      )}, ${lengthLabel(clip.length, beatsPerBar(timeSig))}${clip.muted ? ', muted' : ''}${
+        locked ? ', locked' : ''
+      }`}
+      onKeyDown={onKeyDown}
       style={{
         left: clip.start * pxPerBeat,
         width: widthPx,

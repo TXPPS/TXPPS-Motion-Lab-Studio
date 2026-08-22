@@ -50,6 +50,28 @@ import type { WarpMap } from '../model/warp';
 const MAX_RENDER_SECONDS = 60 * 120;
 /** Let effect tails (reverb, delay) ring out rather than truncating them. */
 export const DEFAULT_TAIL_SECONDS = 2;
+/**
+ * Silence rendered *before* the range and thrown away again.
+ *
+ * Every filter in the insert chain is born with zeroed state, and the dynamics
+ * processors drive their VCA entirely from that state — so at t=0 a
+ * compressor's gain is 0 and climbs to unity over its release, and even a
+ * bypassed one crossfades its dry path up from silence. Live nobody hears it,
+ * because the graph is built seconds before anyone presses play. Offline the
+ * render begins at the same instant the graph does, so without a run-up every
+ * bounce fades in. The initial state of a BiquadFilterNode is not reachable
+ * through the Web Audio API; time is the only lever there is.
+ *
+ * This is the floor, for the parts of the graph that settle quickly — bypass
+ * crossfades, hold delays, the master limiter. `preRollForProject` raises it
+ * for a session whose ballistics are slower.
+ */
+export const DEFAULT_PRE_ROLL_SECONDS = 2;
+/**
+ * Settling time as a multiple of the slowest release. Five time constants
+ * leaves 0.7% of the step, which at these levels is well under a tenth of a dB.
+ */
+const SETTLE_TIME_CONSTANTS = 5;
 
 export interface RenderRange {
   startBeat: number;
