@@ -530,6 +530,9 @@ export const ClipView = memo(function ClipView({
           ),
       );
     };
+    // Ctrl/Cmd combos belong to the application — Preferences is Ctrl+, and the
+    // clipboard is Ctrl+C/V — so only the selection keys read a modifier.
+    if ((e.ctrlKey || e.metaKey) && e.key !== 'Enter' && e.key !== ' ') return;
     switch (e.key) {
       case 'Enter':
       case ' ':

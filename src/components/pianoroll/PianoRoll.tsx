@@ -395,6 +395,8 @@ export function PianoRoll() {
   const gridCursorRef = useRef(gridCursor);
   const gridRef = useRef<HTMLDivElement>(null);
   const cellCursorRef = useRef<HTMLDivElement>(null);
+  /** The grid cursor is drawn only while the grid is being driven by keys. */
+  const [gridFocused, setGridFocused] = useState(false);
   /** The key column's single tab stop, so the roll is not 88 stops deep. */
   const [keyCursor, setKeyCursor] = useState(60);
   const keysRef = useRef<HTMLDivElement>(null);
@@ -469,7 +471,7 @@ export function PianoRoll() {
     const el = cellCursorRef.current;
     if (!el || document.activeElement !== gridRef.current) return;
     el.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-  }, [gridCursor]);
+  }, [gridCursor, gridFocused]);
 
   // The key column moves its focus rather than its tab stop alone: a roving
   // tabindex that nothing follows leaves the arrow keys silent.
@@ -1244,6 +1246,14 @@ export function PianoRoll() {
             aria-label="Note grid"
             aria-describedby={liveId}
             onKeyDown={onGridKey}
+            onFocus={(e) => {
+              // Notes and their focus bubble through here; only the grid's own
+              // focus owns the cursor.
+              if (e.target === e.currentTarget) setGridFocused(true);
+            }}
+            onBlur={(e) => {
+              if (e.target === e.currentTarget) setGridFocused(false);
+            }}
             style={{ width: gridW, height: gridH, position: 'relative', ...gridStyle }}
             onClick={(e) => {
               if ((e.target as HTMLElement).closest('.pr-note')) return;
@@ -1274,22 +1284,24 @@ export function PianoRoll() {
                 positionLabel={positionLabel}
               />
             ))}
-            <div
-              ref={cellCursorRef}
-              data-testid="pr-cell-cursor"
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                left: gridCursor.beat * ppb,
-                top: (PITCH_MAX - gridCursor.pitch) * ROW_H,
-                width: Math.max(4, (snap || 0.25) * ppb),
-                height: ROW_H,
-                border: '1px solid rgba(255, 255, 255, 0.65)',
-                borderRadius: 2,
-                pointerEvents: 'none',
-                zIndex: 5,
-              }}
-            />
+            {gridFocused && (
+              <div
+                ref={cellCursorRef}
+                data-testid="pr-cell-cursor"
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  left: gridCursor.beat * ppb,
+                  top: (PITCH_MAX - gridCursor.pitch) * ROW_H,
+                  width: Math.max(4, (snap || 0.25) * ppb),
+                  height: ROW_H,
+                  border: '1px solid rgba(255, 255, 255, 0.65)',
+                  borderRadius: 2,
+                  pointerEvents: 'none',
+                  zIndex: 5,
+                }}
+              />
+            )}
             <div id={liveId} style={SR_ONLY} role="status" aria-live="polite">
               {cursorText}
             </div>

@@ -9,7 +9,7 @@
  * surfaces mount only their first rows and first beats. Tests place their
  * material where that window actually is rather than pretending otherwise.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../src/audio/engine', async () => ({
@@ -135,7 +135,7 @@ describe('automation lane keyboard editing', () => {
     expect(laneOf(trackId).points[0].beat).toBeCloseTo(1.25, 5);
 
     // Each press closed its own gesture, so undo walks back one press.
-    useProjectStore.getState().undo();
+    act(() => useProjectStore.getState().undo());
     expect(laneOf(trackId).points[0].beat).toBeCloseTo(1, 5);
 
     fireEvent.keyDown(point, { key: 'Delete' });
@@ -165,9 +165,7 @@ function ClipHost({ clipId }: { clipId: string }) {
   const track = useProjectStore((s) => s.project.tracks.find((t) => t.id === clip?.trackId));
   // The tests delete the clip; the arrangement unmounts it the same way.
   if (!clip || !track) return null;
-  return (
-    <ClipView clip={clip} track={track} laneHeight={64} pxPerBeat={32} laneAt={() => null} />
-  );
+  return <ClipView clip={clip} track={track} laneHeight={64} pxPerBeat={32} laneAt={() => null} />;
 }
 
 describe('clip keyboard editing', () => {
@@ -257,6 +255,21 @@ describe('clip keyboard editing', () => {
     expect(cleared.fadeIn).toBe(0);
   });
 
+  it('leaves an application combo alone: Ctrl+, is Preferences, not a fade', () => {
+    const clip = clipNamed('Perc 2-bar');
+    render(<ClipHost clipId={clip.id} />);
+
+    const reachedTheApp = fireEvent.keyDown(screen.getByRole('button', { name: /^Perc 2-bar/ }), {
+      key: ',',
+      ctrlKey: true,
+    });
+
+    expect(reachedTheApp).toBe(true);
+    const untouched = project().clips.find((c) => c.id === clip.id);
+    if (untouched?.type !== 'audio') throw new Error('not audio');
+    expect(untouched.fadeIn).toBe(0);
+  });
+
   it('refuses timing edits on a locked clip and says why', () => {
     const clip = clipNamed('Drums A');
     useProjectStore.getState().setClip(clip.id, { locked: true });
@@ -318,6 +331,11 @@ describe('piano roll keyboard editing', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('C4, 1.1.1, empty');
 
+    // The cursor is a keyboard affordance, so it appears with the focus.
+    expect(screen.queryByTestId('pr-cell-cursor')).not.toBeInTheDocument();
+    act(() => grid.focus());
+    expect(screen.getByTestId('pr-cell-cursor')).toBeInTheDocument();
+
     fireEvent.keyDown(grid, { key: 'Enter' });
 
     const notes = midiNotes(clipId);
@@ -367,7 +385,7 @@ describe('piano roll keyboard editing', () => {
     expect(midiNotes(clipId)[0].length).toBeCloseTo(1.25, 5);
 
     // One press, one undo step: the resize is a gesture like its drag.
-    useProjectStore.getState().undo();
+    act(() => useProjectStore.getState().undo());
     expect(midiNotes(clipId)[0].length).toBeCloseTo(1, 5);
 
     fireEvent.keyDown(note, { key: 'Delete' });
@@ -377,9 +395,7 @@ describe('piano roll keyboard editing', () => {
 
   it('writes velocity from the velocity lane', () => {
     const clipId = seedEditorClip();
-    useProjectStore
-      .getState()
-      .addNote(clipId, { start: 0, length: 1, pitch: 106, velocity: 100 });
+    useProjectStore.getState().addNote(clipId, { start: 0, length: 1, pitch: 106, velocity: 100 });
     render(<PianoRoll />);
 
     const bar = within(screen.getByTestId('pr-vel-lane')).getByRole('slider');
@@ -401,12 +417,18 @@ describe('piano roll keyboard editing', () => {
     const trackId = trackNamed('Keys').id;
     render(<PianoRoll />);
 
-    // One tab stop, not eighty-eight: the column rovers its focus with arrows.
-    const key = screen.getByRole('button', { name: 'Play C8' });
+    // One tab stop, not eighty-eight: the column roves its focus with arrows.
+    // An empty clip centres the view on C4, which is where the stop starts.
+    const key = screen.getByRole('button', { name: 'Play C4' });
     expect(key).toHaveAttribute('tabindex', '0');
 
     fireEvent.keyDown(key, { key: 'Enter' });
-    expect(engineStub.liveNoteOn).toHaveBeenCalledWith(trackId, 108, 96);
+    expect(engineStub.liveNoteOn).toHaveBeenCalledWith(trackId, 60, 96);
+
+    fireEvent.keyDown(key, { key: 'ArrowUp' });
+    expect(engineStub.liveNoteOn).toHaveBeenLastCalledWith(trackId, 61, 70);
+    expect(screen.getByRole('button', { name: 'Play C#4' })).toHaveAttribute('tabindex', '0');
+    expect(key).toHaveAttribute('tabindex', '-1');
 
     expect(project().clips.some((c) => c.id === clipId)).toBe(true);
   });
