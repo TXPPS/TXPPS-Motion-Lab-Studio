@@ -160,6 +160,12 @@ export interface CommitOptions {
   trackName: string;
   /** timeline beat where capture began */
   startBeat: number;
+  /**
+   * The window the clip should cover, when recording was punched or rolled in.
+   * The take still holds everything that was captured — the clip simply starts
+   * later in it, so the run-up can be dragged back out.
+   */
+  window?: { startBeat: number; endBeat: number };
   ctx: BaseAudioContext;
   /** recovery record to clear once the take is safely committed */
   recoveryId?: string;
@@ -178,7 +184,7 @@ export interface CommitResult {
  * empty clip.
  */
 export async function commitTake(opts: CommitOptions): Promise<CommitResult | null> {
-  const { take, trackId, trackName, startBeat, ctx, recoveryId } = opts;
+  const { take, trackId, trackName, startBeat, window: punchWindow, ctx, recoveryId } = opts;
   const mediaId = newId('m');
 
   let buffer: AudioBuffer;
@@ -220,18 +226,25 @@ export async function commitTake(opts: CommitOptions): Promise<CommitResult | nu
   const store = useProjectStore.getState();
   // Musical length of the take depends on where it lands: a take recorded
   // across a tempo change is not `seconds x one bpm` beats long.
-  const lengthBeats = Math.max(
-    0.25,
-    projectBeatsForSeconds(store.project, startBeat, buffer.duration),
-  );
+  const takeBeats = projectBeatsForSeconds(store.project, startBeat, buffer.duration);
+  const clipStart = Math.max(startBeat, punchWindow?.startBeat ?? startBeat);
+  const offsetSec =
+    clipStart > startBeat
+      ? projectBeatRangeSec(store.project, startBeat, clipStart - startBeat)
+      : 0;
+  const available = startBeat + takeBeats - clipStart;
+  const wanted = punchWindow ? punchWindow.endBeat - clipStart : available;
+  const lengthBeats = Math.max(0.25, Math.min(available, wanted));
+
   const clipId = store.addRecordedClip({
     trackId,
     mediaId,
-    start: startBeat,
+    start: clipStart,
     lengthBeats,
     name: mediaRef.name,
     sourceDuration: buffer.duration,
     mediaRef,
+    offsetSec,
   });
 
   if (recoveryId) await deleteRecovery(recoveryId);

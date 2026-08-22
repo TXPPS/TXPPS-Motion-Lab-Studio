@@ -214,6 +214,7 @@ export function TransportBar({ compact }: { compact?: boolean }) {
   const playing = playState === 'playing';
   const masterVolume = project.master?.volume ?? project.masterVolume;
   const countIn = project.countIn ?? 1;
+  const preRoll = project.preRoll ?? 0;
   const punch = project.punch?.enabled === true;
 
   /** Move the playhead by whole bars, honouring the signature map. */
@@ -260,6 +261,24 @@ export function TransportBar({ compact }: { compact?: boolean }) {
           action: () =>
             useProjectStore.getState().update((d) => {
               d.countIn = ((d.countIn ?? 1) + 1) % 5;
+            }),
+        },
+        {
+          // A count-in is a click; a pre-roll is the song. Both are wanted, and
+          // for different reasons, so both are here rather than one standing in
+          // for the other.
+          label: `Pre-roll: ${preRoll === 0 ? 'off' : `${preRoll} bar${preRoll === 1 ? '' : 's'}`}`,
+          action: () =>
+            useProjectStore.getState().update((d) => {
+              d.preRoll = ((d.preRoll ?? 0) + 1) % 5;
+            }),
+        },
+        {
+          label: 'Set the punch range from the loop',
+          disabled: !(loop.end > loop.start),
+          action: () =>
+            useProjectStore.getState().update((d) => {
+              d.punch = { enabled: true, start: d.loop.start, end: d.loop.end };
             }),
         },
         { label: 'Return to start', action: () => engine.returnToStart() },
@@ -353,7 +372,11 @@ export function TransportBar({ compact }: { compact?: boolean }) {
                 };
               })
             }
-            title="Punch in/out over the loop range"
+            title={
+              punch
+                ? `Punch in/out over bars ${(project.punch?.start ?? 0) / 4 + 1} to ${(project.punch?.end ?? 0) / 4 + 1} — right-click the transport to set it from the loop`
+                : 'Punch in/out over the loop range'
+            }
             aria-label="Punch in and out"
             aria-pressed={punch}
             data-testid="btn-punch"

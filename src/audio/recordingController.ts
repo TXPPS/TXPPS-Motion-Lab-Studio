@@ -10,9 +10,15 @@
  * encoded streams to one timeline is not, so the app records one armed track at
  * a time and says so.
  */
-import { beatsPerBar, projectBeatsForSeconds } from '../model/music';
+import {
+  beatsPerBar,
+  projectBeatRangeSec,
+  projectBeatsForSeconds,
+  tempoMapOf,
+} from '../model/music';
+import { beatsPerBarAt } from '../model/tempo';
 import { midiRecorder } from './midiRecorder';
-import type { Track } from '../model/types';
+import type { ProjectData, Track } from '../model/types';
 import { diagLog } from '../state/diagnostics';
 import { useInputStore } from '../state/inputStore';
 import { useProjectStore } from '../state/projectStore';
@@ -21,18 +27,23 @@ import { engine } from './engine';
 import { audioInput, DEFAULT_INPUT } from './inputManager';
 import { commitTake, recorderSupported, stashRecovery, TakeRecorder } from './recorder';
 
-export interface RecordSettings {
-  countInBars: number;
-}
-
-const settings: RecordSettings = { countInBars: 1 };
-
+/**
+ * The count-in is the project's, not this module's.
+ *
+ * It was both: a field the transport wrote and a module-level number the
+ * recorder read, so changing the count-in from the transport changed nothing
+ * about a recording. One of them had to go, and the one that survives a save
+ * is the project's.
+ */
 export function setCountInBars(bars: number): void {
-  settings.countInBars = Math.max(0, Math.min(4, Math.round(bars)));
+  const next = Math.max(0, Math.min(8, Math.round(bars)));
+  useProjectStore.getState().update((d) => {
+    d.countIn = next;
+  });
 }
 
 export function getCountInBars(): number {
-  return settings.countInBars;
+  return Math.max(0, Math.min(8, Math.round(useProjectStore.getState().project.countIn ?? 1)));
 }
 
 /** The track a take will be captured on: armed audio track, else selected. */
@@ -57,6 +68,40 @@ export function midiRecordTargetTrack(): Track | null {
   return playable.find((t) => t.armed) ?? playable.find((t) => t.id === sel) ?? null;
 }
 
+/**
+ * Where a take rolls in and where it starts counting.
+ *
+ * Punch and pre-roll were both stored on the project and read by nobody: the
+ * transport's punch button toggled a flag that changed nothing about a
+ * recording. They are the same question — from what point does the transport
+ * roll, and from what point does the clip begin — so they are answered once,
+ * here, and the answer is data the caller can test.
+ */
+export function captureWindow(
+  project: ProjectData,
+  playheadBeat: number,
+): {
+  rollBeat: number;
+  window: { startBeat: number; endBeat: number } | null;
+} {
+  const punch = project.punch;
+  const map = tempoMapOf(project);
+  const startBeat = punch?.enabled && punch.end > punch.start ? punch.start : playheadBeat;
+  const preRollBars = Math.max(0, Math.min(8, project.preRoll ?? 0));
+  const preRollBeats = preRollBars * beatsPerBarAt(map, Math.max(0, startBeat - 1e-6));
+  return {
+    rollBeat: Math.max(0, startBeat - preRollBeats),
+    // Only punch fixes an end. A pre-roll moves the start of the roll, not the
+    // start of the clip, so it needs no window of its own.
+    window:
+      punch?.enabled && punch.end > punch.start
+        ? { startBeat: punch.start, endBeat: punch.end }
+        : preRollBeats > 0
+          ? { startBeat, endBeat: Number.POSITIVE_INFINITY }
+          : null,
+  };
+}
+
 class RecordingController {
   private recorder = new TakeRecorder();
   private countInTimer: ReturnType<typeof setInterval> | null = null;
@@ -67,6 +112,10 @@ class RecordingController {
   private deviceId = DEFAULT_INPUT;
   /** True while this take is MIDI rather than audio. */
   private midi = false;
+  /** The window the clip should cover, when punch is on. */
+  private window: { startBeat: number; endBeat: number } | null = null;
+  /** Fires the drop-out at the punch point. */
+  private punchTimer: ReturnType<typeof setTimeout> | null = null;
   private cancelled = false;
   private unloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
 
@@ -163,7 +212,7 @@ class RecordingController {
 
     this.installUnloadGuard();
 
-    if (settings.countInBars > 0) {
+    if (getCountInBars() > 0) {
       const ok = await this.runCountIn();
       if (!ok || this.cancelled) {
         this.cleanupInput();
@@ -172,10 +221,14 @@ class RecordingController {
       }
     }
 
-    // Capture begins at the transport's current position; the transport starts
-    // in the same tick so audio and timeline share an origin.
-    this.captureStartBeat = engine.getPositionBeats();
-    if (!engine.isPlaying()) await engine.play(this.captureStartBeat);
+    // Capture begins where the roll begins — earlier than the clip when there
+    // is a pre-roll or a punch point — and the transport starts in the same
+    // tick, so audio and timeline share an origin.
+    const plan = captureWindow(useProjectStore.getState().project, engine.getPositionBeats());
+    this.captureStartBeat = plan.rollBeat;
+    this.window = plan.window;
+    if (!engine.isPlaying()) await engine.play(plan.rollBeat);
+    this.armPunchOut();
 
     const started = this.recorder.start(stream);
     if (!started) {
@@ -202,7 +255,7 @@ class RecordingController {
   private runCountIn(): Promise<boolean> {
     const p = useProjectStore.getState().project;
     const bpb = beatsPerBar(p.timeSig);
-    const totalBeats = Math.round(bpb * settings.countInBars);
+    const totalBeats = Math.round(bpb * getCountInBars());
     const beatMs = (60 / p.bpm) * 1000;
     let left = totalBeats;
     useInputStore.getState().set({ phase: 'countIn', countInBeatsLeft: left });
@@ -262,7 +315,7 @@ class RecordingController {
 
     this.installUnloadGuard();
 
-    if (settings.countInBars > 0) {
+    if (getCountInBars() > 0) {
       const counted = await this.runCountIn();
       if (!counted || this.cancelled) {
         this.midi = false;
@@ -271,12 +324,15 @@ class RecordingController {
       }
     }
 
-    // Capture begins at the transport's current position, and the transport
-    // starts in the same tick, so notes and timeline share an origin.
-    const startBeat = engine.getPositionBeats();
+    // Capture begins where the roll begins, and the transport starts in the
+    // same tick, so notes and timeline share an origin.
+    const plan = captureWindow(useProjectStore.getState().project, engine.getPositionBeats());
+    const startBeat = plan.rollBeat;
     this.captureStartBeat = startBeat;
-    midiRecorder.start(track.id, startBeat);
+    this.window = plan.window;
+    midiRecorder.start(track.id, startBeat, 0, plan.window ?? undefined);
     if (!engine.isPlaying()) await engine.play(startBeat);
+    this.armPunchOut();
 
     store.set({
       phase: 'recording',
@@ -298,7 +354,7 @@ class RecordingController {
       this.clearTick();
       const endBeat = engine.getPositionBeats();
       engine.stop();
-      const clipId = midiRecorder.stop(endBeat);
+      const clipId = midiRecorder.stop(Math.min(endBeat, this.window?.endBeat ?? endBeat));
       useInputStore.getState().set({
         phase: 'idle',
         recordingActive: false,
@@ -320,6 +376,7 @@ class RecordingController {
     const trackId = this.trackId;
     const trackName = this.trackName;
     const startBeat = this.captureStartBeat;
+    const window = this.window ?? undefined;
     this.cleanupInput();
     engine.stop();
 
@@ -353,7 +410,7 @@ class RecordingController {
     }
 
     try {
-      const result = await commitTake({ take, trackId, trackName, startBeat, ctx });
+      const result = await commitTake({ take, trackId, trackName, startBeat, window, ctx });
       if (!result) {
         await stashRecovery(take.blob, take.mimeType, {
           trackId,
@@ -411,6 +468,7 @@ class RecordingController {
     this.cancelled = true;
     this.clearCountIn();
     this.clearTick();
+    this.clearPunchOut();
 
     if (this.midi) {
       this.midi = false;
@@ -454,6 +512,37 @@ class RecordingController {
     if (this.trackId) audioInput.release(this.deviceId, `record:${this.trackId}`);
   }
 
+  /**
+   * Drop out of record at the punch point.
+   *
+   * The timer only has to be roughly right: what the clip covers is decided
+   * from beats when the take is committed, so a few milliseconds of slop here
+   * costs nothing but a few milliseconds of extra captured audio.
+   */
+  private armPunchOut(): void {
+    this.clearPunchOut();
+    const w = this.window;
+    if (!w || !Number.isFinite(w.endBeat)) return;
+    const project = useProjectStore.getState().project;
+    const seconds = projectBeatRangeSec(
+      project,
+      this.captureStartBeat,
+      Math.max(0, w.endBeat - this.captureStartBeat),
+    );
+    if (!(seconds > 0)) return;
+    this.punchTimer = setTimeout(() => {
+      this.punchTimer = null;
+      if (useInputStore.getState().phase === 'recording') void this.stop();
+    }, seconds * 1000);
+  }
+
+  private clearPunchOut(): void {
+    if (this.punchTimer !== null) {
+      clearTimeout(this.punchTimer);
+      this.punchTimer = null;
+    }
+  }
+
   private clearTick(): void {
     if (this.tickTimer !== null) {
       clearInterval(this.tickTimer);
@@ -464,6 +553,8 @@ class RecordingController {
   private reset(): void {
     this.clearCountIn();
     this.clearTick();
+    this.clearPunchOut();
+    this.window = null;
     this.trackId = null;
     this.trackName = '';
     this.cancelled = false;

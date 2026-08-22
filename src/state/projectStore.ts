@@ -149,6 +149,8 @@ export interface ProjectStore {
     name: string;
     sourceDuration: number;
     mediaRef: MediaRef;
+    /** seconds into the take that the clip starts at — a pre-roll is kept, not cut */
+    offsetSec?: number;
   }) => string;
   registerMedia: (ref: MediaRef) => void;
   /** Trim the left edge: moves the timeline start and the source offset together. */
@@ -816,7 +818,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
 
     // ---- Milestone 2 -----------------------------------------------------
 
-    addRecordedClip: ({ trackId, mediaId, start, lengthBeats, name, sourceDuration, mediaRef }) => {
+    addRecordedClip: ({
+      trackId,
+      mediaId,
+      start,
+      lengthBeats,
+      name,
+      sourceDuration,
+      mediaRef,
+      offsetSec,
+    }) => {
       const id = newId('c');
       update((d) => {
         if (!d.media) d.media = [];
@@ -830,7 +841,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
           length: Math.max(0.25, lengthBeats),
           muted: false,
           mediaId,
-          offset: 0,
+          // A pre-roll take carries the run-up in its media and starts past it.
+          // The audio is kept rather than cut, so the edge can be dragged back.
+          offset: Math.max(0, offsetSec ?? 0),
           sourceDuration,
           gain: 1,
           fadeIn: 0,

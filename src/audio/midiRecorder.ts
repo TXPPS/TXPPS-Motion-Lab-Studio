@@ -38,6 +38,8 @@ class MidiRecorder {
   private captured: Note[] = [];
   /** Quantise on commit; 0 keeps the performance exactly as played. */
   private grid = 0;
+  /** The beats the clip covers, when the take was rolled or punched in. */
+  private window: { startBeat: number; endBeat: number } | null = null;
 
   get isRecording(): boolean {
     return this.trackId !== null;
@@ -51,10 +53,18 @@ class MidiRecorder {
     return this.captured.length + this.open.size;
   }
 
-  start(trackId: string, startBeat: number, grid = 0): void {
+  start(
+    trackId: string,
+    startBeat: number,
+    grid = 0,
+    window?: { startBeat: number; endBeat: number },
+  ): void {
     this.trackId = trackId;
     this.startBeat = Math.max(0, startBeat);
     this.grid = grid;
+    // A pre-roll or a punch means the transport rolls before the clip begins:
+    // what is played during the run-up is heard, not kept.
+    this.window = window ?? null;
     this.open.clear();
     this.captured = [];
     diagLog('info', `MIDI recording armed on ${trackId} from beat ${startBeat.toFixed(2)}`);
@@ -86,6 +96,7 @@ class MidiRecorder {
   /** Discard everything without writing a clip. */
   cancel(): void {
     this.trackId = null;
+    this.window = null;
     this.open.clear();
     this.captured = [];
   }
@@ -101,14 +112,35 @@ class MidiRecorder {
     const trackId = this.trackId;
     if (!trackId) return null;
     for (const pitch of [...this.open.keys()]) this.noteOff(trackId, pitch, endBeat);
-    const notes = this.captured;
+    // The clip covers the window when there is one, and everything played
+    // otherwise. A note that starts in the run-up is not part of the take, but
+    // one that is still sounding at the punch point is: it is trimmed to the
+    // window rather than dropped, which is what a player expects when they
+    // come in early and hold through.
+    const window = this.window;
+    const clipStart = window ? Math.max(this.startBeat, window.startBeat) : this.startBeat;
+    const shift = clipStart - this.startBeat;
+    const limit = window && Number.isFinite(window.endBeat) ? window.endBeat - clipStart : Infinity;
+
+    const notes: Note[] = [];
+    for (const n of this.captured) {
+      const start = n.start - shift;
+      const end = start + n.length;
+      if (end <= MIN_NOTE_BEATS || start >= limit) continue;
+      const from = Math.max(0, start);
+      const to = Math.min(end, limit);
+      if (to - from < MIN_NOTE_BEATS) continue;
+      notes.push({ ...n, start: from, length: to - from });
+    }
+
     this.trackId = null;
+    this.window = null;
     this.captured = [];
     if (notes.length === 0) return null;
 
     const project = useProjectStore.getState().project;
     const map = tempoMapOf(project);
-    const bar = beatsPerBarAt(map, this.startBeat);
+    const bar = beatsPerBarAt(map, clipStart);
     const played = Math.max(...notes.map((n) => n.start + n.length));
     // Round the clip out to a whole bar: a take that ends mid-bar is a clip
     // whose edge is in a musically meaningless place.
@@ -118,7 +150,7 @@ class MidiRecorder {
         ? quantizeNotes(notes, { grid: this.grid, strength: 1, swing: 0, lengths: false })
         : notes;
 
-    const clipId = useProjectStore.getState().addMidiClip(trackId, this.startBeat, length);
+    const clipId = useProjectStore.getState().addMidiClip(trackId, clipStart, length);
     useProjectStore.getState().addNotes(
       clipId,
       final.map(({ id: _id, ...rest }) => rest),
