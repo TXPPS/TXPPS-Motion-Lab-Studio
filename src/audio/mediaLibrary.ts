@@ -9,7 +9,7 @@
  * asynchronous and never happens on the audio scheduling path (the scheduler
  * only ever asks for an already-resolved buffer).
  */
-import { isProceduralMediaId, type MediaRef, type PeakData } from '../model/media';
+import { isProceduralMediaId, type PeakData } from '../model/media';
 import { diagLog } from '../state/diagnostics';
 import {
   getMediaBuffer as getProceduralBuffer,
@@ -172,13 +172,15 @@ export async function loadPeaks(id: string, ctx: BaseAudioContext): Promise<Peak
 }
 
 /**
- * Warm the caches for every media id a project references. Runs in the
- * background after load so the first play does not stall, and records which
- * ids are missing.
+ * Warm the caches for every media id a project references, so the first play
+ * does not stall while a take decodes, and report what could not be found.
+ *
+ * Called after a project is loaded, and only once the audio context exists —
+ * before that there is nothing about to play, and decoding would be work done
+ * for a session that may never start.
  */
 export async function preloadProjectMedia(
-  refs: MediaRef[],
-  usedIds: string[],
+  usedIds: readonly string[],
   ctx: BaseAudioContext,
 ): Promise<{ loaded: number; missing: string[] }> {
   const ids = [...new Set(usedIds)].filter((id) => !isProceduralMediaId(id));
@@ -187,7 +189,6 @@ export async function preloadProjectMedia(
     const buf = await loadBuffer(id, ctx);
     if (buf) loaded++;
   }
-  void refs;
   return { loaded, missing: ids.filter((id) => missing.has(id)) };
 }
 

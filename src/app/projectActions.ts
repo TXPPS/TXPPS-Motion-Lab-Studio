@@ -25,7 +25,7 @@ import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { engine } from '../audio/engine';
 import { mergeProjects, type MergeOptions } from './projectMerge';
-import { retainOnly } from '../audio/mediaLibrary';
+import { preloadProjectMedia, retainOnly } from '../audio/mediaLibrary';
 import { clearStretchCache } from '../audio/stretchCache';
 import { usedMediaIds } from '../model/media';
 
@@ -114,6 +114,7 @@ export async function mergeProjectById(id: string, options: MergeOptions = {}): 
   });
   store.setProject(result.project, { markClean: false });
   retainOnly(usedMediaIds(result.project));
+  warmMedia(result.project);
   clearStretchCache();
 
   const { tracks, clips } = result.added;
@@ -125,6 +126,25 @@ export async function mergeProjectById(id: string, options: MergeOptions = {}): 
   );
   await saveCurrent();
   return true;
+}
+
+/**
+ * Decode a project's audio ahead of the first play.
+ *
+ * The cache is filled on demand otherwise, which means the first bar of the
+ * first playback of a session with recordings decodes while it is meant to be
+ * sounding. Deliberately not awaited: a slow decode must not hold up opening
+ * the project.
+ */
+function warmMedia(p: ProjectData): void {
+  const ctx = engine.context;
+  if (!ctx) return;
+  void preloadProjectMedia([...usedMediaIds(p)], ctx).then(({ loaded, missing }) => {
+    if (loaded > 0) diagLog('info', `Preloaded ${loaded} media file(s) for "${p.name}"`);
+    if (missing.length > 0) {
+      diagLog('warn', `${missing.length} media file(s) referenced by "${p.name}" are missing`);
+    }
+  });
 }
 
 export async function openProject(id: string): Promise<boolean> {
@@ -142,6 +162,7 @@ export async function openProject(id: string): Promise<boolean> {
     useProjectStore.getState().setProject(p, { markClean: true });
     useUiStore.getState().set({ selectedClipId: null, selectedNoteIds: [], editClipId: null });
     retainOnly(usedMediaIds(p));
+    warmMedia(p);
     clearStretchCache();
     await savePrefs({ lastProjectId: p.id });
     return true;
