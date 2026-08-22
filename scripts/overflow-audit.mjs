@@ -1013,11 +1013,40 @@ async function sweepPlugins(page, vpName, layout, minTap, safe, onSurface) {
     return { notes: [...notes, 'no device rack on this layout — plugin sweep skipped'] };
   }
 
+  /*
+   * Opening the picker takes more than one press, and the reason is a finding
+   * in its own right: pressing anywhere on a channel strip selects the channel,
+   * selecting a channel mounts the Channel Overview panel beside the strips,
+   * and that reflow moves the rack's `Insert` button several pixels between
+   * pointerdown and pointerup. The button is 12px tall in a bottom-editor
+   * mixer, so the pointer is no longer over it when the press is released and
+   * the click never lands. The sweep therefore presses, checks, presses again,
+   * and only then falls back to a scripted `element.click()` — which skips the
+   * pointer sequence entirely — recording which route it needed so the report
+   * can say the control is unclickable rather than quietly working around it.
+   */
+  const openPicker = async (adder, log) => {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      await adder.click({ timeout: 4000 }).catch(() => {});
+      await settle(page, 250);
+      if (await page.locator('.ctx-menu [role="menuitem"]').count()) {
+        if (attempt > 1) log.push(`Insert needed ${attempt} presses — the strip reflows under it`);
+        return 'pointer';
+      }
+    }
+    await adder.evaluate((el) => el.click()).catch(() => {});
+    await settle(page, 250);
+    if (await page.locator('.ctx-menu [role="menuitem"]').count()) {
+      log.push('Insert never answered a real pointer press; opened programmatically');
+      return 'scripted';
+    }
+    return null;
+  };
+
   /* Read the picker once: every label between the first group heading and the
      "Chains" heading is a device, and the shelf's third-party plugins are in
      there too under "Plugins". */
-  await adders.first().click({ timeout: 4000 }).catch(() => {});
-  await settle(page, 250);
+  await openPicker(adders.first(), notes);
   const labels = await page.evaluate(() => {
     const items = [...document.querySelectorAll('.ctx-menu [role="menuitem"]')];
     const out = [];
@@ -1056,9 +1085,14 @@ async function sweepPlugins(page, vpName, layout, minTap, safe, onSurface) {
         const add = adders.nth(i);
         if (await add.isDisabled().catch(() => true)) continue;
         await add.scrollIntoViewIfNeeded().catch(() => {});
-        await add.click({ timeout: 4000 });
-        await settle(page, 200);
-        const item = page.locator(`.ctx-menu [role="menuitem"]`).filter({ hasText: label }).first();
+        if (!(await openPicker(add, one))) {
+          one.push('the Insert picker would not open');
+          break;
+        }
+        const item = page
+          .locator('.ctx-menu [role="menuitem"]')
+          .filter({ hasText: label })
+          .first();
         if (!(await item.count())) {
           await page.keyboard.press('Escape');
           one.push(`"${label}" is not in this rack's picker`);
