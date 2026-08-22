@@ -15,13 +15,13 @@
  * however short the console panel gets.
  */
 import { memo } from 'react';
-import { describeEffect, effectSpec } from '../../model/effects';
 import { formatDb, linToDb } from '../../model/music';
 import { resolveChannels } from '../../model/mixerGraph';
 import type { Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { Fader, PanKnob, PeakReadout, StereoMeter, panText } from '../common/widgets';
+import { DeviceRack, masterRack, trackRack } from './DeviceRack';
 import { cueSendOf, findCue } from '../../model/cueMix';
 
 /** The cue being monitored, if any. Null means the main mix, which is the norm. */
@@ -47,42 +47,6 @@ const TYPE_ICON: Record<Track['type'], IconName> = {
 function focusTrack(id: string): void {
   useUiStore.getState().selectTrack(id);
   useUiStore.getState().set({ panelInspector: true, phoneMode: 'browse' });
-}
-
-function InsertSlots({ track }: { track: Track }) {
-  const effects = track.effects ?? [];
-  const store = useProjectStore;
-  return (
-    <div className="strip-inserts" data-testid={`inserts-${track.name}`}>
-      {effects.slice(0, 4).map((fx) => (
-        <button
-          key={fx.id}
-          className={`ins-slot${fx.bypass ? ' bypassed' : ''}`}
-          title={`${effectSpec(fx.kind)?.label ?? fx.kind} — ${describeEffect(fx)}${
-            fx.bypass ? ' (bypassed)' : ''
-          }\nClick to open, right-click to bypass`}
-          onClick={() => focusTrack(track.id)}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            store.getState().setEffectBypass(track.id, fx.id, !fx.bypass);
-          }}
-        >
-          <span className="ins-dot" />
-          <span className="ins-name">{effectSpec(fx.kind)?.label ?? fx.kind}</span>
-        </button>
-      ))}
-      {effects.length > 4 && (
-        <button className="ins-slot more" onClick={() => focusTrack(track.id)}>
-          +{effects.length - 4} more
-        </button>
-      )}
-      {effects.length === 0 && (
-        <button className="ins-slot empty" onClick={() => focusTrack(track.id)}>
-          + Insert
-        </button>
-      )}
-    </div>
-  );
 }
 
 /** Sends a strip shows before it summarises the rest. */
@@ -236,7 +200,7 @@ export const ChannelStrip = memo(function ChannelStrip({
         </button>
       </div>
 
-      <InsertSlots track={track} />
+      <DeviceRack rack={trackRack(track)} />
       <SendRows track={track} busName={(id) => buses.find((b) => b.id === id)?.name ?? 'Bus'} />
 
       <div className="strip-pan">
@@ -418,31 +382,7 @@ export const MasterStrip = memo(function MasterStrip() {
         </button>
       </div>
 
-      <div className="strip-inserts" data-testid="inserts-master">
-        {fx.slice(0, 4).map((e) => (
-          <button
-            key={e.id}
-            className={`ins-slot${e.bypass ? ' bypassed' : ''}`}
-            title={`${effectSpec(e.kind)?.label ?? e.kind} — ${describeEffect(e)}`}
-            onClick={() => useUiStore.getState().set({ panelInspector: true })}
-            onContextMenu={(ev) => {
-              ev.preventDefault();
-              store.getState().setMasterEffectBypass(e.id, !e.bypass);
-            }}
-          >
-            <span className="ins-dot" />
-            <span className="ins-name">{effectSpec(e.kind)?.label ?? e.kind}</span>
-          </button>
-        ))}
-        {fx.length === 0 && (
-          <button
-            className="ins-slot empty"
-            onClick={() => useUiStore.getState().set({ panelInspector: true })}
-          >
-            + Master FX
-          </button>
-        )}
-      </div>
+      <DeviceRack rack={masterRack(fx)} />
 
       <div className="strip-pan">
         <PanKnob

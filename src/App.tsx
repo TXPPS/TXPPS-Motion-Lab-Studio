@@ -8,6 +8,7 @@ import { TopBar } from './components/shell/TopBar';
 import { StatusBar } from './components/shell/StatusBar';
 import { DiagnosticsSheet } from './components/diagnostics/DiagnosticsSheet';
 import { DialogHost, ContextMenuHost, ToastHost } from './components/common/overlays';
+import { PluginWindow } from './components/mixer/PluginWindow';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LayoutDebugHud } from './components/diagnostics/LayoutDebugHud';
 import { dragHasFiles } from './app/importActions';
@@ -129,6 +130,7 @@ export function App() {
       <WelcomeSheet />
       <SettingsSheet />
       <ExportSheet />
+      <PluginWindow />
       <DialogHost />
       <ContextMenuHost />
       <ToastHost />

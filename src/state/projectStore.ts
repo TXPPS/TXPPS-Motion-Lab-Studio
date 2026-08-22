@@ -175,6 +175,10 @@ export interface ProjectStore {
   setEffectBypass: (trackId: string, effectId: string, bypass: boolean) => void;
   /** Reorder within the chain; delta is -1 (earlier) or +1 (later). */
   moveEffect: (trackId: string, effectId: string, delta: number) => void;
+  /** Drop an insert at an absolute position in the chain — what a drag does. */
+  reorderEffect: (trackId: string, effectId: string, toIndex: number) => void;
+  /** Put a copy of an insert, with its settings, on another track. */
+  copyEffectTo: (fromTrackId: string, effectId: string, toTrackId: string) => string | null;
 
   // Note ops (within a MIDI clip)
   addNote: (clipId: string, note: Omit<Note, 'id'>) => string;
@@ -332,6 +336,7 @@ export interface ProjectStore {
   setMasterEffectParam: (effectId: string, key: string, value: number) => void;
   setMasterEffectBypass: (effectId: string, bypass: boolean) => void;
   moveMasterEffect: (effectId: string, delta: number) => void;
+  reorderMasterEffect: (effectId: string, toIndex: number) => void;
 
   // ---- grouping ----
   /** Wrap the given tracks in a new folder track placed above them. */
@@ -1098,6 +1103,40 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         const fx = trackById(d, trackId)?.effects?.find((e) => e.id === effectId);
         if (fx) fx.bypass = bypass;
       }),
+
+    reorderEffect: (trackId, effectId, toIndex) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t?.effects) return;
+        const from = t.effects.findIndex((e) => e.id === effectId);
+        if (from < 0) return;
+        const to = Math.max(0, Math.min(t.effects.length - 1, Math.round(toIndex)));
+        if (to === from) return;
+        const [moved] = t.effects.splice(from, 1);
+        t.effects.splice(to, 0, moved);
+      }),
+
+    copyEffectTo: (fromTrackId, effectId, toTrackId) => {
+      const id = newId('fx');
+      let copied = false;
+      update((d) => {
+        const source = trackById(d, fromTrackId)?.effects?.find((e) => e.id === effectId);
+        const target = trackById(d, toTrackId);
+        if (!source || !target) return;
+        if (!target.effects) target.effects = [];
+        if (target.effects.length >= MAX_INSERTS) return;
+        // The settings come with it. A device dragged onto another channel
+        // that arrived at its defaults would be a new device, not a copy.
+        target.effects.push({
+          id,
+          kind: source.kind,
+          bypass: source.bypass,
+          params: { ...source.params },
+        });
+        copied = true;
+      });
+      return copied ? id : null;
+    },
 
     moveEffect: (trackId, effectId, delta) =>
       update((d) => {
@@ -2056,6 +2095,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update((d) => {
         const e = ensureMaster(d).effects?.find((x) => x.id === effectId);
         if (e) e.bypass = bypass;
+      }),
+
+    reorderMasterEffect: (effectId, toIndex) =>
+      update((d) => {
+        const fx = ensureMaster(d).effects;
+        if (!fx) return;
+        const from = fx.findIndex((e) => e.id === effectId);
+        if (from < 0) return;
+        const to = Math.max(0, Math.min(fx.length - 1, Math.round(toIndex)));
+        if (to === from) return;
+        const [moved] = fx.splice(from, 1);
+        fx.splice(to, 0, moved);
       }),
 
     moveMasterEffect: (effectId, delta) =>

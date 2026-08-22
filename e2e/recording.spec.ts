@@ -222,7 +222,7 @@ test.describe('mixer insert processing', () => {
     expect(await page.locator('[data-testid^="fx-slot-"]').count()).toBe(0);
   });
 
-  test('the insert row on a strip reflects the chain and stays inside the strip', async ({
+  test('the device rack on a strip carries the whole chain, in order, inside the strip', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -235,27 +235,35 @@ test.describe('mixer insert processing', () => {
     await page.waitForTimeout(400);
 
     const info = await page.evaluate(() => {
-      const chips = [...document.querySelectorAll<HTMLElement>('.strip-inserts .ins-slot')];
-      const escaping = chips.filter((c) => {
-        const strip = c.closest('.strip')!.getBoundingClientRect();
+      const slots = [...document.querySelectorAll<HTMLElement>('.dev-rack .dev-slot')];
+      const escaping = [...document.querySelectorAll<HTMLElement>('.dev-rack *')].filter((c) => {
+        const strip = c.closest('.strip')?.getBoundingClientRect();
+        if (!strip) return false;
         const box = c.getBoundingClientRect();
-        return box.right > strip.right + 0.5 || box.left < strip.left - 0.5;
+        if (box.width === 0 && box.height === 0) return false;
+        return (
+          box.right > strip.right + 0.5 ||
+          box.left < strip.left - 0.5 ||
+          box.bottom > strip.bottom + 0.5
+        );
       }).length;
+      // Every device carries its position in the chain, so the console shows
+      // the order and not just the membership.
+      const numbered = slots.filter((s) =>
+        /^\d+$/.test(s.querySelector('.dev-index')?.textContent ?? ''),
+      );
       return {
-        count: chips.length,
+        count: slots.length,
         escaping,
-        // the demo project ships a compressed drum bus, so at least one is active
-        // A named, non-bypassed insert slot is the active case; the empty slot
-        // carries the `empty` class.
-        active: chips.filter((c) => !c.classList.contains('empty')).length,
+        numbered: numbered.length,
+        addable: document.querySelectorAll('.dev-rack .dev-add').length,
       };
     });
 
-    expect(info.count).toBeGreaterThan(0);
-    expect(info.escaping, 'insert chips escaping their strip').toBe(0);
-    expect(info.active, 'demo project should show at least one active insert/send').toBeGreaterThan(
-      0,
-    );
+    expect(info.count, 'the demo project has inserts to show').toBeGreaterThan(0);
+    expect(info.escaping, 'rack controls escaping their strip').toBe(0);
+    expect(info.numbered, 'every device shows its place in the chain').toBe(info.count);
+    expect(info.addable, 'every channel can take a device from the console').toBeGreaterThan(0);
   });
 });
 

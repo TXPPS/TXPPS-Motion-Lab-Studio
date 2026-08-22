@@ -97,6 +97,8 @@
   --z-playhead: 5;
   --z-sticky: 10;
   --z-panel-chrome: 20;
+  /* A plugin window floats over the console but under the menus it opens. */
+  --z-plugin: 300;
   --z-dropdown: 400;
   --z-overlay: 600;
   --z-dialog: 700;
@@ -118,6 +120,8 @@
   /* A panel header is a bar, not a toolbar: it holds a title and at most two
      icon buttons, so it is allowed to be shorter than a bar full of controls. */
   --toolbar-h-sm: calc(30px * var(--ui-scale));
+  /* Console device rack: four 17px device rows plus the Insert button. */
+  --dev-rack-h: calc(88px * var(--ui-scale));
   --control-h: calc(28px * var(--ui-scale));
   --control-h-sm: calc(22px * var(--ui-scale));
 

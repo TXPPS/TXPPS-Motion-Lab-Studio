@@ -43,7 +43,7 @@
   grid-template-rows:
     auto /* name            */
     auto /* input stage     */
-    auto /* insert slots    */
+    minmax(0, auto) /* device rack     */
     auto /* sends           */
     auto /* pan             */
     minmax(var(--fader-min-h), 1fr) /* fader + meter */
@@ -94,6 +94,7 @@
   grid-row: 2;
 }
 .strip-inserts,
+.dev-rack,
 .strip-fx {
   grid-row: 3;
 }
@@ -1259,7 +1260,304 @@
   border-radius: var(--radius);
 }
 
+/* ---------------------------------------------------------------- device rack */
+/* The chain, in signal order, on the strip. Top to bottom is the path: the
+   instrument, then the inserts, and the fader below them all. */
+/* The rack is the row that gives when the console is short: it is the only
+   one that can scroll without losing a control. A chain longer than the strip
+   scrolls inside the rack rather than pushing the fader off the bottom. */
+.dev-rack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  min-height: 0;
+  /* Four devices and the Insert button. A chain longer than that scrolls
+     inside the rack; it must never push a control out of the strip. */
+  max-height: var(--dev-rack-h);
+  overflow: hidden;
+}
+.dev-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.dev-list::-webkit-scrollbar {
+  display: none;
+}
+.dev-slot,
+.dev-instrument {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  height: 16px;
+  padding: 0 2px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-xs);
+  background: var(--bg-raised);
+  font-size: var(--fs-2xs);
+  color: var(--text-dim);
+  cursor: grab;
+}
+.dev-slot:hover,
+.dev-instrument:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.dev-slot.open {
+  border-color: var(--accent);
+  color: var(--text);
+}
+/* A bypassed device keeps its place in the chain and stops claiming your eye. */
+.dev-slot.bypassed .dev-label,
+.dev-slot.bypassed .dev-index {
+  opacity: var(--opacity-disabled);
+  text-decoration: line-through;
+}
+/* The drop line, drawn on the slot the device would land above. */
+.dev-slot.drop-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.dev-list.drop-end {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.dev-power {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--accent);
+}
+.dev-slot.bypassed .dev-power {
+  background: transparent;
+}
+.dev-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.dev-index {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+.dev-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dev-menu {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  opacity: 0;
+}
+.dev-slot:hover .dev-menu,
+.dev-menu:focus-visible {
+  opacity: 1;
+}
+/* The instrument reads as the source it is, not as another insert. */
+.dev-instrument {
+  border-color: var(--accent-line);
+  background: var(--accent-bg);
+  color: var(--text);
+  cursor: pointer;
+}
+.dev-instrument.frozen {
+  border-color: var(--border-strong);
+  color: var(--text-dim);
+}
+.dev-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 15px;
+  padding: 0 2px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--text-faint);
+  font-size: var(--fs-2xs);
+}
+.dev-add:hover:not(:disabled) {
+  border-style: solid;
+  border-color: var(--border-strong);
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+/* ---------------------------------------------------------------- plugin window */
+/* A device opened from the console belongs in front of the console. */
+.plugin-window {
+  position: fixed;
+  z-index: var(--z-plugin);
+  min-width: 320px;
+  max-width: min(760px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel);
+  box-shadow: var(--sh-4);
+  overflow: hidden;
+}
+.pw-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: var(--toolbar-h);
+  padding: 0 var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel-2);
+  cursor: grab;
+  user-select: none;
+}
+.pw-head:active {
+  cursor: grabbing;
+}
+.pw-power {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--accent);
+}
+.pw-power[aria-pressed='false'] {
+  background: transparent;
+}
+.pw-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.pw-name {
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+.pw-on {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pw-head .grow {
+  flex: 1 1 auto;
+}
+.pw-preset {
+  max-width: 130px;
+  height: var(--control-h-sm);
+  font-size: var(--fs-2xs);
+}
+.pw-ab {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+.pw-ab button {
+  width: 20px;
+  height: var(--control-h-sm);
+  padding: 0;
+  border: 0;
+  background: var(--bg-input);
+  color: var(--text-faint);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+}
+.pw-ab button.on {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.pw-ab button:hover:not(.on) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.pw-close {
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+}
+.pw-close:hover {
+  color: var(--text);
+}
+.pw-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  overflow: auto;
+  background: var(--bg-deep);
+}
+.pw-visual {
+  display: flex;
+  justify-content: center;
+}
+.pw-params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-4);
+  justify-content: center;
+}
+.pw-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: var(--toolbar-h-sm);
+  padding: 0 var(--sp-3);
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel-2);
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+.pw-foot .grow {
+  flex: 1 1 auto;
+}
+.pw-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @container mixer (max-height: 26.4em) {
+  .dev-rack {
+    max-height: calc(var(--dev-rack-h) * 0.6);
+  }
   .strip {
     grid-template-rows:
       auto /* name    */
@@ -1304,6 +1602,7 @@
       auto;
   }
   .strip-inserts,
+  .dev-rack,
   .strip-fx {
     display: none;
   }

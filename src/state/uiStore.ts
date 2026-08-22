@@ -86,6 +86,13 @@ interface UiState {
   channelOverview: boolean;
   /** cue mix being monitored on the main output, or null for the main mix */
   monitorCueId: string | null;
+  /**
+   * The device whose editor is open, addressed by the channel it sits on.
+   * One at a time: a console with six plugin windows open is a console you
+   * cannot see, and every DAW that allows it also gives you a way to close
+   * them all at once.
+   */
+  openDevice: { trackId: string; effectId: string } | null;
   /** Active arrangement tool */
   tool: ArrangeTool;
 
@@ -173,6 +180,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   exportOpen: false,
   channelOverview: true,
   monitorCueId: null,
+  openDevice: null,
   tool: 'pointer',
 
   selectedTrackId: null,
