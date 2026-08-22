@@ -155,8 +155,12 @@ describe('MotionSynth', () => {
     expect(trackOf(id).synth!.shape).toBeUndefined();
     expect(screen.getByRole('slider', { name: 'Shape' })).toHaveAttribute('aria-valuetext', 'Square');
     expect(screen.getByLabelText(/^Oscillator:/)).toHaveAccessibleName(/Square/);
-    // And the family it belongs to is the one that is lit.
+    // And the family it belongs to is the one that is lit — pressing it again
+    // must not answer, or the square would become the sawtooth underneath it.
     expect(screen.getByTitle('Saw to square')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByTitle('Saw to square'));
+    expect(trackOf(id).synth!.waveform).toBe('square');
+    expect(trackOf(id).synth!.shape).toBeUndefined();
   });
 
   it('draws the sub and the width sweep the voice builds, and says so', () => {

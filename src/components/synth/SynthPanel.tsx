@@ -439,10 +439,17 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
                     key={w.id}
                     className={family === w.id ? 'on' : ''}
                     aria-pressed={family === w.id}
-                    // Leaving the morph clears `shape` rather than parking it at
-                    // zero, so a triangle patch is stored exactly as a triangle
-                    // patch always was and builds the same one-oscillator voice.
-                    onClick={() => set(w.morphs ? { waveform: w.id } : { waveform: w.id, shape: undefined })}
+                    // Selecting the family already selected writes nothing:
+                    // a patch stored as a plain square belongs to this family
+                    // without holding a `shape`, and answering the click would
+                    // turn it into the sawtooth underneath. Leaving the morph
+                    // clears `shape` rather than parking it at zero, so a
+                    // triangle patch is stored exactly as a triangle patch
+                    // always was and builds the same one-oscillator voice.
+                    onClick={() => {
+                      if (family === w.id) return;
+                      set(w.morphs ? { waveform: w.id } : { waveform: w.id, shape: undefined });
+                    }}
                     title={w.name}
                   >
                     {w.short}

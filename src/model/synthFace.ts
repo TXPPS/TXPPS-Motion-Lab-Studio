@@ -283,8 +283,10 @@ export const SYNTH_PW_MAX = 0.9;
 /**
  * How far outside that range the LFO is allowed to push the duty. The extra
  * 0.05 either side is there so a sweep set at the end of the knob's travel
- * still moves; it stops short of 0 and 1, where the pulse would collapse into
- * the plain oscillator (delay zero) and the modulation would read as tremolo.
+ * still moves; it stops short of 0 and 1, where the delay is either nothing or
+ * a whole cycle — both of which hand back the same signal the subtraction
+ * started from, so the pulse collapses into the bare oscillator and the
+ * modulation is heard as a level dip rather than as a widening pulse.
  */
 export const SYNTH_PW_SWEEP_MIN = 0.05;
 export const SYNTH_PW_SWEEP_MAX = 0.95;
@@ -298,9 +300,9 @@ export const SYNTH_PW_SWEEP_MAX = 0.95;
  * pulse; scaled by less it is a saw with a notch in it. So one control moves
  * continuously from saw to square, a second sets the pulse's duty, and — the
  * reason it is built this way rather than from a `PeriodicWave` — the delay is
- * an `AudioParam`, so an LFO can sweep the width at audio rate. A wavetable
- * cannot be modulated at all, which would have made the width dial under the
- * LFO a control that did nothing.
+ * an `AudioParam`, so a modulator can sweep the width while the note sounds. A
+ * wavetable cannot be modulated at all, which would have left the width dial
+ * under the LFO a control that did nothing.
  *
  * `morph` is null both when the patch predates the morph (`shape` absent) and
  * when the morph is at the saw end, because in both cases the voice builds no

@@ -96,38 +96,42 @@ export function OscScope({
 }) {
   const { main, ghosts, subPath } = useMemo(() => {
     const samples = synthOscillatorPoints(osc, SCOPE_POINTS, SCOPE_CYCLES);
-    // Subtracting a delayed copy leaves a zero-mean pulse whose peak grows as
-    // the duty leaves the middle — a real property of the wave, not a drawing
-    // artefact — so the trace is only ever shrunk to fit, never magnified. A
-    // plain saw or square is drawn at exactly the size it always was.
-    const peak = samples.reduce((m, v) => Math.max(m, Math.abs(v)), 1);
-    const scale = 1 / peak;
-    const at = (duty: number) =>
+    const atDuty = (duty: number) =>
       Array.from({ length: SCOPE_POINTS }, (_, i) =>
         synthOscillatorSample(
           { type: osc.type, morph: { shape: osc.morph!.shape, width: duty, delayCycles: 1 - duty } },
           (i / (SCOPE_POINTS - 1)) * SCOPE_CYCLES,
         ),
       );
+    const swept =
+      osc.morph && widthSweep
+        ? [widthSweep.lowDuty, widthSweep.highDuty].map((duty) => ({
+            duty,
+            samples: atDuty(duty),
+          }))
+        : [];
+    const subSamples = sub
+      ? Array.from({ length: SCOPE_POINTS }, (_, i) =>
+          // Half the phase rate: one cycle of the sub spans two of the wave
+          // above it, which is what an octave down looks like.
+          oscillatorSample(SYNTH_SUB_WAVE, ((i / (SCOPE_POINTS - 1)) * SCOPE_CYCLES) / 2),
+        ).map((v) => v * sub.gain)
+      : null;
+
+    // Subtracting a delayed copy leaves a zero-mean pulse whose peak grows as
+    // the duty leaves the middle — a real property of the wave, not a drawing
+    // artefact. One scale across every trace therefore keeps the ends of a
+    // width sweep in proportion to the pulse they are sweeping, and shrinking
+    // only (never magnifying) leaves a plain saw or square drawn at exactly
+    // the size it always was.
+    const peak = [samples, ...swept.map((g) => g.samples), subSamples ?? []]
+      .flat()
+      .reduce((m, v) => Math.max(m, Math.abs(v)), 1);
+    const scale = 1 / peak;
     return {
       main: scopePath(samples, scale),
-      ghosts:
-        osc.morph && widthSweep
-          ? [widthSweep.lowDuty, widthSweep.highDuty].map((duty) => ({
-              duty,
-              d: scopePath(at(duty), scale),
-            }))
-          : [],
-      subPath: sub
-        ? scopePath(
-            Array.from({ length: SCOPE_POINTS }, (_, i) =>
-              // Half the phase rate: one cycle of the sub spans two of the wave
-              // above it, which is what an octave down looks like.
-              oscillatorSample(SYNTH_SUB_WAVE, ((i / (SCOPE_POINTS - 1)) * SCOPE_CYCLES) / 2),
-            ).map((v) => v * sub.gain),
-            scale,
-          )
-        : null,
+      ghosts: swept.map((g) => ({ duty: g.duty, d: scopePath(g.samples, scale) })),
+      subPath: subSamples ? scopePath(subSamples, scale) : null,
     };
   }, [osc, sub, widthSweep]);
 

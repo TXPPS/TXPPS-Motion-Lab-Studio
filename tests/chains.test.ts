@@ -12,14 +12,13 @@ import { applyChainSteps, captureChain, type ChainStepLike } from '../src/app/ch
 import { useChainStore, MAX_SAVED_CHAINS } from '../src/state/chainStore';
 import { useProjectStore } from '../src/state/projectStore';
 import { createEmptyProject } from '../src/model/demoProject';
-import type { Effect } from '../src/model/types';
+import type { EffectKind } from '../src/model/types';
 
 const store = () => useProjectStore.getState();
 
 function target(trackId: string) {
   return {
-    add: (kind: Parameters<typeof store>['0'] extends never ? never : Effect['kind']) =>
-      store().addEffect(trackId, kind),
+    add: (kind: EffectKind) => store().addEffect(trackId, kind),
     setParam: (id: string, key: string, value: number) =>
       store().setEffectParam(trackId, id, key, value),
     setBypass: (id: string, bypass: boolean) => store().setEffectBypass(trackId, id, bypass),

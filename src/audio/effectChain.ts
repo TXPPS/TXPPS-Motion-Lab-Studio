@@ -325,14 +325,14 @@ const MIN_ENVELOPE_TOP = 1e-5;
  * A WaveShaper is indexed linearly in amplitude while every one of these laws
  * is written in decibels, so resolution in dB collapses as the level falls: at
  * the default 2048 points the smallest envelope any curve entry stands for is
- * −66 dBFS, and consecutive entries below −40 dBFS are more than a decibel
- * apart. A compressor does not care, because it works near full scale where the
- * points are dense. An expander only ever works below its threshold, and the
- * default gate — threshold −45 dB, 8:1, 45 dB of range — had its entire law
- * described by eleven curve points: at −48 dBFS it delivered 18.73 dB of
- * attenuation where its face plots 21.00, at −51.4 dBFS it was out by 6.4 dB,
- * and a gate set below −67 dBFS had *no* points below its threshold at all and
- * did nothing whatsoever while the face drew a working expander.
+ * −66.2 dBFS, and around −45 dBFS consecutive entries are 1.4 dB apart. A
+ * compressor does not care, because it works near full scale where the points
+ * are dense. An expander only ever works below its threshold, and the default
+ * gate — threshold −45 dB, 8:1, 45 dB of range — had its entire law described
+ * by twelve curve points: at −48 dBFS it delivered 18.73 dB of attenuation
+ * where its face plots 21.00, at −51.4 dBFS it was out by 6.4 dB, and a gate
+ * set below −66.2 dBFS had *no* entry under its threshold at all and did
+ * nothing whatsoever while the face drew a working expander.
  *
  * Narrowing the sampled range is what fixes that, and it is free rather than a
  * trade: above its threshold an expander is exactly unity, and a WaveShaper
@@ -669,10 +669,14 @@ export interface ModulationClock {
 /**
  * The clock a chain uses when nobody supplies one: start now, at phase zero.
  *
- * That is what the live engine has always done, and it is honest for a graph
- * built while the transport is parked. Handing `sync` a real clock is what
- * makes a chain bar-locked; the offline renderer does, and the live engine can
- * once it has somewhere to read the transport's anchor from.
+ * That is what the live engine has always done, and it is the honest answer for
+ * a graph built while the transport is parked — which is when a channel's
+ * inserts are usually built, since a chain is rebuilt on a project change and
+ * not on play. `renderProject` supplies a real clock because a bounce has an
+ * exact one to give. Live, the anchor exists too — `Scheduler` keeps a list of
+ * `{ ctx, sec }` pairs, which is precisely this pair under other names — and
+ * passing the newest of them into `new InsertChain` is what would bar-lock
+ * playback as well.
  */
 function clockOf(ctx: BaseAudioContext, clock?: ModulationClock): ModulationClock {
   return clock ?? { startAt: ctx.currentTime, songSec: 0 };
@@ -699,9 +703,9 @@ function phaseAt(clock: ModulationClock, hz: number): number {
  * spread two voices, and a rotary put the doppler peak a quarter-turn away from
  * the amplitude peak, without a control-rate delay line.
  *
- * Nothing runs until `start` is called, because the phase a modulator should
- * begin at is not known at construction: it depends on the rate, and the rate
- * comes from the first `update`.
+ * Nothing runs, and no waveform is installed, until `start` is called: the
+ * phase a modulator should begin at is not known at construction, because it
+ * depends on the rate and the rate arrives with the first `update`.
  */
 class QuadratureLfo {
   readonly sine: OscillatorNode;
@@ -718,7 +722,6 @@ class QuadratureLfo {
     this.cosine = ctx.createOscillator();
     this.sine.frequency.value = hz;
     this.cosine.frequency.value = hz;
-    this.setWaves(0);
   }
 
   /**
@@ -1474,8 +1477,8 @@ const MAX_CRUSH_HOLD_SEC = 0.01;
  * held back by precisely as much and the two legs sum in time at every setting.
  */
 function buildBitcrusher(ctx: BaseAudioContext, effect: Effect): EffectNode {
-  // Room for the whole cascade at any rate the app can be asked to render, the
-  // same ceiling the stages' own delays are built with.
+  // The only wet/dry pair in this file that asks for an alignment delay, because
+  // this is the only wet path here whose latency is a number rather than a guess.
   const wd = new WetDry(ctx, MAX_CRUSH_HOLD_SEC);
   const quantiser = makeShaper(ctx, quantiserCurve(8));
   let bitsKey = -1;

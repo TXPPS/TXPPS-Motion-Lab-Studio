@@ -1930,6 +1930,14 @@
 .pw-foot .grow {
   flex: 1 1 auto;
 }
+/* The footer is a raised surface, and the palette states the rule for those in
+   `tokens.css`: text on --bg-raised is --text-dim or --text, never
+   --text-faint, which is a chrome colour meant for the recessed panel behind
+   them. `.t-label` defaults to faint, so the "Out" label on every device and
+   instrument footer was the one contrast failure axe found on those faces. */
+.pw-foot .t-label {
+  color: var(--text-dim);
+}
 .pw-summary {
   overflow: hidden;
   text-overflow: ellipsis;

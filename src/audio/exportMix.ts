@@ -427,9 +427,13 @@ export async function renderProject(
 
   const sampleRate = opts.sampleRate ?? 44100;
   const layout = renderLayout(durationSec, preRoll, sampleRate);
+  // Song time at the range start: every scheduled time in this render is
+  // measured from here, so it must exist before the first insert chain is
+  // built and before the first ramp is scheduled.
+  const rangeStartSec = projectBeatToSec(project, startBeat);
   // Every insert chain below is handed this, so a modulator starts where the
   // song says it is rather than where the render's own clock happens to be.
-  const modulation = renderModulationClock(projectBeatToSec(project, startBeat), preRoll);
+  const modulation = renderModulationClock(rangeStartSec, preRoll);
   const ctx = new OfflineAudioContext(2, layout.frames, sampleRate);
   // Plugins are resolved on the render's own context, before the graph is built
   // — the same rule decoded media follows, and for the same reason: the build
@@ -567,9 +571,6 @@ export async function renderProject(
   // ---- automation: fader-domain lanes become scheduled (sample-accurate)
   // ramps; insert-parameter lanes apply through a suspend/resume control grid;
   // synth-parameter lanes apply per note at schedule time (below). ----
-  // Song time at the range start: every scheduled time in this render is
-  // measured from here, so it must exist before the first ramp is scheduled.
-  const rangeStartSec = projectBeatToSec(project, startBeat);
   // The render clock is song seconds measured from the range start, so every
   // automation ramp converts through the tempo map rather than through one
   // seconds-per-beat — a lane written over a ritard lands where it was drawn.

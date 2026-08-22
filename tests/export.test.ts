@@ -4,6 +4,7 @@ import {
   audioBufferToWav,
   preRollForProject,
   renderLayout,
+  renderModulationClock,
   renderProject,
   scheduleLaneOnParam,
   sidechainRouting,
@@ -219,6 +220,43 @@ describe('render layout', () => {
     const l = renderLayout(3.5, 0, 44100);
     expect(l.trimFrames).toBe(0);
     expect(l.frames).toBe(Math.ceil(3.5 * 44100));
+  });
+});
+
+/**
+ * The other half of what a pre-rolled render has to get right. The layout says
+ * how much silence is thrown away; this says where the render's clock sits in
+ * the song, which is what a modulator's phase is derived from — and getting it
+ * wrong is what made a bounce of bars 5-8 print a different tremolo phase from
+ * the same bars inside a full-song bounce.
+ */
+describe('modulation clock', () => {
+  it('puts context zero one run-up before the range start', () => {
+    // A full-song bounce begins the render `preRoll` seconds before song zero,
+    // so context zero is at a negative song time.
+    expect(renderModulationClock(0, 2)).toEqual({ startAt: 0, songSec: -2 });
+    // Bars 5-8 at 120 bpm start eight seconds in, so the same run-up now sits
+    // at song second six.
+    expect(renderModulationClock(8, 2)).toEqual({ startAt: 0, songSec: 6 });
+  });
+
+  it('maps the delivered range to the same song time whatever the range is', () => {
+    // The renderer places every clip and note at `preRoll + (songSec -
+    // rangeStart)`. Read at that instant, the clock reports the song second
+    // asked for — which is the whole property, stated without an audio graph.
+    for (const preRoll of [0, 2, 4.5]) {
+      for (const rangeStart of [0, 8, 137.25]) {
+        const clock = renderModulationClock(rangeStart, preRoll);
+        for (const songSec of [rangeStart, rangeStart + 1.7]) {
+          const contextTime = preRoll + (songSec - rangeStart);
+          expect(clock.songSec + (contextTime - clock.startAt)).toBeCloseTo(songSec, 9);
+        }
+      }
+    }
+  });
+
+  it('treats a negative pre-roll as none, because the layout does', () => {
+    expect(renderModulationClock(4, -1).songSec).toBe(4);
   });
 });
 

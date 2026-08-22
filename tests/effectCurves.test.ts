@@ -733,6 +733,35 @@ function gainOf(node: RecordingNode, connections: Connection[]): number {
 }
 
 /**
+ * Connections out of, and into, one node.
+ *
+ * The node is `unknown` on purpose. What is being asked is identity — is this
+ * the very object the builder wired? — and a built `EffectNode` hands its ends
+ * back typed as `AudioNode` while the recorder deals in stand-ins, so a typed
+ * comparison is one TypeScript can prove is always false. Narrowing the
+ * parameter instead of casting the argument keeps the question honest: a lookup
+ * that finds nothing still finds nothing, rather than being told it cannot.
+ */
+function fedBy(connections: Connection[], node: unknown): Connection[] {
+  return connections.filter((c) => c.from === node);
+}
+
+function feeding(connections: Connection[], node: unknown): Connection[] {
+  return connections.filter((c) => c.to === node);
+}
+
+/** Every DelayNode anywhere in a recorded graph. */
+function delayNodesIn(connections: Connection[]): RecordingNode[] {
+  const found = new Set<RecordingNode>();
+  for (const c of connections) {
+    for (const end of [c.from, c.to]) {
+      if ('kind' in end && end.kind === 'delay') found.add(end as RecordingNode);
+    }
+  }
+  return [...found];
+}
+
+/**
  * What an oscillator is putting out at context time `t`.
  *
  * The Web Audio definition of a `PeriodicWave`, evaluated: harmonic k
@@ -1650,8 +1679,8 @@ describe("the tremolo's three-position stereo phase", () => {
     const node = buildEffectNode(ctx, effect);
     node.update(effect, 120, false);
     // The right channel's summing node is fed by exactly the three taps.
-    const right = connections.find(
-      (c) => c.to === node.output && c.output === 0 && c.input === 1,
+    const right = feeding(connections, node.output).find(
+      (c) => c.output === 0 && c.input === 1,
     )!.from;
     const depth = connections.find((c) => c.to === (right.gain as RecordingParam))!.from;
     const sum = connections.find((c) => c.to === depth)!.from;
@@ -1725,8 +1754,8 @@ describe('a modulator that prints the phase it was monitored at', () => {
     const node = buildEffectNode(ctx, effect, renderModulationClock(rangeStartSec, PRE_ROLL));
     node.update(effect, BPM, false);
     // The left channel's VCA, identified by the merger input it feeds.
-    const left = connections.find(
-      (c) => c.to === node.output && c.output === 0 && c.input === 0,
+    const left = feeding(connections, node.output).find(
+      (c) => c.output === 0 && c.input === 0,
     )!.from;
     return (songSec) =>
       paramAt(left.gain as RecordingParam, connections, PRE_ROLL + songSec - rangeStartSec);
@@ -1963,8 +1992,8 @@ describe('the Mix control as a blend rather than a comb', () => {
       const { ctx, connections } = recordingContext();
       const node = buildEffectNode(ctx, effect);
       node.update(effect, 120, false);
-      const align = connections.find(
-        (c) => c.from === node.input && 'kind' in c.to && c.to.kind === 'delay',
+      const align = fedBy(connections, node.input).find(
+        (c) => 'kind' in c.to && c.to.kind === 'delay',
       )!.to as RecordingNode;
       const dry = (align.delayTime as RecordingParam).value * SR;
       const wet = cascadeDelaySamples(node, connections);
@@ -1985,16 +2014,27 @@ describe('the Mix control as a blend rather than a comb', () => {
     // must not happen is a guess — a dry delay of the wrong length moves the
     // null rather than removing it — so there is no alignment delay there at
     // all, and the parameter's declaration says so.
+    //
+    // Counted over the whole graph rather than off the input's own connections,
+    // so "none" is a statement about the insert and not about where this test
+    // happened to look. The crusher is the control: the same count finds its
+    // seven, so a zero here is a real zero.
     for (const kind of ['saturator', 'distortion'] as EffectKind[]) {
       const { ctx, connections } = recordingContext();
       const effect = effectOf(kind);
       const node = buildEffectNode(ctx, effect);
       node.update(effect, 120, false);
-      const delays = connections.filter(
-        (c) => c.from === node.input && 'kind' in c.to && c.to.kind === 'delay',
+      expect(fedBy(connections, node.input).length, `${kind} wired nothing`).toBeGreaterThan(0);
+      expect(delayNodesIn(connections), `${kind} carries a delay it cannot have measured`).toEqual(
+        [],
       );
-      expect(delays.length, `${kind} added a dry delay it cannot have measured`).toBe(0);
     }
+
+    const { ctx, connections } = recordingContext();
+    const crusher = effectOf('bitcrusher');
+    buildEffectNode(ctx, crusher).update(crusher, 120, false);
+    // Six hold stages and the one dry leg that lines up with them.
+    expect(delayNodesIn(connections).length).toBe(7);
   });
 });
 

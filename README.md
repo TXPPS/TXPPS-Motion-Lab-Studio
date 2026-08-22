@@ -317,11 +317,18 @@ npm install
 npm run dev        # start dev server
 npm run build      # type-check + production build (dist/)
 npm run preview    # serve the production build on :4173
+npm run typecheck  # type-check alone, without the build
 npm test           # Vitest unit tests
 npm run e2e        # Playwright browser + responsive tests (uses the preview build)
 npm run lint       # ESLint
 npm run format     # Prettier
 ```
+
+**Type-check with `npm run typecheck`, never with a bare `npx tsc --noEmit`.**
+The root `tsconfig.json` is `files: []` with project references, so a bare
+`tsc --noEmit` type-checks *nothing*, reports success, and lets a broken build
+through. `npm run typecheck` runs `tsc -b`, which is the same check
+`npm run build` performs.
 
 ## QA routes
 

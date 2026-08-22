@@ -1438,7 +1438,11 @@ export function normaliseParams(
   const out: Record<string, number> = {};
   const carried = carriedForward(kind, params);
   for (const p of spec.params) {
-    const raw = params?.[p.key] ?? carried[p.key];
+    // A carried-forward value stands in only where the file has no usable
+    // number of its own — including where it has an unusable one, so a corrupt
+    // entry under the new key cannot beat a good one under the old.
+    const stored = params?.[p.key];
+    const raw = typeof stored === 'number' && Number.isFinite(stored) ? stored : carried[p.key];
     const n = typeof raw === 'number' && Number.isFinite(raw) ? raw : p.default;
     const clamped = Math.min(p.max, Math.max(p.min, n));
     // A choice is an index: a fractional value would name no setting at all.

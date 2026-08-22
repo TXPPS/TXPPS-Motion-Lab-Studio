@@ -271,6 +271,16 @@ describe("the tremolo's stereo phase, a switch declared as a knob", () => {
     expect('stereoPhase' in params).toBe(false);
   });
 
+  it('prefers the old degrees to an unusable value under the new key', () => {
+    // A corrupt entry is not a setting, so it must not outrank the one number
+    // in the file that does say what the tremolo was doing.
+    const params = normaliseParams('tremolo', {
+      stereoPhase: 180,
+      phaseOffset: 'left' as unknown as number,
+    });
+    expect(params.phaseOffset).toBe(2);
+  });
+
   it('falls back to the default when there is nothing to carry forward', () => {
     expect(normaliseParams('tremolo', {}).phaseOffset).toBe(0);
     expect(normaliseParams('tremolo', { stereoPhase: NaN }).phaseOffset).toBe(0);

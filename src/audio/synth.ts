@@ -213,8 +213,11 @@ class Voice {
       }
       if (lfo.toWidthDuty > 0 && morphDelay) {
         const g = ctx.createGain();
-        // Duty is a fraction of a cycle; the delay wants seconds, and one
-        // cycle is 1/f of them.
+        // Duty is a fraction of a cycle; the delay wants seconds, and one cycle
+        // is 1/f of them. Fixed at the note's own pitch, so a voice that is
+        // gliding or being bent sweeps a duty that widens slightly as it falls
+        // — a fraction of a percent over a musical interval, and the price of
+        // the delay line being where the pulse comes from.
         g.gain.value = lfo.toWidthDuty / freqHz;
         mod.connect(g);
         g.connect(morphDelay.delayTime);

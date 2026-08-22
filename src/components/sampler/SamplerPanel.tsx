@@ -1651,7 +1651,11 @@ function describeSampler(
   const filter = samplerVoiceFilter(params);
   const lfo = samplerLfoOf(params);
   return [
-    `${params.zones.length} zone${params.zones.length === 1 ? '' : 's'}`,
+    // A drum rack's zones are pads, and the reference is explicit that a device
+    // should be described in the words its own face uses (§4.1).
+    `${params.zones.length} ${params.view === 'drum' ? 'pad' : 'zone'}${
+      params.zones.length === 1 ? '' : 's'
+    }`,
     filter ? `${filter.type === 'lowpass' ? 'LP' : 'HP'} ${formatHz(filter.freqHz)}` : 'no filter',
     `A ${formatSeconds(params.attack)} · R ${formatSeconds(params.release)}`,
     lfo ? `LFO ${lfo.rateHz.toFixed(2)} Hz → ${lfo.target}` : 'no LFO',
