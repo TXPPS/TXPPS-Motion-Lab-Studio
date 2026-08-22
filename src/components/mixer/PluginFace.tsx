@@ -48,6 +48,12 @@ import {
   matchTrimFor,
 } from '../../model/effects';
 import { clamp } from '../../model/music';
+import {
+  DEFAULT_MIN_CONFIDENCE,
+  noteFromHz,
+  PitchDetector,
+  type PitchReading,
+} from '../../model/pitch';
 import { KEY_NAMES, scaleById, snapToScale } from '../../model/scales';
 import type { Effect } from '../../model/types';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
@@ -1230,6 +1236,154 @@ function MatchFace({
   );
 }
 
+/** How often the tuner runs YIN. A tuner that updates eight times a second
+ *  reads as immediate; running the detector on every animation frame would
+ *  spend three million operations sixty times a second to say the same thing. */
+const TUNER_INTERVAL_MS = 120;
+/** The window either side of a note that counts as in tune, in cents. */
+const TUNER_IN_TUNE_CENTS = 5;
+/** The needle's span. Past this the reading is another note's problem. */
+const TUNER_SPAN_CENTS = 50;
+
+/**
+ * The tuner.
+ *
+ * It used to draw an oscilloscope: a picture of the waveform, from a device
+ * whose entire job is to say *which note* and *how far off*. Everything needed
+ * to answer that was already written — `model/pitch.ts` has YIN and
+ * `noteFromHz` names a frequency against a reference A — and nothing had ever
+ * asked it. This asks it, eight times a second, and draws the answer.
+ *
+ * The reference parameter is A4's tuning, so an orchestra at 442 or a period
+ * instrument at 415 gets a needle that agrees with the room rather than a
+ * constant twenty-eight cents of error.
+ */
+function TunerFace({ trackId, effect }: { trackId: string; effect: Effect }) {
+  const referenceHz = paramOf(effect, 'reference');
+  const [reading, setReading] = useState<PitchReading>({ hz: 0, confidence: 0 });
+
+  useEffect(() => {
+    let detector: PitchDetector | null = null;
+    let window: Float32Array | null = null;
+    let nextRun = 0;
+    setReading({ hz: 0, confidence: 0 });
+    return engine.onFrame(() => {
+      const tap = engine.effectTap(trackId, effect.id);
+      const ctx = engine.context;
+      if (!tap || !ctx) return;
+      const now = ctx.currentTime * 1000;
+      if (now < nextRun) return;
+      nextRun = now + TUNER_INTERVAL_MS;
+      if (!window || window.length !== tap.fftSize) window = new Float32Array(tap.fftSize);
+      if (!detector || detector.sampleRate !== ctx.sampleRate) {
+        detector = new PitchDetector(ctx.sampleRate);
+      }
+      tap.getFloatTimeDomainData(window);
+      // Low B on a five-string bass is 31 Hz; the top of a violin's range is
+      // about 3.5 kHz. Outside that a tuner is guessing at a harmonic.
+      const next = detector.detect(window, { minHz: 28, maxHz: 3600 });
+      setReading((prev) =>
+        prev.hz === next.hz && prev.confidence === next.confidence ? prev : next,
+      );
+    });
+  }, [trackId, effect.id]);
+
+  const voiced = reading.hz > 0 && reading.confidence >= DEFAULT_MIN_CONFIDENCE;
+  const note = voiced ? noteFromHz(reading.hz, referenceHz) : null;
+  const cents = note ? clamp(note.cents, -TUNER_SPAN_CENTS, TUNER_SPAN_CENTS) : 0;
+  const inTune = note !== null && Math.abs(note.cents) <= TUNER_IN_TUNE_CENTS;
+
+  const W = CURVE_W;
+  const H = CURVE_H;
+  const cx = W / 2;
+  const needleX = cx + (cents / TUNER_SPAN_CENTS) * (W / 2 - 10);
+
+  return (
+    <div className={`fx-tuner${inTune ? ' in-tune' : ''}`} data-testid="fx-tuner">
+      <div className="fx-tuner-note" aria-live="off">
+        <span className="fx-tuner-name">{note ? `${note.name}${note.octave}` : '—'}</span>
+        <span className="fx-tuner-cents t-num">
+          {note ? `${note.cents > 0 ? '+' : ''}${note.cents.toFixed(0)}¢` : 'play a note'}
+        </span>
+      </div>
+      <svg
+        width={W}
+        height={H}
+        className="fx-curve"
+        viewBox={`0 0 ${W} ${H}`}
+        aria-label={
+          note
+            ? `${note.name}${note.octave}, ${Math.abs(note.cents).toFixed(0)} cents ${
+                note.cents > 0 ? 'sharp' : 'flat'
+              }, ${reading.hz.toFixed(1)} hertz`
+            : 'No note detected'
+        }
+      >
+        {/* The scale: a tick every ten cents, and the in-tune window drawn as
+            a band rather than a line, because ±5 cents is what "in tune"
+            actually means on a fretted instrument. */}
+        <rect
+          x={cx - (TUNER_IN_TUNE_CENTS / TUNER_SPAN_CENTS) * (W / 2 - 10)}
+          y={H * 0.32}
+          width={((2 * TUNER_IN_TUNE_CENTS) / TUNER_SPAN_CENTS) * (W / 2 - 10)}
+          height={H * 0.4}
+          fill="var(--accent)"
+          opacity={inTune ? 0.28 : 0.1}
+        />
+        {[-50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50].map((c) => {
+          const x = cx + (c / TUNER_SPAN_CENTS) * (W / 2 - 10);
+          const tall = c === 0 || c === -50 || c === 50;
+          return (
+            <line
+              key={c}
+              x1={x}
+              y1={tall ? H * 0.24 : H * 0.34}
+              x2={x}
+              y2={tall ? H * 0.78 : H * 0.66}
+              stroke="var(--grid-sub)"
+            />
+          );
+        })}
+        {note && (
+          <>
+            <line
+              x1={needleX}
+              y1={H * 0.16}
+              x2={needleX}
+              y2={H * 0.86}
+              stroke={inTune ? 'var(--accent)' : 'var(--warm, var(--accent))'}
+              strokeWidth="2.4"
+            />
+            {/* Which way to turn the peg, which is the thing a player wants
+                before they want a number. */}
+            <text
+              x={8}
+              y={H * 0.94}
+              fontSize="9"
+              fill={note.cents < -TUNER_IN_TUNE_CENTS ? 'var(--text)' : 'var(--text-faint)'}
+            >
+              ♭ flat
+            </text>
+            <text
+              x={W - 8}
+              y={H * 0.94}
+              fontSize="9"
+              textAnchor="end"
+              fill={note.cents > TUNER_IN_TUNE_CENTS ? 'var(--text)' : 'var(--text-faint)'}
+            >
+              sharp ♯
+            </text>
+          </>
+        )}
+      </svg>
+      <div className="fx-tuner-foot t-num">
+        <span>{voiced ? `${reading.hz.toFixed(1)} Hz` : '—'}</span>
+        <span>A = {referenceHz.toFixed(1)} Hz</span>
+      </div>
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------ face
 
 /**
@@ -1254,6 +1408,7 @@ export function faceKindOf(
   | 'width'
   | 'tune'
   | 'match'
+  | 'tuner'
   | 'spectrum'
   | 'scope'
   | null {
@@ -1291,7 +1446,7 @@ export function faceKindOf(
     case 'analyser':
       return 'spectrum';
     case 'tuner':
-      return 'scope';
+      return 'tuner';
     case 'vocaltune':
       return 'tune';
     case 'gainMatch':
@@ -1379,8 +1534,14 @@ export function EffectVisual({
       />
     );
   }
+  if (face === 'tuner') {
+    return <TunerFace trackId={trackId} effect={effect} />;
+  }
   if (face === 'spectrum' || face === 'scope') {
-    return <TapFace trackId={trackId} effect={effect} mode={face} />;
+    // The device offers both readings of the same tap; which one is drawn is
+    // the user's choice, not a property of the kind.
+    const mode = choiceOf(effect, 'view') === 1 ? 'scope' : 'spectrum';
+    return <TapFace trackId={trackId} effect={effect} mode={mode} />;
   }
   return null;
 }

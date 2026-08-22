@@ -654,6 +654,8 @@ export const EFFECT_SPECS: EffectSpec[] = [
     blurb: 'Spectrum and scope tap. Passes audio through untouched.',
     group: 'utility',
     params: [
+      // The blurb promised both and the face only ever drew the spectrum.
+      choice('view', 'View', ['Spectrum', 'Scope']),
       choice('resolution', 'Resolution', ANALYSER_CHOICES, 2),
       {
         key: 'smoothing',

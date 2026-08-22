@@ -300,7 +300,9 @@ const probe = () => {
     const parts = [];
     for (let n = el; n && n.nodeType === 1 && parts.length < 6; n = n.parentElement) {
       const tid = n.getAttribute('data-testid');
-      if (tid) {
+      // React's useId values (":r7:") are testids only by accident — they say
+      // nothing about the component and change between builds.
+      if (tid && !/^:r/.test(tid)) {
         parts.unshift(`[data-testid="${tid}"]`);
         break;
       }
@@ -401,6 +403,13 @@ const probe = () => {
           over: Math.round(over),
           boxW: Math.round(rect.width),
           overflowX: ox,
+          /*
+           * A one-line label cut off with an ellipsis is a deliberate design
+           * decision — a name longer than its column — not a defect. Recorded
+           * so the report can sort those below the hard cuts instead of
+           * burying eleven real bugs under sixty intended ones.
+           */
+          ellipsis: cs.textOverflow === 'ellipsis' && cs.whiteSpace.startsWith('nowrap'),
         });
       }
       if (clipped && hasOwnText(el) && cs.textOverflow !== 'ellipsis') {
@@ -549,6 +558,14 @@ async function openClip(page, notes) {
   await settle(page, 400);
 }
 
+/**
+ * Reporting order, worst first: a control pushed off the screen, then content
+ * cut with no ellipsis, then a spill, then the deliberate ellipsis cases, and
+ * the advisory tap targets last.
+ */
+const rank = (f) =>
+  ({ viewport: 0, clipped: 1, truncated: 2, spill: 3, tap: 5 })[f.kind] + (f.ellipsis ? 3.5 : 0);
+
 /** Collapse repeats, keep the worst offender of each, and sort for diffing. */
 function dedupe(findings) {
   const byKey = new Map();
@@ -567,9 +584,8 @@ function dedupe(findings) {
       seen.boxW = f.boxW;
     }
   }
-  const order = { viewport: 0, clipped: 1, truncated: 2, spill: 3, tap: 4 };
   return [...byKey.values()].sort(
-    (a, b) => order[a.kind] - order[b.kind] || (b.over ?? 0) - (a.over ?? 0) || a.sig.localeCompare(b.sig),
+    (a, b) => rank(a) - rank(b) || (b.over ?? 0) - (a.over ?? 0) || a.sig.localeCompare(b.sig),
   );
 }
 
@@ -580,6 +596,8 @@ const KIND_LABEL = {
   spill: 'SPILL     ',
   tap: 'TAP-TARGET',
 };
+
+const labelFor = (f) => (f.kind === 'clipped' && f.ellipsis ? 'ELLIPSIS  ' : KIND_LABEL[f.kind]);
 
 function printSurface(surfaceId, result) {
   const real = result.findings.filter((f) => f.kind !== 'tap');
@@ -592,7 +610,7 @@ function printSurface(surfaceId, result) {
   for (const f of real) {
     const many = f.count > 1 ? ` x${f.count}` : '';
     const px = f.over !== undefined ? `${String(f.over).padStart(4)}px` : '     ';
-    console.log(`      ${KIND_LABEL[f.kind]} ${px}${many}  ${f.sel}`);
+    console.log(`      ${labelFor(f)} ${px}${many}  ${f.sel}`);
     if (f.text) console.log(`                          "${f.text}"`);
   }
   if (taps.length) {
@@ -732,7 +750,7 @@ console.log('\n=== DISTINCT DEFECTS (across all viewports) ===');
 for (const f of report.summary.distinct) {
   if (f.kind === 'tap') continue;
   console.log(
-    `${KIND_LABEL[f.kind]} ${String(f.worstOverPx ?? '').padStart(4)}px  ${f.sig}\n` +
+    `${labelFor(f)} ${String(f.worstOverPx ?? '').padStart(4)}px  ${f.sig}\n` +
       `             at ${f.sel}\n` +
       `             ${f.viewports.join(', ')}\n` +
       `             ${f.surfaces.slice(0, 6).join(', ')}${f.surfaces.length > 6 ? ` (+${f.surfaces.length - 6})` : ''}`,

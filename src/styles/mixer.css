@@ -961,6 +961,44 @@
   border-radius: var(--radius-xs);
 }
 
+/* The tuner. A note, how far off it is, and which way to turn the peg —
+   in that order of size, because that is the order they are wanted in. */
+.fx-tuner {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.fx-tuner-note {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--sp-3);
+}
+.fx-tuner-name {
+  font-family: var(--font-num);
+  font-size: calc(28px * var(--ui-scale));
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.fx-tuner.in-tune .fx-tuner-name {
+  color: var(--accent);
+}
+.fx-tuner-cents {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+.fx-tuner-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+
 /* Gain Match: the measurement, and the one action it exists for. */
 .fx-match {
   display: flex;
