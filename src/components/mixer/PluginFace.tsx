@@ -12,12 +12,14 @@
  */
 import { memo, useEffect, useMemo, useRef } from 'react';
 import {
-  compressorGain,
+  complexMagnitudeDb,
+  crossoverResponse,
   dbToGain,
   eqMagnitudeResponse,
-  expanderGain,
   logFrequencies,
   saturationCurve,
+  type Complex,
+  type CrossoverResponse,
   type EqBandSpec,
   type SaturationModel,
 } from '../../audio/dsp/curves';
@@ -26,9 +28,15 @@ import {
   EQ8_BANDS,
   choiceName,
   choiceOf,
+  deesserBand,
+  dynamicsGain,
+  dynamicsLawOf,
   eq8Bands,
+  formatHz,
   formatParam,
+  multibandSplits,
   paramOf,
+  type DynamicsLaw,
   type ParamSpec,
 } from '../../model/effects';
 import { clamp } from '../../model/music';
@@ -175,7 +183,15 @@ export const FxKnob = memo(function FxKnob({
 
 const MIN_HZ = 20;
 const MAX_HZ = 20000;
-const xOfHz = (hz: number) => (Math.log(hz / MIN_HZ) / Math.log(MAX_HZ / MIN_HZ)) * CURVE_W;
+/**
+ * Rate the response plots are computed at. Fixed rather than the device's, so
+ * a curve does not change shape when a project is opened on other hardware;
+ * every corner these plots show is far enough below Nyquist for it not to
+ * matter which rate the audio is actually running at.
+ */
+const PLOT_RATE = 48000;
+const xOfHz = (hz: number, width = CURVE_W) =>
+  (Math.log(hz / MIN_HZ) / Math.log(MAX_HZ / MIN_HZ)) * width;
 const hzOfX = (x: number) => MIN_HZ * Math.pow(MAX_HZ / MIN_HZ, clamp(x / CURVE_W, 0, 1));
 const yOfDb = (db: number, range: number) => CURVE_H / 2 - (db / range) * (CURVE_H / 2);
 
@@ -285,7 +301,7 @@ function EqFace({
       eqMagnitudeResponse(
         bands.map((b) => b.spec),
         freqs,
-        48000,
+        PLOT_RATE,
       ),
     [bands, freqs],
   );
@@ -363,59 +379,121 @@ function EqFace({
 
 // -------------------------------------------------------- dynamics curve
 
+/** Extra height a band-limited face gives to the strip under its curve. */
+const BAND_STRIP_H = 24;
+
+/** The multiband's spectrum plot, sized so the whole face matches the EQ's. */
+const SPLIT_W = 184;
+
+/** Depth of the crossover plot, in dB below unity. */
+const SPLIT_RANGE_DB = 24;
+
+/** Live gain-reduction meter. Reads the running node; silent in a bounce. */
+function GrMeter({
+  trackId,
+  effectId,
+  title,
+}: {
+  trackId: string;
+  effectId: string;
+  title: string;
+}) {
+  const fillRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    return engine.onFrame(() => {
+      const gr = engine.gainReductionOf(trackId, effectId);
+      const n = clamp(-gr / 24, 0, 1);
+      if (fillRef.current) fillRef.current.style.transform = `scaleY(${n})`;
+      if (textRef.current) {
+        textRef.current.textContent = `${gr <= -0.05 ? gr.toFixed(1) : '0.0'} dB`;
+      }
+    });
+  }, [trackId, effectId]);
+
+  return (
+    <div className="fx-gr" title={title}>
+      <div className="fx-gr-track">
+        <div className="fx-gr-fill" ref={fillRef} />
+      </div>
+      <span className="fx-gr-val" ref={textRef}>
+        0.0 dB
+      </span>
+      <span className="fx-gr-label">GR</span>
+    </div>
+  );
+}
+
+/** What a processor calls the level its law turns at. */
+function turnLabelOf(kind: string): string {
+  return kind === 'limiter' ? 'Ceiling' : 'Threshold';
+}
+
 /**
  * Transfer curve for a dynamics processor, plus a live gain-reduction meter.
  *
- * The curve is computed from the same gain functions the DSP uses, so the knee
- * drawn is the knee heard. The GR meter reads the running node; it reads zero
- * in an offline render, where an analyser returns silence.
+ * The law is not read off the parameters here — it is asked for by name
+ * (`dynamicsLawOf`), and the audio fills its shaper from that same answer, so
+ * the knee drawn is the knee heard whichever processor this is. It used to be
+ * read off `threshold`, `ratio` and `knee`, which is why the limiter — which
+ * declares none of them — drew a straight line for a 20:1 brickwall.
+ *
+ * A band-limited processor gets a strip under the curve showing where in the
+ * spectrum it works, drawn from the same filter the audio puts there: without
+ * it the face claims a de-esser is compressing the whole mix.
  */
 function DynamicsFace({
   effect,
   trackId,
-  expander,
+  law,
 }: {
   effect: Effect;
   trackId: string;
-  expander?: boolean;
+  law: DynamicsLaw;
 }) {
-  const grRef = useRef<HTMLDivElement>(null);
-  const grText = useRef<HTMLSpanElement>(null);
-  const threshold = paramOf(effect, 'threshold');
-  const ratio = paramOf(effect, 'ratio');
-  const knee = paramOf(effect, 'knee');
-  const range = paramOf(effect, 'range');
-
-  useEffect(() => {
-    return engine.onFrame(() => {
-      const gr = engine.gainReductionOf(trackId, effect.id);
-      const n = clamp(-gr / 24, 0, 1);
-      if (grRef.current) grRef.current.style.transform = `scaleY(${n})`;
-      if (grText.current) grText.current.textContent = `${gr <= -0.05 ? gr.toFixed(1) : '0.0'} dB`;
-    });
-  }, [trackId, effect.id]);
+  // Only a processor that works on part of the spectrum has one.
+  const band = effect.kind === 'deesser' ? deesserBand(effect) : null;
+  const bandFreqs = useMemo(() => (band ? logFrequencies(80, MIN_HZ, MAX_HZ) : []), [band]);
+  const bandDb = useMemo(
+    () => (band ? eqMagnitudeResponse([band], bandFreqs, PLOT_RATE) : []),
+    [band, bandFreqs],
+  );
 
   const pts: string[] = [];
   for (let i = 0; i <= 60; i++) {
     const inDb = -60 + i;
-    // Both gain laws take a LINEAR envelope and return a LINEAR gain, so the
-    // dB axis converts on the way in and on the way out.
-    const gain = expander
-      ? expanderGain(dbToGain(inDb), threshold, ratio, range)
-      : compressorGain(dbToGain(inDb), threshold, ratio, knee);
+    // The law takes a LINEAR envelope and returns a LINEAR gain, so the dB
+    // axis converts on the way in and on the way out.
+    const gain = dynamicsGain(law, dbToGain(inDb));
     const outDb = inDb + 20 * Math.log10(Math.max(gain, 1e-6));
     const x = ((inDb + 60) / 60) * CURVE_H;
     const y = CURVE_H - ((outDb + 60) / 60) * CURVE_H;
     pts.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${clamp(y, -20, CURVE_H + 20).toFixed(1)}`);
   }
 
+  const turnX = ((law.thresholdDb + 60) / 60) * CURVE_H;
+  // The marker label sits on whichever side of its line has room; a limiter's
+  // ceiling is within a decibel of full scale, hard against the right edge.
+  const turnRight = turnX > CURVE_H * 0.6;
+  const bandPath = bandFreqs
+    .map((hz, i) => {
+      const y = BAND_STRIP_H - clamp((bandDb[i] + 30) / 30, 0, 1) * (BAND_STRIP_H - 2);
+      return `${i === 0 ? 'M' : 'L'} ${xOfHz(hz, CURVE_H).toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join(' ');
+
   return (
     <div className="fx-dyn">
       <svg
         width={CURVE_H}
-        height={CURVE_H}
+        height={band ? CURVE_H + BAND_STRIP_H : CURVE_H}
         className="fx-curve"
-        aria-label="Dynamics transfer curve"
+        aria-label={
+          band
+            ? `Transfer curve for the ${formatHz(band.freqHz)} band only`
+            : `${turnLabelOf(effect.kind)} transfer curve`
+        }
       >
         <line
           x1={0}
@@ -436,24 +514,161 @@ function DynamicsFace({
           />
         ))}
         <line
-          x1={((threshold + 60) / 60) * CURVE_H}
+          x1={turnX}
           y1={0}
-          x2={((threshold + 60) / 60) * CURVE_H}
+          x2={turnX}
           y2={CURVE_H}
           stroke="var(--warm)"
           strokeDasharray="2 3"
         />
+        <text
+          x={turnRight ? turnX - 3 : turnX + 3}
+          y={9}
+          fontSize={8}
+          fill="var(--warm)"
+          textAnchor={turnRight ? 'end' : 'start'}
+        >
+          {turnLabelOf(effect.kind)}
+        </text>
+        {band && (
+          <text x={3} y={9} fontSize={8} fill="var(--text-faint)">
+            {formatHz(band.freqHz)} band
+          </text>
+        )}
         <path d={pts.join(' ')} fill="none" stroke="var(--accent)" strokeWidth="1.8" />
+        {band && (
+          <g transform={`translate(0 ${CURVE_H})`}>
+            <line
+              x1={0}
+              y1={BAND_STRIP_H}
+              x2={CURVE_H}
+              y2={BAND_STRIP_H}
+              stroke="var(--grid-bar)"
+            />
+            <path d={bandPath} fill="none" stroke="var(--info)" strokeWidth="1.4" />
+          </g>
+        )}
       </svg>
-      <div className="fx-gr" title="Gain reduction">
-        <div className="fx-gr-track">
-          <div className="fx-gr-fill" ref={grRef} />
-        </div>
-        <span className="fx-gr-val" ref={grText}>
-          0.0 dB
-        </span>
-        <span className="fx-gr-label">GR</span>
-      </div>
+      <GrMeter trackId={trackId} effectId={effect.id} title="Gain reduction" />
+    </div>
+  );
+}
+
+/**
+ * Multiband face: the crossover, not a transfer curve.
+ *
+ * This one gets a different picture on purpose. Its three bands are native
+ * `DynamicsCompressorNode`s, so there is no curve here that the audio is
+ * filled from — a transfer plot would be our guess at the browser's knee law,
+ * which is the same class of lie as the straight line it replaces. Per-band
+ * gain reduction is not on offer either: the node publishes one figure, the
+ * worst of the three. What *is* shared is the crossover — the same
+ * Linkwitz-Riley maths the filters are built from, at the same two splits,
+ * clamped the same way — so the face shows the thing this processor actually
+ * is: three bands, split here, each compressed at its own ratio.
+ */
+function MultibandFace({ effect, trackId }: { effect: Effect; trackId: string }) {
+  const { lowHz, highHz } = multibandSplits(effect);
+  const response = useMemo(() => {
+    const freqs = logFrequencies(150, MIN_HZ, MAX_HZ);
+    return freqs.map((hz) => ({ hz, bands: crossoverResponse(hz, lowHz, highHz, PLOT_RATE) }));
+  }, [lowHz, highHz]);
+
+  const yOf = (db: number) =>
+    CURVE_H - clamp((db + SPLIT_RANGE_DB) / SPLIT_RANGE_DB, 0, 1) * (CURVE_H - 14);
+  const pathOf = (pick: (r: CrossoverResponse) => Complex) =>
+    response
+      .map(
+        ({ hz, bands }, i) =>
+          `${i === 0 ? 'M' : 'L'} ${xOfHz(hz, SPLIT_W).toFixed(1)} ${yOf(
+            complexMagnitudeDb(pick(bands)),
+          ).toFixed(1)}`,
+      )
+      .join(' ');
+
+  // One band per split region, drawn and labelled where that band is the one
+  // carrying the signal — the geometric centre of its own span.
+  const regions = [
+    {
+      name: 'low',
+      colour: 'var(--info)',
+      at: Math.sqrt(MIN_HZ * lowHz),
+      path: pathOf((r) => r.low),
+    },
+    {
+      name: 'mid',
+      colour: 'var(--accent)',
+      at: Math.sqrt(lowHz * highHz),
+      path: pathOf((r) => r.mid),
+    },
+    {
+      name: 'high',
+      colour: 'var(--warm)',
+      at: Math.sqrt(highHz * MAX_HZ),
+      path: pathOf((r) => r.high),
+    },
+  ];
+
+  return (
+    <div className="fx-dyn">
+      <svg
+        width={SPLIT_W}
+        height={CURVE_H}
+        className="fx-curve"
+        aria-label={`Three bands split at ${formatHz(lowHz)} and ${formatHz(highHz)}, each compressed on its own`}
+      >
+        {[100, 1000, 10000].map((hz) => (
+          <line
+            key={hz}
+            x1={xOfHz(hz, SPLIT_W)}
+            y1={0}
+            x2={xOfHz(hz, SPLIT_W)}
+            y2={CURVE_H}
+            stroke="var(--grid-beat)"
+          />
+        ))}
+        {[lowHz, highHz].map((hz) => (
+          <g key={hz}>
+            <line
+              x1={xOfHz(hz, SPLIT_W)}
+              y1={0}
+              x2={xOfHz(hz, SPLIT_W)}
+              y2={CURVE_H}
+              stroke="var(--grid-bar)"
+              strokeDasharray="2 3"
+            />
+            <text
+              x={xOfHz(hz, SPLIT_W)}
+              y={9}
+              fontSize={8}
+              fill="var(--text-faint)"
+              textAnchor="middle"
+            >
+              {formatHz(hz)}
+            </text>
+          </g>
+        ))}
+        {regions.map((r) => (
+          <path key={r.name} d={r.path} fill="none" stroke={r.colour} strokeWidth="1.6" />
+        ))}
+        {regions.map((r) => (
+          <text
+            key={r.name}
+            x={clamp(xOfHz(r.at, SPLIT_W), 12, SPLIT_W - 12)}
+            y={CURVE_H - 3}
+            fontSize={8}
+            fill={r.colour}
+            textAnchor="middle"
+          >
+            {paramOf(effect, `${r.name}Ratio`).toFixed(1)}:1
+          </text>
+        ))}
+      </svg>
+      <GrMeter
+        trackId={trackId}
+        effectId={effect.id}
+        title="Gain reduction — the band working hardest"
+      />
     </div>
   );
 }
@@ -601,7 +816,15 @@ function TapFace({
 
 // ------------------------------------------------------------------ face
 
-/** Which visualisation, if any, an effect kind earns. */
+/**
+ * Which visualisation, if any, an effect kind earns.
+ *
+ * This names the *slot* a face fills, not the picture drawn in it: the mixer's
+ * channel overview asks for a channel's EQ-shaped and dynamics-shaped inserts
+ * by these names. Every dynamics processor answers `comp` or `gate` and then
+ * draws its own law inside that slot — which is the distinction that was
+ * missing when three of them shared one compressor drawing.
+ */
 export function faceKindOf(
   kind: string,
 ): 'eq' | 'comp' | 'gate' | 'shaper' | 'lfo' | 'spectrum' | 'scope' | null {
@@ -662,8 +885,13 @@ export function EffectVisual({
       />
     );
   }
-  if (face === 'comp') return <DynamicsFace effect={effect} trackId={trackId} />;
-  if (face === 'gate') return <DynamicsFace effect={effect} trackId={trackId} expander />;
+  if (face === 'comp' || face === 'gate') {
+    if (effect.kind === 'multiband') return <MultibandFace effect={effect} trackId={trackId} />;
+    const law = dynamicsLawOf(effect);
+    // A dynamics processor with no law is a processor whose picture nobody has
+    // worked out yet; showing nothing is honest, showing 1:1 is not.
+    return law ? <DynamicsFace effect={effect} trackId={trackId} law={law} /> : null;
+  }
   if (face === 'shaper') {
     const modelIndex = Math.round(paramOf(effect, 'model'));
     const model =

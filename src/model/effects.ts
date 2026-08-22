@@ -9,7 +9,14 @@
  * number and automation lanes only carry numbers. A `choices` list turns the
  * index into a name at display time, so a musician never reads a bare ordinal.
  */
-import { CABINETS, describeDivision, syncModifierByIndex } from '../audio/dsp/curves';
+import {
+  CABINETS,
+  compressorGain,
+  describeDivision,
+  expanderGain,
+  syncModifierByIndex,
+  transferCurve,
+} from '../audio/dsp/curves';
 import type { BiquadType, EqBandSpec } from '../audio/dsp/curves';
 import type { Effect, EffectKind } from './types';
 
@@ -705,6 +712,128 @@ export function eq8Bands(effect: Effect): EqBandSpec[] {
   }));
 }
 
+// ------------------------------------------------------------ dynamics laws
+
+/**
+ * The part of a dynamics processor's law that is its design rather than its
+ * controls. A limiter is 20:1 at its ceiling and a de-esser has a 6 dB knee
+ * whatever the musician does, so those numbers are not parameters — but they
+ * are still the sound, and both the audio builder and the plugin face have to
+ * read the same ones. Written once here, they cannot be re-typed differently
+ * in two files.
+ */
+export const LIMITER_RATIO = 20;
+export const LIMITER_KNEE_DB = 2;
+export const DEESSER_KNEE_DB = 6;
+
+/**
+ * The static gain law one dynamics processor imposes: envelope in, gain out.
+ *
+ * Its whole reason for existing is that a face used to work the other way
+ * round — it read `threshold`, `ratio` and `knee` off whatever effect it was
+ * given and drew a compressor from them. The limiter declares none of those
+ * three, so all three read back as zero and the face drew a straight 1:1 line
+ * for a processor that is 20:1 at its ceiling; the de-esser drew a knee of 0
+ * for audio with a knee of 6. Now an effect is asked what its law is, the
+ * builder fills its shaper from that answer and the face plots the same
+ * answer, so a picture that does not match the processor is not expressible.
+ */
+export type DynamicsLaw =
+  | { law: 'compress'; thresholdDb: number; ratio: number; kneeDb: number }
+  | { law: 'expand'; thresholdDb: number; ratio: number; rangeDb: number };
+
+/**
+ * The law of one effect, or null for a processor that has no single static one
+ * — which today is only the multiband, whose three bands each have their own
+ * and are native compressor nodes rather than a curve we fill.
+ */
+export function dynamicsLawOf(effect: Effect): DynamicsLaw | null {
+  switch (effect.kind) {
+    case 'compressor':
+      return {
+        law: 'compress',
+        thresholdDb: paramOf(effect, 'threshold'),
+        ratio: paramOf(effect, 'ratio'),
+        kneeDb: paramOf(effect, 'knee'),
+      };
+    case 'gate':
+      return {
+        law: 'expand',
+        thresholdDb: paramOf(effect, 'threshold'),
+        ratio: paramOf(effect, 'ratio'),
+        rangeDb: paramOf(effect, 'range'),
+      };
+    case 'limiter':
+      // The ceiling is this processor's threshold; the ratio and knee that
+      // hold the level there are fixed by its design.
+      return {
+        law: 'compress',
+        thresholdDb: paramOf(effect, 'ceiling'),
+        ratio: LIMITER_RATIO,
+        kneeDb: LIMITER_KNEE_DB,
+      };
+    case 'deesser':
+      return {
+        law: 'compress',
+        thresholdDb: paramOf(effect, 'threshold'),
+        ratio: paramOf(effect, 'ratio'),
+        kneeDb: DEESSER_KNEE_DB,
+      };
+    default:
+      return null;
+  }
+}
+
+/** Linear envelope in, linear gain out. The one evaluation of any law. */
+export function dynamicsGain(law: DynamicsLaw, envelope: number): number {
+  return law.law === 'expand'
+    ? expanderGain(envelope, law.thresholdDb, law.ratio, law.rangeDb)
+    : compressorGain(envelope, law.thresholdDb, law.ratio, law.kneeDb);
+}
+
+/** The same law as a WaveShaper curve, sampled through the same evaluation. */
+export function dynamicsCurve(law: DynamicsLaw, size?: number): Float32Array {
+  return transferCurve((envelope) => dynamicsGain(law, envelope), size);
+}
+
+/**
+ * The values a curve is built from, as a string. A WaveShaper curve is swapped
+ * in one block rather than ramped, so it is rebuilt only when the law moves —
+ * and never for the ballistics a musician sweeps while listening.
+ */
+export function dynamicsCurveKey(law: DynamicsLaw): string {
+  return law.law === 'expand'
+    ? `expand/${law.thresholdDb}/${law.ratio}/${law.rangeDb}`
+    : `compress/${law.thresholdDb}/${law.ratio}/${law.kneeDb}`;
+}
+
+/**
+ * The de-esser's sibilance band, in the form a response plot wants. The audio
+ * sets its bandpass from this and the face draws the same band, so the picture
+ * cannot claim a processor is working somewhere it is not.
+ */
+export function deesserBand(effect: Effect): EqBandSpec {
+  return {
+    type: 'bandpass',
+    freqHz: paramOf(effect, 'freq'),
+    q: paramOf(effect, 'q'),
+    gainDb: 0,
+    enabled: true,
+  };
+}
+
+/**
+ * The multiband's two crossover points, with the guard the audio applies: a
+ * high split dragged below the low one would turn the mid band inside out, so
+ * it is held a fifth above. The face reads this rather than the raw parameter,
+ * because a split drawn where the audio did not put it is the same lie as a
+ * curve drawn from a law the audio does not use.
+ */
+export function multibandSplits(effect: Effect): { lowHz: number; highHz: number } {
+  const lowHz = paramOf(effect, 'lowSplit');
+  return { lowHz, highHz: Math.max(paramOf(effect, 'highSplit'), lowHz * 1.2) };
+}
+
 const BY_KIND = new Map(EFFECT_SPECS.map((s) => [s.kind, s]));
 
 export function effectSpec(kind: EffectKind): EffectSpec | undefined {
@@ -768,6 +897,13 @@ export function choiceName(effect: Effect, key: string): string {
   return p?.choices?.[choiceOf(effect, key)] ?? '';
 }
 
+/** A frequency the way this product writes it: 440 Hz, 6.5 kHz, 12 kHz. */
+export function formatHz(value: number): string {
+  return value >= 1000
+    ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)} kHz`
+    : `${Math.round(value)} Hz`;
+}
+
 export function formatParam(spec: ParamSpec, value: number): string {
   if (spec.choices) {
     const i = Math.min(spec.choices.length - 1, Math.max(0, Math.round(value)));
@@ -777,9 +913,7 @@ export function formatParam(spec: ParamSpec, value: number): string {
     case 'dB':
       return `${value > 0 ? '+' : ''}${value.toFixed(1)} dB`;
     case 'Hz':
-      return value >= 1000
-        ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)} kHz`
-        : `${Math.round(value)} Hz`;
+      return formatHz(value);
     case 'ms':
       return value < 10 ? `${value.toFixed(1)} ms` : `${Math.round(value)} ms`;
     case 's':
@@ -830,8 +964,10 @@ export function describeEffect(effect: Effect): string {
       return `${paramOf(effect, 'threshold').toFixed(0)} dB · −${paramOf(effect, 'range').toFixed(0)} dB`;
     case 'limiter':
       return `ceiling ${paramOf(effect, 'ceiling').toFixed(1)} dB`;
-    case 'multiband':
-      return `${Math.round(paramOf(effect, 'lowSplit'))} / ${Math.round(paramOf(effect, 'highSplit'))} Hz`;
+    case 'multiband': {
+      const { lowHz, highHz } = multibandSplits(effect);
+      return `${Math.round(lowHz)} / ${Math.round(highHz)} Hz`;
+    }
     case 'deesser':
       return `${(paramOf(effect, 'freq') / 1000).toFixed(1)} kHz · ${paramOf(effect, 'ratio').toFixed(1)}:1`;
     case 'eq3':

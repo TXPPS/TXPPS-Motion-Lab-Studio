@@ -397,9 +397,32 @@ export function identityCurve(size = 4096): Float32Array {
  * The default size is odd on purpose. A WaveShaper interpolates between curve
  * points, and an even-length curve has no entry at exactly zero, so silence
  * would rectify to a small positive floor and hold a gate very slightly open.
+ *
+ * `headroom` is how far above full scale the rectifier can still measure. A
+ * WaveShaper clamps its input to -1…+1, so a plain |x| reads 1 for an input of
+ * 1 and 1 again for an input of 4 — a detector in front of any gain stage
+ * simply stops responding above full scale. The curve returns `headroom · |x|`
+ * instead, so a signal divided by `headroom` on the way in comes back out as
+ * its own absolute value and the measurable range widens by that factor. It
+ * costs no accuracy at any headroom: |x| is two straight lines meeting at a
+ * point the odd size puts exactly on zero, so no interpolated segment ever
+ * straddles the kink and every segment is the function itself.
  */
-export function rectifierCurve(size = 2049): Float32Array {
-  return fillCurve(size, (x) => Math.abs(x));
+export function rectifierCurve(headroom = 1, size = 2049): Float32Array {
+  const scale = Math.max(headroom, 1e-6);
+  return fillCurve(size, (x) => scale * Math.abs(x));
+}
+
+/**
+ * A gain law sampled as a WaveShaper curve: the law applied to |x|, because
+ * what the shaper is fed is a rectified envelope.
+ *
+ * Every dynamics curve here is built through this one function, and every
+ * plugin face plots the same law point by point. That is what makes the drawn
+ * curve and the filled shaper one thing rather than two that happen to agree.
+ */
+export function transferCurve(gain: (envelope: number) => number, size = 2048): Float32Array {
+  return fillCurve(size, (x) => gain(Math.abs(x)));
 }
 
 /**
@@ -415,7 +438,7 @@ export function expanderCurve(
   rangeDb: number,
   size = 2048,
 ): Float32Array {
-  return fillCurve(size, (x) => expanderGain(Math.abs(x), thresholdDb, ratio, rangeDb));
+  return transferCurve((e) => expanderGain(e, thresholdDb, ratio, rangeDb), size);
 }
 
 export function expanderGain(
@@ -441,7 +464,7 @@ export function compressorCurve(
   kneeDb: number,
   size = 2048,
 ): Float32Array {
-  return fillCurve(size, (x) => compressorGain(Math.abs(x), thresholdDb, ratio, kneeDb));
+  return transferCurve((e) => compressorGain(e, thresholdDb, ratio, kneeDb), size);
 }
 
 export function compressorGain(

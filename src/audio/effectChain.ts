@@ -14,7 +14,18 @@
  * curves all live in `dsp/curves.ts`, which knows nothing about Web Audio and
  * is unit-tested on its own.
  */
-import { ANALYSER_SIZES, CRUSH_FACTORS, EQ8_BANDS, choiceOf, paramOf } from '../model/effects';
+import {
+  ANALYSER_SIZES,
+  CRUSH_FACTORS,
+  EQ8_BANDS,
+  choiceOf,
+  deesserBand,
+  dynamicsCurve,
+  dynamicsCurveKey,
+  dynamicsLawOf,
+  multibandSplits,
+  paramOf,
+} from '../model/effects';
 import {
   BUTTERWORTH_Q,
   BUTTERWORTH_Q_DB,
@@ -22,9 +33,7 @@ import {
   cabinetImpulse,
   clamp,
   clipCurve,
-  compressorCurve,
   dbToGain,
-  expanderCurve,
   gainToDb,
   identityCurve,
   quantiserCurve,
@@ -234,6 +243,28 @@ class Combiner {
   }
 }
 
+/**
+ * How far above full scale an envelope detector can still measure, as a factor.
+ *
+ * The rectifier in front of every detector here is a WaveShaper, and a
+ * WaveShaper clamps its input to -1…+1: a plain |x| reads 1.0 for an input of
+ * 1.0 and 1.0 again for an input of 4.0, so above full scale the detector
+ * simply stops hearing the level rise and the processor stops responding to
+ * it. That is not a corner case — `buildLimiter` puts up to +24 dB of drive in
+ * front of its VCA, and it went unnoticed only because the brickwall clipper
+ * downstream tidied up the overshoot the detector had missed. Sixteen is that
+ * whole drive range on top of an already full-scale signal.
+ *
+ * It costs nothing to buy. The scale into the shaper rides on the two key
+ * gains that were already there, the scale back out is folded into the curve
+ * itself, and |x| is two straight lines meeting at a point the curve holds
+ * exactly, so the widened rectifier is still exact for ordinary levels.
+ */
+export const DETECTOR_HEADROOM = 16;
+
+/** An open key path: unity, pre-scaled into the rectifier's headroom. */
+const KEY_OPEN = 1 / DETECTOR_HEADROOM;
+
 const MAX_LOOKAHEAD_SEC = 0.02;
 const MAX_HOLD_SEC = 0.6;
 /** Critically damped smoothing: an envelope follower must not overshoot. */
@@ -378,7 +409,7 @@ class ControlVca {
     this.vca = makeGain(ctx, 0);
     this.input.connect(this.lookahead).connect(this.vca).connect(this.output);
 
-    this.rect = makeShaper(ctx, rectifierCurve());
+    this.rect = makeShaper(ctx, rectifierCurve(DETECTOR_HEADROOM));
     this.detector = makeFilter(ctx, 'lowpass', 120, SMOOTHING_Q_DB);
     // Fully open until the first update installs the real law.
     this.shaper = makeShaper(ctx, new Float32Array([1, 1]));
@@ -394,7 +425,9 @@ class ControlVca {
     this.tap.fftSize = 256;
     this.probe = new Float32Array(this.tap.fftSize);
 
-    this.internalKey = makeGain(ctx, 1);
+    // Both key paths carry the rectifier's scale-in, so whichever one is open
+    // arrives at the shaper divided by the headroom the curve multiplies back.
+    this.internalKey = makeGain(ctx, KEY_OPEN);
     this.keyInput = makeGain(ctx, 0);
     this.input.connect(this.internalKey).connect(this.rect);
     this.keyInput.connect(this.rect);
@@ -434,8 +467,8 @@ class ControlVca {
    * Both paths stay connected so the swap cannot click.
    */
   setSidechain(external: boolean): void {
-    setParam(this.internalKey.gain, external ? 0 : 1, this.ctx);
-    setParam(this.keyInput.gain, external ? 1 : 0, this.ctx);
+    setParam(this.internalKey.gain, external ? 0 : KEY_OPEN, this.ctx);
+    setParam(this.keyInput.gain, external ? KEY_OPEN : 0, this.ctx);
   }
 
   setLookahead(ms: number): void {
@@ -642,6 +675,21 @@ class SwitchableFilter {
 
 // ------------------------------------------------------------------- dynamics
 
+/**
+ * Install an effect's own gain law on its VCA.
+ *
+ * The law comes from the effect spec, which is also where the plugin face
+ * reads it, so the curve the shaper is filled with and the curve the face
+ * draws are one description evaluated twice rather than two descriptions that
+ * have to be kept in step. Only the multiband has no law of this shape, and it
+ * is not built on a VCA.
+ */
+function applyLaw(vca: ControlVca, effect: Effect): void {
+  const law = dynamicsLawOf(effect);
+  if (!law) return;
+  vca.setCurve(dynamicsCurveKey(law), () => dynamicsCurve(law));
+}
+
 function buildTrim(ctx: BaseAudioContext, effect: Effect): EffectNode {
   const gain = ctx.createGain();
   return {
@@ -681,10 +729,7 @@ function buildCompressor(ctx: BaseAudioContext, effect: Effect): EffectNode {
     setSidechain: (external: boolean) => vca.setSidechain(external),
     gainReductionDb: () => vca.gainReductionDb(),
     update: (e, _bpm, bypass) => {
-      const threshold = paramOf(e, 'threshold');
-      const ratio = paramOf(e, 'ratio');
-      const knee = paramOf(e, 'knee');
-      vca.setCurve(`${threshold}/${ratio}/${knee}`, () => compressorCurve(threshold, ratio, knee));
+      applyLaw(vca, e);
       vca.setBallistics(paramOf(e, 'attack'), paramOf(e, 'release'), 0);
       vca.setLookahead(0);
       vca.setActive(!bypass);
@@ -712,10 +757,7 @@ function buildGate(ctx: BaseAudioContext, effect: Effect): EffectNode {
     setSidechain: (external: boolean) => vca.setSidechain(external),
     gainReductionDb: () => vca.gainReductionDb(),
     update: (e, _bpm, bypass) => {
-      const threshold = paramOf(e, 'threshold');
-      const ratio = paramOf(e, 'ratio');
-      const range = paramOf(e, 'range');
-      vca.setCurve(`${threshold}/${ratio}/${range}`, () => expanderCurve(threshold, ratio, range));
+      applyLaw(vca, e);
       vca.setBallistics(paramOf(e, 'attack'), paramOf(e, 'release'), paramOf(e, 'hold'));
       vca.setLookahead(0);
       vca.setActive(!bypass);
@@ -749,9 +791,11 @@ function buildLimiter(ctx: BaseAudioContext, effect: Effect): EffectNode {
       const ceiling = paramOf(e, 'ceiling');
       const ceilingGain = dbToGain(ceiling);
       setParam(drive.gain, bypass ? 1 : dbToGain(paramOf(e, 'drive')), ctx);
-      // A 20:1 ratio with a 2 dB knee does the work; the clipper only mops up
-      // the overshoot a finite ratio always leaves behind.
-      vca.setCurve(`${ceiling}`, () => compressorCurve(ceiling, 20, 2));
+      // A high ratio at the ceiling does the work; the clipper only mops up the
+      // overshoot a finite ratio always leaves behind. The ratio and knee are
+      // `LIMITER_RATIO` and `LIMITER_KNEE_DB`, declared with the effect so the
+      // face plots the limiter rather than a straight line.
+      applyLaw(vca, e);
       vca.setBallistics(0.2, paramOf(e, 'release'), 0);
       vca.setLookahead(bypass ? 0 : paramOf(e, 'lookahead'));
       vca.setActive(!bypass);
@@ -815,10 +859,9 @@ function buildMultiband(ctx: BaseAudioContext, effect: Effect): EffectNode {
     output: wd.output,
     gainReductionDb: () => Math.min(...bands.map((b) => b.comp.reduction)),
     update: (e, _bpm, bypass) => {
-      const lowSplit = paramOf(e, 'lowSplit');
-      const highSplit = Math.max(paramOf(e, 'highSplit'), lowSplit * 1.2);
-      for (const f of [lowA, lowB, highA, highB]) setParam(f.frequency, lowSplit, ctx);
-      for (const f of [midA, midB, topA, topB, phaseMatch]) setParam(f.frequency, highSplit, ctx);
+      const { lowHz, highHz } = multibandSplits(e);
+      for (const f of [lowA, lowB, highA, highB]) setParam(f.frequency, lowHz, ctx);
+      for (const f of [midA, midB, topA, topB, phaseMatch]) setParam(f.frequency, highHz, ctx);
 
       const attack = paramOf(e, 'attack') / 1000;
       const release = paramOf(e, 'release') / 1000;
@@ -871,11 +914,10 @@ function buildDeesser(ctx: BaseAudioContext, effect: Effect): EffectNode {
     setSidechain: (external: boolean) => vca.setSidechain(external),
     gainReductionDb: () => vca.gainReductionDb(),
     update: (e, _bpm, bypass) => {
-      setParam(band.frequency, paramOf(e, 'freq'), ctx);
-      setParam(band.Q, paramOf(e, 'q'), ctx);
-      const threshold = paramOf(e, 'threshold');
-      const ratio = paramOf(e, 'ratio');
-      vca.setCurve(`${threshold}/${ratio}`, () => compressorCurve(threshold, ratio, 6));
+      const sibilance = deesserBand(e);
+      setParam(band.frequency, sibilance.freqHz, ctx);
+      setParam(band.Q, sibilance.q, ctx);
+      applyLaw(vca, e);
       vca.setBallistics(1, paramOf(e, 'release'), 0);
       vca.setLookahead(0);
       vca.setActive(!bypass);

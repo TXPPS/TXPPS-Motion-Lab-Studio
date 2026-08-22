@@ -28,6 +28,7 @@ import {
   dbToGain,
   eqMagnitudeResponse,
   expanderGain,
+  gainToDb,
   identityCurve,
   logFrequencies,
   qToDb,
@@ -40,19 +41,29 @@ import {
 } from '../src/audio/dsp/curves';
 import type { SaturationModel } from '../src/audio/dsp/curves';
 import {
-  EFFECT_SPECS,
-  EFFECT_GROUPS,
-  defaultParams,
-  effectSpec,
-  normaliseParams,
-} from '../src/model/effects';
-import {
   CHAIN_PRESETS,
   EFFECT_PRESETS,
   chainSteps,
   presetParams,
 } from '../src/model/effectPresets';
-import { InsertChain, buildEffectNode } from '../src/audio/effectChain';
+import {
+  DEESSER_KNEE_DB,
+  EFFECT_SPECS,
+  EFFECT_GROUPS,
+  LIMITER_KNEE_DB,
+  LIMITER_RATIO,
+  deesserBand,
+  defaultParams,
+  dynamicsCurve,
+  dynamicsGain,
+  dynamicsLawOf,
+  effectSpec,
+  multibandSplits,
+  normaliseParams,
+  paramOf,
+} from '../src/model/effects';
+import type { DynamicsLaw } from '../src/model/effects';
+import { DETECTOR_HEADROOM, InsertChain, buildEffectNode } from '../src/audio/effectChain';
 import type { Effect, EffectKind } from '../src/model/types';
 
 const SR = 48000;
@@ -66,6 +77,22 @@ function isNonDecreasing(curve: Float32Array, tolerance = 1e-6): boolean {
     if (curve[i] < curve[i - 1] - tolerance) return false;
   }
   return true;
+}
+
+/**
+ * What a WaveShaper does with a curve: clamp the input to -1…+1, then read the
+ * curve at that position, interpolating linearly between its two nearest
+ * points. Reimplemented from the specification rather than measured, because
+ * jsdom has no Web Audio — but it is the rule the browser follows, and it is
+ * the rule that decides whether a rectifier is exact or merely close.
+ */
+function readShaper(curve: Float32Array, x: number): number {
+  const n = curve.length;
+  const clamped = x < -1 ? -1 : x > 1 ? 1 : x;
+  const position = ((clamped + 1) / 2) * (n - 1);
+  const i = Math.floor(position);
+  if (i >= n - 1) return curve[n - 1];
+  return curve[i] + (position - i) * (curve[i + 1] - curve[i]);
 }
 
 function isOddSymmetric(curve: Float32Array, tolerance = 1e-6): boolean {
@@ -218,10 +245,43 @@ describe('shaper curves', () => {
   });
 
   it('rectifies both halves of the wave', () => {
-    const curve = rectifierCurve(1025);
+    const curve = rectifierCurve(1, 1025);
     expect(curve[0]).toBeCloseTo(1, 6);
     expect(curve[curve.length - 1]).toBeCloseTo(1, 6);
     expect(curve[(curve.length - 1) / 2]).toBeCloseTo(0, 6);
+  });
+
+  it('stays exactly |x| at any headroom, being two straight lines through zero', () => {
+    for (const headroom of [1, 4, DETECTOR_HEADROOM]) {
+      const curve = rectifierCurve(headroom);
+      const kink = (curve.length - 1) / 2;
+      // The kink is a curve point, so no interpolated segment straddles it...
+      expect(curve[kink], `${headroom}x`).toBe(0);
+      // ...and each half is one constant slope, so every segment the shaper
+      // interpolates over IS the function rather than a chord across a bend.
+      const falling = curve[0] - curve[1];
+      const rising = curve[curve.length - 1] - curve[curve.length - 2];
+      expect(falling, `${headroom}x`).toBe(rising);
+      for (let i = 0; i < kink; i++) expect(curve[i] - curve[i + 1]).toBe(falling);
+      for (let i = kink; i < curve.length - 1; i++) expect(curve[i + 1] - curve[i]).toBe(rising);
+    }
+  });
+
+  it('measures a hot signal instead of flattening it at full scale', () => {
+    const curve = rectifierCurve(DETECTOR_HEADROOM);
+    // Ordinary levels are still read exactly — the headroom buys range, not
+    // an approximation — and so now are levels well above full scale.
+    for (const db of [-60, -18, -6, 0, 6, 12, 20]) {
+      const level = dbToGain(db);
+      for (const sign of [1, -1]) {
+        const read = readShaper(curve, (sign * level) / DETECTOR_HEADROOM);
+        expect(read, `${db} dB`).toBeCloseTo(level, 12);
+      }
+    }
+    // What it used to do to anything hotter than full scale, in one line: a
+    // detector that reads 1.0 for an input of 4.0 has stopped detecting.
+    expect(readShaper(rectifierCurve(), 4)).toBe(1);
+    expect(readShaper(rectifierCurve(), 1)).toBe(1);
   });
 });
 
@@ -713,6 +773,7 @@ describe('the keyable compressor', () => {
     return {
       node,
       key: key as unknown as { gain: RecordingParam },
+      rect: rect as unknown as { curve: Float32Array },
       internalKey: into(rect).find((n) => n !== key) as unknown as { gain: RecordingParam },
       shaper: out(detector)[0] as unknown as { curve: Float32Array },
       depth: into(node.tap)[0] as unknown as { gain: RecordingParam },
@@ -757,14 +818,38 @@ describe('the keyable compressor', () => {
     const effect = compressor();
     const parts = partsOf(effect);
     expect(parts.node.sidechain).toBeTruthy();
+    // Whichever path is open carries the rectifier's scale-in, which the
+    // curve multiplies straight back out: unity into the detector, expressed
+    // in the units the shaper in front of it works in.
+    const open = 1 / DETECTOR_HEADROOM;
 
     parts.node.setSidechain!(true);
-    expect(parts.key.gain.value).toBe(1);
+    expect(parts.key.gain.value).toBe(open);
     expect(parts.internalKey.gain.value).toBe(0);
 
     parts.node.setSidechain!(false);
     expect(parts.key.gain.value).toBe(0);
-    expect(parts.internalKey.gain.value).toBe(1);
+    expect(parts.internalKey.gain.value).toBe(open);
+  });
+
+  it('reads a level above full scale instead of losing it in the rectifier', () => {
+    const effect = compressor();
+    const parts = partsOf(effect);
+    parts.node.update(effect, 120, false);
+
+    // No node was added for this: the scale into the shaper rides on the key
+    // gain that was already there, and the scale back out is in the curve.
+    expect(parts.rect.curve).toEqual(rectifierCurve(DETECTOR_HEADROOM));
+    expect(parts.internalKey.gain.value).toBe(1 / DETECTOR_HEADROOM);
+
+    // End to end, gain then shaper, the detector reads the level it is given —
+    // ordinary ones exactly, and +12 dB, which a limiter's drive alone reaches
+    // twice over and which used to arrive at the detector as 0 dBFS.
+    for (const db of [-24, -6, 0, 12]) {
+      const level = dbToGain(db);
+      const seen = readShaper(parts.rect.curve, level * parts.internalKey.gain.value);
+      expect(seen, `${db} dB`).toBeCloseTo(level, 12);
+    }
   });
 
   it('is exactly unity gain when bypassed, makeup and lookahead included', () => {
@@ -825,6 +910,143 @@ describe('the keyable compressor', () => {
     chain.sync([compressor()], 120);
     expect(chain.sidechainInputs()).toHaveLength(1);
     chain.dispose();
+  });
+});
+
+/**
+ * What a plugin face draws.
+ *
+ * A face has one job: show the processor the musician is listening to. Three
+ * of them were not — `faceKindOf` sent the limiter, the multiband and the
+ * de-esser to the compressor's drawing, which reads `threshold`, `ratio` and
+ * `knee`. The limiter and the multiband declare none of those keys, so all
+ * three read back as zero and the face drew a straight 1:1 line for a 20:1
+ * brickwall and for a three-band compressor; the de-esser drew a knee of 0
+ * over audio with a knee of 6. These tests pin the drawing to the audio: the
+ * curve a face plots is the curve the shaper is filled with, or there is no
+ * face at all.
+ */
+describe('the picture a dynamics face draws', () => {
+  const VCA_KINDS = ['compressor', 'gate', 'limiter', 'deesser'] as const;
+
+  /**
+   * The transfer-curve shaper of a processor built on the control VCA, found
+   * by walking the detector the way the audio does: key → |x| → detector →
+   * curve.
+   */
+  function transferCurveOf(effect: Effect): Float32Array {
+    const { ctx, connections } = recordingContext();
+    const node = buildEffectNode(ctx, effect);
+    node.update(effect, 120, false);
+    const out = (n: unknown) => connections.filter((c) => c.from === n).map((c) => c.to);
+    const rect = out(node.sidechain as unknown as RecordingNode)[0] as RecordingNode;
+    const detector = out(rect)[0] as RecordingNode;
+    return (out(detector)[0] as unknown as { curve: Float32Array }).curve;
+  }
+
+  /** Every biquad a built effect wired up, whatever it called them. */
+  function biquadsOf(effect: Effect) {
+    const { ctx, connections } = recordingContext();
+    const node = buildEffectNode(ctx, effect);
+    node.update(effect, 120, false);
+    const found = new Set<RecordingNode>();
+    for (const c of connections) {
+      for (const end of [c.from, c.to]) {
+        if ('kind' in end && end.kind === 'biquad') found.add(end as RecordingNode);
+      }
+    }
+    return [...found] as unknown as {
+      type: string;
+      frequency: RecordingParam;
+      Q: RecordingParam;
+    }[];
+  }
+
+  it('plots, for every processor built on the VCA, the curve its own audio is filled with', () => {
+    for (const kind of VCA_KINDS) {
+      const effect = effectOf(kind);
+      const law = dynamicsLawOf(effect);
+      expect(law, kind).not.toBeNull();
+      // Same array the face plots point for point, at the same parameters.
+      expect(transferCurveOf(effect), kind).toEqual(dynamicsCurve(law!));
+    }
+  });
+
+  it('never draws a straight line for a processor that is not straight', () => {
+    for (const kind of VCA_KINDS) {
+      const law = dynamicsLawOf(effectOf(kind))!;
+      // 12 dB into the working side of each law. Every one of these processors
+      // is pulling the level down there; a 1:1 line returns exactly 1.
+      const into = law.law === 'expand' ? law.thresholdDb - 12 : law.thresholdDb + 12;
+      expect(dynamicsGain(law, dbToGain(into)), kind).toBeLessThan(0.9);
+    }
+  });
+
+  it('gives the limiter the law it has, not the parameters it never declared', () => {
+    const limiter = effectOf('limiter');
+    const law = dynamicsLawOf(limiter)!;
+    expect(law).toEqual({
+      law: 'compress',
+      thresholdDb: paramOf(limiter, 'ceiling'),
+      ratio: LIMITER_RATIO,
+      kneeDb: LIMITER_KNEE_DB,
+    });
+
+    // The three keys the old face read. A limiter has none of them, `paramOf`
+    // falls back to zero, and a ratio of zero is the straight line it drew.
+    for (const key of ['threshold', 'ratio', 'knee']) expect(paramOf(limiter, key), key).toBe(0);
+    const straight: DynamicsLaw = { law: 'compress', thresholdDb: 0, ratio: 0, kneeDb: 0 };
+    expect(dynamicsGain(straight, dbToGain(12))).toBe(1);
+
+    // What it actually does: 24 dB of overshoot leaves within a dB of the
+    // ceiling, which is the picture a limiter's face owes its user.
+    const outDb = 24 + gainToDb(dynamicsGain(law, dbToGain(24)));
+    expect(outDb).toBeGreaterThan(law.thresholdDb);
+    expect(outDb).toBeLessThan(law.thresholdDb + 1.5);
+  });
+
+  it('gives the de-esser the knee its audio uses and the band it works on', () => {
+    const deesser = effectOf('deesser');
+    const law = dynamicsLawOf(deesser)!;
+    const threshold = paramOf(deesser, 'threshold');
+    expect(law).toEqual({
+      law: 'compress',
+      thresholdDb: threshold,
+      ratio: paramOf(deesser, 'ratio'),
+      kneeDb: DEESSER_KNEE_DB,
+    });
+
+    // The difference a knee makes, at the one level that shows it: a 6 dB knee
+    // is already half way into its bend at the threshold, a knee of 0 — what
+    // the face used to draw — is still exactly unity there.
+    const sharp: DynamicsLaw = { ...law, kneeDb: 0 } as DynamicsLaw;
+    expect(dynamicsGain(law, dbToGain(threshold))).toBeLessThan(1);
+    expect(dynamicsGain(sharp, dbToGain(threshold))).toBe(1);
+
+    // And the band the face draws is the filter the audio put in the path.
+    const band = deesserBand(deesser);
+    const bandpass = biquadsOf(deesser).find((b) => b.type === 'bandpass')!;
+    expect(bandpass.frequency.value).toBe(band.freqHz);
+    expect(bandpass.Q.value).toBe(band.q);
+  });
+
+  it('draws the multiband as its crossover, at the splits the audio uses', () => {
+    // No single static law to draw: three bands, each on a native compressor
+    // node whose knee law is the browser's rather than one we fill.
+    expect(dynamicsLawOf(effectOf('multiband'))).toBeNull();
+
+    // The builder holds the high split a fifth above the low one, so a face
+    // reading the raw parameter would mark a split nothing is crossing at.
+    const squashed: Effect = {
+      ...effectOf('multiband'),
+      params: { ...defaultParams('multiband'), lowSplit: 800, highSplit: 800 },
+    };
+    const splits = multibandSplits(squashed);
+    expect(splits.lowHz).toBe(800);
+    expect(splits.highHz).toBeCloseTo(960, 9);
+
+    const wired = new Set(biquadsOf(squashed).map((b) => b.frequency.value));
+    expect(wired).toEqual(new Set([splits.lowHz, splits.highHz]));
   });
 });
 
