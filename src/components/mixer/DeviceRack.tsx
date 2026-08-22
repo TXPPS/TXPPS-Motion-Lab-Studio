@@ -24,6 +24,9 @@ import {
   type ParamSpec,
 } from '../../model/effects';
 import { CHAIN_PRESETS } from '../../model/effectPresets';
+import { applyChainSteps, type ChainStepLike } from '../../app/chainActions';
+import { useChainStore } from '../../state/chainStore';
+import { saveChainFrom } from './InsertRack';
 import type { Effect, EffectKind, Track } from '../../model/types';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
 import { useProjectStore } from '../../state/projectStore';
@@ -349,7 +352,14 @@ function DeviceSlot({
 }
 
 /** The picker. Grouped the way a plugin menu is; 27 flat entries is a wall. */
+/** One gesture per chain, and one message when the insert limit truncates it. */
+function addChain(rack: RackHost, steps: readonly ChainStepLike[]): void {
+  const dropped = applyChainSteps(rack, steps);
+  if (dropped > 0) useUiStore.getState().toast('error', `Insert limit is ${MAX_INSERTS}.`);
+}
+
 function AddDevice({ rack, full }: { rack: RackHost; full: boolean }) {
+  const saved = useChainStore((s) => s.chains);
   const ref = useRef<HTMLButtonElement>(null);
   return (
     <button
@@ -394,18 +404,38 @@ function AddDevice({ rack, full }: { rack: RackHost; full: boolean }) {
             { label: '— Chains —', disabled: true, action: () => {} },
             ...CHAIN_PRESETS.map((c) => ({
               label: c.name,
-              action: () => {
-                for (const step of c.steps) {
-                  const id = rack.add(step.kind);
-                  if (!id) {
-                    ui.toast('error', `Insert limit is ${MAX_INSERTS}.`);
-                    break;
-                  }
-                  for (const [k, v] of Object.entries(step.params)) rack.setParam(id, k, v);
-                  if (step.bypass) rack.setBypass(id, true);
-                }
-              },
+              action: () => addChain(rack, c.steps),
             })),
+            ...(saved.length > 0
+              ? [
+                  { label: '— Your chains —', disabled: true, action: () => {} },
+                  ...saved.map((c) => ({
+                    label: c.name,
+                    action: () => addChain(rack, c.steps),
+                  })),
+                ]
+              : []),
+            ...(rack.effects.length > 0
+              ? [{ label: 'Save this chain…', action: () => saveChainFrom(rack) }]
+              : []),
+            // Saving without a way to unsave is a library that only grows.
+            ...(saved.length > 0
+              ? [
+                  {
+                    label: 'Forget a chain…',
+                    action: () =>
+                      ui.showMenu({
+                        x: box.left,
+                        y: box.bottom,
+                        items: saved.map((c) => ({
+                          label: c.name,
+                          danger: true,
+                          action: () => useChainStore.getState().remove(c.id),
+                        })),
+                      }),
+                  },
+                ]
+              : []),
           ],
         });
       }}

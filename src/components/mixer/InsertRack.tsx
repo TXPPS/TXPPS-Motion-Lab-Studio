@@ -12,6 +12,8 @@ import {
   EQ8_BANDS,
 } from '../../model/effects';
 import { CHAIN_PRESETS, presetsFor } from '../../model/effectPresets';
+import { applyChainSteps, captureChain, type ChainTarget } from '../../app/chainActions';
+import { useChainStore } from '../../state/chainStore';
 import type { Effect, EffectKind, Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
@@ -212,6 +214,34 @@ export interface ChainHost {
   move: (effectId: string, delta: number) => void;
 }
 
+/** Sentinel for the one entry in the chain menu that is an action, not a chain. */
+const SAVE_OPTION = '__save__';
+
+/**
+ * Save what is on this channel as a chain of the user's own.
+ *
+ * Named rather than numbered, because a library of "Chain 4" is a library
+ * nobody opens; saving over an existing name replaces it, which is what a
+ * second save of the same chain plainly means.
+ */
+export function saveChainFrom(chain: ChainTarget & { effects: Effect[] }): void {
+  const ui = useUiStore.getState();
+  ui.showDialog({
+    kind: 'prompt',
+    title: 'Save this chain',
+    message: `${chain.effects.length} device${chain.effects.length === 1 ? '' : 's'}, with their settings.`,
+    initialValue: '',
+    confirmLabel: 'Save',
+    onSubmit: (name) => {
+      const id = useChainStore.getState().save(name, captureChain(chain.effects));
+      ui.toast(
+        id ? 'info' : 'error',
+        id ? `Saved "${name.trim()}" to your chains.` : 'A chain needs a name.',
+      );
+    },
+  });
+}
+
 /** The default host: a track's own insert chain. */
 export function trackChainHost(track: Track): ChainHost {
   const store = useProjectStore;
@@ -230,6 +260,7 @@ export function trackChainHost(track: Track): ChainHost {
 export function InsertRack({ track, host }: { track?: Track; host?: ChainHost }) {
   const chain = host ?? trackChainHost(track!);
   const effects = chain.effects;
+  const savedChains = useChainStore((s) => s.chains);
   const full = effects.length >= MAX_INSERTS;
 
   return (
@@ -291,27 +322,38 @@ export function InsertRack({ track, host }: { track?: Track; host?: ChainHost })
           disabled={full}
           aria-label="Add an effect chain"
           className="fx-chain-preset"
+          data-testid={`fx-chain-${chain.id}`}
           onChange={(e) => {
-            const preset = CHAIN_PRESETS.find((c) => c.name === e.target.value);
+            const value = e.target.value;
             e.currentTarget.value = '';
-            if (!preset) return;
-            for (const step of preset.steps) {
-              const id = chain.add(step.kind);
-              if (!id) {
-                useUiStore.getState().toast('error', `Insert limit is ${MAX_INSERTS}.`);
-                break;
-              }
-              for (const [k, v] of Object.entries(step.params)) chain.setParam(id, k, v);
-              if (step.bypass) chain.setBypass(id, true);
+            if (value === SAVE_OPTION) return saveChainFrom(chain);
+            const saved = useChainStore.getState().chains.find((c) => c.id === value);
+            const steps = saved?.steps ?? CHAIN_PRESETS.find((c) => c.name === value)?.steps;
+            if (!steps) return;
+            const dropped = applyChainSteps(chain, steps);
+            if (dropped > 0) {
+              useUiStore.getState().toast('error', `Insert limit is ${MAX_INSERTS}.`);
             }
           }}
         >
           <option value="">Chain…</option>
-          {CHAIN_PRESETS.map((c) => (
-            <option key={c.name} value={c.name} title={c.blurb}>
-              {c.name}
-            </option>
-          ))}
+          <optgroup label="Built in">
+            {CHAIN_PRESETS.map((c) => (
+              <option key={c.name} value={c.name} title={c.blurb}>
+                {c.name}
+              </option>
+            ))}
+          </optgroup>
+          {savedChains.length > 0 && (
+            <optgroup label="Saved">
+              {savedChains.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {effects.length > 0 && <option value={SAVE_OPTION}>Save this chain…</option>}
         </select>
       </div>
     </div>
