@@ -41,6 +41,7 @@ and its tests run headlessly.
 param:    15 case(s), 0 failure(s)
 tempo:    12 case(s), 0 failure(s)
 topology: 12 case(s), 0 failure(s)
+graph:     8 case(s), 0 failure(s)
 ```
 
 Two of those fifteen assert that draining and advancing every parameter in a set
@@ -73,6 +74,10 @@ them.
 | Bars↔ticks inverse under mixed time signatures | PASS | 12 bars, three signatures |
 | Delay compensation: every path aligned at its join | PASS | 12/12, incl. sends, diamonds and key inputs |
 | Graph order deterministic | PASS | asserted stable across runs |
+| Compensation aligns real samples, not just numbers | PASS | impulse through two paths of differing latency arrives as one |
+| Sidechain key arrives with the signal it keys | PASS | asserted by multiplying the two ports |
+| Whole graph render allocates nothing | PASS | 0 allocations over 100 blocks |
+| Short blocks render identically to full ones | PASS | 16- and 64-frame renders agree |
 | Cycle detection | PASS | reported, not looped |
 | Bypass null test to −120 dBFS | — | no processors yet |
 | THD / aliasing per plugin | — | no processors yet |
