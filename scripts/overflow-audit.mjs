@@ -730,6 +730,7 @@ report.summary = {
   distinct: [...uniqueBySig.values()]
     .map((f) => ({
       kind: f.kind,
+      ellipsis: f.ellipsis ?? false,
       sig: f.sig,
       sel: f.sel,
       text: f.text,
@@ -738,11 +739,7 @@ report.summary = {
       surfaces: [...f.surfaces].sort(),
     }))
     .sort(
-      (a, b) =>
-        ({ viewport: 0, clipped: 1, truncated: 2, spill: 3, tap: 4 })[a.kind] -
-          ({ viewport: 0, clipped: 1, truncated: 2, spill: 3, tap: 4 })[b.kind] ||
-        (b.worstOverPx ?? 0) - (a.worstOverPx ?? 0) ||
-        a.sig.localeCompare(b.sig),
+      (a, b) => rank(a) - rank(b) || (b.worstOverPx ?? 0) - (a.worstOverPx ?? 0) || a.sig.localeCompare(b.sig),
     ),
 };
 
@@ -757,12 +754,14 @@ for (const f of report.summary.distinct) {
   );
 }
 const tapCount = report.summary.distinct.filter((f) => f.kind === 'tap').length;
+const byDesign = report.summary.distinct.filter((f) => f.kind === 'clipped' && f.ellipsis).length;
 console.log(
   `\noccurrences: off-screen ${counts.viewport}, clipped ${counts.clipped}, ` +
     `no-ellipsis ${counts.truncated}, spill ${counts.spill}, tap-target ${counts.tap}`,
 );
 console.log(
-  `distinct: ${report.summary.distinct.length - tapCount} layout defects, ${tapCount} tap-target advisories`,
+  `distinct: ${report.summary.distinct.length - tapCount - byDesign} layout defects, ` +
+    `${byDesign} ellipsised truncations (by design), ${tapCount} tap-target advisories`,
 );
 
 mkdirSync(dirname(JSON_OUT), { recursive: true });

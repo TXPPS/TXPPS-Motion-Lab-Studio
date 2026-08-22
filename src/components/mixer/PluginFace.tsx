@@ -47,6 +47,7 @@ import {
   matchTrimFor,
   modulationOf,
   type ModulationField,
+  inputDbForReduction,
 } from '../../model/effects';
 import { clamp } from '../../model/music';
 import {
@@ -415,13 +416,31 @@ function GrMeter({
   title: string;
 }) {
   const fillRef = useRef<HTMLDivElement>(null);
+  const holdRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
+  /**
+   * The worst reduction since the meter was reset.
+   *
+   * A moving bar tells you what is happening now; what a mix engineer sets a
+   * threshold from is the loudest thing that went through, which is over
+   * before the eye reaches the meter. Held until it is clicked, because a
+   * peak that decays away is a peak you can miss twice.
+   */
+  const worst = useRef(0);
 
   useEffect(() => {
+    worst.current = 0;
     return engine.onFrame(() => {
       const gr = engine.gainReductionOf(trackId, effectId);
+      if (gr < worst.current) worst.current = gr;
       const n = clamp(-gr / 24, 0, 1);
       if (fillRef.current) fillRef.current.style.transform = `scaleY(${n})`;
+      if (holdRef.current) {
+        // Reduction grows downward from the top, so the hold line is measured
+        // from the top too — the same direction the fill moves.
+        holdRef.current.style.top = `${clamp(-worst.current / 24, 0, 1) * 100}%`;
+        holdRef.current.style.opacity = worst.current <= -0.05 ? '1' : '0';
+      }
       if (textRef.current) {
         textRef.current.textContent = `${gr <= -0.05 ? gr.toFixed(1) : '0.0'} dB`;
       }
@@ -430,14 +449,85 @@ function GrMeter({
 
   return (
     <div className="fx-gr" title={title}>
-      <div className="fx-gr-track">
+      <button
+        className="fx-gr-track"
+        title="Worst reduction so far — click to reset"
+        aria-label="Reset the gain-reduction peak hold"
+        data-testid="fx-gr-reset"
+        onClick={() => {
+          worst.current = 0;
+        }}
+      >
         <div className="fx-gr-fill" ref={fillRef} />
-      </div>
+        <div className="fx-gr-hold" ref={holdRef} />
+      </button>
       <span className="fx-gr-val" ref={textRef}>
         0.0 dB
       </span>
       <span className="fx-gr-label">GR</span>
     </div>
+  );
+}
+
+/**
+ * Where the signal is sitting on the curve, right now.
+ *
+ * The gain-reduction meter says how much is being taken off; it does not say
+ * *where*, and where is the question a transfer plot is drawn to answer — a
+ * threshold set from a curve you cannot see the signal on is a threshold set
+ * by ear with a picture next to it. The law is monotonic, so the level is
+ * recoverable from the reduction by bisection: `inputDbForReduction` owns that,
+ * and it is the same law the audio is filled from.
+ *
+ * Written straight into the DOM on the engine's frame, like every other live
+ * readout here: a dot moving through React state would re-render the console
+ * sixty times a second.
+ */
+function OperatingPoint({
+  trackId,
+  effectId,
+  law,
+  floorDb,
+  spanDb,
+  size,
+}: {
+  trackId: string;
+  effectId: string;
+  law: DynamicsLaw;
+  floorDb: number;
+  spanDb: number;
+  size: number;
+}) {
+  const dotRef = useRef<SVGCircleElement>(null);
+
+  useEffect(() => {
+    return engine.onFrame(() => {
+      const dot = dotRef.current;
+      if (!dot) return;
+      const gr = engine.gainReductionOf(trackId, effectId);
+      const inDb = inputDbForReduction(law, gr, floorDb, floorDb + spanDb);
+      if (inDb === null) {
+        dot.style.opacity = '0';
+        return;
+      }
+      const outDb = inDb + gr;
+      dot.style.opacity = '1';
+      dot.setAttribute('cx', (((inDb - floorDb) / spanDb) * size).toFixed(1));
+      dot.setAttribute('cy', (size - ((outDb - floorDb) / spanDb) * size).toFixed(1));
+    });
+  }, [trackId, effectId, law, floorDb, spanDb, size]);
+
+  return (
+    <circle
+      ref={dotRef}
+      r={3.2}
+      cx={-10}
+      cy={-10}
+      fill="var(--accent-lamp)"
+      stroke="var(--bg-deep)"
+      strokeWidth="1"
+      style={{ opacity: 0 }}
+    />
   );
 }
 
@@ -578,6 +668,14 @@ function DynamicsFace({
           </text>
         )}
         <path d={pts.join(' ')} fill="none" stroke="var(--accent)" strokeWidth="1.8" />
+        <OperatingPoint
+          trackId={trackId}
+          effectId={effect.id}
+          law={law}
+          floorDb={floorDb}
+          spanDb={AXIS_SPAN_DB}
+          size={CURVE_H}
+        />
         {band && (
           <g transform={`translate(0 ${CURVE_H})`}>
             <line

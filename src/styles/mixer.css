@@ -1057,11 +1057,13 @@
   position: relative;
   flex: 1 1 auto;
   width: 12px;
+  padding: 0;
   background: var(--meter-bg);
   border: none;
   box-shadow: var(--sh-well-deep);
   border-radius: var(--radius-xs);
   overflow: hidden;
+  cursor: pointer;
 }
 /* Reduction grows DOWNWARD from the top: that is the direction the level is
    being pushed, and it is how every hardware GR meter reads. */
@@ -1072,6 +1074,20 @@
   transform: scaleY(0);
   background: linear-gradient(to bottom, var(--meter-hot) 0%, var(--meter-clip) 100%);
 }
+/* The worst reduction so far, held: a peak that decays away is a peak you can
+   miss twice, and it is the loudest thing through the processor — not the
+   present moment — that a threshold gets set from. */
+.fx-gr-hold {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: var(--meter-clip);
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* The value is loud, the label is quiet (§2.5 rule 2). */
 .fx-gr-val {
   font-family: var(--font-num);

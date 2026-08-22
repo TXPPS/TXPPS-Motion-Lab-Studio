@@ -13,6 +13,9 @@ import {
   formatParam,
   isKnownEffect,
   delayLayoutOf,
+  dynamicsGain,
+  dynamicsLawOf,
+  inputDbForReduction,
   matchTrimFor,
   modulationOf,
   normaliseParams,
@@ -558,5 +561,45 @@ describe('the delay picture is the delay the audio builds', () => {
     expect(delayLayoutOf(fx('pingpong', { width: 0 }), 120)?.width).toBe(0);
     expect(delayLayoutOf(fx('pingpong', { width: 1 }), 120)?.width).toBe(1);
     expect(delayLayoutOf(fx('delay', {}), 120)?.width).toBe(0);
+  });
+});
+
+describe('where the signal is sitting on a dynamics curve', () => {
+  const comp = (params: Record<string, number>): Effect => ({
+    id: 'c',
+    kind: 'compressor',
+    bypass: false,
+    params,
+  });
+
+  it('recovers the input level from the reduction, against the same law the audio uses', () => {
+    const law = dynamicsLawOf(comp({ threshold: -20, ratio: 4, knee: 0 }))!;
+    for (const inDb of [-16, -10, -6, -2]) {
+      const gain = dynamicsGain(law, Math.pow(10, inDb / 20));
+      const reduction = 20 * Math.log10(gain);
+      expect(inputDbForReduction(law, reduction, -60, 12)).toBeCloseTo(inDb, 1);
+    }
+  });
+
+  it('says nothing when nothing is being reduced, rather than parking in a corner', () => {
+    const law = dynamicsLawOf(comp({ threshold: -20, ratio: 4, knee: 0 }))!;
+    // Below the threshold every input gives the same answer, so a dot would be
+    // claiming to know a level it cannot know.
+    expect(inputDbForReduction(law, 0, -60, 12)).toBeNull();
+    expect(inputDbForReduction(law, -0.01, -60, 12)).toBeNull();
+  });
+
+  it('says nothing when the reduction is more than the window can explain', () => {
+    const law = dynamicsLawOf(comp({ threshold: -20, ratio: 4, knee: 0 }))!;
+    // 40 dB of reduction at 4:1 needs an input far above the top of the axis.
+    expect(inputDbForReduction(law, -40, -60, 12)).toBeNull();
+  });
+
+  it('reads a gate the same way, which reduces below its threshold rather than above', () => {
+    const law = dynamicsLawOf({ id: 'g', kind: 'gate', bypass: false, params: {} })!;
+    const quiet = inputDbForReduction(law, -12, -80, 0);
+    expect(quiet).not.toBeNull();
+    const gain = dynamicsGain(law, Math.pow(10, quiet! / 20));
+    expect(20 * Math.log10(gain)).toBeCloseTo(-12, 1);
   });
 });

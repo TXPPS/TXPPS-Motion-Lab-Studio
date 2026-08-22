@@ -22,6 +22,7 @@ import {
   syncSeconds,
   transferCurve,
   syncHz,
+  dbToGain,
 } from '../audio/dsp/curves';
 import type { BiquadType, EqBandSpec, SaturationModel } from '../audio/dsp/curves';
 import { KEY_NAMES, SCALES } from './scales';
@@ -711,6 +712,53 @@ export const EFFECT_SPECS: EffectSpec[] = [
     ],
   },
 ];
+
+/**
+ * The input level at which a law reduces by a given amount.
+ *
+ * A gain-reduction meter says how much is being taken off; it does not say
+ * *where*, and where is the question a transfer plot exists to answer. Every
+ * law here is monotonic in the input, so the level can be recovered from the
+ * reduction by bisection — but not always in the same direction: a compressor
+ * reduces more as the input rises and a gate reduces more as it falls, so the
+ * search takes its direction from the window's own ends rather than assuming
+ * the compressor's.
+ *
+ * Returns null when the answer is not knowable: no reduction at all (below a
+ * compressor's threshold every input gives the same answer), or a reduction
+ * larger than anything inside the window, where a dot would be claiming to
+ * know a level that is off the plot.
+ */
+export function inputDbForReduction(
+  law: DynamicsLaw,
+  reductionDb: number,
+  floorDb: number,
+  ceilingDb: number,
+): number | null {
+  const wanted = -Math.abs(reductionDb);
+  if (wanted > -0.05) return null;
+  const reductionAt = (db: number): number => {
+    const gain = dynamicsGain(law, dbToGain(db));
+    return 20 * Math.log10(Math.max(gain, 1e-6));
+  };
+  const atFloor = reductionAt(floorDb);
+  const atCeiling = reductionAt(ceilingDb);
+  // Which end reduces harder decides which way the bisection walks.
+  const risingReduces = atCeiling < atFloor;
+  if (wanted < Math.min(atFloor, atCeiling)) return null;
+  if (wanted > Math.max(atFloor, atCeiling)) return null;
+  let lo = floorDb;
+  let hi = ceilingDb;
+  // Twenty-four halvings of a 72 dB window resolve to well under a hundredth
+  // of a decibel, which is finer than the plot can draw.
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2;
+    const here = reductionAt(mid);
+    if (risingReduces ? here > wanted : here < wanted) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
 
 /** What a modulation device's LFO is actually doing. */
 export interface ModulationField {
