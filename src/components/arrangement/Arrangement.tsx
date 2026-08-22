@@ -12,6 +12,7 @@ import { findAutoParam, type AutoParam } from '../../model/paramRegistry';
 import type { AutomationLane } from '../../model/automation';
 import { Icon } from '../common/Icon';
 import { ClipView } from './ClipView';
+import { LiveTakeLane } from './LiveTake';
 import { TrackHeader } from './TrackHeader';
 import { AUTO_LANE_H, AutoLaneHeader, AutoLaneRow } from './AutomationLanes';
 import { TAKE_LANE_H, TakeLaneHeader, TakeLaneRow } from './TakeLanes';
@@ -1188,6 +1189,15 @@ export function Arrangement() {
                       useUiStore.getState().selectClip(id, t.id);
                     }}
                   >
+                    {/* The take being played, drawn as it is played. Mounted
+                        before the clips so a finished clip paints over it at
+                        the moment the recorder commits one. */}
+                    <LiveTakeLane
+                      trackId={t.id}
+                      pxPerBeat={pxPerBeat}
+                      height={bands[i].clip}
+                      color={t.color}
+                    />
                     {(visibleByTrack.get(t.id) ?? []).map((c) => (
                       <ClipView
                         key={c.id}

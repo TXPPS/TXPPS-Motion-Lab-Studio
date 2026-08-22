@@ -40,6 +40,12 @@ class MidiRecorder {
   private grid = 0;
   /** The beats the clip covers, when the take was rolled or punched in. */
   private window: { startBeat: number; endBeat: number } | null = null;
+  /**
+   * Reused by `snapshot`. Held notes are few — ten fingers — and rebuilding a
+   * short array sixty times a second is still sixty allocations a second that
+   * the frame loop does not need to make.
+   */
+  private openScratch: Note[] = [];
 
   get isRecording(): boolean {
     return this.trackId !== null;
@@ -91,6 +97,41 @@ class MidiRecorder {
       pitch: held.pitch,
       velocity: Math.min(127, Math.max(1, Math.round(held.velocity))),
     });
+  }
+
+  /**
+   * What has been played so far, for drawing while it is still being played.
+   *
+   * A take that only appears when the transport stops is a take the musician
+   * cannot see themselves making, and watching the part arrive is most of what
+   * makes overdubbing feel like playing rather than like filing. Notes still
+   * held are returned open-ended, extended to `nowBeat`, because a note is
+   * drawn from the moment it starts — waiting for the note-off would mean the
+   * longest notes appear last and a held chord draws nothing at all.
+   *
+   * Beats are relative to where recording began, which is where the drawing
+   * begins. `stop` re-bases to the punch window when there is one, so on a
+   * punched take the committed clip starts later than the drawn one — the
+   * run-up is heard and drawn, and then not kept, which is what a player who
+   * comes in early expects to see.
+   *
+   * Returns the same arrays each call: this is read on the frame loop, and
+   * rebuilding a short array sixty times a second is sixty allocations a second
+   * for nothing.
+   */
+  snapshot(nowBeat: number): { startBeat: number; closed: readonly Note[]; open: Note[] } {
+    this.openScratch.length = 0;
+    for (const held of this.open.values()) {
+      const start = Math.max(0, held.startBeat - this.startBeat);
+      this.openScratch.push({
+        id: `open-${held.pitch}`,
+        start,
+        length: Math.max(MIN_NOTE_BEATS, nowBeat - held.startBeat),
+        pitch: held.pitch,
+        velocity: Math.min(127, Math.max(1, Math.round(held.velocity))),
+      });
+    }
+    return { startBeat: this.startBeat, closed: this.captured, open: this.openScratch };
   }
 
   /** Discard everything without writing a clip. */

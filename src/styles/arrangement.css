@@ -1021,3 +1021,26 @@
     right var(--sp-3) center,
     right var(--sp-2) center;
 }
+
+/* The take being played.
+   Positioned by transform rather than by `left` so moving it costs a composite
+   rather than a layout — this element moves on every frame while recording,
+   and a layout per frame is the difference between 60 fps and a stutter the
+   user reads as the recorder struggling. */
+.live-take {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  bottom: 2px;
+  pointer-events: none;
+  z-index: 3;
+  will-change: transform;
+}
+.live-take-canvas {
+  display: block;
+  border-radius: var(--radius-xs);
+  /* Faint behind the notes: the take is provisional until the transport stops,
+     and it should read as arriving rather than as already there. */
+  background: color-mix(in srgb, var(--bg-raised) 55%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
