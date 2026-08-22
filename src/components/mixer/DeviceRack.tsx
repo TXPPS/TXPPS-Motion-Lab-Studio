@@ -19,9 +19,13 @@ import {
   describeEffect,
   effectSpec,
   effectsInGroup,
+  formatParam,
+  microParams,
+  type ParamSpec,
 } from '../../model/effects';
 import { CHAIN_PRESETS } from '../../model/effectPresets';
 import type { Effect, EffectKind, Track } from '../../model/types';
+import { usePointerDrag } from '../../hooks/usePointerDrag';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
@@ -172,6 +176,62 @@ function deviceMenu(
   });
 }
 
+/**
+ * One parameter on a closed device.
+ *
+ * A horizontal bar rather than a knob: the rack is sixteen pixels tall and a
+ * knob at that size is a dot. Drag it, or focus it and use the arrows — the
+ * same contract every other parameter control in the product honours.
+ */
+function MicroParam({ rack, effect, spec }: { rack: RackHost; effect: Effect; spec: ParamSpec }) {
+  const value = effect.params[spec.key] ?? spec.default;
+  const norm = (v: number) => (v - spec.min) / (spec.max - spec.min || 1);
+  const denorm = (n: number) => spec.min + Math.min(1, Math.max(0, n)) * (spec.max - spec.min);
+  const set = (v: number) => rack.setParam(effect.id, spec.key, v);
+
+  const onPointerDown = usePointerDrag<number>({
+    onStart: () => {
+      useProjectStore.getState().beginGesture();
+      return norm(value);
+    },
+    onMove: (dx, _dy, e, start) => set(denorm(start + dx / (e.shiftKey ? 600 : 90))),
+    onEnd: () => useProjectStore.getState().endGesture(),
+  });
+
+  return (
+    <div
+      className="micro-param"
+      role="slider"
+      tabIndex={0}
+      aria-label={`${spec.label} on ${effectSpec(effect.kind)?.label ?? effect.kind}`}
+      aria-valuemin={spec.min}
+      aria-valuemax={spec.max}
+      aria-valuenow={Math.round(value * 1000) / 1000}
+      aria-valuetext={formatParam(spec, value)}
+      onPointerDown={onPointerDown}
+      onKeyDown={(e) => {
+        const step = e.shiftKey ? spec.step : (spec.max - spec.min) / 40;
+        let next: number | null = null;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = value + step;
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = value - step;
+        else if (e.key === 'Home') next = spec.default;
+        if (next === null) return;
+        e.preventDefault();
+        e.stopPropagation();
+        set(Math.min(spec.max, Math.max(spec.min, next)));
+      }}
+      onDoubleClick={() => set(spec.default)}
+    >
+      <span
+        className="micro-fill"
+        style={{ width: `${Math.max(0, Math.min(1, norm(value))) * 100}%` }}
+      />
+      <span className="micro-label">{spec.label}</span>
+      <span className="micro-value">{formatParam(spec, value)}</span>
+    </div>
+  );
+}
+
 function DeviceSlot({
   rack,
   effect,
@@ -191,7 +251,9 @@ function DeviceSlot({
   const open = useUiStore(
     (s) => s.openDevice?.trackId === rack.id && s.openDevice.effectId === effect.id,
   );
+  const [micro, setMicro] = useState(false);
   const label = spec?.label ?? effect.kind;
+  const microSpecs = micro ? microParams(effect.kind) : [];
 
   return (
     <li
@@ -252,12 +314,11 @@ function DeviceSlot({
       />
       <button
         className="dev-name"
-        aria-pressed={open}
-        title={`${label} — ${describeEffect(effect)}`}
-        onClick={() =>
-          useUiStore.getState().set({
-            openDevice: open ? null : { trackId: rack.id, effectId: effect.id },
-          })
+        aria-expanded={micro}
+        title={`${label} — ${describeEffect(effect)}\nClick for its main controls, double-click to open it`}
+        onClick={() => setMicro((m) => !m)}
+        onDoubleClick={() =>
+          useUiStore.getState().set({ openDevice: { trackId: rack.id, effectId: effect.id } })
         }
       >
         <span className="dev-index">{index + 1}</span>
@@ -274,6 +335,13 @@ function DeviceSlot({
       >
         <Icon name="dots-v" size={11} />
       </button>
+      {microSpecs.length > 0 && (
+        <div className="dev-micro" data-testid={`micro-${rack.name}-${index + 1}`}>
+          {microSpecs.map((p) => (
+            <MicroParam key={p.key} rack={rack} effect={effect} spec={p} />
+          ))}
+        </div>
+      )}
     </li>
   );
 }

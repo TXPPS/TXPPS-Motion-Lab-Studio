@@ -122,5 +122,37 @@ if (rootEl) {
         <App />
       </StrictMode>,
     );
+    loadWebFonts();
+  }
+}
+
+/**
+ * Fetch the type after the chrome is on screen.
+ *
+ * A `<link rel="stylesheet">` in the head blocks rendering until it resolves,
+ * and `display=swap` governs when the *font* swaps in, not when the
+ * *stylesheet* arrives — so linking it there held first paint for 12.6
+ * seconds when the CDN was unreachable, in a product that claims to work with
+ * no network at all. Injecting it after mount is non-blocking by
+ * construction: the system UI face paints immediately, Plex swaps in when it
+ * lands, and if it never lands nothing is lost but the typeface.
+ */
+function loadWebFonts(): void {
+  const href =
+    'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600' +
+    '&family=IBM+Plex+Sans+Condensed:wght@500;600' +
+    '&family=IBM+Plex+Mono:wght@400;500&display=swap';
+  const add = () => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    // A failed fetch is not an error worth reporting: the fallback stack is
+    // the design's own, not a degradation.
+    document.head.appendChild(link);
+  };
+  if ('requestIdleCallback' in window) {
+    (window as Window & { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(add);
+  } else {
+    setTimeout(add, 0);
   }
 }

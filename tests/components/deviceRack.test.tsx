@@ -48,10 +48,43 @@ describe('the console device rack', () => {
     ]);
   });
 
-  it('opens a device in place rather than navigating away', () => {
+  it('expands its main controls on the closed slot, without opening anything', () => {
+    // The reference's Micro View: a device slot that is only a label makes you
+    // open a window to move a threshold.
+    useProjectStore.getState().addEffect(id, 'compressor');
+    render(<DeviceRack rack={rackFor(id)} />);
+    expect(screen.queryByTestId('micro-Ch-1')).toBeNull();
+
+    fireEvent.click(within(screen.getByTestId('device-Ch-1')).getByText('Compressor'));
+    expect(useUiStore.getState().openDevice, 'a click must not open a window').toBeNull();
+
+    const micro = screen.getByTestId('micro-Ch-1');
+    const sliders = within(micro).getAllByRole('slider');
+    expect(sliders.length).toBeGreaterThan(1);
+    expect(sliders[0]).toHaveAttribute('aria-label', 'Threshold on Compressor');
+  });
+
+  it('moves a parameter from the closed slot, by keyboard as well as by drag', () => {
+    useProjectStore.getState().addEffect(id, 'compressor');
+    const { rerender } = render(<DeviceRack rack={rackFor(id)} />);
+    fireEvent.click(within(screen.getByTestId('device-Ch-1')).getByText('Compressor'));
+
+    const before = project().tracks.find((t) => t.id === id)!.effects![0].params.threshold;
+    fireEvent.keyDown(screen.getByLabelText('Threshold on Compressor'), { key: 'ArrowRight' });
+    rerender(<DeviceRack rack={rackFor(id)} />);
+    const after = project().tracks.find((t) => t.id === id)!.effects![0].params.threshold;
+    expect(after).toBeGreaterThan(before);
+    // and it reads back as a value a musician recognises, not a raw number
+    expect(screen.getByLabelText('Threshold on Compressor')).toHaveAttribute(
+      'aria-valuetext',
+      expect.stringContaining('dB'),
+    );
+  });
+
+  it('opens the device window on a double-click', () => {
     const fx = useProjectStore.getState().addEffect(id, 'compressor')!;
     render(<DeviceRack rack={rackFor(id)} />);
-    fireEvent.click(within(screen.getByTestId('device-Ch-1')).getByText('Compressor'));
+    fireEvent.doubleClick(within(screen.getByTestId('device-Ch-1')).getByText('Compressor'));
     expect(useUiStore.getState().openDevice).toEqual({ trackId: id, effectId: fx });
   });
 

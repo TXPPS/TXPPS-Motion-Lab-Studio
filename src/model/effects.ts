@@ -38,6 +38,15 @@ export interface ParamSpec {
   curve?: 'linear' | 'log';
   /** Discrete settings: the value is an index into this list. */
   choices?: readonly string[];
+  /**
+   * Show this one on the closed device in the console.
+   *
+   * A device slot that is only a label makes you open a window to move a
+   * threshold. Three or four parameters on the closed slot is what a
+   * professional console gives you, and it is the difference between a rack
+   * you read and a rack you use. Unflagged, the first three are taken.
+   */
+  micro?: boolean;
 }
 
 /** Picker categories, in the order the picker should show them. */
@@ -810,6 +819,24 @@ export function dynamicsCurveKey(law: DynamicsLaw): string {
   return law.law === 'expand'
     ? `expand/${law.thresholdDb}/${law.ratio}/${law.rangeDb}`
     : `compress/${law.thresholdDb}/${law.ratio}/${law.kneeDb}`;
+}
+
+/** How many parameters a closed device shows when none are flagged. */
+export const MICRO_PARAM_COUNT = 3;
+
+/**
+ * The parameters worth having on a closed device slot.
+ *
+ * Explicitly flagged ones win; otherwise the first few, which is the order a
+ * spec is written in and therefore the order the author thought mattered.
+ * A discrete choice is skipped — a menu does not belong on a slot that is
+ * sixteen pixels tall.
+ */
+export function microParams(kind: EffectKind): ParamSpec[] {
+  const params = effectSpec(kind)?.params ?? [];
+  const flagged = params.filter((p) => p.micro);
+  if (flagged.length > 0) return flagged;
+  return params.filter((p) => !p.choices).slice(0, MICRO_PARAM_COUNT);
 }
 
 /**

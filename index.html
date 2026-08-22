@@ -21,18 +21,19 @@
       and a slashed zero — and it is deliberately none of the faces the "AI
       slop" critiques name first (Inter, Roboto, Poppins, Montserrat).
 
-      `display=swap` is the whole reason this is allowed to exist: a DAW must
-      paint its chrome on the first frame and work with no network at all, so
-      the browser renders immediately in the system UI face from --font and
-      swaps Plex in when it arrives. Nothing in the layout depends on Plex's
-      metrics. Google Fonts is the only external origin the product uses.
+      A DAW must paint its chrome on the first frame and work with no network
+      at all, so the stylesheet is NOT linked here: a `<link rel=stylesheet>`
+      blocks rendering until it resolves, and `display=swap` governs the font
+      swap, not the fetch. Measured with the CDN unreachable, that link held
+      first paint for 12.6 seconds before failing.
+
+      main.tsx injects it after mount instead. The system UI face from --font
+      paints immediately, Plex swaps in when it arrives, and if it never
+      arrives nothing is lost. The preconnects stay because they cost nothing
+      and are not render-blocking.
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
-    />
     <title>TXPPS MotionLab Studio</title>
   </head>
   <body>

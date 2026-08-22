@@ -1827,6 +1827,56 @@
   white-space: nowrap;
 }
 
+/* Micro View: the closed device as a control surface, not a label. */
+.dev-slot {
+  flex-wrap: wrap;
+}
+.dev-micro {
+  flex: 1 0 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0 1px;
+}
+.micro-param {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 12px;
+  padding: 0 3px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-well);
+  box-shadow: var(--sh-well);
+  font-size: var(--fs-2xs);
+  color: var(--text-dim);
+  cursor: ew-resize;
+  overflow: hidden;
+}
+.micro-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent-bg);
+  pointer-events: none;
+}
+.micro-label,
+.micro-value {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.micro-label {
+  flex: 1 1 auto;
+}
+.micro-value {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
 @container mixer (max-height: 26.4em) {
   .dev-rack {
     max-height: calc(var(--dev-rack-h) * 0.6);

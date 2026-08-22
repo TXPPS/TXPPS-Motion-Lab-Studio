@@ -45,6 +45,26 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff2}'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
+        // The type is fetched from Google after first paint, so the precache
+        // glob — which only sees built assets — never covers it. Without
+        // these two rules the second visit offline falls back to the system
+        // face, which works but is not what the first visit looked like.
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/css2/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'google-fonts-stylesheets' },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-files',
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+        ],
       },
     }),
   ],
