@@ -611,3 +611,135 @@ button.li-main {
 .pool-sort {
   margin: 0 var(--sp-4) var(--sp-3);
 }
+
+/* ============================================================
+   Editor tabs and the chord assistant.
+   ============================================================ */
+
+.editor-tabs .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+/* A tab whose editor has nothing to show is dimmed and says why, rather than
+   disappearing — a product that changes shape is harder to learn than one with
+   an inactive control. */
+.editor-tabs .tab.dim {
+  opacity: 0.55;
+}
+
+.chord-assistant {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+.ca-key {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+.ca-key label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ca-key .k {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+}
+.ca-now {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+.ca-chord {
+  font-size: var(--fs-3xl);
+  font-weight: var(--fw-bold);
+  color: var(--warm-hi);
+  letter-spacing: var(--ls-tight);
+}
+.ca-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.ca-suggestions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--sp-3);
+}
+/* Strength is drawn, not stated: the strongest move is the brightest card, so
+   the ranking is visible before any of the text is read. */
+.ca-sugg {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: var(--sp-4);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) calc(var(--strength) * 16%), var(--bg-panel-2));
+  border: 1px solid
+    color-mix(in srgb, var(--accent) calc(var(--strength) * 55%), var(--border-soft));
+  text-align: left;
+}
+.ca-sugg:hover {
+  border-color: var(--accent);
+}
+.ca-label {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+.ca-numeral {
+  font-family: var(--font-num);
+  font-size: var(--fs-xs);
+  color: var(--accent);
+}
+.ca-reason {
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-body);
+  color: var(--text-dim);
+}
+.ca-progressions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sp-3);
+}
+.ca-prog {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--sp-4);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  text-align: left;
+}
+.ca-prog:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-raised);
+}
+.ca-prog-name {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+.ca-prog-blurb {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+.ca-follow {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  flex-wrap: wrap;
+}

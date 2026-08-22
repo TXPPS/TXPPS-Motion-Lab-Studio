@@ -18,6 +18,7 @@ import { installConsoleCapture, diagLog } from './state/diagnostics';
 import { applyAppearance } from './state/prefsStore';
 import { bootProject, installAutosave } from './app/projectActions';
 import { currentRoute } from './app/router';
+import { startAutomationRunners } from './app/automationActions';
 import { midi } from './audio/midi';
 import { engine } from './audio/engine';
 import { useProjectStore } from './state/projectStore';
@@ -40,6 +41,10 @@ const bootRoute = currentRoute();
 void bootProject(bootRoute).then(() => {
   if (!bootRoute.fixture) installAutosave();
 });
+
+// Write-mode automation records without being touched, so its runner has to be
+// live before the first control move rather than started by one.
+startAutomationRunners();
 
 registerPwa();
 

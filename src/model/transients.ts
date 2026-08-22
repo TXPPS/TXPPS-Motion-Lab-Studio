@@ -77,7 +77,7 @@ export interface TransientAnalysis {
   transients: Transient[];
   tempo: TempoEstimate;
   envelope: OnsetEnvelope;
-  /** Spectral flatness 0..1 that chose the detector. */
+  /** Spectral flatness 0..1 that chose the detector; 0 when `method` was forced. */
   flatness: number;
   method: OnsetMethod;
 }

@@ -1,0 +1,278 @@
+/**
+ * Drum editor.
+ *
+ * Same visual language as the piano roll: a scrolling ground in `--bg-deep`, a
+ * sticky rail on the left, a toolbar of the same height and the same grid
+ * palette (`--grid-bar` / `--grid-beat` / `--grid-sub`). The one thing the
+ * piano roll does not have is a family palette — six kit families that must be
+ * told apart at a glance — so it is built here from the theme's own accents
+ * rather than from six new literals, and it follows every theme for free.
+ */
+.de {
+  --drum-kick: var(--warm);
+  --drum-snare: var(--danger);
+  --drum-hats: var(--accent);
+  --drum-toms: var(--info);
+  --drum-cymbals: color-mix(in srgb, var(--info) 55%, var(--danger));
+  --drum-perc: var(--text-faint);
+
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-deep);
+}
+
+.de-toolbar {
+  height: var(--toolbar-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-soft);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.de-toolbar::-webkit-scrollbar {
+  display: none;
+}
+/* Controls keep their natural width; the toolbar itself scrolls when narrow. */
+.de-toolbar > * {
+  flex-shrink: 0;
+}
+.de-toolbar label {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  white-space: nowrap;
+}
+
+.de-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-5);
+  color: var(--text-dim);
+  padding: var(--sp-7);
+  text-align: center;
+}
+
+.de-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+  overscroll-behavior: contain;
+}
+
+.de-inner {
+  position: relative;
+}
+
+.de-body {
+  display: flex;
+}
+
+/* ------------------------------------------------------------------ ruler */
+
+.de-ruler-row {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-panel-chrome);
+  display: flex;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.de-corner {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.de-ruler {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--grid-beat) 0 1px,
+    transparent 1px var(--de-beat-px)
+  );
+}
+
+.de-bar-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding-left: var(--sp-1);
+  border-left: 1px solid var(--grid-bar);
+  display: flex;
+  align-items: center;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------- lane rail */
+
+.de-rail {
+  position: sticky;
+  left: 0;
+  z-index: var(--z-sticky);
+  flex: none;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+}
+
+.de-lane {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-2);
+  border-bottom: 1px solid var(--border-soft);
+  font-size: var(--fs-xs);
+}
+
+.de-swatch {
+  flex: none;
+  width: var(--sp-2);
+  height: 62%;
+  border-radius: var(--radius-pill);
+  background: var(--de-lane-color);
+}
+
+.de-lane-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+/* The rail is one row deep, so its buttons run at the small control size. */
+.de-lane .icon-btn.de-audition {
+  width: var(--sp-7);
+  height: calc(var(--control-h-sm) - var(--sp-2));
+}
+
+/* -------------------------------------------------------------- the grid */
+
+.de-grid {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  touch-action: none;
+  cursor: pointer;
+  /* Bars, beats, steps and lane rules as four repeating gradients on one div:
+     an empty 64-bar grid costs exactly as much DOM as an empty one-bar grid,
+     and the layers composite on the GPU at any zoom. */
+  background-image:
+    repeating-linear-gradient(90deg, var(--grid-bar) 0 1px, transparent 1px var(--de-bar-px)),
+    repeating-linear-gradient(90deg, var(--grid-beat) 0 1px, transparent 1px var(--de-beat-px)),
+    repeating-linear-gradient(90deg, var(--grid-sub) 0 1px, transparent 1px var(--de-step-px)),
+    repeating-linear-gradient(0deg, var(--border-soft) 0 1px, transparent 1px var(--de-lane-px));
+}
+
+/* One tinted band per kit family, not one per row. */
+.de-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: var(--z-lane);
+}
+.de-band[data-group='kick'] {
+  background: color-mix(in srgb, var(--drum-kick) 7%, transparent);
+}
+.de-band[data-group='snare'] {
+  background: color-mix(in srgb, var(--drum-snare) 7%, transparent);
+}
+.de-band[data-group='hats'] {
+  background: color-mix(in srgb, var(--drum-hats) 6%, transparent);
+}
+.de-band[data-group='toms'] {
+  background: color-mix(in srgb, var(--drum-toms) 7%, transparent);
+}
+.de-band[data-group='cymbals'] {
+  background: color-mix(in srgb, var(--drum-cymbals) 8%, transparent);
+}
+.de-band[data-group='percussion'] {
+  background: color-mix(in srgb, var(--drum-perc) 5%, transparent);
+}
+
+/* A hit is drawn as a column: its height and its opacity both carry velocity,
+   so the shape of a groove is readable without a second lane below the grid. */
+.de-hit {
+  position: absolute;
+  z-index: var(--z-clip);
+  border-radius: var(--radius-xs);
+  background: var(--de-hit-color);
+  box-shadow: var(--sh-inset);
+}
+.de-hit.selected {
+  outline: 1px solid var(--warm-hi);
+  z-index: 3;
+}
+.de-hit.muted {
+  background: transparent;
+  border: 1px dashed var(--de-hit-color);
+  box-shadow: none;
+}
+
+/* Keyboard cell cursor: shown only while the grid is the thing being driven. */
+.de-cell-cursor {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-xs);
+  background: var(--accent-bg);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.de-grid:focus .de-cell-cursor {
+  opacity: 1;
+}
+
+/* Spoken position and velocity for the cell cursor. */
+.de-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.de-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  background: var(--warm);
+  z-index: var(--z-playhead);
+  pointer-events: none;
+  will-change: transform;
+}

@@ -7,14 +7,17 @@
  * filter lane is a legitimate move, which is exactly why lane values are
  * normalized in the first place.
  *
- * Capture implements touch and latch. While the transport runs and the
- * track's mode is touch or latch, a control move writes points at the
- * playhead, overwriting whatever the pass covers. Touch stops writing when
- * the control is released; latch keeps writing the last value until the
- * transport stops.
+ * Capture implements every recording mode. While the transport runs, a control
+ * move writes points at the playhead, overwriting whatever the pass covers.
+ * Touch stops writing when the control is released; latch keeps writing the
+ * last value until the transport stops; write opens a pass on every lane the
+ * moment playback starts, touched or not; trim writes the DIFFERENCE from
+ * where the control started, so an existing ride is shifted rather than
+ * replaced.
  */
 import { engine } from '../audio/engine';
 import type { CurveShape } from '../model/automation';
+import { modeRecords } from '../model/automation';
 import { findAutoParam, normParam } from '../model/paramRegistry';
 import { useProjectStore } from '../state/projectStore';
 import { useTransportStore } from '../state/transportStore';
@@ -107,10 +110,12 @@ interface CaptureSession {
   laneId: string;
   lastBeat: number;
   lastValue: number;
-  /** touch sessions end on release; latch sessions persist until stop */
+  /** touch sessions end on release; latch/write sessions persist until stop */
   latch: boolean;
   /** control released (latch keeps writing the held value) */
   released: boolean;
+  /** trim mode: the lane's value where the ride started, so a delta can be derived */
+  trimBase?: number;
 }
 
 const sessions = new Map<string, CaptureSession>();
@@ -132,7 +137,7 @@ export function captureParamChange(trackId: string, paramId: string, value: numb
   const track = p.tracks.find((t) => t.id === trackId);
   if (!track) return false;
   const mode = track.automationMode ?? 'read';
-  if (mode !== 'touch' && mode !== 'latch') return false;
+  if (!modeRecords(mode)) return false;
   const param = findAutoParam(track, p, paramId);
   if (!param) return false;
 
@@ -145,6 +150,27 @@ export function captureParamChange(trackId: string, paramId: string, value: numb
   const k = key(trackId, paramId);
   const existing = sessions.get(k);
   const since = existing ? existing.lastBeat : beat;
+
+  if (mode === 'trim') {
+    // Trim writes a DIFFERENCE. The base is the control's value when the ride
+    // started, so the delta is how far it has been pushed since — that is what
+    // gets added to whatever the lane already says.
+    const base = existing?.trimBase ?? norm;
+    useProjectStore.getState().trimAutomationAt(trackId, laneId, beat, norm - base, since);
+    sessions.set(k, {
+      trackId,
+      paramId,
+      laneId,
+      lastBeat: beat,
+      lastValue: norm,
+      latch: false,
+      released: false,
+      trimBase: base,
+    });
+    ensureRunners();
+    return true;
+  }
+
   useProjectStore.getState().writeAutomationAt(trackId, laneId, beat, norm, since);
   sessions.set(k, {
     trackId,
@@ -152,7 +178,9 @@ export function captureParamChange(trackId: string, paramId: string, value: numb
     laneId,
     lastBeat: beat,
     lastValue: norm,
-    latch: mode === 'latch',
+    // Write behaves like latch once engaged: it keeps writing until the
+    // transport stops, which is what makes it a pass rather than a nudge.
+    latch: mode === 'latch' || mode === 'write',
     released: false,
   });
   ensureRunners();
@@ -171,13 +199,20 @@ export function captureParamRelease(trackId: string, paramId: string): void {
   }
 }
 
-/** Latch tick: extend released sessions to the current playhead. */
+/**
+ * Per-frame automation writing.
+ *
+ * Two jobs: extend released latch/write sessions to the playhead, and — in
+ * write mode — start a pass with no touch at all, because "write" means the
+ * pass is happening whether or not a hand is on the control.
+ */
 function tick(): void {
-  if (sessions.size === 0) return;
   if (!engine.isPlaying()) {
-    sessions.clear();
+    if (sessions.size) sessions.clear();
     return;
   }
+  startWritePasses();
+  if (sessions.size === 0) return;
   const beat = engine.getPositionBeats();
   for (const s of sessions.values()) {
     if (!s.released) continue;
@@ -187,6 +222,39 @@ function tick(): void {
       .writeAutomationAt(s.trackId, s.laneId, beat, s.lastValue, s.lastBeat);
     s.lastBeat = beat;
   }
+}
+
+/**
+ * Write mode records without being touched, so every existing lane on a
+ * write-mode track opens a session as soon as the transport is running.
+ */
+function startWritePasses(): void {
+  const p = useProjectStore.getState().project;
+  const beat = engine.getPositionBeats();
+  for (const track of p.tracks) {
+    if (track.automationMode !== 'write') continue;
+    for (const lane of track.automation ?? []) {
+      if (!lane.enabled) continue;
+      const k = key(track.id, lane.paramId);
+      if (sessions.has(k)) continue;
+      const param = findAutoParam(track, p, lane.paramId);
+      if (!param) continue;
+      sessions.set(k, {
+        trackId: track.id,
+        paramId: lane.paramId,
+        laneId: lane.id,
+        lastBeat: beat,
+        lastValue: normParam(param, param.get(track)),
+        latch: true,
+        released: true,
+      });
+    }
+  }
+}
+
+/** The engine frame loop is what keeps write and latch passes moving. */
+export function startAutomationRunners(): void {
+  ensureRunners();
 }
 
 function ensureRunners(): void {

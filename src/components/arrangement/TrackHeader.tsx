@@ -1,6 +1,11 @@
 import { memo } from 'react';
 import type { Track } from '../../model/types';
-import type { AutomationMode } from '../../model/automation';
+import {
+  AUTOMATION_MODES,
+  AUTOMATION_MODE_BLURBS,
+  modeRecords,
+  type AutomationMode,
+} from '../../model/automation';
 import { listAutoParams } from '../../model/paramRegistry';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
@@ -285,9 +290,9 @@ export const TrackHeader = memo(function TrackHeader({
           </div>
           {track.automationOpen && (
             <select
-              className="th-automode"
+              className={`th-automode${modeRecords(track.automationMode) ? ' recording' : ''}`}
               value={track.automationMode ?? 'read'}
-              title="Automation mode: Read applies lanes; Touch records while you hold a control; Latch keeps writing after release until stop; Off ignores lanes"
+              title={AUTOMATION_MODE_BLURBS[track.automationMode ?? 'read']}
               aria-label={`${track.name} automation mode`}
               data-testid={`automode-${track.name}`}
               onClick={(e) => e.stopPropagation()}
@@ -295,10 +300,11 @@ export const TrackHeader = memo(function TrackHeader({
                 store.getState().setAutomationMode(track.id, e.target.value as AutomationMode)
               }
             >
-              <option value="read">Read</option>
-              <option value="touch">Touch</option>
-              <option value="latch">Latch</option>
-              <option value="off">Off</option>
+              {AUTOMATION_MODES.map((m) => (
+                <option key={m} value={m} title={AUTOMATION_MODE_BLURBS[m]}>
+                  {m[0].toUpperCase() + m.slice(1)}
+                </option>
+              ))}
             </select>
           )}
         </div>

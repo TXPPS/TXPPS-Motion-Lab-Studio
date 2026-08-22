@@ -21,6 +21,15 @@
  * with it. `formantPreserve` then corrects the side effect of that resample —
  * see `preserveFormants`.
  *
+ * Known limit, stated rather than hidden: an isolated transient in otherwise
+ * empty audio is spread across the few frames that contain it, because the
+ * similarity search is anchored to a nominal analysis position and cannot hold
+ * one splice still while the rest of the timeline moves. On a mix, a loop or any
+ * sustained material the correlation has structure to lock onto and the seams
+ * disappear; on a lone rim-shot in silence it is audible as a short flam. Fixing
+ * that properly means splicing on detected transients rather than on a fixed
+ * grid, which is a separate piece of work.
+ *
  * The stretcher is deterministic (no randomness, no time-dependent state) and
  * allocates only before its loops, never inside them.
  */

@@ -17,7 +17,7 @@ import type {
 import { defaultParams, effectSpec, MAX_INSERTS } from '../model/effects';
 import type { MediaRef } from '../model/media';
 import { createDemoProject } from '../model/demoProject';
-import { makePoint, normalizeLanePoints } from '../model/automation';
+import { laneValueAt, makePoint, normalizeLanePoints } from '../model/automation';
 import type {
   AutomationLane,
   AutomationMode,
@@ -326,6 +326,18 @@ export interface ProjectStore {
   assignVca: (trackId: string, vcaId: string | undefined) => void;
   /** Reorder tracks; the folder a track lands in follows from its neighbours. */
   moveTrack: (id: string, toIndex: number) => void;
+
+  /**
+   * Trim mode: shift every point in [sinceBeat, beat] by `delta` (normalised),
+   * adding boundary points so the ride outside the pass is untouched.
+   */
+  trimAutomationAt: (
+    trackId: string,
+    laneId: string,
+    beat: number,
+    delta: number,
+    sinceBeat: number,
+  ) => void;
 
   // ---- note effects ----
   addNoteFx: (trackId: string, kind: NoteFxKind) => string | null;
@@ -2042,6 +2054,31 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         const [moved] = d.tracks.splice(from, 1);
         d.tracks.splice(to, 0, moved);
       }),
+
+    trimAutomationAt: (trackId, laneId, beat, delta, sinceBeat) =>
+      update(
+        (d) => {
+          const l = trackById(d, trackId)?.automation?.find((x) => x.id === laneId);
+          if (!l) return;
+          const lo = Math.min(sinceBeat, beat);
+          const hi = Math.max(sinceBeat, beat);
+          // Anchor the ride either side of the pass at its pre-trim value, so
+          // trimming a chorus cannot tilt the verse before it.
+          const before = laneValueAt(l.points, lo);
+          const after = laneValueAt(l.points, hi);
+          for (const pt of l.points) {
+            if (pt.beat >= lo - 1e-9 && pt.beat <= hi + 1e-9) {
+              pt.value = clamp(pt.value + delta, 0, 1);
+            }
+          }
+          if (before !== null) l.points.push(makePoint(lo - 1e-4, before, 'linear'));
+          if (after !== null) l.points.push(makePoint(hi + 1e-4, after, 'linear'));
+          const at = laneValueAt(l.points, beat);
+          l.points.push(makePoint(beat, clamp((at ?? 0.5) + delta, 0, 1), 'linear'));
+          normalizeLanePoints(l.points);
+        },
+        { undoable: false },
+      ),
 
     // -------------------------------------------------------- note effects
 

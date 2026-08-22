@@ -42,7 +42,21 @@ export interface AutomationLane {
   height?: number;
 }
 
-export type AutomationMode = 'read' | 'touch' | 'latch' | 'off';
+/**
+ * How a track records control moves.
+ *
+ * - `read`   plays lanes back and records nothing.
+ * - `touch`  records while a control is held, then hands the lane back.
+ * - `latch`  records from the first touch until the transport stops.
+ * - `write`  records continuously from the moment playback starts, whether or
+ *            not anything is touched — it overwrites as it passes, which is
+ *            what makes it the mode you turn off again straight away.
+ * - `trim`   records a RELATIVE offset: moving the control shifts the existing
+ *            ride rather than replacing it, so a pass can be lifted 2 dB
+ *            without losing its shape.
+ * - `off`    ignores lanes entirely; the static value plays.
+ */
+export type AutomationMode = 'read' | 'touch' | 'latch' | 'write' | 'trim' | 'off';
 
 /** Shape a 0..1 segment progress through the curve. Endpoints always map 0→0, 1→1. */
 export function shapeProgress(t: number, curve: CurveShape): number {
@@ -193,7 +207,29 @@ export function validateLane(raw: unknown): AutomationLane | null {
   };
 }
 
-export const AUTOMATION_MODES: AutomationMode[] = ['read', 'touch', 'latch', 'off'];
+export const AUTOMATION_MODES: AutomationMode[] = [
+  'read',
+  'touch',
+  'latch',
+  'write',
+  'trim',
+  'off',
+];
+
+/** One line per mode, for the mode picker's tooltip. */
+export const AUTOMATION_MODE_BLURBS: Record<AutomationMode, string> = {
+  read: 'Play the lanes back. Nothing is recorded.',
+  touch: 'Record while the control is held, then give the lane back.',
+  latch: 'Record from the first touch until the transport stops.',
+  write: 'Record continuously from the moment playback starts. Overwrites as it passes.',
+  trim: 'Shift the existing ride instead of replacing it.',
+  off: 'Ignore the lanes; the static value plays.',
+};
+
+/** Modes that record. Read and off never write a point. */
+export function modeRecords(mode: AutomationMode | undefined): boolean {
+  return mode === 'touch' || mode === 'latch' || mode === 'write' || mode === 'trim';
+}
 
 export function isAutomationMode(v: unknown): v is AutomationMode {
   return typeof v === 'string' && (AUTOMATION_MODES as string[]).includes(v);

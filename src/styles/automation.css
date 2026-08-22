@@ -270,3 +270,12 @@
 [data-tool='slip'] .clip {
   cursor: ew-resize;
 }
+
+/* A recording mode has to be unmistakable: a pass that is silently overwriting
+   a ride is the one automation mistake that cannot be undone by ear. */
+.th-automode.recording {
+  color: var(--danger-text);
+  border-color: var(--danger-line);
+  background: var(--danger-bg);
+  font-weight: var(--fw-semibold);
+}

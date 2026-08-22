@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 
-export type EditorTab = 'mixer' | 'piano' | 'synth' | 'diagnostics';
+/**
+ * Which editor the bottom panel is showing. The list of editors themselves
+ * lives in `app/editors.ts`; this is only the persisted selection.
+ */
+export type EditorTab = 'mixer' | 'piano' | 'drums' | 'score' | 'chords' | 'synth' | 'diagnostics';
 export type PhoneMode = 'arrange' | 'record' | 'perform' | 'edit' | 'mix' | 'browse';
 export type BrowserTab = 'projects' | 'instruments' | 'effects' | 'loops' | 'samples' | 'pool';
 /** Arrangement editing tools. Only fully-usable tools are offered. */

@@ -1,4 +1,6 @@
 import { SCHEMA_VERSION } from '../src/model/types';
+import { AUTOMATION_MODES, AUTOMATION_MODE_BLURBS, modeRecords } from '../src/model/automation';
+import { useProjectStore } from '../src/state/projectStore';
 import { describe, expect, it } from 'vitest';
 import {
   laneValueAt,
@@ -390,5 +392,65 @@ describe('store automation ops', () => {
     expect(track().automation).toBeUndefined();
     s.undo();
     expect(track().automation).toHaveLength(1);
+  });
+});
+
+describe('automation modes', () => {
+  it('names every mode it records with, and only those', () => {
+    expect(AUTOMATION_MODES).toEqual(['read', 'touch', 'latch', 'write', 'trim', 'off']);
+    expect(AUTOMATION_MODES.filter(modeRecords)).toEqual(['touch', 'latch', 'write', 'trim']);
+    expect(modeRecords(undefined)).toBe(false);
+    for (const m of AUTOMATION_MODES) expect(AUTOMATION_MODE_BLURBS[m].length).toBeGreaterThan(10);
+  });
+});
+
+describe('trim mode', () => {
+  it('shifts an existing ride inside the pass and leaves the rest alone', () => {
+    const store = useProjectStore.getState();
+    const trackId = store.addTrack('audio');
+    const laneId = useProjectStore.getState().addAutomationLane(trackId, 'volume')!;
+    // A ride from 0.2 to 0.8 across eight beats.
+    useProjectStore.getState().update((d) => {
+      const lane = d.tracks
+        .find((t) => t.id === trackId)!
+        .automation!.find((l) => l.id === laneId)!;
+      lane.points = [
+        makePoint(0, 0.2, 'linear'),
+        makePoint(4, 0.5, 'linear'),
+        makePoint(8, 0.8, 'linear'),
+      ];
+    });
+
+    // Trim +0.1 across beats 3..5 only.
+    useProjectStore.getState().trimAutomationAt(trackId, laneId, 5, 0.1, 3);
+
+    const lane = useProjectStore
+      .getState()
+      .project.tracks.find((t) => t.id === trackId)!
+      .automation!.find((l) => l.id === laneId)!;
+
+    // Inside the pass the value is lifted…
+    expect(laneValueAt(lane.points, 4)).toBeCloseTo(0.6, 5);
+    // …and outside it the original ride is intact.
+    expect(laneValueAt(lane.points, 0)).toBeCloseTo(0.2, 5);
+    expect(laneValueAt(lane.points, 8)).toBeCloseTo(0.8, 5);
+  });
+
+  it('clamps a trim that would push the lane past its range', () => {
+    const store = useProjectStore.getState();
+    const trackId = store.addTrack('audio');
+    const laneId = useProjectStore.getState().addAutomationLane(trackId, 'volume')!;
+    useProjectStore.getState().update((d) => {
+      const lane = d.tracks
+        .find((t) => t.id === trackId)!
+        .automation!.find((l) => l.id === laneId)!;
+      lane.points = [makePoint(0, 0.95, 'linear'), makePoint(8, 0.95, 'linear')];
+    });
+    useProjectStore.getState().trimAutomationAt(trackId, laneId, 6, 0.5, 2);
+    const lane = useProjectStore
+      .getState()
+      .project.tracks.find((t) => t.id === trackId)!
+      .automation!.find((l) => l.id === laneId)!;
+    for (const p of lane.points) expect(p.value).toBeLessThanOrEqual(1);
   });
 });
