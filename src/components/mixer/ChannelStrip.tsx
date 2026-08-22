@@ -166,6 +166,9 @@ export const ChannelStrip = memo(function ChannelStrip({
         state && !state.audible ? ' silent' : ''
       }${cue ? ' in-cue' : ''}`}
       style={{ ['--strip-color' as string]: track.color }}
+      role="group"
+      aria-label={`${track.name} channel`}
+      aria-current={selected || undefined}
       onPointerDown={() => useUiStore.getState().selectTrack(track.id)}
       data-testid={`strip-${track.name}`}
       data-strip="channel"
