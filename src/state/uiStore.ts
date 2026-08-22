@@ -45,6 +45,8 @@ export interface MenuItem {
   shortcut?: string;
   danger?: boolean;
   disabled?: boolean;
+  /** Stable hook for tests; the label is what a user (and a reader) sees. */
+  testId?: string;
   action: () => void;
 }
 

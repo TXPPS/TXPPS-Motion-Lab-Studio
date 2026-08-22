@@ -186,6 +186,7 @@ export function ContextMenuHost() {
             item.action();
           }}
           role="menuitem"
+          data-testid={item.testId}
           // Arrow keys move between items; Tab is not how you walk a menu.
           tabIndex={-1}
         >

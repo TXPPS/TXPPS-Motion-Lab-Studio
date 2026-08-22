@@ -58,7 +58,9 @@ export function SamplesTab({ query }: { query: string }) {
 
   const items = useMemo<SampleItem[]>(() => {
     const project: SampleItem[] = (media ?? [])
-      .filter((m) => m.kind !== 'procedural')
+      // A frozen track's print is not a sample: it belongs to that track, and
+      // dropping it into a sampler would be a copy nobody asked for.
+      .filter((m) => m.kind !== 'procedural' && m.kind !== 'freeze')
       .map((m) => ({
         id: m.id,
         name: m.name,

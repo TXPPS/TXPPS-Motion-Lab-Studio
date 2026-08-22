@@ -205,7 +205,10 @@ function LoopsTab({ query }: { query: string }) {
   const addTrack = useProjectStore((s) => s.addTrack);
   const bpm = useProjectStore((s) => s.project.bpm);
   const media = useProjectStore((s) => s.project.media);
-  const imported = (media ?? []).filter((m) => m.kind !== 'procedural');
+  // Frozen-track prints are project audio, but they are not material anyone
+  // drags onto a track — they belong to the track that made them, and the pool
+  // is where they are accounted for.
+  const imported = (media ?? []).filter((m) => m.kind !== 'procedural' && m.kind !== 'freeze');
 
   return (
     <>

@@ -63,11 +63,12 @@ registerPwa();
  * that the UI does not already offer.
  */
 void (async () => {
-  const [exportMix, demoProject, uiStoreMod, encode] = await Promise.all([
+  const [exportMix, demoProject, uiStoreMod, encode, freeze] = await Promise.all([
     import('./audio/exportMix'),
     import('./model/demoProject'),
     import('./state/uiStore'),
     import('./audio/encode'),
+    import('./audio/freeze'),
   ]);
   const w = window as unknown as { __ml?: Record<string, unknown> };
   // Merge: the engine already publishes meter/transport probes on this handle,
@@ -80,6 +81,9 @@ void (async () => {
     // reader is proof of self-consistency, not of a readable file.
     encode,
     demoProject,
+    // Freezing is a render into storage, so proving it is transparent needs a
+    // real browser — the same reason the export path is exposed here.
+    freeze,
     engine,
     projectStore: useProjectStore,
     uiStore: uiStoreMod.useUiStore,

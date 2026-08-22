@@ -11,7 +11,12 @@
  * how Milestone 1 demo content keeps working unchanged.
  */
 
-export type MediaKind = 'procedural' | 'recording' | 'import';
+/**
+ * `freeze` is audio this app rendered from a track rather than audio that came
+ * from outside it: it belongs to the track that owns it, no clip points at it,
+ * and unfreezing that track is what makes it unused.
+ */
+export type MediaKind = 'procedural' | 'recording' | 'import' | 'freeze';
 
 export interface MediaRef {
   id: string;
@@ -73,13 +78,16 @@ export function formatBytes(n: number): string {
 }
 
 /**
- * Every media id a project can play: audio clips, their takes, and sampler
- * zones (including rack children). Used to evict stale decode caches when
- * switching projects.
+ * Every media id a project can play: audio clips, their takes, sampler zones
+ * (including rack children) and the prints frozen tracks play instead of their
+ * instruments. Used to evict stale decode caches when switching projects — a
+ * print left out of this list would be dropped from memory while the track
+ * that plays it is still frozen.
  */
 export function usedMediaIds(p: {
   clips: { type: string; mediaId?: string; takes?: { mediaId: string }[] }[];
   tracks: {
+    freeze?: { mediaId: string };
     sampler?: { zones: { mediaId: string }[] };
     rack?: { items: { sampler?: { zones: { mediaId: string }[] } }[] };
   }[];
@@ -90,6 +98,7 @@ export function usedMediaIds(p: {
     for (const t of c.takes ?? []) ids.add(t.mediaId);
   }
   for (const t of p.tracks) {
+    if (t.freeze) ids.add(t.freeze.mediaId);
     for (const z of t.sampler?.zones ?? []) ids.add(z.mediaId);
     for (const item of t.rack?.items ?? []) {
       for (const z of item.sampler?.zones ?? []) ids.add(z.mediaId);

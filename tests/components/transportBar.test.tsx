@@ -2,7 +2,11 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { engineStub, setupUser } from '../setup.tsx';
 
-vi.mock('../../src/audio/engine', async () => ({
+// Only the engine SINGLETON is doubled: the module also exports pure helpers
+// (the click's level, whether the click sounds) that the transport reads to
+// draw its own menu, and a mock that dropped them would be mocking data.
+vi.mock('../../src/audio/engine', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/audio/engine')>()),
   engine: (await import('../setup.tsx')).engineStub,
 }));
 

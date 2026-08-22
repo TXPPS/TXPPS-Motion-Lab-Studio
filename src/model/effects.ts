@@ -792,8 +792,8 @@ export function dynamicsGain(law: DynamicsLaw, envelope: number): number {
 }
 
 /** The same law as a WaveShaper curve, sampled through the same evaluation. */
-export function dynamicsCurve(law: DynamicsLaw, size?: number): Float32Array {
-  return transferCurve((envelope) => dynamicsGain(law, envelope), size);
+export function dynamicsCurve(law: DynamicsLaw): Float32Array {
+  return transferCurve((envelope) => dynamicsGain(law, envelope));
 }
 
 /**
@@ -825,7 +825,7 @@ export function deesserBand(effect: Effect): EqBandSpec {
 /**
  * The multiband's two crossover points, with the guard the audio applies: a
  * high split dragged below the low one would turn the mid band inside out, so
- * it is held a fifth above. The face reads this rather than the raw parameter,
+ * it is held 20 % above it. The face reads this rather than the raw parameter,
  * because a split drawn where the audio did not put it is the same lie as a
  * curve drawn from a law the audio does not use.
  */

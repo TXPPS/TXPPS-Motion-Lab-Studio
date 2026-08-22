@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { formatDb } from '../../model/music';
 import { TRACK_COLORS } from '../../model/types';
-import type { AudioClip, Effect, FadeShape } from '../../model/types';
+import type { AudioClip, Effect, FadeShape, ProjectData, Track } from '../../model/types';
+import { freezeRefusal, isFrozen } from '../../model/freeze';
+import { freezeTrack, unfreezeTrack } from '../../audio/freeze';
+import { isMissing } from '../../audio/mediaLibrary';
 import { getClip, getTrack, useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { PanKnob } from '../common/widgets';
@@ -175,6 +178,64 @@ function eventChainHost(clip: { id: string; eventFx?: Effect[] }): ChainHost {
     move: (id, delta) => store.getState().moveEventFx(clip.id, id, delta),
   };
 }
+
+/**
+ * Freeze: print the track and play the print.
+ *
+ * The panel is honest about the two things a musician has to know — that the
+ * instrument is not running while the track is frozen, and that editing what
+ * the print was made from gives the instrument straight back.
+ */
+function FreezePanel({ project, track }: { project: ProjectData; track: Track }) {
+  const [busy, setBusy] = useState(false);
+  const frozen = isFrozen(track);
+  const refusal = frozen ? null : freezeRefusal(project, track);
+  const printMissing = frozen && isMissing(track.freeze!.mediaId);
+
+  return (
+    <div className="panel-section">
+      <div className="ps-title">Freeze</div>
+      <div className="insp-row" style={{ gap: 6 }}>
+        <button
+          className={`btn${frozen ? ' primary' : ''}`}
+          disabled={busy || (!frozen && refusal !== null)}
+          aria-label={`${frozen ? 'Unfreeze' : 'Freeze'} ${track.name}`}
+          data-testid={frozen ? 'unfreeze-track' : 'freeze-track'}
+          title={
+            refusal ??
+            (frozen
+              ? 'Give the instrument back and play the notes again'
+              : 'Render this track to audio and play that instead — no instrument, no notes, no CPU')
+          }
+          onClick={() => {
+            if (frozen) {
+              unfreezeTrack(track.id);
+              return;
+            }
+            setBusy(true);
+            void freezeTrack(track.id).finally(() => setBusy(false));
+          }}
+        >
+          {busy ? 'Rendering…' : frozen ? 'Unfreeze' : 'Freeze'}
+        </button>
+        <span className="v" data-testid="freeze-state">
+          {frozen ? 'Frozen' : 'Playing live'}
+        </span>
+      </div>
+      <div className="hint">
+        {printMissing
+          ? 'The rendered audio for this freeze is missing — unfreeze to get the instrument back.'
+          : frozen
+            ? `Rendered ${new Date(track.freeze!.renderedAt).toLocaleString()}. The instrument is not running: editing the notes, the instrument, its note FX or its inserts releases the freeze and gives it back.`
+            : (refusal ??
+              'Renders the notes, the instrument, its note FX and its inserts to audio. Fader, pan, mute and sends keep working.')}
+      </div>
+    </div>
+  );
+}
+
+/** MIDI channels an instrument track can listen to. 0 is omni. */
+const MIDI_CHANNELS = Array.from({ length: 16 }, (_, i) => i + 1);
 
 export function Inspector() {
   const project = useProjectStore((s) => s.project);
@@ -368,6 +429,25 @@ export function Inspector() {
               </select>
             </div>
           )}
+          {(track.type === 'instrument' || track.type === 'drum') && (
+            <div className="insp-row">
+              <span className="k">MIDI input</span>
+              <select
+                value={track.midiChannel ?? 0}
+                onChange={(e) => store.setTrack(track.id, { midiChannel: Number(e.target.value) })}
+                aria-label={`MIDI input channel for ${track.name}`}
+                data-testid="midi-channel"
+                title="Which MIDI channel plays this track. Omni takes every channel; any other value takes that one alone, which is how one keyboard drives several tracks."
+              >
+                <option value={0}>Omni — every channel</option>
+                {MIDI_CHANNELS.map((c) => (
+                  <option key={c} value={c}>
+                    Channel {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="insp-row" style={{ gap: 6 }}>
             {/* A button's own text is its accessible name, so "M", "S" and a
                 bullet announce as themselves and nothing else. The label has to
@@ -417,6 +497,9 @@ export function Inspector() {
           <div className="panel-section">
             <NoteFxRack track={track} />
           </div>
+        )}
+        {(track.type === 'instrument' || track.type === 'drum') && (
+          <FreezePanel project={project} track={track} />
         )}
         <div className="panel-section">
           <MacroPanel track={track} />

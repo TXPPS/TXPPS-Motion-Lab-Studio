@@ -7,6 +7,8 @@ import {
   type AutomationMode,
 } from '../../model/automation';
 import { listAutoParams } from '../../model/paramRegistry';
+import { isFrozen } from '../../model/freeze';
+import { freezeTrack, unfreezeTrack } from '../../audio/freeze';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { longPress } from '../../hooks/usePointerDrag';
@@ -125,6 +127,16 @@ export const TrackHeader = memo(function TrackHeader({
                 ui.getState().selectClip(id, track.id);
               },
             },
+            {
+              label: track.freeze
+                ? 'Unfreeze — bring the instrument back'
+                : 'Freeze — render this track to audio',
+              testId: `freeze-menu-${track.name}`,
+              action: () => {
+                if (track.freeze) unfreezeTrack(track.id);
+                else void freezeTrack(track.id);
+              },
+            },
           ]
         : []),
       {
@@ -160,7 +172,9 @@ export const TrackHeader = memo(function TrackHeader({
       role="group"
       tabIndex={0}
       aria-current={selected || undefined}
-      aria-label={`${track.name}, ${track.type} track${track.locked ? ', locked' : ''}`}
+      aria-label={`${track.name}, ${track.type} track${track.locked ? ', locked' : ''}${
+        isFrozen(track) ? ', frozen' : ''
+      }`}
       onClick={() => ui.getState().selectTrack(track.id)}
       onKeyDown={(e) => {
         // Selecting a track is what arming and recording are gated on, so the
@@ -201,6 +215,18 @@ export const TrackHeader = memo(function TrackHeader({
         )}
         <span className="th-name">
           {track.locked && <Icon name="lock" size={9} />}
+          {/* The one place a frozen track is visible without opening a panel.
+              The title says what it means, because a snowflake alone does not
+              tell anyone their instrument has stopped running. */}
+          {isFrozen(track) && (
+            <span
+              className="th-frozen"
+              title={`${track.name} is frozen — it plays a render instead of its instrument`}
+              data-testid={`frozen-${track.name}`}
+            >
+              <Icon name="freeze" size={9} />
+            </span>
+          )}
           {track.name}
           {track.editGroup ? <span className="th-group">G{track.editGroup}</span> : null}
         </span>

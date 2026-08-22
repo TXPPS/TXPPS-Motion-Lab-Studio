@@ -342,6 +342,14 @@
   flex: none;
   display: inline-flex;
 }
+/* A frozen track reads as cooled rather than as an error: the print is a
+   normal state to be in, not a warning. */
+.th-frozen {
+  color: var(--info);
+  display: inline-flex;
+  vertical-align: -1px;
+  margin-right: 2px;
+}
 .th-controls {
   display: flex;
   align-items: center;

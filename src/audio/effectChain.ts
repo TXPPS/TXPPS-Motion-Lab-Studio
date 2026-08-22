@@ -259,6 +259,14 @@ class Combiner {
  * gains that were already there, the scale back out is folded into the curve
  * itself, and |x| is two straight lines meeting at a point the curve holds
  * exactly, so the widened rectifier is still exact for ordinary levels.
+ *
+ * What this fixes is the *reading*: the detector no longer under-reports a hot
+ * signal as full scale. The transfer WaveShaper it feeds is still defined over
+ * 0…1, so the gain it asks for still stops moving once the envelope passes
+ * full scale. Widening that one too means sampling each law over a wider
+ * envelope range, which at the curve sizes used here would cost the gate most
+ * of the resolution its law needs — a separate change with a real trade-off,
+ * not a line to add here.
  */
 export const DETECTOR_HEADROOM = 16;
 

@@ -280,7 +280,22 @@ export function validateProject(raw: unknown): ProjectData {
     else tr.notes = (tr.notes as string).slice(0, 4000);
     if (tr.noteFx !== undefined) tr.noteFx = validateNoteFx(tr.noteFx);
     if (tr.macros !== undefined) tr.macros = validateMacros(tr.macros);
-    if (!isRecord(tr.freeze) || typeof tr.freeze.mediaId !== 'string') delete tr.freeze;
+    // A freeze is a pointer at rendered audio plus the moment it was rendered.
+    // Only instrument and drum tracks have an instrument to stand in for, so a
+    // freeze anywhere else is meaningless rather than harmless: the engine
+    // would build no instrument for a channel that never had one.
+    if (
+      !isRecord(tr.freeze) ||
+      typeof tr.freeze.mediaId !== 'string' ||
+      (tr.type !== 'instrument' && tr.type !== 'drum')
+    ) {
+      delete tr.freeze;
+    } else {
+      tr.freeze = {
+        mediaId: tr.freeze.mediaId,
+        renderedAt: clampNum(tr.freeze.renderedAt, 0, 1e15, 0),
+      };
+    }
   }
 
   // Reference integrity for the v6 grouping fields. A folder parent must be a
@@ -409,6 +424,19 @@ export function validateProject(raw: unknown): ProjectData {
           isRecord(m) && typeof m.id === 'string' && typeof m.duration === 'number',
       )
     : [];
+  // A print the project no longer carries cannot be played, and a frozen track
+  // builds no instrument — so a dangling freeze would load as a silent track.
+  // Dropping it gives the instrument back, which is the state the project was
+  // in before it was frozen.
+  const mediaIds = new Set(media.map((m) => m.id));
+  for (const t of tracks) {
+    const tr = t as unknown as Record<string, unknown>;
+    const freeze = tr.freeze as { mediaId: string } | undefined;
+    if (!freeze || mediaIds.has(freeze.mediaId)) continue;
+    delete tr.freeze;
+    diagLog('warn', `Track "${t.name}" was frozen but its render is gone — instrument restored`);
+  }
+
   if (typeof v === 'number' && v < SCHEMA_VERSION) {
     diagLog('info', `Migrated project "${raw.name}" from schema v${v} to v${SCHEMA_VERSION}`);
   }

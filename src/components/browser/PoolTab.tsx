@@ -32,6 +32,12 @@ export function PoolTab({ query }: { query: string }) {
       uses.set(c.mediaId, (uses.get(c.mediaId) ?? 0) + 1);
       for (const t of c.takes ?? []) uses.set(t.mediaId, (uses.get(t.mediaId) ?? 0) + 1);
     }
+    // A frozen track's print is used by the track, not by a clip. Counting
+    // only clips would list it as unused and offer to remove the audio the
+    // track is playing.
+    for (const t of project.tracks) {
+      if (t.freeze) uses.set(t.freeze.mediaId, (uses.get(t.freeze.mediaId) ?? 0) + 1);
+    }
     const list = (project.media ?? [])
       .filter((m) => matches(query, `${m.name} ${m.source}`))
       .map((m) => ({ media: m, uses: uses.get(m.id) ?? 0 }));
@@ -43,7 +49,7 @@ export function PoolTab({ query }: { query: string }) {
           : a.media.name.localeCompare(b.media.name),
     );
     return list;
-  }, [project.media, project.clips, query, sort]);
+  }, [project.media, project.clips, project.tracks, query, sort]);
 
   const unused = rows.filter((r) => r.uses === 0);
   const totalBytes = rows.reduce((n, r) => n + r.media.byteSize, 0);
@@ -113,14 +119,27 @@ export function PoolTab({ query }: { query: string }) {
           data-testid={`pool-${media.name}`}
         >
           <span className="li-icon">
-            <Icon name={media.kind === 'recording' ? 'mic' : 'file-audio'} size={14} />
+            <Icon
+              name={
+                media.kind === 'recording'
+                  ? 'mic'
+                  : media.kind === 'freeze'
+                    ? 'freeze'
+                    : 'file-audio'
+              }
+              size={14}
+            />
           </span>
           <span className="li-main">
             <span className="li-title">{media.name}</span>
             <span className="li-sub">
               {media.duration.toFixed(1)}s · {media.channels}ch @{' '}
               {(media.sampleRate / 1000).toFixed(1)}k · {sizeLabel(media.byteSize)} ·{' '}
-              {uses === 0 ? 'unused' : `${uses} clip${uses === 1 ? '' : 's'}`}
+              {uses === 0
+                ? 'unused'
+                : media.kind === 'freeze'
+                  ? 'frozen track'
+                  : `${uses} clip${uses === 1 ? '' : 's'}`}
             </span>
           </span>
           <span className="li-actions">

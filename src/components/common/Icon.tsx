@@ -137,6 +137,7 @@ export type IconName =
   | 'warning'
   | 'lock'
   | 'unlock'
+  | 'freeze'
   | 'link'
   | 'unlink'
   | 'refresh'
@@ -276,6 +277,9 @@ const STROKED: Partial<Record<IconName, string>> = {
   minus: 'M5 12h14',
   x: 'M6 6l12 12M18 6L6 18',
   check: 'M5 13l4 4L19 7',
+  // A snowflake, because every desk that prints a track calls it freezing.
+  freeze:
+    'M12 3v18M4.2 7.5l15.6 9M19.8 7.5l-15.6 9M9.5 5.2 12 7.7l2.5-2.5M9.5 18.8 12 16.3l2.5 2.5',
   'chevron-down': 'M6 9l6 6 6-6',
   'chevron-up': 'M6 15l6-6 6 6',
   'chevron-left': 'M15 6l-6 6 6 6',

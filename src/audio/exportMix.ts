@@ -15,6 +15,7 @@
  * which is correct for a mixdown.
  */
 import { isAudioTrackType } from '../model/types';
+import { freezeClipFor, isFreezeClipId, isFrozen } from '../model/freeze';
 import { resolveChannels } from '../model/mixerGraph';
 import { clipRatePlan } from '../model/clipRate';
 import { playedNotes } from './notePipeline';
@@ -95,6 +96,13 @@ export interface RenderOptions {
   signal?: { cancelled: boolean };
   /** Render a cue mix's balance instead of the main mix. */
   cueId?: string | null;
+  /**
+   * Skip the master stage — its inserts, fader, pan and safety limiter — and
+   * take the sum straight to the output. A track freeze prints one channel and
+   * plays the print back *into* that channel, so the master must not be baked
+   * into it; every other caller wants the master and leaves this alone.
+   */
+  bypassMaster?: boolean;
 }
 
 export interface RenderResult {
@@ -276,9 +284,13 @@ export async function preloadForRender(
   ctx: BaseAudioContext,
 ): Promise<string[]> {
   const ids = [
-    ...new Set(
-      project.clips.filter((c): c is AudioClip => c.type === 'audio').map((c) => c.mediaId),
-    ),
+    ...new Set([
+      ...project.clips.filter((c): c is AudioClip => c.type === 'audio').map((c) => c.mediaId),
+      // A frozen track's print is played by nothing on the timeline, so it has
+      // to be asked for by name or the render would be silent where the
+      // instrument used to be.
+      ...project.tracks.filter(isFrozen).map((t) => t.freeze!.mediaId),
+    ]),
   ];
   const missing: string[] = [];
   for (const id of ids) {
@@ -332,23 +344,27 @@ export async function renderProject(
   // A bounce that does not run the master inserts is not the mix the engineer
   // approved, so the offline chain carries the same stages in the same order.
   const masterInput = ctx.createGain();
-  const masterInserts = new InsertChain(ctx);
-  const masterGain = ctx.createGain();
-  masterGain.gain.value = project.master?.volume ?? project.masterVolume;
-  const masterPan = ctx.createStereoPanner();
-  masterPan.pan.value = project.master?.pan ?? 0;
-  const limiter = ctx.createDynamicsCompressor();
-  limiter.threshold.value = project.master?.limiter === false ? 0 : -1.5;
-  limiter.knee.value = 0;
-  limiter.ratio.value = 20;
-  limiter.attack.value = 0.002;
-  limiter.release.value = 0.08;
-  masterInserts.sync(project.master?.effects ?? [], project.bpm);
-  masterInput.connect(masterInserts.entry);
-  masterInserts.exit.connect(masterGain);
-  masterGain.connect(masterPan);
-  masterPan.connect(limiter);
-  limiter.connect(ctx.destination);
+  if (opts.bypassMaster) {
+    masterInput.connect(ctx.destination);
+  } else {
+    const masterInserts = new InsertChain(ctx);
+    const masterGain = ctx.createGain();
+    masterGain.gain.value = project.master?.volume ?? project.masterVolume;
+    const masterPan = ctx.createStereoPanner();
+    masterPan.pan.value = project.master?.pan ?? 0;
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = project.master?.limiter === false ? 0 : -1.5;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.002;
+    limiter.release.value = 0.08;
+    masterInserts.sync(project.master?.effects ?? [], project.bpm);
+    masterInput.connect(masterInserts.entry);
+    masterInserts.exit.connect(masterGain);
+    masterGain.connect(masterPan);
+    masterPan.connect(limiter);
+    limiter.connect(ctx.destination);
+  }
 
   // ---- channels ----
   interface OfflineChannel {
@@ -578,6 +594,9 @@ export async function renderProject(
   const samplerBoxes = new Map<string, { params: SmpParams }>();
   for (const track of project.tracks) {
     if (track.type !== 'instrument' && track.type !== 'drum') continue;
+    // Frozen: the print is the instrument. Building one here would cost the
+    // render everything a freeze exists to save, and nothing would play it.
+    if (isFrozen(track)) continue;
     const ch = channels.get(track.id)!;
     if (track.rack?.items.length) {
       // Rack: children mirror the live engine; per-item params are static in
@@ -663,10 +682,20 @@ export async function renderProject(
   let scheduledNotes = 0;
   const missingMedia = new Set<string>();
 
-  for (const clip of project.clips) {
+  // A frozen track plays its print instead of its notes here exactly as it does
+  // live — same synthetic clip, same place in the channel — so a bounce of a
+  // frozen session is the session, not a silent track where an instrument was.
+  const freezeClips = project.tracks
+    .map((t) => freezeClipFor(project, t))
+    .filter((c): c is AudioClip => c !== null);
+
+  for (const clip of [...project.clips, ...freezeClips]) {
     if (clip.muted) continue;
     const ch = channels.get(clip.trackId);
     if (!ch) continue;
+    if (clip.type === 'midi' && isFrozen(project.tracks.find((t) => t.id === clip.trackId)!)) {
+      continue;
+    }
     // Skip clips entirely outside the render range.
     if (clip.start + clip.length <= startBeat || clip.start >= endBeat) continue;
 
@@ -716,14 +745,17 @@ export async function renderProject(
         }
         applyEnvelope(g.gain, plan.envelope, when);
         src.connect(g);
+        // A print already carries the channel's trim and inserts, so it joins
+        // at the fader; everything else enters at the top of the channel.
+        const dest: AudioNode = isFreezeClipId(part.id) ? ch.muteGain : ch.input;
         if (part.eventFx?.length) {
           // Same shape as live: the clip's own chain between it and the channel.
           const eventChain = new InsertChain(ctx);
           eventChain.sync(part.eventFx, project.bpm);
           g.connect(eventChain.entry);
-          eventChain.exit.connect(ch.input);
+          eventChain.exit.connect(dest);
         } else {
-          g.connect(ch.input);
+          g.connect(dest);
         }
         src.start(when, plan.offsetSec, plan.durSec);
         scheduledAny = true;

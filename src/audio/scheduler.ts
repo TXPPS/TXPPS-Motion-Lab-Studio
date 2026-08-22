@@ -11,7 +11,8 @@ import {
   sigAtBeat,
   type TempoMap,
 } from '../model/tempo';
-import type { AudioClip, MidiClip, ProjectData } from '../model/types';
+import type { AudioClip, Clip, MidiClip, ProjectData } from '../model/types';
+import { freezeClipFor, isFrozen } from '../model/freeze';
 import { playedNotes } from './notePipeline';
 import { mediaDurationSec } from './mediaLibrary';
 import { startSteadyTimer, type SteadyTimer } from './workerTimer';
@@ -33,6 +34,27 @@ export type WindowEvent =
     }
   | { kind: 'metronome'; beat: number; accent: boolean };
 
+/**
+ * Everything the transport has to schedule for this project.
+ *
+ * A frozen track contributes its print instead of its notes: the print is a
+ * synthetic audio clip covering the whole song, so it enters and leaves the
+ * scheduling window exactly as a long audio clip does, and the track's own
+ * notes are never looked at — which is where a freeze's CPU saving comes from
+ * on this side of the engine.
+ */
+function schedulableClips(project: ProjectData): Clip[] {
+  const frozen = project.tracks.filter(isFrozen);
+  if (frozen.length === 0) return project.clips;
+  const ids = new Set(frozen.map((t) => t.id));
+  const out: Clip[] = project.clips.filter((c) => c.type === 'audio' || !ids.has(c.trackId));
+  for (const track of frozen) {
+    const clip = freezeClipFor(project, track);
+    if (clip) out.push(clip);
+  }
+  return out;
+}
+
 /** Events whose start lies in [fromBeat, toBeat). */
 export function collectWindowEvents(
   project: ProjectData,
@@ -41,7 +63,7 @@ export function collectWindowEvents(
 ): WindowEvent[] {
   const out: WindowEvent[] = [];
   if (toBeat <= fromBeat) return out;
-  for (const clip of project.clips) {
+  for (const clip of schedulableClips(project)) {
     if (clip.muted) continue;
     if (clip.type === 'audio') {
       if (clip.start >= fromBeat && clip.start < toBeat) {
@@ -91,7 +113,7 @@ export function collectWindowEvents(
  */
 export function collectSoundingAt(project: ProjectData, beat: number): WindowEvent[] {
   const out: WindowEvent[] = [];
-  for (const clip of project.clips) {
+  for (const clip of schedulableClips(project)) {
     if (clip.muted) continue;
     if (clip.start >= beat || clip.start + clip.length <= beat) continue;
     if (clip.type === 'audio') {

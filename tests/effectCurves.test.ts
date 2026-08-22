@@ -1035,8 +1035,8 @@ describe('the picture a dynamics face draws', () => {
     // node whose knee law is the browser's rather than one we fill.
     expect(dynamicsLawOf(effectOf('multiband'))).toBeNull();
 
-    // The builder holds the high split a fifth above the low one, so a face
-    // reading the raw parameter would mark a split nothing is crossing at.
+    // The builder holds the high split 20 % above the low one, so a face
+    // reading the raw parameter marks a split nothing is crossing at.
     const squashed: Effect = {
       ...effectOf('multiband'),
       params: { ...defaultParams('multiband'), lowSplit: 800, highSplit: 800 },

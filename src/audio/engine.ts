@@ -13,13 +13,14 @@ import { clipRatePlan } from '../model/clipRate';
 import { stretchedBuffer } from './stretchCache';
 import { clipWarpMap, warpedBuffer, warpedClipTiming, warpedTimeSec } from './warpRender';
 import { isAudioTrackType, MASTER_ID } from '../model/types';
+import { FREEZE_CLIP_PREFIX, isFreezeClipId, isFrozen } from '../model/freeze';
 import type { AudioClip, MidiClip, ProjectData, SynthParams } from '../model/types';
 import { useProjectStore } from '../state/projectStore';
 import { useTransportStore } from '../state/transportStore';
 import { diagLog } from '../state/diagnostics';
-import { getBufferSync, loadBuffer } from './mediaLibrary';
+import { evict, getBufferSync, loadBuffer } from './mediaLibrary';
 import { audioInput } from './inputManager';
-import { useInputStore } from '../state/inputStore';
+import { useInputStore, type RecordPhase } from '../state/inputStore';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
 import { RackInstrument, SamplerInstrument, type RackChild } from './samplerInstrument';
 import { defaultSamplerParams, type SamplerParams } from '../model/sampler';
@@ -53,6 +54,29 @@ const AUTO_TAU = 0.015;
 export function safeSet(param: AudioParam, value: number, at: number, tau: number): void {
   if (!Number.isFinite(value)) return;
   param.setTargetAtTime(value, at, tau);
+}
+
+/**
+ * The click's level: the project's own, defaulted and clamped to the range the
+ * validator stores. Exported because "what level is the click at" is a
+ * question worth answering without an AudioContext.
+ */
+export function clickGain(p: Pick<ProjectData, 'clickLevel'>): number {
+  const v = p.clickLevel;
+  return Math.max(0, Math.min(2, typeof v === 'number' && Number.isFinite(v) ? v : 0.7));
+}
+
+/**
+ * Does the transport's click sound right now?
+ *
+ * `clickRecordOnly` is the "click only while recording" switch: with it on, the
+ * click is a tracking aid rather than part of listening back. The count-in is
+ * deliberately not asked about here — it plays its clicks directly, because a
+ * count-in with no click is not a count-in.
+ */
+export function clickSounds(p: Pick<ProjectData, 'clickRecordOnly'>, phase: RecordPhase): boolean {
+  if (p.clickRecordOnly !== true) return true;
+  return phase === 'recording' || phase === 'countIn';
 }
 
 /** One live-applied automation binding, resolved once per project change. */
@@ -156,6 +180,12 @@ class AudioEngine {
   private metroGain: GainNode | null = null;
 
   private channels = new Map<string, Channel>();
+  /** trackId → the print currently sounding for it, so a wrap can hand over. */
+  private freezePlaying = new Map<string, { src: AudioBufferSourceNode; gain: GainNode }>();
+  /** Prints this engine has asked the media library to decode. */
+  private freezeLoading = new Set<string>();
+  /** Prints currently in play, so a released one can be dropped from memory. */
+  private freezeMediaIds = new Set<string>();
   /** cue mix being monitored on the main output, or null for the main mix */
   private monitorCueId: string | null = null;
   private monitors = new Map<string, Monitor>();
@@ -204,7 +234,7 @@ class AudioEngine {
       scheduleNote: (trackId, clipId, pitch, vel, when, durSec) => {
         this.instruments.get(trackId)?.scheduleNote(pitch, vel, when, durSec, clipId);
       },
-      scheduleMetronome: (when, accent) => this.scheduleMetronomeClick(when, accent),
+      scheduleMetronome: (when, accent) => this.scheduleTransportClick(when, accent),
       // Automation must keep moving in a hidden tab; the animation frame does
       // not fire there, but the transport tick does.
       onTick: () => this.applyAutomation(),
@@ -310,7 +340,7 @@ class AudioEngine {
     // cue, not programme material, so it must never be metered, never be
     // compressed by the safety limiter, and never reach a bounce.
     this.metroGain = ctx.createGain();
-    this.metroGain.gain.value = 0.5;
+    this.metroGain.gain.value = clickGain(p);
     this.metroGain.connect(ctx.destination);
   }
 
@@ -394,6 +424,17 @@ class AudioEngine {
       // which resolveChannels() has already folded into each member's state.
       if (!isAudioTrackType(track.type)) continue;
       if (!this.channels.has(track.id)) this.channels.set(track.id, this.buildChannel(track.id));
+      // A frozen track plays its print, so it owns no instrument at all: this
+      // is where the CPU a freeze buys back actually comes from, and it is why
+      // the instrument is torn down rather than left idle.
+      if (isFrozen(track)) {
+        if (this.instruments.has(track.id)) {
+          this.instruments.get(track.id)!.dispose();
+          this.instruments.delete(track.id);
+          this.instrumentKind.delete(track.id);
+        }
+        continue;
+      }
       const hasInstrument = track.type === 'instrument' || track.type === 'drum';
       if (!hasInstrument) continue;
       const kind = track.rack?.items.length
@@ -577,6 +618,11 @@ class AudioEngine {
       // rather than rewiring the chain, so nothing clicks on the toggle.
       this.limiter.threshold.setTargetAtTime(master?.limiter === false ? 0 : -1.5, t, masterSmooth);
     }
+    // The click's level is the project's, like the count-in and the pre-roll.
+    // It is written here and nowhere else, on the one gain node that sits
+    // outside the mix — so turning the click down cannot touch the programme.
+    if (this.metroGain) safeSet(this.metroGain.gain, clickGain(p), t, masterSmooth);
+    this.syncFreezeMedia(p);
     // Values at the playhead may have changed with the edit (or a lane may
     // have just been disabled and released its parameter).
     this.autoDirty = true;
@@ -586,9 +632,20 @@ class AudioEngine {
     const clipState = new Map(p.clips.map((c) => [c.id, c.muted]));
     this.stopSourcesWhere((h) => {
       if (!h.clipId) return false;
+      // A freeze plays a clip that is not in the project — it stands in for
+      // the instrument, not for anything on the timeline — so an unknown id
+      // here means "synthetic", not "deleted". Its own track losing the freeze
+      // is what stops it, below.
+      if (isFreezeClipId(h.clipId)) return false;
       const muted = clipState.get(h.clipId);
       return muted === undefined || muted === true;
     });
+    for (const [trackId] of this.freezePlaying) {
+      const track = p.tracks.find((x) => x.id === trackId);
+      if (!track || !isFrozen(track)) {
+        this.stopSourcesWhere((h) => h.clipId === FREEZE_CLIP_PREFIX + trackId);
+      }
+    }
 
     // 5. tempo change during playback → retime scheduler
     if (this.playing && this.lastBpm !== p.bpm) this.scheduler.retime();
@@ -1064,6 +1121,62 @@ class AudioEngine {
   // ---------- scheduling callbacks ----------
 
   /**
+   * Bring the print a track is currently playing to an end at `when`.
+   *
+   * Scheduled rather than immediate: the caller is scheduling the next pass
+   * ahead of time (a loop wrap is up to a lookahead away), and stopping the
+   * old pass now would leave a hole until then.
+   */
+  private endFreezeSource(trackId: string, when: number): void {
+    const prev = this.freezePlaying.get(trackId);
+    if (!prev || !this.ctx) return;
+    this.freezePlaying.delete(trackId);
+    const from = Math.max(this.ctx.currentTime, when - 0.004);
+    prev.gain.gain.cancelScheduledValues(from);
+    prev.gain.gain.setTargetAtTime(0, from, 0.0015);
+    try {
+      prev.src.stop(when + 0.02);
+    } catch {
+      /* already stopped */
+    }
+  }
+
+  /**
+   * Keep the prints decoded, and only the prints still in use.
+   *
+   * A freeze is played from a media file like any other, but nothing on the
+   * timeline points at it — so the load that happens for clips at project open
+   * has to happen here as well, for a project that opens frozen and for a
+   * freeze that undo brings back. The mirror image matters just as much: a
+   * released print is the largest thing the session is still holding, so its
+   * decode is dropped as soon as no track plays it.
+   */
+  private syncFreezeMedia(p: ProjectData): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const live = new Set<string>();
+    for (const track of p.tracks) {
+      if (!isFrozen(track)) continue;
+      const id = track.freeze!.mediaId;
+      live.add(id);
+      if (getBufferSync(id) || this.freezeLoading.has(id)) continue;
+      this.freezeLoading.add(id);
+      void loadBuffer(id, ctx).then((buf) => {
+        this.freezeLoading.delete(id);
+        if (!buf) {
+          diagLog('warn', `Frozen track "${track.name}" has no print in storage — it is silent`);
+        }
+      });
+    }
+    for (const id of [...this.freezeMediaIds]) {
+      if (live.has(id)) continue;
+      this.freezeMediaIds.delete(id);
+      evict(id);
+    }
+    for (const id of live) this.freezeMediaIds.add(id);
+  }
+
+  /**
    * Schedule one audio clip.
    *
    * Clip gain and the fade envelopes are applied here, on a per-source gain
@@ -1099,6 +1212,18 @@ class AudioEngine {
     if (!ctx || !ch || !this.canAllocate()) return;
     const p = useProjectStore.getState().project;
     const spb = clipSecondsPerBeat(p, clip);
+    /**
+     * A print carries the channel's trim and inserts already, so it joins the
+     * channel *after* them — at the fader — and is mixed, panned, muted and
+     * sent exactly as the instrument was. Feeding it back through the inserts
+     * would run every one of them twice.
+     */
+    const frozen = isFreezeClipId(clip.id);
+    const dest: AudioNode = frozen ? ch.muteGain : ch.input;
+    // One print at a time per track. A loop wrap re-enters the print while the
+    // previous pass is still running its whole length, so the old one is faded
+    // out to land exactly where the new one starts rather than stacking.
+    if (frozen) this.endFreezeSource(clip.trackId, when);
 
     // Playback rate and which buffer to use are one decision. A clip that
     // follows the tempo, is stretched, or is transposed either resamples
@@ -1164,9 +1289,9 @@ class AudioEngine {
       eventChain = new InsertChain(ctx);
       eventChain.sync(clip.eventFx, p.bpm);
       g.connect(eventChain.entry);
-      eventChain.exit.connect(ch.input);
+      eventChain.exit.connect(dest);
     } else {
-      g.connect(ch.input);
+      g.connect(dest);
     }
 
     const handle: ActiveHandle = {
@@ -1183,8 +1308,12 @@ class AudioEngine {
         } catch {}
       },
     };
+    if (frozen) this.freezePlaying.set(clip.trackId, { src, gain: g });
     src.onended = () => {
       this.unregisterSource(handle);
+      if (this.freezePlaying.get(clip.trackId)?.src === src) {
+        this.freezePlaying.delete(clip.trackId);
+      }
       try {
         src.disconnect();
         g.disconnect();
@@ -1400,6 +1529,19 @@ class AudioEngine {
     if (!tag) return;
     this.previewTag = null;
     this.stopSourcesWhere((h) => h.clipId === tag);
+  }
+
+  /**
+   * The transport's own click.
+   *
+   * The one click "only while recording" can silence: the count-in's clicks
+   * come through `playMetronomeClick` instead, because a count-in with no
+   * click is not a count-in.
+   */
+  scheduleTransportClick(when: number, accent: boolean): void {
+    const p = useProjectStore.getState().project;
+    if (!clickSounds(p, useInputStore.getState().phase)) return;
+    this.scheduleMetronomeClick(when, accent);
   }
 
   /** Immediate metronome click, used by the recording count-in. */

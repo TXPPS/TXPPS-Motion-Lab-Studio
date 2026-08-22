@@ -17,6 +17,7 @@ import {
   dbToGain,
   eqMagnitudeResponse,
   logFrequencies,
+  SATURATION_MODELS,
   saturationCurve,
   type Complex,
   type CrossoverResponse,
@@ -430,6 +431,22 @@ function turnLabelOf(kind: string): string {
   return kind === 'limiter' ? 'Ceiling' : 'Threshold';
 }
 
+/** Decibels of input a transfer plot spans, bottom to top. */
+const AXIS_SPAN_DB = 60;
+
+/**
+ * Where a transfer plot's input axis stops, in dB relative to full scale.
+ *
+ * A limiter does all of its work in the last decibel below zero and every
+ * decibel above it, so on the 0…-60 dB axis the other processors use its whole
+ * law is one pixel in the corner — a straight line again, for a different
+ * reason. Its own drive control reaches +24 dB and the detector can now
+ * measure that far, so that is the range worth drawing.
+ */
+function axisTopOf(kind: string): number {
+  return kind === 'limiter' ? 24 : 0;
+}
+
 /**
  * Transfer curve for a dynamics processor, plus a live gain-reduction meter.
  *
@@ -453,26 +470,32 @@ function DynamicsFace({
   law: DynamicsLaw;
 }) {
   // Only a processor that works on part of the spectrum has one.
-  const band = effect.kind === 'deesser' ? deesserBand(effect) : null;
-  const bandFreqs = useMemo(() => (band ? logFrequencies(80, MIN_HZ, MAX_HZ) : []), [band]);
+  const band = useMemo(() => (effect.kind === 'deesser' ? deesserBand(effect) : null), [effect]);
+  const bandFreqs = useMemo(() => logFrequencies(80, MIN_HZ, MAX_HZ), []);
   const bandDb = useMemo(
     () => (band ? eqMagnitudeResponse([band], bandFreqs, PLOT_RATE) : []),
     [band, bandFreqs],
   );
 
+  // Input and output share one axis, so unity stays the corner-to-corner
+  // diagonal whichever window the processor needs.
+  const floorDb = axisTopOf(effect.kind) - AXIS_SPAN_DB;
+  const xOfDb = (db: number) => ((db - floorDb) / AXIS_SPAN_DB) * CURVE_H;
+  const yOfOutDb = (db: number) => CURVE_H - ((db - floorDb) / AXIS_SPAN_DB) * CURVE_H;
+
   const pts: string[] = [];
-  for (let i = 0; i <= 60; i++) {
-    const inDb = -60 + i;
+  for (let i = 0; i <= AXIS_SPAN_DB; i++) {
+    const inDb = floorDb + i;
     // The law takes a LINEAR envelope and returns a LINEAR gain, so the dB
     // axis converts on the way in and on the way out.
     const gain = dynamicsGain(law, dbToGain(inDb));
     const outDb = inDb + 20 * Math.log10(Math.max(gain, 1e-6));
-    const x = ((inDb + 60) / 60) * CURVE_H;
-    const y = CURVE_H - ((outDb + 60) / 60) * CURVE_H;
-    pts.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${clamp(y, -20, CURVE_H + 20).toFixed(1)}`);
+    const y = clamp(yOfOutDb(outDb), -20, CURVE_H + 20);
+    pts.push(`${i === 0 ? 'M' : 'L'} ${xOfDb(inDb).toFixed(1)} ${y.toFixed(1)}`);
   }
 
-  const turnX = ((law.thresholdDb + 60) / 60) * CURVE_H;
+  const turnX = xOfDb(law.thresholdDb);
+  const marker = `${turnLabelOf(effect.kind).toLowerCase()} ${law.thresholdDb.toFixed(1)} dB`;
   // The marker label sits on whichever side of its line has room; a limiter's
   // ceiling is within a decibel of full scale, hard against the right edge.
   const turnRight = turnX > CURVE_H * 0.6;
@@ -491,8 +514,8 @@ function DynamicsFace({
         className="fx-curve"
         aria-label={
           band
-            ? `Transfer curve for the ${formatHz(band.freqHz)} band only`
-            : `${turnLabelOf(effect.kind)} transfer curve`
+            ? `Transfer curve for the ${formatHz(band.freqHz)} band only, ${marker}`
+            : `Dynamics transfer curve, ${marker}`
         }
       >
         <line
@@ -503,16 +526,20 @@ function DynamicsFace({
           stroke="var(--grid-sub)"
           strokeDasharray="3 3"
         />
-        {[-40, -20].map((db) => (
+        {[floorDb + 20, floorDb + 40].map((db) => (
           <line
             key={db}
-            x1={((db + 60) / 60) * CURVE_H}
+            x1={xOfDb(db)}
             y1={0}
-            x2={((db + 60) / 60) * CURVE_H}
+            x2={xOfDb(db)}
             y2={CURVE_H}
             stroke="var(--grid-sub)"
           />
         ))}
+        {floorDb + AXIS_SPAN_DB > 0 && (
+          // Where full scale is, on the one face whose axis goes past it.
+          <line x1={xOfDb(0)} y1={0} x2={xOfDb(0)} y2={CURVE_H} stroke="var(--grid-bar)" />
+        )}
         <line
           x1={turnX}
           y1={0}
@@ -893,9 +920,11 @@ export function EffectVisual({
     return law ? <DynamicsFace effect={effect} trackId={trackId} law={law} /> : null;
   }
   if (face === 'shaper') {
-    const modelIndex = Math.round(paramOf(effect, 'model'));
-    const model =
-      (['tube', 'tape', 'transistor', 'diode'] as SaturationModel[])[modelIndex] ?? 'tube';
+    // Index into the models that exist. The list here used to carry a fourth
+    // name that `saturationCurve` has no case for, so an amp sim on its fourth
+    // model rendered `undefined` as a curve and threw on its own face.
+    const models = SATURATION_MODELS;
+    const model = models[clamp(Math.round(paramOf(effect, 'model')), 0, models.length - 1)];
     return <ShaperFace model={model} driveDb={paramOf(effect, 'drive')} />;
   }
   if (face === 'lfo') {

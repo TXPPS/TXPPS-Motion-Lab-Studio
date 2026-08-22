@@ -10,6 +10,7 @@ import { audioInput } from '../audio/inputManager';
 import { getBufferSync, isMissing } from '../audio/mediaLibrary';
 import { pickMimeType, recorderSupported } from '../audio/recorder';
 import { peaksFromAudioBuffer } from '../audio/peaks';
+import { freezeMediaIds } from '../model/freeze';
 import {
   deleteMediaBlob,
   getMediaBlob,
@@ -161,9 +162,14 @@ async function collectReferencedMedia(): Promise<Set<string>> {
   const referenced = new Set<string>();
   const collect = (p: {
     clips: { type: string; mediaId?: string }[];
+    // A frozen track's print is referenced by the track, not by a clip, so a
+    // scan that only walked clips would offer to delete the audio a frozen
+    // track is playing.
+    tracks: { freeze?: { mediaId: string } }[];
     media?: { id: string }[];
   }) => {
     for (const c of p.clips) if (c.type === 'audio' && c.mediaId) referenced.add(c.mediaId);
+    for (const id of freezeMediaIds(p)) referenced.add(id);
     for (const m of p.media ?? []) referenced.add(m.id);
   };
   collect(useProjectStore.getState().project);

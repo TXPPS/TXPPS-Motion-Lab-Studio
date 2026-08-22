@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { engine } from '../../audio/engine';
+import { clickGain, engine } from '../../audio/engine';
 import { projectBeatToSec, tempoMapOf } from '../../model/music';
 import { barToBeat, beatToBar, formatBBT, formatClock, parseBBT } from '../../model/tempo';
 import { nextMarker, prevMarker } from '../../model/arrangement';
@@ -176,6 +176,22 @@ function PerformanceMeter() {
   );
 }
 
+/**
+ * Click levels the menu steps through, linear like everything else that moves
+ * a gain here. 70% is the schema's default and the level every project that
+ * never touched this control is already carrying.
+ */
+const CLICK_LEVELS = [0, 0.25, 0.5, 0.7, 1, 1.4];
+
+function nextClickLevel(current: number): number {
+  const next = CLICK_LEVELS.find((v) => v > current + 1e-6);
+  return next ?? CLICK_LEVELS[0];
+}
+
+function clickLevelLabel(level: number): string {
+  return level <= 0 ? 'silent' : `${Math.round(level * 100)}%`;
+}
+
 /** Tap tempo: four taps set the tempo, and it keeps averaging while you tap. */
 function useTapTempo(): () => void {
   const taps = useRef<number[]>([]);
@@ -216,6 +232,8 @@ export function TransportBar({ compact }: { compact?: boolean }) {
   const countIn = project.countIn ?? 1;
   const preRoll = project.preRoll ?? 0;
   const punch = project.punch?.enabled === true;
+  const clickLevel = clickGain(project);
+  const clickRecordOnly = project.clickRecordOnly === true;
 
   /** Move the playhead by whole bars, honouring the signature map. */
   const nudgeBars = (delta: number) => {
@@ -271,6 +289,27 @@ export function TransportBar({ compact }: { compact?: boolean }) {
           action: () =>
             useProjectStore.getState().update((d) => {
               d.preRoll = ((d.preRoll ?? 0) + 1) % 5;
+            }),
+        },
+        {
+          // The click's level belongs with the count-in and the pre-roll, not
+          // in Preferences: it is saved in the song, it is decided while
+          // tracking, and it is a different number for a loud drummer than for
+          // a quiet vocal — which is a property of the session, not of the
+          // person using the app.
+          label: `Click level: ${clickLevelLabel(clickLevel)}`,
+          testId: 'menu-click-level',
+          action: () =>
+            useProjectStore.getState().update((d) => {
+              d.clickLevel = nextClickLevel(clickGain(d));
+            }),
+        },
+        {
+          label: clickRecordOnly ? 'Click: while recording only' : 'Click: whenever it is on',
+          testId: 'menu-click-record-only',
+          action: () =>
+            useProjectStore.getState().update((d) => {
+              d.clickRecordOnly = d.clickRecordOnly !== true;
             }),
         },
         {

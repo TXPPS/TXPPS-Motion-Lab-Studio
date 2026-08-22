@@ -1,9 +1,11 @@
 /**
  * Web MIDI input. Where unsupported, the app reports an honest unsupported
- * state and keeps working. Notes route to the armed (or selected) instrument
- * track via the engine.
+ * state and keeps working. Notes route through each track's channel filter to
+ * the armed (or selected) instrument tracks via the engine.
  */
 import { midiToName } from '../model/music';
+import { isFrozen } from '../model/freeze';
+import type { ProjectData, Track } from '../model/types';
 import { useProjectStore } from '../state/projectStore';
 import { useTransportStore } from '../state/transportStore';
 import { useUiStore } from '../state/uiStore';
@@ -12,15 +14,52 @@ import { engine } from './engine';
 import { applyControl, offerToLearn } from './controlLink';
 import type { ControlSource } from '../model/controlLink';
 
-function targetTrackId(): string | null {
-  const p = useProjectStore.getState().project;
-  const sel = useUiStore.getState().selectedTrackId;
-  const playable = (t: { type: string }) => t.type === 'instrument' || t.type === 'drum';
-  const armed = p.tracks.find((t) => t.armed && playable(t));
-  if (armed) return armed.id;
-  const selected = p.tracks.find((t) => t.id === sel && playable(t));
-  if (selected) return selected.id;
-  return p.tracks.find(playable)?.id ?? null;
+/**
+ * Does this track listen to that MIDI channel?
+ *
+ * `midiChannel` is a filter, not a route: 0 is omni and takes everything, any
+ * other value takes that channel alone. Channels are 1..16 here, as they are
+ * on every instrument's front panel — the wire's 0..15 is converted once, at
+ * the message.
+ */
+export function acceptsMidiChannel(track: Track, channel: number): boolean {
+  const filter = track.midiChannel ?? 0;
+  return filter === 0 || filter === channel;
+}
+
+/**
+ * The tracks a note arriving on `channel` plays.
+ *
+ * Every armed track that accepts the channel gets it, not just the first.
+ * Layering two instruments under one key is a technique, and a multi-timbral
+ * controller sending on two channels is the whole reason the filter exists —
+ * choosing one armed track by its position in an array would be a coin toss
+ * the player cannot see, and would make two-channel setups silently half-dead.
+ *
+ * With nothing armed the keyboard still plays, so the selected track answers,
+ * and failing that the first instrument in the song. The filter applies there
+ * too: a note on channel 3 does not sound on a track listening to channel 1.
+ * When nothing matches at all the note is dropped and the transport says so,
+ * because a silent keyboard with no explanation is the worst of the three.
+ *
+ * Frozen tracks are never targets — their instrument is not running.
+ */
+export function midiTargetTrackIds(
+  project: ProjectData,
+  selectedTrackId: string | null,
+  channel: number,
+): string[] {
+  const candidates = project.tracks.filter(
+    (t) =>
+      (t.type === 'instrument' || t.type === 'drum') &&
+      !isFrozen(t) &&
+      acceptsMidiChannel(t, channel),
+  );
+  const armed = candidates.filter((t) => t.armed);
+  if (armed.length > 0) return armed.map((t) => t.id);
+  const selected = candidates.find((t) => t.id === selectedTrackId);
+  if (selected) return [selected.id];
+  return candidates.length > 0 ? [candidates[0].id] : [];
 }
 
 /**
@@ -53,6 +92,7 @@ class MidiManager {
   private selectedId: string | null = null;
   private activity = 0;
   private warnedNotRunning = false;
+  private warnedNoTarget = false;
 
   async enable(): Promise<boolean> {
     const t = useTransportStore.getState();
@@ -114,7 +154,11 @@ class MidiManager {
     const d1 = data[1] ?? 0;
     const d2 = data[2] ?? 0;
     let desc: string | null = null;
-    const trackId = targetTrackId();
+    const targets = midiTargetTrackIds(
+      useProjectStore.getState().project,
+      useUiStore.getState().selectedTrackId,
+      chan,
+    );
 
     // Control Link sees continuous controls first: a bound knob moves what it
     // is bound to rather than reaching the instrument. Notes are never stolen
@@ -135,20 +179,29 @@ class MidiManager {
 
     if (status === 0x90 && d2 > 0) {
       desc = `Note On ${midiToName(d1)} vel ${d2} ch ${chan}`;
-      if (trackId) {
-        if (!engine.isRunning() && !this.warnedNotRunning) {
-          this.warnedNotRunning = true;
-          diagLog('warn', 'MIDI note received before audio start — press Start Audio');
+      if (targets.length === 0) {
+        // The channel filter is invisible until it refuses something, so the
+        // one moment it must speak up is the moment a key makes no sound.
+        desc += ' — no track listening';
+        if (!this.warnedNoTarget) {
+          this.warnedNoTarget = true;
+          diagLog(
+            'warn',
+            `MIDI note on channel ${chan} reached no track (check the channel filter)`,
+          );
         }
-        engine.liveNoteOn(trackId, d1, d2);
+      } else if (!engine.isRunning() && !this.warnedNotRunning) {
+        this.warnedNotRunning = true;
+        diagLog('warn', 'MIDI note received before audio start — press Start Audio');
       }
+      for (const trackId of targets) engine.liveNoteOn(trackId, d1, d2);
     } else if (status === 0x80 || (status === 0x90 && d2 === 0)) {
       desc = `Note Off ${midiToName(d1)} ch ${chan}`;
-      if (trackId) engine.liveNoteOff(trackId, d1);
+      for (const trackId of targets) engine.liveNoteOff(trackId, d1);
     } else if (status === 0xb0 && d1 === 64) {
       const on = d2 >= 64;
       desc = `Sustain ${on ? 'down' : 'up'} ch ${chan}`;
-      if (trackId) engine.setSustain(trackId, on);
+      for (const trackId of targets) engine.setSustain(trackId, on);
     } else if (status === 0xb0 && d1 === 123) {
       desc = 'All notes off';
       engine.allNotesOff();

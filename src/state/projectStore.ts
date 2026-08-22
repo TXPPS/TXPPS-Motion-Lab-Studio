@@ -19,6 +19,8 @@ import type {
 import { defaultParams, effectSpec, MAX_INSERTS } from '../model/effects';
 import type { MediaRef } from '../model/media';
 import { createDemoProject } from '../model/demoProject';
+import { staleFreezeTrackIds } from '../model/freeze';
+import { useUiStore } from './uiStore';
 import { laneValueAt, makePoint, normalizeLanePoints } from '../model/automation';
 import type {
   AutomationLane,
@@ -429,6 +431,39 @@ function cloneProject(p: ProjectData): ProjectData {
 }
 
 /**
+ * Drop any print that the edit just made untrue.
+ *
+ * The alternative — refusing the edit — would make the app feel broken for the
+ * sake of a render that takes a second to redo, and it could not be enforced
+ * honestly anyway: every path into the project comes through `update`, and
+ * plenty of them are not edits a user could be told to undo (a macro move, an
+ * imported groove, a tempo ramp, an arrangement paste). So the freeze is
+ * released, the instrument comes back, and the toast says so. The one thing
+ * that must never happen is a frozen track quietly playing audio of something
+ * it no longer is.
+ */
+function releaseStaleFreezes(before: ProjectData, draft: ProjectData): void {
+  const stale = staleFreezeTrackIds(before, draft);
+  if (stale.length === 0) return;
+  const names: string[] = [];
+  for (const id of stale) {
+    const track = draft.tracks.find((t) => t.id === id);
+    if (!track?.freeze) continue;
+    const mediaId = track.freeze.mediaId;
+    delete track.freeze;
+    if (draft.media) draft.media = draft.media.filter((m) => m.id !== mediaId);
+    names.push(track.name);
+  }
+  if (names.length === 0) return;
+  useUiStore
+    .getState()
+    .toast(
+      'info',
+      `That edit released the freeze on ${names.join(', ')} — the instrument is playing again.`,
+    );
+}
+
+/**
  * Would sending `from` into `to` create a routing cycle? Walks the graph formed
  * by track outputs and existing sends. Used to reject invalid routes up front
  * rather than letting the audio graph feed back on itself.
@@ -458,6 +493,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     const draft = cloneProject(project);
     mutator(draft);
     draft.modifiedAt = Date.now();
+    releaseStaleFreezes(project, draft);
     const undoable = opts?.undoable ?? true;
     if (undoable && gestureSnapshot === null) {
       set({
