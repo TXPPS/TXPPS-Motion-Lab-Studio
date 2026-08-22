@@ -1515,11 +1515,44 @@ function buildPingPong(ctx: BaseAudioContext, effect: Effect): EffectNode {
 }
 
 /**
- * Synthesised impulse: exponentially decaying noise, decorrelated per channel.
- * Cheap, deterministic, and good enough for a plate-ish tail without shipping
- * an IR file.
+ * Deterministic 32-bit PRNG (mulberry32).
+ *
+ * A reverb tail built from `Math.random()` is different every time the node is
+ * created, so a bounce never matches what was monitored and two bounces of the
+ * same project never match each other. Seeding from stable inputs makes the
+ * tail a function of the settings, which is what "render" has to mean.
  */
-function renderImpulse(ctx: BaseAudioContext, seconds: number, damping: number): AudioBuffer {
+function seededRandom(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Stable 32-bit hash of a string, so an effect id can seed its own tail. */
+function hashSeed(text: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/**
+ * Synthesised impulse: exponentially decaying noise, decorrelated per channel.
+ * Cheap and good enough for a plate-ish tail without shipping an IR file — and
+ * reproducible, because the noise is seeded rather than random.
+ */
+function renderImpulse(
+  ctx: BaseAudioContext,
+  seconds: number,
+  damping: number,
+  seed: number,
+): AudioBuffer {
   const rate = ctx.sampleRate;
   const len = Math.max(1, Math.floor(rate * Math.min(6, Math.max(0.1, seconds))));
   const buf = ctx.createBuffer(2, len, rate);
@@ -1527,9 +1560,12 @@ function renderImpulse(ctx: BaseAudioContext, seconds: number, damping: number):
   const coeff = Math.exp((-2 * Math.PI * Math.min(damping, rate / 2)) / rate);
   for (let ch = 0; ch < 2; ch++) {
     const data = buf.getChannelData(ch);
+    // A different stream per channel is what decorrelates the two sides; both
+    // are still a function of the seed, so the stereo image is reproducible.
+    const rand = seededRandom(seed + ch * 0x9e3779b9);
     let last = 0;
     for (let i = 0; i < len; i++) {
-      const white = Math.random() * 2 - 1;
+      const white = rand() * 2 - 1;
       last = white * (1 - coeff) + last * coeff;
       data[i] = last * Math.pow(1 - i / len, 2.2);
     }
@@ -1542,6 +1578,10 @@ function buildReverb(ctx: BaseAudioContext, effect: Effect): EffectNode {
   const pre = ctx.createDelay(0.5);
   const conv = ctx.createConvolver();
   conv.normalize = true;
+  // The tail is seeded from the effect's own id: this reverb sounds the same
+  // in every session and in every bounce, while two reverbs in one project
+  // still have different tails.
+  const seed = hashSeed(effect.id);
 
   let renderedSize = -1;
   let renderedDamping = -1;
@@ -1559,7 +1599,7 @@ function buildReverb(ctx: BaseAudioContext, effect: Effect): EffectNode {
       // Re-rendering the impulse is expensive, so only do it when the tail
       // actually changed — not on every unrelated project edit.
       if (Math.abs(size - renderedSize) > 0.05 || Math.abs(damping - renderedDamping) > 50) {
-        conv.buffer = renderImpulse(ctx, size, damping);
+        conv.buffer = renderImpulse(ctx, size, damping, seed);
         renderedSize = size;
         renderedDamping = damping;
       }

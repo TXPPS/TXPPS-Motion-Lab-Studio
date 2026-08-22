@@ -676,17 +676,19 @@ export const EFFECT_SPECS: EffectSpec[] = [
  */
 export const EQ8_BANDS: readonly {
   prefix: string;
+  /** Short name for the band's handle on the curve display. */
+  label: string;
   type: BiquadType;
   hasGain: boolean;
 }[] = [
-  { prefix: 'hp', type: 'highpass', hasGain: false },
-  { prefix: 'ls', type: 'lowshelf', hasGain: true },
-  { prefix: 'b1', type: 'peaking', hasGain: true },
-  { prefix: 'b2', type: 'peaking', hasGain: true },
-  { prefix: 'b3', type: 'peaking', hasGain: true },
-  { prefix: 'b4', type: 'peaking', hasGain: true },
-  { prefix: 'hs', type: 'highshelf', hasGain: true },
-  { prefix: 'lp', type: 'lowpass', hasGain: false },
+  { prefix: 'hp', label: 'HP', type: 'highpass', hasGain: false },
+  { prefix: 'ls', label: 'Low', type: 'lowshelf', hasGain: true },
+  { prefix: 'b1', label: 'B1', type: 'peaking', hasGain: true },
+  { prefix: 'b2', label: 'B2', type: 'peaking', hasGain: true },
+  { prefix: 'b3', label: 'B3', type: 'peaking', hasGain: true },
+  { prefix: 'b4', label: 'B4', type: 'peaking', hasGain: true },
+  { prefix: 'hs', label: 'High', type: 'highshelf', hasGain: true },
+  { prefix: 'lp', label: 'LP', type: 'lowpass', hasGain: false },
 ];
 
 /**

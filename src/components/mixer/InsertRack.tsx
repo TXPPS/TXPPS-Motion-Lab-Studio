@@ -1,62 +1,34 @@
 import { useState } from 'react';
 import {
+  EFFECT_GROUPS,
+  EFFECT_GROUP_LABELS,
   EFFECT_SPECS,
   MAX_INSERTS,
+  choiceOf,
   describeEffect,
   effectSpec,
-  formatParam,
+  effectsInGroup,
   paramOf,
-  type ParamSpec,
+  EQ8_BANDS,
 } from '../../model/effects';
+import { CHAIN_PRESETS, presetsFor } from '../../model/effectPresets';
 import type { Effect, EffectKind, Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
+import { EffectVisual, FxKnob, faceKindOf } from './PluginFace';
 
 /**
- * One parameter row. Log-curve parameters map the slider position through an
- * exponential so frequency controls are usable across their whole range instead
- * of bunching everything below a quarter of the travel.
+ * Which parameters to show at once.
+ *
+ * The eight-band EQ has 32 parameters; showing them all is a wall of knobs
+ * nobody reads. It gets band tabs instead — the curve stays whole, and the
+ * knobs below it belong to the band being edited, which is how every
+ * parametric EQ works.
  */
-function ParamRow({
-  spec,
-  value,
-  onChange,
-}: {
-  spec: ParamSpec;
-  value: number;
-  onChange: (v: number) => void;
-}) {
-  const log = spec.curve === 'log' && spec.min > 0;
-  const toSlider = (v: number) =>
-    log
-      ? (Math.log(v / spec.min) / Math.log(spec.max / spec.min)) * 1000
-      : ((v - spec.min) / (spec.max - spec.min)) * 1000;
-  const fromSlider = (s: number) =>
-    log
-      ? spec.min * Math.pow(spec.max / spec.min, s / 1000)
-      : spec.min + (s / 1000) * (spec.max - spec.min);
-
-  return (
-    <div className="fx-param">
-      <span className="k">{spec.label}</span>
-      <input
-        type="range"
-        min={0}
-        max={1000}
-        step={1}
-        value={Math.round(toSlider(value))}
-        aria-label={spec.label}
-        onChange={(e) => {
-          const raw = fromSlider(Number(e.target.value));
-          // Re-quantise to the spec step so stored values stay tidy.
-          const stepped = Math.round(raw / spec.step) * spec.step;
-          onChange(Math.min(spec.max, Math.max(spec.min, stepped)));
-        }}
-      />
-      <span className="v mono">{formatParam(spec, value)}</span>
-    </div>
-  );
+function bandTabsFor(effect: Effect): { id: string; label: string }[] | null {
+  if (effect.kind !== 'eq8') return null;
+  return EQ8_BANDS.map((b) => ({ id: b.prefix, label: b.label }));
 }
 
 function InsertSlot({
@@ -71,8 +43,11 @@ function InsertSlot({
   total: number;
 }) {
   const [open, setOpen] = useState(false);
+  const [band, setBand] = useState('b1');
   const store = useProjectStore;
   const spec = effectSpec(effect.kind);
+  const tabs = bandTabsFor(effect);
+  const params = (spec?.params ?? []).filter((p) => !tabs || p.key.startsWith(band));
 
   return (
     <div
@@ -103,15 +78,88 @@ function InsertSlot({
 
       {open && (
         <div className="fx-body">
-          {spec?.params.map((p) => (
-            <ParamRow
-              key={p.key}
-              spec={p}
-              value={paramOf(effect, p.key)}
-              onChange={(v) => store.getState().setEffectParam(track.id, effect.id, p.key, v)}
-            />
-          ))}
+          {faceKindOf(effect.kind) && (
+            <div className="fx-visual">
+              <EffectVisual
+                effect={effect}
+                trackId={track.id}
+                onParam={(key, v) => store.getState().setEffectParam(track.id, effect.id, key, v)}
+                onGestureStart={() => store.getState().beginGesture()}
+                onGestureEnd={() => store.getState().endGesture()}
+              />
+            </div>
+          )}
+          {tabs && (
+            <div className="seg fx-bands" role="group" aria-label="EQ band">
+              {tabs.map((t) => (
+                <button
+                  key={t.id}
+                  className={band === t.id ? 'on' : ''}
+                  aria-pressed={band === t.id}
+                  onClick={() => setBand(t.id)}
+                  title={`Edit the ${t.label} band`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="fx-knobs">
+            {params.map((p) =>
+              p.choices ? (
+                <div className="fx-choice" key={p.key}>
+                  <select
+                    value={String(choiceOf(effect, p.key))}
+                    aria-label={p.label}
+                    onChange={(e) =>
+                      store
+                        .getState()
+                        .setEffectParam(track.id, effect.id, p.key, Number(e.target.value))
+                    }
+                  >
+                    {p.choices.map((c, i) => (
+                      <option key={c} value={i}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="fx-knob-label">{p.label}</span>
+                </div>
+              ) : (
+                <FxKnob
+                  key={p.key}
+                  spec={p}
+                  value={paramOf(effect, p.key)}
+                  onChange={(v) => store.getState().setEffectParam(track.id, effect.id, p.key, v)}
+                  onGestureStart={() => store.getState().beginGesture()}
+                  onGestureEnd={() => store.getState().endGesture()}
+                />
+              ),
+            )}
+          </div>
           <div className="fx-actions">
+            {presetsFor(effect.kind).length > 0 && (
+              <select
+                className="fx-preset"
+                value=""
+                aria-label={`${spec?.label ?? effect.kind} presets`}
+                onChange={(e) => {
+                  const preset = presetsFor(effect.kind).find((pp) => pp.name === e.target.value);
+                  if (!preset) return;
+                  for (const [k, v] of Object.entries(preset.params)) {
+                    store.getState().setEffectParam(track.id, effect.id, k, v);
+                  }
+                  e.currentTarget.value = '';
+                }}
+              >
+                <option value="">Preset…</option>
+                {presetsFor(effect.kind).map((pp) => (
+                  <option key={pp.name} value={pp.name}>
+                    {pp.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <button
               className="btn"
               disabled={index === 0}
@@ -170,10 +218,47 @@ export function InsertRack({ track }: { track: Track }) {
             if (!id) useUiStore.getState().toast('error', `Insert limit is ${MAX_INSERTS}.`);
           }}
         >
-          <option value="">{full ? `Full (${MAX_INSERTS} inserts)` : 'Add insert…'}</option>
-          {EFFECT_SPECS.map((s) => (
-            <option key={s.kind} value={s.kind} title={s.blurb}>
-              {s.label}
+          <option value="">
+            {full ? `Full (${MAX_INSERTS} inserts)` : `Add insert… (${EFFECT_SPECS.length})`}
+          </option>
+          {/* Grouped the way a plugin menu is: dynamics, tone, modulation,
+              time, stereo, utility — 27 flat entries would be a wall. */}
+          {EFFECT_GROUPS.map((g) => (
+            <optgroup key={g} label={EFFECT_GROUP_LABELS[g]}>
+              {effectsInGroup(g).map((sp) => (
+                <option key={sp.kind} value={sp.kind} title={sp.blurb}>
+                  {sp.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        <select
+          value=""
+          disabled={full}
+          aria-label="Add an effect chain"
+          className="fx-chain-preset"
+          onChange={(e) => {
+            const chain = CHAIN_PRESETS.find((c) => c.name === e.target.value);
+            e.currentTarget.value = '';
+            if (!chain) return;
+            for (const step of chain.steps) {
+              const id = useProjectStore.getState().addEffect(track.id, step.kind);
+              if (!id) {
+                useUiStore.getState().toast('error', `Insert limit is ${MAX_INSERTS}.`);
+                break;
+              }
+              for (const [k, v] of Object.entries(step.params)) {
+                useProjectStore.getState().setEffectParam(track.id, id, k, v);
+              }
+              if (step.bypass) useProjectStore.getState().setEffectBypass(track.id, id, true);
+            }
+          }}
+        >
+          <option value="">Chain…</option>
+          {CHAIN_PRESETS.map((c) => (
+            <option key={c.name} value={c.name} title={c.blurb}>
+              {c.name}
             </option>
           ))}
         </select>

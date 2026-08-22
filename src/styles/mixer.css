@@ -880,3 +880,179 @@
   justify-content: center;
   gap: var(--sp-6);
 }
+
+/* ============================================================
+   Plugin faces — an effect shows what it DOES, then its controls.
+   ============================================================ */
+
+.fx-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-soft);
+}
+
+.fx-visual {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-2);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.fx-curve {
+  display: block;
+  position: relative;
+  border-radius: var(--radius-xs);
+}
+
+/* Draggable EQ band handles sit on top of the curve. */
+.eq-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border-radius: 50%;
+  background: var(--bg-raised);
+  border: 1.5px solid var(--accent);
+  color: var(--text);
+  font-size: 8px;
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  cursor: grab;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.eq-handle:hover {
+  border-color: var(--accent-hi);
+  background: var(--bg-hover);
+}
+.eq-handle.off {
+  border-color: var(--border-strong);
+  color: var(--text-faint);
+  opacity: 0.6;
+}
+.eq-handle:active {
+  cursor: grabbing;
+}
+
+/* Dynamics: transfer curve beside a live gain-reduction meter. */
+.fx-dyn {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-4);
+}
+.fx-gr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  width: 44px;
+}
+.fx-gr-track {
+  position: relative;
+  flex: 1 1 auto;
+  width: 12px;
+  background: var(--meter-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 2px;
+  overflow: hidden;
+}
+/* Reduction grows DOWNWARD from the top: that is the direction the level is
+   being pushed, and it is how every hardware GR meter reads. */
+.fx-gr-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: top;
+  transform: scaleY(0);
+  background: linear-gradient(to bottom, var(--warm) 0%, var(--meter-clip) 100%);
+}
+.fx-gr-val,
+.fx-gr-label {
+  font-family: var(--font-num);
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+
+/* Knob grid */
+.fx-knobs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: var(--sp-4) var(--sp-2);
+  justify-items: center;
+}
+.fx-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.fx-knob .knob {
+  cursor: ns-resize;
+  touch-action: none;
+}
+.fx-knob-val {
+  font-family: var(--font-num);
+  font-size: var(--fs-2xs);
+  color: var(--text);
+  white-space: nowrap;
+}
+.fx-knob-label {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  text-align: center;
+  max-width: 66px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fx-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  grid-column: span 2;
+}
+.fx-choice select {
+  width: 100%;
+  height: var(--control-h-sm);
+  font-size: var(--fs-2xs);
+}
+.fx-preset,
+.fx-chain-preset {
+  height: var(--control-h-sm);
+  font-size: var(--fs-2xs);
+  max-width: 130px;
+}
+.fx-add {
+  display: flex;
+  gap: var(--sp-2);
+}
+.fx-add select {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Band tabs for the parametric EQ: the curve stays whole, the knobs below it
+   belong to the band being edited. */
+.fx-bands {
+  align-self: stretch;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.fx-bands::-webkit-scrollbar {
+  display: none;
+}
+.fx-bands button {
+  flex: 1 1 0;
+  min-width: 30px;
+  padding: var(--sp-2) var(--sp-1);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+}

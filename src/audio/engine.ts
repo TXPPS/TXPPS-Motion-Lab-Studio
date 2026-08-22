@@ -1382,7 +1382,11 @@ class AudioEngine {
     // The master meter is always live: it is the one reading that must be true
     // even when no mixer is on screen (the transport shows it).
     if (this.masterTap) {
-      write('master', this.scanAnalyser(this.masterTap.left), this.scanAnalyser(this.masterTap.right));
+      write(
+        'master',
+        this.scanAnalyser(this.masterTap.left),
+        this.scanAnalyser(this.masterTap.right),
+      );
     } else if (this.masterAnalyser) {
       const mono = this.scanAnalyser(this.masterAnalyser);
       write('master', mono, mono);
@@ -1391,6 +1395,25 @@ class AudioEngine {
 
   getMeter(id: string): MeterData | undefined {
     return this.meterData.get(id);
+  }
+
+  /**
+   * Gain reduction of one insert, in dB (0 or negative).
+   *
+   * `trackId` is a track id or 'master'. Returns 0 when the effect does not
+   * report reduction, when the chain has not been built yet, or when the
+   * context is not running — a display must never claim compression that is
+   * not happening.
+   */
+  gainReductionOf(trackId: string, effectId: string): number {
+    const chain = trackId === MASTER_ID ? this.masterInserts : this.channels.get(trackId)?.inserts;
+    return chain?.gainReductionOf(effectId) ?? 0;
+  }
+
+  /** Measurement tap of one insert, for spectrum, scope and tuner faces. */
+  effectTap(trackId: string, effectId: string): AnalyserNode | undefined {
+    const chain = trackId === MASTER_ID ? this.masterInserts : this.channels.get(trackId)?.inserts;
+    return chain?.tapOf(effectId);
   }
 
   resetClipIndicators(): void {
