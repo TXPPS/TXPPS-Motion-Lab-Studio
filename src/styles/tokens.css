@@ -1,75 +1,417 @@
+/**
+ * Design tokens.
+ *
+ * Every colour, size, radius, shadow, duration and layer in the product comes
+ * from here. Three rules keep it honest:
+ *
+ *  1. A component never writes a raw colour. If a shade is missing, it is
+ *     added here as a token first.
+ *  2. Themes redefine *only* the colour block. Geometry, type, motion and
+ *     layering are theme-independent, so a theme can never break a layout.
+ *  3. Geometry is expressed through `--ui-scale`, so the whole workstation
+ *     scales with one number — the reference's UI-scaling control.
+ *
+ * Themes: `data-theme="dark" | "light" | "contrast"` on <html>. With the
+ * attribute absent (the "system" setting) the OS preference decides.
+ */
+
 :root {
-  /* Surfaces — dark graphite */
-  --bg-app: #0b0e12;
-  --bg-panel: #14181f;
-  --bg-panel-2: #171c24;
-  --bg-raised: #1e252e;
-  --bg-hover: #232b36;
-  --bg-deep: #07090c; /* timeline / editing surfaces */
-  --bg-input: #0e1218;
+  /* ---------------------------------------------------------------- scale */
+  /* One multiplier drives every geometric token. 0.85 – 1.4 is the offered
+     range; the layout is tested at both ends. */
+  --ui-scale: 1;
 
-  /* Lines */
-  --border: #262d37;
-  --border-soft: #1c222b;
-  --border-strong: #323b47;
+  /* ---------------------------------------------------------- type system */
+  /* No webfont is downloaded: a DAW must paint its chrome on the first frame
+     and work with no network at all. The stack is ordered so each platform
+     lands on its own UI face, which is also the face the user's OS hints for. */
+  --font:
+    system-ui, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', Roboto, 'Helvetica Neue',
+    'Noto Sans', sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', 'Cascadia Mono', 'JetBrains Mono', 'Roboto Mono', Menlo, Consolas,
+    monospace;
+  /* Numeric readouts (time, dB, bpm) must not reflow as digits change. */
+  --font-num: var(--font-mono);
 
-  /* Text — warm off-white primary, muted gray secondary */
-  --text: #e8e4da;
-  --text-dim: #98a0ab;
-  /* ≥4.5:1 on every panel background (WCAG AA small text) */
-  --text-faint: #8b94a1;
+  /* A 6-step scale. Nothing in the product may invent a size between steps. */
+  --fs-2xs: calc(9.5px * var(--ui-scale));
+  --fs-xs: calc(10.5px * var(--ui-scale));
+  --fs-sm: calc(11.5px * var(--ui-scale));
+  --fs-md: calc(12.5px * var(--ui-scale));
+  --fs-lg: calc(14px * var(--ui-scale));
+  --fs-xl: calc(17px * var(--ui-scale));
+  --fs-2xl: calc(22px * var(--ui-scale));
+  --fs-3xl: calc(30px * var(--ui-scale));
 
-  /* Accents */
-  --accent: #37b89a; /* teal-green primary */
-  --accent-hi: #4bd1b2;
-  --accent-dim: #2a8f78;
-  --accent-bg: rgba(55, 184, 154, 0.13);
-  --warm: #d9a13c; /* amber — selection / active musical elements */
-  --warm-hi: #ecb54f;
-  --warm-bg: rgba(217, 161, 60, 0.15);
-  --danger: #d84a44; /* record / clipping / destructive only */
-  --danger-text: #ef7a73; /* danger as TEXT on dark panels (AA-clearing) */
-  --danger-bg: rgba(216, 74, 68, 0.14);
+  --lh-tight: 1.15;
+  --lh-body: 1.45;
 
-  /* Meters */
-  --meter-lo: #2fa385;
-  --meter-mid: #37b89a;
-  --meter-hot: #d9a13c;
-  --meter-clip: #d84a44;
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
 
-  /* Typography */
-  --font: 'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
-  --fs-xs: 10px;
-  --fs-sm: 11px;
-  --fs-md: 12.5px;
-  --fs-lg: 14px;
+  /* Uppercase micro-labels (panel titles, strip headers) need tracking. */
+  --ls-caps: 0.07em;
+  --ls-tight: -0.01em;
 
-  /* Metrics */
-  --radius: 4px;
-  --radius-lg: 7px;
-  --topbar-h: 42px;
-  --transport-h: 52px;
-  --statusbar-h: 24px;
-  --track-h: 64px;
-  --track-h-collapsed: 30px;
-  --header-w: 176px;
-  --bottomnav-h: 54px;
-  --ruler-h: 30px;
-  --toolbar-h: 34px;
+  /* -------------------------------------------------------------- spacing */
+  --sp-0: 0px;
+  --sp-1: calc(2px * var(--ui-scale));
+  --sp-2: calc(4px * var(--ui-scale));
+  --sp-3: calc(6px * var(--ui-scale));
+  --sp-4: calc(8px * var(--ui-scale));
+  --sp-5: calc(12px * var(--ui-scale));
+  --sp-6: calc(16px * var(--ui-scale));
+  --sp-7: calc(22px * var(--ui-scale));
+  --sp-8: calc(30px * var(--ui-scale));
+  --sp-9: calc(44px * var(--ui-scale));
+
+  /* --------------------------------------------------------------- radius */
+  --radius-xs: calc(2px * var(--ui-scale));
+  --radius: calc(4px * var(--ui-scale));
+  --radius-lg: calc(7px * var(--ui-scale));
+  --radius-xl: calc(12px * var(--ui-scale));
+  --radius-pill: 999px;
+
+  /* --------------------------------------------------------------- motion */
+  /* Chrome moves fast enough to feel instant and slow enough to be seen. */
+  --dur-instant: 60ms;
+  --dur-fast: 110ms;
+  --dur-base: 170ms;
+  --dur-slow: 260ms;
+  --ease-out: cubic-bezier(0.22, 0.9, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.5, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.2, 1.2, 0.35, 1);
+
+  /* -------------------------------------------------------------- layering */
+  --z-lane: 1;
+  --z-clip: 2;
+  --z-playhead: 5;
+  --z-sticky: 10;
+  --z-panel-chrome: 20;
+  --z-dropdown: 400;
+  --z-overlay: 600;
+  --z-dialog: 700;
+  --z-menu: 800;
+  --z-toast: 900;
+  --z-debug: 1000;
+
+  /* ------------------------------------------------------------- geometry */
+  --topbar-h: calc(42px * var(--ui-scale));
+  --transport-h: calc(52px * var(--ui-scale));
+  --statusbar-h: calc(24px * var(--ui-scale));
+  --track-h: calc(64px * var(--ui-scale));
+  --track-h-collapsed: calc(30px * var(--ui-scale));
+  --header-w: calc(176px * var(--ui-scale));
+  --bottomnav-h: calc(54px * var(--ui-scale));
+  --ruler-h: calc(30px * var(--ui-scale));
+  --global-lane-h: calc(20px * var(--ui-scale));
+  --toolbar-h: calc(34px * var(--ui-scale));
+  --control-h: calc(28px * var(--ui-scale));
+  --control-h-sm: calc(22px * var(--ui-scale));
 
   /* Mixer strip geometry — strips are fixed-width and never shrink. */
-  --strip-w: 88px;
-  --strip-w-touch: 104px;
-  --fader-min-h: 44px;
-  --meter-w: 12px;
+  --strip-w: calc(88px * var(--ui-scale));
+  --strip-w-touch: calc(104px * var(--ui-scale));
+  --fader-min-h: calc(44px * var(--ui-scale));
+  --meter-w: calc(12px * var(--ui-scale));
 
   /* Panel minimums, enforced by the resizable panel system. */
-  --panel-min-side: 180px;
-  --panel-min-center: 320px;
+  --panel-min-side: calc(180px * var(--ui-scale));
+  --panel-min-center: calc(320px * var(--ui-scale));
 
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
   --sar: env(safe-area-inset-right, 0px);
+}
+
+/* ====================================================================== */
+/* Dark theme — the product's default identity: graphite surfaces, a teal    */
+/* working accent, amber for musical selection, red reserved for record and  */
+/* clipping.                                                                */
+/* ====================================================================== */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Surfaces, from the deepest editing ground to the highest floating chrome */
+  --bg-app: #0a0d11;
+  --bg-deep: #06080b;
+  --bg-panel: #12161d;
+  --bg-panel-2: #161b23;
+  --bg-raised: #1d242d;
+  --bg-hover: #232b36;
+  --bg-active: #2a333f;
+  --bg-input: #0d1116;
+  --bg-float: #1a212a;
+  --bg-scrim: rgba(4, 6, 9, 0.66);
+
+  /* Lines */
+  --border: #262e39;
+  --border-soft: #1b212a;
+  --border-strong: #36414f;
+  --border-focus: #4bd1b2;
+
+  /* Text */
+  --text: #e9e6dd;
+  --text-dim: #9aa3ae;
+  --text-faint: #8b94a1;
+  --text-inverse: #06120e;
+
+  /* Accents */
+  --accent: #37b89a;
+  --accent-hi: #4bd1b2;
+  --accent-dim: #2a8f78;
+  --accent-bg: rgba(55, 184, 154, 0.13);
+  --accent-line: rgba(55, 184, 154, 0.36);
+
+  --warm: #d9a13c;
+  --warm-hi: #ecb54f;
+  --warm-bg: rgba(217, 161, 60, 0.15);
+  --warm-line: rgba(217, 161, 60, 0.4);
+
+  --danger: #d84a44;
+  --danger-text: #ef7a73;
+  --danger-bg: rgba(216, 74, 68, 0.14);
+  --danger-line: rgba(216, 74, 68, 0.45);
+
+  --info: #4a90c4;
+  --info-bg: rgba(74, 144, 196, 0.15);
+
+  /* Meters. `-over` is the true-peak / over indicator, held separately from
+     the clip colour so an over can stay lit after the meter falls. */
+  --meter-lo: #2fa385;
+  --meter-mid: #37b89a;
+  --meter-hot: #d9a13c;
+  --meter-clip: #d84a44;
+  --meter-over: #ff5f57;
+  --meter-bg: #0a0e13;
+  --meter-rms: rgba(255, 255, 255, 0.22);
+
+  /* Timeline surfaces */
+  --grid-bar: rgba(255, 255, 255, 0.13);
+  --grid-beat: rgba(255, 255, 255, 0.06);
+  --grid-sub: rgba(255, 255, 255, 0.028);
+  --playhead: #f2f4f7;
+  --loop-band: rgba(217, 161, 60, 0.18);
+
+  /* Elevation. Dark themes read depth from a light top edge plus a soft
+     shadow; a shadow alone disappears on a dark ground. */
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --sh-2: 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --sh-3: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.045);
+  --sh-4: 0 18px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  --sh-focus: 0 0 0 2px var(--bg-app), 0 0 0 4px var(--border-focus);
+}
+
+/* System setting with no explicit choice: follow the OS. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+
+    --bg-app: #dfe2e7;
+    --bg-deep: #cdd2d9;
+    --bg-panel: #f1f3f6;
+    --bg-panel-2: #eaedf1;
+    --bg-raised: #ffffff;
+    --bg-hover: #e4e8ee;
+    --bg-active: #d8dee6;
+    --bg-input: #ffffff;
+    --bg-float: #ffffff;
+    --bg-scrim: rgba(28, 33, 40, 0.42);
+
+    --border: #c3cad3;
+    --border-soft: #d7dce3;
+    --border-strong: #a5aeba;
+    --border-focus: #17806a;
+
+    --text: #171c22;
+    --text-dim: #4e5763;
+    --text-faint: #5c6673;
+    --text-inverse: #ffffff;
+
+    --accent: #17806a;
+    --accent-hi: #0f6b58;
+    --accent-dim: #1a9a80;
+    --accent-bg: rgba(23, 128, 106, 0.12);
+    --accent-line: rgba(23, 128, 106, 0.4);
+
+    --warm: #9a6a12;
+    --warm-hi: #b57d1c;
+    --warm-bg: rgba(154, 106, 18, 0.13);
+    --warm-line: rgba(154, 106, 18, 0.42);
+
+    --danger: #b3231c;
+    --danger-text: #a8201a;
+    --danger-bg: rgba(179, 35, 28, 0.1);
+    --danger-line: rgba(179, 35, 28, 0.4);
+
+    --info: #1d5f92;
+    --info-bg: rgba(29, 95, 146, 0.12);
+
+    --meter-lo: #1a9a80;
+    --meter-mid: #17806a;
+    --meter-hot: #b57d1c;
+    --meter-clip: #b3231c;
+    --meter-over: #d3352d;
+    --meter-bg: #d3d8de;
+    --meter-rms: rgba(0, 0, 0, 0.22);
+
+    --grid-bar: rgba(0, 0, 0, 0.18);
+    --grid-beat: rgba(0, 0, 0, 0.09);
+    --grid-sub: rgba(0, 0, 0, 0.04);
+    --playhead: #10151b;
+    --loop-band: rgba(154, 106, 18, 0.16);
+
+    --sh-1: 0 1px 2px rgba(24, 30, 38, 0.16);
+    --sh-2: 0 2px 6px rgba(24, 30, 38, 0.14), 0 0 0 1px rgba(24, 30, 38, 0.05);
+    --sh-3: 0 8px 24px rgba(24, 30, 38, 0.18), 0 0 0 1px rgba(24, 30, 38, 0.06);
+    --sh-4: 0 18px 48px rgba(24, 30, 38, 0.22), 0 0 0 1px rgba(24, 30, 38, 0.08);
+    --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    --sh-focus: 0 0 0 2px var(--bg-panel), 0 0 0 4px var(--border-focus);
+  }
+}
+
+/* ====================================================================== */
+/* Light theme — for bright rooms and for print-adjacent work. Surfaces are  */
+/* deliberately not white-on-white: the editing ground stays darker than the */
+/* chrome so clips and waveforms keep the same figure/ground relationship as */
+/* in the dark theme.                                                        */
+/* ====================================================================== */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-app: #dfe2e7;
+  --bg-deep: #cdd2d9;
+  --bg-panel: #f1f3f6;
+  --bg-panel-2: #eaedf1;
+  --bg-raised: #ffffff;
+  --bg-hover: #e4e8ee;
+  --bg-active: #d8dee6;
+  --bg-input: #ffffff;
+  --bg-float: #ffffff;
+  --bg-scrim: rgba(28, 33, 40, 0.42);
+
+  --border: #c3cad3;
+  --border-soft: #d7dce3;
+  --border-strong: #a5aeba;
+  --border-focus: #17806a;
+
+  --text: #171c22;
+  --text-dim: #4e5763;
+  --text-faint: #5c6673;
+  --text-inverse: #ffffff;
+
+  --accent: #17806a;
+  --accent-hi: #0f6b58;
+  --accent-dim: #1a9a80;
+  --accent-bg: rgba(23, 128, 106, 0.12);
+  --accent-line: rgba(23, 128, 106, 0.4);
+
+  --warm: #9a6a12;
+  --warm-hi: #b57d1c;
+  --warm-bg: rgba(154, 106, 18, 0.13);
+  --warm-line: rgba(154, 106, 18, 0.42);
+
+  --danger: #b3231c;
+  --danger-text: #a8201a;
+  --danger-bg: rgba(179, 35, 28, 0.1);
+  --danger-line: rgba(179, 35, 28, 0.4);
+
+  --info: #1d5f92;
+  --info-bg: rgba(29, 95, 146, 0.12);
+
+  --meter-lo: #1a9a80;
+  --meter-mid: #17806a;
+  --meter-hot: #b57d1c;
+  --meter-clip: #b3231c;
+  --meter-over: #d3352d;
+  --meter-bg: #d3d8de;
+  --meter-rms: rgba(0, 0, 0, 0.22);
+
+  --grid-bar: rgba(0, 0, 0, 0.18);
+  --grid-beat: rgba(0, 0, 0, 0.09);
+  --grid-sub: rgba(0, 0, 0, 0.04);
+  --playhead: #10151b;
+  --loop-band: rgba(154, 106, 18, 0.16);
+
+  --sh-1: 0 1px 2px rgba(24, 30, 38, 0.16);
+  --sh-2: 0 2px 6px rgba(24, 30, 38, 0.14), 0 0 0 1px rgba(24, 30, 38, 0.05);
+  --sh-3: 0 8px 24px rgba(24, 30, 38, 0.18), 0 0 0 1px rgba(24, 30, 38, 0.06);
+  --sh-4: 0 18px 48px rgba(24, 30, 38, 0.22), 0 0 0 1px rgba(24, 30, 38, 0.08);
+  --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --sh-focus: 0 0 0 2px var(--bg-panel), 0 0 0 4px var(--border-focus);
+}
+
+/* ====================================================================== */
+/* High contrast — for low-vision use and for bright stages. Every text and  */
+/* border pair here clears WCAG AAA on its own surface.                      */
+/* ====================================================================== */
+:root[data-theme='contrast'] {
+  color-scheme: dark;
+
+  --bg-app: #000000;
+  --bg-deep: #000000;
+  --bg-panel: #0b0b0c;
+  --bg-panel-2: #101012;
+  --bg-raised: #17181a;
+  --bg-hover: #23252a;
+  --bg-active: #303339;
+  --bg-input: #000000;
+  --bg-float: #17181a;
+  --bg-scrim: rgba(0, 0, 0, 0.82);
+
+  --border: #59606c;
+  --border-soft: #3a404a;
+  --border-strong: #8e97a4;
+  --border-focus: #ffd166;
+
+  --text: #ffffff;
+  --text-dim: #d6dbe2;
+  --text-faint: #c3c9d2;
+  --text-inverse: #000000;
+
+  --accent: #56e8c6;
+  --accent-hi: #7ff5da;
+  --accent-dim: #2fb497;
+  --accent-bg: rgba(86, 232, 198, 0.2);
+  --accent-line: rgba(86, 232, 198, 0.6);
+
+  --warm: #ffc44d;
+  --warm-hi: #ffd980;
+  --warm-bg: rgba(255, 196, 77, 0.22);
+  --warm-line: rgba(255, 196, 77, 0.6);
+
+  --danger: #ff6b62;
+  --danger-text: #ff8a82;
+  --danger-bg: rgba(255, 107, 98, 0.22);
+  --danger-line: rgba(255, 107, 98, 0.6);
+
+  --info: #79bdf0;
+  --info-bg: rgba(121, 189, 240, 0.2);
+
+  --meter-lo: #56e8c6;
+  --meter-mid: #7ff5da;
+  --meter-hot: #ffc44d;
+  --meter-clip: #ff6b62;
+  --meter-over: #ff3b30;
+  --meter-bg: #000000;
+  --meter-rms: rgba(255, 255, 255, 0.4);
+
+  --grid-bar: rgba(255, 255, 255, 0.35);
+  --grid-beat: rgba(255, 255, 255, 0.16);
+  --grid-sub: rgba(255, 255, 255, 0.08);
+  --playhead: #ffffff;
+  --loop-band: rgba(255, 196, 77, 0.24);
+
+  --sh-1: 0 0 0 1px #59606c;
+  --sh-2: 0 0 0 1px #8e97a4;
+  --sh-3: 0 10px 28px rgba(0, 0, 0, 0.9), 0 0 0 1px #8e97a4;
+  --sh-4: 0 20px 52px rgba(0, 0, 0, 0.95), 0 0 0 1px #8e97a4;
+  --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --sh-focus: 0 0 0 2px #000000, 0 0 0 4px var(--border-focus);
 }

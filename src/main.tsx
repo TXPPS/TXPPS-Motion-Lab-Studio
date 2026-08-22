@@ -13,12 +13,18 @@ import './styles/recording.css';
 import './styles/automation.css';
 import './styles/sampler.css';
 import { installConsoleCapture, diagLog } from './state/diagnostics';
+import { applyAppearance } from './state/prefsStore';
 import { bootProject, installAutosave } from './app/projectActions';
+import { currentRoute } from './app/router';
 import { midi } from './audio/midi';
 import { engine } from './audio/engine';
 import { useProjectStore } from './state/projectStore';
 import { registerPwa } from './pwa/registerPwa';
 import { APP_VERSION, GIT_COMMIT } from './diagnostics/report';
+
+// Appearance is applied before React mounts so the first painted frame is
+// already in the user's theme and scale — no flash of the default identity.
+applyAppearance();
 
 installConsoleCapture();
 diagLog('info', `TXPPS MotionLab Studio v${APP_VERSION} (${GIT_COMMIT}) starting`);
@@ -26,13 +32,11 @@ diagLog('info', `TXPPS MotionLab Studio v${APP_VERSION} (${GIT_COMMIT}) starting
 // Report MIDI support up front (does not prompt — that happens on Enable).
 midi.reportSupport();
 
-// Boot: restore last project / seed demo, then wire autosave.
-// #/qa loads the layout stress fixture and deliberately skips autosave so QA
-// runs can never overwrite a real project.
-const hash = window.location.hash;
-const qaFixture = hash.includes('qa');
-void bootProject(hash.includes('demo'), qaFixture).then(() => {
-  if (!qaFixture) installAutosave();
+// Boot: restore last project / seed demo, then wire autosave. A QA fixture
+// route deliberately skips autosave so a QA run can never overwrite real work.
+const bootRoute = currentRoute();
+void bootProject(bootRoute).then(() => {
+  if (!bootRoute.fixture) installAutosave();
 });
 
 registerPwa();

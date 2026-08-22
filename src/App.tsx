@@ -14,6 +14,7 @@ import { LayoutDebugHud } from './components/diagnostics/LayoutDebugHud';
 import { RecordingBanner } from './components/recording/RecordControls';
 import { dragHasFiles } from './app/importActions';
 import { useProjectStore } from './state/projectStore';
+import { useRouteStore, watchRoute } from './state/routeStore';
 import { ShortcutsSheet } from './components/common/ShortcutsSheet';
 import { WelcomeSheet, maybeShowWelcome } from './components/common/WelcomeSheet';
 
@@ -26,21 +27,28 @@ export function App() {
   const { layout } = useViewport();
   useGlobalKeyboard();
 
-  // Hash flags: #/phone forces the phone layout for QA, #/diagnostics opens the
-  // panel, #/qa loads the layout stress fixture with the debug overlay.
+  // One route parse drives both navigation and the QA/debug flags.
   useEffect(() => {
-    const apply = () => {
-      const h = window.location.hash;
-      useUiStore.getState().set({
-        forcedLayout: h.includes('phone') ? 'phone' : null,
-        debugOverlay: h.includes('qa') || h.includes('debug'),
-        ...(h.includes('diagnostics') ? { diagnosticsOpen: true } : {}),
-      });
-    };
-    apply();
+    const stop = watchRoute();
     maybeShowWelcome();
-    window.addEventListener('hashchange', apply);
-    return () => window.removeEventListener('hashchange', apply);
+    const unsub = useRouteStore.subscribe((s) => {
+      useUiStore.getState().set({
+        forcedLayout: s.route.forcePhone ? 'phone' : null,
+        debugOverlay: s.route.debugOverlay,
+        ...(s.route.openDiagnostics ? { diagnosticsOpen: true } : {}),
+      });
+    });
+    // Apply the boot route immediately as well: subscribe only fires on change.
+    const r = useRouteStore.getState().route;
+    useUiStore.getState().set({
+      forcedLayout: r.forcePhone ? 'phone' : null,
+      debugOverlay: r.debugOverlay,
+      ...(r.openDiagnostics ? { diagnosticsOpen: true } : {}),
+    });
+    return () => {
+      stop();
+      unsub();
+    };
   }, []);
 
   // Backstop for the undo system: whatever happens to the element that started

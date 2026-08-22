@@ -17,6 +17,7 @@ import {
   savePrefs,
   SchemaError,
 } from '../persistence/projectRepo';
+import { currentRoute, type QaFixture, type Route } from './router';
 import { diagLog } from '../state/diagnostics';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
@@ -145,71 +146,20 @@ export async function deleteById(id: string): Promise<void> {
  * The QA layout fixture is loaded in-memory only and never autosaved over a
  * real project.
  */
-export async function bootProject(forceDemo: boolean, qaFixture = false): Promise<void> {
-  if (qaFixture) {
-    // #/qa-audio loads the audio-editing fixture; #/qa the layout stress one.
-    // Neither is persisted, so a QA run can never overwrite a real project.
-    if (window.location.hash.includes('qa-audio-edit')) {
-      const { createAudioEditQaProject } = await import('../model/audioEditQaProject');
-      useProjectStore.getState().setProject(createAudioEditQaProject(), { markClean: true });
-      diagLog('info', 'Loaded QA audio-edit stress fixture (not persisted)');
-      return;
-    }
-    if (window.location.hash.includes('qa-audio')) {
-      const { createAudioQaProject } = await import('../model/audioQaProject');
-      useProjectStore.getState().setProject(createAudioQaProject(), { markClean: true });
-      diagLog('info', 'Loaded QA audio-editing fixture (not persisted)');
-      return;
-    }
-    if (window.location.hash.includes('qa-midi')) {
-      const { createHugeMidiProject } = await import('../model/hugeMidiProject');
-      useProjectStore.getState().setProject(createHugeMidiProject(), { markClean: true });
-      diagLog('info', 'Loaded QA dense-MIDI fixture (not persisted)');
-      return;
-    }
-    if (window.location.hash.includes('qa-automation')) {
-      const { createHugeAutomationProject } = await import('../model/hugeAutomationProject');
-      useProjectStore.getState().setProject(createHugeAutomationProject(), { markClean: true });
-      diagLog('info', 'Loaded QA automation stress fixture (not persisted)');
-      return;
-    }
-    if (window.location.hash.includes('qa-multisample')) {
-      const { createMultisampleQaProject } = await import('../model/samplerQaProject');
-      useProjectStore.getState().setProject(createMultisampleQaProject(), { markClean: true });
-      diagLog('info', 'Loaded QA multisample fixture (not persisted)');
-      return;
-    }
-    if (window.location.hash.includes('qa-sampler')) {
-      const { createSamplerQaProject } = await import('../model/samplerQaProject');
-      useProjectStore.getState().setProject(createSamplerQaProject(), { markClean: true });
-      diagLog('info', 'Loaded QA sampler workstation fixture (not persisted)');
-      return;
-    }
-    if (window.location.hash.includes('qa-drums')) {
-      const { createDrumsQaProject } = await import('../model/samplerQaProject');
-      useProjectStore.getState().setProject(createDrumsQaProject(), { markClean: true });
-      diagLog('info', 'Loaded QA drum-rack fixture (not persisted)');
-      return;
-    }
-    if (window.location.hash.includes('qa-max')) {
-      const { createMaxProject } = await import('../model/maxProject');
-      useProjectStore.getState().setProject(createMaxProject(), { markClean: true });
-      diagLog('info', 'Loaded QA max-scale fixture (not persisted)');
-      return;
-    }
-    if (window.location.hash.includes('qa-huge')) {
-      const { createHugeProject } = await import('../model/hugeProject');
-      useProjectStore.getState().setProject(createHugeProject(), { markClean: true });
-      diagLog('info', 'Loaded QA huge-scale fixture (not persisted)');
-      return;
-    }
-    const { createStressProject } = await import('../model/stressProject');
-    useProjectStore.getState().setProject(createStressProject(), { markClean: true });
-    diagLog('info', 'Loaded QA layout stress fixture (not persisted)');
+export async function bootProject(route: Route = currentRoute()): Promise<void> {
+  if (route.fixture) {
+    // QA fixtures load in memory only and are never autosaved, so a QA run can
+    // never overwrite a real project. The route resolves the fixture id
+    // exactly — the old substring chain made `qa-audio-edit` depend on being
+    // tested before `qa-audio`.
+    const load = QA_FIXTURES_LOADERS[route.fixture];
+    const project = await load();
+    useProjectStore.getState().setProject(project, { markClean: true });
+    diagLog('info', `Loaded QA fixture "${route.fixture}" (not persisted)`);
     return;
   }
   try {
-    if (!forceDemo) {
+    if (!route.reseedDemo) {
       const prefs = await loadPrefs();
       if (prefs.lastProjectId) {
         const ok = await openProject(prefs.lastProjectId).catch(() => false);
@@ -241,6 +191,26 @@ export async function bootProject(forceDemo: boolean, qaFixture = false): Promis
     void scanRecoveries();
   }
 }
+
+/**
+ * One dynamic import per fixture, so none of them reach a production entry
+ * chunk. Keyed by the exact route id.
+ */
+const QA_FIXTURES_LOADERS: Record<QaFixture, () => Promise<ProjectData>> = {
+  qa: async () => (await import('../model/stressProject')).createStressProject(),
+  'qa-huge': async () => (await import('../model/hugeProject')).createHugeProject(),
+  'qa-max': async () => (await import('../model/maxProject')).createMaxProject(),
+  'qa-audio': async () => (await import('../model/audioQaProject')).createAudioQaProject(),
+  'qa-audio-edit': async () =>
+    (await import('../model/audioEditQaProject')).createAudioEditQaProject(),
+  'qa-midi': async () => (await import('../model/hugeMidiProject')).createHugeMidiProject(),
+  'qa-automation': async () =>
+    (await import('../model/hugeAutomationProject')).createHugeAutomationProject(),
+  'qa-sampler': async () => (await import('../model/samplerQaProject')).createSamplerQaProject(),
+  'qa-drums': async () => (await import('../model/samplerQaProject')).createDrumsQaProject(),
+  'qa-multisample': async () =>
+    (await import('../model/samplerQaProject')).createMultisampleQaProject(),
+};
 
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
