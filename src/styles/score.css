@@ -79,6 +79,91 @@
   margin-left: auto;
 }
 
+/* ------------------------------------------------------- editing controls */
+
+/* The palette sits on its own row: it is a row of pictures, not of labels,
+   and squeezing it in beside the selects would make every glyph too small to
+   recognise at a glance — which is the only reason to draw them at all. */
+.sc-editbar {
+  gap: var(--sp-4);
+}
+/* The selection count sits opposite the tools, where the zoom pair sits above. */
+.sc-editbar .sc-readout {
+  margin-left: auto;
+}
+
+.sc-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: var(--control-h-sm);
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.sc-tool:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--border);
+}
+.sc-tool.on {
+  color: var(--accent-hi);
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.sc-tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sc-palette {
+  display: inline-flex;
+  gap: 1px;
+  padding: 1px;
+  background: var(--border-soft);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.sc-dur {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(26px * var(--ui-scale));
+  height: calc(28px * var(--ui-scale));
+  padding: 0;
+  color: var(--text-dim);
+  background: var(--bg-input);
+  border: none;
+  cursor: pointer;
+}
+.sc-dur:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.sc-dur.on {
+  color: var(--accent-hi);
+  background: var(--accent-bg);
+}
+.sc-dur:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.sc-dot {
+  font-size: var(--fs-lg);
+  line-height: 1;
+}
+
+/* The glyphs inherit `currentColor` like every other note on the page, so a
+   pressed palette button and a selected head are lit by the same token. */
+.sc-dur-glyph {
+  display: block;
+  overflow: visible;
+}
+
 .sc-empty {
   flex: 1;
   display: flex;
@@ -122,6 +207,18 @@
   display: block;
   color: var(--text);
   touch-action: pan-x pan-y;
+}
+
+/* Note input is a mode, so the pointer says so before the first click. */
+.sc-sheet.inputting {
+  cursor: crosshair;
+}
+
+.sc-marquee {
+  fill: var(--accent-bg);
+  stroke: var(--accent);
+  stroke-width: 1px;
+  pointer-events: none;
 }
 
 .sc-playhead {

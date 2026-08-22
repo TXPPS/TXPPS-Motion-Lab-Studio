@@ -160,6 +160,33 @@ export function staffPositionOf(diatonic: number, clef: Clef): number {
   return diatonic - CLEF_BOTTOM[clef];
 }
 
+/** The diatonic step a staff position names — the inverse of `staffPositionOf`. */
+export function diatonicAtStaffPosition(staffPos: number, clef: Clef): number {
+  return Math.round(staffPos) + CLEF_BOTTOM[clef];
+}
+
+/**
+ * Build a pitch from a letter and an accidental, rather than deducing both from
+ * a MIDI number.
+ *
+ * Editing on a staff runs `spellPitch` backwards: the reader picks the letter by
+ * pointing at a line, and the accidental is a separate decision. B♯ and C are
+ * the same key on a piano but different steps here, and it is the step that the
+ * next edit moves from — so the letter has to survive the round trip.
+ */
+export function spellDiatonic(diatonic: number, alter: number): SpelledPitch {
+  const d = Math.round(diatonic);
+  const idx = ((d % 7) + 7) % 7;
+  const octave = (d - idx) / 7;
+  return {
+    step: STEPS[idx],
+    octave,
+    alter,
+    midi: (octave + 1) * 12 + STEP_PC[idx] + alter,
+    diatonic: d,
+  };
+}
+
 /**
  * Clef for a pitch range. A part that reaches well below middle C *and* well
  * above it wants a grand staff; the caller then engraves one score per hand.
@@ -367,7 +394,10 @@ function fitSpan(
   forRest = false,
 ): void {
   const duration = e - s;
-  if (duration <= EPS) return;
+  // Negated rather than `<= EPS`, so a NaN span stops here instead of falling
+  // through to the fallback below — which consumes a fixed amount of a length
+  // that never shrinks, and recurses until the stack gives out.
+  if (!(duration > EPS)) return;
   const v = depth > 12 ? null : valueFor(duration, maxDots);
   if (v && isWritable(s, e, tree, v.dots, forRest)) {
     out.push({ start: s, duration, ...v });
