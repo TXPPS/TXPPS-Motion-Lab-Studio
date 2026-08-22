@@ -160,10 +160,10 @@ describe('merging projects', () => {
       ...project('Source'),
       tempoMap: {
         tempos: [
-          { beat: 0, bpm: 120, ramp: false },
-          { beat: 8, bpm: 90, ramp: false },
+          { id: 't0', beat: 0, bpm: 120 },
+          { id: 't1', beat: 8, bpm: 90 },
         ],
-        sigs: [{ beat: 0, num: 4, den: 4 }],
+        sigs: [{ id: 's0', bar: 0, num: 4, den: 4 }],
       },
     };
     const result = mergeProjects(project('Target'), source, { makeId });
