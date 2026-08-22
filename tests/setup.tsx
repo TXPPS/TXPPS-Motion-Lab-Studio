@@ -27,7 +27,6 @@ import { useKeymapStore } from '../src/state/keymapStore';
 
 declare global {
   // React only allows state updates outside act() when this is set.
-  // eslint-disable-next-line no-var
   var IS_REACT_ACT_ENVIRONMENT: boolean;
 }
 
@@ -159,14 +158,23 @@ function createEngineStub() {
  * The engine every component test sees. Mock the module with it:
  *
  *   vi.mock('../../src/audio/engine', async () => ({
- *     engine: (await import('../setup')).engineStub,
+ *     engine: (await import('../setup.tsx')).engineStub,
  *   }));
  */
 export const engineStub = createEngineStub();
 
-/** `userEvent` wired to the fake clock, so typing and clicks never really wait. */
+/**
+ * `userEvent` with no delay between the events of one interaction: the whole
+ * gesture is dispatched in one go, so a test never waits on the clock.
+ *
+ * Interactions must run on real timers. Testing Library drains its microtask
+ * queue through a `setTimeout(0)` that it only advances when it detects JEST's
+ * fake timers — under `vi.useFakeTimers()` that timeout never fires and every
+ * `await user.click()` hangs. Tests that need a fake clock (a toast expiring,
+ * a poll) drive the DOM with `fireEvent` instead, which is synchronous.
+ */
 export function setupUser(): ReturnType<typeof userEvent.setup> {
-  return userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  return userEvent.setup({ delay: null });
 }
 
 // ------------------------------------------------------- per-test isolation
