@@ -40,15 +40,28 @@ export interface ProjectStore {
   undoStack: ProjectData[];
   redoStack: ProjectData[];
   gestureSnapshot: ProjectData | null;
+  /** How many drags are currently open. Only the outermost one pushes undo. */
+  gestureDepth: number;
 
   setProject: (p: ProjectData, opts?: { markClean?: boolean }) => void;
   /** Core mutation entry point. Clones the project, applies the mutator. */
   update: (mutator: (draft: ProjectData) => void, opts?: { undoable?: boolean }) => void;
   undo: () => void;
   redo: () => void;
-  /** Capture state before a continuous drag; endGesture pushes a single undo step. */
+  /**
+   * Capture state before a continuous drag; the matching endGesture pushes a
+   * single undo step. Calls nest: two simultaneous touch drags on a tablet open
+   * depth 2, and only the last release commits, so neither drag can close the
+   * other's undo window and strand the rest of the session as non-undoable.
+   */
   beginGesture: () => void;
   endGesture: () => void;
+  /**
+   * Force-close any open gesture. The app calls this after every pointer
+   * release as a backstop: a drag whose element was destroyed mid-gesture must
+   * never leave the undo system wedged open.
+   */
+  flushGestures: () => void;
   /**
    * Record a completed save. Pass the exact project object that was written:
    * dirty only clears when nothing changed while the save was in flight, so
@@ -318,6 +331,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     undoStack: [],
     redoStack: [],
     gestureSnapshot: null,
+    gestureDepth: 0,
 
     setProject: (p, opts) =>
       set({
@@ -327,6 +341,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         undoStack: [],
         redoStack: [],
         gestureSnapshot: null,
+        gestureDepth: 0,
       }),
 
     update,
@@ -356,17 +371,34 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     },
 
     beginGesture: () => {
-      if (get().gestureSnapshot === null) set({ gestureSnapshot: get().project });
+      const { gestureSnapshot, gestureDepth } = get();
+      set({
+        gestureDepth: gestureDepth + 1,
+        ...(gestureSnapshot === null ? { gestureSnapshot: get().project } : {}),
+      });
     },
 
     endGesture: () => {
+      const { gestureDepth } = get();
+      if (gestureDepth > 1) {
+        set({ gestureDepth: gestureDepth - 1 });
+        return;
+      }
+      get().flushGestures();
+    },
+
+    flushGestures: () => {
       const { gestureSnapshot, undoStack, project } = get();
-      if (gestureSnapshot === null) return;
+      if (gestureSnapshot === null) {
+        if (get().gestureDepth !== 0) set({ gestureDepth: 0 });
+        return;
+      }
       // A gesture that performed at least one update replaced the project
       // object, so reference identity is an exact (and free) change check.
       const changed = gestureSnapshot !== project;
       set({
         gestureSnapshot: null,
+        gestureDepth: 0,
         ...(changed
           ? { undoStack: [...undoStack.slice(-(MAX_UNDO - 1)), gestureSnapshot], redoStack: [] }
           : {}),

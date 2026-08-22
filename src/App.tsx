@@ -13,6 +13,7 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LayoutDebugHud } from './components/diagnostics/LayoutDebugHud';
 import { RecordingBanner } from './components/recording/RecordControls';
 import { dragHasFiles } from './app/importActions';
+import { useProjectStore } from './state/projectStore';
 import { ShortcutsSheet } from './components/common/ShortcutsSheet';
 import { WelcomeSheet, maybeShowWelcome } from './components/common/WelcomeSheet';
 
@@ -40,6 +41,22 @@ export function App() {
     maybeShowWelcome();
     window.addEventListener('hashchange', apply);
     return () => window.removeEventListener('hashchange', apply);
+  }, []);
+
+  // Backstop for the undo system: whatever happens to the element that started
+  // a drag, the gesture closes once the pointer is released. The timeout lets
+  // the drag's own pointerup handler run first, so a normal drag still commits
+  // through its own endGesture and this only catches the strays.
+  useEffect(() => {
+    const flush = () => {
+      window.setTimeout(() => useProjectStore.getState().flushGestures(), 0);
+    };
+    window.addEventListener('pointerup', flush);
+    window.addEventListener('pointercancel', flush);
+    return () => {
+      window.removeEventListener('pointerup', flush);
+      window.removeEventListener('pointercancel', flush);
+    };
   }, []);
 
   // A file dropped anywhere but a track lane would otherwise make the browser

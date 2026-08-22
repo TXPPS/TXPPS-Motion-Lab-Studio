@@ -10,6 +10,13 @@ export interface DragHandlers<T> {
 /**
  * Pointer-drag helper: returns a pointerdown handler that captures the pointer
  * and reports deltas. Works for mouse, touch, and pen; cleans up listeners.
+ *
+ * Move/up listeners live on `window`, not on the dragged element. The
+ * arrangement unmounts clips that scroll out of the view window, so a drag that
+ * scrolls its own clip away would otherwise never see `pointerup` — `onEnd`
+ * would never run, the undo gesture would stay open, and every later edit would
+ * silently stop being undoable. Listening on window makes the end of a drag
+ * independent of the life of the element that started it.
  */
 export function usePointerDrag<T = void>(
   handlers: DragHandlers<T>,
@@ -36,19 +43,29 @@ export function usePointerDrag<T = void>(
       if (!moved && Math.hypot(dx, dy) > 3) moved = true;
       if (moved) ref.current.onMove(dx, dy, ev, startData);
     };
+    let done = false;
     const onUp = (ev: PointerEvent) => {
-      if (ev.pointerId !== pointerId) return;
-      target.removeEventListener('pointermove', onMove);
-      target.removeEventListener('pointerup', onUp);
-      target.removeEventListener('pointercancel', onUp);
+      if (ev && ev.pointerId !== pointerId) return;
+      if (done) return;
+      done = true;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('blur', onBlur);
       try {
         target.releasePointerCapture(pointerId);
-      } catch {}
+      } catch {
+        /* the element may already be gone */
+      }
       ref.current.onEnd?.(moved, startData);
     };
-    target.addEventListener('pointermove', onMove);
-    target.addEventListener('pointerup', onUp);
-    target.addEventListener('pointercancel', onUp);
+    // Losing the window mid-drag (alt-tab, a system dialog) ends the gesture
+    // rather than leaving it hanging.
+    const onBlur = () => onUp(null as unknown as PointerEvent);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('blur', onBlur);
   }, []);
 }
 

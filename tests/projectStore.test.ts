@@ -215,3 +215,49 @@ describe('transport-adjacent settings', () => {
     expect(loop.end).toBeGreaterThan(loop.start);
   });
 });
+
+describe('gesture nesting', () => {
+  it('commits one undo step for two overlapping drags and never strands the window', () => {
+    const s = useProjectStore.getState();
+    const trackId = s.addTrack('instrument');
+    useProjectStore.getState().update((d) => {
+      d.name = 'baseline';
+    });
+    const before = useProjectStore.getState().undoStack.length;
+
+    // Two simultaneous touch drags: both open, both close.
+    useProjectStore.getState().beginGesture();
+    useProjectStore.getState().beginGesture();
+    useProjectStore.getState().setTrack(trackId, { volume: 0.5 });
+    useProjectStore.getState().setTrack(trackId, { pan: 0.5 });
+    useProjectStore.getState().endGesture();
+    // The first release must NOT commit — the second drag is still running.
+    expect(useProjectStore.getState().gestureSnapshot).not.toBeNull();
+    useProjectStore.getState().setTrack(trackId, { pan: -0.5 });
+    useProjectStore.getState().endGesture();
+
+    expect(useProjectStore.getState().gestureSnapshot).toBeNull();
+    expect(useProjectStore.getState().undoStack.length).toBe(before + 1);
+
+    useProjectStore.getState().undo();
+    const t = useProjectStore.getState().project.tracks.find((x) => x.id === trackId)!;
+    expect(t.volume).not.toBe(0.5);
+    expect(t.pan).not.toBe(-0.5);
+  });
+
+  it('flushGestures closes a gesture whose drag never ended', () => {
+    const s = useProjectStore.getState();
+    const trackId = s.addTrack('audio');
+    useProjectStore.getState().beginGesture();
+    useProjectStore.getState().setTrack(trackId, { volume: 0.25 });
+    const before = useProjectStore.getState().undoStack.length;
+    useProjectStore.getState().flushGestures();
+    expect(useProjectStore.getState().gestureSnapshot).toBeNull();
+    expect(useProjectStore.getState().gestureDepth).toBe(0);
+    expect(useProjectStore.getState().undoStack.length).toBe(before + 1);
+    // Edits after the flush are undoable again (a rename is a discrete edit;
+    // continuous ones like volume deliberately fold into their gesture).
+    useProjectStore.getState().setTrack(trackId, { name: 'Renamed' });
+    expect(useProjectStore.getState().undoStack.length).toBe(before + 2);
+  });
+});
