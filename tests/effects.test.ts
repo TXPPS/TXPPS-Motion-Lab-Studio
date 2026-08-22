@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   EFFECT_GROUPS,
   EFFECT_SPECS,
+  EQ8_BANDS,
   MAX_INSERTS,
+  STEREO_PHASES,
   choiceName,
   choiceOf,
   defaultParams,
@@ -191,6 +193,88 @@ describe('effect catalogue', () => {
     expect(bands[0].enabled).toBe(false);
     // Pass filters have no gain of their own, whatever a stale project stored.
     expect(bands[0].gainDb).toBe(0);
+  });
+
+  it('declares a Q for every band whose shape answers to one, and for no other', () => {
+    // The two shelves used to declare one each — labelled, formatted "Q 0.71",
+    // automatable — in front of a `BiquadFilterNode` that ignores `Q` for a
+    // shelf entirely, because Web Audio fixes the slope at S = 1. Two knobs
+    // that moved, stored, automated and did nothing.
+    const keys = new Set(effectSpec('eq8')!.params.map((p) => p.key));
+    for (const band of EQ8_BANDS) {
+      expect(keys.has(`${band.prefix}Q`), `${band.prefix}Q`).toBe(band.hasQ);
+    }
+    expect(EQ8_BANDS.filter((b) => !b.hasQ).map((b) => b.prefix)).toEqual(['ls', 'hs']);
+  });
+
+  it('still hands the response model a quality factor for the shelves it plots', () => {
+    const fx: Effect = { id: 'x', kind: 'eq8', bypass: false, params: defaultParams('eq8') };
+    for (const band of eq8Bands(fx)) {
+      expect(Number.isFinite(band.q), band.type).toBe(true);
+      expect(band.q, band.type).toBeGreaterThan(0);
+    }
+  });
+
+  it('drops a stored shelf Q on load, which is why the change needs no migration', () => {
+    // `normaliseParams` rebuilds the map from the spec, so a value under a key
+    // the spec no longer declares is simply not carried — and nothing sounds
+    // different, because nothing ever read it.
+    const params = normaliseParams('eq8', { ...defaultParams('eq8'), lsQ: 3.4, hsQ: 0.3 });
+    expect('lsQ' in params).toBe(false);
+    expect('hsQ' in params).toBe(false);
+    expect(Object.keys(params).sort()).toEqual(
+      effectSpec('eq8')!
+        .params.map((p) => p.key)
+        .sort(),
+    );
+  });
+});
+
+describe("the tremolo's stereo phase, a switch declared as a knob", () => {
+  it('offers the three positions the audio can build and no others', () => {
+    const spec = effectSpec('tremolo')!.params.find((p) => p.key === 'phaseOffset')!;
+    expect(spec.choices).toEqual(['0°', '90°', '180°']);
+    expect(STEREO_PHASES).toEqual([0, 90, 180]);
+    // The old declaration: 0-180° in 1° steps, 181 settings in front of three.
+    expect(effectSpec('tremolo')!.params.some((p) => p.key === 'stereoPhase')).toBe(false);
+  });
+
+  it('reopens a stored project at the phase it was playing at', () => {
+    // The audio always snapped a degree value to the nearest of the three, so
+    // carrying it forward through the same snap is what makes the switch sound
+    // like the knob did — including for the settings between them, which had
+    // never been the number they showed.
+    // What an older build actually stored: every tremolo key except the one
+    // that did not exist yet.
+    const stored = { sync: 0, rate: 5, division: 4, modifier: 0, depth: 0.6, shape: 0 };
+    const at = (stereoPhase: number) =>
+      normaliseParams('tremolo', { ...stored, stereoPhase }).phaseOffset;
+    expect(at(0)).toBe(0);
+    expect(at(90)).toBe(1);
+    expect(at(180)).toBe(2);
+    expect(at(44)).toBe(0);
+    expect(at(46)).toBe(1);
+    expect(at(134)).toBe(1);
+    expect(at(136)).toBe(2);
+  });
+
+  it('leaves a project already on the new key alone', () => {
+    // A stale degree value alongside the new key must not overrule it, or a
+    // save-load round trip would walk the setting backwards.
+    const params = normaliseParams('tremolo', {
+      ...defaultParams('tremolo'),
+      stereoPhase: 0,
+      phaseOffset: 2,
+    });
+    expect(defaultParams('tremolo').phaseOffset).toBe(0);
+    expect(params.phaseOffset).toBe(2);
+    expect('stereoPhase' in params).toBe(false);
+  });
+
+  it('falls back to the default when there is nothing to carry forward', () => {
+    expect(normaliseParams('tremolo', {}).phaseOffset).toBe(0);
+    expect(normaliseParams('tremolo', { stereoPhase: NaN }).phaseOffset).toBe(0);
+    expect(normaliseParams('tremolo', undefined).phaseOffset).toBe(0);
   });
 });
 

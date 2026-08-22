@@ -89,6 +89,41 @@ const ON_OFF = ['Off', 'On'] as const;
 const SYNC_CHOICES = ['Straight', 'Dotted', 'Triplet'] as const;
 const LFO_SHAPES = ['Sine', 'Triangle', 'Square'] as const;
 
+/**
+ * Phase relationships a two-channel modulator can hold exactly, in degrees.
+ *
+ * A quadrature pair gives 0° and 90°, and inverting one of them gives 180°;
+ * anything else would need a control-rate delay whose length depends on the
+ * rate, and would stop being exact the moment the waveform is not a sine. The
+ * tremolo builds its right channel by crossfading between those three, so this
+ * is the whole of what its stereo phase control can ask for.
+ */
+export const STEREO_PHASES = [0, 90, 180] as const;
+const STEREO_PHASE_CHOICES = STEREO_PHASES.map((deg) => `${deg}°`);
+
+/**
+ * The bottom of Stereo Width's mono-bass range, where the filter is off rather
+ * than merely low.
+ *
+ * A highpass at 20 Hz is not nothing — it still turns the phase across the
+ * bottom octave and takes a little out of the very lowest of it — so a control
+ * whose minimum reads as "off" has to actually switch the filter out of
+ * circuit. Named because the parameter's minimum, the builder's off test and
+ * the face's off test are the same number and have to move together.
+ */
+export const BASS_MONO_OFF_HZ = 20;
+
+/**
+ * Whether Stereo Width's mono-bass filter is in circuit at a given setting.
+ *
+ * One function so the builder that switches the filter and the face that draws
+ * the line cannot answer differently — which is how the picture came to say
+ * "off" for a filter the side channel was still passing through.
+ */
+export function bassMonoActive(hz: number): boolean {
+  return hz > BASS_MONO_OFF_HZ;
+}
+
 /** Bit-reduction factors the crusher's hold network can build exactly. */
 export const CRUSH_FACTORS = [1, 2, 4, 8, 16, 32, 64] as const;
 const CRUSH_CHOICES = CRUSH_FACTORS.map((f) => `${f}x`);
@@ -142,7 +177,19 @@ const choice = (key: string, label: string, choices: readonly string[], def = 0)
   choices,
 });
 
-/** One EQ band: enable, frequency, gain and Q, in the order the strip shows. */
+/**
+ * One EQ band: enable, frequency, gain and Q, in the order the strip shows.
+ *
+ * The Q is optional because two of the eight bands genuinely have none. A
+ * `BiquadFilterNode` set to `lowshelf` or `highshelf` ignores its `Q` — Web
+ * Audio fixes the shelf slope at S = 1 — and `biquadCoefficients` builds those
+ * two from `aS` for exactly that reason, so the response drawn ignores it too.
+ * The shelves used to declare one anyway: a knob labelled "Low shelf Q",
+ * formatted `Q 0.71`, automatable like every other parameter, whose value was
+ * written to a node field the platform discards. Omitting the argument is what
+ * makes "this band has no quality factor" a fact of the declaration rather than
+ * a comment nobody reads.
+ */
 function eqBand(
   prefix: string,
   label: string,
@@ -151,23 +198,24 @@ function eqBand(
   defHz: number,
   defOn: number,
   withGain: boolean,
-  defQ: number,
-  maxQ: number,
+  q?: { default: number; max: number },
 ): ParamSpec[] {
   const out: ParamSpec[] = [
     choice(`${prefix}On`, `${label} on`, ON_OFF, defOn),
     freq(`${prefix}Freq`, `${label} freq`, minHz, maxHz, defHz),
   ];
   if (withGain) out.push(decibels(`${prefix}Gain`, `${label} gain`, 18));
-  out.push({
-    key: `${prefix}Q`,
-    label: `${label} Q`,
-    min: 0.2,
-    max: maxQ,
-    step: 0.05,
-    default: defQ,
-    unit: 'Q',
-  });
+  if (q) {
+    out.push({
+      key: `${prefix}Q`,
+      label: `${label} Q`,
+      min: 0.2,
+      max: q.max,
+      step: 0.05,
+      default: q.default,
+      unit: 'Q',
+    });
+  }
   return out;
 }
 
@@ -318,14 +366,14 @@ export const EFFECT_SPECS: EffectSpec[] = [
     blurb: 'Eight bands: filters, shelves and four parametrics, each switchable.',
     group: 'tone',
     params: [
-      ...eqBand('hp', 'HP', 20, 1000, 80, 0, false, 0.71, 4),
-      ...eqBand('ls', 'Low shelf', 30, 500, 120, 1, true, 0.71, 4),
-      ...eqBand('b1', 'Band 1', 40, 2000, 250, 1, true, 1, 12),
-      ...eqBand('b2', 'Band 2', 100, 6000, 900, 1, true, 1, 12),
-      ...eqBand('b3', 'Band 3', 300, 12000, 2800, 1, true, 1, 12),
-      ...eqBand('b4', 'Band 4', 800, 18000, 7000, 1, true, 1, 12),
-      ...eqBand('hs', 'High shelf', 1500, 18000, 8000, 1, true, 0.71, 4),
-      ...eqBand('lp', 'LP', 1000, 20000, 18000, 0, false, 0.71, 4),
+      ...eqBand('hp', 'HP', 20, 1000, 80, 0, false, { default: 0.71, max: 4 }),
+      ...eqBand('ls', 'Low shelf', 30, 500, 120, 1, true),
+      ...eqBand('b1', 'Band 1', 40, 2000, 250, 1, true, { default: 1, max: 12 }),
+      ...eqBand('b2', 'Band 2', 100, 6000, 900, 1, true, { default: 1, max: 12 }),
+      ...eqBand('b3', 'Band 3', 300, 12000, 2800, 1, true, { default: 1, max: 12 }),
+      ...eqBand('b4', 'Band 4', 800, 18000, 7000, 1, true, { default: 1, max: 12 }),
+      ...eqBand('hs', 'High shelf', 1500, 18000, 8000, 1, true),
+      ...eqBand('lp', 'LP', 1000, 20000, 18000, 0, false, { default: 0.71, max: 4 }),
     ],
   },
   {
@@ -357,6 +405,15 @@ export const EFFECT_SPECS: EffectSpec[] = [
       choice('model', 'Model', ['Tube', 'Tape', 'Transistor']),
       { key: 'drive', label: 'Drive', min: 0, max: 36, step: 0.5, default: 8, unit: 'dB' },
       { key: 'output', label: 'Output', min: -24, max: 12, step: 0.5, default: 0, unit: 'dB' },
+      // Not a pure blend at intermediate settings, and this is the honest place
+      // to say so. The shaper runs `oversample: '4x'`, whose up- and
+      // down-sampling filters delay the wet path by an amount the specification
+      // does not state and every browser is free to choose, while the dry leg
+      // is a wire — so the two comb slightly wherever both are audible. The
+      // bitcrusher's lag is arithmetic and is compensated exactly
+      // (`crusherGroupDelaySamples`); this one could only be guessed at, and a
+      // wrong compensation would move the null instead of removing it. The
+      // extremes are exact: at 0 % and 100 % only one leg is live.
       percent('mix', 'Mix', 1),
     ],
   },
@@ -371,6 +428,12 @@ export const EFFECT_SPECS: EffectSpec[] = [
       decibels('bass', 'Bass', 18),
       decibels('treble', 'Treble', 18),
       { key: 'output', label: 'Output', min: -24, max: 12, step: 0.5, default: -6, unit: 'dB' },
+      // Combs a little between the extremes, for the reason set out on the
+      // saturator's Mix: this clipper is a `'4x'` shaper too, and its dry leg
+      // carries no matching delay because the browser does not say what to
+      // match. The tone stack behind it turns the wet phase as well, but that
+      // is a shelf being a shelf — it is the sound the Bass and Treble controls
+      // are for, not a latency anything should try to cancel.
       percent('mix', 'Mix', 1),
     ],
   },
@@ -500,15 +563,14 @@ export const EFFECT_SPECS: EffectSpec[] = [
       choice('modifier', 'Feel', SYNC_CHOICES),
       percent('depth', 'Depth', 0.6),
       choice('shape', 'Shape', LFO_SHAPES),
-      {
-        key: 'stereoPhase',
-        label: 'Stereo phase',
-        min: 0,
-        max: 180,
-        step: 1,
-        default: 0,
-        unit: '°',
-      },
+      // A switch, because that is what the audio is. This was declared 0-180°
+      // in 1° steps — 181 settings — in front of a builder that snapped every
+      // one of them to the nearest of 0, 90 and 180, so everything between 46°
+      // and 134° was the same sound and the knob was a picture of a control
+      // that did not exist. The key changed with it: an index of 1 means 90°
+      // here and meant 1° under `stereoPhase`, and `normaliseParams` cannot
+      // tell a stored degree from a stored index without one of them being new.
+      choice('phaseOffset', 'Stereo phase', STEREO_PHASE_CHOICES),
     ],
   },
   {
@@ -602,7 +664,7 @@ export const EFFECT_SPECS: EffectSpec[] = [
     group: 'stereo',
     params: [
       { key: 'width', label: 'Width', min: 0, max: 2, step: 0.01, default: 1, unit: 'x' },
-      freq('bassMono', 'Bass mono', 20, 500, 20),
+      freq('bassMono', 'Bass mono', BASS_MONO_OFF_HZ, 500, BASS_MONO_OFF_HZ),
       decibels('output', 'Output', 12),
     ],
   },
@@ -895,16 +957,35 @@ export const EQ8_BANDS: readonly {
   label: string;
   type: BiquadType;
   hasGain: boolean;
+  /**
+   * Whether this band's shape answers to a quality factor at all. False for
+   * the two shelves, which Web Audio builds at a fixed slope of S = 1 whatever
+   * their node's `Q` is set to — so a shelf has no Q parameter to declare, the
+   * builder writes none, and `SHELF_Q` stands in for the response maths.
+   */
+  hasQ: boolean;
 }[] = [
-  { prefix: 'hp', label: 'HP', type: 'highpass', hasGain: false },
-  { prefix: 'ls', label: 'Low', type: 'lowshelf', hasGain: true },
-  { prefix: 'b1', label: 'B1', type: 'peaking', hasGain: true },
-  { prefix: 'b2', label: 'B2', type: 'peaking', hasGain: true },
-  { prefix: 'b3', label: 'B3', type: 'peaking', hasGain: true },
-  { prefix: 'b4', label: 'B4', type: 'peaking', hasGain: true },
-  { prefix: 'hs', label: 'High', type: 'highshelf', hasGain: true },
-  { prefix: 'lp', label: 'LP', type: 'lowpass', hasGain: false },
+  { prefix: 'hp', label: 'HP', type: 'highpass', hasGain: false, hasQ: true },
+  { prefix: 'ls', label: 'Low', type: 'lowshelf', hasGain: true, hasQ: false },
+  { prefix: 'b1', label: 'B1', type: 'peaking', hasGain: true, hasQ: true },
+  { prefix: 'b2', label: 'B2', type: 'peaking', hasGain: true, hasQ: true },
+  { prefix: 'b3', label: 'B3', type: 'peaking', hasGain: true, hasQ: true },
+  { prefix: 'b4', label: 'B4', type: 'peaking', hasGain: true, hasQ: true },
+  { prefix: 'hs', label: 'High', type: 'highshelf', hasGain: true, hasQ: false },
+  { prefix: 'lp', label: 'LP', type: 'lowpass', hasGain: false, hasQ: true },
 ];
+
+/**
+ * The number `EqBandSpec.q` carries for a shelf.
+ *
+ * `biquadCoefficients` reaches its shelf cases through `aS`, which is built
+ * from the fixed slope, so this value never reaches the response — but the
+ * field is not optional and a shelf still has to put something in it. The
+ * Butterworth factor is the honest choice: it is what an unremarkable filter
+ * section is aligned to here, so if the shelf maths ever did start reading `q`
+ * the picture would move to a sensible place rather than to a wild one.
+ */
+const SHELF_Q = Math.SQRT1_2;
 
 /**
  * The eight-band EQ's current settings in the form `eqMagnitudeResponse` wants,
@@ -914,7 +995,7 @@ export function eq8Bands(effect: Effect): EqBandSpec[] {
   return EQ8_BANDS.map((b) => ({
     type: b.type,
     freqHz: paramOf(effect, `${b.prefix}Freq`),
-    q: paramOf(effect, `${b.prefix}Q`),
+    q: b.hasQ ? paramOf(effect, `${b.prefix}Q`) : SHELF_Q,
     gainDb: b.hasGain ? paramOf(effect, `${b.prefix}Gain`) : 0,
     enabled: choiceOf(effect, `${b.prefix}On`) === 1,
   }));
@@ -1142,14 +1223,26 @@ export function reverbTailOf(effect: Effect, points = 96): ReverbTail | null {
 export interface WidthField {
   width: number;
   bassMonoHz: number;
+  /**
+   * Whether the mono-bass filter is in circuit at all.
+   *
+   * The face already declined to draw the line at the bottom of the range, so
+   * the picture said "off" while the side channel went on through a Butterworth
+   * highpass at every setting. The builder crossfades the filter out here, and
+   * the face reads the same answer rather than testing the frequency itself —
+   * two independent thresholds are how the two came to disagree.
+   */
+  bassMonoOn: boolean;
   outputDb: number;
 }
 
 export function widthFieldOf(effect: Effect): WidthField | null {
   if (effect.kind !== 'width') return null;
+  const bassMonoHz = paramOf(effect, 'bassMono');
   return {
     width: paramOf(effect, 'width'),
-    bassMonoHz: paramOf(effect, 'bassMono'),
+    bassMonoHz,
+    bassMonoOn: bassMonoActive(bassMonoHz),
     outputDb: paramOf(effect, 'output'),
   };
 }
@@ -1286,6 +1379,40 @@ export function defaultParams(kind: EffectKind): Record<string, number> {
   return Object.fromEntries(spec.params.map((p) => [p.key, p.default]));
 }
 
+/**
+ * Values a stored project holds under a key the spec has replaced, expressed in
+ * the terms of the key that replaced it.
+ *
+ * Only the tremolo's stereo phase needs this, and it needs it because the old
+ * declaration and the new one overlap in numbers while meaning different
+ * things: 90 was ninety degrees and is now off the end of a three-item list,
+ * and 1 was one degree and is now ninety. Rebuilding the map from the spec — as
+ * `normaliseParams` does for everything — would leave a project that was set to
+ * 180° playing at 0° with nothing said, so the degrees come forward through the
+ * same nearest-of-three snap the audio always applied to them. A session saved
+ * at 87° therefore reopens at 90°, which is where it had been playing all
+ * along, and one saved at 180° stays inverted.
+ *
+ * Nothing carries the *automation lane* forward: `paramIdExists` drops a lane
+ * whose key the spec no longer declares, and it says so in the log rather than
+ * silently.
+ */
+function carriedForward(
+  kind: EffectKind,
+  params: Record<string, unknown> | undefined,
+): Record<string, number> {
+  if (kind !== 'tremolo' || !params || typeof params.phaseOffset === 'number') return {};
+  const degrees = params.stereoPhase;
+  if (typeof degrees !== 'number' || !Number.isFinite(degrees)) return {};
+  let nearest = 0;
+  for (let i = 1; i < STEREO_PHASES.length; i++) {
+    if (Math.abs(STEREO_PHASES[i] - degrees) < Math.abs(STEREO_PHASES[nearest] - degrees)) {
+      nearest = i;
+    }
+  }
+  return { phaseOffset: nearest };
+}
+
 /** Clamp to spec range and fill in anything missing. Never throws on bad data. */
 export function normaliseParams(
   kind: EffectKind,
@@ -1309,8 +1436,9 @@ export function normaliseParams(
     return out;
   }
   const out: Record<string, number> = {};
+  const carried = carriedForward(kind, params);
   for (const p of spec.params) {
-    const raw = params?.[p.key];
+    const raw = params?.[p.key] ?? carried[p.key];
     const n = typeof raw === 'number' && Number.isFinite(raw) ? raw : p.default;
     const clamped = Math.min(p.max, Math.max(p.min, n));
     // A choice is an index: a fractional value would name no setting at all.

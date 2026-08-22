@@ -22,13 +22,16 @@ import {
   ampEnvelopeSpan,
   filterResponseDb,
   formatSeconds,
-  oscillatorPoints,
+  oscillatorSample,
+  synthOscillatorPoints,
+  synthOscillatorSample,
   suggestedHoldSec,
+  SYNTH_SUB_WAVE,
   type AmpEnvelope,
-  type SamplerLfo,
+  type SynthOscillator,
+  type SynthSub,
   type VoiceFilter,
 } from '../../model/synthFace';
-import type { Waveform } from '../../model/types';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
 
 /** Plot geometry. The width is nominal — the display stretches to its box. */
@@ -52,20 +55,84 @@ const path = (points: readonly { x: number; y: number }[]): string =>
 
 // ------------------------------------------------------------ oscillator
 
-/** Two cycles of the waveform the oscillator is set to. */
-export function OscScope({ shape, label }: { shape: Waveform; label: string }) {
-  const d = useMemo(() => {
-    const samples = oscillatorPoints(shape, 240, 2);
-    return path(
-      samples.map((v, i) => ({
-        x: (i / (samples.length - 1)) * W,
-        y: H / 2 - v * (H / 2 - 6),
-      })),
-    );
-  }, [shape]);
+/** How many cycles of the oscillator the scope shows. */
+const SCOPE_CYCLES = 2;
+const SCOPE_POINTS = 320;
+
+/** A polyline through samples of a wave, mapped into the scope's box. */
+function scopePath(samples: readonly number[], scale: number): string {
+  return path(
+    samples.map((v, i) => ({
+      x: (i / (samples.length - 1)) * W,
+      y: H / 2 - v * scale * (H / 2 - 6),
+    })),
+  );
+}
+
+/**
+ * The wave the voice sums, over two cycles.
+ *
+ * Everything drawn here is a trace of the same evaluation `Voice` builds its
+ * oscillator section from: the main wave with its delayed copy subtracted, the
+ * sub an octave under it at its own level, and — where the LFO reaches the
+ * width — the two duties it sweeps between, drawn faintly the way the filter
+ * curve draws key tracking. A pulse the modulator is opening and closing is the
+ * hardest thing on this panel to describe in a number, and the two extremes are
+ * exactly what a musician needs to see.
+ */
+export function OscScope({
+  osc,
+  label,
+  sub,
+  widthSweep,
+  testId,
+}: {
+  osc: SynthOscillator;
+  label: string;
+  sub?: SynthSub | null;
+  /** The duty range the LFO sweeps the pulse through, or null where it does not. */
+  widthSweep?: { lowDuty: number; highDuty: number } | null;
+  testId?: string;
+}) {
+  const { main, ghosts, subPath } = useMemo(() => {
+    const samples = synthOscillatorPoints(osc, SCOPE_POINTS, SCOPE_CYCLES);
+    // Subtracting a delayed copy leaves a zero-mean pulse whose peak grows as
+    // the duty leaves the middle — a real property of the wave, not a drawing
+    // artefact — so the trace is only ever shrunk to fit, never magnified. A
+    // plain saw or square is drawn at exactly the size it always was.
+    const peak = samples.reduce((m, v) => Math.max(m, Math.abs(v)), 1);
+    const scale = 1 / peak;
+    const at = (duty: number) =>
+      Array.from({ length: SCOPE_POINTS }, (_, i) =>
+        synthOscillatorSample(
+          { type: osc.type, morph: { shape: osc.morph!.shape, width: duty, delayCycles: 1 - duty } },
+          (i / (SCOPE_POINTS - 1)) * SCOPE_CYCLES,
+        ),
+      );
+    return {
+      main: scopePath(samples, scale),
+      ghosts:
+        osc.morph && widthSweep
+          ? [widthSweep.lowDuty, widthSweep.highDuty].map((duty) => ({
+              duty,
+              d: scopePath(at(duty), scale),
+            }))
+          : [],
+      subPath: sub
+        ? scopePath(
+            Array.from({ length: SCOPE_POINTS }, (_, i) =>
+              // Half the phase rate: one cycle of the sub spans two of the wave
+              // above it, which is what an octave down looks like.
+              oscillatorSample(SYNTH_SUB_WAVE, ((i / (SCOPE_POINTS - 1)) * SCOPE_CYCLES) / 2),
+            ).map((v) => v * sub.gain),
+            scale,
+          )
+        : null,
+    };
+  }, [osc, sub, widthSweep]);
 
   return (
-    <div className="ins-plot ins-plot-sm">
+    <div className="ins-plot ins-plot-sm" data-testid={testId}>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label}>
         <line
           x1={0}
@@ -75,8 +142,30 @@ export function OscScope({ shape, label }: { shape: Waveform; label: string }) {
           stroke="var(--grid-beat)"
           vectorEffect="non-scaling-stroke"
         />
+        {ghosts.map((g) => (
+          <path
+            key={g.duty}
+            d={g.d}
+            fill="none"
+            stroke="var(--fx-eq)"
+            strokeWidth={1}
+            opacity={0.3}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+        {subPath && (
+          <path
+            d={subPath}
+            fill="none"
+            stroke="var(--fx-eq)"
+            strokeWidth={1.3}
+            strokeDasharray="3 3"
+            opacity={0.55}
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
         <path
-          d={d}
+          d={main}
           fill="none"
           stroke="var(--fx-eq)"
           strokeWidth={1.6}
@@ -367,8 +456,21 @@ export function EnvelopeGraph({
 
 // ------------------------------------------------------------------- LFO
 
-/** One second of the modulator, at its rate and at its share of full depth. */
-export function LfoScope({ lfo, label }: { lfo: SamplerLfo; label: string }) {
+/**
+ * One second of the modulator, at its rate and at its share of full depth.
+ *
+ * Takes any modulator that reports a rate and a depth, because both
+ * instruments now build one and there is one picture of it.
+ */
+export function LfoScope({
+  lfo,
+  label,
+  testId,
+}: {
+  lfo: { rateHz: number; depth: number };
+  label: string;
+  testId?: string;
+}) {
   const d = useMemo(() => {
     const n = 400;
     const amplitude = clamp(lfo.depth, 0, 1) * (H / 2 - 5);
@@ -380,7 +482,7 @@ export function LfoScope({ lfo, label }: { lfo: SamplerLfo; label: string }) {
   }, [lfo]);
 
   return (
-    <div className="ins-plot ins-plot-sm">
+    <div className="ins-plot ins-plot-sm" data-testid={testId}>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label}>
         <line
           x1={0}

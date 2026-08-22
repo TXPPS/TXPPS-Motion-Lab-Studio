@@ -16,8 +16,10 @@
  */
 import {
   ANALYSER_SIZES,
+  BASS_MONO_OFF_HZ,
   CRUSH_FACTORS,
   EQ8_BANDS,
+  bassMonoActive,
   choiceOf,
   deesserBand,
   dynamicsCurveKey,
@@ -35,6 +37,7 @@ import {
   cabinetImpulse,
   clamp,
   clipCurve,
+  crusherGroupDelaySamples,
   dbToGain,
   gainToDb,
   identityCurve,
@@ -170,19 +173,32 @@ function makeStereoTap(ctx: BaseAudioContext): GainNode {
  * Wet/dry wrapper shared by most effects. Bypassing forces dry to unity and
  * wet to zero rather than disconnecting, so no reconnect glitch is audible and
  * a bypassed insert is mathematically transparent whatever the wet path does.
+ *
+ * A Mix control reads as a blend, and it only is one while the two legs stay
+ * time-aligned: a wet path that lags the dry one turns every intermediate
+ * setting into a comb filter, deepest at 50 %. Where the wet path's delay is
+ * exactly known the dry leg is held back to match — pass `maxDryDelaySec` and
+ * call `setDryDelay`. Where it is not, the two legs stay as they are and the
+ * comb is stated at the parameter rather than compensated by a guess.
  */
 class WetDry {
   readonly input: GainNode;
   readonly output: GainNode;
   readonly dry: GainNode;
   readonly wet: GainNode;
+  private readonly align: DelayNode | null;
 
-  constructor(private ctx: BaseAudioContext) {
+  constructor(
+    private ctx: BaseAudioContext,
+    maxDryDelaySec = 0,
+  ) {
     this.input = ctx.createGain();
     this.output = ctx.createGain();
     this.dry = ctx.createGain();
     this.wet = ctx.createGain();
-    this.input.connect(this.dry).connect(this.output);
+    this.align = maxDryDelaySec > 0 ? ctx.createDelay(maxDryDelaySec) : null;
+    if (this.align) this.input.connect(this.align).connect(this.dry).connect(this.output);
+    else this.input.connect(this.dry).connect(this.output);
     this.wet.connect(this.output);
   }
 
@@ -192,8 +208,21 @@ class WetDry {
     setParam(this.wet.gain, m, this.ctx);
   }
 
+  /**
+   * Hold the dry leg back by the wet path's own group delay, in seconds.
+   *
+   * Ramped rather than jumped, on the same time constant as everything else
+   * here, because the delay it is matching is itself crossfaded into place —
+   * and because a `DelayNode` whose length is reassigned outright clicks.
+   * Bypass must pass 0: a bypassed insert that delayed the signal by half a
+   * millisecond would not be the wire it promises to be.
+   */
+  setDryDelay(seconds: number): void {
+    if (this.align) setParam(this.align.delayTime, seconds, this.ctx);
+  }
+
   dispose(): void {
-    kill([this.input, this.output, this.dry, this.wet]);
+    kill([this.input, this.output, this.dry, this.wet, this.align ?? undefined]);
   }
 }
 
@@ -275,6 +304,49 @@ export const DETECTOR_HEADROOM = 16;
 
 /** An open key path: unity, pre-scaled into the rectifier's headroom. */
 const KEY_OPEN = 1 / DETECTOR_HEADROOM;
+
+/**
+ * How far above its threshold an expander's transfer curve is still sampled,
+ * as a factor. Six decibels of unity above the turn, which is enough for the
+ * corner itself to land well inside the curve rather than on its last point.
+ */
+const EXPANDER_CURVE_TOP = 2;
+
+/**
+ * The floor for a sampled envelope range, so a nonsense threshold cannot
+ * divide the rectifier's scale by zero. Well below the −80 dB the gate's own
+ * parameter stops at.
+ */
+const MIN_ENVELOPE_TOP = 1e-5;
+
+/**
+ * The envelope range a law's transfer curve is worth spending its points on.
+ *
+ * A WaveShaper is indexed linearly in amplitude while every one of these laws
+ * is written in decibels, so resolution in dB collapses as the level falls: at
+ * the default 2048 points the smallest envelope any curve entry stands for is
+ * −66 dBFS, and consecutive entries below −40 dBFS are more than a decibel
+ * apart. A compressor does not care, because it works near full scale where the
+ * points are dense. An expander only ever works below its threshold, and the
+ * default gate — threshold −45 dB, 8:1, 45 dB of range — had its entire law
+ * described by eleven curve points: at −48 dBFS it delivered 18.73 dB of
+ * attenuation where its face plots 21.00, at −51.4 dBFS it was out by 6.4 dB,
+ * and a gate set below −67 dBFS had *no* points below its threshold at all and
+ * did nothing whatsoever while the face drew a working expander.
+ *
+ * Narrowing the sampled range is what fixes that, and it is free rather than a
+ * trade: above its threshold an expander is exactly unity, and a WaveShaper
+ * holds its last value for anything past the end of the curve — so a curve that
+ * stops six decibels above the threshold answers every louder level with the
+ * same unity it would have stored there anyway. All 2048 points land where the
+ * law bends. The worst disagreement with the drawn curve over the plotted
+ * −60…0 dBFS axis falls from 57.5 dB to 0.29 dB, and the −48 dBFS case above
+ * becomes exact.
+ */
+function envelopeTopFor(law: DynamicsLaw, limit: number): number {
+  if (law.law !== 'expand') return limit;
+  return clamp(EXPANDER_CURVE_TOP * dbToGain(law.thresholdDb), MIN_ENVELOPE_TOP, limit);
+}
 
 const MAX_LOOKAHEAD_SEC = 0.02;
 const MAX_HOLD_SEC = 0.6;
@@ -407,28 +479,37 @@ class ControlVca {
   readonly keyInput: GainNode;
   private readonly internalKey: GainNode;
   private curveKey = '';
+  /** The envelope the far end of the transfer curve currently stands for. */
+  private envelopeTop: number;
 
   constructor(
     private ctx: BaseAudioContext,
     law: 'expand' | 'compress',
     /**
-     * The loudest envelope the transfer curve is sampled over, as a linear
-     * factor of full scale. Above it the curve runs out and the gain stops
-     * moving, however much louder the detector says the signal got.
+     * The loudest envelope this processor's transfer curve may be sampled over,
+     * as a linear factor of full scale. Above the sampled range the curve runs
+     * out and the gain stops moving, however much louder the detector says the
+     * signal got — so the range has to cover every level whose law is not
+     * already flat, and every point spent past that is a point not spent where
+     * the law bends.
      *
      * One spends the whole curve on levels up to full scale, which is what a
-     * gate and a compressor want: a gate's range lives entirely below it, and
-     * anything a compressor is still asked to reduce above it is a few tenths
-     * of a dB at a ratio that has already flattened. A limiter is the opposite
-     * case. Its own drive control reaches +24 dB, so a curve stopping at full
-     * scale stops asking for reduction exactly where a limiter's work starts:
-     * the clipper behind it removes the rest, silently, while the meter reads
-     * the VCA and reports the four tenths of a dB the curve managed. Trading
-     * resolution below −36 dBFS for that range is free for a limiter, whose
-     * law is unity everywhere down there, and would not be free for a gate.
+     * compressor wants. A limiter is the opposite case. Its own drive control
+     * reaches +24 dB, so a curve stopping at full scale stops asking for
+     * reduction exactly where a limiter's work starts: the clipper behind it
+     * removes the rest, silently, while the meter reads the VCA and reports the
+     * four tenths of a dB the curve managed. Trading resolution below −36 dBFS
+     * for that range is free for a limiter, whose law is unity everywhere down
+     * there.
+     *
+     * A gate is the opposite case again, and it is the reason this is a ceiling
+     * rather than a fixed value: `envelopeTopFor` narrows the sampled range to
+     * just above an expander's threshold, because that is the only place an
+     * expander's law does anything at all.
      */
-    private readonly envelopeTop = 1,
+    private readonly topLimit = 1,
   ) {
+    this.envelopeTop = topLimit;
     const mode = law === 'expand' ? 'max' : 'min';
     this.input = makeGain(ctx, 1);
     this.output = makeGain(ctx, 1);
@@ -441,7 +522,7 @@ class ControlVca {
     // the rectifier multiplies back only as far as the curve is not already
     // scaled: a curve sampled over the full headroom is indexed by the divided
     // signal directly, so its rectifier is a plain |x|.
-    this.rect = makeShaper(ctx, rectifierCurve(DETECTOR_HEADROOM / envelopeTop));
+    this.rect = makeShaper(ctx, rectifierCurve(DETECTOR_HEADROOM / this.envelopeTop));
     this.detector = makeFilter(ctx, 'lowpass', 120, SMOOTHING_Q_DB);
     // Fully open until the first update installs the real law.
     this.shaper = makeShaper(ctx, new Float32Array([1, 1]));
@@ -482,10 +563,18 @@ class ControlVca {
     const key = dynamicsCurveKey(law);
     if (key === this.curveKey) return;
     this.curveKey = key;
-    // The shaper is indexed by the envelope divided by `envelopeTop`, so the
-    // law has to be asked about the envelope each index stands for rather than
-    // about the index. At the default top of one that is `dynamicsCurve(law)`
-    // point for point — the array the plugin face plots.
+    this.envelopeTop = envelopeTopFor(law, this.topLimit);
+    // Both curves in one block, and in this order. The rectifier's scale and
+    // the curve's are two halves of one division — the signal arrives at the
+    // shaper as envelope / top and the shaper answers for envelope = index ×
+    // top — so a render quantum that saw one without the other would read the
+    // law at the wrong level entirely. Assigning both synchronously is what
+    // makes them arrive together.
+    this.rect.curve = rectifierCurve(DETECTOR_HEADROOM / this.envelopeTop);
+    // The shaper is indexed by the envelope divided by the top, so the law has
+    // to be asked about the envelope each index stands for rather than about
+    // the index. At a top of one that is `dynamicsCurve(law)` point for point
+    // — the array the plugin face plots.
     this.shaper.curve = transferCurve((e) => dynamicsGain(law, e * this.envelopeTop));
   }
 
@@ -551,33 +640,137 @@ class ControlVca {
 }
 
 /**
+ * Where a context's clock sits in the song, so a modulator can be started at
+ * the phase the song position implies.
+ *
+ * Without one, an LFO's phase at a given bar is whatever the wall clock left it
+ * at: the oscillators were started the instant the chain was built, which is
+ * seconds before playback live and `preRoll` seconds before the delivered audio
+ * offline. That made a bounce disagree with what was monitored, and — worse —
+ * made a bounce of bars 5-8 disagree with the same bars inside a full-song
+ * bounce, because the run-up is the same length whatever range was asked for
+ * while the song time at the range start is not.
+ *
+ * One rule covers both switch positions of Tempo sync: phase advances with
+ * *song* time, so a synced modulator completes exactly one cycle per division
+ * from the top of the song and is therefore locked to the bar and not only to
+ * the rate, and a free-running one is at least reproducible — the same bars
+ * bounce to the same samples however the range was cut. Under a tempo map the
+ * lock is approximate in the same way the rate is, because both come from the
+ * one bpm the chain is handed.
+ */
+export interface ModulationClock {
+  /** Context time the modulators are to start at. */
+  startAt: number;
+  /** Song time, in seconds, at `startAt`. Negative for a render's run-up. */
+  songSec: number;
+}
+
+/**
+ * The clock a chain uses when nobody supplies one: start now, at phase zero.
+ *
+ * That is what the live engine has always done, and it is honest for a graph
+ * built while the transport is parked. Handing `sync` a real clock is what
+ * makes a chain bar-locked; the offline renderer does, and the live engine can
+ * once it has somewhere to read the transport's anchor from.
+ */
+function clockOf(ctx: BaseAudioContext, clock?: ModulationClock): ModulationClock {
+  return clock ?? { startAt: ctx.currentTime, songSec: 0 };
+}
+
+/**
+ * Where in its cycle a modulator running at `hz` sits at this clock's start,
+ * in radians.
+ *
+ * Reduced to one cycle before it is turned into radians: an hour into a song a
+ * 5 Hz modulator is eighteen thousand cycles in, and rotating a fifteenth
+ * harmonic by that many turns would spend the mantissa on whole revolutions
+ * nobody can hear.
+ */
+function phaseAt(clock: ModulationClock, hz: number): number {
+  const cycles = hz * clock.songSec;
+  if (!Number.isFinite(cycles)) return 0;
+  return 2 * Math.PI * (cycles - Math.floor(cycles));
+}
+
+/**
  * A sine LFO and its exact 90°-shifted twin, from two oscillators fed the same
  * frequency and started at the same instant. Quadrature is what lets a chorus
  * spread two voices, and a rotary put the doppler peak a quarter-turn away from
  * the amplitude peak, without a control-rate delay line.
+ *
+ * Nothing runs until `start` is called, because the phase a modulator should
+ * begin at is not known at construction: it depends on the rate, and the rate
+ * comes from the first `update`.
  */
 class QuadratureLfo {
   readonly sine: OscillatorNode;
   readonly cosine: OscillatorNode;
+  private started = false;
 
   constructor(
     private ctx: BaseAudioContext,
     hz: number,
+    /** Sine-phase harmonic amplitudes, index 0 unused. A plain sine by default. */
+    private readonly series: readonly number[] = [0, 1],
   ) {
     this.sine = ctx.createOscillator();
     this.cosine = ctx.createOscillator();
-    const zero = new Float32Array([0, 0]);
-    this.sine.setPeriodicWave(ctx.createPeriodicWave(zero, new Float32Array([0, 1])));
-    this.cosine.setPeriodicWave(ctx.createPeriodicWave(new Float32Array([0, 1]), zero));
     this.sine.frequency.value = hz;
     this.cosine.frequency.value = hz;
-    this.sine.start();
-    this.cosine.start();
+    this.setWaves(0);
+  }
+
+  /**
+   * Begin at `when`, running at `hz`, `phase` radians into the cycle.
+   *
+   * The phase is baked into the waveform rather than bought by delaying the
+   * start, because the two are only equivalent for a modulator whose period
+   * fits inside the run-up: an auto-pan at 0.05 Hz has a twenty-second cycle,
+   * and holding its start back by up to twenty seconds would leave the front of
+   * the bounce unmodulated. Rotating the coefficients costs nothing and works
+   * at any rate.
+   *
+   * The rate is set outright rather than ramped to. `setRate`'s glide exists so
+   * a musician sweeping a knob hears no step; applied to the first value it
+   * would instead leave every modulator a fraction of a cycle behind where the
+   * song says it is, permanently, because phase is the integral of frequency.
+   */
+  start(when: number, hz: number, phase: number): void {
+    if (this.started) return;
+    this.started = true;
+    this.setWaves(phase);
+    this.sine.frequency.value = hz;
+    this.cosine.frequency.value = hz;
+    this.sine.start(when);
+    this.cosine.start(when);
   }
 
   setRate(hz: number, timeConstant = RAMP): void {
     setParamSlow(this.sine.frequency, hz, this.ctx, timeConstant);
     setParamSlow(this.cosine.frequency, hz, this.ctx, timeConstant);
+  }
+
+  /**
+   * Hand both oscillators the series shifted so the fundamental starts `phase`
+   * radians in. Shifting a waveform in *time* rotates harmonic n by n times the
+   * fundamental's rotation, which is what keeps a shape that is not a sine the
+   * same shape — and, applied to both oscillators alike, keeps the twin exactly
+   * a quarter cycle away whatever the shape is.
+   */
+  private setWaves(phase: number): void {
+    this.sine.setPeriodicWave(this.wave(phase));
+    this.cosine.setPeriodicWave(this.wave(phase + Math.PI / 2));
+  }
+
+  private wave(phase: number): PeriodicWave {
+    const real = new Float32Array(this.series.length);
+    const imag = new Float32Array(this.series.length);
+    for (let n = 1; n < this.series.length; n++) {
+      real[n] = this.series[n] * Math.sin(n * phase);
+      imag[n] = this.series[n] * Math.cos(n * phase);
+    }
+    return this.ctx.createPeriodicWave(real, imag);
   }
 
   dispose(): void {
@@ -619,8 +812,7 @@ class ShapedLfo {
     ];
 
     for (let i = 0; i < shapes.length; i++) {
-      const series = shapes[i];
-      const pair = shapedPair(ctx, series, hz);
+      const pair = new QuadratureLfo(ctx, hz, shapes[i]);
       const g0 = makeGain(ctx, i === 0 ? 1 : 0);
       const g90 = makeGain(ctx, i === 0 ? 1 : 0);
       pair.sine.connect(g0).connect(this.out0);
@@ -629,6 +821,15 @@ class ShapedLfo {
       this.mix0.push(g0);
       this.mix90.push(g90);
     }
+  }
+
+  /**
+   * Start all three shapes together at the same phase, so switching shape
+   * mid-song crossfades between waveforms that agree about where in the cycle
+   * they are rather than jumping to whatever the silent one had reached.
+   */
+  start(when: number, hz: number, phase: number): void {
+    for (const p of this.pairs) p.start(when, hz, phase);
   }
 
   setRate(hz: number): void {
@@ -653,28 +854,6 @@ function harmonics(count: number, amplitude: (n: number) => number): number[] {
   const out = [0];
   for (let n = 1; n <= count; n++) out.push(amplitude(n));
   return out;
-}
-
-/**
- * One quadrature pair for an arbitrary sine-phase harmonic series. Shifting a
- * waveform by 90° rotates harmonic n by n·90°, which is why the twin is built
- * from rotated coefficients rather than by swapping the real and imaginary
- * parts wholesale.
- */
-function shapedPair(ctx: BaseAudioContext, series: number[], hz: number): QuadratureLfo {
-  const lfo = new QuadratureLfo(ctx, hz);
-  const realA = new Float32Array(series.length);
-  const imagA = new Float32Array(series);
-  const realB = new Float32Array(series.length);
-  const imagB = new Float32Array(series.length);
-  for (let n = 1; n < series.length; n++) {
-    const phase = (n * Math.PI) / 2;
-    realB[n] = series[n] * Math.sin(phase);
-    imagB[n] = series[n] * Math.cos(phase);
-  }
-  lfo.sine.setPeriodicWave(ctx.createPeriodicWave(realA, imagA));
-  lfo.cosine.setPeriodicWave(ctx.createPeriodicWave(realB, imagB));
-  return lfo;
 }
 
 /** A filter that can be taken fully out of circuit with a ramped crossfade. */
@@ -1019,6 +1198,7 @@ function buildEq8(ctx: BaseAudioContext, effect: Effect): EffectNode {
   // filter has no such setting, so it crossfades around itself instead.
   const gainBands = EQ8_BANDS.filter((b) => b.hasGain).map((b) => ({
     prefix: b.prefix,
+    hasQ: b.hasQ,
     filter: makeFilter(ctx, b.type, 1000, 1),
   }));
   const passBands = EQ8_BANDS.filter((b) => !b.hasGain).map((b) => ({
@@ -1041,7 +1221,12 @@ function buildEq8(ctx: BaseAudioContext, effect: Effect): EffectNode {
       for (const g of gainBands) {
         const on = !bypass && choiceOf(e, `${g.prefix}On`) === 1;
         setParam(g.filter.frequency, paramOf(e, `${g.prefix}Freq`), ctx);
-        setParam(g.filter.Q, paramOf(e, `${g.prefix}Q`), ctx);
+        // The two shelves are left at whatever `Q` they were born with, on
+        // purpose: Web Audio fixes a shelf's slope at S = 1 and never reads the
+        // field, so writing to it moved nothing but made the parameter look
+        // alive. Ramping a value the platform discards is how a dead control
+        // stays dead for a year.
+        if (g.hasQ) setParam(g.filter.Q, paramOf(e, `${g.prefix}Q`), ctx);
         setParam(g.filter.gain, on ? paramOf(e, `${g.prefix}Gain`) : 0, ctx);
       }
       for (const p of passBands) {
@@ -1268,6 +1453,14 @@ function toBuffer(ctx: BaseAudioContext, samples: Float32Array): AudioBuffer {
 }
 
 /**
+ * Room for the crusher's longest hold, and for the dry delay that matches it,
+ * at any rate the app can be asked to render. The longest single stage is 32
+ * samples and the whole cascade is 31.5, so ten milliseconds covers both down
+ * to a 3.2 kHz sample rate — far below anything a browser will open.
+ */
+const MAX_CRUSH_HOLD_SEC = 0.01;
+
+/**
  * Bit depth comes from a quantising WaveShaper. Rate reduction is the hold a
  * decimator applies: cascading (1 + z^-1)/2, (1 + z^-2)/2, (1 + z^-4)/2 … gives
  * an exact N-point boxcar for N a power of two, which is the zero-order hold's
@@ -1275,9 +1468,15 @@ function toBuffer(ctx: BaseAudioContext, samples: Float32Array): AudioBuffer {
  * rate. What it does not reproduce is the aliasing a real decimator folds back,
  * because that needs a per-sample decision an AudioWorklet-free graph cannot
  * make. Every stage crossfades in and out, so changing the factor never clicks.
+ *
+ * The cascade is linear phase, and its group delay is what makes Mix a blend
+ * rather than a comb: `crusherGroupDelaySamples` is exact, so the dry leg is
+ * held back by precisely as much and the two legs sum in time at every setting.
  */
 function buildBitcrusher(ctx: BaseAudioContext, effect: Effect): EffectNode {
-  const wd = new WetDry(ctx);
+  // Room for the whole cascade at any rate the app can be asked to render, the
+  // same ceiling the stages' own delays are built with.
+  const wd = new WetDry(ctx, MAX_CRUSH_HOLD_SEC);
   const quantiser = makeShaper(ctx, quantiserCurve(8));
   let bitsKey = -1;
 
@@ -1285,7 +1484,7 @@ function buildBitcrusher(ctx: BaseAudioContext, effect: Effect): EffectNode {
   const stages: { direct: GainNode; delayed: GainNode; delay: DelayNode; sum: GainNode }[] = [];
   let cursor: AudioNode = quantiser;
   for (let i = 0; i < stageCount; i++) {
-    const delay = ctx.createDelay(0.01);
+    const delay = ctx.createDelay(MAX_CRUSH_HOLD_SEC);
     delay.delayTime.value = Math.pow(2, i) / ctx.sampleRate;
     const direct = makeGain(ctx, 1);
     const delayed = makeGain(ctx, 0);
@@ -1316,6 +1515,9 @@ function buildBitcrusher(ctx: BaseAudioContext, effect: Effect): EffectNode {
         setParam(stages[i].direct.gain, on ? 0.5 : 1, ctx);
         setParam(stages[i].delayed.gain, on ? 0.5 : 0, ctx);
       }
+      // Bypass hands back a wire, so the alignment goes with the processing it
+      // was aligning to.
+      wd.setDryDelay(bypass ? 0 : crusherGroupDelaySamples(active) / ctx.sampleRate);
       wd.setMix(paramOf(e, 'mix'), bypass);
     },
     dispose: () => {
@@ -1330,7 +1532,7 @@ function buildBitcrusher(ctx: BaseAudioContext, effect: Effect): EffectNode {
 
 const MAX_MOD_DELAY_SEC = 0.06;
 
-function buildChorus(ctx: BaseAudioContext, effect: Effect): EffectNode {
+function buildChorus(ctx: BaseAudioContext, effect: Effect, clock: ModulationClock): EffectNode {
   const wd = new WetDry(ctx);
   const stereo = makeStereoTap(ctx);
   const lfo = new QuadratureLfo(ctx, 0.6);
@@ -1353,7 +1555,9 @@ function buildChorus(ctx: BaseAudioContext, effect: Effect): EffectNode {
     input: wd.input,
     output: wd.output,
     update: (e, _bpm, bypass) => {
-      lfo.setRate(paramOf(e, 'rate'));
+      const rate = paramOf(e, 'rate');
+      lfo.start(clock.startAt, rate, phaseAt(clock, rate));
+      lfo.setRate(rate);
       const base = paramOf(e, 'delay') / 1000;
       const swing = Math.min(paramOf(e, 'depth') / 1000, base);
       const spread = paramOf(e, 'spread');
@@ -1381,7 +1585,7 @@ function buildChorus(ctx: BaseAudioContext, effect: Effect): EffectNode {
  * (2.7 ms at 48 kHz), so at the shortest delay settings the resonant comb sits
  * lower than the sweep control suggests. That is a platform floor, not a choice.
  */
-function buildFlanger(ctx: BaseAudioContext, effect: Effect): EffectNode {
+function buildFlanger(ctx: BaseAudioContext, effect: Effect, clock: ModulationClock): EffectNode {
   const input = makeGain(ctx, 1);
   const output = makeGain(ctx, 1);
   const dryDirect = makeGain(ctx, 1);
@@ -1408,7 +1612,9 @@ function buildFlanger(ctx: BaseAudioContext, effect: Effect): EffectNode {
       const base = paramOf(e, 'delay') / 1000;
       const mix = bypass ? 0 : clamp(paramOf(e, 'mix'), 0, 1);
       const throughZero = choiceOf(e, 'throughZero') === 1 && !bypass;
-      lfo.setRate(paramOf(e, 'rate'));
+      const rate = paramOf(e, 'rate');
+      lfo.start(clock.startAt, rate, phaseAt(clock, rate));
+      lfo.setRate(rate);
       setParam(delay.delayTime, base, ctx);
       setParam(dryDelay.delayTime, base, ctx);
       setParam(depth.gain, bypass ? 0 : Math.min(paramOf(e, 'depth') / 1000, base), ctx);
@@ -1426,7 +1632,7 @@ function buildFlanger(ctx: BaseAudioContext, effect: Effect): EffectNode {
 
 const PHASER_STAGES = [4, 6, 8, 10, 12] as const;
 
-function buildPhaser(ctx: BaseAudioContext, effect: Effect): EffectNode {
+function buildPhaser(ctx: BaseAudioContext, effect: Effect, clock: ModulationClock): EffectNode {
   const wd = new WetDry(ctx);
   const wetBus = makeGain(ctx, 1);
   const lfo = new QuadratureLfo(ctx, 0.4);
@@ -1466,7 +1672,9 @@ function buildPhaser(ctx: BaseAudioContext, effect: Effect): EffectNode {
     input: wd.input,
     output: wd.output,
     update: (e, _bpm, bypass) => {
-      lfo.setRate(paramOf(e, 'rate'));
+      const rate = paramOf(e, 'rate');
+      lfo.start(clock.startAt, rate, phaseAt(clock, rate));
+      lfo.setRate(rate);
       // Depth in cents: a musical sweep is a constant interval, not constant Hz.
       setParam(depth.gain, bypass ? 0 : paramOf(e, 'depth') * 1800, ctx);
       for (const stage of allpass) setParam(stage.frequency, paramOf(e, 'centre'), ctx);
@@ -1485,10 +1693,7 @@ function buildPhaser(ctx: BaseAudioContext, effect: Effect): EffectNode {
   };
 }
 
-/** Phase relationships a two-channel modulator can hold exactly. */
-const STEREO_PHASES = [0, 90, 180] as const;
-
-function buildTremolo(ctx: BaseAudioContext, effect: Effect): EffectNode {
+function buildTremolo(ctx: BaseAudioContext, effect: Effect, clock: ModulationClock): EffectNode {
   const stereo = makeStereoTap(ctx);
   const splitter = ctx.createChannelSplitter(2);
   const merger = ctx.createChannelMerger(2);
@@ -1498,7 +1703,8 @@ function buildTremolo(ctx: BaseAudioContext, effect: Effect): EffectNode {
   const leftDepth = makeGain(ctx, 0);
   // The right channel picks its phase by crossfading between the LFO, its
   // quadrature twin and its inverse — the three offsets a pair of oscillators
-  // can hold exactly for any waveform.
+  // can hold exactly for any waveform, and therefore the three settings
+  // `STEREO_PHASES` declares, in the same order.
   const rightAt0 = makeGain(ctx, 0);
   const rightAt90 = makeGain(ctx, 0);
   const rightAt180 = makeGain(ctx, 0);
@@ -1523,10 +1729,15 @@ function buildTremolo(ctx: BaseAudioContext, effect: Effect): EffectNode {
     output: merger,
     update: (e, bpm, bypass) => {
       const synced = choiceOf(e, 'sync') === 1;
-      const rate = synced
-        ? syncHz(paramOf(e, 'division'), bpm, syncModifierByIndex(choiceOf(e, 'modifier')))
-        : paramOf(e, 'rate');
-      lfo.setRate(clamp(rate, 0.02, 40));
+      const rate = clamp(
+        synced
+          ? syncHz(paramOf(e, 'division'), bpm, syncModifierByIndex(choiceOf(e, 'modifier')))
+          : paramOf(e, 'rate'),
+        0.02,
+        40,
+      );
+      lfo.start(clock.startAt, rate, phaseAt(clock, rate));
+      lfo.setRate(rate);
       lfo.setShape(choiceOf(e, 'shape'));
       const depth = bypass ? 0 : clamp(paramOf(e, 'depth'), 0, 1);
       // gain = 1 − depth/2 + (depth/2)·lfo keeps the peak at unity.
@@ -1534,7 +1745,7 @@ function buildTremolo(ctx: BaseAudioContext, effect: Effect): EffectNode {
       setParam(right.gain, 1 - depth / 2, ctx);
       setParam(leftDepth.gain, depth / 2, ctx);
       setParam(rightDepth.gain, depth / 2, ctx);
-      const phase = closestPhaseIndex(paramOf(e, 'stereoPhase'));
+      const phase = choiceOf(e, 'phaseOffset');
       setParam(rightAt0.gain, phase === 0 ? 1 : 0, ctx);
       setParam(rightAt90.gain, phase === 1 ? 1 : 0, ctx);
       setParam(rightAt180.gain, phase === 2 ? -1 : 0, ctx);
@@ -1558,15 +1769,6 @@ function buildTremolo(ctx: BaseAudioContext, effect: Effect): EffectNode {
   };
 }
 
-/** Snap a phase control to the offsets the modulator can hold exactly. */
-function closestPhaseIndex(degrees: number): number {
-  let best = 0;
-  for (let i = 1; i < STEREO_PHASES.length; i++) {
-    if (Math.abs(STEREO_PHASES[i] - degrees) < Math.abs(STEREO_PHASES[best] - degrees)) best = i;
-  }
-  return best;
-}
-
 /**
  * Rotary speaker: a crossover into a bass rotor and a treble horn, each with a
  * doppler delay in quadrature with its amplitude modulation — the pitch shift
@@ -1575,7 +1777,7 @@ function closestPhaseIndex(degrees: number): number {
  * first to fully opposite. Speed changes coast over about a second instead of
  * jumping, because the run-up is most of the effect.
  */
-function buildRotary(ctx: BaseAudioContext, effect: Effect): EffectNode {
+function buildRotary(ctx: BaseAudioContext, effect: Effect, clock: ModulationClock): EffectNode {
   const wd = new WetDry(ctx);
   const stereo = makeStereoTap(ctx);
   const lowPass = makeButterworth(ctx, 'lowpass', 800);
@@ -1623,7 +1825,9 @@ function buildRotary(ctx: BaseAudioContext, effect: Effect): EffectNode {
       const rate = fast ? paramOf(e, 'fastRate') : paramOf(e, 'slowRate');
       const spread = clamp(paramOf(e, 'spread'), 0, 1);
       for (const r of rotors) {
-        r.lfo.setRate(rate * r.rateScale, ROTOR_RAMP);
+        const rotorHz = rate * r.rateScale;
+        r.lfo.start(clock.startAt, rotorHz, phaseAt(clock, rotorHz));
+        r.lfo.setRate(rotorHz, ROTOR_RAMP);
         const depth = bypass ? 0 : clamp(paramOf(e, r.depthKey), 0, 1);
         setParam(r.doppler.gain, bypass ? 0 : r.dopplerMs / 1000, ctx);
         setParam(r.left.gain, 1 - depth / 2, ctx);
@@ -1864,7 +2068,12 @@ function buildWidth(ctx: BaseAudioContext, effect: Effect): EffectNode {
   const sideFromRight = makeGain(ctx, -0.5);
   const mid = makeGain(ctx, 1);
   const side = makeGain(ctx, 1);
-  const bassMono = makeFilter(ctx, 'highpass', 20, BUTTERWORTH_Q_DB);
+  // Switchable, because the parameter's minimum is an off position and not
+  // just a low corner: a Butterworth highpass at 20 Hz still rotates the phase
+  // of the bottom octave and takes the very lowest of it off the sides, so a
+  // face that stops drawing the line down there would be describing a filter
+  // that was still in circuit.
+  const bassMono = new SwitchableFilter(ctx, 'highpass', BASS_MONO_OFF_HZ, BUTTERWORTH_Q_DB);
   const width = makeGain(ctx, 1);
   const sideToLeft = makeGain(ctx, 1);
   const sideToRight = makeGain(ctx, -1);
@@ -1879,7 +2088,8 @@ function buildWidth(ctx: BaseAudioContext, effect: Effect): EffectNode {
   midFromRight.connect(mid);
   sideFromLeft.connect(side);
   sideFromRight.connect(side);
-  side.connect(bassMono).connect(width);
+  side.connect(bassMono.input);
+  bassMono.output.connect(width);
   width.connect(sideToLeft);
   width.connect(sideToRight);
   mid.connect(merger, 0, 0);
@@ -1894,8 +2104,12 @@ function buildWidth(ctx: BaseAudioContext, effect: Effect): EffectNode {
     input: wd.input,
     output: wd.output,
     update: (e, _bpm, bypass) => {
+      const bassMonoHz = paramOf(e, 'bassMono');
       setParam(width.gain, clamp(paramOf(e, 'width'), 0, 2), ctx);
-      setParam(bassMono.frequency, paramOf(e, 'bassMono'), ctx);
+      setParam(bassMono.filter.frequency, bassMonoHz, ctx);
+      // The same test the face draws from, so "off" cannot mean one thing in
+      // the picture and another in the audio.
+      bassMono.setActive(!bypass && bassMonoActive(bassMonoHz));
       setParam(output.gain, dbToGain(paramOf(e, 'output')), ctx);
       wd.setMix(1, bypass);
     },
@@ -1910,18 +2124,18 @@ function buildWidth(ctx: BaseAudioContext, effect: Effect): EffectNode {
         sideFromRight,
         mid,
         side,
-        bassMono,
         width,
         sideToLeft,
         sideToRight,
         output,
       ]);
+      bassMono.dispose();
       wd.dispose();
     },
   };
 }
 
-function buildAutoPan(ctx: BaseAudioContext, effect: Effect): EffectNode {
+function buildAutoPan(ctx: BaseAudioContext, effect: Effect, clock: ModulationClock): EffectNode {
   const stereo = makeStereoTap(ctx);
   const panner = ctx.createStereoPanner();
   const lfo = new ShapedLfo(ctx, 0.8);
@@ -1937,10 +2151,15 @@ function buildAutoPan(ctx: BaseAudioContext, effect: Effect): EffectNode {
     output: panner,
     update: (e, bpm, bypass) => {
       const synced = choiceOf(e, 'sync') === 1;
-      const rate = synced
-        ? syncHz(paramOf(e, 'division'), bpm, syncModifierByIndex(choiceOf(e, 'modifier')))
-        : paramOf(e, 'rate');
-      lfo.setRate(clamp(rate, 0.02, 40));
+      const rate = clamp(
+        synced
+          ? syncHz(paramOf(e, 'division'), bpm, syncModifierByIndex(choiceOf(e, 'modifier')))
+          : paramOf(e, 'rate'),
+        0.02,
+        40,
+      );
+      lfo.start(clock.startAt, rate, phaseAt(clock, rate));
+      lfo.setRate(rate);
       lfo.setShape(choiceOf(e, 'shape'));
       setParam(depth.gain, bypass ? 0 : clamp(paramOf(e, 'depth'), 0, 1), ctx);
       setParam(panner.pan, 0, ctx);
@@ -2029,8 +2248,16 @@ function buildPassThrough(ctx: BaseAudioContext, effect: Effect): EffectNode {
 /**
  * Build a node for one effect. An unrecognised kind becomes a unity pass-through
  * so a project written by a newer build still plays, minus that effect.
+ *
+ * The clock only reaches the six kinds that carry a modulator; everything else
+ * is a function of its input and cannot tell what time it is.
  */
-export function buildEffectNode(ctx: BaseAudioContext, effect: Effect): EffectNode {
+export function buildEffectNode(
+  ctx: BaseAudioContext,
+  effect: Effect,
+  clock?: ModulationClock,
+): EffectNode {
+  const at = clockOf(ctx, clock);
   switch (effect.kind) {
     case 'trim':
       return buildTrim(ctx, effect);
@@ -2059,15 +2286,15 @@ export function buildEffectNode(ctx: BaseAudioContext, effect: Effect): EffectNo
     case 'bitcrusher':
       return buildBitcrusher(ctx, effect);
     case 'chorus':
-      return buildChorus(ctx, effect);
+      return buildChorus(ctx, effect, at);
     case 'flanger':
-      return buildFlanger(ctx, effect);
+      return buildFlanger(ctx, effect, at);
     case 'phaser':
-      return buildPhaser(ctx, effect);
+      return buildPhaser(ctx, effect, at);
     case 'tremolo':
-      return buildTremolo(ctx, effect);
+      return buildTremolo(ctx, effect, at);
     case 'rotary':
-      return buildRotary(ctx, effect);
+      return buildRotary(ctx, effect, at);
     case 'delay':
       return buildDelay(ctx, effect);
     case 'pingpong':
@@ -2077,7 +2304,7 @@ export function buildEffectNode(ctx: BaseAudioContext, effect: Effect): EffectNo
     case 'width':
       return buildWidth(ctx, effect);
     case 'autopan':
-      return buildAutoPan(ctx, effect);
+      return buildAutoPan(ctx, effect, at);
     case 'gainMatch':
       return buildGainMatch(ctx, effect);
     case 'analyser':
@@ -2142,7 +2369,16 @@ export class InsertChain {
   /** Shape signature of the current chain — order and kinds. */
   private signature = '';
 
-  constructor(private ctx: BaseAudioContext) {
+  constructor(
+    private ctx: BaseAudioContext,
+    /**
+     * Where this context's clock sits in the song, for the modulators. Omitted
+     * by a caller that has no song position to offer, which leaves every LFO
+     * anchored to the moment its chain was built — reproducible only within one
+     * sitting, which is why the offline renderer supplies one.
+     */
+    private clock?: ModulationClock,
+  ) {
     this.entry = ctx.createGain();
     this.exit = ctx.createGain();
     this.entry.connect(this.exit);
@@ -2226,7 +2462,7 @@ export class InsertChain {
       return;
     }
 
-    this.nodes = effects.map((e) => buildEffectNode(this.ctx, e));
+    this.nodes = effects.map((e) => buildEffectNode(this.ctx, e, this.clock));
     let cursor: AudioNode = this.entry;
     for (const n of this.nodes) {
       cursor.connect(n.input);

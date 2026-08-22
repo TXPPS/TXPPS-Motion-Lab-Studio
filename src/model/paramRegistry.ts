@@ -13,6 +13,13 @@
  */
 import { EFFECT_SPECS, formatParam } from './effects';
 import { formatDb } from './music';
+import {
+  SYNTH_LFO_MAX_HZ,
+  SYNTH_LFO_MIN_HZ,
+  SYNTH_LFO_PITCH_CENTS,
+  SYNTH_PW_MAX,
+  SYNTH_PW_MIN,
+} from './synthFace';
 import type { ParamSpec } from './effects';
 import type { ProjectData, SynthParams, Track } from './types';
 import type { SamplerParams } from './sampler';
@@ -211,6 +218,84 @@ const SYNTH_PARAMS: {
     min: 0,
     max: 1,
     def: 0.5,
+    scale: 'linear',
+    format: pct,
+  },
+  // The oscillator, sub and LFO surface. Every one of these is a ride a
+  // musician makes by hand on hardware — a filter sweep's companions — and
+  // every one of them is read per note by `Voice` through the descriptors in
+  // `model/synthFace.ts`, which is what `tests/laneWired.test.ts` checks.
+  //
+  // `glide` and `pulseWidth`'s partner `waveform` are deliberately absent:
+  // portamento is a patch setting rather than a performance one, and a lane
+  // per rarely-ridden field turns the add-lane menu into a list nobody reads.
+  {
+    key: 'shape',
+    name: 'Shape',
+    unit: '%',
+    min: 0,
+    max: 1,
+    def: 0,
+    scale: 'linear',
+    format: (v) => (v <= 0 ? 'Saw' : v >= 1 ? 'Square' : `${Math.round(v * 100)}%`),
+  },
+  {
+    key: 'pulseWidth',
+    name: 'Width',
+    unit: '%',
+    min: SYNTH_PW_MIN,
+    max: SYNTH_PW_MAX,
+    def: 0.5,
+    scale: 'linear',
+    format: pct,
+  },
+  {
+    key: 'subLevel',
+    name: 'Sub',
+    unit: '%',
+    min: 0,
+    max: 1,
+    def: 0,
+    scale: 'linear',
+    format: pct,
+  },
+  {
+    key: 'lfoRate',
+    name: 'LFO Rate',
+    unit: 'Hz',
+    min: SYNTH_LFO_MIN_HZ,
+    max: SYNTH_LFO_MAX_HZ,
+    def: 5,
+    scale: 'log',
+    format: (v) => `${v.toFixed(2)} Hz`,
+  },
+  {
+    key: 'lfoToPitch',
+    name: 'LFO → Pitch',
+    unit: 'cents',
+    min: 0,
+    max: 1,
+    def: 0,
+    scale: 'linear',
+    format: (v) => `${Math.round(v * SYNTH_LFO_PITCH_CENTS)} cents`,
+  },
+  {
+    key: 'lfoToFilter',
+    name: 'LFO → Filter',
+    unit: '%',
+    min: 0,
+    max: 1,
+    def: 0,
+    scale: 'linear',
+    format: pct,
+  },
+  {
+    key: 'lfoToWidth',
+    name: 'LFO → Width',
+    unit: '%',
+    min: 0,
+    max: 1,
+    def: 0,
     scale: 'linear',
     format: pct,
   },

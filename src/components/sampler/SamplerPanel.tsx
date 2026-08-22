@@ -15,9 +15,9 @@
  * which is why "LFO → filter" with no filter now says so instead of offering
  * two controls that reach nothing.
  */
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { engine } from '../../audio/engine';
-import { getBufferSync } from '../../audio/mediaLibrary';
+import { getBufferSync, getPeaksSync, loadPeaks } from '../../audio/mediaLibrary';
 import { formatHz } from '../../model/effects';
 import { clamp, midiToName } from '../../model/music';
 import {
@@ -48,7 +48,13 @@ import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
 import { ParamKnob } from '../common/widgets';
-import { EnvelopeGraph, FilterCurve, InstrumentSection, LfoScope } from '../instrument/displays';
+import {
+  EnvelopeGraph,
+  FilterCurve,
+  InstrumentSection,
+  LfoScope,
+  PadWave,
+} from '../instrument/displays';
 import { InstrumentFrame } from '../instrument/InstrumentFrame';
 import { Waveform } from '../arrangement/Waveform';
 import { Keyboard } from '../synth/Keyboard';
@@ -199,6 +205,29 @@ function WindowHandle({
       onKeyDown={onKeyDown}
     />
   );
+}
+
+/**
+ * The gain that puts the loudest sample inside the playback window at
+ * -0.3 dBFS, or null when there is nothing to measure.
+ *
+ * Both the quick sampler and the drum rack offer Normalize, and the reference
+ * puts it beside Reverse over the waveform in every sample-based instrument it
+ * ships — one function so the two cannot drift apart. A silent window returns
+ * null rather than a gain: dividing by a zero peak would hand the zone an
+ * infinite level and throw the channel's meter off the top.
+ */
+function normalizedGain(zone: SampleZone, buf: AudioBuffer): number | null {
+  const data = buf.getChannelData(0);
+  const w = zoneWindowOf(zone, buf.duration);
+  const from = Math.max(0, Math.floor(w.startSec * buf.sampleRate));
+  const to = Math.min(data.length, Math.floor(w.endSec * buf.sampleRate));
+  let peak = 0;
+  for (let i = from; i < to; i++) {
+    const a = Math.abs(data[i]);
+    if (a > peak) peak = a;
+  }
+  return peak > 1e-6 ? Math.min(4, Math.pow(10, -0.3 / 20) / peak) : null;
 }
 
 function ZoneWaveEditor({ track, zone }: { track: Track; zone: SampleZone }) {
@@ -387,16 +416,8 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
               ui.getState().toast('error', 'Start audio once so the sample can be decoded.');
               return;
             }
-            const data = buf.getChannelData(0);
-            const w = zoneWindowOf(zone, buf.duration);
-            const from = Math.floor(w.startSec * buf.sampleRate);
-            const to = Math.min(data.length, Math.floor(w.endSec * buf.sampleRate));
-            let peak = 0;
-            for (let i = from; i < to; i++) {
-              const a = Math.abs(data[i]);
-              if (a > peak) peak = a;
-            }
-            if (peak > 1e-6) upd({ gain: Math.min(4, Math.pow(10, -0.3 / 20) / peak) });
+            const gain = normalizedGain(zone, buf);
+            if (gain !== null) upd({ gain });
           }}
         >
           Normalize
@@ -468,17 +489,468 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
  * pad at a fixed strong velocity, because a key press has no position.
  */
 const PAD_MIN_VELOCITY = 34;
+const PAD_KEY_VELOCITY = 110;
 function padVelocity(e: React.MouseEvent<HTMLElement>): number {
   const box = e.currentTarget.getBoundingClientRect();
-  if (box.height <= 0) return 110;
+  if (box.height <= 0) return PAD_KEY_VELOCITY;
   const down = clamp((e.clientY - box.top) / box.height, 0, 1);
   return Math.round(PAD_MIN_VELOCITY + (1 - down) * (127 - PAD_MIN_VELOCITY));
 }
 
+/**
+ * One bank of pads.
+ *
+ * The reference's drum machine is a 4×4 of sixteen and reaches its other 112
+ * slots by switching bank; ours addresses all 104 keys in one grid, so sixteen
+ * is the size the grid opens at and the width it holds the reference's square
+ * shape at. A rack that has grown past one bank fills the row instead, because
+ * four columns of a hundred pads is a column rather than a face.
+ */
+const PAD_BANK = 16;
+
+/**
+ * The stretch of a sample's envelope that one pad actually plays.
+ *
+ * Peak data is channel-major, so channel 0 is the first `buckets` entries and a
+ * window is a view into it — no copy, which is what makes this affordable a
+ * hundred times over. Narrowing to the pad's own window is what makes
+ * `Slices → pads` legible: sixteen pads cut from one loop then draw sixteen
+ * different hits instead of sixteen copies of the whole loop.
+ */
+function padPeaks(zone: SampleZone): { min: Float32Array; max: Float32Array } | null {
+  const p = getPeaksSync(zone.mediaId);
+  if (!p || p.buckets <= 0 || p.duration <= 0) return null;
+  const perSec = p.buckets / p.duration;
+  const from = clamp(Math.floor(zone.startSec * perSec), 0, p.buckets - 1);
+  const to = clamp(Math.ceil((zone.endSec ?? p.duration) * perSec), from + 1, p.buckets);
+  return { min: p.min.subarray(from, to), max: p.max.subarray(from, to) };
+}
+
+/**
+ * Resolve the envelopes the pads draw, once for the whole rack.
+ *
+ * The built-in hits answer synchronously, but an imported sample has nothing
+ * cached until something asks the media library for it — and those are exactly
+ * the pads named `kick_03`, the ones a picture helps most. Asking once per
+ * distinct media id means a kit that puts one hit on eight pads resolves it
+ * once instead of eight times, and the returned tick is what tells the
+ * memoised pads that there is something new to draw.
+ */
+function usePadEnvelopes(zones: readonly SampleZone[]): number {
+  const [tick, setTick] = useState(0);
+  const ids = useMemo(() => [...new Set(zones.map((z) => z.mediaId))].join('\n'), [zones]);
+  useEffect(() => {
+    const ctx = engine.context;
+    // Before audio has started there is nothing to decode with; the pads that
+    // can resolve synchronously have already drawn themselves.
+    if (!ctx) return;
+    const pending = ids.split('\n').filter((id) => id && !getPeaksSync(id));
+    if (pending.length === 0) return;
+    let cancelled = false;
+    void Promise.all(pending.map((id) => loadPeaks(id, ctx))).then((got) => {
+      if (!cancelled && got.some(Boolean)) setTick((t) => t + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ids]);
+  return tick;
+}
+
+/**
+ * The fields a pad draws.
+ *
+ * The store clones the whole project per edit, so zone identity never survives
+ * one — the comparator has to be by value or every pad re-renders whenever any
+ * pad moves.
+ */
+const padEq = (a: SampleZone | undefined, b: SampleZone | undefined): boolean =>
+  a === b ||
+  (!!a &&
+    !!b &&
+    a.id === b.id &&
+    a.name === b.name &&
+    a.mediaId === b.mediaId &&
+    a.startSec === b.startSec &&
+    a.endSec === b.endSec &&
+    a.color === b.color &&
+    a.muted === b.muted &&
+    a.solo === b.solo &&
+    a.chokeGroup === b.chokeGroup &&
+    a.rrGroup === b.rrGroup);
+
+interface PadProps {
+  index: number;
+  trackId: string;
+  zone: SampleZone | undefined;
+  /** Bumped when an envelope resolves, so a memoised pad redraws with it. */
+  tick: number;
+  silenced: boolean;
+  selected: boolean;
+  /** A sample is being dragged over this pad. */
+  over: boolean;
+  onSelect: (id: string) => void;
+  onOver: (index: number | null) => void;
+}
+
+/**
+ * One pad: the name, the key, the pad's own colour, the hit it plays and what
+ * it is doing.
+ *
+ * Memoised for the reason `ZoneRow` is: `sliceToPads` makes sixty-four of these
+ * in one press and the drum QA project holds a hundred, so re-rendering every
+ * pad because one pad's pan moved is how a pad bank stops answering the
+ * pointer.
+ */
+const Pad = memo(
+  function Pad({ index, trackId, zone, silenced, selected, over, onSelect, onOver }: PadProps) {
+    const key = DRUM_PAD_BASE + index;
+    const strike = (velocity: number) => {
+      if (!zone) return;
+      // Striking a pad is also how it is chosen: the editor below follows the
+      // last pad played, so auditioning a kit walks the editor through it.
+      onSelect(zone.id);
+      preview(trackId, key, velocity);
+    };
+
+    return (
+      <button
+        type="button"
+        className={`pad${zone ? '' : ' empty'}${selected ? ' selected' : ''}${
+          silenced ? ' muted' : ''
+        }${over ? ' over' : ''}`}
+        // The pad's colour rides a custom property so the rail along its top
+        // edge and anything else that wants it read one value.
+        style={
+          zone?.color
+            ? ({ ['--pad-color' as string]: zone.color } as React.CSSProperties)
+            : undefined
+        }
+        data-testid={`pad-${index}`}
+        // An empty pad is a drop target and nothing else; tabbing through a
+        // rack should stop on the pads that make a sound.
+        tabIndex={zone ? 0 : -1}
+        aria-label={
+          zone
+            ? `Pad ${index + 1}: ${zone.name} (${midiToName(key)})${silenced ? ', silent' : ''}`
+            : `Empty pad ${index + 1}`
+        }
+        // Which pad the editor below is pointed at. `aria-pressed` would say
+        // this is a switch, and a pad is not switched — it is struck.
+        aria-current={selected || undefined}
+        title={
+          zone
+            ? `${zone.name} — strike low for soft, high for hard; drop a sample to replace`
+            : 'Drop a sample here'
+        }
+        onClick={(e) => strike(padVelocity(e))}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          // Without this the browser synthesises a click at (0, 0), which the
+          // strike-position reading takes for the very top of the pad — every
+          // keyboard hit would come out at full velocity.
+          e.preventDefault();
+          strike(PAD_KEY_VELOCITY);
+        }}
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes('text/x-ml-media')) return;
+          e.preventDefault();
+          onOver(index);
+        }}
+        onDragLeave={() => onOver(null)}
+        onDrop={(e) => {
+          const id = droppedMediaId(e);
+          onOver(null);
+          if (!id) return;
+          e.preventDefault();
+          useProjectStore.getState().assignPad(trackId, index, id, id.replace(/^hit-/, ''));
+        }}
+      >
+        <span className="pad-head">
+          <span className="pad-index t-num">{index + 1}</span>
+          <span className="pad-name">{zone?.name ?? '—'}</span>
+        </span>
+        <PadWave peaks={zone ? padPeaks(zone) : null} />
+        <span className="pad-foot">
+          <span className="pad-key mono">{midiToName(key)}</span>
+          <span className="grow" />
+          {zone?.muted && (
+            <span className="pad-flag m" title="Muted">
+              M
+            </span>
+          )}
+          {zone?.solo && (
+            <span className="pad-flag s" title="Soloed">
+              S
+            </span>
+          )}
+          {zone?.chokeGroup !== undefined && (
+            <span className="pad-flag t-num" title={`Choke group ${zone.chokeGroup}`}>
+              C{zone.chokeGroup}
+            </span>
+          )}
+          {zone?.rrGroup !== undefined && (
+            <span className="pad-flag t-num" title={`Round-robin group ${zone.rrGroup}`}>
+              R{zone.rrGroup}
+            </span>
+          )}
+        </span>
+      </button>
+    );
+  },
+  (prev, next) =>
+    prev.index === next.index &&
+    prev.trackId === next.trackId &&
+    prev.tick === next.tick &&
+    prev.silenced === next.silenced &&
+    prev.selected === next.selected &&
+    prev.over === next.over &&
+    padEq(prev.zone, next.zone),
+);
+
+/**
+ * Names for the eight zone colours.
+ *
+ * A swatch whose accessible name is `#9070c9` is a swatch a screen reader
+ * cannot describe. Same eight, same order as `TRACK_COLORS`, so the index into
+ * that array is the name.
+ */
+const PAD_COLOR_NAMES = ['teal', 'blue', 'violet', 'amber', 'coral', 'green', 'slate', 'pink'];
+
+/** Choke and round-robin are small closed sets, so 0 means "not in one". */
+const PAD_GROUPS = [1, 2, 3, 4, 5, 6, 7, 8];
+
+/**
+ * The selected pad's sample and settings.
+ *
+ * One editor, re-pointed by the selection rather than one editor per pad —
+ * which is the reference's convention for every instrument it ships, and the
+ * reason the pad grid can stay the biggest thing on the face.
+ */
+function PadEditor({
+  track,
+  zone,
+  onRemoved,
+}: {
+  track: Track;
+  zone: SampleZone;
+  onRemoved: () => void;
+}) {
+  const store = useProjectStore;
+  const ui = useUiStore;
+  const buf = getBufferSync(zone.mediaId);
+  /** A continuous edit — the knob's own gesture is what closes the undo step. */
+  const upd = (patch: Partial<SampleZone>) =>
+    store.getState().updateSamplerZones(track.id, [zone.id], () => patch);
+  /**
+   * A discrete edit, as one step of undo.
+   *
+   * `updateSamplerZones` is deliberately not undoable so dragging a trim marker
+   * cannot push sixty entries a second. Without a gesture wrapped around the
+   * single call, though, every switch on this face — mute, reverse, choke — is
+   * invisible to Ctrl+Z, which is worse than the problem it avoids.
+   */
+  const commit = (patch: Partial<SampleZone>) => {
+    store.getState().beginGesture();
+    upd(patch);
+    store.getState().endGesture();
+  };
+
+  return (
+    <>
+      <ZoneWaveEditor track={track} zone={zone} />
+      <div className="smp-row">
+        <input
+          type="text"
+          value={zone.name}
+          onChange={(e) => upd({ name: e.target.value })}
+          aria-label="Pad name"
+          style={{ width: 110 }}
+        />
+        <div className="color-swatches" role="group" aria-label="Pad color">
+          {TRACK_COLORS.map((c, i) => (
+            <button
+              key={c}
+              style={{ background: c }}
+              className={zone.color === c ? 'on' : ''}
+              aria-pressed={zone.color === c}
+              aria-label={`Pad color ${PAD_COLOR_NAMES[i] ?? i + 1}`}
+              onClick={() => commit({ color: c })}
+            />
+          ))}
+        </div>
+        <button
+          className={`th-mini${zone.muted ? ' m-on' : ''}`}
+          aria-pressed={!!zone.muted}
+          aria-label="Mute pad"
+          onClick={() => commit({ muted: !zone.muted })}
+        >
+          M
+        </button>
+        <button
+          className={`th-mini${zone.solo ? ' s-on' : ''}`}
+          aria-pressed={!!zone.solo}
+          aria-label="Solo pad"
+          onClick={() => commit({ solo: !zone.solo })}
+        >
+          S
+        </button>
+        <button
+          className="btn"
+          data-testid="pad-preview"
+          onClick={() => preview(track.id, zone.keyLo)}
+        >
+          Preview
+        </button>
+        <span className="grow" />
+        <button
+          className="th-mini"
+          title="Remove pad"
+          aria-label="Remove pad"
+          onClick={() => {
+            store.getState().removeSamplerZones(track.id, [zone.id]);
+            onRemoved();
+          }}
+        >
+          ×
+        </button>
+      </div>
+      <div className="smp-row">
+        <div className="syn-knobs">
+          <ParamKnob
+            label="Level"
+            norm={clamp(zone.gain / 2, 0, 1)}
+            onNorm={(n) => upd({ gain: Math.round(n * 2 * 100) / 100 })}
+            display={`${Math.round(zone.gain * 100)}%`}
+            size={34}
+            onGestureStart={beginKnob}
+            onGestureEnd={endKnob}
+          />
+          <ParamKnob
+            label="Pan"
+            norm={(zone.pan + 1) / 2}
+            onNorm={(n) => upd({ pan: Math.round((n * 2 - 1) * 100) / 100 })}
+            display={
+              zone.pan === 0
+                ? 'C'
+                : `${Math.abs(Math.round(zone.pan * 100))}${zone.pan < 0 ? 'L' : 'R'}`
+            }
+            size={34}
+            onGestureStart={beginKnob}
+            onGestureEnd={endKnob}
+          />
+        </div>
+        <label>
+          Tune
+          <input
+            type="number"
+            min={-24}
+            max={24}
+            value={zone.tuneCoarse}
+            onChange={(e) => upd({ tuneCoarse: num(e.target.value, 0) })}
+            aria-label="Pad tune (semitones)"
+          />
+          st
+          <input
+            type="number"
+            min={-100}
+            max={100}
+            value={zone.tuneFine}
+            onChange={(e) => upd({ tuneFine: num(e.target.value, 0) })}
+            aria-label="Pad fine tune (cents)"
+          />
+          ct
+          {/* A pad does not key-track, so tune is the whole of its playback
+              rate — quoting the rate is what tells a −12 from a half-speed. */}
+          <span className="hint t-num">{zonePlaybackRate(zone, zone.rootNote).toFixed(2)}×</span>
+        </label>
+        <button
+          className={`th-mini wide${zone.oneShot ? ' on' : ''}`}
+          aria-pressed={zone.oneShot}
+          onClick={() => commit({ oneShot: !zone.oneShot })}
+          title="One-shot: play the window out, ignore note-off"
+          data-testid="pad-oneshot"
+        >
+          1SHOT
+        </button>
+        <button
+          className={`th-mini wide${zone.reverse ? ' on' : ''}`}
+          aria-pressed={zone.reverse}
+          onClick={() => commit({ reverse: !zone.reverse })}
+          title="Reverse playback"
+          data-testid="pad-reverse"
+        >
+          REV
+        </button>
+        <button
+          className="btn"
+          title="Set this pad's level so its window peaks at -0.3 dBFS"
+          onClick={() => {
+            if (!buf) {
+              ui.getState().toast('error', 'Start audio once so the sample can be decoded.');
+              return;
+            }
+            const gain = normalizedGain(zone, buf);
+            if (gain !== null) commit({ gain });
+          }}
+        >
+          Normalize
+        </button>
+        <label>
+          Choke
+          <select
+            value={zone.chokeGroup ?? 0}
+            aria-label="Choke group (0 = none)"
+            onChange={(e) => {
+              const g = num(e.target.value, 0);
+              commit({ chokeGroup: g > 0 ? g : undefined });
+            }}
+          >
+            <option value={0}>Off</option>
+            {PAD_GROUPS.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Round robin
+          <select
+            value={zone.rrGroup ?? 0}
+            aria-label="Round-robin group (0 = none)"
+            onChange={(e) => {
+              const g = num(e.target.value, 0);
+              commit({ rrGroup: g > 0 ? g : undefined });
+            }}
+          >
+            <option value={0}>Off</option>
+            {PAD_GROUPS.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+    </>
+  );
+}
+
+/**
+ * The drum rack's face.
+ *
+ * Pads first and widest, because the reference's rule for a drum machine is
+ * that the pad grid IS the face; the editor under it is one editor pointed at
+ * whichever pad was last struck, so a rack of a hundred pads still has exactly
+ * one set of controls.
+ */
 function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
   const store = useProjectStore;
   const [selected, setSelected] = useState<string | null>(null);
-  const [padCount, setPadCount] = useState(16);
+  const [padCount, setPadCount] = useState(PAD_BANK);
+  const [over, setOver] = useState<number | null>(null);
+  const tick = usePadEnvelopes(params.zones);
   const byIndex = useMemo(() => {
     const m = new Map<number, SampleZone>();
     for (const z of params.zones) {
@@ -486,216 +958,93 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
     }
     return m;
   }, [params.zones]);
-  const maxIndex = Math.max(15, ...[...byIndex.keys()]);
+  const maxIndex = Math.max(PAD_BANK - 1, ...[...byIndex.keys()]);
   const count = Math.min(MAX_DRUM_PADS, Math.max(padCount, maxIndex + 1));
   const sel = params.zones.find((z) => z.id === selected) ?? null;
   const anySolo = params.zones.some((z) => z.solo);
+  // Stable, so a pad that changed nothing is not re-rendered by its callbacks.
+  const onSelect = useCallback((id: string) => setSelected(id), []);
+  const onOver = useCallback((i: number | null) => setOver(i), []);
 
   return (
-    <div className="smp-drum" data-testid="smp-drum">
-      <div className="pad-grid" data-testid="pad-grid">
-        {Array.from({ length: count }, (_, i) => {
-          const z = byIndex.get(i);
-          const key = DRUM_PAD_BASE + i;
-          // A pad that will not sound reads as switched off, not as disabled:
-          // the zone matcher drops muted zones, and un-soloed ones whenever
-          // anything is soloed.
-          const silenced = !!z && (z.muted || (anySolo && !z.solo));
-          const trigger = (velocity: number) => {
-            if (!z) return;
-            setSelected(z.id);
-            preview(track.id, key, velocity);
-          };
-          return (
-            <div
-              key={i}
-              className={`pad${z ? '' : ' empty'}${z && z.id === selected ? ' selected' : ''}${
-                silenced ? ' muted' : ''
-              }`}
-              style={
-                z?.color
-                  ? ({ ['--pad-color' as string]: z.color } as React.CSSProperties)
-                  : undefined
-              }
-              data-testid={`pad-${i}`}
-              role="button"
-              tabIndex={z ? 0 : -1}
-              aria-label={
-                z
-                  ? `Pad ${i + 1}: ${z.name} (${midiToName(key)})${silenced ? ', silent' : ''}`
-                  : `Empty pad ${i + 1}`
-              }
-              onClick={(e) => trigger(padVelocity(e))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  trigger(110);
-                }
-              }}
-              onDragOver={(e) => {
-                if (e.dataTransfer.types.includes('text/x-ml-media')) e.preventDefault();
-              }}
-              onDrop={(e) => {
-                const id = droppedMediaId(e);
-                if (!id) return;
-                e.preventDefault();
-                store.getState().assignPad(track.id, i, id, id.replace(/^hit-/, ''));
-              }}
-              title={
-                z
-                  ? `${z.name} — strike low for soft, high for hard; drop a sample to replace`
-                  : 'Drop a sample here'
-              }
+    <>
+      <InstrumentSection
+        title="Pads"
+        full
+        testId="smp-drum"
+        aside={`${byIndex.size} of ${count} loaded`}
+      >
+        {/* The bank and its own controls sit on one line: the grid holds the
+            shape it needs and the controls take the room beside it, rather
+            than a line under it and a gap after it. */}
+        <div className="pad-bank">
+          <div
+            className={`pad-grid${count <= PAD_BANK ? ' square' : ''}`}
+            data-testid="pad-grid"
+            role="group"
+            aria-label="Drum pads"
+          >
+            {Array.from({ length: count }, (_, i) => {
+              const z = byIndex.get(i);
+              return (
+                <Pad
+                  key={i}
+                  index={i}
+                  trackId={track.id}
+                  zone={z}
+                  tick={tick}
+                  // A pad that will not sound reads as switched off, not as
+                  // disabled: the zone matcher drops muted zones, and un-soloed
+                  // ones whenever anything is soloed.
+                  silenced={!!z && (!!z.muted || (anySolo && !z.solo))}
+                  selected={!!z && z.id === selected}
+                  over={over === i}
+                  onSelect={onSelect}
+                  onOver={onOver}
+                />
+              );
+            })}
+          </div>
+          <div className="smp-row pad-bank-tools">
+            <button
+              className="btn"
+              onClick={() => setPadCount((c) => Math.min(MAX_DRUM_PADS, c + 8))}
+              disabled={count >= MAX_DRUM_PADS}
+              title={`Show eight more pads (${MAX_DRUM_PADS} is every key a pad can reach)`}
             >
-              <span className="pad-index t-num">{i + 1}</span>
-              {z?.chokeGroup !== undefined && (
-                <span className="pad-choke t-num" title={`Choke group ${z.chokeGroup}`}>
-                  C{z.chokeGroup}
-                </span>
-              )}
-              <span className="pad-name">{z?.name ?? '—'}</span>
-              <span className="pad-key mono">{midiToName(key)}</span>
-            </div>
-          );
-        })}
-      </div>
-      <div className="smp-row">
-        <button className="btn" onClick={() => setPadCount((c) => Math.min(MAX_DRUM_PADS, c + 8))}>
-          + 8 pads
-        </button>
-        <button
-          className="btn"
-          onClick={() => store.getState().applySamplerPreset(track.id, buildDrumKit())}
-          data-testid="load-kit"
-        >
-          Load 808-ish kit
-        </button>
-        <span className="hint">Strike a pad low for soft, high for hard.</span>
-      </div>
-      {sel && (
-        <div className="smp-row pad-detail" data-testid="pad-detail">
-          <input
-            type="text"
-            value={sel.name}
-            onChange={(e) =>
-              store
-                .getState()
-                .updateSamplerZones(track.id, [sel.id], () => ({ name: e.target.value }))
-            }
-            aria-label="Pad name"
-            style={{ width: 90 }}
-          />
-          <select
-            value={sel.color ?? TRACK_COLORS[0]}
-            onChange={(e) =>
-              store
-                .getState()
-                .updateSamplerZones(track.id, [sel.id], () => ({ color: e.target.value }))
-            }
-            aria-label="Pad color"
-          >
-            {TRACK_COLORS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <button
-            className={`th-mini${sel.muted ? ' m-on' : ''}`}
-            aria-pressed={!!sel.muted}
-            aria-label="Mute pad"
-            onClick={() =>
-              store.getState().updateSamplerZones(track.id, [sel.id], (z) => ({ muted: !z.muted }))
-            }
-          >
-            M
-          </button>
-          <button
-            className={`th-mini${sel.solo ? ' s-on' : ''}`}
-            aria-pressed={!!sel.solo}
-            aria-label="Solo pad"
-            onClick={() =>
-              store.getState().updateSamplerZones(track.id, [sel.id], (z) => ({ solo: !z.solo }))
-            }
-          >
-            S
-          </button>
-          <ParamKnob
-            label="Gain"
-            norm={clamp(sel.gain / 2, 0, 1)}
-            onNorm={(n) =>
-              store.getState().updateSamplerZones(track.id, [sel.id], () => ({
-                gain: Math.round(n * 2 * 100) / 100,
-              }))
-            }
-            display={`${Math.round(sel.gain * 100)}%`}
-            size={34}
-            onGestureStart={beginKnob}
-            onGestureEnd={endKnob}
-          />
-          <ParamKnob
-            label="Pan"
-            norm={(sel.pan + 1) / 2}
-            onNorm={(n) =>
-              store.getState().updateSamplerZones(track.id, [sel.id], () => ({
-                pan: Math.round((n * 2 - 1) * 100) / 100,
-              }))
-            }
-            display={
-              sel.pan === 0
-                ? 'C'
-                : `${Math.abs(Math.round(sel.pan * 100))}${sel.pan < 0 ? 'L' : 'R'}`
-            }
-            size={34}
-            onGestureStart={beginKnob}
-            onGestureEnd={endKnob}
-          />
-          <label>
-            Pitch
-            <input
-              type="number"
-              min={-24}
-              max={24}
-              value={sel.tuneCoarse}
-              onChange={(e) =>
-                store.getState().updateSamplerZones(track.id, [sel.id], () => ({
-                  tuneCoarse: num(e.target.value, 0),
-                }))
-              }
-              aria-label="Pad pitch (semitones)"
-            />
-            <span className="hint t-num">{zonePlaybackRate(sel, sel.rootNote).toFixed(2)}×</span>
-          </label>
-          <label>
-            Choke
-            <input
-              type="number"
-              min={0}
-              max={8}
-              value={sel.chokeGroup ?? 0}
-              onChange={(e) => {
-                const g = num(e.target.value, 0);
-                store.getState().updateSamplerZones(track.id, [sel.id], () => ({
-                  chokeGroup: g > 0 ? g : undefined,
-                }));
-              }}
-              aria-label="Choke group (0 = none)"
-            />
-          </label>
-          <button
-            className="th-mini"
-            title="Remove pad"
-            aria-label="Remove pad"
-            onClick={() => {
-              store.getState().removeSamplerZones(track.id, [sel.id]);
-              setSelected(null);
-            }}
-          >
-            ×
-          </button>
+              + 8 pads
+            </button>
+            <button
+              className="btn"
+              onClick={() => store.getState().applySamplerPreset(track.id, buildDrumKit())}
+              data-testid="load-kit"
+            >
+              Load 808-ish kit
+            </button>
+            <span className="hint">
+              Strike a pad low for soft, high for hard; drop a sample from the Browser onto a pad to
+              load it.
+            </span>
+          </div>
         </div>
-      )}
-    </div>
+      </InstrumentSection>
+
+      <InstrumentSection
+        title="Pad"
+        full
+        aside={sel ? `${sel.name} · ${midiToName(sel.keyLo)}` : 'nothing selected'}
+      >
+        <div className="pad-detail" data-testid="pad-detail">
+          {sel ? (
+            <PadEditor track={track} zone={sel} onRemoved={() => setSelected(null)} />
+          ) : (
+            <div className="hint">
+              Strike a pad to bring its sample, level, tune, choke and round-robin group here.
+            </div>
+          )}
+        </div>
+      </InstrumentSection>
+    </>
   );
 }
 
@@ -1338,11 +1687,11 @@ export function SamplerPanel({ track, performMode }: { track: Track; performMode
       {!hasRack && params && (
         <div className="ins-sections">
           {params.view === 'quick' && <QuickView track={track} params={params} />}
-          {params.view === 'drum' && (
-            <InstrumentSection title="Pads" wide aside={`${params.zones.length} assigned`}>
-              <DrumView track={track} params={params} />
-            </InstrumentSection>
-          )}
+          {/* The drum rack brings its own two sections: the pad grid takes the
+              whole row, because the reference's rule is that the performance
+              surface is the largest element on the face and everything else is
+              the tail. */}
+          {params.view === 'drum' && <DrumView track={track} params={params} />}
           {params.view === 'multi' && <MultiView track={track} params={params} />}
           <VoiceSections track={track} params={params} />
         </div>

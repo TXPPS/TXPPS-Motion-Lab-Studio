@@ -10,9 +10,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { SynthPanel } from '../../src/components/synth/SynthPanel';
 import { createEmptyProject } from '../../src/model/demoProject';
-import { buildDrumKit, makeZone } from '../../src/model/sampler';
+import { buildDrumKit, makeZone, DRUM_PAD_BASE } from '../../src/model/sampler';
 import type { SamplerParams } from '../../src/model/sampler';
 import { synthVoiceFilter } from '../../src/model/synthFace';
+import { TRACK_COLORS } from '../../src/model/types';
 import { useProjectStore } from '../../src/state/projectStore';
 import { useUiStore } from '../../src/state/uiStore';
 import { engineStub } from '../setup.tsx';
@@ -115,10 +116,75 @@ describe('MotionSynth', () => {
   it('draws the oscillator the voice is set to, and switches with it', () => {
     const id = setup();
     render(<SynthPanel />);
-    expect(screen.getByLabelText(/Oscillator waveform/)).toHaveAccessibleName(/sawtooth|triangle/);
-    fireEvent.click(screen.getByTitle('Square'));
-    expect(trackOf(id).synth!.waveform).toBe('square');
-    expect(screen.getByLabelText(/Oscillator waveform/)).toHaveAccessibleName(/square/);
+    fireEvent.click(screen.getByTitle('Triangle'));
+    expect(trackOf(id).synth!.waveform).toBe('triangle');
+    expect(screen.getByLabelText(/^Oscillator:/)).toHaveAccessibleName(/Triangle/);
+  });
+
+  /**
+   * The morph is one control where a four-way selector used to be, so the two
+   * things worth pinning are that moving it reaches the stored patch and that
+   * the picture follows — the ends of its travel are the saw and the square the
+   * selector used to have buttons for.
+   */
+  it('morphs the oscillator from saw to square on one control', () => {
+    const id = setup();
+    useProjectStore.getState().setSynthParams(id, { waveform: 'sawtooth', shape: 0 });
+    render(<SynthPanel />);
+    expect(screen.getByLabelText(/^Oscillator:/)).toHaveAccessibleName(/Sawtooth/);
+
+    const shape = screen.getByRole('slider', { name: 'Shape' });
+    fireEvent.keyDown(shape, { key: 'ArrowUp' });
+    expect(trackOf(id).synth!.shape).toBeCloseTo(0.05, 6);
+    for (let i = 0; i < 25; i++) fireEvent.keyDown(shape, { key: 'ArrowUp' });
+    expect(trackOf(id).synth!.shape).toBe(1);
+    expect(screen.getByLabelText(/^Oscillator:/)).toHaveAccessibleName(/Pulse 50%/);
+  });
+
+  /**
+   * A patch stored before the morph existed keeps the oscillator it had. The
+   * square is the interesting one: it reads as the top of the morph's travel,
+   * so the control shows it there, but nothing is written until the knob is
+   * moved and the voice goes on building the built-in wave.
+   */
+  it('leaves a patch written before the morph alone until it is touched', () => {
+    const id = setup();
+    useProjectStore.getState().setSynthParams(id, { waveform: 'square' });
+    render(<SynthPanel />);
+
+    expect(trackOf(id).synth!.shape).toBeUndefined();
+    expect(screen.getByRole('slider', { name: 'Shape' })).toHaveAttribute('aria-valuetext', 'Square');
+    expect(screen.getByLabelText(/^Oscillator:/)).toHaveAccessibleName(/Square/);
+    // And the family it belongs to is the one that is lit.
+    expect(screen.getByTitle('Saw to square')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('draws the sub and the width sweep the voice builds, and says so', () => {
+    const id = setup();
+    useProjectStore
+      .getState()
+      .setSynthParams(id, { waveform: 'sawtooth', shape: 1, pulseWidth: 0.5, subLevel: 0.6 });
+    render(<SynthPanel />);
+    expect(screen.getByLabelText(/^Oscillator:/)).toHaveAccessibleName(
+      /sub an octave down at 60%/,
+    );
+    // No modulator yet, so the panel says the voice builds none.
+    expect(screen.getByTestId('syn-lfo-off')).toBeInTheDocument();
+
+    act(() => useProjectStore.getState().setSynthParams(id, { lfoToWidth: 1 }));
+    expect(screen.getByLabelText(/^Oscillator:/)).toHaveAccessibleName(/width swept 10% to 90%/);
+    expect(screen.getByTestId('syn-lfo')).toBeInTheDocument();
+  });
+
+  it('shades the band the modulator sweeps the filter through', () => {
+    const id = setup();
+    useProjectStore.getState().setSynthParams(id, { cutoff: 2000, lfoToFilter: 0.5 });
+    render(<SynthPanel />);
+    const sweep = screen.getByTestId('syn-filter').querySelector('rect');
+    // Half the cutoff at half depth: 1500 Hz to 2500 Hz, and the rect starts
+    // left of the corner and ends right of it.
+    expect(sweep).not.toBeNull();
+    expect(Number(sweep!.getAttribute('width'))).toBeGreaterThan(0);
   });
 
   it('parks a patch in the other A/B slot and brings it back', () => {
@@ -340,6 +406,149 @@ describe('the drum rack', () => {
     expect(screen.getByTestId('pad-0')).toHaveAccessibleName(/silent/);
     expect(screen.getByTestId('pad-1')).not.toHaveAccessibleName(/silent/);
     expect(trackOf(id).sampler!.zones[1].solo).toBe(true);
+  });
+
+  it('opens as one bank of sixteen and grows on request', () => {
+    drumTrack();
+    render(<SynthPanel />);
+    const grid = screen.getByTestId('pad-grid');
+    // The reference's grid is a 4×4 of sixteen; `square` is what holds that
+    // shape, and a rack that has grown past one bank gives it up.
+    expect(within(grid).getAllByRole('button')).toHaveLength(16);
+    expect(grid).toHaveClass('square');
+    // Tabbing through a rack stops on the pads that make a sound.
+    expect(screen.getByTestId('pad-0')).toHaveAttribute('tabindex', '0');
+    expect(screen.getByTestId('pad-12')).toHaveAttribute('tabindex', '-1');
+
+    fireEvent.click(screen.getByText('+ 8 pads'));
+    expect(within(screen.getByTestId('pad-grid')).getAllByRole('button')).toHaveLength(24);
+    expect(screen.getByTestId('pad-grid')).not.toHaveClass('square');
+  });
+
+  it('draws the hit each pad plays, and nothing on a pad with no sample', () => {
+    drumTrack();
+    render(<SynthPanel />);
+    // The envelope is the media library's own, which is what makes the grid a
+    // sample map rather than sixteen labelled buttons.
+    expect(screen.getByTestId('pad-0').querySelector('svg.pad-wave')).toBeInTheDocument();
+    // An empty pad has no sound to draw, and a flat line would claim it has a
+    // silent one.
+    expect(screen.getByTestId('pad-12').querySelector('svg.pad-wave')).toBeNull();
+  });
+
+  it('swaps the one editor to whichever pad was struck', () => {
+    const id = drumTrack();
+    render(<SynthPanel />);
+    // Nothing is selected until a pad is played, so there is nothing to edit.
+    expect(screen.queryByLabelText('Pad name')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('pad-1'));
+    expect(screen.getByLabelText('Pad name')).toHaveValue('Snare');
+    fireEvent.click(screen.getByTestId('pad-3'));
+    expect(screen.getByLabelText('Pad name')).toHaveValue('Hat');
+    // One editor re-pointed, not one editor per pad: the fifteen pads that are
+    // not selected have no controls of their own to go stale.
+    expect(screen.getAllByLabelText('Pad name')).toHaveLength(1);
+    expect(trackOf(id).sampler!.zones[3].name).toBe('Hat');
+  });
+
+  it('reaches the selected pad from every control in its editor', () => {
+    const id = drumTrack();
+    render(<SynthPanel />);
+    fireEvent.click(screen.getByTestId('pad-0'));
+
+    fireEvent.change(screen.getByLabelText('Pad tune (semitones)'), { target: { value: '-5' } });
+    fireEvent.change(screen.getByLabelText('Pad fine tune (cents)'), { target: { value: '-14' } });
+    fireEvent.click(screen.getByTestId('pad-reverse'));
+    fireEvent.click(screen.getByTestId('pad-oneshot'));
+    fireEvent.change(screen.getByLabelText('Round-robin group (0 = none)'), {
+      target: { value: '3' },
+    });
+    fireEvent.change(screen.getByLabelText('Choke group (0 = none)'), { target: { value: '2' } });
+    fireEvent.click(screen.getByLabelText('Pad color violet'));
+
+    const kick = trackOf(id).sampler!.zones[0];
+    expect(kick.tuneCoarse).toBe(-5);
+    expect(kick.tuneFine).toBe(-14);
+    expect(kick.reverse).toBe(true);
+    // The 808-ish kit's pads are one-shots, so this switched it off.
+    expect(kick.oneShot).toBe(false);
+    expect(kick.rrGroup).toBe(3);
+    expect(kick.chokeGroup).toBe(2);
+    expect(kick.color).toBe(TRACK_COLORS[2]);
+
+    // Zero is "in no group" rather than group zero, which the zone matcher
+    // would read as a real group and choke every other ungrouped pad with.
+    fireEvent.change(screen.getByLabelText('Choke group (0 = none)'), { target: { value: '0' } });
+    expect(trackOf(id).sampler!.zones[0].chokeGroup).toBeUndefined();
+  });
+
+  it('trims the selected pad on its own waveform, by pointer and by key', () => {
+    const id = drumTrack();
+    render(<SynthPanel />);
+    fireEvent.click(screen.getByTestId('pad-2'));
+
+    const start = screen.getByTestId('smp-trim-start');
+    expect(start).toHaveAttribute('role', 'slider');
+    fireEvent.keyDown(start, { key: 'ArrowRight' });
+    expect(trackOf(id).sampler!.zones[2].startSec).toBeCloseTo(0.01, 6);
+
+    drag(screen.getByTestId('smp-trim-end'), -30, 0);
+    const clap = trackOf(id).sampler!.zones[2];
+    expect(clap.endSec, 'the end marker moved in off the end of the sample').toBeLessThan(
+      clap.startSec + 1,
+    );
+    // And the trim reached this pad only.
+    expect(trackOf(id).sampler!.zones[0].startSec).toBe(0);
+  });
+
+  it('flags mute and solo on the pad itself, not only in the editor', () => {
+    const id = drumTrack();
+    render(<SynthPanel />);
+    fireEvent.click(screen.getByTestId('pad-2'));
+    fireEvent.click(screen.getByLabelText('Mute pad'));
+
+    // The state of a pad you are not editing is readable from the pad: the
+    // editor holds the controls, the grid holds the lamps.
+    expect(within(screen.getByTestId('pad-2')).getByTitle('Muted')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('pad-0'));
+    expect(screen.getByLabelText('Pad name')).toHaveValue('Kick');
+    expect(within(screen.getByTestId('pad-2')).getByTitle('Muted')).toBeInTheDocument();
+    expect(trackOf(id).sampler!.zones[2].muted).toBe(true);
+  });
+
+  it('makes one switch on a pad one step of undo', () => {
+    const id = drumTrack();
+    render(<SynthPanel />);
+    fireEvent.click(screen.getByTestId('pad-0'));
+    fireEvent.click(screen.getByLabelText('Mute pad'));
+    expect(trackOf(id).sampler!.zones[0].muted).toBe(true);
+
+    // Zone edits are non-undoable so a marker drag cannot fill the stack; a
+    // discrete switch has to put its own gesture around one, or Ctrl+Z skips
+    // straight past it to whatever happened before the pad was touched.
+    act(() => useProjectStore.getState().undo());
+    expect(trackOf(id).sampler!.zones[0].muted).toBeFalsy();
+  });
+
+  it('assigns a pad from a sample dropped on it, and says which pad first', () => {
+    const id = drumTrack();
+    render(<SynthPanel />);
+    const data = new Map([['text/x-ml-media', 'hit-clap']]);
+    const dataTransfer = {
+      getData: (k: string) => data.get(k) ?? '',
+      types: ['text/x-ml-media'],
+    };
+    const pad = screen.getByTestId('pad-11');
+
+    fireEvent.dragOver(pad, { dataTransfer });
+    expect(pad, 'the pad about to take the drop lights before the release').toHaveClass('over');
+    fireEvent.drop(pad, { dataTransfer });
+
+    const dropped = trackOf(id).sampler!.zones.find((z) => z.keyLo === DRUM_PAD_BASE + 11);
+    expect(dropped?.mediaId).toBe('hit-clap');
+    expect(screen.getByTestId('pad-11')).toHaveAccessibleName('Pad 12: clap (B1)');
+    expect(screen.getByTestId('pad-11')).not.toHaveClass('over');
   });
 });
 

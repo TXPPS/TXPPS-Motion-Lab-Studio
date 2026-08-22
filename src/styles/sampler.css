@@ -143,22 +143,67 @@
  * hand-written two-stop gradient and a 1px border, which is a web card with a
  * coloured edge; the gradient is now the one the whole product's controls
  * share, so a pad, a knob cap and a fader cap are visibly the same material.
+ *
+ * The grid is the face: it takes a whole row of the instrument's section flow
+ * and everything else is the tail, which is §2.7's density contrast applied to
+ * an instrument — the surface you play is content and gets the room, the rows
+ * under it are chrome and stay dense.
  */
+/*
+ * The bank and its own controls on one line. The grid holds the shape it needs
+ * (see `.square` below) and the controls take the room beside it; below a pane
+ * wide enough for both they wrap under it, which is the phone layout.
+ */
+.pad-bank {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--sp-4);
+}
+.pad-bank .pad-grid {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.pad-bank-tools {
+  flex: 1 1 calc(240px * var(--ui-scale));
+  align-items: flex-start;
+}
 .pad-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
-  gap: var(--sp-1);
-  padding: var(--sp-1);
+  /* A pad has a size: it is something you hit, not a cell of a table. 148px is
+     the width the classic kit's pads already are, so the two pad banks in one
+     product are the same object at the same scale rather than two guesses. */
+  grid-template-columns: repeat(auto-fill, minmax(calc(148px * var(--ui-scale)), 1fr));
+  gap: var(--sp-2);
+  padding: var(--sp-2);
   border-radius: var(--radius);
   background: var(--bg-well);
   box-shadow: var(--sh-well);
-  max-width: 780px;
+  /* A hundred pads is a supported rack — `Slices → pads` builds sixty-four in
+     one press — so the grid scrolls inside its own section rather than pushing
+     the pad editor a screen and a half below the pads it belongs to. Four rows
+     of pads clear this height, which is the whole of the default sixteen. */
+  max-height: calc(452px * var(--ui-scale));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* Sixteen pads are drawn as the reference's 4×4 square: exactly four minimum
+   columns, three gaps and the well's own two edges wide, so the grid keeps its
+   shape whatever width the editor pane is dragged to. That is the point of the
+   cap rather than fidelity to the reference — a pad that moves to a different
+   row when the panel is resized costs the player the one thing a pad bank is
+   for, which is knowing where the snare is without looking. A rack that has
+   grown past one bank gives the shape up and fills the row, because four
+   columns of a hundred pads is a column, not a face. */
+.pad-grid.square {
+  max-width: calc(148px * 4 * var(--ui-scale) + var(--sp-2) * 5);
 }
 .pad-grid .pad {
   position: relative;
-  aspect-ratio: auto;
-  min-height: calc(58px * var(--ui-scale));
-  padding: var(--sp-3) var(--sp-2) var(--sp-2);
+  min-height: calc(96px * var(--ui-scale));
+  min-width: 0;
+  /* Two extra pixels at the top so the name clears the colour rail. */
+  padding: calc(var(--sp-2) + 2px) var(--sp-2) var(--sp-2);
   border-radius: var(--radius);
   background: var(--grad-cap);
   border: none;
@@ -167,12 +212,29 @@
     var(--sh-2);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: var(--sp-1);
+  /* Left-aligned, so the names form a column that can be scanned (§2.11.10):
+     a centred name over a centred key over a centred number is the "three
+     cards in a row" instinct applied to a drum machine. */
+  text-align: left;
   color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
   cursor: pointer;
   overflow: hidden;
+  user-select: none;
+  touch-action: none;
+}
+/* The ring is a shadow everywhere in this product, and a class selector
+   outranks the bare `:focus-visible` in base.css, so a pad that draws its own
+   material has to pay it back by hand — keeping its colour rail, which is the
+   one thing that identifies which pad has the focus. */
+.pad-grid .pad:focus-visible {
+  box-shadow:
+    inset 0 3px 0 var(--pad-color, var(--edge-hi)),
+    var(--sh-focus);
 }
 /* An empty pad is the bare rail, not a dashed rectangle (§2.11.9). */
 .pad-grid .pad.empty {
@@ -181,7 +243,18 @@
   color: var(--text-faint);
   cursor: default;
 }
-/* Selection is a musical selection: yellow, like every other one. */
+/* A drop target is a well that lights up (§2.11.9), and chrome selection is a
+   lighter surface rather than a colour (§2.1) — a dragged sample must say
+   which pad it is about to land on before the pointer is released, and this is
+   the only feedback that ever existed for it. */
+.pad-grid .pad.over {
+  background: var(--bg-active);
+  box-shadow:
+    inset 0 3px 0 var(--pad-color, var(--edge-hi)),
+    var(--sh-pressed);
+  color: var(--text);
+}
+/* Selection is a musical selection: yellow, like every other one (§2.1). */
 .pad-grid .pad.selected {
   outline: 2px solid var(--solo);
   outline-offset: -2px;
@@ -202,40 +275,97 @@
   box-shadow: var(--ml-lamp-on);
   color: var(--lamp-ink);
 }
-/* The three readouts sit on the cap gradient, which is a much lighter ground
-   than the hand-written one they used to have: --text-faint measures 3.55:1
-   against it and --text-dim 5.47:1. A pad's own number has to be readable at a
-   glance from across a desk, so it takes the higher one. */
-.pad-grid .pad .pad-index {
-  position: absolute;
-  top: 2px;
-  left: 4px;
-  font-size: var(--fs-2xs);
-  color: var(--text-dim);
+
+/* Name and number across the top, the hit under them, what the pad is doing
+   along the bottom — the same three-part pad the classic kit already draws. */
+.pad-grid .pad-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
 }
-.pad-grid .pad .pad-choke {
-  position: absolute;
-  top: 2px;
-  right: 4px;
+/* The readouts sit on the cap gradient: --text-faint measures 3.55:1 against
+   it and --text-dim 5.47:1, so the name — the thing you actually read a pad by
+   — takes the higher one and the index and key take the lower. */
+.pad-grid .pad-index {
+  flex: none;
   font-size: var(--fs-2xs);
-  color: var(--text-dim);
+  color: var(--text-faint);
 }
-.pad-grid .pad .pad-name {
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
-  max-width: 100%;
+.pad-grid .pad-name {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pad-grid .pad .pad-key {
-  font-size: var(--fs-2xs);
-  color: var(--text-dim);
+/* The hit itself, taking whatever the head and the state line leave.
+   `min-height: 0` is what stops the SVG's intrinsic ratio from setting the
+   pad's height; the floor keeps a shape visible on a phone-sized pad. */
+.pad-grid .pad-wave {
+  flex: 1 1 auto;
+  min-height: calc(18px * var(--ui-scale));
 }
+.pad-grid .pad:active:not(.empty) .pad-wave path {
+  fill: var(--lamp-ink);
+}
+.pad-grid .pad-foot {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  /* Pinned to the bottom edge, because an empty pad has no envelope to push it
+     there and its key would otherwise float halfway up a pad-shaped hole. */
+  margin-top: auto;
+}
+.pad-grid .pad-key {
+  flex: none;
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+/*
+ * What a pad is doing, read without selecting it: silenced, soloed, choked,
+ * or one voice of a round-robin. These are lamps, not controls — the controls
+ * are in the one pad editor below — so mute is blue and solo is yellow, the
+ * one colour convention in audio that is genuinely universal (§2.1).
+ */
+.pad-flag {
+  flex: none;
+  padding: 0 3px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-input);
+  color: var(--text-faint);
+  font-family: var(--font-cond);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+}
+.pad-flag.m {
+  background: var(--mute-lamp);
+  color: var(--lamp-ink);
+}
+.pad-flag.s {
+  background: var(--solo-lamp);
+  color: var(--lamp-ink);
+}
+
+/* One pad editor, re-pointed by which pad was last struck. Its rows stack so
+   the waveform gets the section's full width — start and end markers are
+   dragged against it, and a 200px waveform is not a thing you can trim. */
 .pad-detail {
-  box-shadow: var(--ml-seam-t);
-  margin-top: var(--sp-2);
-  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.pad-detail .color-swatches {
+  padding: 0;
+}
+/* `.ins-section .btn` pins a command button to the top of its section, which is
+   right where the buttons sit above a display and wrong in a row built around
+   knobs — it left Normalize floating a knob's height above the controls it
+   belongs with. */
+.pad-detail .smp-row .btn {
+  align-self: center;
 }
 
 /* Multisample zone list */

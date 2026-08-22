@@ -33,6 +33,7 @@ import type { RackItem, Track } from '../src/model/types';
 const SRC = join(__dirname, '..', 'src');
 const synthSrc = readFileSync(join(SRC, 'audio/synth.ts'), 'utf8');
 const samplerSrc = readFileSync(join(SRC, 'audio/samplerInstrument.ts'), 'utf8');
+const faceSrc = readFileSync(join(SRC, 'model/synthFace.ts'), 'utf8');
 const engineSrc = readFileSync(join(SRC, 'audio/engine.ts'), 'utf8');
 const exportSrc = readFileSync(join(SRC, 'audio/exportMix.ts'), 'utf8');
 
@@ -52,10 +53,21 @@ function classBody(source: string, name: string): string {
  * What each instrument reads. `PolySynth` holds no parameters of its own —
  * `Voice` reads them, one voice per note — so the two are one surface, and
  * splitting them here would let a parameter only `Voice` touches read as dead.
+ *
+ * `model/synthFace.ts` is part of that same surface, and the test below checks
+ * that it is: `Voice` builds its filter, its oscillator morph, its sub, its
+ * glide and its modulator by handing that module its parameters and using what
+ * comes back, which is the whole point of the module — the picture and the
+ * audio must come from one evaluation. Reading the fields out again in the
+ * voice so a text search could find them there would be the second opinion
+ * that arrangement exists to prevent. What this file guards is unchanged: a
+ * key that no file in the voice's own path mentions is proven to be read by
+ * nothing. `tests/synthFace.test.ts` is what proves the descriptors are not
+ * merely mentioned but assigned to the nodes.
  */
 const INSTRUMENT_SOURCE: Record<InstrumentName, string> = {
   DrumKit: classBody(synthSrc, 'DrumKit'),
-  PolySynth: `${classBody(synthSrc, 'PolySynth')}\n${classBody(synthSrc, 'Voice')}`,
+  PolySynth: `${classBody(synthSrc, 'PolySynth')}\n${classBody(synthSrc, 'Voice')}\n${faceSrc}`,
   SamplerInstrument: classBody(samplerSrc, 'SamplerInstrument'),
   // A rack plays its children, each with its own params; it never looks at the
   // track's `synth` or `sampler` at all, so nothing may be offered against it.
@@ -195,14 +207,40 @@ describe('a classic drum kit offers the one lane it can honour', () => {
     expect(instrumentLanes(kitTrack).map((p) => p.id)).toEqual(['synth:volume']);
   });
 
-  it('leaves the poly synth with all five', () => {
+  it('leaves the poly synth with the whole voice', () => {
     expect(instrumentLanes(synthTrack).map((p) => p.id)).toEqual([
       'synth:cutoff',
       'synth:resonance',
       'synth:attack',
       'synth:release',
       'synth:volume',
+      'synth:shape',
+      'synth:pulseWidth',
+      'synth:subLevel',
+      'synth:lfoRate',
+      'synth:lfoToPitch',
+      'synth:lfoToFilter',
+      'synth:lfoToWidth',
     ]);
+  });
+
+  /**
+   * The oscillator, sub and LFO lanes are only honest while the voice really
+   * does delegate to the descriptors — the moment it stops, the file above
+   * stops being evidence of anything and every one of those lanes is a curve
+   * that moves no audio.
+   */
+  it('and the poly synth still builds its voice from the descriptors', () => {
+    expect(synthSrc).toMatch(/from '\.\.\/model\/synthFace'/);
+    for (const call of [
+      'synthVoiceFilter(params, pitch)',
+      'synthOscillatorOf(params)',
+      'synthSubOf(params, pitch)',
+      'synthLfoOf(params, pitch)',
+      'synthGlideOf(params, glideFrom, pitch)',
+    ]) {
+      expect(classBody(synthSrc, 'Voice'), call).toContain(call);
+    }
   });
 
   it('leaves a drum track holding a sampler on the sampler surface', () => {

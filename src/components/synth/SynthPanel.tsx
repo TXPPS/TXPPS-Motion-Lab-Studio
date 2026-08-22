@@ -24,11 +24,23 @@ import {
   formatSeconds,
   SYNTH_CUTOFF_MAX_HZ,
   SYNTH_CUTOFF_MIN_HZ,
+  SYNTH_GLIDE_MAX_SEC,
+  SYNTH_LFO_MAX_HZ,
+  SYNTH_LFO_MIN_HZ,
+  SYNTH_LFO_PITCH_CENTS,
+  SYNTH_PW_MAX,
+  SYNTH_PW_MIN,
   SYNTH_Q_MAX_DB,
   SYNTH_Q_MIN_DB,
   SYNTH_ROOT_KEY,
   synthAmpEnvelope,
+  synthFilterSweep,
+  synthGlideSec,
+  synthLfoOf,
+  synthOscillatorOf,
+  synthSubOf,
   synthVoiceFilter,
+  synthWidthSweep,
 } from '../../model/synthFace';
 import type { SynthParams, Track, Waveform } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
@@ -40,6 +52,7 @@ import {
   EnvelopeGraph,
   FilterCurve,
   InstrumentSection,
+  LfoScope,
   OscScope,
   PadWave,
 } from '../instrument/displays';
@@ -66,12 +79,47 @@ export function useSynthTarget(): Track | null {
   }, [tracks, selId]);
 }
 
-const WAVES: { id: Waveform; short: string; name: string }[] = [
-  { id: 'sawtooth', short: 'Saw', name: 'Sawtooth' },
-  { id: 'square', short: 'Sqr', name: 'Square' },
-  { id: 'triangle', short: 'Tri', name: 'Triangle' },
-  { id: 'sine', short: 'Sin', name: 'Sine' },
+/**
+ * The oscillator's three families.
+ *
+ * The reference's mono synth has no waveform selector at all — one Shape
+ * control blends saw into square and everything between is a real wave rather
+ * than a fifth button. That is the interesting half of the range, so it becomes
+ * one continuous family here; triangle and sine stay as themselves because they
+ * are not on that axis and two of our stock patches are made of them.
+ *
+ * `waveform` is what the family writes, and it stays literally true of the
+ * node: the morph is built by subtracting a delayed copy of the sawtooth, so a
+ * morphing oscillator IS a sawtooth oscillator.
+ */
+const WAVE_FAMILIES: { id: Waveform; short: string; name: string; morphs: boolean }[] = [
+  { id: 'sawtooth', short: 'Saw–Sqr', name: 'Saw to square', morphs: true },
+  { id: 'triangle', short: 'Tri', name: 'Triangle', morphs: false },
+  { id: 'sine', short: 'Sin', name: 'Sine', morphs: false },
 ];
+
+/**
+ * Which family a patch belongs to, and where its Shape control sits.
+ *
+ * A patch saved before the morph existed has no `shape` at all, and a stored
+ * square is the top of the morph's range read a different way — so it selects
+ * the same family and parks the knob at the square end. It keeps playing the
+ * built-in square until the knob is actually moved, at which point the voice
+ * builds the pulse instead; at that end of the travel the two are the same
+ * wave.
+ */
+function familyOf(p: SynthParams): Waveform {
+  return p.waveform === 'square' ? 'sawtooth' : p.waveform;
+}
+
+function shapePosition(p: SynthParams): number {
+  return p.shape ?? (p.waveform === 'square' ? 1 : 0);
+}
+
+/** Does this patch's oscillator have a pulse for the width to be the width of? */
+function morphs(p: SynthParams): boolean {
+  return WAVE_FAMILIES.find((w) => w.id === familyOf(p))?.morphs === true;
+}
 
 /** The keys the key-tracking ghosts are drawn at: two octaves either side. */
 const GHOST_KEYS = [SYNTH_ROOT_KEY - 24, SYNTH_ROOT_KEY + 24];
@@ -211,17 +259,32 @@ function MidiSection() {
   );
 }
 
+/** How the oscillator reads: the wave, and the pulse if it has one. */
+function describeOscillator(p: SynthParams): string {
+  const osc = synthOscillatorOf(p);
+  if (!morphs(p)) return WAVE_FAMILIES.find((w) => w.id === p.waveform)?.name ?? p.waveform;
+  if (!osc.morph) return p.waveform === 'square' ? 'Square' : 'Sawtooth';
+  return osc.morph.shape >= 1
+    ? `Pulse ${Math.round(osc.morph.width * 100)}%`
+    : `Saw–Sqr ${Math.round(osc.morph.shape * 100)}% · PW ${Math.round(osc.morph.width * 100)}%`;
+}
+
 /** How the patch reads on one line, for the frame's footer. */
 function describePatch(p: SynthParams, isDrum: boolean): string {
   if (isDrum) return `Sample kit · level ${Math.round(p.volume * 100)}%`;
-  const wave = WAVES.find((w) => w.id === p.waveform)?.name ?? p.waveform;
   const filter = synthVoiceFilter(p);
+  const sub = synthSubOf(p);
+  const lfo = synthLfoOf(p);
+  const glide = synthGlideSec(p);
   return [
-    wave,
+    describeOscillator(p),
+    ...(sub ? [`Sub ${Math.round(sub.gain * 100)}%`] : []),
+    ...(glide > 0 ? [`Glide ${formatSeconds(glide)}`] : []),
     `LP ${formatHz(filter.freqHz)} · ${filter.qDb.toFixed(1)} dB`,
     `A ${formatSeconds(p.attack)} · D ${formatSeconds(p.decay)} · S ${Math.round(
       p.sustain * 100,
     )}% · R ${formatSeconds(p.release)}`,
+    ...(lfo ? [`LFO ${lfo.rateHz.toFixed(2)} Hz`] : []),
   ].join(' · ');
 }
 
@@ -266,10 +329,21 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
 
   const filter = synthVoiceFilter(p);
   const envelope = synthAmpEnvelope(p);
+  // Everything the oscillator section draws comes from the descriptors the
+  // voice builds itself from, so a picture of a pulse that the audio is not
+  // making is not expressible here.
+  const oscillator = synthOscillatorOf(p);
+  const sub = synthSubOf(p);
+  const lfo = synthLfoOf(p);
+  const widthSweep = synthWidthSweep(oscillator, lfo);
+  const family = familyOf(p);
+  const canMorph = morphs(p);
   // One range for the knob, the curve handle, the automation lane and the
   // voice: the knob used to stop at 12 kHz while everything else reached 18.
   const cutoffSpan = Math.log(SYNTH_CUTOFF_MAX_HZ / SYNTH_CUTOFF_MIN_HZ);
   const cutoffNorm = Math.log(p.cutoff / SYNTH_CUTOFF_MIN_HZ) / cutoffSpan;
+  const lfoSpan = Math.log(SYNTH_LFO_MAX_HZ / SYNTH_LFO_MIN_HZ);
+  const lfoRate = clamp(p.lfoRate ?? 5, SYNTH_LFO_MIN_HZ, SYNTH_LFO_MAX_HZ);
 
   return (
     <InstrumentFrame<SynthParams>
@@ -336,23 +410,117 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
 
         {!isDrum && (
           <>
-            <InstrumentSection
-              title="Oscillator"
-              aside={WAVES.find((w) => w.id === p.waveform)?.name}
-            >
-              <OscScope shape={p.waveform} label={`Oscillator waveform: ${p.waveform}`} />
+            <InstrumentSection title="Oscillator" wide aside={describeOscillator(p)}>
+              <OscScope
+                osc={oscillator}
+                sub={sub}
+                widthSweep={widthSweep}
+                testId="syn-osc"
+                label={`Oscillator: ${describeOscillator(p)}${
+                  sub ? `, sub an octave down at ${Math.round(sub.gain * 100)}%` : ''
+                }${
+                  widthSweep
+                    ? `, width swept ${Math.round(widthSweep.lowDuty * 100)}% to ${Math.round(
+                        widthSweep.highDuty * 100,
+                      )}%`
+                    : ''
+                }`}
+              />
+              {(sub || widthSweep) && (
+                <div className="ins-legend">
+                  {sub && <span className="t-label">Dashed: sub −1 oct</span>}
+                  <span className="grow" />
+                  {widthSweep && <span className="t-label">Faint: LFO width sweep</span>}
+                </div>
+              )}
               <div className="seg" role="group" aria-label="Waveform">
-                {WAVES.map((w) => (
+                {WAVE_FAMILIES.map((w) => (
                   <button
                     key={w.id}
-                    className={p.waveform === w.id ? 'on' : ''}
-                    aria-pressed={p.waveform === w.id}
-                    onClick={() => set({ waveform: w.id })}
+                    className={family === w.id ? 'on' : ''}
+                    aria-pressed={family === w.id}
+                    // Leaving the morph clears `shape` rather than parking it at
+                    // zero, so a triangle patch is stored exactly as a triangle
+                    // patch always was and builds the same one-oscillator voice.
+                    onClick={() => set(w.morphs ? { waveform: w.id } : { waveform: w.id, shape: undefined })}
                     title={w.name}
                   >
                     {w.short}
                   </button>
                 ))}
+              </div>
+              <div className="syn-knobs">
+                {/* Shape and Width belong to the saw–square family and are not
+                    drawn for the other two, which have no morph and no pulse.
+                    A dial that reads "—" is still a dial a hand lands on, and
+                    landing on this one would have turned a sine patch into a
+                    sawtooth without asking. */}
+                {canMorph && (
+                  <ParamKnob
+                    label="Shape"
+                    norm={shapePosition(p)}
+                    onNorm={(n) => set({ waveform: 'sawtooth', shape: Math.round(n * 100) / 100 })}
+                    display={
+                      shapePosition(p) <= 0
+                        ? 'Saw'
+                        : shapePosition(p) >= 1
+                          ? 'Square'
+                          : `${Math.round(shapePosition(p) * 100)}%`
+                    }
+                    onGestureStart={beginKnob}
+                    onGestureEnd={endKnob}
+                  />
+                )}
+                {canMorph && (
+                  <ParamKnob
+                    label="Width"
+                    norm={
+                      (clamp(p.pulseWidth ?? 0.5, SYNTH_PW_MIN, SYNTH_PW_MAX) - SYNTH_PW_MIN) /
+                      (SYNTH_PW_MAX - SYNTH_PW_MIN)
+                    }
+                    onNorm={(n) =>
+                      set({
+                        pulseWidth:
+                          Math.round((SYNTH_PW_MIN + n * (SYNTH_PW_MAX - SYNTH_PW_MIN)) * 100) /
+                          100,
+                      })
+                    }
+                    // The width has nothing to be the width of until the morph
+                    // is off the saw end, and saying so is better than a
+                    // percentage that changes the sound by nothing.
+                    display={
+                      oscillator.morph
+                        ? `${Math.round(
+                            clamp(p.pulseWidth ?? 0.5, SYNTH_PW_MIN, SYNTH_PW_MAX) * 100,
+                          )}%`
+                        : 'No pulse'
+                    }
+                    onGestureStart={beginKnob}
+                    onGestureEnd={endKnob}
+                  />
+                )}
+                <ParamKnob
+                  label="Sub"
+                  norm={clamp(p.subLevel ?? 0, 0, 1)}
+                  onNorm={(n) => set({ subLevel: Math.round(n * 100) / 100 })}
+                  display={sub ? `${Math.round(sub.gain * 100)}%` : 'Off'}
+                  onGestureStart={beginKnob}
+                  onGestureEnd={endKnob}
+                />
+                <ParamKnob
+                  label="Glide"
+                  // Cubed, like the envelope times: portamento lives in the
+                  // first tenth of a second and a linear knob would hide it.
+                  norm={Math.pow(synthGlideSec(p) / SYNTH_GLIDE_MAX_SEC, 1 / 3)}
+                  onNorm={(n) =>
+                    set({
+                      glide: Math.round(Math.pow(n, 3) * SYNTH_GLIDE_MAX_SEC * 1000) / 1000,
+                    })
+                  }
+                  display={synthGlideSec(p) > 0 ? formatSeconds(synthGlideSec(p)) : 'Off'}
+                  onGestureStart={beginKnob}
+                  onGestureEnd={endKnob}
+                />
               </div>
             </InstrumentSection>
 
@@ -372,6 +540,10 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
                   filter: synthVoiceFilter(p, key),
                   label: midiToName(key),
                 }))}
+                // The band the modulator actually sweeps the corner through —
+                // drawn on the curve rather than left as a percentage on a dial
+                // in another section, because that is where it is heard.
+                sweep={synthFilterSweep(filter, lfo)}
                 cutoff={{
                   value: p.cutoff,
                   min: SYNTH_CUTOFF_MIN_HZ,
@@ -474,6 +646,100 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
                   onGestureStart={beginKnob}
                   onGestureEnd={endKnob}
                 />
+              </div>
+            </InstrumentSection>
+
+            {/* One LFO, three fixed destinations, a depth each — the reference's
+                small synth calls this a matrix without a matrix, and it is the
+                right trade at this size: nothing to route, nothing to leave
+                pointing at nothing. Each dial names where it goes, and each
+                destination shows the modulation where it is heard: the filter
+                curve shades the band the corner sweeps, and the oscillator
+                scope traces the two pulse widths. */}
+            <InstrumentSection
+              title="LFO"
+              wide
+              aside={
+                lfo
+                  ? [
+                      `${lfo.rateHz.toFixed(2)} Hz`,
+                      ...(lfo.toPitchCents > 0 ? [`±${Math.round(lfo.toPitchCents)} cents`] : []),
+                      ...(lfo.toFilterHz > 0 ? [`±${formatHz(lfo.toFilterHz)}`] : []),
+                      ...(lfo.toWidthDuty > 0
+                        ? [`±${Math.round(lfo.toWidthDuty * 100)}% width`]
+                        : []),
+                    ].join(' · ')
+                  : 'Off'
+              }
+            >
+              {lfo ? (
+                <LfoScope
+                  lfo={lfo}
+                  testId="syn-lfo"
+                  label={`Modulator, ${lfo.rateHz.toFixed(2)} Hz`}
+                />
+              ) : (
+                <div className="hint" data-testid="syn-lfo-off">
+                  Every depth is at zero, so the voice builds no modulator at all.
+                </div>
+              )}
+              {lfo && (p.lfoToWidth ?? 0) > 0 && lfo.toWidthDuty <= 0 && (
+                <div className="hint" data-testid="syn-lfo-width-inert">
+                  {oscillator.morph
+                    ? 'The width is at the end of its travel, so there is no room left to sweep it.'
+                    : 'The oscillator has no pulse, so the width depth reaches nothing.'}
+                </div>
+              )}
+              <div className="syn-knobs">
+                <ParamKnob
+                  label="Rate"
+                  norm={clamp(Math.log(lfoRate / SYNTH_LFO_MIN_HZ) / lfoSpan, 0, 1)}
+                  onNorm={(n) =>
+                    set({
+                      lfoRate:
+                        Math.round(SYNTH_LFO_MIN_HZ * Math.exp(n * lfoSpan) * 100) / 100,
+                    })
+                  }
+                  display={`${lfoRate.toFixed(2)} Hz`}
+                  onGestureStart={beginKnob}
+                  onGestureEnd={endKnob}
+                />
+                <ParamKnob
+                  label="Pitch"
+                  norm={clamp(p.lfoToPitch ?? 0, 0, 1)}
+                  onNorm={(n) => set({ lfoToPitch: Math.round(n * 100) / 100 })}
+                  display={
+                    lfo && lfo.toPitchCents > 0 ? `±${Math.round(lfo.toPitchCents)} c` : 'Off'
+                  }
+                  onGestureStart={beginKnob}
+                  onGestureEnd={endKnob}
+                />
+                <ParamKnob
+                  label="Filter"
+                  norm={clamp(p.lfoToFilter ?? 0, 0, 1)}
+                  onNorm={(n) => set({ lfoToFilter: Math.round(n * 100) / 100 })}
+                  display={lfo && lfo.toFilterHz > 0 ? `±${formatHz(lfo.toFilterHz)}` : 'Off'}
+                  onGestureStart={beginKnob}
+                  onGestureEnd={endKnob}
+                />
+                <ParamKnob
+                  label="Width"
+                  norm={clamp(p.lfoToWidth ?? 0, 0, 1)}
+                  onNorm={(n) => set({ lfoToWidth: Math.round(n * 100) / 100 })}
+                  // The reachable swing, not the dial position: the sweep is
+                  // held inside the width's own range so the pulse cannot be
+                  // driven through zero and collapse into the bare oscillator.
+                  display={
+                    lfo && lfo.toWidthDuty > 0 ? `±${Math.round(lfo.toWidthDuty * 100)}%` : 'Off'
+                  }
+                  onGestureStart={beginKnob}
+                  onGestureEnd={endKnob}
+                />
+              </div>
+              <div className="ins-legend">
+                <span className="t-label">
+                  Pitch ±{SYNTH_LFO_PITCH_CENTS} cents · filter ±half the cutoff
+                </span>
               </div>
             </InstrumentSection>
           </>

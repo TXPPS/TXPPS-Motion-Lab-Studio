@@ -22,7 +22,7 @@ import {
   complexMagnitudeDb,
   type BiquadType,
 } from '../audio/dsp/curves';
-import { clamp } from './music';
+import { clamp, midiToFreq } from './music';
 import { matchZones, zonePlaybackRate, type SamplerParams, type SampleZone } from './sampler';
 import type { RackItem, SynthParams, Waveform } from './types';
 
@@ -275,10 +275,241 @@ export function oscillatorSample(shape: Waveform, phase: number): number {
   }
 }
 
-/** `cycles` cycles of a waveform sampled at `count` points, for a scope. */
-export function oscillatorPoints(shape: Waveform, count = 160, cycles = 2): number[] {
+// --------------------------------------------------------- synth oscillator
+
+/** The duty a `pulseWidth` control may be set to. Outside it a pulse is a click. */
+export const SYNTH_PW_MIN = 0.1;
+export const SYNTH_PW_MAX = 0.9;
+/**
+ * How far outside that range the LFO is allowed to push the duty. The extra
+ * 0.05 either side is there so a sweep set at the end of the knob's travel
+ * still moves; it stops short of 0 and 1, where the pulse would collapse into
+ * the plain oscillator (delay zero) and the modulation would read as tremolo.
+ */
+export const SYNTH_PW_SWEEP_MIN = 0.05;
+export const SYNTH_PW_SWEEP_MAX = 0.95;
+
+/**
+ * The oscillator section of one voice: the built-in wave the node is set to,
+ * and the delayed copy of itself the voice subtracts from it.
+ *
+ * That subtraction is the whole morph. A sawtooth minus the same sawtooth
+ * delayed by half a cycle is exactly a square; delayed by less it is a narrower
+ * pulse; scaled by less it is a saw with a notch in it. So one control moves
+ * continuously from saw to square, a second sets the pulse's duty, and — the
+ * reason it is built this way rather than from a `PeriodicWave` — the delay is
+ * an `AudioParam`, so an LFO can sweep the width at audio rate. A wavetable
+ * cannot be modulated at all, which would have made the width dial under the
+ * LFO a control that did nothing.
+ *
+ * `morph` is null both when the patch predates the morph (`shape` absent) and
+ * when the morph is at the saw end, because in both cases the voice builds no
+ * delay line: the graph is one oscillator into the filter, exactly as it was.
+ */
+export interface SynthOscillator {
+  /** The `OscillatorNode.type` the voice assigns. */
+  type: Waveform;
+  morph: {
+    /** How much of the delayed copy is subtracted, 0..1. */
+    shape: number;
+    /** Duty cycle of the pulse's positive part. */
+    width: number;
+    /** The delay, as a fraction of one cycle: `1 - width`. */
+    delayCycles: number;
+  } | null;
+}
+
+export function synthOscillatorOf(p: SynthParams): SynthOscillator {
+  const shape = p.shape === undefined ? 0 : clamp(p.shape, 0, 1);
+  const width = clamp(p.pulseWidth ?? 0.5, SYNTH_PW_MIN, SYNTH_PW_MAX);
+  return {
+    type: p.waveform,
+    morph: shape > 0 ? { shape, width, delayCycles: 1 - width } : null,
+  };
+}
+
+/** The delay line's time in seconds for a note, which is where its duty comes from. */
+export function synthMorphDelaySec(osc: SynthOscillator, freqHz: number): number {
+  return (osc.morph?.delayCycles ?? 0) / Math.max(1e-6, freqHz);
+}
+
+/**
+ * One sample of the wave the voice sums, at `phase` cycles.
+ *
+ * Ideal shapes minus an ideal delay, for the reason `oscillatorSample` gives:
+ * the node band-limits both terms identically, and a linear combination of
+ * band-limited saws is the band-limited pulse — so the corners drawn here are
+ * the corners the parameters mean, sharpened or rounded by the sample rate the
+ * project happens to play at.
+ */
+export function synthOscillatorSample(osc: SynthOscillator, phase: number): number {
+  const base = oscillatorSample(osc.type, phase);
+  if (!osc.morph) return base;
+  return base - osc.morph.shape * oscillatorSample(osc.type, phase - osc.morph.delayCycles);
+}
+
+/** `cycles` cycles of the voice's own wave, sampled for a scope. */
+export function synthOscillatorPoints(
+  osc: SynthOscillator,
+  count = 160,
+  cycles = 2,
+): number[] {
   const n = Math.max(2, Math.floor(count));
-  return Array.from({ length: n }, (_, i) => oscillatorSample(shape, (i / (n - 1)) * cycles));
+  return Array.from({ length: n }, (_, i) =>
+    synthOscillatorSample(osc, (i / (n - 1)) * cycles),
+  );
+}
+
+// --------------------------------------------------------------- sub, glide
+
+/**
+ * The sub-oscillator is a sine, and that is a choice worth stating: the point
+ * of an octave below is weight, and a saw down there adds harmonics that land
+ * back inside the fundamental's own range and muddy it.
+ */
+export const SYNTH_SUB_WAVE: Waveform = 'sine';
+
+export interface SynthSub {
+  freqHz: number;
+  /** Its gain against the main oscillator's, which is 1. */
+  gain: number;
+}
+
+/** The sub a voice builds for one key, or null where it builds none. */
+export function synthSubOf(p: SynthParams, pitch = SYNTH_ROOT_KEY): SynthSub | null {
+  const gain = clamp(p.subLevel ?? 0, 0, 1);
+  if (gain <= 0) return null;
+  // Half the frequency rather than `midiToFreq(pitch - 12)`: an octave is a
+  // ratio, and halving keeps the two oscillators locked through a glide, where
+  // both are ramping and a rounding difference would beat audibly.
+  return { freqHz: midiToFreq(pitch) / 2, gain };
+}
+
+/** The longest portamento the control offers. */
+export const SYNTH_GLIDE_MAX_SEC = 2;
+
+export interface SynthGlide {
+  seconds: number;
+  fromHz: number;
+  toHz: number;
+}
+
+export function synthGlideSec(p: SynthParams): number {
+  return clamp(p.glide ?? 0, 0, SYNTH_GLIDE_MAX_SEC);
+}
+
+/**
+ * The pitch ramp a voice starts with, or null when it starts on its own pitch.
+ *
+ * Null for a repeated note as well as for a glide time of zero, because a ramp
+ * from a pitch to itself is not a glide — and taking the plain path for it
+ * keeps a patch with portamento switched on assigning `frequency.value`
+ * exactly the way a patch without it does.
+ */
+export function synthGlideOf(
+  p: SynthParams,
+  fromPitch: number | null,
+  toPitch: number,
+): SynthGlide | null {
+  const seconds = synthGlideSec(p);
+  if (seconds <= 0 || fromPitch === null || fromPitch === toPitch) return null;
+  return { seconds, fromHz: midiToFreq(fromPitch), toHz: midiToFreq(toPitch) };
+}
+
+// ------------------------------------------------------------------ synth LFO
+
+/** LFO rate range, shared by the knob, the automation lane and the voice. */
+export const SYNTH_LFO_MIN_HZ = 0.05;
+export const SYNTH_LFO_MAX_HZ = 20;
+/** Full pitch depth, in cents — the same ±1 semitone the sampler's LFO reaches. */
+export const SYNTH_LFO_PITCH_CENTS = 100;
+/** Full filter depth, as a share of the voice's own cutoff. */
+export const SYNTH_LFO_FILTER_SHARE = 0.5;
+/** Full width depth, in cycle fraction, before the room either side is taken. */
+export const SYNTH_LFO_WIDTH_DUTY = 0.4;
+
+/**
+ * The one modulator a synth voice builds, and how far it reaches into each of
+ * its three fixed destinations.
+ *
+ * Fixed routing with a depth per destination is the reference's small-synth
+ * idea — a modulation matrix without a matrix — so there is no source or target
+ * to choose and nothing to leave pointing at nothing. What there still is, is a
+ * destination that may not exist: the width depth reaches a delay line that
+ * only a morphing oscillator has, so on a patch with no pulse it is reported as
+ * zero and no gain node is built for it.
+ *
+ * Null when every depth is zero, because then the voice builds no oscillator at
+ * all — the same rule the sampler's modulator follows, and the reason a face
+ * can say "off" and be believed.
+ */
+export interface SynthLfo {
+  rateHz: number;
+  /** The deepest of the three routings, 0..1 — what a scope's amplitude means. */
+  depth: number;
+  /** Peak deviation on the oscillator and its sub, in cents. */
+  toPitchCents: number;
+  /** Peak deviation on this voice's filter frequency, in Hz. */
+  toFilterHz: number;
+  /** Peak deviation of the pulse's duty, in cycle fraction. */
+  toWidthDuty: number;
+}
+
+/**
+ * How far the LFO may move the duty before it runs out of pulse.
+ *
+ * The swing is clamped by the room left either side of the width setting rather
+ * than by the depth alone. Unclamped, a deep sweep on an already-narrow pulse
+ * would drive the delay through zero, where the subtraction cancels and the
+ * pulse collapses into the bare oscillator — heard as a level dip at the LFO
+ * rate rather than as a widening pulse, which is not what the dial says.
+ */
+export function synthWidthSwing(width: number, depth: number): number {
+  const room = Math.min(width - SYNTH_PW_SWEEP_MIN, SYNTH_PW_SWEEP_MAX - width);
+  return Math.max(0, Math.min(clamp(depth, 0, 1) * SYNTH_LFO_WIDTH_DUTY, room));
+}
+
+export function synthLfoOf(p: SynthParams, pitch = SYNTH_ROOT_KEY): SynthLfo | null {
+  const toPitch = clamp(p.lfoToPitch ?? 0, 0, 1);
+  const toFilter = clamp(p.lfoToFilter ?? 0, 0, 1);
+  const toWidth = clamp(p.lfoToWidth ?? 0, 0, 1);
+  const morph = synthOscillatorOf(p).morph;
+  const widthDuty = morph ? synthWidthSwing(morph.width, toWidth) : 0;
+  const depth = Math.max(toPitch, toFilter, widthDuty > 0 ? toWidth : 0);
+  if (depth <= 0) return null;
+  return {
+    rateHz: clamp(p.lfoRate ?? 5, SYNTH_LFO_MIN_HZ, SYNTH_LFO_MAX_HZ),
+    depth,
+    toPitchCents: toPitch * SYNTH_LFO_PITCH_CENTS,
+    toFilterHz: toFilter * synthVoiceFilter(p, pitch).freqHz * SYNTH_LFO_FILTER_SHARE,
+    toWidthDuty: widthDuty,
+  };
+}
+
+/**
+ * The band the modulator sweeps this voice's cutoff through, or null where it
+ * sweeps nothing — the same band `lfoSweepHz` reports for the sampler, asked
+ * for in this instrument's own terms so no call site has to know which of the
+ * three depths is the one measured in hertz.
+ */
+export function synthFilterSweep(
+  filter: VoiceFilter,
+  lfo: SynthLfo | null,
+): { lowHz: number; highHz: number } | null {
+  if (!lfo || lfo.toFilterHz <= 0) return null;
+  return lfoSweepHz(filter, { depthHz: lfo.toFilterHz });
+}
+
+/** The duty the LFO sweeps the pulse between, for the scope's ghost traces. */
+export function synthWidthSweep(
+  osc: SynthOscillator,
+  lfo: SynthLfo | null,
+): { lowDuty: number; highDuty: number } | null {
+  if (!osc.morph || !lfo || lfo.toWidthDuty <= 0) return null;
+  return {
+    lowDuty: osc.morph.width - lfo.toWidthDuty,
+    highDuty: osc.morph.width + lfo.toWidthDuty,
+  };
 }
 
 // --------------------------------------------------------------- sampler LFO
@@ -321,10 +552,15 @@ export function samplerLfoOf(p: SamplerParams): SamplerLfo | null {
   };
 }
 
-/** The band a filter-target LFO sweeps the cutoff through, clamped to audio. */
+/**
+ * The band a filter-target LFO sweeps the cutoff through, clamped to audio.
+ *
+ * Takes any modulator that reports a depth in hertz — both instruments now
+ * have one, and both draw the band on the same filter curve.
+ */
 export function lfoSweepHz(
   filter: VoiceFilter,
-  lfo: SamplerLfo,
+  lfo: { depthHz?: number },
 ): { lowHz: number; highHz: number } {
   const depth = lfo.depthHz ?? 0;
   return {

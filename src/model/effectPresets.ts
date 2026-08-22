@@ -514,14 +514,14 @@ export const EFFECT_PRESETS: readonly EffectPreset[] = [
     name: 'Eighth Chop',
     kind: 'tremolo',
     blurb: 'Square wave locked to eighths. Rhythmic gating.',
-    params: { sync: 1, division: 2, modifier: 0, depth: 0.9, shape: 2, stereoPhase: 0 },
+    params: { sync: 1, division: 2, modifier: 0, depth: 0.9, shape: 2, phaseOffset: 0 },
   },
   {
     id: 'trem-vintage',
     name: 'Vintage Amp',
     kind: 'tremolo',
     blurb: 'Slow sine, moderate depth, mono.',
-    params: { sync: 0, rate: 4.5, depth: 0.45, shape: 0, stereoPhase: 0 },
+    params: { sync: 0, rate: 4.5, depth: 0.45, shape: 0, phaseOffset: 0 },
   },
   {
     id: 'rotary-slow-swell',

@@ -67,6 +67,45 @@ export const SYNTH_PRESETS: SynthParams[] = [
     release: 0.15,
     volume: 0.5,
   },
+  // The two patches below exist to make the oscillator morph, the sub and the
+  // LFO findable. A control nobody can hear an example of is a control nobody
+  // turns, and the six presets above were all written before the voice had
+  // any of them — none of which is changed here, because a preset that starts
+  // sounding different is a preset the user has lost.
+  {
+    // The pulse-width sound: one oscillator, a slow modulator on its width,
+    // and enough attack to hear the beating build.
+    presetName: 'PWM Strings',
+    waveform: 'sawtooth',
+    shape: 1,
+    pulseWidth: 0.5,
+    cutoff: 4200,
+    resonance: 1.2,
+    attack: 0.25,
+    decay: 0.6,
+    sustain: 0.75,
+    release: 0.9,
+    volume: 0.5,
+    lfoRate: 0.6,
+    lfoToWidth: 0.9,
+  },
+  {
+    // A lead line that slides: a notched saw over a sine an octave down, with
+    // a glide short enough to read as articulation rather than as an effect.
+    presetName: 'Glide Bass',
+    waveform: 'sawtooth',
+    shape: 0.35,
+    pulseWidth: 0.35,
+    subLevel: 0.7,
+    glide: 0.09,
+    cutoff: 620,
+    resonance: 3,
+    attack: 0.004,
+    decay: 0.2,
+    sustain: 0.55,
+    release: 0.14,
+    volume: 0.55,
+  },
 ];
 
 export const DRUM_KIT_PARAMS: SynthParams = {

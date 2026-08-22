@@ -24,6 +24,7 @@ import {
   compressorCurve,
   compressorGain,
   crossoverResponse,
+  crusherGroupDelaySamples,
   describeDivision,
   dbToGain,
   eqMagnitudeResponse,
@@ -48,6 +49,8 @@ import {
 } from '../src/model/effectPresets';
 import {
   AMP_MODELS,
+  BASS_MONO_OFF_HZ,
+  CRUSH_FACTORS,
   DEESSER_KNEE_DB,
   EFFECT_SPECS,
   EFFECT_GROUPS,
@@ -71,6 +74,8 @@ import {
 } from '../src/model/effects';
 import type { DynamicsLaw } from '../src/model/effects';
 import { DETECTOR_HEADROOM, InsertChain, buildEffectNode } from '../src/audio/effectChain';
+import type { EffectNode } from '../src/audio/effectChain';
+import { renderModulationClock } from '../src/audio/exportMix';
 import type { Effect, EffectKind } from '../src/model/types';
 
 const SR = 48000;
@@ -651,15 +656,27 @@ function recordingContext(): { ctx: BaseAudioContext; connections: Connection[] 
         smoothingTimeConstant: 0.8,
         getFloatTimeDomainData: (buffer: Float32Array) => buffer.fill(0),
       }),
-    createOscillator: () =>
-      source('oscillator', {
+    createOscillator: () => {
+      // The wave and the start time are kept because they are the whole of a
+      // modulator's phase: an oscillator's output at any instant is its series
+      // evaluated at the time since it started, and nothing else.
+      const osc = source('oscillator', {
         type: 'sine',
         frequency: param(440),
         detune: param(0),
-        setPeriodicWave: () => {},
-      }),
+        wave: null,
+        startedAt: null,
+      });
+      osc.setPeriodicWave = (w: unknown) => {
+        osc.wave = w;
+      };
+      osc.start = (when?: number) => {
+        osc.startedAt = when ?? 0;
+      };
+      return osc;
+    },
     createConstantSource: () => source('constant', { offset: param(1) }),
-    createPeriodicWave: () => ({}),
+    createPeriodicWave: (real: Float32Array, imag: Float32Array) => ({ real, imag }),
     createBuffer: (channels: number, length: number) => ({
       length,
       numberOfChannels: channels,
@@ -713,6 +730,49 @@ function settledAt(param: RecordingParam, connections: Connection[]): number {
 /** The constant a gain node multiplies by, driven gain included. */
 function gainOf(node: RecordingNode, connections: Connection[]): number {
   return settledAt(node.gain as RecordingParam, connections);
+}
+
+/**
+ * What an oscillator is putting out at context time `t`.
+ *
+ * The Web Audio definition of a `PeriodicWave`, evaluated: harmonic k
+ * contributes real[k]·cos(k·φ) + imag[k]·sin(k·φ) with φ measured from the
+ * instant the oscillator was started, and nothing at all before that instant.
+ * Reimplemented from the specification for the same reason `readShaper` is —
+ * jsdom has no Web Audio — and it is what lets a modulator be compared sample
+ * by sample rather than by the numbers that were handed to it.
+ */
+function oscillatorAt(node: RecordingNode, t: number): number {
+  const wave = node.wave as { real: Float32Array; imag: Float32Array } | null;
+  const startedAt = node.startedAt as number | null;
+  if (!wave || startedAt === null || t < startedAt) return 0;
+  const phase = 2 * Math.PI * (node.frequency as RecordingParam).value * (t - startedAt);
+  let sum = 0;
+  for (let k = 1; k < wave.real.length; k++) {
+    sum += wave.real[k] * Math.cos(k * phase) + wave.imag[k] * Math.sin(k * phase);
+  }
+  return sum;
+}
+
+/**
+ * The signal one node carries at context time `t`, over a graph of oscillators,
+ * constant sources and gains — which is the whole of any modulation path here.
+ */
+function signalAt(node: RecordingNode, connections: Connection[], t: number): number {
+  if (node.kind === 'oscillator') return oscillatorAt(node, t);
+  if (node.kind === 'constant') return (node.offset as RecordingParam).value;
+  if (node.kind !== 'gain') return NaN;
+  const feeds = connections.filter((c) => c.to === node);
+  return (
+    gainOf(node, connections) * feeds.reduce((sum, c) => sum + signalAt(c.from, connections, t), 0)
+  );
+}
+
+/** What a parameter is driven to at context time `t`, its own value included. */
+function paramAt(param: RecordingParam, connections: Connection[], t: number): number {
+  return connections
+    .filter((c) => c.to === param)
+    .reduce((total, c) => total + signalAt(c.from, connections, t), param.value);
 }
 
 /**
@@ -1224,19 +1284,12 @@ describe('the picture a dynamics face draws', () => {
     }
   });
 
-  /**
-   * Why the limiter is the only one of the four whose curve is stretched over
-   * the detector's whole range, and why stretching the others would cost
-   * something real. A gate's law is steepest at the very bottom, where a
-   * default 8:1 expander takes 7 dB away per dB below the threshold, and its
-   * curve is already coarse enough there to deliver 18.73 dB of attenuation
-   * where its face plots 21.00 — a level that falls between two curve points,
-   * which is why the test above, which reads only the points themselves, is
-   * still exact. Sixteen times fewer points across that region is not a trade
-   * a gate can make, and it has nothing above full scale to gain by it.
-   */
-  it('leaves the gate, the compressor and the de-esser sampled up to full scale only', () => {
-    for (const kind of ['compressor', 'gate', 'deesser'] as const) {
+  it('leaves the compressor and the de-esser sampled up to full scale only', () => {
+    // Both work near full scale, where a linearly indexed curve is dense, and
+    // neither has anything above it to gain by stretching: what a compressor is
+    // still asked to reduce past 0 dBFS is a few tenths of a dB at a ratio that
+    // has already flattened.
+    for (const kind of ['compressor', 'deesser'] as const) {
       const parts = detectorOf(effectOf(kind));
       expect(envelopeTopOf(parts), kind).toBe(1);
       // The rectifier therefore still multiplies the whole headroom back out,
@@ -1244,6 +1297,95 @@ describe('the picture a dynamics face draws', () => {
       expect(parts.rectifier, kind).toEqual(rectifierCurve(DETECTOR_HEADROOM));
       expect(parts.transfer, kind).toEqual(dynamicsCurve(dynamicsLawOf(effectOf(kind))!));
     }
+  });
+
+  /**
+   * What the gate's curve used to be spent on, and what it buys instead.
+   *
+   * A WaveShaper is indexed linearly in amplitude and every law here is written
+   * in decibels, so the points crowd towards full scale — the smallest envelope
+   * a 2048-point curve has an entry for is −66 dBFS. A compressor never
+   * notices. An expander works nowhere else: with the default −45 dB threshold
+   * the whole law lived in eleven points, and the numbers below are what that
+   * cost. Above its threshold an expander is exactly unity and a WaveShaper
+   * holds its last value past the end of the curve, so stopping the curve six
+   * decibels above the turn changes no answer it was giving correctly and gives
+   * every point to the part that bends.
+   */
+  const GATE_DRAWN_FLOOR_DB = -60;
+
+  it('spends the gate curve below its threshold, where an expander is the only thing it is', () => {
+    const gate = effectOf('gate');
+    const parts = detectorOf(gate);
+    // Twice the threshold envelope — a shade over six decibels above the turn,
+    // and nowhere near full scale.
+    expect(envelopeTopOf(parts)).toBeCloseTo(2 * dbToGain(paramOf(gate, 'threshold')), 9);
+    expect(gainToDb(envelopeTopOf(parts))).toBeLessThan(-38);
+    // Above the sampled range the curve holds its last point, and its last
+    // point is unity — so a loud signal still passes a gate untouched.
+    for (const db of [-39, -12, 0, 12]) {
+      expect(deliveredGain(parts, dbToGain(db)), `${db} dBFS in`).toBeCloseTo(1, 9);
+    }
+  });
+
+  it('delivers the attenuation the gate face plots, at the level that used to be 2.27 dB out', () => {
+    const gate = effectOf('gate');
+    const law = dynamicsLawOf(gate)!;
+    const parts = detectorOf(gate);
+    // The reported case: −45 dB threshold, 8:1, so three dB under the threshold
+    // is 21 dB of reduction. The curve used to answer 18.73 there.
+    expect(gainToDb(dynamicsGain(law, dbToGain(-48)))).toBeCloseTo(-21, 6);
+    expect(gainToDb(deliveredGain(parts, dbToGain(-48)))).toBeCloseTo(-21, 2);
+  });
+
+  it('follows the drawn gate curve across the whole axis the face draws', () => {
+    // Every tenth of a dB of the plotted −60…0 window, for a spread of gate
+    // settings: threshold, ratio and range each move where the law bends and
+    // how hard. The worst disagreement across all of it was 57.5 dB — a gate
+    // set below −67 dBFS had no curve point under its threshold at all and did
+    // nothing whatever, while its face drew a working expander.
+    for (const threshold of [-80, -66, -56, -45, -20, -6]) {
+      for (const ratio of [1.5, 8, 20]) {
+        for (const range of [6, 45, 80]) {
+          const gate: Effect = {
+            ...effectOf('gate'),
+            params: { ...defaultParams('gate'), threshold, ratio, range },
+          };
+          const law = dynamicsLawOf(gate)!;
+          const parts = detectorOf(gate);
+          let worst = 0;
+          let where = 0;
+          for (let db = GATE_DRAWN_FLOOR_DB; db <= 0; db += 0.1) {
+            const envelope = dbToGain(db);
+            const off = Math.abs(
+              gainToDb(deliveredGain(parts, envelope)) - gainToDb(dynamicsGain(law, envelope)),
+            );
+            if (off > worst) {
+              worst = off;
+              where = db;
+            }
+          }
+          expect(
+            worst,
+            `gate ${threshold} dB ${ratio}:1 range ${range} is ${worst.toFixed(2)} dB ` +
+              `off its own curve at ${where.toFixed(1)} dBFS`,
+          ).toBeLessThan(0.5);
+        }
+      }
+    }
+  });
+
+  it('gates at a threshold no curve point used to reach', () => {
+    // −80 dB is the parameter's own minimum, and every entry of a full-scale
+    // curve stands for a louder envelope than that, so the array was unity
+    // start to finish: the quietest setting on the knob turned the gate off.
+    const gate: Effect = {
+      ...effectOf('gate'),
+      params: { ...defaultParams('gate'), threshold: -80 },
+    };
+    const parts = detectorOf(gate);
+    expect(gainToDb(deliveredGain(parts, dbToGain(-90)))).toBeLessThan(-40);
+    expect(gainToDb(deliveredGain(parts, dbToGain(-70)))).toBeCloseTo(0, 6);
   });
 
   /**
@@ -1442,6 +1584,417 @@ describe('the dynamics control VCA', () => {
       Math.max(...xs.map((x) => x.feedback.gain.value));
     expect(slowest(b.found)).toBeGreaterThan(slowest(a.found));
     expect(slowest(b.found)).toBeLessThan(1);
+  });
+});
+
+describe('the two EQ8 bands that have no quality factor', () => {
+  it('gives a shelf the same response whatever Q it is handed', () => {
+    // The fact the whole finding rests on, in our own coefficients: the shelf
+    // cases build from the fixed slope S = 1 and never touch `q`, which is
+    // exactly what a `BiquadFilterNode` does with a shelf's `Q` — nothing.
+    for (const type of ['lowshelf', 'highshelf'] as const) {
+      const base = biquadCoefficients(type, 800, BUTTERWORTH_Q, 6, SR);
+      for (const q of [0.2, 1, 4, 40]) {
+        expect(biquadCoefficients(type, 800, q, 6, SR), `${type} at Q ${q}`).toEqual(base);
+      }
+    }
+    // A peaking band is the control: there, Q is the whole shape.
+    expect(biquadCoefficients('peaking', 800, 4, 6, SR)).not.toEqual(
+      biquadCoefficients('peaking', 800, 1, 6, SR),
+    );
+  });
+
+  it('never writes Q on a shelf node, and keeps writing it on the peaking bands', () => {
+    const effect: Effect = {
+      id: 'eq',
+      kind: 'eq8',
+      bypass: false,
+      params: { ...defaultParams('eq8'), b1Q: 7.5, b2Q: 3.25 },
+    };
+    const { ctx, connections } = recordingContext();
+    const node = buildEffectNode(ctx, effect);
+    node.update(effect, 120, false);
+    const filters = new Map<string, RecordingNode[]>();
+    for (const c of connections) {
+      for (const end of [c.from, c.to]) {
+        if (!('kind' in end) || end.kind !== 'biquad') continue;
+        const type = end.type as string;
+        const list = filters.get(type) ?? [];
+        if (!list.includes(end as RecordingNode)) list.push(end as RecordingNode);
+        filters.set(type, list);
+      }
+    }
+    // The shelves are left at the Q their constructor gave them — untouched,
+    // because a value the platform discards is not worth ramping.
+    for (const type of ['lowshelf', 'highshelf']) {
+      for (const filter of filters.get(type)!) {
+        expect((filter.Q as RecordingParam).value, `${type} Q was written`).toBe(1);
+      }
+    }
+    const peaking = filters.get('peaking')!.map((f) => (f.Q as RecordingParam).value);
+    expect(peaking).toContain(7.5);
+    expect(peaking).toContain(3.25);
+  });
+});
+
+describe("the tremolo's three-position stereo phase", () => {
+  /** The gains the right channel's three phase taps are held at. */
+  function taps(phaseOffset: number): number[] {
+    const effect: Effect = {
+      id: 'trem',
+      kind: 'tremolo',
+      bypass: false,
+      params: { ...defaultParams('tremolo'), phaseOffset },
+    };
+    const { ctx, connections } = recordingContext();
+    const node = buildEffectNode(ctx, effect);
+    node.update(effect, 120, false);
+    // The right channel's summing node is fed by exactly the three taps.
+    const right = connections.find(
+      (c) => c.to === node.output && c.output === 0 && c.input === 1,
+    )!.from;
+    const depth = connections.find((c) => c.to === (right.gain as RecordingParam))!.from;
+    const sum = connections.find((c) => c.to === depth)!.from;
+    return connections
+      .filter((c) => c.to === sum)
+      .map((c) => gainOf(c.from as RecordingNode, connections));
+  }
+
+  it('opens one tap per position, and inverts for 180°', () => {
+    expect(taps(0)).toEqual([1, 0, 0]);
+    expect(taps(1)).toEqual([0, 1, 0]);
+    // 180° is the quadrature pair's own sine, subtracted rather than added.
+    expect(taps(2)).toEqual([0, 0, -1]);
+  });
+
+  it('clamps a value from outside the list rather than opening nothing', () => {
+    expect(taps(99)).toEqual([0, 0, -1]);
+    expect(taps(-4)).toEqual([1, 0, 0]);
+  });
+});
+
+/**
+ * Where a modulator sits in its cycle, and whether two renders agree about it.
+ *
+ * Every LFO here used to be started by its own constructor, with no time
+ * argument: the phase at any bar was whatever the wall clock had left it at.
+ * Live that only made a device unreproducible. Offline it made a bounce
+ * disagree with itself — the graph is built at t = 0 and the delivered audio
+ * begins `preRoll` seconds later, so bars 5-8 bounced on their own met the
+ * modulator `preRoll` seconds into its run while the same bars inside a
+ * full-song bounce met it eight seconds further on.
+ */
+describe('a modulator that prints the phase it was monitored at', () => {
+  const BPM = 120;
+  /** One 4/4 bar at 120 bpm. */
+  const BAR_SEC = 2;
+  const BAR_5_SEC = 4 * BAR_SEC;
+  /**
+   * A run-up that is deliberately not a whole number of modulator cycles.
+   *
+   * `preRollForProject` returns whatever five times the session's slowest
+   * release comes to, so this is an ordinary length — and it is the length that
+   * makes the difference visible, because a modulator started at t = 0 arrives
+   * at the first bar line this far into its cycle rather than at the top of it.
+   */
+  const PRE_ROLL = 2.3;
+
+  function tremolo(params: Record<string, number>): Effect {
+    return {
+      id: 'trem',
+      kind: 'tremolo',
+      bypass: false,
+      params: { ...defaultParams('tremolo'), ...params },
+    };
+  }
+
+  /**
+   * One bounce of `effect`, as a function from song time to the gain its left
+   * channel is riding at.
+   *
+   * The clock the graph is built with comes from the renderer, because "which
+   * song second is context time zero" is the thing that was wrong. The clock
+   * emphatically does *not* decide where a song second is *read back*: that is
+   * the renderer's own scheduling rule — every clip and every note in a range
+   * bounce is placed at `preRoll + (songSec - rangeStart)` — and reading the
+   * modulator anywhere else would let a clock that lies about the song time
+   * agree with itself.
+   */
+  function bounce(effect: Effect, rangeStartSec: number): (songSec: number) => number {
+    const { ctx, connections } = recordingContext();
+    const node = buildEffectNode(ctx, effect, renderModulationClock(rangeStartSec, PRE_ROLL));
+    node.update(effect, BPM, false);
+    // The left channel's VCA, identified by the merger input it feeds.
+    const left = connections.find(
+      (c) => c.to === node.output && c.output === 0 && c.input === 0,
+    )!.from;
+    return (songSec) =>
+      paramAt(left.gain as RecordingParam, connections, PRE_ROLL + songSec - rangeStartSec);
+  }
+
+  /**
+   * How closely two renders of one modulator can be asked to agree.
+   *
+   * Not exactly, and the reason is `PeriodicWave`: its coefficients are a
+   * `Float32Array`, so the two renders — which reach the same phase by
+   * different arithmetic — round the rotated harmonics to slightly different
+   * single-precision numbers. About 1e-8 of full scale, which is a thousandth
+   * of one 16-bit LSB and some 60 dB below the dither the WAV writer adds.
+   */
+  const AGREEMENT = 7;
+
+  it('bounces bars 5-8 to the samples they have inside a full-song bounce', () => {
+    // 3.7 Hz divides no bar and no pre-roll, so nothing here lines up by luck:
+    // under the old behaviour the two renders met this modulator 8 seconds —
+    // 29.6 cycles — apart.
+    const fx = tremolo({ sync: 0, rate: 3.7, depth: 0.8, shape: 0 });
+    const whole = bounce(fx, 0);
+    const range = bounce(fx, BAR_5_SEC);
+
+    let low = Infinity;
+    let high = -Infinity;
+    for (let i = 0; i < 512; i++) {
+      const songSec = BAR_5_SEC + i / SR;
+      const fromRange = range(songSec);
+      expect(fromRange, `sample ${i} of bar 5`).toBeCloseTo(whole(songSec), AGREEMENT);
+      low = Math.min(low, fromRange);
+      high = Math.max(high, fromRange);
+    }
+    // Not a pair of flat lines agreeing about nothing: at 80 % depth the gain
+    // swings between 0.2 and 1, and 512 samples at 3.7 Hz is a fortieth of a
+    // cycle, so a good part of that swing has to show up inside the window.
+    expect(high - low).toBeGreaterThan(0.05);
+  });
+
+  it('is the same modulator whatever the range was cut at, for every start', () => {
+    const fx = tremolo({ sync: 0, rate: 3.7, depth: 0.8, shape: 1 });
+    const whole = bounce(fx, 0);
+    // Bar starts and a deliberately off-grid one, because song time is what
+    // decides the phase and the phase must not care where a range began.
+    for (const startSec of [BAR_SEC, BAR_5_SEC, 13 * BAR_SEC, 5.37]) {
+      const range = bounce(fx, startSec);
+      for (let i = 0; i < 64; i++) {
+        const songSec = startSec + i / SR;
+        expect(range(songSec), `range from ${startSec}s, sample ${i}`).toBeCloseTo(
+          whole(songSec),
+          AGREEMENT,
+        );
+      }
+    }
+  });
+
+  it('locks a tempo-synced modulator to the bar and not only to the rate', () => {
+    // Sync always locked the rate: a division of 4 is a quarter note, four
+    // cycles to the bar, and consecutive bars therefore agreed with each other
+    // even before any of this. What it did not lock is where the cycle *starts*
+    // — the tremolo arrived at bar 1 `preRoll` seconds into its run, at
+    // whatever point that came to. Locked to the bar means the bar line is the
+    // top of the cycle, so a sine tremolo sits exactly at its midpoint there
+    // and rises out of it.
+    const depth = 0.9;
+    const fx = tremolo({ sync: 1, division: 4, modifier: 0, depth, shape: 0 });
+    const whole = bounce(fx, 0);
+    const midpoint = 1 - depth / 2;
+    for (const bar of [0, 1, 4, 8, 32]) {
+      expect(whole(bar * BAR_SEC), `bar ${bar + 1}`).toBeCloseTo(midpoint, AGREEMENT);
+      // Rising out of it, so the bar line is the start of the cycle and not the
+      // half-way point, which sits at the same gain going the other way.
+      expect(whole(bar * BAR_SEC + 0.01), `just after bar ${bar + 1}`).toBeGreaterThan(midpoint);
+    }
+    // And it is a modulator, not a constant: a quarter of its cycle — a
+    // sixteenth note at this division — is the far side of the swing.
+    expect(whole(BAR_SEC / 16)).toBeCloseTo(midpoint + depth / 2, AGREEMENT);
+  });
+
+  it('starts every modulator it builds, in all six kinds that carry one', () => {
+    // The oscillators used to start themselves in their constructor. Now a
+    // builder has to ask, and a builder that forgot would leave a device
+    // silently unmodulated — an LFO that never starts puts out nothing at all.
+    for (const kind of ['chorus', 'flanger', 'phaser', 'tremolo', 'rotary', 'autopan'] as const) {
+      const { ctx, connections } = recordingContext();
+      const effect = effectOf(kind);
+      const node = buildEffectNode(ctx, effect, { startAt: 0, songSec: 0 });
+      node.update(effect, BPM, false);
+      const oscillators = new Set<RecordingNode>();
+      for (const c of connections) {
+        for (const end of [c.from, c.to]) {
+          if ('kind' in end && end.kind === 'oscillator') oscillators.add(end as RecordingNode);
+        }
+      }
+      expect(oscillators.size, `${kind} built no modulator`).toBeGreaterThan(0);
+      for (const osc of oscillators) {
+        expect(osc.startedAt, `${kind} left an oscillator unstarted`).not.toBeNull();
+        expect(osc.wave, `${kind} left an oscillator with no waveform`).not.toBeNull();
+      }
+    }
+  });
+
+  it('keeps the quadrature twin exactly a quarter cycle away at any phase', () => {
+    // The phase is baked into the waveform, and a shape that is not a sine is
+    // only still that shape if every harmonic is rotated by its own multiple.
+    // Get that wrong and the chorus's two voices stop being a quarter cycle
+    // apart the moment a render does not begin at song time zero.
+    const chorus = effectOf('chorus');
+    const { ctx, connections } = recordingContext();
+    const node = buildEffectNode(ctx, chorus, { startAt: 0, songSec: 7.31 });
+    node.update(chorus, BPM, false);
+    const oscillators: RecordingNode[] = [];
+    for (const c of connections) {
+      if ('kind' in c.from && c.from.kind === 'oscillator' && !oscillators.includes(c.from)) {
+        oscillators.push(c.from);
+      }
+    }
+    const [sine, cosine] = oscillators;
+    const hz = (sine.frequency as RecordingParam).value;
+    for (const t of [0, 0.13, 0.9]) {
+      expect(oscillatorAt(cosine, t), `t=${t}`).toBeCloseTo(oscillatorAt(sine, t + 0.25 / hz), 9);
+    }
+  });
+});
+
+describe("Stereo Width's mono bass, off at the bottom of its own range", () => {
+  const width = (bassMono: number): Effect => ({
+    id: 'w',
+    kind: 'width',
+    bypass: false,
+    params: { ...defaultParams('width'), bassMono },
+  });
+
+  /** The crossfade gain the mono-bass highpass is mixed in through. */
+  function highpassMix(effect: Effect, bypass: boolean): number {
+    const { ctx, connections } = recordingContext();
+    const node = buildEffectNode(ctx, effect);
+    node.update(effect, 120, bypass);
+    const filter = connections
+      .map((c) => c.to)
+      .find(
+        (n): n is RecordingNode => 'kind' in n && n.kind === 'biquad' && n.type === 'highpass',
+      )!;
+    const wet = connections.find((c) => c.from === filter)!.to as RecordingNode;
+    return gainOf(wet, connections);
+  }
+
+  it('takes the filter out of circuit at the minimum and puts it back above it', () => {
+    // 20 Hz is the parameter's minimum and the face already declined to draw
+    // the line there, while the side channel went on through a Butterworth
+    // highpass — which turns the phase of the bottom octave whatever else it
+    // does. "Off" now means off.
+    expect(highpassMix(width(BASS_MONO_OFF_HZ), false)).toBe(0);
+    expect(highpassMix(width(120), false)).toBe(1);
+    expect(highpassMix(width(120), true)).toBe(0);
+  });
+
+  it('leaves nothing colouring the signal at the minimum', () => {
+    const { ctx, connections } = recordingContext();
+    const effect = width(BASS_MONO_OFF_HZ);
+    const node = buildEffectNode(ctx, effect);
+    node.update(effect, 120, false);
+    const live = routesBetween(
+      connections,
+      node.input as unknown as RecordingNode,
+      node.output as unknown as RecordingNode,
+    ).filter((r) => r.scale !== 0);
+    expect(live.length).toBeGreaterThan(0);
+    for (const route of live) {
+      expect(route.through, 'a route still passes something at the minimum').toBe('');
+    }
+  });
+
+  it('tells the face the same thing it told the audio', () => {
+    // Two independent thresholds is how the picture and the processor came to
+    // disagree in the first place.
+    expect(widthFieldOf(width(BASS_MONO_OFF_HZ))!.bassMonoOn).toBe(false);
+    expect(widthFieldOf(width(BASS_MONO_OFF_HZ + 1))!.bassMonoOn).toBe(true);
+    expect(widthFieldOf(width(400))!.bassMonoOn).toBe(true);
+  });
+});
+
+describe('the Mix control as a blend rather than a comb', () => {
+  it('gives the hold cascade the group delay a boxcar has', () => {
+    // Each stage is two taps of equal weight 2^i apart, so half of 2^i; the
+    // cascade sums to the (N - 1) / 2 of the N-point boxcar it is.
+    expect(crusherGroupDelaySamples(0)).toBe(0);
+    expect(crusherGroupDelaySamples(1)).toBe(0.5);
+    expect(crusherGroupDelaySamples(6)).toBe(31.5);
+    for (let k = 0; k <= 6; k++) {
+      let sum = 0;
+      for (let i = 0; i < k; i++) sum += Math.pow(2, i) / 2;
+      expect(crusherGroupDelaySamples(k), `${k} stages`).toBeCloseTo(sum, 12);
+    }
+    // The comb this used to put in the Mix: at 64x and 48 kHz the first null
+    // landed at 48000 / 63, right through the middle of the band.
+    expect(SR / (2 * crusherGroupDelaySamples(6))).toBeCloseTo(761.9, 1);
+  });
+
+  /**
+   * The delay the crusher's own cascade imposes, measured off the graph it
+   * built rather than recomputed: a two-tap stage of weights a and b that are
+   * D samples apart delays by b·D / (a + b), and a stage that is switched off
+   * has b = 0 and delays by nothing.
+   */
+  function cascadeDelaySamples(node: EffectNode, connections: Connection[]): number {
+    const out = (n: unknown) => connections.filter((c) => c.from === n).map((c) => c.to);
+    let cursor = out(node.input).find(
+      (n): n is RecordingNode => 'kind' in n && n.kind === 'waveshaper',
+    )!;
+    let total = 0;
+    for (;;) {
+      const fed = out(cursor).filter((n): n is RecordingNode => 'kind' in n);
+      const delay = fed.find((n) => n.kind === 'delay');
+      const direct = fed.find((n) => n.kind === 'gain');
+      if (!delay || !direct) return total;
+      const delayed = out(delay)[0] as RecordingNode;
+      const a = gainOf(direct, connections);
+      const b = gainOf(delayed, connections);
+      total += (b * (delay.delayTime as RecordingParam).value * SR) / (a + b);
+      cursor = out(direct)[0] as RecordingNode;
+    }
+  }
+
+  it('holds the bitcrusher dry leg back by exactly what the wet path costs', () => {
+    const spec = effectSpec('bitcrusher')!.params.find((p) => p.key === 'downsample')!;
+    for (let choice = 0; choice <= spec.max; choice++) {
+      const effect: Effect = {
+        id: 'crush',
+        kind: 'bitcrusher',
+        bypass: false,
+        params: { ...defaultParams('bitcrusher'), downsample: choice, mix: 0.5 },
+      };
+      const { ctx, connections } = recordingContext();
+      const node = buildEffectNode(ctx, effect);
+      node.update(effect, 120, false);
+      const align = connections.find(
+        (c) => c.from === node.input && 'kind' in c.to && c.to.kind === 'delay',
+      )!.to as RecordingNode;
+      const dry = (align.delayTime as RecordingParam).value * SR;
+      const wet = cascadeDelaySamples(node, connections);
+      expect(dry, `${CRUSH_FACTORS[choice]}x dry leg`).toBeCloseTo(wet, 9);
+      expect(dry, `${CRUSH_FACTORS[choice]}x`).toBeCloseTo(crusherGroupDelaySamples(choice), 9);
+
+      // Bypass hands back a wire, and a wire does not delay by half a
+      // millisecond — the bypass-transparency check counts on it.
+      node.update({ ...effect, bypass: true }, 120, true);
+      expect((align.delayTime as RecordingParam).value, 'bypassed').toBe(0);
+    }
+  });
+
+  it('leaves the oversampled shapers uncompensated, because their latency is not knowable', () => {
+    // The honest half of the finding: a '4x' WaveShaper's resampling filters
+    // delay by an amount the specification does not state, so the saturator and
+    // the distortion still comb slightly at intermediate Mix settings. What
+    // must not happen is a guess — a dry delay of the wrong length moves the
+    // null rather than removing it — so there is no alignment delay there at
+    // all, and the parameter's declaration says so.
+    for (const kind of ['saturator', 'distortion'] as EffectKind[]) {
+      const { ctx, connections } = recordingContext();
+      const effect = effectOf(kind);
+      const node = buildEffectNode(ctx, effect);
+      node.update(effect, 120, false);
+      const delays = connections.filter(
+        (c) => c.from === node.input && 'kind' in c.to && c.to.kind === 'delay',
+      );
+      expect(delays.length, `${kind} added a dry delay it cannot have measured`).toBe(0);
+    }
   });
 });
 

@@ -382,6 +382,28 @@ export function quantiserCurve(bits: number, size = 32768): Float32Array {
 }
 
 /**
+ * Group delay, in samples, of a rate-reduction cascade of `stages` boxcar holds.
+ *
+ * Each stage is (1 + z^-2^i)/2 — two taps of equal weight, so linear phase with
+ * a delay of exactly half its span, 2^(i-1) samples. Cascading stages 0…k-1
+ * sums to (2^k - 1) / 2, which is also the (N - 1) / 2 of the N-point boxcar
+ * the cascade is: 31.5 samples at 64×.
+ *
+ * Half a sample is not an integer and does not need to be — the compensation is
+ * a `DelayNode`, which interpolates — but it is why the answer is in samples
+ * rather than in frames.
+ *
+ * This exists because Mix on the bitcrusher reads as a parallel blend and was a
+ * comb filter: 31.5 samples of lag between the two legs puts the first null at
+ * sampleRate / 63, about 760 Hz at 48 kHz, right through the middle of anything
+ * the effect is used on.
+ */
+export function crusherGroupDelaySamples(stages: number): number {
+  const k = Math.max(0, Math.round(stages));
+  return (Math.pow(2, k) - 1) / 2;
+}
+
+/**
  * Exact hard clipper. The curve itself is the identity ramp; the clipping is
  * free, because a WaveShaper holds the first or last curve value for any input
  * outside -1…+1. Inside the rails it is therefore bit-transparent, which is

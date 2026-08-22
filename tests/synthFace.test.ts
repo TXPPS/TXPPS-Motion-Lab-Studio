@@ -18,6 +18,7 @@ import { RackInstrument, SamplerInstrument } from '../src/audio/samplerInstrumen
 import { cacheBuffer, resetMediaCaches } from '../src/audio/mediaLibrary';
 import { dbToGain, eqMagnitudeResponse, logFrequencies, qToDb } from '../src/audio/dsp/curves';
 import { defaultSamplerParams, makeZone, type SamplerParams } from '../src/model/sampler';
+import { midiToFreq } from '../src/model/music';
 import type { RackItem, SynthParams, Waveform } from '../src/model/types';
 import {
   ampEnvelopeGain,
@@ -33,8 +34,21 @@ import {
   samplerVoiceFilter,
   suggestedHoldSec,
   synthAmpEnvelope,
+  synthFilterSweep,
+  synthGlideOf,
   synthKeyTrack,
+  synthLfoOf,
+  synthMorphDelaySec,
+  synthOscillatorOf,
+  synthOscillatorSample,
+  synthSubOf,
   synthVoiceFilter,
+  synthWidthSweep,
+  SYNTH_LFO_WIDTH_DUTY,
+  SYNTH_PW_MAX,
+  SYNTH_PW_MIN,
+  SYNTH_PW_SWEEP_MAX,
+  SYNTH_SUB_WAVE,
   zoneKeyProfile,
   zonePlaySeconds,
   zoneWindowOf,
@@ -44,7 +58,7 @@ import {
 // -------------------------------------------------------- recording context
 
 interface Call {
-  method: 'set' | 'ramp' | 'target' | 'cancel';
+  method: 'set' | 'ramp' | 'exp' | 'target' | 'cancel';
   value: number;
   time: number;
   tau: number;
@@ -64,6 +78,8 @@ interface RecFilter {
 interface RecOsc {
   type: string;
   frequency: RecParam;
+  /** Where a pitch modulator lands, in cents, on the oscillator and its sub. */
+  detune: RecParam;
   stopArgs: number[];
 }
 
@@ -77,11 +93,17 @@ interface RecSource {
   stopArgs: number[];
 }
 
+interface RecDelay {
+  maxDelayTime: number;
+  delayTime: RecParam;
+}
+
 interface Recorder {
   gains: RecParam[];
   filters: RecFilter[];
   oscillators: RecOsc[];
   sources: RecSource[];
+  delays: RecDelay[];
   /** Everything anything was connected to, so a modulator's reach is checkable. */
   connections: unknown[];
 }
@@ -91,6 +113,7 @@ const newRecorder = (): Recorder => ({
   filters: [],
   oscillators: [],
   sources: [],
+  delays: [],
   connections: [],
 });
 
@@ -112,6 +135,8 @@ function recordingContext(rec: Recorder, currentTime = 0): BaseAudioContext {
         p.calls.push({ method: 'set', value: v, time: t, tau: 0 }),
       linearRampToValueAtTime: (v: number, t: number) =>
         p.calls.push({ method: 'ramp', value: v, time: t, tau: 0 }),
+      exponentialRampToValueAtTime: (v: number, t: number) =>
+        p.calls.push({ method: 'exp', value: v, time: t, tau: 0 }),
       setTargetAtTime: (v: number, t: number, tau: number) =>
         p.calls.push({ method: 'target', value: v, time: t, tau }),
       cancelScheduledValues: (t: number) =>
@@ -141,12 +166,16 @@ function recordingContext(rec: Recorder, currentTime = 0): BaseAudioContext {
       return wire(f);
     },
     createStereoPanner: () => wire({ pan: param(0) }),
+    createDelay: (maxDelayTime: number) => {
+      const d: RecDelay = { maxDelayTime, delayTime: param(0) };
+      rec.delays.push(d);
+      return wire(d);
+    },
     createOscillator: () => {
-      const o: RecOsc = { type: 'sine', frequency: param(440), stopArgs: [] };
+      const o: RecOsc = { type: 'sine', frequency: param(440), detune: param(0), stopArgs: [] };
       rec.oscillators.push(o);
       return wire(
         Object.assign(o, {
-          detune: param(0),
           onended: null,
           start() {},
           stop: (t: number) => o.stopArgs.push(t),
@@ -213,10 +242,17 @@ function automationValueAt(calls: readonly Call[], t: number): number {
   let prevTime = 0;
   for (const e of events) {
     if (t < e.time) {
-      if (e.method !== 'ramp') return segmentAt(seg, t);
+      if (e.method !== 'ramp' && e.method !== 'exp') return segmentAt(seg, t);
       const from = segmentAt(seg, prevTime);
       const span = e.time - prevTime;
-      return span <= 0 ? e.value : from + (e.value - from) * ((t - prevTime) / span);
+      if (span <= 0) return e.value;
+      const progress = (t - prevTime) / span;
+      // An exponential ramp is geometric between its endpoints, which is what
+      // makes it the right curve for a pitch and the wrong one for a gain that
+      // has to reach zero.
+      return e.method === 'exp'
+        ? from * Math.pow(e.value / from, progress)
+        : from + (e.value - from) * progress;
     }
     const here = segmentAt(seg, e.time);
     seg =
@@ -260,6 +296,20 @@ function playSynth(params: SynthParams, pitch: number, velocity: number, hold: n
   const out = ctx.createGain();
   rec.gains.length = 0; // the output bus is not a voice
   new PolySynth(ctx, out, 't1', () => params, OPEN_REGISTRY).scheduleNote(pitch, velocity, 0, hold);
+  return rec;
+}
+
+/** Several notes through one instrument, which is what portamento needs. */
+function playPhrase(
+  params: SynthParams,
+  notes: { pitch: number; when: number; clipId?: string }[],
+): Recorder {
+  const rec = newRecorder();
+  const ctx = recordingContext(rec);
+  const out = ctx.createGain();
+  rec.gains.length = 0;
+  const synth = new PolySynth(ctx, out, 't1', () => params, OPEN_REGISTRY);
+  for (const n of notes) synth.scheduleNote(n.pitch, 100, n.when, 0.25, n.clipId);
   return rec;
 }
 
@@ -396,6 +446,306 @@ describe('the synth face draws the synth', () => {
       for (let i = 0; i < 1000; i++) sum += oscillatorSample(shape, i / 1000);
       expect(Math.abs(sum / 1000), `${shape} is centred`).toBeLessThan(0.002);
     }
+  });
+});
+
+// ------------------------------------------- oscillator, sub, glide and LFO
+
+/** The morph at its square end: the oscillator minus half a cycle of itself. */
+const MORPH: SynthParams = { ...SYNTH, waveform: 'sawtooth', shape: 1, pulseWidth: 0.5 };
+
+/** Whichever gain inverts the delayed copy, which is the only negative one. */
+const morphGainOf = (rec: Recorder): number => rec.gains.find((g) => g.value < 0)!.value;
+
+describe('the oscillator the face draws is the one the voice sums', () => {
+  /**
+   * The load-bearing test for the whole schema decision: a patch written before
+   * any of this existed builds the graph it always did — one oscillator, no
+   * delay line, no second gain, and a frequency assigned rather than automated.
+   * Anything else would mean an old project came back sounding different.
+   */
+  it('builds nothing new for a patch that predates the morph, the sub and the LFO', () => {
+    const rec = playSynth(SYNTH, 60, 100, 0.5);
+    expect(rec.oscillators).toHaveLength(1);
+    expect(rec.delays).toHaveLength(0);
+    expect(rec.gains).toHaveLength(1);
+    expect(rec.oscillators[0].type).toBe(SYNTH.waveform);
+    expect(rec.oscillators[0].frequency.calls).toEqual([]);
+    expect(rec.oscillators[0].frequency.value).toBeCloseTo(midiToFreq(60), 9);
+    expect(rec.connections.filter(isParam)).toEqual([]);
+
+    expect(synthOscillatorOf(SYNTH).morph).toBeNull();
+    expect(synthSubOf(SYNTH)).toBeNull();
+    expect(synthLfoOf(SYNTH)).toBeNull();
+    expect(synthGlideOf(SYNTH, 55, 60)).toBeNull();
+  });
+
+  it('subtracts a delayed copy of itself, at the depth and delay the face reports', () => {
+    const rec = playSynth(MORPH, 60, 100, 0.5);
+    const osc = synthOscillatorOf(MORPH);
+    const freqHz = midiToFreq(60);
+
+    expect(rec.delays).toHaveLength(1);
+    expect(rec.delays[0].delayTime.value).toBeCloseTo(synthMorphDelaySec(osc, freqHz), 12);
+    expect(rec.delays[0].delayTime.value).toBeCloseTo(0.5 / freqHz, 12);
+    expect(rec.delays[0].maxDelayTime).toBeGreaterThan(rec.delays[0].delayTime.value);
+    expect(morphGainOf(rec)).toBeCloseTo(-osc.morph!.shape, 12);
+
+    // The wave the face plots, against the sum the graph makes — computed from
+    // the delay and the gain the *nodes* were given, not from the parameters
+    // again. Away from the two discontinuities, which is where a plot lives.
+    const delayCycles = rec.delays[0].delayTime.value * freqHz;
+    for (let i = 0; i < 40; i++) {
+      const phase = 0.013 + i / 17;
+      const summed =
+        oscillatorSample(MORPH.waveform, phase) +
+        morphGainOf(rec) * oscillatorSample(MORPH.waveform, phase - delayCycles);
+      expect(synthOscillatorSample(osc, phase), `at ${phase.toFixed(3)} cycles`).toBeCloseTo(
+        summed,
+        12,
+      );
+    }
+  });
+
+  it('is exactly the sawtooth at one end of the morph and exactly the square at the other', () => {
+    const saw = { ...SYNTH, waveform: 'sawtooth' as const, shape: 0 };
+    expect(synthOscillatorOf(saw).morph).toBeNull();
+    expect(playSynth(saw, 60, 100, 0.3).delays).toHaveLength(0);
+
+    const square = synthOscillatorOf(MORPH);
+    for (const phase of [0.01, 0.2, 0.49, 0.51, 0.8, 0.99]) {
+      expect(synthOscillatorSample(square, phase)).toBeCloseTo(
+        oscillatorSample('square', phase),
+        12,
+      );
+    }
+  });
+
+  it('sets the duty from the width, and holds the peak-to-peak of a square while it moves', () => {
+    for (const width of [0.15, 0.35, 0.5, 0.9]) {
+      const p = { ...MORPH, pulseWidth: width };
+      const rec = playSynth(p, 60, 100, 0.3);
+      expect(rec.delays[0].delayTime.value * midiToFreq(60)).toBeCloseTo(1 - width, 12);
+
+      // Two levels, a full cycle apart in amplitude and zero-mean between them:
+      // the duty is what moves, which is what a pulse-width control means.
+      const osc = synthOscillatorOf(p);
+      const samples = Array.from({ length: 2000 }, (_, i) =>
+        synthOscillatorSample(osc, (i + 0.5) / 2000),
+      );
+      const high = Math.max(...samples);
+      const low = Math.min(...samples);
+      expect(high - low, `peak to peak at width ${width}`).toBeCloseTo(2, 6);
+      expect(samples.reduce((a, b) => a + b, 0) / samples.length, `mean at ${width}`).toBeCloseTo(
+        0,
+        6,
+      );
+      expect(samples.filter((v) => v > 0).length / samples.length, `duty at ${width}`).toBeCloseTo(
+        width,
+        2,
+      );
+    }
+    // Outside the range a pulse is a click, so the control does not go there.
+    expect(synthOscillatorOf({ ...MORPH, pulseWidth: 0 }).morph!.width).toBe(SYNTH_PW_MIN);
+    expect(synthOscillatorOf({ ...MORPH, pulseWidth: 1 }).morph!.width).toBe(SYNTH_PW_MAX);
+  });
+
+  it('adds the sub an octave under at its own level, and nothing at all at zero', () => {
+    const withSub = { ...SYNTH, subLevel: 0.6 };
+    const rec = playSynth(withSub, 60, 100, 0.3);
+    const sub = synthSubOf(withSub, 60)!;
+
+    expect(rec.oscillators).toHaveLength(2);
+    expect(rec.oscillators[1].type).toBe(SYNTH_SUB_WAVE);
+    expect(rec.oscillators[1].frequency.value).toBeCloseTo(sub.freqHz, 12);
+    expect(rec.oscillators[1].frequency.value * 2).toBeCloseTo(rec.oscillators[0].frequency.value, 12);
+    expect(rec.gains.some((g) => g.value === sub.gain)).toBe(true);
+
+    expect(synthSubOf({ ...SYNTH, subLevel: 0 })).toBeNull();
+    expect(playSynth({ ...SYNTH, subLevel: 0 }, 60, 100, 0.3).oscillators).toHaveLength(1);
+  });
+});
+
+describe('portamento', () => {
+  const GLIDED: SynthParams = {
+    ...SYNTH,
+    glide: 0.2,
+    subLevel: 0.5,
+    waveform: 'sawtooth',
+    shape: 1,
+    pulseWidth: 0.5,
+  };
+
+  it('starts the second note on the first note pitch and ramps it, sub and duty included', () => {
+    const rec = playPhrase(GLIDED, [
+      { pitch: 48, when: 0, clipId: 'c1' },
+      { pitch: 60, when: 1, clipId: 'c1' },
+    ]);
+    const glide = synthGlideOf(GLIDED, 48, 60)!;
+    expect(glide.seconds).toBe(0.2);
+
+    // Nothing to glide from, so the first note is assigned its pitch.
+    expect(rec.oscillators[0].frequency.calls).toEqual([]);
+
+    // Voices build main, sub, then modulator — so the second note's pair is 2 and 3.
+    const [main, sub] = [rec.oscillators[2], rec.oscillators[3]];
+    expect(main.frequency.calls.map((c) => c.method)).toEqual(['set', 'exp']);
+    expect(main.frequency.calls[0].value).toBeCloseTo(glide.fromHz, 9);
+    expect(main.frequency.calls[0].time).toBe(1);
+    expect(main.frequency.calls[1].value).toBeCloseTo(glide.toHz, 12);
+    expect(main.frequency.calls[1].time).toBeCloseTo(1 + glide.seconds, 12);
+    // The sub glides the same octave below at both ends, so the two never beat.
+    expect(sub.frequency.calls[0].value * 2).toBeCloseTo(glide.fromHz, 9);
+    expect(sub.frequency.calls[1].value * 2).toBeCloseTo(glide.toHz, 12);
+
+    // And the delay line rides the reciprocal, so the pulse arrives the width
+    // it left at rather than half of it.
+    const delay = rec.delays[1].delayTime.calls;
+    expect(delay[0].value * glide.fromHz).toBeCloseTo(0.5, 12);
+    expect(delay[1].value * glide.toHz).toBeCloseTo(0.5, 12);
+  });
+
+  it('leaves a repeated note and a glide of zero assigning the pitch outright', () => {
+    expect(synthGlideOf(GLIDED, 60, 60)).toBeNull();
+    const repeated = playPhrase(GLIDED, [
+      { pitch: 60, when: 0, clipId: 'c1' },
+      { pitch: 60, when: 1, clipId: 'c1' },
+    ]);
+    expect(repeated.oscillators[2].frequency.calls).toEqual([]);
+
+    const off = playPhrase({ ...GLIDED, glide: 0 }, [
+      { pitch: 48, when: 0, clipId: 'c1' },
+      { pitch: 60, when: 1, clipId: 'c1' },
+    ]);
+    for (const o of off.oscillators) expect(o.frequency.calls).toEqual([]);
+  });
+
+  /**
+   * The bounce walks `project.clips` and empties each one before starting the
+   * next; playback walks a lookahead window across all of them at once. A synth
+   * that glided from "the last note played" would therefore glide from a
+   * different note in the exported file than it did through the speakers on any
+   * track holding two overlapping clips — a difference nobody would find until
+   * they listened to the export.
+   */
+  it('glides within a clip, so the bounce order and the playback order agree', () => {
+    const notes = [
+      { pitch: 48, when: 0, clipId: 'a' },
+      { pitch: 72, when: 1, clipId: 'b' },
+      { pitch: 50, when: 2, clipId: 'a' },
+      { pitch: 74, when: 3, clipId: 'b' },
+    ];
+    const byClip = playPhrase(GLIDED, [notes[0], notes[2], notes[1], notes[3]]);
+    const byTime = playPhrase(GLIDED, notes);
+
+    /** What each voice's oscillator glided from, keyed by where it glided to. */
+    const glides = (rec: Recorder) =>
+      rec.oscillators
+        .filter((o) => o.type === GLIDED.waveform)
+        .map((o) => ({
+          to: o.frequency.calls.length ? o.frequency.calls[1].value : o.frequency.value,
+          from: o.frequency.calls.length ? o.frequency.calls[0].value : null,
+        }))
+        .sort((x, y) => x.to - y.to);
+
+    expect(glides(byClip)).toEqual(glides(byTime));
+    // And it is the note before it in its own clip, not the nearest in time.
+    const toFifty = glides(byTime).find((g) => Math.abs(g.to - midiToFreq(50)) < 1e-6)!;
+    expect(toFifty.from).toBeCloseTo(midiToFreq(48), 6);
+  });
+
+  it('forgets the phrase when everything is cut, so the next note starts on its own', () => {
+    const rec = newRecorder();
+    const ctx = recordingContext(rec);
+    const out = ctx.createGain();
+    rec.gains.length = 0;
+    const synth = new PolySynth(ctx, out, 't1', () => GLIDED, OPEN_REGISTRY);
+    synth.scheduleNote(48, 100, 0, 0.25, 'c1');
+    synth.allNotesOff();
+    synth.scheduleNote(60, 100, 1, 0.25, 'c1');
+    expect(rec.oscillators[rec.oscillators.length - 3].frequency.calls).toEqual([]);
+  });
+});
+
+describe('the synth LFO', () => {
+  const MODULATED: SynthParams = {
+    ...MORPH,
+    subLevel: 0.5,
+    lfoRate: 3,
+    lfoToPitch: 0.5,
+    lfoToFilter: 0.4,
+    lfoToWidth: 1,
+  };
+
+  it('builds one modulator, one gain per destination, and reaches all three', () => {
+    const rec = playSynth(MODULATED, 60, 100, 0.4);
+    const lfo = synthLfoOf(MODULATED, 60)!;
+    const freqHz = midiToFreq(60);
+
+    // Main, sub, modulator — and only one modulator for three destinations.
+    expect(rec.oscillators).toHaveLength(3);
+    expect(rec.oscillators[2].frequency.value).toBeCloseTo(lfo.rateHz, 12);
+
+    const gains = rec.gains.map((g) => g.value);
+    expect(gains).toContain(lfo.toPitchCents);
+    expect(gains).toContain(lfo.toFilterHz);
+    expect(gains.some((v) => Math.abs(v - lfo.toWidthDuty / freqHz) < 1e-15)).toBe(true);
+
+    const reached = rec.connections.filter(isParam);
+    expect(reached).toContain(rec.oscillators[0].detune);
+    expect(reached).toContain(rec.oscillators[1].detune);
+    expect(reached).toContain(rec.filters[0].frequency);
+    expect(reached).toContain(rec.delays[0].delayTime);
+  });
+
+  it('sweeps the filter through the band the curve shades', () => {
+    const p = { ...SYNTH, cutoff: 2000, lfoToFilter: 0.5 };
+    const lfo = synthLfoOf(p, 60)!;
+    expect(lfo.toFilterHz).toBeCloseTo(500, 9);
+    expect(playSynth(p, 60, 100, 0.3).gains.some((g) => Math.abs(g.value - 500) < 1e-9)).toBe(true);
+    expect(synthFilterSweep(synthVoiceFilter(p, 60), lfo)).toEqual({ lowHz: 1500, highHz: 2500 });
+    // The key opens the cutoff, and the depth is a share of it, so the band
+    // moves up the keyboard with the corner it is centred on.
+    expect(synthLfoOf(p, 84)!.toFilterHz).toBeCloseTo(500 * synthKeyTrack(84), 9);
+  });
+
+  it('keeps the width sweep inside the pulse rather than driving it through zero', () => {
+    const middle = { ...MORPH, pulseWidth: 0.5, lfoToWidth: 1 };
+    expect(synthLfoOf(middle)!.toWidthDuty).toBeCloseTo(SYNTH_LFO_WIDTH_DUTY, 12);
+    expect(synthWidthSweep(synthOscillatorOf(middle), synthLfoOf(middle))).toEqual({
+      lowDuty: 0.5 - SYNTH_LFO_WIDTH_DUTY,
+      highDuty: 0.5 + SYNTH_LFO_WIDTH_DUTY,
+    });
+
+    // At the end of the width's travel there is almost no room left, and the
+    // depth that is left is the depth the face reports and the gain the node
+    // holds — a delay driven through zero would cancel the pulse and read as
+    // tremolo instead of as a widening pulse.
+    const wide = { ...MORPH, pulseWidth: SYNTH_PW_MAX, lfoToWidth: 1 };
+    const lfo = synthLfoOf(wide)!;
+    expect(lfo.toWidthDuty).toBeCloseTo(SYNTH_PW_SWEEP_MAX - SYNTH_PW_MAX, 12);
+    expect(synthWidthSweep(synthOscillatorOf(wide), lfo)!.highDuty).toBeCloseTo(
+      SYNTH_PW_SWEEP_MAX,
+      12,
+    );
+    expect(
+      playSynth(wide, 60, 100, 0.3).gains.some(
+        (g) => Math.abs(g.value - lfo.toWidthDuty / midiToFreq(60)) < 1e-15,
+      ),
+    ).toBe(true);
+  });
+
+  it('reports no modulator where the voice builds none', () => {
+    expect(synthLfoOf(SYNTH)).toBeNull();
+    expect(playSynth(SYNTH, 60, 100, 0.3).oscillators).toHaveLength(1);
+
+    // A width depth with no pulse to widen: the sampler's "LFO → filter with
+    // the filter off" defect, in this instrument's terms. No oscillator is
+    // built, and the face says so rather than offering a live-looking dial.
+    const noPulse = { ...SYNTH, lfoToWidth: 1 };
+    expect(synthLfoOf(noPulse)).toBeNull();
+    expect(playSynth(noPulse, 60, 100, 0.3).oscillators).toHaveLength(1);
+    expect(synthWidthSweep(synthOscillatorOf(noPulse), synthLfoOf(noPulse))).toBeNull();
   });
 });
 

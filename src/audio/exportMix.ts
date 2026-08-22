@@ -29,6 +29,7 @@ import type { AudioClip, Effect, MidiClip, ProjectData, SynthParams, Track } fro
 import { diagLog } from '../state/diagnostics';
 import { applyEnvelope, computeClipSchedule } from './clipSchedule';
 import { InsertChain } from './effectChain';
+import type { ModulationClock } from './effectChain';
 import { getBufferSync, loadBuffer } from './mediaLibrary';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
 import { RackInstrument, SamplerInstrument, type RackChild } from './samplerInstrument';
@@ -240,6 +241,24 @@ export function renderLayout(
 }
 
 /**
+ * Where this render's clock sits in the song, for the modulators.
+ *
+ * The graph is built at t = 0 and the delivered audio begins `preRoll` seconds
+ * later, so context time zero is that far *before* the range start — which is
+ * why the LFOs, started with no argument, used to arrive at bar 5 in a
+ * different place depending on whether the bounce began at bar 1 or bar 5. The
+ * run-up is the same length whatever range was asked for; the song time at the
+ * range start is not, and it is the song time that has to decide the phase.
+ *
+ * Pure and exported for the same reason `renderLayout` is: "the same bars bounce
+ * to the same samples however the range was cut" is worth pinning down without
+ * an audio graph, and jsdom has none.
+ */
+export function renderModulationClock(rangeStartSec: number, preRollSec: number): ModulationClock {
+  return { startAt: 0, songSec: rangeStartSec - Math.max(0, preRollSec) };
+}
+
+/**
  * Which channel keys which channel's dynamics detectors.
  *
  * Pure, so the two exclusions — a key source that is not a channel, and a
@@ -408,6 +427,9 @@ export async function renderProject(
 
   const sampleRate = opts.sampleRate ?? 44100;
   const layout = renderLayout(durationSec, preRoll, sampleRate);
+  // Every insert chain below is handed this, so a modulator starts where the
+  // song says it is rather than where the render's own clock happens to be.
+  const modulation = renderModulationClock(projectBeatToSec(project, startBeat), preRoll);
   const ctx = new OfflineAudioContext(2, layout.frames, sampleRate);
   // Plugins are resolved on the render's own context, before the graph is built
   // — the same rule decoded media follows, and for the same reason: the build
@@ -426,7 +448,7 @@ export async function renderProject(
   if (opts.bypassMaster) {
     masterInput.connect(ctx.destination);
   } else {
-    const masterInserts = new InsertChain(ctx);
+    const masterInserts = new InsertChain(ctx, modulation);
     const masterGain = ctx.createGain();
     masterGain.gain.value = project.master?.volume ?? project.masterVolume;
     const masterPan = ctx.createStereoPanner();
@@ -465,7 +487,7 @@ export async function renderProject(
     const state = states.get(track.id)!;
     const input = ctx.createGain();
     const trim = ctx.createGain();
-    const inserts = new InsertChain(ctx);
+    const inserts = new InsertChain(ctx, modulation);
     const muteGain = ctx.createGain();
     const volGain = ctx.createGain();
     const panner = ctx.createStereoPanner();
@@ -830,7 +852,7 @@ export async function renderProject(
         const dest: AudioNode = isFreezeClipId(part.id) ? ch.inserts.exit : ch.input;
         if (part.eventFx?.length) {
           // Same shape as live: the clip's own chain between it and the channel.
-          const eventChain = new InsertChain(ctx);
+          const eventChain = new InsertChain(ctx, modulation);
           eventChain.sync(part.eventFx, project.bpm);
           g.connect(eventChain.entry);
           eventChain.exit.connect(dest);

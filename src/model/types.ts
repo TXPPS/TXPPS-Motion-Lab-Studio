@@ -99,6 +99,13 @@ export function isAudioTrackType(t: TrackType): boolean {
 export type Waveform = 'sawtooth' | 'square' | 'triangle' | 'sine';
 
 export interface SynthParams {
+  /**
+   * The built-in type assigned to the voice's `OscillatorNode` — and it stays
+   * exactly that even when `shape` is morphing, because the morph is made by
+   * subtracting a delayed copy of this oscillator rather than by replacing it.
+   * A patch is therefore never described twice: this says what the node plays,
+   * `shape` says how much of it is cancelled.
+   */
   waveform: Waveform;
   /** Filter cutoff in Hz (20..18000) */
   cutoff: number;
@@ -116,6 +123,40 @@ export interface SynthParams {
   /** Instrument output level, linear 0..1 */
   volume: number;
   presetName: string;
+
+  // ---- oscillator morph, sub, glide and LFO (additive; see synthFace.ts) ----
+  // Every field below is optional and every absent field means "build nothing",
+  // so a project written before they existed loads into the same voice graph it
+  // always had: one oscillator of `waveform` into the filter, no delay line, no
+  // sub, no pitch ramp and no modulator. That is why none of this needed a
+  // schema bump — `tests/synthSchema.test.ts` holds the app to it.
+
+  /**
+   * Saw↔square morph, 0..1. The voice subtracts `shape` times a copy of its own
+   * sawtooth delayed by `1 - pulseWidth` of a cycle, so 0 is the plain saw and
+   * 1 with a half-cycle delay is exactly a square. **Absent is not 0**: absent
+   * means the voice builds no delay path at all and plays `waveform` as it
+   * always did, which is what keeps a stored triangle a triangle.
+   */
+  shape?: number;
+  /**
+   * Duty cycle of the pulse's positive half, 0.1..0.9, default 0.5. It only
+   * means anything as `shape` approaches 1 — at the saw end there is no pulse
+   * for it to be the width of.
+   */
+  pulseWidth?: number;
+  /** Sine sub-oscillator an octave down, linear 0..1. 0 builds no sub. */
+  subLevel?: number;
+  /** Portamento: seconds to glide from the previous note's pitch. 0 is off. */
+  glide?: number;
+  /** LFO rate in Hz. One LFO, three fixed destinations, one depth each. */
+  lfoRate?: number;
+  /** LFO → pitch depth, 0..1 = up to ±100 cents on the oscillator and its sub. */
+  lfoToPitch?: number;
+  /** LFO → filter depth, 0..1 = up to ±half the voice's own cutoff, in Hz. */
+  lfoToFilter?: number;
+  /** LFO → pulse width depth, 0..1 = up to ±0.4 of a cycle of duty. */
+  lfoToWidth?: number;
 }
 
 export interface Track {
