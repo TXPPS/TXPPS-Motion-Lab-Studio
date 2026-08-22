@@ -48,6 +48,13 @@ export interface ProbeContext {
   snapshot(): string;
   clear(): void;
   connections: { from: string; to: string; output?: number; input?: number }[];
+  /**
+   * The stand-in nodes of one kind, so a test can set a field the browser owns.
+   * `DynamicsCompressorNode.reduction` is the case this exists for: it is
+   * read-only and written by the implementation, so the only way to ask what a
+   * builder does with it is to supply one.
+   */
+  nodesOfKind(kind: string): Record<string, unknown>[];
 }
 
 function hashNumbers(a: ArrayLike<number>): string {
@@ -70,7 +77,7 @@ function hashNumbers(a: ArrayLike<number>): string {
 export function createProbeContext(sampleRate = 48000): ProbeContext {
   const writes: WriteEvent[] = [];
   const connections: { from: string; to: string; output?: number; input?: number }[] = [];
-  const nodes: { name: string; state: Record<string, unknown> }[] = [];
+  const nodes: { name: string; state: Record<string, unknown>; node: Record<string, unknown> }[] = [];
   const counters = new Map<string, number>();
 
   const nameFor = (kind: string): string => {
@@ -201,7 +208,7 @@ export function createProbeContext(sampleRate = 48000): ProbeContext {
     for (const [key, v] of Object.entries(state)) {
       if (isParam(v)) paramNames.set(v, `${name}.${key}`);
     }
-    nodes.push({ name, state });
+    nodes.push({ name, state, node: self as unknown as Record<string, unknown> });
     return self;
   };
 
@@ -324,6 +331,8 @@ export function createProbeContext(sampleRate = 48000): ProbeContext {
     writes,
     connections,
     snapshot,
+    nodesOfKind: (kind: string) =>
+      nodes.filter((n) => n.name.startsWith(`${kind}#`)).map((n) => n.node),
     clear: () => {
       writes.length = 0;
     },
