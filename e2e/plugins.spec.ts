@@ -362,18 +362,26 @@ test.describe('a Web Audio Modules plugin in the bounce', () => {
         await new Promise((r) => setTimeout(r, 50));
       }
       const after = pool.getPluginSync(ctx, effect.id);
+      // Read the token *before* tearing the effect back out: removing it
+      // releases the instance synchronously, inside the store subscription,
+      // which would put the token back to 'pending' under the assertion.
+      const tokenAfter = pool.pluginToken(ctx, effect);
 
       // Put the project back the way it was found.
       w.__ml.projectStore.getState().update((d) => {
         const t = d.tracks.find((x) => x.id === trackId)!;
         t.effects = (t.effects ?? []).filter((e) => e.id !== effect.id);
       });
+      // And releasing it really does release it: an unreferenced plugin is an
+      // AudioWorklet processor still running on the audio thread.
+      const releasedAfterRemoval = pool.getPluginSync(ctx, effect.id) === null;
 
       return {
         beforeWasNull: before === null,
         tokenDuring,
         resolved: !!after,
-        tokenAfter: after ? pool.pluginToken(ctx, effect) : null,
+        tokenAfter,
+        releasedAfterRemoval,
         paramsApplied: after?.appliedParams ?? null,
         contextIsLive: ctx === w.__ml.engine.context,
       };
@@ -392,6 +400,8 @@ test.describe('a Web Audio Modules plugin in the bounce', () => {
     // Parameters were applied and awaited during the resolve, not during the
     // synchronous build — which is what makes an offline render correct.
     expect(seam.paramsApplied).toEqual({ overdrive: 5, level: 1 });
+    // Deleting the insert gives the audio thread back.
+    expect(seam.releasedAfterRemoval).toBe(true);
   });
 
   /**

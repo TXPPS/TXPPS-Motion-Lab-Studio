@@ -242,7 +242,7 @@
     0 0 0 1px color-mix(in srgb, var(--text) 55%, transparent);
 }
 .de-hit.selected {
-  outline: 1px solid var(--solo);
+  outline: 1px solid var(--solo-hi);
   z-index: 3;
 }
 .de-hit.muted {
@@ -257,7 +257,7 @@
   position: absolute;
   z-index: 4;
   pointer-events: none;
-  border: 1px solid var(--solo-line);
+  border: 1px solid var(--solo-hi);
   border-radius: var(--radius-xs);
   background: var(--solo-bg);
   opacity: 0;

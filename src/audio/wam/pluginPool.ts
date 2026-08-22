@@ -242,7 +242,11 @@ export async function preloadPlugins(
   return report;
 }
 
-async function instantiate(ctx: BaseAudioContext, pool: ContextPool, effect: Effect): Promise<void> {
+async function instantiate(
+  ctx: BaseAudioContext,
+  pool: ContextPool,
+  effect: Effect,
+): Promise<void> {
   const ref = effect.plugin;
   if (!ref) {
     pool.failed.set(effect.id, {
@@ -286,7 +290,9 @@ async function instantiate(ctx: BaseAudioContext, pool: ContextPool, effect: Eff
       }
     }
 
-    const info = await node.getParameterInfo().catch(() => ({}) as Record<string, WamParameterInfo>);
+    const info = await node
+      .getParameterInfo()
+      .catch(() => ({}) as Record<string, WamParameterInfo>);
     const paramCache = Object.values(info).map(toParamCache);
 
     // Everything the render needs is applied and awaited here, before the graph
@@ -383,42 +389,4 @@ function disposeRecord(rec: PluginInstanceRecord): void {
  */
 export function retryPlugin(ctx: BaseAudioContext, effectId: string): void {
   pools.get(ctx)?.failed.delete(effectId);
-}
-
-/** Drop every instance on a context. Called when a context is closed. */
-export function releaseContext(ctx: BaseAudioContext): void {
-  const pool = pools.get(ctx);
-  if (!pool) return;
-  for (const rec of pool.ready.values()) disposeRecord(rec);
-  pool.ready.clear();
-  pool.failed.clear();
-  pool.inflight.clear();
-}
-
-/**
- * The plugin state and parameter descriptors to write back into the project.
- *
- * Reading `getState()` is how a plugin's own GUI edits reach the project file,
- * and refreshing `paramCache` is how an automation lane keeps a real name and
- * range after the plugin is gone. Both are async, so this is called on save and
- * on window close — never on the graph path.
- */
-export async function readPluginRefs(
-  ctx: BaseAudioContext,
-  effectIds: readonly string[],
-): Promise<Map<string, { state: unknown; paramCache: PluginParamCache[] }>> {
-  const pool = pools.get(ctx);
-  const out = new Map<string, { state: unknown; paramCache: PluginParamCache[] }>();
-  if (!pool) return out;
-  for (const id of effectIds) {
-    const rec = pool.ready.get(id);
-    if (!rec) continue;
-    try {
-      const state = await rec.instance.audioNode.getState();
-      out.set(id, { state, paramCache: rec.paramCache });
-    } catch {
-      /* a plugin that cannot report its state keeps the state we already had */
-    }
-  }
-  return out;
 }

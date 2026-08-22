@@ -223,7 +223,7 @@
 
 .sc-marquee {
   fill: var(--solo-bg);
-  stroke: var(--solo);
+  stroke: var(--solo-hi);
   stroke-width: 1px;
   pointer-events: none;
 }

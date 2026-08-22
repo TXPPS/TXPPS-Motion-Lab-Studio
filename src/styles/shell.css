@@ -36,15 +36,48 @@
   --ml-seam-r: inset -1px 0 0 var(--edge-hi), inset -2px 0 0 var(--edge-lo);
   --ml-seam-l: inset 2px 0 0 var(--edge-hi), inset 1px 0 0 var(--edge-lo);
 
-  /* A lamp (§2.6). Unlit it is a well cut in the chrome; lit it is a filled
-     LED with dark ink. `--lamp` is set per instance — --solo-lamp, --mute-lamp,
-     --danger-lamp, --accent-lamp, --key-lamp — and both rules below read it, so
-     a lamp's colour is declared once at the call site and never twice.
-
-     The glow is the one legal glow in the product (§2.4 rule 6): a lit lamp, in
-     the lamp's own colour. Not on focus, not on hover, not on selection. */
+  /* A lamp (§2.6). Unlit it is a well cut in the chrome — no hue in it, so
+     this half is safe to resolve once, here. */
   --lamp: var(--accent-lamp);
   --ml-lamp-off: var(--sh-well);
+}
+
+/*
+ * A lamp, lit.
+ *
+ * Every element below is a lamp somewhere in the product, and each one names
+ * its own colour with `--lamp: var(--solo-lamp | --mute-lamp | --danger-lamp |
+ * --accent-lamp | --key-lamp)` in the region file that places it. The recipe
+ * is here, once: a bevel, a ring, and the one glow the product allows (§2.4
+ * rule 6) — a lit lamp, in the lamp's own colour. Not on focus, not on hover,
+ * not on selection.
+ *
+ * The recipe is declared on the LAMPS and not on `:root`, and that is
+ * load-bearing rather than stylistic. A custom property's value has its own
+ * `var()`s substituted at the element it is declared on, so `--ml-lamp-on`
+ * declared at `:root` would resolve `var(--lamp)` against the root — every
+ * lamp in the product would inherit a green ring and a green glow, whatever
+ * colour it had set for itself, and the two loudest lamps on the desk (solo
+ * and record) would be ringed in the colour that means "signal is passing".
+ * Declared here, `--lamp` resolves per element.
+ *
+ * The list is also the product's inventory of lamps; a new one joins it.
+ */
+.lamp,
+.th-mini,
+.th-auto,
+.fx-chip,
+.in-flag,
+.dev-power,
+.pw-power,
+.cue-live,
+.sb-readonly,
+.t-btn,
+.btn,
+.icon-btn,
+.stage-btn,
+.pad,
+.smoke-results .badge {
   --ml-lamp-on:
     inset 0 1px 0 rgb(255 255 255 / 0.3), inset 0 -1px 2px rgb(0 0 0 / 0.32),
     0 0 0 1px color-mix(in srgb, var(--lamp) 55%, transparent),
@@ -149,8 +182,12 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 8px;
+  /* Density contrast (§2.7): chrome is dense — small type on quiet ground,
+     2–6px gaps — and content (dialogs, settings, the Start page) is open. The
+     bars were running content-sized gaps, which is most of why the console
+     felt like a settings screen. */
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4);
   background: var(--bg-panel);
   box-shadow: var(--ml-seam-b);
   overflow: hidden;
@@ -231,8 +268,8 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 10px;
+  gap: var(--sp-4);
+  padding: 0 var(--sp-4);
   background: var(--bg-panel-2);
   box-shadow: var(--ml-seam-b);
   overflow: hidden;
@@ -305,6 +342,11 @@
   box-shadow: var(--sh-pressed);
   transform: translateY(0.5px);
 }
+/* Every disabled control reads the same way, whatever shape it is. */
+.t-btn:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+}
 /* Count-in bars, shown on the metronome rather than costing its own control.
    A count is a value, and a value is neutral (§2.1). */
 .t-badge {
@@ -344,6 +386,10 @@
   background: var(--bg-panel-2);
   box-shadow: var(--sh-pressed);
   color: var(--text);
+}
+.t-tap:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 
 /* Performance: frame load and live source count. */
@@ -535,12 +581,12 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding-left: 10px;
-  padding-right: 10px;
+  gap: var(--sp-5);
+  padding-left: var(--sp-4);
+  padding-right: var(--sp-4);
   background: var(--bg-panel);
   box-shadow: var(--ml-seam-t);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
   color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -589,8 +635,8 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 10px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-4);
   box-shadow: var(--ml-seam-b);
   user-select: none;
 }

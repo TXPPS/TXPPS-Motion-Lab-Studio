@@ -456,7 +456,10 @@ export async function runParityProbe(
  * plugin that does not drive itself from the main thread.
  */
 export function printRequiredPlugins(
-  effects: readonly { id: string; plugin?: { identifier: string; version: string; name: string } }[],
+  effects: readonly {
+    id: string;
+    plugin?: { identifier: string; version: string; name: string };
+  }[],
 ): { effectId: string; name: string; note: string }[] {
   const out: { effectId: string; name: string; note: string }[] = [];
   for (const e of effects) {

@@ -82,11 +82,16 @@
  */
 .strip.selected {
   background: var(--bg-raised);
-  box-shadow: var(--sh-1);
+  box-shadow:
+    inset 1px 0 0 var(--edge-hi),
+    inset -1px 0 0 var(--edge-hi);
 }
-/* A desk full of channels that never answer the pointer does not feel live. */
+/* A desk full of channels that never answer the pointer does not feel live.
+   Toward --bg-hover rather than toward --text, so it lightens in the light
+   theme too — and only part of the way, because a whole strip lifting a full
+   step is noisy across forty channels. */
 .strip:hover:not(.selected) {
-  background: color-mix(in srgb, var(--text) 4%, var(--bg-panel-2));
+  background: color-mix(in srgb, var(--bg-hover) 45%, var(--bg-panel-2));
 }
 .strip.master {
   background: var(--bg-raised);
@@ -113,12 +118,7 @@
   grid-row: 2;
   margin-top: var(--row-tight);
 }
-.strip-inserts,
 .dev-rack,
-.strip-fx {
-  grid-row: 3;
-  margin-top: var(--row-tight);
-}
 .strip-sends {
   grid-row: 4;
   margin-top: var(--row-tight);
@@ -205,58 +205,10 @@
 
 /* Insert/send status row. Two equal chips that never wrap and never widen the
    strip — the strip's fixed width is what keeps the mixer row predictable. */
-.strip-fx {
-  display: flex;
-  gap: 3px;
-  min-width: 0;
-  min-height: 0;
-}
-.strip-fx:empty {
-  /* master placeholder: reserve the same height so rows stay aligned */
-  height: 17px;
-}
 /* A lettered lamp: unlit it is a well, lit it is a filled LED (§2.6). The
    ground is --bg-input because the lamp carries text. */
-.fx-chip {
-  flex: 1 1 0;
-  min-width: 0;
-  height: 17px;
-  border-radius: var(--radius-xs);
-  background: var(--bg-input);
-  border: none;
-  box-shadow: var(--ml-lamp-off);
-  color: var(--text-faint);
-  font-family: var(--font-cond);
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-semibold);
-  letter-spacing: var(--ls-caps);
-  text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-}
-.fx-chip.on {
-  --lamp: var(--accent-lamp);
-  background: var(--lamp);
-  box-shadow: var(--ml-lamp-on);
-  color: var(--lamp-ink);
-}
 /* Every insert bypassed reads as "present but doing nothing", not as active:
    the lamp goes out and the slot sinks rather than the whole chip dimming. */
-.fx-chip.on.bypassed {
-  background: var(--bg-input);
-  box-shadow: var(--sh-pressed);
-  color: var(--text-faint);
-  text-decoration: line-through;
-}
-.fx-chip:hover:not(.on) {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-.fx-chip:disabled {
-  opacity: var(--opacity-disabled);
-  cursor: not-allowed;
-}
-
 .strip-pan {
   display: flex;
   align-items: center;
@@ -702,21 +654,6 @@
 }
 
 /* ---------------------------------------------------------- insert slots */
-/*
- * A rack: a well with modules seated on a rail (§2.6). Four bordered boxes
- * become four modules in a rail, which is the change that alters the strip's
- * character most — you can see that signal passes THROUGH a series of things.
- */
-.strip-inserts {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding: 2px;
-  border-radius: var(--radius-xs);
-  background: var(--bg-well);
-  box-shadow: var(--sh-well);
-}
 .ins-slot {
   display: flex;
   align-items: center;
@@ -1287,11 +1224,17 @@
     var(--sh-well),
     inset 0 0 0 1px var(--edge-hi);
 }
+/* The overview's copy of the insert chain is the same rack: modules seated on
+   a rail (§2.6), so the console and the overview describe one object. */
 .co-chain {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 110px;
+  padding: 2px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-well);
+  box-shadow: var(--sh-well);
 }
 .co-sends {
   display: flex;
@@ -1572,6 +1515,12 @@
   background: color-mix(in srgb, var(--text-faint) 35%, transparent);
   box-shadow: none;
 }
+/* A lamp you can press has to answer the pointer before it is pressed. */
+.dev-power:hover {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--edge-hi) 80%, transparent),
+    0 0 5px -1px color-mix(in srgb, var(--accent-lamp) 60%, transparent);
+}
 .dev-name {
   flex: 1 1 auto;
   min-width: 0;
@@ -1740,8 +1689,18 @@
   box-shadow: var(--ml-lamp-on);
 }
 .pw-power[aria-pressed='false'] {
-  background: var(--bg-well);
+  background: var(--bg-input);
   box-shadow: var(--ml-lamp-off);
+}
+.pw-power:hover {
+  box-shadow:
+    var(--ml-lamp-on),
+    0 0 0 2px color-mix(in srgb, var(--edge-hi) 80%, transparent);
+}
+.pw-power[aria-pressed='false']:hover {
+  box-shadow:
+    var(--ml-lamp-off),
+    0 0 0 2px color-mix(in srgb, var(--edge-hi) 80%, transparent);
 }
 .pw-title {
   display: flex;
@@ -1915,11 +1874,7 @@
       auto
       auto;
   }
-  .strip-inserts,
   .dev-rack,
-  .strip-fx {
-    display: none;
-  }
   .strip-pan {
     grid-row: 3;
   }

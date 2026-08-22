@@ -15,14 +15,12 @@
  * stranger's code with our origin's privileges (our IndexedDB, which is every
  * project and every recording; our DOM; our network) and the honest control for
  * that is a Content-Security-Policy plus a specific consent dialogue, neither
- * of which exists yet. `URL_CONSENT_COPY` below is the text that dialogue must
+ * of which exists yet. `urlConsentCopy` below is the text that dialogue must
  * carry when it is built, kept here so the wording is reviewed as part of the
  * plugin system rather than invented at the last minute.
  *
  * See docs/THIRD-PARTY-PLUGINS.md §2.5 and §4.4.
  */
-import { newId } from '../../model/ids';
-import { MAX_INSERTS } from '../../model/effects';
 import type { Effect, PluginRef } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 
@@ -252,12 +250,4 @@ function findEffect(
     if (hit) return hit;
   }
   return undefined;
-}
-
-/** Slot ceiling, re-exported so the picker does not import two modules. */
-export { MAX_INSERTS };
-
-/** Only used by tests that need a plausible effect id. */
-export function newPluginEffectId(): string {
-  return newId('fx');
 }

@@ -293,8 +293,12 @@
   font-family: var(--font-num);
   font-size: var(--fs-xs);
 }
-.kc-combo:hover {
+.kc-combo:hover:not(:disabled) {
   background: var(--bg-hover);
+}
+.kc-combo:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 /* "You changed this from the default" is not one of the five meanings, so it
    is expressed as light: a raised binding among flat ones (§2.11.8). */

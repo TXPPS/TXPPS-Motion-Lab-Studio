@@ -165,8 +165,8 @@
   top: 0;
   bottom: 0;
   background: var(--loop-band);
-  border-left: 1px solid var(--solo-line);
-  border-right: 1px solid var(--solo-line);
+  border-left: 1px solid var(--solo-hi);
+  border-right: 1px solid var(--solo-hi);
   pointer-events: none;
   z-index: var(--z-lane);
 }
@@ -209,7 +209,7 @@
   z-index: var(--z-playhead);
   pointer-events: none;
   background: var(--solo-bg);
-  border: 1px solid var(--solo-line);
+  border: 1px solid var(--solo-hi);
   border-radius: var(--radius-xs);
 }
 .hint-btn {

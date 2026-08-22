@@ -52,7 +52,8 @@ let isolationChecked = false;
  * us. So we assert the assumption rather than assume it.
  */
 export function checkCrossOriginIsolation(): boolean {
-  const isolated = typeof globalThis.crossOriginIsolated === 'boolean' && globalThis.crossOriginIsolated;
+  const isolated =
+    typeof globalThis.crossOriginIsolated === 'boolean' && globalThis.crossOriginIsolated;
   if (!isolationChecked) {
     isolationChecked = true;
     if (isolated) {
@@ -123,9 +124,4 @@ export function loadPluginModule(url: string): Promise<WebAudioModuleConstructor
   p.catch(() => modules.delete(url));
   modules.set(url, p);
   return p;
-}
-
-/** Test seam: forget every cached module so a spec can re-import. */
-export function resetModuleCache(): void {
-  modules.clear();
 }

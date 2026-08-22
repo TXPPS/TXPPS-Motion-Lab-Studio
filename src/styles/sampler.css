@@ -90,8 +90,8 @@
   top: 0;
   bottom: 0;
   background: var(--loop-band);
-  border-left: 1px solid var(--solo);
-  border-right: 1px solid var(--solo);
+  border-left: 1px solid var(--solo-hi);
+  border-right: 1px solid var(--solo-hi);
   pointer-events: none;
 }
 .smp-slice {
@@ -99,7 +99,7 @@
   top: 0;
   bottom: 0;
   width: 1px;
-  background: var(--solo);
+  background: var(--solo-hi);
   opacity: 0.85;
   pointer-events: none;
 }
@@ -109,7 +109,7 @@
   top: 0;
   left: -3px;
   border: 4px solid transparent;
-  border-top-color: var(--solo);
+  border-top-color: var(--solo-hi);
 }
 .smp-handle {
   position: absolute;
@@ -127,7 +127,7 @@
   bottom: 0;
   left: 4px;
   width: 2px;
-  background: var(--solo);
+  background: var(--solo-hi);
 }
 .smp-handle::after {
   content: '';

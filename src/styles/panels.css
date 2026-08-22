@@ -95,8 +95,9 @@ button.li-main {
   flex: none;
 }
 
+/* Chrome density (§2.7): a side panel is a rack of sections, not a page. */
 .panel-section {
-  padding: 8px 10px;
+  padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--border-soft);
 }
 .panel-section .ps-title {
@@ -109,18 +110,21 @@ button.li-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: var(--fs-md);
-}
-.insp-row .k {
-  color: var(--text-dim);
+  gap: var(--sp-4);
+  padding: var(--sp-1) 0;
   font-size: var(--fs-sm);
+}
+/* Label left, value right, so the numbers form a column you can scan
+   (§2.11.10) — and the label is the quiet half of the pair (§2.5 rule 2). */
+.insp-row .k {
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
   flex: none;
 }
 .insp-row .v {
   min-width: 0;
   text-align: right;
+  color: var(--text);
   font-weight: var(--fw-medium);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -706,7 +710,7 @@ button.li-main {
   gap: 1px;
   padding: var(--sp-4);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--text) calc(var(--strength) * 12%), var(--bg-panel-2));
+  background: color-mix(in srgb, var(--bg-hover) calc(var(--strength) * 100%), var(--bg-panel-2));
   border: none;
   box-shadow: var(--sh-2);
   text-align: left;

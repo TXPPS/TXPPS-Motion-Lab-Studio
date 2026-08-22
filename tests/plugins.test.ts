@@ -264,8 +264,9 @@ describe('a missing plugin becomes a tombstone, not a deletion', () => {
   it('keeps the effect but drops a plugin reference with no identity', () => {
     const p = projectWithPlugin();
     // A hand-edited or truncated file: the slot is real, the reference is not.
-    (p.tracks.find((t) => t.effects?.length)!.effects![0] as unknown as Record<string, unknown>)
-      .plugin = { name: 'Half a record' };
+    (
+      p.tracks.find((t) => t.effects?.length)!.effects![0] as unknown as Record<string, unknown>
+    ).plugin = { name: 'Half a record' };
     const loaded = validateProject(JSON.parse(JSON.stringify(p)));
     const fx = loaded.tracks.flatMap((t) => t.effects ?? []).find((e) => e.kind === 'wam');
     expect(fx).toBeDefined();
@@ -449,9 +450,7 @@ describe('the parity cache', () => {
   });
 
   it('lets an unprobed plugin bounce through the normal offline path', () => {
-    const chain: Effect[] = [
-      { id: 'b', kind: 'wam', bypass: false, params: {}, plugin: STRANGER },
-    ];
+    const chain: Effect[] = [{ id: 'b', kind: 'wam', bypass: false, params: {}, plugin: STRANGER }];
     expect(printRequiredPlugins(chain)).toEqual([]);
   });
 });

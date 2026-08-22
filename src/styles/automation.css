@@ -82,7 +82,7 @@
 /* A marquee is a selection, and selection is yellow. */
 .auto-marquee {
   position: absolute;
-  border: 1px solid var(--solo-line);
+  border: 1px solid var(--solo-hi);
   background: var(--solo-bg);
   pointer-events: none;
   z-index: 3;
