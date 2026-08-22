@@ -21,7 +21,7 @@ import {
   type EncodeMetadata,
   type EncodedAudio,
 } from '../audio/encode';
-import { measureChannels, truePeakDbtp } from '../model/loudness';
+import { measureChannels, truePeak } from '../model/loudness';
 import type { ProjectData } from '../model/types';
 import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
@@ -103,14 +103,25 @@ export const DEFAULT_EXPORT: ExportSettings = {
   metadata: {},
 };
 
-/** Apply a peak-normalisation gain in place. Returns the gain that was applied. */
-function normalizeInPlace(channels: Float32Array[], targetDbtp: number): number {
+/**
+ * Apply a peak-normalisation gain in place. Returns the gain that was applied.
+ *
+ * The peak is read linearly. Round-tripping it through dBTP sent it through
+ * `dbfsFromAmplitude`, which floors at MIN_DBFS: every stem quieter than
+ * -120 dBTP measured as 1e-6 however quiet it really was, so it was normalised
+ * against a peak it did not have and landed short of the ceiling — and the
+ * `peak <= 0` guard could never fire, because 1e-6 is not zero.
+ *
+ * Test seam: exported so the floor cannot come back unnoticed.
+ */
+export function normalizeInPlace(channels: Float32Array[], targetDbtp: number): number {
   let peak = 0;
   for (const ch of channels) {
-    const tp = Math.pow(10, truePeakDbtp(ch) / 20);
+    const tp = truePeak(ch);
     if (tp > peak) peak = tp;
   }
-  if (peak <= 0) return 1;
+  // Below this there is no peak to normalise against, only arithmetic noise.
+  if (!(peak > 1e-12)) return 1;
   const gain = Math.pow(10, targetDbtp / 20) / peak;
   for (const ch of channels) {
     for (let i = 0; i < ch.length; i++) ch[i] *= gain;

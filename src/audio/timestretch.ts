@@ -323,6 +323,23 @@ const FORMANT_ENVELOPE_HZ = 550;
 const FORMANT_LIMIT_NEPERS = 24 / 8.685889638065035;
 
 /**
+ * Keep only the low-quefrency part of a cepstrum: the spectral envelope.
+ *
+ * The bound is inclusive at both ends. Quefrency q and size - q are the same
+ * point of a real, even sequence, so `size - lifter` is the mirror of `lifter`
+ * and dropping one without the other leaves the sequence uneven — its
+ * transform then has a small imaginary part, which leaks into the smoothed log
+ * magnitude the correction gain is read from.
+ */
+export function liftCepstrum(re: Float32Array, im: Float32Array, lifter: number): void {
+  const size = re.length;
+  for (let q = lifter; q <= size - lifter; q++) {
+    re[q] = 0;
+    im[q] = 0;
+  }
+}
+
+/**
  * Undo the formant shift a resampling pitch change causes.
  *
  * Resampling by `rate` scales the whole spectrum, envelope included, so a voice
@@ -375,10 +392,7 @@ export function preserveFormants(
       if (k > 0 && k < half) cepstrumIm[size - k] = 0;
     }
     ifftInPlace(cepstrumRe, cepstrumIm);
-    for (let q = lifter; q < size - lifter; q++) {
-      cepstrumRe[q] = 0;
-      cepstrumIm[q] = 0;
-    }
+    liftCepstrum(cepstrumRe, cepstrumIm, lifter);
     fftInPlace(cepstrumRe, cepstrumIm);
 
     for (let k = 0; k <= half; k++) {

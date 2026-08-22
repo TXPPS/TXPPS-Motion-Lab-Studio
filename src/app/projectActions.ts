@@ -26,6 +26,7 @@ import { useUiStore } from '../state/uiStore';
 import { engine } from '../audio/engine';
 import { mergeProjects, type MergeOptions } from './projectMerge';
 import { retainOnly } from '../audio/mediaLibrary';
+import { clearStretchCache } from '../audio/stretchCache';
 import { usedMediaIds } from '../model/media';
 
 function toast(level: 'info' | 'error', msg: string): void {
@@ -113,6 +114,7 @@ export async function mergeProjectById(id: string, options: MergeOptions = {}): 
   });
   store.setProject(result.project, { markClean: false });
   retainOnly(usedMediaIds(result.project));
+  clearStretchCache();
 
   const { tracks, clips } = result.added;
   toast('info', `Merged "${source.name}": ${tracks} track(s), ${clips} clip(s).`);
@@ -140,6 +142,7 @@ export async function openProject(id: string): Promise<boolean> {
     useProjectStore.getState().setProject(p, { markClean: true });
     useUiStore.getState().set({ selectedClipId: null, selectedNoteIds: [], editClipId: null });
     retainOnly(usedMediaIds(p));
+    clearStretchCache();
     await savePrefs({ lastProjectId: p.id });
     return true;
   } catch (e) {
@@ -173,6 +176,7 @@ export async function newProject(name: string, opts?: { demo?: boolean }): Promi
   useProjectStore.getState().setProject(p, { markClean: false });
   useUiStore.getState().set({ selectedClipId: null, selectedNoteIds: [], editClipId: null });
   retainOnly(usedMediaIds(p));
+  clearStretchCache();
   await saveCurrent(true);
 }
 

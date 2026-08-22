@@ -55,7 +55,9 @@ export function ShortcutsSheet() {
         data-testid="shortcuts-sheet"
       >
         <div className="panel-title">
-          <span>Keyboard shortcuts</span>
+          {/* A real heading, so the section headings below it are a level down
+              rather than a jump from nothing to h3. */}
+          <h2>Keyboard shortcuts</h2>
           <span className="spacer" style={{ flex: 1 }} />
           <button
             className="icon-btn"

@@ -24,7 +24,7 @@ import {
   projectBeatToSec,
   projectSecToBeat,
 } from '../model/music';
-import type { AudioClip, MidiClip, ProjectData, SynthParams, Track } from '../model/types';
+import type { AudioClip, Effect, MidiClip, ProjectData, SynthParams, Track } from '../model/types';
 import { diagLog } from '../state/diagnostics';
 import { applyEnvelope, computeClipSchedule } from './clipSchedule';
 import { InsertChain } from './effectChain';
@@ -45,6 +45,7 @@ import {
   warpKey,
 } from './warpRender';
 import type { WarpMap } from '../model/warp';
+import { encodeWav } from './encode/wav';
 
 /** Guard against a runaway render: two hours is far past any sane project. */
 const MAX_RENDER_SECONDS = 60 * 120;
@@ -83,6 +84,11 @@ export interface RenderOptions {
   range?: RenderRange;
   /** Extra seconds appended so effect tails are not cut off. */
   tailSeconds?: number;
+  /**
+   * Silence rendered ahead of the range so the graph settles, then trimmed off
+   * again. Omit to let `preRollForProject` choose; 0 disables it.
+   */
+  preRollSec?: number;
   /** Render rate; defaults to the live context's rate when available. */
   sampleRate?: number;
   onProgress?: (stage: string) => void;
@@ -130,6 +136,79 @@ const FALLBACK_SYNTH = {
   presetName: 'Fallback',
 };
 
+/** Every insert chain in the project, master and per-clip chains included. */
+function allEffects(project: ProjectData): Effect[] {
+  const out: Effect[] = [...(project.master?.effects ?? [])];
+  for (const track of project.tracks) out.push(...(track.effects ?? []));
+  for (const clip of project.clips) out.push(...(clip.eventFx ?? []));
+  return out;
+}
+
+/**
+ * Pre-roll long enough for this session's slowest processor to settle.
+ *
+ * The release control is the slowest of the ballistics, so five of the longest
+ * release in the project is the bound that matters; everything else in the
+ * graph settles inside the floor. Bypassed inserts count too: their ballistics
+ * still run, and being generous costs a fraction of a second of render time
+ * while being mean costs a fade-in on the delivered file.
+ */
+export function preRollForProject(project: ProjectData): number {
+  let slowestMs = 0;
+  for (const fx of allEffects(project)) {
+    const ms = fx.params?.release;
+    if (typeof ms === 'number' && Number.isFinite(ms) && ms > slowestMs) slowestMs = ms;
+  }
+  return Math.max(DEFAULT_PRE_ROLL_SECONDS, (SETTLE_TIME_CONSTANTS * slowestMs) / 1000);
+}
+
+export interface RenderLayout {
+  /** Frames the offline context is asked for, pre-roll included. */
+  frames: number;
+  /** Leading frames dropped before the buffer is handed back. */
+  trimFrames: number;
+  /** Frames the caller actually receives. */
+  keptFrames: number;
+}
+
+/**
+ * Frame budget for a render, and the slice of it that never leaves this module.
+ *
+ * Pure and separate from the render because "the bounce is exactly as long as
+ * the range and starts where the range starts" is the one property of a
+ * pre-rolled render worth pinning down without an audio graph.
+ */
+export function renderLayout(
+  durationSec: number,
+  preRollSec: number,
+  sampleRate: number,
+): RenderLayout {
+  const trimFrames = Math.round(Math.max(0, preRollSec) * sampleRate);
+  const keptFrames = Math.ceil(durationSec * sampleRate);
+  return { frames: trimFrames + keptFrames, trimFrames, keptFrames };
+}
+
+/**
+ * Which channel keys which channel's dynamics detectors.
+ *
+ * Pure, so the two exclusions — a key source that is not a channel, and a
+ * channel keying itself — are testable without a graph. The live engine makes
+ * the same two exclusions inline (`engine.ts`, the sidechain block).
+ */
+export function sidechainRouting(
+  project: ProjectData,
+  isChannel: (id: string) => boolean,
+): { trackId: string; keyId: string }[] {
+  const out: { trackId: string; keyId: string }[] = [];
+  for (const track of project.tracks) {
+    const keyId = track.sidechainFrom ?? null;
+    if (!keyId || keyId === track.id) continue;
+    if (!isChannel(track.id) || !isChannel(keyId)) continue;
+    out.push({ trackId: track.id, keyId });
+  }
+  return out;
+}
+
 /** Lanes the render applies: enabled, non-empty, and the track is not 'off'. */
 function appliedLanes(track: Track): AutomationLane[] {
   if (!track.automation || track.automationMode === 'off') return [];
@@ -142,8 +221,11 @@ function appliedLanes(track: Track): AutomationLane[] {
  * segments hold and jump through a 2ms micro-ramp so the jump cannot click.
  * Offline scheduling makes these ramps sample-accurate between knots — this is
  * the strongest guarantee the render path offers.
+ *
+ * Exported as a test seam: the shape of the schedule is the whole behaviour,
+ * and it can be read off a recording AudioParam without an audio graph.
  */
-function scheduleLaneOnParam(
+export function scheduleLaneOnParam(
   param: AudioParam,
   lane: AutomationLane,
   desc: AutoParam,
@@ -174,8 +256,11 @@ function scheduleLaneOnParam(
       if (s.beat > endBeat + 1e-9) break;
       const t = timeOf(s.beat);
       if (t <= lastT + 1e-6) {
-        // stepped jump: land the new value over 2ms instead of instantaneously
-        param.setValueAtTime(valueOf(s.value), Math.max(0, t));
+        // Stepped jump: land the new value over 2ms instead of instantaneously.
+        // The ramp alone does that — the previous iteration already scheduled
+        // the old value at `t`, so this ramps away from it. A setValueAtTime
+        // here would take the jump instantaneously and leave the ramp holding
+        // a value it had already reached.
         param.linearRampToValueAtTime(valueOf(s.value), t + 0.002);
       } else {
         param.linearRampToValueAtTime(valueOf(s.value), t);
@@ -221,13 +306,17 @@ export async function renderProject(
   // Under a tempo map the render length is the integral across the range, not
   // a multiplication — a song that ritards is longer than its beat count says.
   const durationSec = projectBeatRangeSec(project, startBeat, endBeat - startBeat) + tail;
+  const preRoll = Math.max(0, opts.preRollSec ?? preRollForProject(project));
 
   if (!Number.isFinite(durationSec) || durationSec <= 0) {
     throw new ExportError('Nothing to export: the render range is empty.');
   }
-  if (durationSec > MAX_RENDER_SECONDS) {
+  // The pre-roll is rendered, so it counts against the ceiling even though it
+  // is never delivered.
+  if (durationSec + preRoll > MAX_RENDER_SECONDS) {
     throw new ExportError(
-      `Render length ${Math.round(durationSec)}s exceeds the ${MAX_RENDER_SECONDS}s limit.`,
+      `Render length ${Math.round(durationSec + preRoll)}s exceeds the ` +
+        `${MAX_RENDER_SECONDS}s limit.`,
     );
   }
   if (typeof OfflineAudioContext === 'undefined') {
@@ -235,8 +324,8 @@ export async function renderProject(
   }
 
   const sampleRate = opts.sampleRate ?? 44100;
-  const frames = Math.ceil(durationSec * sampleRate);
-  const ctx = new OfflineAudioContext(2, frames, sampleRate);
+  const layout = renderLayout(durationSec, preRoll, sampleRate);
+  const ctx = new OfflineAudioContext(2, layout.frames, sampleRate);
   opts.onProgress?.('Building graph');
 
   // ---- master chain: mirrors AudioEngine.buildMasterChain ----
@@ -316,6 +405,21 @@ export async function renderProject(
       dest !== 'master' && channels.has(dest) ? channels.get(dest)!.input : masterInput;
     ch.out.connect(target);
   }
+
+  // Sidechain, as live: another channel's post-fader signal keys this one's
+  // dynamics detectors. The tap is post-fader on the source because a kick
+  // faded down should duck less, which is what an engineer expects. Without
+  // this every detector keys off its own input, and a bass compressor keyed
+  // from the kick pumps while monitoring and sits flat in the bounce — with
+  // nothing to say so, because the pump *is* the arrangement.
+  for (const { trackId, keyId } of sidechainRouting(project, (id) => channels.has(id))) {
+    const ch = channels.get(trackId)!;
+    const key = ctx.createGain();
+    channels.get(keyId)!.panner.connect(key);
+    for (const input of ch.inserts.sidechainInputs()) key.connect(input);
+    ch.inserts.setSidechain(true);
+  }
+
   const sendGains = new Map<string, GainNode>();
   for (const track of project.tracks) {
     // Buses and FX channels never send onward, which keeps the graph acyclic.
@@ -352,7 +456,10 @@ export async function renderProject(
   // The render clock is song seconds measured from the range start, so every
   // automation ramp converts through the tempo map rather than through one
   // seconds-per-beat — a lane written over a ritard lands where it was drawn.
-  const timeOf = (beat: number) => Math.max(0, projectBeatToSec(project, beat) - rangeStartSec);
+  // Offset by the pre-roll, which every scheduled time in this render carries:
+  // the lane's opening value is set at 0 and simply holds through the run-up.
+  const timeOf = (beat: number) =>
+    preRoll + Math.max(0, projectBeatToSec(project, beat) - rangeStartSec);
   const tailEndBeat = projectSecToBeat(project, projectBeatToSec(project, endBeat) + tail);
   const rampOpts = { startBeat, endBeat: tailEndBeat, timeOf };
   interface FxAutoEntry {
@@ -440,7 +547,7 @@ export async function renderProject(
     const beatAt = (sec: number) => projectSecToBeat(project, rangeStartSec + sec);
     for (let t = grid; t < usable; t += grid) {
       const at = t;
-      void ctx.suspend(at).then(() => {
+      void ctx.suspend(preRoll + at).then(() => {
         const beat = beatAt(at);
         const merged = new Map<string, Record<string, number>>();
         for (const fa of fxAuto) {
@@ -593,7 +700,7 @@ export async function renderProject(
         );
         if (!plan) continue;
 
-        const when = Math.max(0, projectBeatToSec(project, enterBeat) - rangeStartSec);
+        const when = preRoll + Math.max(0, projectBeatToSec(project, enterBeat) - rangeStartSec);
         const src = ctx.createBufferSource();
         src.buffer = buffer;
         // Stretch and transpose render by resampling here: an offline bounce
@@ -650,7 +757,7 @@ export async function renderProject(
           sbox.params = merged;
         }
         const durSec = projectBeatRangeSec(project, absBeat, note.length);
-        inst.scheduleNote(note.pitch, note.velocity, when, durSec, clip.id);
+        inst.scheduleNote(note.pitch, note.velocity, preRoll + when, durSec, clip.id);
         scheduledNotes++;
       }
       scheduledClips++;
@@ -661,11 +768,14 @@ export async function renderProject(
 
   opts.onProgress?.('Rendering');
   const rendered = await ctx.startRendering();
+  // The run-up was only ever for the graph's benefit; the caller gets the range
+  // it asked for, starting at its first sample.
+  const output = dropPreRoll(ctx, rendered, layout.trimFrames);
 
   // ---- measure ----
   let peak = 0;
-  for (let c = 0; c < rendered.numberOfChannels; c++) {
-    const data = rendered.getChannelData(c);
+  for (let c = 0; c < output.numberOfChannels; c++) {
+    const data = output.getChannelData(c);
     for (let i = 0; i < data.length; i++) {
       const v = Math.abs(data[i]);
       if (v > peak) peak = v;
@@ -677,24 +787,46 @@ export async function renderProject(
 
   diagLog(
     'info',
-    `Bounce rendered: ${rendered.duration.toFixed(2)}s, ${rendered.numberOfChannels}ch @ ${
-      rendered.sampleRate
-    }Hz, peak ${peak.toFixed(3)}, ${scheduledClips} clips, ${scheduledNotes} notes${
+    `Bounce rendered: ${output.duration.toFixed(2)}s (+${preRoll.toFixed(1)}s pre-roll), ${
+      output.numberOfChannels
+    }ch @ ${output.sampleRate}Hz, peak ${peak.toFixed(
+      3,
+    )}, ${scheduledClips} clips, ${scheduledNotes} notes${
       automatedLanes ? `, ${automatedLanes} automation lane${automatedLanes === 1 ? '' : 's'}` : ''
     }${missingMedia.size ? `, ${missingMedia.size} missing media` : ''}`,
   );
 
   return {
-    buffer: rendered,
-    durationSec: rendered.duration,
-    sampleRate: rendered.sampleRate,
-    channels: rendered.numberOfChannels,
+    buffer: output,
+    durationSec: output.duration,
+    sampleRate: output.sampleRate,
+    channels: output.numberOfChannels,
     peak,
     clipped: peak > 1.0001,
     scheduledClips,
     scheduledNotes,
     missingMedia: [...missingMedia],
   };
+}
+
+/**
+ * Hand back the render without its run-up.
+ *
+ * A copy is unavoidable — an AudioBuffer cannot be sliced in place — but it is
+ * one pass over the mix, against a render that has just walked the whole song.
+ */
+function dropPreRoll(
+  ctx: BaseAudioContext,
+  rendered: AudioBuffer,
+  trimFrames: number,
+): AudioBuffer {
+  if (trimFrames <= 0) return rendered;
+  const length = Math.max(1, rendered.length - trimFrames);
+  const out = ctx.createBuffer(rendered.numberOfChannels, length, rendered.sampleRate);
+  for (let c = 0; c < rendered.numberOfChannels; c++) {
+    out.copyToChannel(rendered.getChannelData(c).subarray(trimFrames, trimFrames + length), c);
+  }
+  return out;
 }
 
 function projectEnd(p: ProjectData): number {
@@ -708,51 +840,29 @@ function projectEnd(p: ProjectData): number {
  *
  * 16-bit rather than 32-bit float: it is what every consumer application,
  * phone and DAW opens without question, and the limiter already keeps the
- * signal inside range. Samples are clamped before conversion so an overshoot
- * wraps to full scale instead of folding over into noise.
+ * signal inside range.
+ *
+ * The quantiser is the shared one in `encode/` — rounding with TPDF dither —
+ * rather than a `DataView.setInt16` of its own. `setInt16` applies ToInt16,
+ * which truncates toward zero: a two-LSB dead band around silence whose error
+ * is a function of the programme, so a fade turns granular instead of quiet.
+ * The file's shape is unchanged — same header, same stereo ceiling, same
+ * clamping — so every existing caller keeps the format it was written for.
  */
 export function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
-  const channels = Math.max(1, Math.min(2, buffer.numberOfChannels));
-  const frames = buffer.length;
-  const bytesPerSample = 2;
-  const blockAlign = channels * bytesPerSample;
-  const dataBytes = frames * blockAlign;
-  const out = new ArrayBuffer(44 + dataBytes);
-  const view = new DataView(out);
-
-  const ascii = (offset: number, s: string) => {
-    for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i));
-  };
-
-  ascii(0, 'RIFF');
-  view.setUint32(4, 36 + dataBytes, true);
-  ascii(8, 'WAVE');
-  ascii(12, 'fmt ');
-  view.setUint32(16, 16, true); // PCM chunk size
-  view.setUint16(20, 1, true); // format: PCM
-  view.setUint16(22, channels, true);
-  view.setUint32(24, buffer.sampleRate, true);
-  view.setUint32(28, buffer.sampleRate * blockAlign, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, 8 * bytesPerSample, true);
-  ascii(36, 'data');
-  view.setUint32(40, dataBytes, true);
-
-  const chans: Float32Array[] = [];
-  for (let c = 0; c < channels; c++) chans.push(buffer.getChannelData(c));
-
-  let offset = 44;
-  for (let i = 0; i < frames; i++) {
-    for (let c = 0; c < channels; c++) {
-      let v = chans[c][i];
-      if (!Number.isFinite(v)) v = 0;
-      v = Math.max(-1, Math.min(1, v));
-      // Asymmetric ranges: -32768..32767 is what 16-bit PCM actually spans.
-      view.setInt16(offset, v < 0 ? v * 0x8000 : v * 0x7fff, true);
-      offset += 2;
-    }
-  }
-  return out;
+  // Beyond stereo the header could not be honoured, so the extra channels are
+  // dropped rather than mis-declared.
+  const count = Math.max(1, Math.min(2, buffer.numberOfChannels));
+  const channels: Float32Array[] = [];
+  for (let c = 0; c < count; c++) channels.push(buffer.getChannelData(c));
+  const bytes = encodeWav(channels, {
+    sampleRate: buffer.sampleRate,
+    format: 'int16',
+    dither: { kind: 'tpdf' },
+  });
+  // encodeWav allocates exactly one right-sized array, so its buffer is the
+  // file — no copy needed to hand back an ArrayBuffer.
+  return bytes.buffer as ArrayBuffer;
 }
 
 export interface WavInfo {

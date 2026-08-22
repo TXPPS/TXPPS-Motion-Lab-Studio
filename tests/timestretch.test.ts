@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_TIME_RATIO,
   pitchShiftChannel,
+  liftCepstrum,
   preserveFormants,
   resampleChannel,
   stretchChannel,
@@ -199,5 +200,43 @@ describe('preserveFormants', () => {
     const source = vowel(150, 0.05);
     expect(Array.from(preserveFormants(source, SR, 1))).toEqual(Array.from(source));
     expect(Array.from(preserveFormants(source, SR, 1.5))).toEqual(Array.from(source));
+  });
+});
+
+describe('cepstral lifter', () => {
+  /**
+   * The lifter zeroes a band of quefrencies, and q and size - q are the same
+   * point of a real, even sequence. The old bound was exclusive at the top, so
+   * `size - lifter` survived while its partner `lifter` was zeroed: the
+   * sequence stopped being even and its transform picked up a small imaginary
+   * component that leaked into the smoothed log magnitude.
+   */
+  it('zeroes a quefrency band that is symmetric about the midpoint', () => {
+    const size = 64;
+    const lifter = 8;
+    const re = new Float32Array(size).fill(1);
+    const im = new Float32Array(size).fill(1);
+    liftCepstrum(re, im, lifter);
+
+    for (let q = 1; q < size; q++) {
+      expect(re[q] === 0, `re[${q}] and its mirror re[${size - q}] disagree`).toBe(
+        re[size - q] === 0,
+      );
+      expect(im[q] === 0).toBe(im[size - q] === 0);
+    }
+  });
+
+  it('keeps the envelope and drops the harmonic comb', () => {
+    const size = 64;
+    const lifter = 8;
+    const re = new Float32Array(size).fill(1);
+    const im = new Float32Array(size).fill(0);
+    liftCepstrum(re, im, lifter);
+
+    expect(re[0]).toBe(1); // DC term is the envelope's own level
+    expect(re[lifter - 1]).toBe(1);
+    expect(re[lifter]).toBe(0);
+    expect(re[size - lifter]).toBe(0);
+    expect(re[size - lifter + 1]).toBe(1);
   });
 });

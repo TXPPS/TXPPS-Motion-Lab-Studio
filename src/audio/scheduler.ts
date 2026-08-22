@@ -156,6 +156,15 @@ interface Anchor {
   sec: number;
 }
 
+/**
+ * How many anchors are kept. `positionBeats` scans them linearly and is called
+ * from the frame loop, the automation pass and the transport store — roughly
+ * 180 times a second — so the list has to stay short. Two dozen is far more
+ * than the handful the newest-at-or-before-now lookup can ever reach back
+ * through, and the older ones describe time that has already been played.
+ */
+const MAX_ANCHORS = 24;
+
 export class Scheduler {
   private timer: SteadyTimer | null = null;
   private nextBeat = 0;
@@ -202,6 +211,7 @@ export class Scheduler {
     this.nextBeat = beat;
     this.nextCtxTime = t;
     this.anchors.push({ ctx: t, sec: beatToSec(this.map(), beat) });
+    this.trimAnchors();
     this.scheduleSounding(beat, t);
     this.tick();
   }
@@ -217,7 +227,13 @@ export class Scheduler {
     // the beat cursor so new scheduling continues from the same wall-clock time.
     this.nextBeat = secToBeat(map, nowSec + Math.max(0, this.nextCtxTime - now));
     this.anchors.push({ ctx: now, sec: nowSec });
-    if (this.anchors.length > 24) this.anchors.splice(0, this.anchors.length - 24);
+    this.trimAnchors();
+  }
+
+  private trimAnchors(): void {
+    if (this.anchors.length > MAX_ANCHORS) {
+      this.anchors.splice(0, this.anchors.length - MAX_ANCHORS);
+    }
   }
 
   positionBeats(): number {
@@ -296,7 +312,7 @@ export class Scheduler {
         this.nextBeat = loop.start;
         this.nextCtxTime = windowEndCtx;
         this.anchors.push({ ctx: windowEndCtx, sec: beatToSec(map, loop.start) });
-        if (this.anchors.length > 24) this.anchors.splice(0, this.anchors.length - 24);
+        this.trimAnchors();
         this.scheduleSounding(loop.start, windowEndCtx);
         this.deps.onLoopWrap?.();
       } else {

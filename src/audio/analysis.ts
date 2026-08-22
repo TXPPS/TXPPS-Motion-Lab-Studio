@@ -294,13 +294,15 @@ export class MeasurementTap {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    for (const node of [
-      this.source,
-      this.stereo,
-      this.splitter,
-      this.analyserLeft,
-      this.analyserRight,
-    ]) {
+    // The source is the caller's node, not ours. A bare `disconnect()` on it
+    // would sever every one of its outputs — including the channel it feeds —
+    // so only the one edge this tap added comes out.
+    try {
+      this.source.disconnect(this.stereo);
+    } catch {
+      /* already gone */
+    }
+    for (const node of [this.stereo, this.splitter, this.analyserLeft, this.analyserRight]) {
       try {
         node.disconnect();
       } catch {

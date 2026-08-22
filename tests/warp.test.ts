@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   beatToSource,
   createWarpMap,
@@ -24,7 +24,10 @@ import {
   warpedClipTiming,
   warpedTimeSec,
   renderWarpedBuffer,
+  clearWarpCache,
+  warpedBuffer,
 } from '../src/audio/warpRender';
+import { cacheBuffer, resetMediaCaches } from '../src/audio/mediaLibrary';
 import {
   BUILTIN_GROOVES,
   applyGroove,
@@ -517,5 +520,82 @@ describe('renderWarpedBuffer', () => {
       for (const v of data) peak = Math.max(peak, Math.abs(v));
       expect(peak).toBeGreaterThan(0.5);
     }
+  });
+});
+
+describe('warp render cache', () => {
+  const SR = 8000;
+
+  function fakeCtx(): BaseAudioContext {
+    return {
+      createBuffer: (channels: number, length: number, sampleRate: number) => {
+        const data = Array.from({ length: channels }, () => new Float32Array(length));
+        return {
+          numberOfChannels: channels,
+          length,
+          sampleRate,
+          duration: length / sampleRate,
+          getChannelData: (i: number) => data[i],
+          copyToChannel: (from: Float32Array, i: number) => data[i].set(from),
+        } as unknown as AudioBuffer;
+      },
+    } as unknown as BaseAudioContext;
+  }
+
+  /** A map whose single bent segment differs per index, so each has its own key. */
+  const mapFor = (i: number) =>
+    createWarpMap(
+      [
+        { sourceSec: 0, beat: 0 },
+        { sourceSec: 1 + i / 1000, beat: 1 },
+      ],
+      120,
+    );
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    resetMediaCaches();
+    clearWarpCache();
+    const tone = Float32Array.from({ length: 2 * SR }, (_, i) =>
+      Math.sin((2 * Math.PI * 200 * i) / SR),
+    );
+    cacheBuffer('m1', {
+      numberOfChannels: 1,
+      length: tone.length,
+      sampleRate: SR,
+      duration: tone.length / SR,
+      getChannelData: () => tone,
+    } as unknown as AudioBuffer);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    clearWarpCache();
+    resetMediaCaches();
+  });
+
+  /** Ask for a render and let the deferred work run, so the entry is filled. */
+  function render(ctx: BaseAudioContext, i: number): AudioBuffer | null {
+    const first = warpedBuffer(ctx, 'm1', mapFor(i));
+    vi.runAllTimers();
+    return first ?? warpedBuffer(ctx, 'm1', mapFor(i));
+  }
+
+  /**
+   * The cache held 16 entries and evicted `keys().next()` — the least recently
+   * *inserted*. Looping a section with 17 warped clips therefore threw away
+   * the clip that was about to play again, on every pass.
+   */
+  it('evicts the least recently used entry, not the oldest insertion', () => {
+    const ctx = fakeCtx();
+    for (let i = 0; i < 16; i++) expect(render(ctx, i)).not.toBeNull();
+
+    // Touch the oldest insertion: it is now the most recently used.
+    expect(warpedBuffer(ctx, 'm1', mapFor(0))).not.toBeNull();
+    // One more entry pushes the cache over its ceiling.
+    render(ctx, 16);
+
+    expect(warpedBuffer(ctx, 'm1', mapFor(0)), 'the clip just played was evicted').not.toBeNull();
+    expect(warpedBuffer(ctx, 'm1', mapFor(1)), 'the truly stalest entry survived').toBeNull();
   });
 });

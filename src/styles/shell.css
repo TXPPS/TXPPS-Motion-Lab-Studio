@@ -472,6 +472,15 @@
 .side-panel.right {
   border-left: 1px solid var(--border-soft);
 }
+/* A heading inside the bar is still the bar's micro-label: the element is
+   chosen for the document outline, not for the type. */
+.panel-title h2 {
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  margin: 0;
+}
 .panel-title {
   height: var(--toolbar-h-sm);
   flex: none;

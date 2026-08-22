@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collectSoundingAt, collectWindowEvents } from '../src/audio/scheduler';
+import { Scheduler, collectSoundingAt, collectWindowEvents } from '../src/audio/scheduler';
 import { createDemoProject } from '../src/model/demoProject';
 import type { ProjectData } from '../src/model/types';
 
@@ -218,5 +218,49 @@ describe('demo project integrity', () => {
         for (const n of c.notes) expect(n.start).toBeLessThan(c.length);
       }
     }
+  });
+});
+
+describe('anchor list', () => {
+  /**
+   * `positionBeats()` scans the anchors linearly and is called from the frame
+   * loop, from the automation pass and from the transport store — so the list
+   * has to stay bounded. `retime()` and the loop wrap always trimmed it;
+   * `jumpTo()` did not, and a comping session that scrubs during playback
+   * seeks hundreds of times.
+   */
+  function seeking(seeks: number): { sched: Scheduler; anchors: unknown[]; lastBeat: number } {
+    let now = 0;
+    const p = baseProject();
+    const sched = new Scheduler({
+      now: () => now,
+      getProject: () => p,
+      scheduleClip: () => {},
+      scheduleNote: () => {},
+      scheduleMetronome: () => {},
+    });
+    sched.start(0);
+    let lastBeat = 0;
+    for (let i = 0; i < seeks; i++) {
+      now += 0.5;
+      lastBeat = i % 16;
+      sched.jumpTo(lastBeat);
+    }
+    // Past the last anchor's own time, which `jumpTo` places a little ahead.
+    now += 0.5;
+    sched.stop();
+    return { sched, anchors: (sched as unknown as { anchors: unknown[] }).anchors, lastBeat };
+  }
+
+  it('stays bounded however often the user seeks during playback', () => {
+    expect(seeking(400).anchors).toHaveLength(24);
+  });
+
+  it('keeps the most recent anchors, so the position query still resolves', () => {
+    const { sched, anchors, lastBeat } = seeking(30);
+    expect(anchors.length).toBeLessThanOrEqual(24);
+    // 0.46s of the half-second elapsed after the anchor was laid down, at
+    // 120bpm — the newest anchor is still the one the lookup lands on.
+    expect(sched.positionBeats()).toBeCloseTo(lastBeat + 0.92, 6);
   });
 });

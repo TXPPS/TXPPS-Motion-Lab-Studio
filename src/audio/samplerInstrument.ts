@@ -45,6 +45,12 @@ interface SamplerVoice {
   chokeGroup?: number;
   key: number;
   startedAt: number;
+  /**
+   * When this voice's source is scheduled to stop, or Infinity while it is
+   * still being held. Voices are retired by this rather than by `onended`,
+   * which offline has not run for anything yet.
+   */
+  endsAt: number;
   oneShot: boolean;
   /** `at` is when the cut happens; defaults to now (see the implementation). */
   stop: (hard: boolean, at?: number) => void;
@@ -78,6 +84,7 @@ export class SamplerInstrument implements Instrument {
     clipId?: string,
   ): void {
     if (!this.registry.canAllocate()) return;
+    this.retireBy(when);
     if (this.voices.size >= MAX_SAMPLER_VOICES) {
       let oldest: SamplerVoice | null = null;
       for (const v of this.voices) if (!oldest || v.startedAt < oldest.startedAt) oldest = v;
@@ -191,8 +198,10 @@ export class SamplerInstrument implements Instrument {
       const r = Math.max(0.005, this.getParams().release);
       gainNode.gain.cancelScheduledValues(at);
       gainNode.gain.setTargetAtTime(0.0001, at, r / 3);
+      const end = at + r + 0.05;
+      if (end < voice.endsAt) voice.endsAt = end;
       try {
-        src.stop(at + r + 0.05);
+        src.stop(end);
       } catch {
         /* already stopped */
       }
@@ -203,6 +212,7 @@ export class SamplerInstrument implements Instrument {
       chokeGroup: zone.chokeGroup,
       key,
       startedAt: when,
+      endsAt: Infinity,
       oneShot: zone.oneShot,
       release,
       /**
@@ -215,8 +225,10 @@ export class SamplerInstrument implements Instrument {
         const t = Math.max(at ?? this.ctx.currentTime, when);
         gainNode.gain.cancelScheduledValues(t);
         gainNode.gain.setTargetAtTime(0.0001, t, hard ? 0.004 : 0.02);
+        const end = t + (hard ? 0.02 : 0.09);
+        if (end < voice.endsAt) voice.endsAt = end;
         try {
-          src.stop(t + (hard ? 0.02 : 0.09));
+          src.stop(end);
         } catch {
           /* already stopped */
         }
@@ -251,6 +263,20 @@ export class SamplerInstrument implements Instrument {
     if (durSec !== null && !zone.oneShot) {
       release(when + Math.max(0.01, durSec));
     }
+  }
+
+  /**
+   * Forget every voice that has finished by `when`.
+   *
+   * `when` rather than `ctx.currentTime` because the clock that matters is the
+   * one the notes are scheduled on: an offline render schedules the whole song
+   * synchronously, so no `onended` can fire and `currentTime` stays at 0. Left
+   * alone the set grows to the whole song, which both steals voices that ended
+   * bars ago and turns the choke-group scan below into a walk over every hit
+   * the part contains.
+   */
+  private retireBy(when: number): void {
+    for (const v of this.voices) if (v.endsAt <= when) this.voices.delete(v);
   }
 
   private trigger(

@@ -121,7 +121,9 @@ describe('bindings in a project', () => {
     const after = useProjectStore.getState().project;
     expect(targetExists({ kind: 'param', trackId, paramId: 'volume' }, after)).toBe(true);
     expect(targetExists({ kind: 'param', trackId, paramId: 'nope' }, after)).toBe(false);
-    expect(targetExists({ kind: 'param', trackId: 'gone', paramId: 'volume' }, project)).toBe(false);
+    expect(targetExists({ kind: 'param', trackId: 'gone', paramId: 'volume' }, project)).toBe(
+      false,
+    );
     expect(targetExists({ kind: 'transport', command: 'play' }, project)).toBe(true);
   });
 

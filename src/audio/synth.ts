@@ -48,6 +48,12 @@ class Voice {
   private ended = false;
   released = false;
   readonly startedAt: number;
+  /**
+   * When this voice's oscillator is scheduled to stop, or Infinity while it is
+   * still being held. `PolySynth` retires voices by this rather than by
+   * `onended`, which offline has not run for anything yet.
+   */
+  endsAt = Infinity;
 
   constructor(
     private ctx: BaseAudioContext,
@@ -104,8 +110,10 @@ class Voice {
     if (this.ended) return;
     this.released = true;
     this.amp.gain.setTargetAtTime(0, at, this.releaseTau);
+    const end = at + this.releaseTau * 6 + 0.05;
+    if (end < this.endsAt) this.endsAt = end;
     try {
-      this.osc.stop(at + this.releaseTau * 6 + 0.05);
+      this.osc.stop(end);
     } catch {}
   }
 
@@ -126,8 +134,10 @@ class Voice {
     const tau = hard ? 0.005 : 0.02;
     this.amp.gain.cancelScheduledValues(t);
     this.amp.gain.setTargetAtTime(0, t, tau);
+    const end = t + tau * 6 + 0.02;
+    if (end < this.endsAt) this.endsAt = end;
     try {
-      this.osc.stop(t + tau * 6 + 0.02);
+      this.osc.stop(end);
     } catch {}
   }
 }
@@ -148,6 +158,7 @@ export class PolySynth implements Instrument {
 
   private spawn(pitch: number, velocity: number, when: number, clipId?: string): Voice | null {
     if (!this.registry.canAllocate()) return null;
+    this.retireBy(when);
     if (this.voices.size >= MAX_VOICES) {
       // steal the oldest voice
       let oldest: Voice | null = null;
@@ -173,6 +184,19 @@ export class PolySynth implements Instrument {
     this.voices.add(v);
     this.registry.register(v.handle);
     return v;
+  }
+
+  /**
+   * Forget every voice that has finished by `when`.
+   *
+   * `when` rather than `ctx.currentTime` because the clock that matters is the
+   * one the notes are scheduled on: an offline render schedules the whole song
+   * synchronously, so no `onended` can fire, `currentTime` stays at 0 and the
+   * voice set would only ever grow. Left alone, every note past the 24th steals
+   * voice 1 — a held pad rings out live and is cut mid-note in the bounce.
+   */
+  private retireBy(when: number): void {
+    for (const v of this.voices) if (v.endsAt <= when) this.voices.delete(v);
   }
 
   scheduleNote(

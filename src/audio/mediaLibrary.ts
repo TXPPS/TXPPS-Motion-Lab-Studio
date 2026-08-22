@@ -17,6 +17,7 @@ import {
   getMediaPeaks as getProceduralPeaks,
 } from './demoAudio';
 import { peaksFromAudioBuffer } from './peaks';
+import { invalidateStretch } from './stretchCache';
 import { getMediaBlob, getPeaks, putPeaks } from '../persistence/mediaStore';
 
 const buffers = new Map<string, AudioBuffer>();
@@ -25,8 +26,16 @@ const inflight = new Map<string, Promise<AudioBuffer | null>>();
 /** ids that failed to resolve — surfaced as "missing media" in the UI */
 const missing = new Set<string>();
 
-/** Register a freshly created buffer (recording/import) without a round-trip. */
+/**
+ * Register a freshly created buffer (recording/import) without a round-trip.
+ *
+ * This is the one place an id's audio can change under it, so it is also where
+ * the renders built from that audio are dropped: a warped or tempo-followed
+ * clip whose media was re-recorded or edited would otherwise keep playing the
+ * render made from the previous bytes.
+ */
 export function cacheBuffer(id: string, buffer: AudioBuffer, peakData?: PeakData): void {
+  if (buffers.get(id) !== buffer) invalidateStretch(id);
   buffers.set(id, buffer);
   missing.delete(id);
   if (peakData) peaks.set(id, peakData);

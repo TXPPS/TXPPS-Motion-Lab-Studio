@@ -245,7 +245,15 @@ export function warpedBuffer(
 ): AudioBuffer | null {
   const key = `${mediaId}|${warpKey(map)}`;
   const hit = cache.get(key);
-  if (hit) return hit.buffer;
+  if (hit) {
+    // Re-insert so the eviction below drops the least recently *used* entry.
+    // A Map evicts in insertion order otherwise, and looping a section holding
+    // more warped clips than the cache does would then throw away the clip
+    // about to play again, on every pass.
+    cache.delete(key);
+    cache.set(key, hit);
+    return hit.buffer;
+  }
 
   const source = getBufferSync(mediaId);
   if (!source) return null;

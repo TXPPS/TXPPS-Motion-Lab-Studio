@@ -521,7 +521,11 @@ export interface LoudnessReading {
   samplePeakDbfs: number;
   /** Unweighted RMS over the meter's recent window. */
   rmsDbfs: number;
-  /** -1 … +1; 0 for silence or for a mono channel pair with no right input. */
+  /**
+   * -1 … +1. 0 for silence, and 0 when the meter is fed a mono source whose
+   * right channel is genuinely empty — which is what `MeasurementTap`'s
+   * explicit two-channel stage exists to prevent.
+   */
   correlation: number;
   /** 0 (mono) … 1 (equal mid/side) … 2 (side only). */
   stereoWidth: number;
@@ -826,6 +830,12 @@ export interface LoudnessMeasurement {
   samplePeakDbfs: number;
   rmsDbfs: number;
   dcOffset: number;
+  /**
+   * -1 … +1, and +1 for a single-channel measurement: a mono signal is
+   * perfectly correlated with itself, and reporting 0 there would tell a
+   * mastering page a mono master was decorrelated. `stereoWidth` is the figure
+   * that reads 0 for mono.
+   */
   correlation: number;
   stereoWidth: number;
   channels: ChannelMeasurement[];

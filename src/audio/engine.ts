@@ -41,6 +41,20 @@ const PARAM_TAU = 0.015;
  *  time constant, so control-rate updates cannot produce zipper steps. */
 const AUTO_TAU = 0.015;
 
+/**
+ * Write an AudioParam, refusing anything that is not a finite number.
+ *
+ * A NaN reaching an AudioParam is unrecoverable: the node emits NaN for the
+ * rest of the session and the channel is silently dead, with no error anywhere.
+ * The values written here come from the project store, which assigns whatever
+ * it is handed, and from Control Link mappings that divide — so the guard
+ * belongs at the write, exactly as it already does in `effectChain.setParam`.
+ */
+export function safeSet(param: AudioParam, value: number, at: number, tau: number): void {
+  if (!Number.isFinite(value)) return;
+  param.setTargetAtTime(value, at, tau);
+}
+
 /** One live-applied automation binding, resolved once per project change. */
 interface AutoEntry {
   trackId: string;
@@ -363,6 +377,14 @@ class AudioEngine {
     const ctx = this.ctx;
     if (!ctx || !this.masterInput || !this.masterGain) return;
     const t = ctx.currentTime;
+    // `autoApplied` is a frame-to-frame de-duplicator keyed on the lane's own
+    // value, not a record of what the nodes hold. A cue, a VCA or folder fader
+    // and a solo all move the value a lane *should* produce while leaving the
+    // lane itself untouched — and the pass below will not write a parameter the
+    // automation engine owns. Without this the cue assembles itself channel by
+    // channel as lanes happen to move, and a group fader does nothing at all to
+    // an automated member.
+    this.autoApplied.clear();
     this.buildAutoIndex(p);
 
     // 1. create channels/instruments for new tracks. The instrument KIND can
@@ -443,17 +465,17 @@ class AudioEngine {
       // Input trim carries polarity: a negative gain IS the polarity flip, so
       // the two never need separate nodes and can never fight each other.
       const trimGain = Math.pow(10, (track.inputGainDb ?? 0) / 20) * (track.phaseInvert ? -1 : 1);
-      ch.trim.gain.setTargetAtTime(trimGain, t, smooth);
+      safeSet(ch.trim.gain, trimGain, t, smooth);
       const wantMono = track.monoSum === true;
       if ((ch.trim.channelCount === 1) !== wantMono) {
         ch.trim.channelCount = wantMono ? 1 : 2;
         ch.trim.channelCountMode = wantMono ? 'explicit' : 'max';
       }
-      if (!owned?.has('mute')) ch.muteGain.gain.setTargetAtTime(audible ? 1 : 0, t, smooth);
+      if (!owned?.has('mute')) safeSet(ch.muteGain.gain, audible ? 1 : 0, t, smooth);
       // The fader value the automation engine owns is the track's own volume;
       // VCA and folder trims multiply on top of it here.
-      if (!owned?.has('volume')) ch.volGain.gain.setTargetAtTime(state.gain, t, smooth);
-      if (!owned?.has('pan')) ch.panner.pan.setTargetAtTime(state.pan, t, smooth);
+      if (!owned?.has('volume')) safeSet(ch.volGain.gain, state.gain, t, smooth);
+      if (!owned?.has('pan')) safeSet(ch.panner.pan, state.pan, t, smooth);
       const dest = track.type === 'bus' || track.type === 'fx' ? 'master' : track.output;
       if (ch.routedTo !== dest) {
         try {
@@ -927,7 +949,8 @@ class AudioEngine {
           // automation instead of being overwritten by it. A channel a cue has
           // taken over keeps the cue's level: the lane is the main mix's, and
           // this is not the main mix.
-          ch.volGain.gain.setTargetAtTime(
+          safeSet(
+            ch.volGain.gain,
             state?.cueOverride
               ? state.gain
               : Math.max(0, v) * (state?.groupGain ?? 1) * (state?.cueScale ?? 1),
@@ -936,7 +959,8 @@ class AudioEngine {
           );
           break;
         case 'pan':
-          ch.panner.pan.setTargetAtTime(
+          safeSet(
+            ch.panner.pan,
             state?.cueOverride ? state.pan : Math.max(-1, Math.min(1, v)),
             t,
             AUTO_TAU,
@@ -944,7 +968,7 @@ class AudioEngine {
           break;
         case 'mute': {
           const open = (state?.audible ?? true) && (state?.cueOverride || v < 0.5);
-          ch.muteGain.gain.setTargetAtTime(open ? 1 : 0, t, 0.008);
+          safeSet(ch.muteGain.gain, open ? 1 : 0, t, 0.008);
           break;
         }
         case 'send': {
@@ -952,7 +976,7 @@ class AudioEngine {
           if (!node) break;
           const send = track.sends?.find((s) => s.busId === e.busId);
           const level = send?.enabled && (state?.audible ?? true) ? Math.max(0, v) : 0;
-          node.gain.setTargetAtTime(level, t, AUTO_TAU);
+          safeSet(node.gain, level, t, AUTO_TAU);
           break;
         }
         case 'fx': {

@@ -96,6 +96,14 @@ export function invalidateStretch(mediaId: string): void {
   invalidateWarp(mediaId);
 }
 
+/**
+ * Drop every render, both caches.
+ *
+ * Called beside `retainOnly` on a project switch: these entries are keyed by
+ * media id and hold full-length buffers, so without this up to 48 stretch and
+ * 16 warp renders of a project that is no longer open stay resident for the
+ * life of the tab — while the decoded sources they were built from are gone.
+ */
 export function clearStretchCache(): void {
   cache.clear();
   clearWarpCache();

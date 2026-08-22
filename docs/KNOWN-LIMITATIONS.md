@@ -35,13 +35,18 @@ where a capability is missing the UI says so.
 - **No plugin latency compensation.** Every insert here is latency-free except
   the limiter's lookahead and the de-esser's band split, which are compensated
   internally.
+- **Automation is smoothed while monitoring and exact in the bounce.** Live,
+  every automated value approaches its target over a 15 ms time constant at
+  frame rate, so a 20 ms fader dip is heard as roughly 45 ms; the offline
+  render schedules the same lane as sample-accurate ramps and reproduces the
+  dip exactly. The bounce is the more faithful of the two.
 - **All media decodes into memory** (~10 MB per stereo minute). There is
   no disk streaming; hour-long multitrack sessions of recorded audio will
   grow memory accordingly. Decode caches are evicted when you switch
   projects.
-- **Voice caps.** 128 simultaneous engine sources; 48 voices per sampler
-  instrument (oldest voice steals first). Beyond that, notes are skipped
-  rather than glitching the audio thread.
+- **Voice caps.** 128 simultaneous engine sources; 24 voices per synth
+  instrument and 48 per sampler instrument (oldest voice steals first).
+  Beyond that, notes are skipped rather than glitching the audio thread.
 - Recording latency compensation is basic (count-in aligned); there is no
   per-device round-trip calibration.
 
