@@ -53,6 +53,8 @@ interface UiState {
   shortcutsOpen: boolean;
   /** First-run welcome card */
   welcomeOpen: boolean;
+  /** Preferences sheet */
+  settingsOpen: boolean;
   /** Active arrangement tool */
   tool: ArrangeTool;
 
@@ -116,6 +118,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   diagnosticsOpen: false,
   shortcutsOpen: false,
   welcomeOpen: false,
+  settingsOpen: false,
   tool: 'pointer',
 
   selectedTrackId: null,

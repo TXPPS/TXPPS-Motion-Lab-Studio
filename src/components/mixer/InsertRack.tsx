@@ -32,19 +32,18 @@ function bandTabsFor(effect: Effect): { id: string; label: string }[] | null {
 }
 
 function InsertSlot({
-  track,
+  chain,
   effect,
   index,
   total,
 }: {
-  track: Track;
+  chain: ChainHost;
   effect: Effect;
   index: number;
   total: number;
 }) {
   const [open, setOpen] = useState(false);
   const [band, setBand] = useState('b1');
-  const store = useProjectStore;
   const spec = effectSpec(effect.kind);
   const tabs = bandTabsFor(effect);
   const params = (spec?.params ?? []).filter((p) => !tabs || p.key.startsWith(band));
@@ -70,7 +69,7 @@ function InsertSlot({
           aria-pressed={!effect.bypass}
           aria-label={`Bypass ${spec?.label ?? effect.kind}`}
           data-testid={`fx-bypass-${effect.id}`}
-          onClick={() => store.getState().setEffectBypass(track.id, effect.id, !effect.bypass)}
+          onClick={() => chain.setBypass(effect.id, !effect.bypass)}
         >
           {effect.bypass ? 'OFF' : 'ON'}
         </button>
@@ -82,10 +81,10 @@ function InsertSlot({
             <div className="fx-visual">
               <EffectVisual
                 effect={effect}
-                trackId={track.id}
-                onParam={(key, v) => store.getState().setEffectParam(track.id, effect.id, key, v)}
-                onGestureStart={() => store.getState().beginGesture()}
-                onGestureEnd={() => store.getState().endGesture()}
+                trackId={chain.id}
+                onParam={(key, v) => chain.setParam(effect.id, key, v)}
+                onGestureStart={() => useProjectStore.getState().beginGesture()}
+                onGestureEnd={() => useProjectStore.getState().endGesture()}
               />
             </div>
           )}
@@ -111,11 +110,7 @@ function InsertSlot({
                   <select
                     value={String(choiceOf(effect, p.key))}
                     aria-label={p.label}
-                    onChange={(e) =>
-                      store
-                        .getState()
-                        .setEffectParam(track.id, effect.id, p.key, Number(e.target.value))
-                    }
+                    onChange={(e) => chain.setParam(effect.id, p.key, Number(e.target.value))}
                   >
                     {p.choices.map((c, i) => (
                       <option key={c} value={i}>
@@ -130,9 +125,9 @@ function InsertSlot({
                   key={p.key}
                   spec={p}
                   value={paramOf(effect, p.key)}
-                  onChange={(v) => store.getState().setEffectParam(track.id, effect.id, p.key, v)}
-                  onGestureStart={() => store.getState().beginGesture()}
-                  onGestureEnd={() => store.getState().endGesture()}
+                  onChange={(v) => chain.setParam(effect.id, p.key, v)}
+                  onGestureStart={() => useProjectStore.getState().beginGesture()}
+                  onGestureEnd={() => useProjectStore.getState().endGesture()}
                 />
               ),
             )}
@@ -147,7 +142,7 @@ function InsertSlot({
                   const preset = presetsFor(effect.kind).find((pp) => pp.name === e.target.value);
                   if (!preset) return;
                   for (const [k, v] of Object.entries(preset.params)) {
-                    store.getState().setEffectParam(track.id, effect.id, k, v);
+                    chain.setParam(effect.id, k, v);
                   }
                   e.currentTarget.value = '';
                 }}
@@ -164,7 +159,7 @@ function InsertSlot({
               className="btn"
               disabled={index === 0}
               title="Move earlier in the chain"
-              onClick={() => store.getState().moveEffect(track.id, effect.id, -1)}
+              onClick={() => chain.move(effect.id, -1)}
             >
               ↑
             </button>
@@ -172,7 +167,7 @@ function InsertSlot({
               className="btn"
               disabled={index === total - 1}
               title="Move later in the chain"
-              onClick={() => store.getState().moveEffect(track.id, effect.id, 1)}
+              onClick={() => chain.move(effect.id, 1)}
             >
               ↓
             </button>
@@ -180,7 +175,7 @@ function InsertSlot({
             <button
               className="btn danger"
               data-testid={`fx-remove-${effect.id}`}
-              onClick={() => store.getState().removeEffect(track.id, effect.id)}
+              onClick={() => chain.remove(effect.id)}
             >
               Remove
             </button>
@@ -191,17 +186,50 @@ function InsertSlot({
   );
 }
 
-/** Insert chain editor for one track. Signal flows top to bottom. */
-export function InsertRack({ track }: { track: Track }) {
-  const effects = track.effects ?? [];
+/**
+ * Everything the rack needs to edit a chain, wherever that chain lives.
+ *
+ * A chain is not always a track's: the mastering page's release chain and the
+ * master channel both own one. Abstracting the five mutations means one editor
+ * serves all of them instead of three near-identical components drifting apart.
+ */
+export interface ChainHost {
+  /** stable id used for meter and gain-reduction lookups ('master' for the master) */
+  id: string;
+  effects: Effect[];
+  add: (kind: EffectKind) => string | null;
+  remove: (effectId: string) => void;
+  setParam: (effectId: string, key: string, value: number) => void;
+  setBypass: (effectId: string, bypass: boolean) => void;
+  move: (effectId: string, delta: number) => void;
+}
+
+/** The default host: a track's own insert chain. */
+export function trackChainHost(track: Track): ChainHost {
+  const store = useProjectStore;
+  return {
+    id: track.id,
+    effects: track.effects ?? [],
+    add: (kind) => store.getState().addEffect(track.id, kind),
+    remove: (id) => store.getState().removeEffect(track.id, id),
+    setParam: (id, key, v) => store.getState().setEffectParam(track.id, id, key, v),
+    setBypass: (id, bypass) => store.getState().setEffectBypass(track.id, id, bypass),
+    move: (id, delta) => store.getState().moveEffect(track.id, id, delta),
+  };
+}
+
+/** Insert chain editor. Signal flows top to bottom. */
+export function InsertRack({ track, host }: { track?: Track; host?: ChainHost }) {
+  const chain = host ?? trackChainHost(track!);
+  const effects = chain.effects;
   const full = effects.length >= MAX_INSERTS;
 
   return (
-    <div className="fx-rack" data-testid={`fx-rack-${track.id}`}>
+    <div className="fx-rack" data-testid={`fx-rack-${chain.id}`}>
       <div className="ps-title">Inserts</div>
       {effects.length === 0 && <div className="hint">No inserts. Signal passes through.</div>}
       {effects.map((fx, i) => (
-        <InsertSlot key={fx.id} track={track} effect={fx} index={i} total={effects.length} />
+        <InsertSlot key={fx.id} chain={chain} effect={fx} index={i} total={effects.length} />
       ))}
 
       <div className="fx-add">
@@ -209,11 +237,11 @@ export function InsertRack({ track }: { track: Track }) {
           value=""
           disabled={full}
           aria-label="Add insert effect"
-          data-testid={`fx-add-${track.id}`}
+          data-testid={`fx-add-${chain.id}`}
           onChange={(e) => {
             const kind = e.target.value as EffectKind;
             if (!kind) return;
-            const id = useProjectStore.getState().addEffect(track.id, kind);
+            const id = chain.add(kind);
             e.currentTarget.value = '';
             if (!id) useUiStore.getState().toast('error', `Insert limit is ${MAX_INSERTS}.`);
           }}
@@ -239,19 +267,17 @@ export function InsertRack({ track }: { track: Track }) {
           aria-label="Add an effect chain"
           className="fx-chain-preset"
           onChange={(e) => {
-            const chain = CHAIN_PRESETS.find((c) => c.name === e.target.value);
+            const preset = CHAIN_PRESETS.find((c) => c.name === e.target.value);
             e.currentTarget.value = '';
-            if (!chain) return;
-            for (const step of chain.steps) {
-              const id = useProjectStore.getState().addEffect(track.id, step.kind);
+            if (!preset) return;
+            for (const step of preset.steps) {
+              const id = chain.add(step.kind);
               if (!id) {
                 useUiStore.getState().toast('error', `Insert limit is ${MAX_INSERTS}.`);
                 break;
               }
-              for (const [k, v] of Object.entries(step.params)) {
-                useProjectStore.getState().setEffectParam(track.id, id, k, v);
-              }
-              if (step.bypass) useProjectStore.getState().setEffectBypass(track.id, id, true);
+              for (const [k, v] of Object.entries(step.params)) chain.setParam(id, k, v);
+              if (step.bypass) chain.setBypass(id, true);
             }
           }}
         >

@@ -7,12 +7,7 @@
  * and noise must be refused rather than named.
  */
 import { describe, expect, it } from 'vitest';
-import {
-  PitchDetector,
-  centsBetween,
-  detectPitch,
-  noteFromHz,
-} from '../src/model/pitch';
+import { PitchDetector, centsBetween, detectPitch, noteFromHz } from '../src/model/pitch';
 
 const SR = 48000;
 const WINDOW = 8192;

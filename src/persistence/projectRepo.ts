@@ -419,6 +419,111 @@ export function validateProject(raw: unknown): ProjectData {
     clickRecordOnly: raw.clickRecordOnly === true,
     ...(typeof raw.artist === 'string' ? { artist: raw.artist.slice(0, 160) } : {}),
     ...(typeof raw.genre === 'string' ? { genre: raw.genre.slice(0, 80) } : {}),
+    mastering: validateMastering(raw.mastering),
+    show: validateShow(raw.show),
+  };
+}
+
+function validateMastering(raw: unknown): ProjectData['mastering'] {
+  const rec = isRecord(raw) ? raw : {};
+  const items = Array.isArray(rec.items)
+    ? (rec.items as unknown[])
+        .filter((i) => isRecord(i) && typeof i.id === 'string' && typeof i.mediaId === 'string')
+        .slice(0, 99)
+        .map((i) => {
+          const r = i as Record<string, unknown>;
+          const m = isRecord(r.measured) ? r.measured : null;
+          return {
+            id: r.id as string,
+            name: typeof r.name === 'string' ? r.name.slice(0, 120) : 'Untitled',
+            mediaId: r.mediaId as string,
+            gainDb: clampNum(r.gainDb, -24, 24, 0),
+            fadeIn: clampNum(r.fadeIn, 0, 30, 0),
+            fadeOut: clampNum(r.fadeOut, 0, 30, 0),
+            gapAfter: clampNum(r.gapAfter, 0, 30, 2),
+            ...(m
+              ? {
+                  measured: {
+                    integratedLufs: clampNum(m.integratedLufs, -70, 10, -70),
+                    loudnessRangeLu: clampNum(m.loudnessRangeLu, 0, 60, 0),
+                    truePeakDbtp: clampNum(m.truePeakDbtp, -120, 20, -120),
+                    samplePeakDbfs: clampNum(m.samplePeakDbfs, -120, 20, -120),
+                    durationSeconds: clampNum(m.durationSeconds, 0, 36000, 0),
+                    measuredAt: clampNum(m.measuredAt, 0, 1e15, 0),
+                  },
+                }
+              : {}),
+          };
+        })
+    : [];
+  return {
+    items,
+    targetLufs: clampNum(rec.targetLufs, -40, 0, -14),
+    ceilingDbtp: clampNum(rec.ceilingDbtp, -20, 0, -1),
+    normalize: rec.normalize === true,
+    ...(typeof rec.title === 'string' ? { title: rec.title.slice(0, 160) } : {}),
+    ...(typeof rec.artist === 'string' ? { artist: rec.artist.slice(0, 160) } : {}),
+    effects: Array.isArray(rec.effects)
+      ? (rec.effects as unknown[])
+          .filter(
+            (e) =>
+              isRecord(e) &&
+              typeof e.id === 'string' &&
+              typeof e.kind === 'string' &&
+              isKnownEffect(e.kind),
+          )
+          .slice(0, MAX_INSERTS)
+          .map((e) => {
+            const r = e as Record<string, unknown>;
+            const kind = r.kind as EffectKind;
+            return {
+              id: r.id as string,
+              kind,
+              bypass: r.bypass === true,
+              params: normaliseParams(kind, isRecord(r.params) ? r.params : undefined),
+            };
+          })
+      : [],
+  };
+}
+
+function validateShow(raw: unknown): ProjectData['show'] {
+  const rec = isRecord(raw) ? raw : {};
+  const entries = Array.isArray(rec.entries)
+    ? (rec.entries as unknown[])
+        .filter((e) => isRecord(e) && typeof e.id === 'string')
+        .slice(0, 200)
+        .map((e) => {
+          const r = e as Record<string, unknown>;
+          const sig = isRecord(r.timeSig) ? r.timeSig : null;
+          return {
+            id: r.id as string,
+            name: typeof r.name === 'string' ? r.name.slice(0, 120) : 'Song',
+            ...(typeof r.projectId === 'string' ? { projectId: r.projectId } : {}),
+            startBeat: clampNum(r.startBeat, 0, 1e7, 0),
+            ...(typeof r.bpm === 'number' ? { bpm: clampNum(r.bpm, 20, 999, 120) } : {}),
+            ...(sig
+              ? {
+                  timeSig: {
+                    num: clampNum(sig.num, 1, 32, 4),
+                    den: [1, 2, 4, 8, 16, 32].includes(Math.round(Number(sig.den)))
+                      ? Number(sig.den)
+                      : 4,
+                  },
+                }
+              : {}),
+            ...(typeof r.note === 'string' ? { note: r.note.slice(0, 500) } : {}),
+            ...(typeof r.color === 'string' ? { color: r.color } : {}),
+            ...(Array.isArray(r.armed)
+              ? { armed: (r.armed as unknown[]).filter((x): x is string => typeof x === 'string') }
+              : {}),
+          };
+        })
+    : [];
+  return {
+    entries,
+    cued: clampNum(rec.cued, 0, 199, 0),
+    stageMode: rec.stageMode === true,
   };
 }
 

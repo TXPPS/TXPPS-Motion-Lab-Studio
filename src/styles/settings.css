@@ -1,0 +1,149 @@
+/* ============================================================
+   Sheets: preferences and any future full-height dialog.
+   ============================================================ */
+
+.sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  background: var(--bg-scrim);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5);
+  animation: ml-fade-in var(--dur-fast) var(--ease-out);
+}
+
+.sheet {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(680px, 100%);
+  max-height: min(86vh, 760px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--sh-4);
+  overflow: hidden;
+  animation: ml-scale-in var(--dur-base) var(--ease-spring);
+}
+.sheet-head,
+.sheet-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+}
+.sheet-head {
+  border-bottom: 1px solid var(--border-soft);
+}
+.sheet-foot {
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-panel-2);
+}
+.sheet-head h2 {
+  flex: 1 1 auto;
+}
+.sheet-body {
+  min-height: 0;
+  overflow: auto;
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-7);
+}
+.sheet-body section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.set-row:last-child {
+  border-bottom: none;
+}
+.set-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.set-label > span:first-child {
+  font-size: var(--fs-md);
+  color: var(--text);
+}
+.set-control {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-3);
+}
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-5) var(--sp-3);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.theme-card:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.theme-card.on {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+/* A switch, not a checkbox: a preference that takes effect immediately reads
+   better as a state than as a form field waiting to be submitted. */
+.switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.switch .switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    background var(--dur-fast) var(--ease-out);
+}
+.switch.on {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+.switch.on .switch-knob {
+  transform: translateX(18px);
+  background: var(--accent);
+}

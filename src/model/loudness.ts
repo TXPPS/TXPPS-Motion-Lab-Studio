@@ -318,7 +318,15 @@ export class TruePeakDetector {
   }
 }
 
-/** True peak of one block as a linear amplitude. */
+/**
+ * True peak of one block as a linear amplitude.
+ *
+ * The block is measured as an isolated signal — silence before it, silence
+ * after it — which is what a rendered file actually is. A block that starts or
+ * ends part-way up a waveform therefore reports the overshoot a converter
+ * really would produce at that step; material that fades in and out, which is
+ * to say all finished material, sees none of it.
+ */
 export function truePeak(samples: Float32Array): number {
   const detector = new TruePeakDetector();
   detector.process(samples);
@@ -602,30 +610,32 @@ export class LoudnessMeter {
   }
 
   /**
-   * Push one block. `length` lets a caller pass a fixed scratch buffer with only
-   * part of it filled, which is how the live tap avoids allocating a subarray
-   * every animation frame.
+   * Push one block. `length` and `start` let a caller hand over a fixed scratch
+   * buffer with only part of it filled — how the live tap feeds the meter only
+   * the samples that are new since the last animation frame without allocating
+   * a subarray to do it.
    */
-  push(channels: readonly Float32Array[], length = channels[0]?.length ?? 0): void {
-    if (length <= 0) return;
+  push(channels: readonly Float32Array[], length = channels[0]?.length ?? 0, start = 0): void {
+    if (length <= 0 || start < 0) return;
     const used = Math.min(this.channelCount, channels.length);
 
     for (let c = 0; c < used; c++) {
       const data = channels[c];
-      this.truePeaks[c].process(data, 0, length);
+      this.truePeaks[c].process(data, start, length);
       for (let i = 0; i < length; i++) {
-        const a = data[i] < 0 ? -data[i] : data[i];
+        const v = data[start + i];
+        const a = v < 0 ? -v : v;
         if (a > this.samplePeakLinear) this.samplePeakLinear = a;
       }
     }
 
-    this.accumulateStereo(channels, used, length);
+    this.accumulateStereo(channels, used, length, start);
 
     let offset = 0;
     while (offset < length) {
       const take = Math.min(this.subBlockSize - this.pendingSamples, length - offset);
       for (let c = 0; c < used; c++) {
-        this.pending[c] += this.filters[c].accumulate(channels[c], offset, take);
+        this.pending[c] += this.filters[c].accumulate(channels[c], start + offset, take);
       }
       this.pendingSamples += take;
       offset += take;
@@ -638,15 +648,20 @@ export class LoudnessMeter {
    * their sums decay exponentially over `windowSeconds` instead of being reset
    * on a block boundary — a needle that jumps every buffer is unreadable.
    */
-  private accumulateStereo(channels: readonly Float32Array[], used: number, length: number): void {
+  private accumulateStereo(
+    channels: readonly Float32Array[],
+    used: number,
+    length: number,
+    start: number,
+  ): void {
     const left = channels[0];
     const right = used > 1 ? channels[1] : left;
     let ll = 0;
     let rr = 0;
     let lr = 0;
     for (let i = 0; i < length; i++) {
-      const l = left[i];
-      const r = right[i];
+      const l = left[start + i];
+      const r = right[start + i];
       ll += l * l;
       rr += r * r;
       lr += l * r;
@@ -725,6 +740,12 @@ export class LoudnessMeter {
     return dbfsFromAmplitude(peak);
   }
 
+  /** True peak of one channel in dBTP, for a per-channel report. */
+  channelTruePeakDbtp(channel: number): number {
+    const detector = this.truePeaks[channel];
+    return detector ? dbfsFromAmplitude(detector.peak) : MIN_DBFS;
+  }
+
   get samplePeakDbfs(): number {
     return dbfsFromAmplitude(this.samplePeakLinear);
   }
@@ -741,6 +762,16 @@ export class LoudnessMeter {
     if (!(this.sumWeight > 0)) return MIN_DBFS;
     const channels = this.channelCount > 1 ? 2 : 1;
     return dbfsFromMeanSquare((this.sumLL + this.sumRR) / (channels * this.sumWeight));
+  }
+
+  /**
+   * Flush the true-peak delay lines with silence so a peak in the very last
+   * samples is interpolated as well. Call it once the material has ended — a
+   * live meter never should, because for it the material has not ended.
+   */
+  finish(): void {
+    const tail = new Float32Array(TRUE_PEAK_TAPS);
+    for (const detector of this.truePeaks) detector.process(tail);
   }
 
   /** Fill `into` rather than allocate, so a 60 Hz meter stays garbage-free. */
@@ -819,35 +850,40 @@ export function measureChannels(
     for (let c = 0; c < channelCount; c++) views[c] = channels[c].subarray(offset, offset + take);
     meter.push(views, take);
   }
+  meter.finish();
+  const summary = meter.read();
 
-  const perChannel: ChannelMeasurement[] = channels.map((data) => ({
-    samplePeakDbfs: dbfsFromAmplitude(samplePeak(data)),
-    truePeakDbtp: truePeakDbtp(data),
-    rmsDbfs: dbfsFromAmplitude(rms(data)),
-    dcOffset: dcOffset(data),
-  }));
+  // The meter has already interpolated every channel, so the per-channel true
+  // peaks are read back from it rather than measured a second time.
+  let meanSquareSum = 0;
+  let dcSum = 0;
+  const perChannel: ChannelMeasurement[] = channels.map((data, index) => {
+    const channelRms = rms(data);
+    meanSquareSum += channelRms * channelRms;
+    const offset = dcOffset(data);
+    dcSum += offset;
+    return {
+      samplePeakDbfs: dbfsFromAmplitude(samplePeak(data)),
+      truePeakDbtp: meter.channelTruePeakDbtp(index),
+      rmsDbfs: dbfsFromAmplitude(channelRms),
+      dcOffset: offset,
+    };
+  });
 
   const left = channels[0] ?? new Float32Array(0);
   const right = channels[1] ?? left;
-  let dcSum = 0;
-  let msSum = 0;
-  for (const c of perChannel) dcSum += c.dcOffset;
-  for (const data of channels) {
-    const r = rms(data);
-    msSum += r * r;
-  }
 
   return {
     sampleRate,
     channelCount,
     durationSeconds: frames / sampleRate,
-    integratedLufs: meter.integratedLufs,
-    loudnessRangeLu: meter.loudnessRangeLu,
-    momentaryMaxLufs: meter.read().momentaryMaxLufs,
-    shortTermMaxLufs: meter.read().shortTermMaxLufs,
-    truePeakDbtp: perChannel.reduce((m, c) => Math.max(m, c.truePeakDbtp), MIN_DBFS),
-    samplePeakDbfs: perChannel.reduce((m, c) => Math.max(m, c.samplePeakDbfs), MIN_DBFS),
-    rmsDbfs: dbfsFromMeanSquare(msSum / channelCount),
+    integratedLufs: summary.integratedLufs,
+    loudnessRangeLu: summary.loudnessRangeLu,
+    momentaryMaxLufs: summary.momentaryMaxLufs,
+    shortTermMaxLufs: summary.shortTermMaxLufs,
+    truePeakDbtp: summary.truePeakDbtp,
+    samplePeakDbfs: summary.samplePeakDbfs,
+    rmsDbfs: dbfsFromMeanSquare(meanSquareSum / channelCount),
     dcOffset: dcSum / channelCount,
     correlation: channels.length > 1 ? phaseCorrelation(left, right) : 1,
     stereoWidth: channels.length > 1 ? stereoWidth(left, right) : 0,

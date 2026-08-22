@@ -391,6 +391,77 @@ export interface ScratchPad {
   createdAt: number;
 }
 
+/**
+ * One entry on the mastering page: a rendered mix placed in an album order,
+ * with the level and edge treatment mastering actually applies. The audio it
+ * points at is a media item like any other, so a master is a real artefact you
+ * can re-open, re-measure and re-export rather than a transient render.
+ */
+export interface MasterItem {
+  id: string;
+  name: string;
+  mediaId: string;
+  /** trim in dB applied to this entry alone */
+  gainDb: number;
+  /** seconds */
+  fadeIn: number;
+  fadeOut: number;
+  /** silence after this entry, in seconds */
+  gapAfter: number;
+  /** last measured loudness, cached so the list does not re-analyse on every paint */
+  measured?: {
+    integratedLufs: number;
+    loudnessRangeLu: number;
+    truePeakDbtp: number;
+    samplePeakDbfs: number;
+    durationSeconds: number;
+    measuredAt: number;
+  };
+}
+
+/** The mastering (Project) page's document: an ordered release plus its chain. */
+export interface MasteringProject {
+  items: MasterItem[];
+  /** delivery target in LUFS (−14 streaming, −16 podcast, −23 broadcast, −9 club) */
+  targetLufs: number;
+  /** true-peak ceiling in dBTP */
+  ceilingDbtp: number;
+  /** album-wide insert chain, applied ahead of the delivery limiter */
+  effects?: Effect[];
+  /** normalise every entry to the target instead of keeping relative levels */
+  normalize?: boolean;
+  title?: string;
+  artist?: string;
+}
+
+/**
+ * A live-performance setlist entry: one song, its patch and its cue.
+ * The Show page plays these back to back without re-opening projects.
+ */
+export interface SetlistEntry {
+  id: string;
+  name: string;
+  /** project id to load, when the song lives in its own project */
+  projectId?: string;
+  /** scratch pad or arranger section to start from */
+  startBeat?: number;
+  bpm?: number;
+  timeSig?: TimeSignature;
+  /** performer-facing note, shown large on stage */
+  note?: string;
+  color?: string;
+  /** tracks to arm/unmute for this song, by track id */
+  armed?: string[];
+}
+
+export interface ShowSetup {
+  entries: SetlistEntry[];
+  /** index of the entry currently cued */
+  cued?: number;
+  /** big-type mode for stage legibility */
+  stageMode?: boolean;
+}
+
 export interface ProjectData {
   schemaVersion: number;
   id: string;
@@ -442,6 +513,10 @@ export interface ProjectData {
   /** author metadata written into exports */
   artist?: string;
   genre?: string;
+  /** mastering (Project) page document */
+  mastering?: MasteringProject;
+  /** live performance (Show) page document */
+  show?: ShowSetup;
 }
 
 export interface ProjectMeta {

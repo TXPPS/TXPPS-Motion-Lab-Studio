@@ -4,6 +4,7 @@
  * silent.
  */
 import { createDemoProject, createEmptyProject } from '../model/demoProject';
+import { projectFromTemplate, type Template } from '../model/templates';
 import { scanRecoveries } from './recoveryActions';
 import type { ProjectData } from '../model/types';
 import {
@@ -112,6 +113,18 @@ export async function newProject(name: string, opts?: { demo?: boolean }): Promi
   useUiStore.getState().set({ selectedClipId: null, selectedNoteIds: [], editClipId: null });
   retainOnly(usedMediaIds(p));
   await saveCurrent(true);
+}
+
+/**
+ * Start from a template: build the session, save it, and make it current.
+ * Saving immediately is what makes the Start page's "recent" list honest.
+ */
+export async function newProjectFromTemplate(template: Template): Promise<void> {
+  const project = projectFromTemplate(template);
+  useProjectStore.getState().setProject(project, { markClean: false });
+  useUiStore.getState().selectTrack(project.tracks[0]?.id ?? null);
+  await saveCurrent(true);
+  diagLog('info', `New project from template "${template.name}" (${project.tracks.length} tracks)`);
 }
 
 export async function renameCurrent(name: string): Promise<void> {

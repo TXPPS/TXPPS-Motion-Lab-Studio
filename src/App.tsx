@@ -1,22 +1,50 @@
 import { useEffect } from 'react';
+import { lazy, Suspense } from 'react';
 import { useViewport } from './hooks/useViewport';
 import { useGlobalKeyboard } from './hooks/useKeyboard';
 import { useUiStore } from './state/uiStore';
-import { DesktopLayout } from './components/shell/DesktopLayout';
-import { TabletLayout } from './components/shell/TabletLayout';
-import { PhoneLayout, PhoneNav } from './components/shell/PhoneLayout';
+import { PhoneNav } from './components/shell/PhoneLayout';
 import { TopBar } from './components/shell/TopBar';
 import { StatusBar } from './components/shell/StatusBar';
 import { DiagnosticsSheet } from './components/diagnostics/DiagnosticsSheet';
 import { DialogHost, ContextMenuHost, ToastHost } from './components/common/overlays';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LayoutDebugHud } from './components/diagnostics/LayoutDebugHud';
-import { RecordingBanner } from './components/recording/RecordControls';
 import { dragHasFiles } from './app/importActions';
 import { useProjectStore } from './state/projectStore';
 import { useRouteStore, watchRoute } from './state/routeStore';
 import { ShortcutsSheet } from './components/common/ShortcutsSheet';
 import { WelcomeSheet, maybeShowWelcome } from './components/common/WelcomeSheet';
+import { SettingsSheet } from './components/settings/SettingsSheet';
+
+/**
+ * Pages are code-split.
+ *
+ * Only the Song page is needed to start working, and it is what a returning
+ * musician lands on; the mastering and live pages are large surfaces that most
+ * sessions never open, so they are not in the boot bundle.
+ */
+const SongPage = lazy(() => import('./pages/SongPage'));
+const StartPage = lazy(() => import('./pages/StartPage'));
+const MasteringPage = lazy(() => import('./pages/MasteringPage'));
+const ShowPage = lazy(() => import('./pages/ShowPage'));
+
+function PageHost() {
+  const page = useRouteStore((s) => s.route.page);
+  return (
+    <Suspense fallback={<div className="page-loading">Loading…</div>}>
+      {page === 'start' ? (
+        <StartPage />
+      ) : page === 'mastering' ? (
+        <MasteringPage />
+      ) : page === 'show' ? (
+        <ShowPage />
+      ) : (
+        <SongPage />
+      )}
+    </Suspense>
+  );
+}
 
 /**
  * App shell. Exactly three grid rows: the project bar, the active layout, and
@@ -25,6 +53,7 @@ import { WelcomeSheet, maybeShowWelcome } from './components/common/WelcomeSheet
  */
 export function App() {
   const { layout } = useViewport();
+  const page = useRouteStore((s) => s.route.page);
   useGlobalKeyboard();
 
   // One route parse drives both navigation and the QA/debug flags.
@@ -86,24 +115,18 @@ export function App() {
   }, []);
 
   return (
-    <div className="app" data-layout={layout} data-testid="app-root">
+    <div className="app" data-layout={layout} data-page={page} data-testid="app-root">
       <TopBar layout={layout} />
       <main className="app-body">
-        {layout !== 'phone' && <RecordingBanner />}
         <ErrorBoundary label="workspace">
-          {layout === 'desktop' ? (
-            <DesktopLayout />
-          ) : layout === 'tablet' ? (
-            <TabletLayout />
-          ) : (
-            <PhoneLayout />
-          )}
+          <PageHost />
         </ErrorBoundary>
       </main>
-      {layout === 'phone' ? <PhoneNav /> : <StatusBar />}
+      {layout === 'phone' && page === 'song' ? <PhoneNav /> : <StatusBar />}
       <DiagnosticsSheet />
       <ShortcutsSheet />
       <WelcomeSheet />
+      <SettingsSheet />
       <DialogHost />
       <ContextMenuHost />
       <ToastHost />

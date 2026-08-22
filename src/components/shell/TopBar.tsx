@@ -3,10 +3,20 @@ import { useUiStore } from '../../state/uiStore';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import { renameCurrent, saveCurrent } from '../../app/projectActions';
 import { exportLoopRegion, exportWav } from '../../app/exportActions';
-import { Icon } from '../common/Icon';
+import { Icon, type IconName } from '../common/Icon';
+import { useRouteStore } from '../../state/routeStore';
+import type { PageId } from '../../app/router';
 import type { Layout } from '../../hooks/useViewport';
 
+const PAGES: { id: PageId; label: string; icon: IconName; hint: string }[] = [
+  { id: 'start', label: 'Start', icon: 'home', hint: 'Recent work and templates' },
+  { id: 'song', label: 'Song', icon: 'wave', hint: 'The workstation' },
+  { id: 'mastering', label: 'Release', icon: 'meter', hint: 'Mastering and delivery' },
+  { id: 'show', label: 'Live', icon: 'zap', hint: 'Setlist and stage view' },
+];
+
 export function TopBar({ layout }: { layout: Layout }) {
+  const page = useRouteStore((s) => s.route.page);
   const name = useProjectStore((s) => s.project.name);
   const dirty = useProjectStore((s) => s.dirty);
   const canUndo = useProjectStore((s) => s.undoStack.length > 0);
@@ -47,6 +57,10 @@ export function TopBar({ layout }: { layout: Layout }) {
           label: 'Keyboard shortcuts…',
           shortcut: '?',
           action: () => ui.getState().set({ shortcutsOpen: true }),
+        },
+        {
+          label: 'Preferences…',
+          action: () => ui.getState().set({ settingsOpen: true }),
         },
         { label: 'Welcome tour…', action: () => ui.getState().set({ welcomeOpen: true }) },
         { label: 'Diagnostics…', action: () => ui.getState().set({ diagnosticsOpen: true }) },
@@ -114,6 +128,24 @@ export function TopBar({ layout }: { layout: Layout }) {
         )}
       </div>
 
+      {/* The four top-level pages. On a phone this collapses to icons; the
+          labels are what make the page model discoverable at all. */}
+      <nav className="page-nav" aria-label="Pages">
+        {PAGES.map((p) => (
+          <button
+            key={p.id}
+            className={`page-tab${page === p.id ? ' on' : ''}`}
+            aria-current={page === p.id ? 'page' : undefined}
+            title={`${p.label} — ${p.hint}`}
+            onClick={() => useRouteStore.getState().go(p.id)}
+            data-testid={`page-${p.id}`}
+          >
+            <Icon name={p.icon} size={14} />
+            {layout !== 'phone' && <span>{p.label}</span>}
+          </button>
+        ))}
+      </nav>
+
       <span className="spacer" />
 
       {layout === 'desktop' && (
@@ -148,6 +180,15 @@ export function TopBar({ layout }: { layout: Layout }) {
         </div>
       )}
 
+      <button
+        className="icon-btn"
+        onClick={() => ui.getState().set({ settingsOpen: true })}
+        title="Preferences"
+        aria-label="Open preferences"
+        data-testid="open-settings"
+      >
+        <Icon name="settings" size={15} />
+      </button>
       <button
         className="icon-btn"
         onClick={() => ui.getState().set({ diagnosticsOpen: true })}
