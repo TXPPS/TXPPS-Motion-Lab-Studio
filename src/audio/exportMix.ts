@@ -47,6 +47,8 @@ import {
 } from './warpRender';
 import type { WarpMap } from '../model/warp';
 import { encodeWav } from './encode/wav';
+import { preloadPlugins, warmPluginModules } from './wam/pluginPool';
+import { printRequiredPlugins } from './wam/parityProbe';
 
 /** Guard against a runaway render: two hours is far past any sane project. */
 const MAX_RENDER_SECONDS = 60 * 120;
@@ -116,6 +118,13 @@ export interface RenderResult {
   scheduledClips: number;
   scheduledNotes: number;
   missingMedia: string[];
+  /**
+   * Plugins the render could not load, by name. They stayed in their chains as
+   * tombstones and passed audio through unaltered, so the bounce is a real
+   * bounce of everything else — but it is not the mix that was made, and the
+   * caller has to say so.
+   */
+  missingPlugins: string[];
 }
 
 export class ExportError extends Error {
@@ -150,6 +159,40 @@ function allEffects(project: ProjectData): Effect[] {
   for (const track of project.tracks) out.push(...(track.effects ?? []));
   for (const clip of project.clips) out.push(...(clip.eventFx ?? []));
   return out;
+}
+
+/**
+ * Plugins in this project that a bounce must refuse to render live.
+ *
+ * A plugin lands here only when the parity probe has *measured* it rendering
+ * differently offline than it plays — never on suspicion, and never for a
+ * plugin nobody has probed. A frozen track is exempt by construction: its
+ * plugin is not instantiated at all, because the track plays a print that
+ * already has the plugin baked into it, made by this same renderer.
+ */
+function printRequiredForProject(
+  project: ProjectData,
+): { trackName: string; pluginName: string; trackId: string; note: string }[] {
+  const out: { trackName: string; pluginName: string; trackId: string; note: string }[] = [];
+  const scan = (trackId: string, trackName: string, effects: Effect[] | undefined) => {
+    for (const hit of printRequiredPlugins(effects ?? [])) {
+      out.push({ trackId, trackName, pluginName: hit.name, note: hit.note });
+    }
+  };
+  for (const track of project.tracks) {
+    if (isFrozen(track)) continue;
+    scan(track.id, track.name, track.effects);
+  }
+  scan('master', 'the master bus', project.master?.effects);
+  return out;
+}
+
+/** Tracks that must be frozen before this project can be bounced, for the UI to
+ *  offer "Freeze and export" rather than only refusing. */
+export function tracksNeedingPrint(project: ProjectData): string[] {
+  return [...new Set(printRequiredForProject(project).map((b) => b.trackId))].filter(
+    (id) => id !== 'master',
+  );
 }
 
 /**
@@ -278,7 +321,14 @@ export function scheduleLaneOnParam(
   }
 }
 
-/** Ensure every referenced media item is decoded before the render begins. */
+/**
+ * Ensure every referenced media item is decoded before the render begins.
+ *
+ * Note that this takes the context the *caller* will render on, not the live
+ * one — the resources it resolves belong to a context. That was already true
+ * for decoded audio and it is true for plugin instances too: a `WamNode`
+ * belongs to the context that made it, so each render context gets its own.
+ */
 export async function preloadForRender(
   project: ProjectData,
   ctx: BaseAudioContext,
@@ -298,6 +348,12 @@ export async function preloadForRender(
     const buf = await loadBuffer(id, ctx);
     if (!buf) missing.push(id);
   }
+  // Plugin *instances* cannot be preloaded here, because a `WamNode` belongs to
+  // the context that created it and `renderProject` makes its own. What we can
+  // do — and what matters for how long an export takes to start — is warm the
+  // module cache, so the render's own preload finds every plugin's ES module
+  // already imported and only pays for instantiation.
+  await warmPluginModules(project);
   return missing;
 }
 
@@ -335,9 +391,32 @@ export async function renderProject(
     throw new ExportError('This browser does not support offline audio rendering.');
   }
 
+  // Refuse to bounce a plugin we have measured as rendering differently offline
+  // than it plays. This is the only thing standing between "the bounce matches
+  // what was monitored" and a wrong file with no error on it — see
+  // `wam/parityProbe.ts`. The route out is a freeze, which prints through this
+  // same renderer, so the user gets a correct bounce either way.
+  const blocked = printRequiredForProject(project);
+  if (blocked.length > 0) {
+    throw new ExportError(
+      `${blocked.length === 1 ? 'A plugin does' : `${blocked.length} plugins do`} not render ` +
+        `the same offline as in playback, so this bounce would not match what you heard: ` +
+        blocked.map((b) => `"${b.pluginName}" on ${b.trackName}`).join(', ') +
+        `. Freeze ${blocked.length === 1 ? 'that track' : 'those tracks'} and export again.`,
+    );
+  }
+
   const sampleRate = opts.sampleRate ?? 44100;
   const layout = renderLayout(durationSec, preRoll, sampleRate);
   const ctx = new OfflineAudioContext(2, layout.frames, sampleRate);
+  // Plugins are resolved on the render's own context, before the graph is built
+  // — the same rule decoded media follows, and for the same reason: the build
+  // below is synchronous, and an await inside it would let the render start
+  // with a half-connected graph. Everything a plugin needs (its saved state,
+  // its parameter values) is applied and awaited in here, not during the build,
+  // because `setParameterValues` is async and `startRendering()` will not wait.
+  const pluginReport = await preloadPlugins(project, ctx);
+  const missingPlugins = pluginReport.failed.map((f) => f.ref.name || f.ref.identifier);
   opts.onProgress?.('Building graph');
 
   // ---- master chain: mirrors AudioEngine.buildMasterChain ----
@@ -826,7 +905,9 @@ export async function renderProject(
       3,
     )}, ${scheduledClips} clips, ${scheduledNotes} notes${
       automatedLanes ? `, ${automatedLanes} automation lane${automatedLanes === 1 ? '' : 's'}` : ''
-    }${missingMedia.size ? `, ${missingMedia.size} missing media` : ''}`,
+    }${missingMedia.size ? `, ${missingMedia.size} missing media` : ''}${
+      missingPlugins.length ? `, ${missingPlugins.length} plugin(s) not loaded` : ''
+    }`,
   );
 
   return {
@@ -839,6 +920,7 @@ export async function renderProject(
     scheduledClips,
     scheduledNotes,
     missingMedia: [...missingMedia],
+    missingPlugins,
   };
 }
 

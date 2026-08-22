@@ -50,27 +50,46 @@
     auto /* mute/solo/arm   */
     auto /* dB + peak       */
     auto; /* routing + VCA   */
-  row-gap: 4px;
+  /*
+   * Rhythm, not even spacing (§2.7).
+   *
+   * Nine functionally different rows separated by nine identical 4px gaps is
+   * why the strip read as a form rather than as a channel: nothing grouped,
+   * so the eye got no help deciding that "trim / O / M" is one thing and
+   * "M / S / *" is another. The gap is now zero and every row states its own
+   * margin, which makes the nine rows read as four groups — identity, signal
+   * path in, level, console footer — separated by 8px or by a seam.
+   */
+  --row-tight: 2px;
+  --row-group: 8px;
+  --strip-pad-x: 6px;
+  --strip-pad-t: 6px;
+  row-gap: 0;
   align-content: stretch;
   height: 100%;
   min-height: 0;
   overflow: hidden;
   background: var(--bg-panel-2);
-  border: 1px solid var(--border-soft);
+  border: none;
   border-radius: var(--radius);
-  padding: 6px 6px 7px;
+  padding: var(--strip-pad-t) var(--strip-pad-x) 7px;
   user-select: none;
 }
+/*
+ * Selection is light, not colour (§2.1). The ground lifts one step and the
+ * strip's own colour bar widens; there is no coloured border, which is what
+ * this was and what put a fourth meaning on the selection hue.
+ */
 .strip.selected {
-  border-color: rgba(217, 161, 60, 0.55);
+  background: var(--bg-raised);
+  box-shadow: var(--sh-1);
 }
 /* A desk full of channels that never answer the pointer does not feel live. */
 .strip:hover:not(.selected) {
-  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--text) 4%, var(--bg-panel-2));
 }
 .strip.master {
   background: var(--bg-raised);
-  border-color: var(--border-strong);
   position: sticky;
   right: 0;
   /* lift above neighbours so the row scrolls underneath it cleanly */
@@ -92,20 +111,26 @@
 }
 .strip-input {
   grid-row: 2;
+  margin-top: var(--row-tight);
 }
 .strip-inserts,
 .dev-rack,
 .strip-fx {
   grid-row: 3;
+  margin-top: var(--row-tight);
 }
 .strip-sends {
   grid-row: 4;
+  margin-top: var(--row-tight);
 }
+/* Group break: the signal path in ends, the level section begins. */
 .strip-pan {
   grid-row: 5;
+  margin-top: var(--row-group);
 }
 .strip-mid {
   grid-row: 6;
+  margin-top: var(--row-tight);
 }
 .strip-btns {
   grid-row: 7;
@@ -116,6 +141,7 @@
 .strip-foot,
 .strip-route {
   grid-row: 9;
+  margin-top: var(--row-tight);
 }
 /* A VCA has no input stage, inserts, sends, pan or meter: it borrows the
    channel grid so the console's rows still line up across the desk. */
@@ -123,18 +149,47 @@
   grid-row: 6;
 }
 
+/*
+ * The identity bar (§2.9).
+ *
+ * Full-bleed to the strip's edges — it is the top of the channel, not a row
+ * inside it — with the track's colour as a 3px bar along the top edge and the
+ * same colour washed into the ground at 22%. Track colour is identity and
+ * lives on rails and edges; it is a parallel system to the five state colours
+ * and never means a state.
+ */
 .strip-name {
   display: flex;
   align-items: center;
   gap: var(--sp-1);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-bold);
+  font-family: var(--font-cond);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
-  padding-bottom: 3px;
-  border-bottom: 2px solid var(--strip-color, var(--accent));
+  margin: calc(var(--strip-pad-t) * -1) calc(var(--strip-pad-x) * -1) 0;
+  padding: calc(var(--strip-pad-t) - 1px) var(--strip-pad-x) 3px;
+  background: color-mix(in srgb, var(--strip-color, transparent) 22%, var(--bg-panel-2));
+  box-shadow:
+    inset 0 3px 0 var(--strip-color, var(--border)),
+    var(--ml-seam-b);
   min-width: 0;
   color: var(--text);
+}
+/* Selected: the colour bar widens. Still no second colour (§2.9). */
+.strip.selected .strip-name {
+  box-shadow:
+    inset 0 5px 0 var(--strip-color, var(--border-strong)),
+    var(--ml-seam-b);
+}
+/* A track name is text the user typed: it is never uppercased by CSS (§2.5). */
+.strip-name .strip-label {
+  font-family: var(--font);
+  font-size: var(--fs-xs);
+  letter-spacing: 0;
+  text-transform: none;
 }
 .strip-name .strip-label {
   overflow: hidden;
@@ -160,35 +215,42 @@
   /* master placeholder: reserve the same height so rows stay aligned */
   height: 17px;
 }
+/* A lettered lamp: unlit it is a well, lit it is a filled LED (§2.6). The
+   ground is --bg-input because the lamp carries text. */
 .fx-chip {
   flex: 1 1 0;
   min-width: 0;
   height: 17px;
   border-radius: var(--radius-xs);
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-input);
+  border: none;
+  box-shadow: var(--ml-lamp-off);
   color: var(--text-faint);
-  font-family: var(--font-mono);
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
-  font-weight: 700;
-  letter-spacing: var(--ls-wide);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
 }
 .fx-chip.on {
-  background: var(--accent-bg);
-  border-color: rgba(55, 184, 154, 0.45);
-  color: var(--accent);
+  --lamp: var(--accent-lamp);
+  background: var(--lamp);
+  box-shadow: var(--ml-lamp-on);
+  color: var(--lamp-ink);
 }
-/* Every insert bypassed reads as "present but doing nothing", not as active. */
+/* Every insert bypassed reads as "present but doing nothing", not as active:
+   the lamp goes out and the slot sinks rather than the whole chip dimming. */
 .fx-chip.on.bypassed {
-  background: var(--bg-deep);
-  border-color: var(--border-soft);
+  background: var(--bg-input);
+  box-shadow: var(--sh-pressed);
   color: var(--text-faint);
   text-decoration: line-through;
 }
-.fx-chip:hover {
-  border-color: var(--border-strong);
+.fx-chip:hover:not(.on) {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 .fx-chip:disabled {
   opacity: var(--opacity-disabled);
@@ -203,9 +265,10 @@
   min-height: 0;
 }
 .strip-pan .pan-val {
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-size: var(--fs-2xs);
-  color: var(--text-faint);
+  font-weight: var(--fw-medium);
+  color: var(--text);
   min-width: 26px;
   text-align: left;
 }
@@ -245,38 +308,71 @@
   overflow: hidden;
 }
 
+/*
+ * The console footer (§2.9): the buttons, the readout and the routing sit on
+ * a raised deck with a seam above it, so the strip ends on a different
+ * material from the one its level section is drawn on.
+ */
+.strip-btns,
+.strip-readout {
+  background: var(--bg-raised);
+  margin-left: calc(var(--strip-pad-x) * -1);
+  margin-right: calc(var(--strip-pad-x) * -1);
+  padding-left: var(--strip-pad-x);
+  padding-right: var(--strip-pad-x);
+}
+.strip-btns {
+  margin-top: var(--row-group);
+  padding-top: 4px;
+  box-shadow: var(--ml-seam-t);
+}
 .strip-readout {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: 4px;
-  font-family: var(--font-mono);
+  padding-top: var(--row-tight);
+  padding-bottom: 2px;
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
-  font-size: 9.5px;
+  font-size: var(--fs-2xs);
   color: var(--text-dim);
   min-width: 0;
 }
+/* A value and its unit never share a weight or a colour (§2.5 rule 2): the
+   number is loud, the unit is quiet. This is the most-read number on the desk. */
 .strip-readout .rd-db {
-  font-weight: 600;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
   color: var(--text);
 }
+/* --bg-raised is a control-cap surface: text on it is --text-dim or --text,
+   never --text-faint, which measures 4.35 there. */
 .strip-readout .rd-pk {
-  color: var(--text-faint);
+  color: var(--text-dim);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Routing is a value you read, so it is a field cut into the desk, not a
+   button (§2.4): a well, with no border of its own. */
 .strip-route {
   height: 20px;
   min-width: 0;
-  font-size: 9.5px;
+  font-family: var(--font-cond);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
   padding: 0 4px;
   border-radius: var(--radius-xs);
   background: var(--bg-input);
-  border: 1px solid var(--border);
+  border: none;
+  box-shadow: var(--sh-well);
   color: var(--text-dim);
   text-overflow: ellipsis;
+}
+.strip-route:hover:not(:disabled) {
+  color: var(--text);
 }
 .strip-route.static {
   display: flex;
@@ -305,73 +401,31 @@
   outline-offset: -2px;
   border-radius: var(--radius-xs);
 }
-.fader .fader-track {
-  position: absolute;
-  left: 50%;
-  top: 7px;
-  bottom: 7px;
-  width: 4px;
-  transform: translateX(-50%);
-  background: var(--bg-deep);
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--border-soft);
-}
-/* Unity-gain detent. The fader curve is gain = pos^2.2 × 1.5, so 0 dB sits at
-   (1/1.5)^(1/2.2) ≈ 83.2% of the travel — the same maths the thumb uses. */
-.fader .fader-track::after {
-  content: '';
-  position: absolute;
-  left: -5px;
-  right: -5px;
-  bottom: 83.2%;
-  height: 1px;
-  background: var(--text-faint);
-  opacity: 0.65;
-}
-/* Fill and thumb are positioned in PERCENT of the track, so they follow
-   the container height automatically with no measurement. */
-.fader .fader-fill {
-  position: absolute;
-  left: 50%;
-  bottom: 7px;
-  width: 4px;
-  transform: translateX(-50%);
-  background: linear-gradient(to top, var(--accent-dim), var(--accent));
-  border-radius: var(--radius-xs);
-  opacity: 0.85;
-}
-.fader .fader-thumb {
-  position: absolute;
-  left: 50%;
-  width: 26px;
-  height: 14px;
-  margin-bottom: -7px;
-  transform: translateX(-50%);
-  background: linear-gradient(var(--bg-hover), var(--bg-raised) 45%, var(--bg-panel-2));
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xs);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-}
-.fader .fader-thumb::after {
-  content: '';
-  position: absolute;
-  left: 3px;
-  right: 3px;
-  top: 50%;
-  height: 2px;
-  transform: translateY(-50%);
-  background: var(--accent);
-}
-
+/*
+ * The fader's MATERIAL — the inset slot, the machined cap, the printed scale —
+ * now lives in base.css beside the component that draws it, keyed off `.hw`,
+ * and the classes this file used to style (.fader-track / .fader-fill /
+ * .fader-thumb) no longer exist. What stays here is what the console owns:
+ * how wide the lane is.
+ *
+ * The lane stays at 30px rather than §2.6's 34px. The strip is 96px wide and
+ * --strip-w is not this change's token to move; 34px + the 6px gap + the 46px
+ * stereo meter is 86px inside 84px of usable strip, and the row it overflows
+ * clips, so the first thing lost would be the meter's printed dB scale — which
+ * §1.3 lists among the things that must survive. The scale ladder beside the
+ * slot is drawn as marks inside the 30px lane instead, and the numbers stay on
+ * the meter, where they already were.
+ */
 /* Meter -------------------------------------------------------------------- */
+/* Body material, segmentation, zone stops, hold and clip LED are all in
+   base.css under `.meter.hw` — the component and its material in one place.
+   The console owns the lane: how wide the meter is and how tall. */
 .meter {
   width: var(--meter-w);
   flex: none;
   height: 100%;
   min-height: 0;
   position: relative;
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
   border-radius: var(--radius-xs);
   overflow: hidden;
 }
@@ -384,13 +438,6 @@
   right: 0;
   bottom: 0;
   height: 100%;
-  background: linear-gradient(
-    to top,
-    var(--meter-lo) 0%,
-    var(--meter-mid) 62%,
-    var(--meter-hot) 84%,
-    var(--meter-clip) 97%
-  );
   transform-origin: bottom;
   transform: scaleY(0);
   will-change: transform;
@@ -401,7 +448,6 @@
   right: 0;
   top: 0;
   height: 2px;
-  background: var(--text);
   opacity: 0;
   will-change: transform;
 }
@@ -411,17 +457,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: var(--meter-bg);
   cursor: pointer;
-  z-index: 2;
-}
-/* It is a button that clears the clip hold; it has to look like one. */
-.meter .meter-clip-led:hover {
-  background: color-mix(in srgb, var(--danger) 45%, var(--meter-bg));
-}
-.meter .meter-clip-led.on {
-  background: var(--danger);
-  box-shadow: 0 0 6px rgba(216, 74, 68, 0.8);
 }
 
 /* Pan knob ----------------------------------------------------------------- */
@@ -443,7 +479,11 @@
   border-radius: 50%;
 }
 .knob-label {
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
   color: var(--text-faint);
   text-align: center;
   user-select: none;
@@ -456,22 +496,20 @@
   gap: 8px;
 }
 .mixer.touch .strip {
-  row-gap: 6px;
-  padding: 8px 7px 9px;
+  --row-tight: 3px;
+  --row-group: 10px;
+  --strip-pad-x: 7px;
+  --strip-pad-t: 8px;
+  padding: var(--strip-pad-t) var(--strip-pad-x) 9px;
 }
 .mixer.touch .fader {
   width: 40px;
-}
-.mixer.touch .fader .fader-thumb {
-  width: 34px;
-  height: 20px;
-  margin-bottom: -10px;
 }
 .mixer.touch .meter {
   width: 16px;
 }
 .mixer.touch .strip-readout {
-  font-size: 10.5px;
+  font-size: var(--fs-2xs);
 }
 
 /* Insert rack + sends (inspector) ------------------------------------------ */
@@ -481,14 +519,26 @@
   gap: 6px;
   min-width: 0;
 }
-.fx-slot {
-  border: 1px solid var(--border-soft);
+/* The inspector's copy of the rack: a module seated on a rail, at the larger
+   size (§2.6). Open is a chrome state, so it is a lighter surface and a lit
+   top edge — not a colour. */
+.fx-rack {
+  gap: var(--sp-1);
+  padding: var(--sp-1);
   border-radius: var(--radius);
+  background: var(--bg-well);
+  box-shadow: var(--sh-well);
+}
+.fx-slot {
+  border: none;
+  border-radius: var(--radius-xs);
   background: var(--bg-panel-2);
+  box-shadow: var(--sh-1);
   overflow: hidden;
 }
 .fx-slot.open {
-  border-color: var(--border-strong);
+  background: var(--bg-active);
+  box-shadow: var(--sh-inset);
 }
 .fx-slot.bypassed .fx-name,
 .fx-slot.bypassed .fx-sum {
@@ -512,12 +562,15 @@
   color: var(--text);
 }
 .fx-name {
+  font-family: var(--font-cond);
   font-size: var(--fs-sm);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
 }
 .fx-sum {
-  font-size: 9.5px;
-  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -537,8 +590,10 @@
   text-overflow: ellipsis;
 }
 .fx-param .v {
-  font-size: 9.5px;
-  color: var(--text-dim);
+  font-family: var(--font-num);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  color: var(--text);
   text-align: right;
 }
 .fx-param input[type='range'] {
@@ -588,47 +643,57 @@
   gap: 3px;
   min-width: 0;
 }
+/* Trim is a VALUE, not a command, so it is a number in a well rather than a
+   bordered button (§2.9). A trim that is not at zero is loud simply by being
+   the brightest text in the row — no colour is spent on it. */
 .in-trim {
   flex: 1 1 0;
   min-width: 0;
   height: 16px;
   border-radius: var(--radius-xs);
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-input);
+  border: none;
+  box-shadow: var(--sh-well);
   color: var(--text-faint);
   font-family: var(--font-num);
   font-size: var(--fs-2xs);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-medium);
+  font-feature-settings:
+    'tnum' 1,
+    'zero' 1;
 }
 .in-trim.set {
-  color: var(--warm);
-  border-color: var(--warm-line);
+  color: var(--text);
 }
+/* Phase and mono are lamps (§2.6). */
 .in-flag {
   flex: none;
   width: 18px;
   height: 16px;
   border-radius: var(--radius-xs);
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-input);
+  border: none;
+  box-shadow: var(--ml-lamp-off);
   color: var(--text-faint);
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-semibold);
   line-height: 1;
 }
 .strip.master .in-flag {
   flex: 1 1 0;
   width: auto;
 }
-.in-flag:hover,
+.in-flag:hover:not(.on),
 .in-trim:hover {
-  border-color: var(--border-strong);
+  background: var(--bg-hover);
   color: var(--text);
 }
 .in-flag.on {
-  background: var(--warm-bg);
-  border-color: var(--warm-line);
-  color: var(--warm);
+  --lamp: var(--accent-lamp);
+  background: var(--lamp);
+  box-shadow: var(--ml-lamp-on);
+  color: var(--lamp-ink);
 }
 .in-flag:disabled,
 .in-trim:disabled {
@@ -637,11 +702,20 @@
 }
 
 /* ---------------------------------------------------------- insert slots */
+/*
+ * A rack: a well with modules seated on a rail (§2.6). Four bordered boxes
+ * become four modules in a rail, which is the change that alters the strip's
+ * character most — you can see that signal passes THROUGH a series of things.
+ */
 .strip-inserts {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  padding: 2px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-well);
+  box-shadow: var(--sh-well);
 }
 .ins-slot {
   display: flex;
@@ -650,51 +724,83 @@
   height: 15px;
   padding: 0 4px;
   border-radius: var(--radius-xs);
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-panel-2);
+  border: none;
+  box-shadow: var(--sh-1);
   color: var(--text-dim);
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
   min-width: 0;
   text-align: left;
 }
 .ins-slot:hover {
-  border-color: var(--border-strong);
+  background: var(--bg-hover);
   color: var(--text);
 }
+/* The LED says what the slot is doing: lit when the insert is passing signal,
+   dimmed when it is bypassed, dark when the slot is empty. */
 .ins-slot .ins-dot {
   flex: none;
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background: var(--accent);
+  box-shadow: 0 0 5px -1px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 .ins-slot .ins-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Bypassed sinks into the rail rather than dimming: it is switched off, not
+   unavailable. */
 .ins-slot.bypassed {
+  box-shadow: var(--sh-pressed);
   color: var(--text-faint);
 }
 .ins-slot.bypassed .ins-dot {
-  background: var(--text-faint);
+  background: color-mix(in srgb, var(--text-faint) 35%, transparent);
+  box-shadow: none;
 }
 .ins-slot.bypassed .ins-name {
   text-decoration: line-through;
 }
+/* An empty slot is the bare rail with a + on it. Not a dashed rectangle:
+   dashed borders as an empty state are a web-app convention, and this was one
+   of four of them in the product (§2.11.9). */
+/* The bare rail, lifted just enough for its glyph to be legible on it: a
+   --text-faint "+" directly on --bg-well measures 3.45 in the light theme. */
 .ins-slot.empty,
 .ins-slot.more {
   justify-content: center;
   color: var(--text-faint);
-  border-style: dashed;
+  background: color-mix(in srgb, var(--bg-input) 55%, transparent);
+  box-shadow: none;
+}
+.ins-slot.empty:hover,
+.ins-slot.more:hover {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--edge-hi);
+  color: var(--text);
 }
 
 /* ----------------------------------------------------------------- sends */
+/* The same rack, one row shorter. The sends were a filled --accent-bg box
+   with an --accent-line border and --accent text, which made the least
+   important information on the strip the loudest thing on it; the send's
+   colour is now a 2px rail — a send is signal LEAVING — and the row itself is
+   a module like any other. */
 .strip-sends {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  padding: 2px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-well);
+  box-shadow: var(--sh-well);
 }
 .snd-row {
   display: flex;
@@ -704,19 +810,32 @@
   height: 14px;
   padding: 0 4px;
   border-radius: var(--radius-xs);
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-line);
-  color: var(--accent);
+  background: var(--bg-panel-2);
+  border: none;
+  box-shadow:
+    var(--sh-1),
+    inset 2px 0 0 color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--text-dim);
   font-size: var(--fs-2xs);
   min-width: 0;
 }
+.snd-row:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+/* Label left, value right, so the numbers form a column you can scan
+   (§2.11.10). */
 .snd-row .snd-name {
+  font-family: var(--font-cond);
+  font-weight: var(--fw-medium);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .snd-row .snd-val {
   font-family: var(--font-num);
+  font-weight: var(--fw-medium);
+  color: var(--text);
   flex: none;
 }
 
@@ -735,16 +854,11 @@
   min-width: 18px;
   min-height: 0;
 }
+/* Lit and unlit material for the over indicator is base.css's, under `.hw`. */
 .smeter-over {
   height: 6px;
   flex: none;
   border-radius: var(--radius-xs);
-  background: var(--meter-bg);
-  border: 1px solid var(--border-soft);
-}
-.smeter-over[data-over='yes'] {
-  background: var(--meter-over);
-  border-color: var(--meter-over);
 }
 .smeter-bars {
   position: relative;
@@ -757,32 +871,23 @@
   position: relative;
   flex: 1 1 0;
   min-width: 3px;
-  background: var(--meter-bg);
-  border: 1px solid var(--border-soft);
   border-radius: var(--radius-xs);
   overflow: hidden;
 }
+/* The zone stops are the meter's own dB boundaries, emitted by the component
+   as --mz-* and consumed by the shared gradient in base.css: the two meters
+   cannot disagree about what "hot" means, which they used to. */
 .smeter-fill {
   position: absolute;
   inset: 0;
   transform-origin: bottom;
   transform: scaleY(0);
-  /* Same stops as .meter-fill: the same signal has to read the same on both
-     meters, and a clip band that only exists at 100% is never seen coming. */
-  background: linear-gradient(
-    to top,
-    var(--meter-lo) 0%,
-    var(--meter-mid) 62%,
-    var(--meter-hot) 84%,
-    var(--meter-clip) 97%
-  );
 }
 .smeter-hold {
   position: absolute;
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--text);
   opacity: 0.85;
   bottom: 0;
 }
@@ -800,10 +905,7 @@
   right: 0;
   transform: translateY(50%);
   white-space: nowrap;
-  font-family: var(--font-num);
-  font-size: var(--fs-2xs);
   line-height: 1;
-  color: var(--text-faint);
 }
 
 /* --------------------------------------------------------- strip footer */
@@ -816,11 +918,17 @@
 .strip-vca {
   height: 16px;
   padding: 0 var(--sp-2);
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  letter-spacing: var(--ls-wide);
+  background: var(--bg-input);
+  border: none;
+  box-shadow: var(--sh-well);
   border-radius: var(--radius-xs);
   color: var(--text-faint);
+}
+.strip-vca:hover:not(:disabled) {
+  color: var(--text-dim);
 }
 .strip.vca {
   background: color-mix(in srgb, var(--strip-color) 8%, var(--bg-panel-2));
@@ -833,18 +941,25 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* An FX return is a channel fed from somewhere else, which is what violet
+   means (§2.1). It was the accent at 6%, i.e. the green that means "signal
+   present" used as a channel type. */
 .strip.fx {
-  background: color-mix(in srgb, var(--accent) 6%, var(--bg-panel-2));
+  background: color-mix(in srgb, var(--key) 8%, var(--bg-panel-2));
 }
 
-/* A rule between console sections: channels · buses and returns · VCAs · master */
+/* A rule between console sections: channels · buses and returns · VCAs · master.
+   A section boundary is a seam, and a 1px div is the one place in the product
+   where the seam has to be drawn as two backgrounds rather than as a shadow. */
 .mixer-sep {
   flex: none;
-  width: 1px;
+  width: 2px;
   align-self: stretch;
   margin: var(--sp-3) var(--sp-2);
-  background: var(--border);
+  background: linear-gradient(to right, var(--edge-lo) 0 1px, var(--edge-hi) 1px 2px);
 }
+/* Not a dashed rectangle: a bare cap that lights its own edge on hover
+   (§2.11.9). */
 .mixer-add {
   flex: none;
   align-self: center;
@@ -852,13 +967,20 @@
   height: var(--toolbar-h-sm);
   margin: 0 var(--sp-4);
   border-radius: var(--radius);
-  border: 1px dashed var(--border-strong);
+  border: none;
+  background: var(--bg-input);
+  box-shadow: var(--sh-well);
   color: var(--text-faint);
 }
 .mixer-add:hover {
-  color: var(--accent);
-  border-color: var(--accent-line);
-  background: var(--accent-bg);
+  color: var(--text);
+  box-shadow:
+    var(--sh-well),
+    inset 0 0 0 1px var(--edge-hi);
+}
+.mixer-add:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 .mixer.empty {
   align-items: center;
@@ -876,15 +998,18 @@
   gap: var(--sp-4);
   padding: var(--sp-4);
   background: var(--bg-panel);
-  border-top: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-t);
 }
 
+/* The analysis region is a well cut into the panel: the well IS the frame,
+   so nothing inside it carries a border. */
 .fx-visual {
   display: flex;
   justify-content: center;
   padding: var(--sp-2);
   background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  border: none;
+  box-shadow: var(--sh-well);
   border-radius: var(--radius);
   overflow: hidden;
 }
@@ -895,17 +1020,19 @@
 }
 
 /* Draggable EQ band handles sit on top of the curve. */
+/* A band handle takes the EQ family's colour (§2.8), not the accent: it is
+   an EQ control, and the accent means signal is passing. */
 .eq-handle {
   position: absolute;
   width: 20px;
   height: 20px;
   margin: -10px 0 0 -10px;
   border-radius: 50%;
-  background: var(--bg-raised);
-  border: 1.5px solid var(--accent);
+  background: var(--grad-cap);
+  border: 1.5px solid var(--fx-eq);
   color: var(--text);
   font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-semibold);
   line-height: 1;
   cursor: grab;
   display: inline-flex;
@@ -913,8 +1040,8 @@
   justify-content: center;
 }
 .eq-handle:hover {
-  border-color: var(--accent-hi);
-  background: var(--bg-hover);
+  border-color: var(--fx-eq);
+  box-shadow: var(--sh-2);
 }
 .eq-handle.off {
   border-color: var(--border-strong);
@@ -943,7 +1070,8 @@
   flex: 1 1 auto;
   width: 12px;
   background: var(--meter-bg);
-  border: 1px solid var(--border-soft);
+  border: none;
+  box-shadow: var(--sh-well-deep);
   border-radius: var(--radius-xs);
   overflow: hidden;
 }
@@ -954,12 +1082,21 @@
   inset: 0;
   transform-origin: top;
   transform: scaleY(0);
-  background: linear-gradient(to bottom, var(--warm) 0%, var(--meter-clip) 100%);
+  background: linear-gradient(to bottom, var(--meter-hot) 0%, var(--meter-clip) 100%);
 }
-.fx-gr-val,
-.fx-gr-label {
+/* The value is loud, the label is quiet (§2.5 rule 2). */
+.fx-gr-val {
   font-family: var(--font-num);
   font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+}
+.fx-gr-label {
+  font-family: var(--font-cond);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
   color: var(--text-faint);
 }
 
@@ -984,11 +1121,16 @@
 .fx-knob-val {
   font-family: var(--font-num);
   font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
   color: var(--text);
   white-space: nowrap;
 }
 .fx-knob-label {
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
   color: var(--text-faint);
   text-align: center;
   max-width: 66px;
@@ -1055,7 +1197,7 @@
   gap: var(--sp-4);
   padding: var(--sp-3) var(--sp-4);
   background: var(--bg-panel-2);
-  border-bottom: 1px solid var(--border);
+  box-shadow: var(--ml-seam-b);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
@@ -1071,8 +1213,8 @@
   gap: var(--sp-2);
   flex: none;
   padding-right: var(--sp-4);
-  border-right: 1px solid var(--border-soft);
-  color: var(--strip-color, var(--accent));
+  box-shadow: var(--ml-seam-r);
+  color: var(--strip-color, var(--text-dim));
 }
 .co-track {
   font-size: var(--fs-lg);
@@ -1081,8 +1223,10 @@
   white-space: nowrap;
 }
 .co-silent {
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
-  color: var(--warm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-faint);
   text-transform: uppercase;
   letter-spacing: var(--ls-caps);
 }
@@ -1123,20 +1267,25 @@
   font-size: var(--fs-2xs);
   color: var(--text-faint);
 }
+/* The fourth of the product's dashed empty states, gone the same way as the
+   others: a bare rail that lights its edge (§2.11.9). */
 .co-add {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-4);
-  border: 1px dashed var(--border-strong);
+  border: none;
   border-radius: var(--radius);
+  background: var(--bg-input);
+  box-shadow: var(--sh-well);
   color: var(--text-faint);
   font-size: var(--fs-xs);
 }
 .co-add:hover {
-  color: var(--accent);
-  border-color: var(--accent-line);
-  background: var(--accent-bg);
+  color: var(--text);
+  box-shadow:
+    var(--sh-well),
+    inset 0 0 0 1px var(--edge-hi);
 }
 .co-chain {
   display: flex;
@@ -1220,7 +1369,7 @@
   align-items: center;
   gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
-  border-bottom: 1px solid var(--border);
+  box-shadow: var(--ml-seam-b);
   background: var(--bg-panel);
   flex: 0 0 auto;
   min-height: var(--toolbar-h);
@@ -1230,14 +1379,31 @@
 .cue-bar::-webkit-scrollbar {
   display: none;
 }
-/* Monitoring a cue is a mode; a mode you cannot see is a mode left switched on. */
+/* Monitoring a cue is a mode; a mode you cannot see is a mode left switched on.
+   Violet, because a cue mix IS "you are monitoring something else" — the
+   meaning the key colour carries (§2.1). It was the accent, which said
+   "signal is passing" about a bar that is telling you the opposite. */
 .cue-bar.live {
-  background: var(--accent-bg);
-  border-bottom-color: var(--accent);
+  background: var(--key-bg);
+  box-shadow:
+    inset 0 -1px 0 var(--key),
+    inset 0 -2px 0 var(--edge-lo);
 }
+/* The live badge is a lit lamp in the key colour, not violet text: violet has
+   no darkened -hi variant, and as text on chrome in the light theme it
+   measures 4.31. */
 .cue-live {
+  --lamp: var(--key-lamp);
+  padding: 1px var(--sp-2);
+  border-radius: var(--radius-xs);
+  background: var(--lamp);
+  box-shadow: var(--ml-lamp-on);
+  font-family: var(--font-cond);
   font-size: var(--fs-xs);
-  color: var(--accent);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--lamp-ink);
   white-space: nowrap;
 }
 .cue-level {
@@ -1256,7 +1422,7 @@
 /* The strips carry the same signal as the bar: this fader is the cue's. */
 .strip.in-cue .strip-mid,
 .strip.in-cue .strip-pan {
-  background: var(--accent-bg);
+  background: var(--key-bg);
   border-radius: var(--radius);
 }
 
@@ -1266,12 +1432,24 @@
 /* The rack is the row that gives when the console is short: it is the only
    one that can scroll without losing a control. A chain longer than the strip
    scrolls inside the rack rather than pushing the fader off the bottom. */
+/*
+ * §2.10a. The rack is a RAIL — a well cut into the strip — and every device
+ * is a module seated on it. What landed was eleven rules' worth of the tells
+ * in Part 1: a 1px --border-soft box at 1.07:1 doing all the structural work,
+ * a dashed empty state (the fifth in the product), and --accent picking up
+ * five more meanings on one component (power lamp, open, instrument identity,
+ * drop target, hover). Everything below is a token and material substitution.
+ */
 .dev-rack {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
   min-height: 0;
+  padding: 2px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-well);
+  box-shadow: var(--sh-well);
   /* Four devices and the Insert button. A chain longer than that scrolls
      inside the rack; it must never push a control out of the strip. */
   max-height: var(--dev-rack-h);
@@ -1292,6 +1470,9 @@
 .dev-list::-webkit-scrollbar {
   display: none;
 }
+/* A module seated on the rail: the strip's ground, a lit bottom edge, and a
+   2px rail in the device's own processor family (§2.8). No border — the 1px
+   --border-soft box it had measured 1.07:1 against the surface behind it. */
 .dev-slot,
 .dev-instrument {
   display: flex;
@@ -1299,48 +1480,97 @@
   gap: 3px;
   min-width: 0;
   height: 16px;
-  padding: 0 2px;
-  border: 1px solid var(--border-soft);
+  padding: 0 2px 0 4px;
+  border: none;
   border-radius: var(--radius-xs);
-  background: var(--bg-raised);
+  background: var(--bg-panel-2);
+  box-shadow:
+    var(--sh-1),
+    inset 2px 0 0 var(--dev-family, var(--fx-util));
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
   color: var(--text-dim);
   cursor: grab;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+/* The five families of §2.8. The model groups devices six ways, so `tone`
+   and `stereo` join the family nearest them rather than inventing a colour;
+   red is not among these, because red is record and clip and nothing else. */
+.dev-slot.fam-dynamics {
+  --dev-family: var(--fx-dyn);
+}
+.dev-slot.fam-tone {
+  --dev-family: var(--fx-eq);
+}
+.dev-slot.fam-modulation,
+.dev-slot.fam-time {
+  --dev-family: var(--fx-time);
+}
+.dev-slot.fam-stereo,
+.dev-slot.fam-utility {
+  --dev-family: var(--fx-util);
 }
 .dev-slot:hover,
 .dev-instrument:hover {
   background: var(--bg-hover);
-  border-color: var(--border-strong);
   color: var(--text);
 }
+/* Open is a CHROME state, not a signal state: a lighter surface and a lit top
+   edge (§2.1). It was --accent, which is what "this device is passing signal"
+   means — so an open bypassed device claimed to be doing both. */
 .dev-slot.open {
-  border-color: var(--accent);
+  background: var(--bg-active);
+  box-shadow:
+    var(--sh-inset),
+    inset 2px 0 0 var(--dev-family, var(--fx-util));
   color: var(--text);
 }
-/* A bypassed device keeps its place in the chain and stops claiming your eye. */
+/* A bypassed device keeps its place in the chain and stops claiming your eye.
+   It SINKS into the rail rather than dimming: bypassed is switched off, not
+   unavailable, and --opacity-disabled is the product's one word for the
+   second of those. The strikethrough stays; it is unambiguous. */
+.dev-slot.bypassed {
+  box-shadow:
+    var(--sh-pressed),
+    inset 2px 0 0 color-mix(in srgb, var(--dev-family, var(--fx-util)) 45%, transparent);
+}
 .dev-slot.bypassed .dev-label,
 .dev-slot.bypassed .dev-index {
-  opacity: var(--opacity-disabled);
+  color: var(--text-faint);
   text-decoration: line-through;
 }
-/* The drop line, drawn on the slot the device would land above. */
+/* The drop line, drawn on the slot the device would land above. Yellow: a
+   drop position is a selection, and selection is yellow (§2.1). */
 .dev-slot.drop-before {
-  box-shadow: inset 0 2px 0 var(--accent);
+  box-shadow:
+    var(--sh-1),
+    inset 2px 0 0 var(--dev-family, var(--fx-util)),
+    inset 0 2px 0 var(--solo);
 }
 .dev-list.drop-end {
-  box-shadow: inset 0 -2px 0 var(--accent);
+  box-shadow: inset 0 -2px 0 var(--solo);
 }
+/* The power lamp is the one --accent on this component that was already
+   right — a device that is not bypassed IS signal passing — so it keeps the
+   colour and gains the lamp treatment (§2.6). */
 .dev-power {
   flex: 0 0 auto;
-  width: 7px;
-  height: 7px;
+  width: 5px;
+  height: 5px;
   padding: 0;
-  border: 1px solid var(--border-strong);
+  border: none;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-lamp);
+  box-shadow: 0 0 5px -1px color-mix(in srgb, var(--accent-lamp) 60%, transparent);
 }
 .dev-slot.bypassed .dev-power {
-  background: transparent;
+  background: color-mix(in srgb, var(--text-faint) 35%, transparent);
+  box-shadow: none;
 }
 .dev-name {
   flex: 1 1 auto;
@@ -1355,9 +1585,16 @@
   font: inherit;
   text-align: left;
 }
+/* Already tabular, which was right; every number in the product is also the
+   numeric face at --fw-medium (§2.5 rule 1). */
 .dev-index {
   flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-weight: var(--fw-medium);
   font-variant-numeric: tabular-nums;
+  font-feature-settings:
+    'tnum' 1,
+    'zero' 1;
   color: var(--text-faint);
 }
 .dev-label {
@@ -1366,6 +1603,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* A device's name is a product name and reads as a label; an instrument's is
+   a preset name the user may have typed, so it stays sentence case (§2.5). */
+.dev-instrument .dev-label {
+  font-family: var(--font);
+  letter-spacing: 0;
+  text-transform: none;
 }
 .dev-menu {
   flex: 0 0 auto;
@@ -1381,17 +1625,32 @@
 .dev-menu:focus-visible {
   opacity: 1;
 }
-/* The instrument reads as the source it is, not as another insert. */
+/* The instrument reads as the SOURCE it is, not as another insert — and a
+   source is identity, so it takes the channel's own colour rather than the
+   accent. It was --accent-bg with an --accent-line border, which made the
+   instrument the same colour as an engaged insert. */
 .dev-instrument {
-  border-color: var(--accent-line);
-  background: var(--accent-bg);
+  background: color-mix(in srgb, var(--strip-color, var(--bg-hover)) 22%, var(--bg-panel-2));
+  box-shadow:
+    var(--sh-1),
+    inset 2px 0 0 var(--strip-color, var(--border-strong));
   color: var(--text);
+  font-weight: var(--fw-semibold);
   cursor: pointer;
 }
+/* Frozen is playing a render: the source is still there, it is just not being
+   computed. It sinks, like a bypass. */
 .dev-instrument.frozen {
-  border-color: var(--border-strong);
+  background: var(--bg-panel-2);
+  box-shadow:
+    var(--sh-pressed),
+    inset 2px 0 0 color-mix(in srgb, var(--strip-color, var(--border-strong)) 45%, transparent);
   color: var(--text-dim);
 }
+/* The bare rail with a + on it. This was the FIFTH dashed empty state in the
+   product; a dashed 1px border is a web-app convention, not a hardware one
+   (§2.11.9), and the rail lighting its own edge says "something goes here"
+   without borrowing one. */
 .dev-add {
   display: flex;
   align-items: center;
@@ -1399,17 +1658,23 @@
   gap: 3px;
   height: 15px;
   padding: 0 2px;
-  border: 1px dashed var(--border);
+  border: none;
   border-radius: var(--radius-xs);
-  background: none;
+  background: color-mix(in srgb, var(--bg-input) 55%, transparent);
   color: var(--text-faint);
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
 }
 .dev-add:hover:not(:disabled) {
-  border-style: solid;
-  border-color: var(--border-strong);
+  box-shadow: inset 0 0 0 1px var(--edge-hi);
   color: var(--text);
-  background: var(--bg-hover);
+}
+.dev-add:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
 }
 
 /* ---------------------------------------------------------------- plugin window */
@@ -1422,37 +1687,61 @@
   max-height: calc(100vh - 24px);
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-strong);
+  /* A floating window is ELEVATED, not outlined (§2.4): --sh-4 already
+     carries its own 1px ring, and no element gets both. */
+  border: none;
   border-radius: var(--radius-lg);
-  background: var(--bg-panel);
+  background: var(--bg-float);
   box-shadow: var(--sh-4);
   overflow: hidden;
 }
+/* The header carries a 3px rail in the processor's family colour — which is
+   how you know at a glance which of nine open windows is the compressor. */
 .pw-head {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
   height: var(--toolbar-h);
   padding: 0 var(--sp-3);
-  border-bottom: 1px solid var(--border);
   background: var(--bg-panel-2);
+  box-shadow:
+    inset 0 3px 0 var(--dev-family, var(--fx-util)),
+    var(--ml-seam-b);
   cursor: grab;
   user-select: none;
+}
+.plugin-window.fam-dynamics {
+  --dev-family: var(--fx-dyn);
+}
+.plugin-window.fam-tone {
+  --dev-family: var(--fx-eq);
+}
+.plugin-window.fam-modulation,
+.plugin-window.fam-time {
+  --dev-family: var(--fx-time);
+}
+.plugin-window.fam-stereo,
+.plugin-window.fam-utility {
+  --dev-family: var(--fx-util);
 }
 .pw-head:active {
   cursor: grabbing;
 }
+/* Bypass is a lamp: lit means engaged, and engaged means signal is passing. */
 .pw-power {
   flex: 0 0 auto;
   width: 10px;
   height: 10px;
   padding: 0;
-  border: 1px solid var(--border-strong);
+  border: none;
   border-radius: 50%;
-  background: var(--accent);
+  --lamp: var(--accent-lamp);
+  background: var(--lamp);
+  box-shadow: var(--ml-lamp-on);
 }
 .pw-power[aria-pressed='false'] {
-  background: transparent;
+  background: var(--bg-well);
+  box-shadow: var(--ml-lamp-off);
 }
 .pw-title {
   display: flex;
@@ -1461,7 +1750,11 @@
   min-width: 0;
 }
 .pw-name {
+  font-family: var(--font-cond);
+  font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
   white-space: nowrap;
 }
 .pw-on {
@@ -1479,10 +1772,14 @@
   height: var(--control-h-sm);
   font-size: var(--fs-2xs);
 }
+/* A well holding two cap-less segments; the selected one is a cap seated in
+   it (§2.6). An A/B slot is a chrome selection, so it is light, not colour. */
 .pw-ab {
   display: flex;
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius-xs);
+  background: var(--bg-input);
+  box-shadow: var(--sh-well);
   overflow: hidden;
 }
 .pw-ab button {
@@ -1490,17 +1787,17 @@
   height: var(--control-h-sm);
   padding: 0;
   border: 0;
-  background: var(--bg-input);
+  background: none;
   color: var(--text-faint);
   font-size: var(--fs-2xs);
   font-weight: var(--fw-semibold);
 }
 .pw-ab button.on {
-  background: var(--accent-bg);
-  color: var(--accent);
+  background: var(--grad-cap);
+  box-shadow: var(--sh-2);
+  color: var(--text);
 }
 .pw-ab button:hover:not(.on) {
-  background: var(--bg-hover);
   color: var(--text);
 }
 .pw-close {
@@ -1514,25 +1811,41 @@
 .pw-close:hover {
   color: var(--text);
 }
+/*
+ * The four material zones of §2.10, which is what turns five bordered
+ * rectangles in one grey into a window you can read in a glance:
+ * panel deck · display well · control deck · footer.
+ */
 .pw-body {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  gap: var(--sp-4);
   padding: var(--sp-4);
   overflow: auto;
-  background: var(--bg-deep);
+  background: var(--bg-panel);
 }
+/* The analysis region is CUT INTO the panel: the well is the frame, so
+   nothing inside it has a border. */
 .pw-visual {
   display: flex;
   justify-content: center;
+  padding: var(--sp-3);
+  border-radius: var(--radius-xs);
+  background: var(--bg-deep);
+  box-shadow: var(--sh-well-deep);
 }
+/* The control deck. */
 .pw-params {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-3) var(--sp-4);
+  gap: var(--sp-4) var(--sp-4);
   justify-content: center;
+  padding: var(--sp-3) var(--sp-2) var(--sp-1);
+  border-radius: var(--radius-xs);
+  background: var(--bg-panel-2);
+  box-shadow: var(--sh-1);
 }
 .pw-foot {
   display: flex;
@@ -1540,10 +1853,11 @@
   gap: var(--sp-2);
   height: var(--toolbar-h-sm);
   padding: 0 var(--sp-3);
-  border-top: 1px solid var(--border);
-  background: var(--bg-panel-2);
+  background: var(--bg-raised);
+  box-shadow: var(--ml-seam-t);
+  font-family: var(--font-num);
   font-size: var(--fs-2xs);
-  color: var(--text-faint);
+  color: var(--text-dim);
 }
 .pw-foot .grow {
   flex: 1 1 auto;

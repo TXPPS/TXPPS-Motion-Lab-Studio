@@ -8,6 +8,49 @@
    inherited by accident.
    ============================================================ */
 
+/* ============================================================
+   Regional composites.
+
+   tokens.css owns every colour, shadow and gradient in the
+   product (docs/DESIGN-DIRECTION.md §2.2–2.6). The three values
+   below are not new colours — they are fixed *arrangements* of
+   tokens that §2.4 and §2.6 describe as objects rather than as
+   single values, and that more than one region needs:
+
+     · the seam, which is a PAIR of edge lines and not one border
+     · the two states of a lamp, lit and unlit
+
+   The direction writes the seam as `.seam-b` / `.seam-t` / `.seam-r`
+   utility classes. They are tokens here instead, because every
+   element that needs one already exists in the markup with its own
+   class and a `box-shadow` slot going spare — so the seam lands
+   without a single className change in a component.
+   ============================================================ */
+:root {
+  /* Seams, drawn entirely INSIDE the element, so neither half can be painted
+     over by the next sibling's background or clipped by an `overflow: hidden`
+     ancestor — which a border did not have to worry about. Dark above light in
+     every one of them: one light source, from the top. */
+  --ml-seam-b: inset 0 -1px 0 var(--edge-hi), inset 0 -2px 0 var(--edge-lo);
+  --ml-seam-t: inset 0 2px 0 var(--edge-hi), inset 0 1px 0 var(--edge-lo);
+  --ml-seam-r: inset -1px 0 0 var(--edge-hi), inset -2px 0 0 var(--edge-lo);
+  --ml-seam-l: inset 2px 0 0 var(--edge-hi), inset 1px 0 0 var(--edge-lo);
+
+  /* A lamp (§2.6). Unlit it is a well cut in the chrome; lit it is a filled
+     LED with dark ink. `--lamp` is set per instance — --solo-lamp, --mute-lamp,
+     --danger-lamp, --accent-lamp, --key-lamp — and both rules below read it, so
+     a lamp's colour is declared once at the call site and never twice.
+
+     The glow is the one legal glow in the product (§2.4 rule 6): a lit lamp, in
+     the lamp's own colour. Not on focus, not on hover, not on selection. */
+  --lamp: var(--accent-lamp);
+  --ml-lamp-off: var(--sh-well);
+  --ml-lamp-on:
+    inset 0 1px 0 rgb(255 255 255 / 0.3), inset 0 -1px 2px rgb(0 0 0 / 0.32),
+    0 0 0 1px color-mix(in srgb, var(--lamp) 55%, transparent),
+    0 0 7px -1px color-mix(in srgb, var(--lamp) 55%, transparent);
+}
+
 .app {
   display: grid;
   /* project bar | everything the active layout owns | status bar or bottom nav */
@@ -54,11 +97,21 @@
   overflow: hidden;
 }
 
+/* A pane boundary is a seam, and the handle IS the seam: two lines, drawn as
+   two backgrounds because the element is only 5px of chrome with nothing
+   inside it. */
 .resize-handle {
   flex: none;
   position: relative;
-  background: var(--border-soft);
-  transition: background 120ms ease;
+  background: linear-gradient(to right, var(--edge-lo) 0 1px, var(--edge-hi) 1px 2px) no-repeat left
+    center / 2px 100%;
+  background-color: var(--bg-app);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.resize-handle.v {
+  background: linear-gradient(to bottom, var(--edge-lo) 0 1px, var(--edge-hi) 1px 2px) no-repeat
+    center top / 100% 2px;
+  background-color: var(--bg-app);
 }
 .resize-handle.h {
   width: 5px;
@@ -68,10 +121,12 @@
   height: 5px;
   cursor: row-resize;
 }
+/* Grabbing a divider is not a signal state: the handle lights, it does not
+   change colour (§2.1). */
 .resize-handle:hover,
 .resize-handle[data-active],
 .resize-handle:active {
-  background: var(--accent-dim);
+  background-color: var(--edge-hi);
 }
 /* Bigger hit area without changing layout size */
 .resize-handle::after {
@@ -97,7 +152,7 @@
   gap: 8px;
   padding: 0 8px;
   background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-b);
   overflow: hidden;
 }
 
@@ -112,13 +167,15 @@
 .brand .brand-name {
   /* an h1 for the document outline, styled like the badge it always was */
   margin: 0;
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: var(--ls-wide);
+  font-family: var(--font-cond);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-lg);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
 }
 .brand .brand-sub {
   color: var(--text-dim);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
 }
 
 .project-name {
@@ -132,7 +189,7 @@
   overflow: hidden;
   padding: 4px 9px;
   border-radius: var(--radius);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   font-size: var(--fs-md);
   white-space: nowrap;
 }
@@ -144,11 +201,14 @@
 .project-name:hover {
   background: var(--bg-hover);
 }
+/* Unsaved work: a lamp, in the family every "you should look at this" in the
+   product uses. */
 .dirty-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--warm);
+  background: var(--solo-lamp);
+  box-shadow: 0 0 6px -1px color-mix(in srgb, var(--solo-lamp) 55%, transparent);
   flex: none;
 }
 
@@ -174,7 +234,7 @@
   gap: 10px;
   padding: 0 10px;
   background: var(--bg-panel-2);
-  border-bottom: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-b);
   overflow: hidden;
 }
 
@@ -185,6 +245,10 @@
   flex: none;
 }
 
+/* A transport button is a CAP — a command you press (§2.6) — so it is a
+   milled body with a hard waist and no border of its own; the ring lives
+   inside --sh-2. Pressing swaps the cap shadow for the well shadow, which is
+   what a pressed button looks like. */
 .t-btn {
   width: var(--toolbar-h);
   height: var(--toolbar-h);
@@ -194,27 +258,40 @@
   justify-content: center;
   border-radius: var(--radius);
   color: var(--text);
-  border: 1px solid var(--border);
-  background: var(--bg-raised);
+  border: none;
+  background: var(--grad-cap);
+  box-shadow: var(--sh-2);
 }
-.t-btn:hover {
+.t-btn:hover:not(:disabled) {
   background: var(--bg-hover);
 }
+/* Play is the one transport state that genuinely means signal is passing. */
 .t-btn.play-on {
-  color: var(--text-inverse);
-  background: var(--accent);
-  border-color: var(--accent);
+  --lamp: var(--accent-lamp);
+  color: var(--lamp-ink);
+  background: var(--lamp);
+  box-shadow: var(--ml-lamp-on);
 }
-.t-btn.loop-on,
+/* A loop is musical selection, so it is yellow — it was the same teal as
+   "signal present", which is what left thirteen meanings on one colour. */
+.t-btn.loop-on {
+  --lamp: var(--solo-lamp);
+  color: var(--lamp-ink);
+  background: var(--lamp);
+  box-shadow: var(--ml-lamp-on);
+}
+/* The metronome is a monitor path: it is audible signal you have switched on. */
 .t-btn.metro-on {
-  color: var(--accent);
-  background: var(--accent-bg);
-  border-color: var(--accent-line);
+  --lamp: var(--accent-lamp);
+  color: var(--lamp-ink);
+  background: var(--lamp);
+  box-shadow: var(--ml-lamp-on);
 }
 .t-btn.warm-on {
-  color: var(--warm);
-  background: var(--warm-bg);
-  border-color: var(--warm-line);
+  --lamp: var(--solo-lamp);
+  color: var(--lamp-ink);
+  background: var(--lamp);
+  box-shadow: var(--ml-lamp-on);
 }
 .t-btn {
   position: relative;
@@ -223,18 +300,22 @@
     border-color var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out);
 }
-.t-btn:active {
-  background: var(--bg-active);
+.t-btn:active:not(:disabled) {
+  background: var(--bg-panel-2);
+  box-shadow: var(--sh-pressed);
+  transform: translateY(0.5px);
 }
-/* Count-in bars, shown on the metronome rather than costing its own control. */
+/* Count-in bars, shown on the metronome rather than costing its own control.
+   A count is a value, and a value is neutral (§2.1). */
 .t-badge {
   position: absolute;
   right: 1px;
   bottom: 0;
+  font-family: var(--font-num);
   font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-medium);
   line-height: 1;
-  color: var(--warm);
+  color: var(--text);
   pointer-events: none;
 }
 
@@ -245,20 +326,24 @@
   height: var(--toolbar-h-sm);
   padding: 0 var(--sp-3);
   border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--bg-raised);
+  border: none;
+  background: var(--grad-cap);
+  box-shadow: var(--sh-2);
   color: var(--text-dim);
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
 }
-.t-tap:hover {
+.t-tap:hover:not(:disabled) {
   background: var(--bg-hover);
   color: var(--text);
 }
-.t-tap:active {
-  background: var(--accent-bg);
-  color: var(--accent);
+.t-tap:active:not(:disabled) {
+  background: var(--bg-panel-2);
+  box-shadow: var(--sh-pressed);
+  color: var(--text);
 }
 
 /* Performance: frame load and live source count. */
@@ -274,7 +359,8 @@
   height: 6px;
   border-radius: var(--radius-pill);
   background: var(--meter-bg);
-  border: 1px solid var(--border-soft);
+  border: none;
+  box-shadow: var(--sh-well);
   overflow: hidden;
 }
 .t-perf-bar span {
@@ -294,6 +380,10 @@
 .t-perf-src {
   font-family: var(--font-num);
   font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  font-feature-settings:
+    'tnum' 1,
+    'zero' 1;
   color: var(--text-faint);
   min-width: 26px;
 }
@@ -304,12 +394,14 @@
 }
 
 /* Readouts have stable widths so changing digits never reflow neighbours. */
+/* The main readout is a display window cut into the desk, not a bordered box. */
 .t-display {
   display: flex;
   align-items: stretch;
   flex: none;
-  background: var(--bg-deep);
-  border: 1px solid var(--border);
+  background: var(--bg-well);
+  border: none;
+  box-shadow: var(--sh-well-deep);
   border-radius: var(--radius);
   padding: 3px 4px;
   overflow: hidden;
@@ -320,23 +412,28 @@
   align-items: center;
   justify-content: center;
   padding: 0 8px;
-  border-right: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-r);
   flex: none;
 }
 .t-cell:last-child {
-  border-right: none;
+  box-shadow: none;
 }
 .t-cell .v {
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
-  font-size: 15px;
-  font-weight: 600;
+  font-feature-settings:
+    'tnum' 1,
+    'zero' 1;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-normal);
   color: var(--text);
   line-height: 1.15;
   white-space: nowrap;
 }
 .t-cell .l {
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
   text-transform: uppercase;
   letter-spacing: var(--ls-caps);
   color: var(--text-faint);
@@ -354,25 +451,31 @@
 .t-cell.sig {
   min-width: 58px;
 }
-/* The reading the user chose as primary is the brighter of the two. */
+/* The reading the user chose as primary is the brighter of the two — brighter,
+   not coloured: a live value is neutral white (§2.1), and the secondary one
+   steps down to --text-dim so the pair still reads as a hierarchy. */
+.t-cell .v {
+  color: var(--text-dim);
+}
 .t-cell.primary .v {
-  color: var(--accent-hi);
+  color: var(--text);
+  font-weight: var(--fw-medium);
 }
 .t-cell.pos {
   cursor: text;
 }
 .t-cell.pos:hover .v {
-  color: var(--accent-hi);
+  color: var(--text);
 }
 .t-pos-input {
   width: 100%;
   text-align: center;
   background: var(--bg-input);
-  border: 1px solid var(--accent-dim);
+  border: 1px solid var(--border-focus);
   border-radius: var(--radius-xs);
   font-family: var(--font-num);
-  font-size: 15px;
-  font-weight: var(--fw-semibold);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
   padding: 0;
   height: 18px;
 }
@@ -382,9 +485,9 @@
   text-align: center;
   background: transparent;
   border: none;
-  font-family: var(--font-mono);
-  font-size: 15px;
-  font-weight: 600;
+  font-family: var(--font-num);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
   padding: 0;
   height: 18px;
 }
@@ -436,7 +539,7 @@
   padding-left: 10px;
   padding-right: 10px;
   background: var(--bg-panel);
-  border-top: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-t);
   font-size: var(--fs-xs);
   color: var(--text-dim);
   white-space: nowrap;
@@ -467,10 +570,10 @@
   overflow: hidden;
 }
 .side-panel.left {
-  border-right: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-r);
 }
 .side-panel.right {
-  border-left: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-l);
 }
 /* A heading inside the bar is still the bar's micro-label: the element is
    chosen for the document outline, not for the type. */
@@ -488,7 +591,7 @@
   align-items: center;
   gap: 6px;
   padding: 0 10px;
-  border-bottom: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-b);
   user-select: none;
 }
 .panel-body {
@@ -531,7 +634,7 @@
   min-height: 0;
   min-width: 0;
   background: var(--bg-panel);
-  border-top: 1px solid var(--border);
+  box-shadow: var(--ml-seam-t);
   overflow: hidden;
 }
 .editor-tabs {
@@ -542,17 +645,18 @@
   gap: 2px;
   padding: 3px 8px 0;
   background: var(--bg-panel-2);
-  border-bottom: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-b);
   overflow: hidden;
 }
 .editor-tabs .tab {
   padding: 0 13px;
+  font-family: var(--font-cond);
   font-size: var(--fs-sm);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-wide);
   color: var(--text-dim);
   border-radius: var(--radius) var(--radius) 0 0;
-  border: 1px solid transparent;
-  border-bottom: none;
+  border: none;
   white-space: nowrap;
   flex: none;
   user-select: none;
@@ -561,10 +665,12 @@
   background: var(--bg-hover);
   color: var(--text);
 }
+/* An active tab is chrome selection: a lighter surface and a lit top edge,
+   never a colour (§2.1). */
 .editor-tabs .tab.on {
   background: var(--bg-panel);
+  box-shadow: var(--sh-inset);
   color: var(--text);
-  border-color: var(--border-soft);
 }
 .editor-tabs .tab-actions {
   margin-left: auto;
@@ -597,7 +703,7 @@
   height: calc(var(--bottomnav-h) + var(--sab));
   padding-bottom: var(--sab);
   background: var(--bg-panel);
-  border-top: 1px solid var(--border);
+  box-shadow: var(--ml-seam-t);
 }
 .bottomnav button {
   flex: 1;
@@ -609,12 +715,16 @@
   gap: 2px;
   color: var(--text-faint);
   font-size: var(--fs-2xs);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-wide);
   user-select: none;
 }
+/* Nav selection is chrome: brighter and lit, not coloured. Colour alone was
+   also the only signal here, which is a thing the product does not do. */
 .bottomnav button.on {
-  color: var(--accent);
+  color: var(--text);
+  background: var(--bg-active);
+  box-shadow: var(--sh-inset);
 }
 
 /* Compact transport: reduced control set, no wrapping, no overlap. */
@@ -670,9 +780,11 @@
   z-index: var(--z-dialog);
   padding: 20px;
 }
+/* Float, at the dialog step. No border: the ring is inside --sh-4, and no
+   element gets both (§2.4 rule 4). */
 .modal {
-  background: var(--bg-raised);
-  border: 1px solid var(--border-strong);
+  background: var(--bg-float);
+  border: none;
   border-radius: var(--radius-lg);
   padding: 16px;
   width: min(360px, 92vw);
@@ -704,8 +816,8 @@
   min-width: 168px;
   max-height: 70vh;
   overflow-y: auto;
-  background: var(--bg-raised);
-  border: 1px solid var(--border-strong);
+  background: var(--bg-float);
+  border: none;
   border-radius: var(--radius-lg);
   padding: 4px;
   box-shadow: var(--sh-3);
@@ -727,7 +839,7 @@
 /* Shortcut hints teach the fast path every time the slow path is used. */
 .ctx-menu .mi-key {
   flex: none;
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-size: var(--fs-2xs);
   color: var(--text-faint);
 }
@@ -735,7 +847,7 @@
   background: var(--bg-hover);
 }
 .ctx-menu button.danger {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 /* Dimming, not a second grey: the shortcut hint beside every live item is
    already --text-faint, so a disabled item painted in it read as enabled. */
@@ -754,10 +866,12 @@
   z-index: var(--z-toast);
   max-width: min(340px, 86vw);
 }
+/* A toast is a float, and its rail is neutral: a notification is not a signal
+   state. An error keeps red, which is the one thing red is for besides record. */
 .toast {
-  background: var(--bg-raised);
-  border: 1px solid var(--border-strong);
-  border-left: 3px solid var(--accent);
+  background: var(--bg-float);
+  border: none;
+  border-left: 3px solid var(--border-strong);
   border-radius: var(--radius);
   padding: 9px 12px;
   font-size: var(--fs-md);
@@ -780,10 +894,10 @@
 .sheet {
   width: min(760px, 100vw);
   height: min(88vh, 660px);
-  background: var(--bg-panel);
-  border: 1px solid var(--border-strong);
-  border-bottom: none;
+  background: var(--bg-float);
+  border: none;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: var(--sh-4);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -803,7 +917,7 @@
   /* Near-opaque rather than a scrim: this is a readout that has to stay legible
      over whatever it covers, and --bg-deep tracks the theme it is sitting on. */
   background: color-mix(in srgb, var(--bg-deep) 93%, transparent);
-  border: 1px solid var(--accent-dim);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   padding: 8px 10px;
   font-family: var(--font-mono);
@@ -831,13 +945,13 @@
   color: var(--text-faint);
 }
 .debug-hud .bad {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 .debug-outline .clip,
 .debug-outline .strip,
 .debug-outline .th,
 .debug-outline .arr-lane {
-  outline: 1px solid rgba(217, 161, 60, 0.6);
+  outline: 1px solid var(--solo-line);
 }
 .debug-overflow-marker {
   outline: 2px solid var(--danger) !important;
@@ -861,8 +975,7 @@
 .pane-maxi > .maxi-panel {
   width: min(760px, 100%);
   margin: 0 auto;
-  border-left: 1px solid var(--border-soft);
-  border-right: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-l), var(--ml-seam-r);
 }
 /* Phone modes are already full screen — the arrange expand control would be
    a no-op there. */
@@ -871,20 +984,30 @@
 }
 
 /* A tab that cannot save has to say so where the save state already lives. */
+/*
+ * A tab that cannot save. The accent law (§2.1) has five meanings and none of
+ * them is "warning" — the closest is the solo/selection family, which is where
+ * every warning in the product already sits. Kept there deliberately rather
+ * than inventing a sixth hue (§2.11.8); the badge is a lamp, not a tinted box,
+ * so it does not read as a selected thing.
+ */
 .sb-readonly {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
   padding: 0 var(--sp-2);
   border-radius: var(--radius-xs);
-  color: var(--warm);
-  background: var(--warm-bg);
-  border: 1px solid var(--warm-line);
+  --lamp: var(--solo-lamp);
+  color: var(--lamp-ink);
+  background: var(--lamp);
+  box-shadow: var(--ml-lamp-on);
+  font-family: var(--font-cond);
   font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
 }
 .sb-readonly:hover {
-  color: var(--warm-hi);
-  background: color-mix(in srgb, var(--warm) 24%, transparent);
+  filter: brightness(1.08);
 }
 
 /*

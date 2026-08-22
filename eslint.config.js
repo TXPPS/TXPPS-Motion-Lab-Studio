@@ -5,7 +5,18 @@ import reactHooks from 'eslint-plugin-react-hooks';
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'dev-dist', 'coverage', 'playwright-report', 'test-results', 'node_modules'],
+    ignores: [
+      'dist',
+      'dev-dist',
+      'coverage',
+      'playwright-report',
+      'test-results',
+      'node_modules',
+      // Third-party plugin bundles, served verbatim. They are somebody else's
+      // build output — linting or reformatting them would both be meaningless
+      // and would break the `import.meta.url` asset resolution they rely on.
+      'public/plugins',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

@@ -5,16 +5,20 @@
  * sticky rail on the left, a toolbar of the same height and the same grid
  * palette (`--grid-bar` / `--grid-beat` / `--grid-sub`). The one thing the
  * piano roll does not have is a family palette — six kit families that must be
- * told apart at a glance — so it is built here from the theme's own accents
- * rather than from six new literals, and it follows every theme for free.
+ * told apart at a glance — so it is drawn from the eight-hue track ramp, which
+ * is the product's one system for identity, and follows every theme for free.
  */
+/* Six kit families, built from the track ramp rather than from the semantic
+   colours: a kick lane is IDENTITY, and identity is a parallel system to the
+   five state colours (§2.1). Drawing them from --warm/--danger/--accent made
+   a hat lane say "signal present" and a snare lane say "record". */
 .de {
-  --drum-kick: var(--warm);
-  --drum-snare: var(--danger);
-  --drum-hats: var(--accent);
-  --drum-toms: var(--info);
-  --drum-cymbals: color-mix(in srgb, var(--info) 55%, var(--danger));
-  --drum-perc: var(--text-faint);
+  --drum-kick: var(--track-2);
+  --drum-snare: var(--track-1);
+  --drum-hats: var(--track-3);
+  --drum-toms: var(--track-6);
+  --drum-cymbals: var(--track-7);
+  --drum-perc: var(--track-5);
 
   flex: 1;
   min-height: 0;
@@ -31,7 +35,7 @@
   gap: var(--sp-3);
   padding: 0 var(--sp-4);
   background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-b);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -87,10 +91,11 @@
   z-index: var(--z-panel-chrome);
   display: flex;
   background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
+  box-shadow: var(--ml-seam-b);
 }
 
 .de-corner {
+  font-family: var(--font-cond);
   position: sticky;
   left: 0;
   z-index: 1;
@@ -104,7 +109,7 @@
   text-transform: uppercase;
   color: var(--text-faint);
   background: var(--bg-panel);
-  border-right: 1px solid var(--border);
+  box-shadow: var(--ml-seam-r);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -142,7 +147,7 @@
   z-index: var(--z-sticky);
   flex: none;
   background: var(--bg-panel);
-  border-right: 1px solid var(--border);
+  box-shadow: var(--ml-seam-r);
 }
 
 .de-lane {
@@ -237,7 +242,7 @@
     0 0 0 1px color-mix(in srgb, var(--text) 55%, transparent);
 }
 .de-hit.selected {
-  outline: 1px solid var(--warm-hi);
+  outline: 1px solid var(--solo);
   z-index: 3;
 }
 .de-hit.muted {
@@ -247,13 +252,14 @@
 }
 
 /* Keyboard cell cursor: shown only while the grid is the thing being driven. */
+/* A cell cursor is a selection. */
 .de-cell-cursor {
   position: absolute;
   z-index: 4;
   pointer-events: none;
-  border: 1px solid var(--accent-line);
+  border: 1px solid var(--solo-line);
   border-radius: var(--radius-xs);
-  background: var(--accent-bg);
+  background: var(--solo-bg);
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease-out);
 }
@@ -276,7 +282,7 @@
   top: 0;
   left: 0;
   width: 1px;
-  background: var(--warm);
+  background: var(--playhead);
   z-index: var(--z-playhead);
   pointer-events: none;
   will-change: transform;

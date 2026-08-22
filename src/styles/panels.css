@@ -21,8 +21,10 @@
   background: var(--bg-hover);
   color: var(--text);
 }
+/* Chrome selection: a lighter surface and a lit top edge (§2.1). */
 .browser-tabs button.on {
-  background: var(--bg-panel-2);
+  background: var(--bg-active);
+  box-shadow: var(--sh-inset);
   color: var(--text);
 }
 
@@ -39,8 +41,19 @@
 .list-item:hover {
   background: var(--bg-hover);
 }
+/*
+ * A selected row is a LIGHTER SURFACE plus a light top edge, and where the row
+ * has an identity colour, a 2px left rail in it. Never a coloured fill: this
+ * single rule is most of the ninety accent uses the direction removes, and it
+ * is what stopped "this row is selected" and "signal is present" being the
+ * same green.
+ */
 .list-item.on {
-  background: var(--accent-bg);
+  background: var(--bg-active);
+  box-shadow:
+    var(--sh-inset),
+    inset 2px 0 0 var(--row-color, var(--edge-hi));
+  color: var(--text);
 }
 .list-item:disabled,
 .list-item[aria-disabled='true'] {
@@ -66,7 +79,7 @@ button.li-main {
 }
 .list-item .li-title {
   font-size: var(--fs-md);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -108,7 +121,7 @@ button.li-main {
 .insp-row .v {
   min-width: 0;
   text-align: right;
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -192,10 +205,10 @@ button.li-main {
   color: var(--accent);
 }
 .diag-kv .v.warn {
-  color: var(--warm);
+  color: var(--warm-hi);
 }
 .diag-kv .v.err {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .diag-log {
@@ -217,10 +230,10 @@ button.li-main {
   word-break: break-word;
 }
 .diag-log .row.warn .m {
-  color: var(--warm);
+  color: var(--warm-hi);
 }
 .diag-log .row.error .m {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .smoke-results {
@@ -239,16 +252,18 @@ button.li-main {
   text-align: center;
   border-radius: var(--radius-xs);
   font-size: 9.5px;
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
   padding: var(--sp-1) 0;
 }
 .smoke-results .badge.pass {
-  background: var(--accent-bg);
-  color: var(--accent);
+  --lamp: var(--accent-lamp);
+  background: var(--lamp);
+  color: var(--lamp-ink);
 }
 .smoke-results .badge.fail {
-  background: var(--danger-bg);
-  color: var(--danger);
+  --lamp: var(--danger-lamp);
+  background: var(--lamp);
+  color: var(--lamp-ink);
 }
 
 /* Browse page (phone): one scrolling column, browser above inspector */
@@ -282,7 +297,8 @@ button.li-main {
   margin-bottom: 8px;
   border-radius: var(--radius-lg);
   background: var(--bg-panel-2);
-  border: 1px solid var(--border-soft);
+  border: none;
+  box-shadow: var(--sh-1);
 }
 .dc-grid {
   display: grid;
@@ -300,7 +316,8 @@ button.li-main {
   gap: 4px 7px;
   padding: 5px 7px;
   border-radius: var(--radius);
-  background: var(--bg-deep);
+  background: var(--bg-input);
+  box-shadow: var(--sh-well);
   border-left: 3px solid var(--border-strong);
   font-size: var(--fs-sm);
 }
@@ -313,7 +330,7 @@ button.li-main {
 .dc-flag {
   font-family: var(--font-mono);
   font-size: var(--fs-2xs);
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-caps);
   color: var(--text-faint);
 }
@@ -321,10 +338,10 @@ button.li-main {
   color: var(--accent);
 }
 .dc-result.bad .dc-flag {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 .dc-title {
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .dc-detail {
   grid-column: 2;
@@ -367,15 +384,16 @@ button.li-main {
   padding: var(--sp-1) 0;
   font-size: var(--fs-sm);
 }
+/* A key is a physical cap: milled body, hard waist, cast below it. */
 .sc-row kbd {
   flex: none;
   min-width: 74px;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-family: var(--font-num);
+  font-size: var(--fs-2xs);
   color: var(--text);
-  background: var(--bg-deep);
-  border: 1px solid var(--border);
-  border-bottom-width: 2px;
+  background: var(--grad-cap);
+  border: none;
+  box-shadow: var(--sh-2);
   border-radius: var(--radius);
   padding: var(--sp-1) 6px;
   text-align: center;
@@ -411,9 +429,12 @@ button.li-main {
 }
 
 /* Audition (preview) button in media rows */
+/* Auditioning IS signal passing, so this one keeps the green — as a lamp. */
 .icon-btn.audition.on {
-  color: var(--accent);
-  background: var(--accent-bg);
+  --lamp: var(--accent-lamp);
+  color: var(--lamp-ink);
+  background: var(--lamp);
+  box-shadow: var(--ml-lamp-on);
 }
 .list-item .li-actions {
   display: inline-flex;
@@ -456,7 +477,7 @@ button.li-main {
 }
 .welcome-title {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
 }
 .welcome-grid {
   display: grid;
@@ -475,10 +496,10 @@ button.li-main {
 .welcome-step svg {
   flex: none;
   margin-top: 1px;
-  color: var(--accent);
+  color: var(--text-faint);
 }
 .welcome-step-title {
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   font-size: var(--fs-md);
   margin-bottom: 2px;
 }
@@ -503,15 +524,10 @@ button.li-main {
   gap: var(--sp-1);
   white-space: nowrap;
 }
-.browser-tabs button.on {
-  box-shadow: inset 0 -2px 0 var(--accent);
-}
-/* The marker above outranks the global :focus-visible ring, so the selected tab
-   was the one tab in the row that showed no ring. Both are carried here. */
+/* The marker outranks the global :focus-visible ring, so the selected tab was
+   the one tab in the row that showed no ring. Both are carried here. */
 .browser-tabs button.on:focus-visible {
-  box-shadow:
-    inset 0 -2px 0 var(--accent),
-    var(--sh-focus);
+  box-shadow: var(--sh-inset), var(--sh-focus);
 }
 
 .browser-list {
@@ -552,7 +568,7 @@ button.li-main {
   color: var(--text-faint);
 }
 .li:hover .li-icon {
-  color: var(--accent);
+  color: var(--text);
 }
 .li-main {
   flex: 1 1 auto;
@@ -580,10 +596,12 @@ button.li-main {
   flex: none;
   padding: 1px var(--sp-2);
   border-radius: var(--radius-pill);
-  background: var(--accent-bg);
-  color: var(--accent);
+  background: var(--bg-active);
+  box-shadow: var(--sh-inset);
+  color: var(--text-dim);
+  font-family: var(--font-num);
   font-size: var(--fs-2xs);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-medium);
 }
 .li-actions {
   display: flex;
@@ -659,10 +677,12 @@ button.li-main {
   gap: var(--sp-4);
   flex-wrap: wrap;
 }
+/* The chord you are on is a live value, and a live value is neutral (§2.1). */
 .ca-chord {
+  font-family: var(--font-num);
   font-size: var(--fs-3xl);
-  font-weight: var(--fw-bold);
-  color: var(--warm-hi);
+  font-weight: var(--fw-normal);
+  color: var(--text);
   letter-spacing: var(--ls-tight);
 }
 .ca-section {
@@ -676,7 +696,9 @@ button.li-main {
   gap: var(--sp-3);
 }
 /* Strength is drawn, not stated: the strongest move is the brightest card, so
-   the ranking is visible before any of the text is read. */
+   the ranking is visible before any of the text is read. Brightest, not
+   greenest — a suggestion is not a signal, and something that has to stand out
+   with no meaning on the accent list stands out by being lighter (§2.11.8). */
 .ca-sugg {
   display: flex;
   flex-direction: column;
@@ -684,13 +706,13 @@ button.li-main {
   gap: 1px;
   padding: var(--sp-4);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--accent) calc(var(--strength) * 16%), var(--bg-panel-2));
-  border: 1px solid
-    color-mix(in srgb, var(--accent) calc(var(--strength) * 55%), var(--border-soft));
+  background: color-mix(in srgb, var(--text) calc(var(--strength) * 12%), var(--bg-panel-2));
+  border: none;
+  box-shadow: var(--sh-2);
   text-align: left;
 }
 .ca-sugg:hover {
-  border-color: var(--accent);
+  background: var(--bg-hover);
 }
 .ca-label {
   font-size: var(--fs-xl);
@@ -700,7 +722,8 @@ button.li-main {
 .ca-numeral {
   font-family: var(--font-num);
   font-size: var(--fs-xs);
-  color: var(--accent);
+  font-weight: var(--fw-medium);
+  color: var(--text-dim);
 }
 .ca-reason {
   font-size: var(--fs-2xs);
@@ -775,12 +798,14 @@ button.li-main {
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
 }
+/* Open is a chrome state (§2.1): the card lifts, it does not change colour. */
 .macro.open {
   grid-template-areas:
     'knob name count'
     'knob actions actions'
     'targets targets targets';
-  border-color: var(--warm-line);
+  background: var(--bg-active);
+  box-shadow: var(--sh-inset);
 }
 .macro-knob {
   grid-area: knob;
@@ -797,12 +822,20 @@ button.li-main {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* The assignment count is the one thing a knob cannot show about itself. */
+/* The assignment count is the one thing a knob cannot show about itself.
+   A macro drives its targets from elsewhere, which is what violet means — as
+   the card's rail, not as the number: the violet family has no darkened -hi
+   variant, and undarkened on the strip body it measures 4.31 in the light
+   theme. Violet appears as a fill or a rail in this file set, never as text. */
+.macro {
+  box-shadow: inset 2px 0 0 var(--key);
+}
 .macro-count {
   grid-area: count;
   font-family: var(--font-num);
   font-size: var(--fs-2xs);
-  color: var(--warm);
+  font-weight: var(--fw-medium);
+  color: var(--text-dim);
 }
 .macro-actions {
   grid-area: actions;

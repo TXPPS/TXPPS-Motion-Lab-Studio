@@ -13,6 +13,15 @@
  *
  * Themes: `data-theme="dark" | "light" | "contrast"` on <html>. With the
  * attribute absent (the "system" setting) the OS preference decides.
+ *
+ * The palette below is the one described in `docs/DESIGN-DIRECTION.md` §2.2:
+ * two materials on one desk. *Chrome* — the painted metal of the console —
+ * is warm-neutral graphite. *Wells* — the openings cut into it, where signal
+ * and content live — are cold near-black. The hue split is small in absolute
+ * terms (≈170° apart at chroma under 0.02) and does all the work: it is what
+ * makes a fader slot read as a hole in a desk rather than as one more step on
+ * a grey ramp. The old palette put all fifteen surface tokens between hue 213
+ * and 218 across 19 L* points, which is the default cool grey of every UI kit.
  */
 
 :root {
@@ -22,15 +31,27 @@
   --ui-scale: 1;
 
   /* ---------------------------------------------------------- type system */
-  /* No webfont is downloaded: a DAW must paint its chrome on the first frame
-     and work with no network at all. The stack is ordered so each platform
-     lands on its own UI face, which is also the face the user's OS hints for. */
+  /* IBM Plex, from Google Fonts, in three widths of one superfamily. It was
+     drawn for engineering documentation, so it has a mechanical voice at 10px,
+     real tabular figures, a slashed zero, and — the reason it is here at all —
+     a condensed width, which is what a 96px channel strip needs for its
+     labels.
+     The first-frame rule has not been relaxed, only paid for differently: the
+     link in index.html carries `display=swap` and every stack below falls back
+     to the platform's own UI face, so a DAW with no network paints its chrome
+     on frame one in system-ui and never waits on a font. Nothing in the
+     product's layout depends on Plex's metrics. */
   --font:
-    system-ui, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', Roboto, 'Helvetica Neue',
-    'Noto Sans', sans-serif;
+    'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', Roboto,
+    'Helvetica Neue', 'Noto Sans', sans-serif;
+  /* The label face. Uppercase micro-labels only — never body, never a name a
+     user typed. */
+  --font-cond:
+    'IBM Plex Sans Condensed', 'IBM Plex Sans', system-ui, 'Segoe UI Variable Small', 'Segoe UI',
+    'Roboto Condensed', Roboto, sans-serif;
   --font-mono:
-    ui-monospace, 'SF Mono', 'Cascadia Mono', 'JetBrains Mono', 'Roboto Mono', Menlo, Consolas,
-    monospace;
+    'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', 'JetBrains Mono', 'Roboto Mono',
+    Menlo, Consolas, monospace;
   /* Numeric readouts (time, dB, bpm) must not reflow as digits change. */
   --font-num: var(--font-mono);
 
@@ -53,7 +74,12 @@
   --fw-normal: 400;
   --fw-medium: 500;
   --fw-semibold: 600;
-  --fw-bold: 700;
+  /* Retired: three weights ship (400/500/600) plus condensed 500/600. At 10–12px
+     a 700 condensed face is heavier than 700 in system-ui, which is why strip
+     headers used to out-shout the section titles above them. Kept as an alias
+     of semibold so the declarations still referencing it stop shouting without
+     each file having to change on the same day. */
+  --fw-bold: 600;
 
   /* Uppercase micro-labels (panel titles, strip headers) need tracking.
      `--ls-wide` is the smaller amount used by small mixed-case labels — chips,
@@ -131,6 +157,27 @@
   --fader-min-h: calc(44px * var(--ui-scale));
   --meter-w: calc(12px * var(--ui-scale));
 
+  /* Fader internals. The lane's own width comes from the mixer (the strip's
+     column budget owns it); everything inside the lane is expressed here so
+     the control scales as one object.
+     `--fader-cap-h` is load-bearing beyond looks: the cap's travel is
+     `(lane height − cap height)`, and the component writes that calc inline,
+     so this token and the fill/cap positions can never drift apart. */
+  --fader-scale-w: calc(8px * var(--ui-scale)); /* printed tick ladder */
+  --fader-track-w: calc(7px * var(--ui-scale)); /* the slot cut in the desk */
+  --fader-fill-w: calc(3px * var(--ui-scale)); /* level, centred in the slot */
+  --fader-cap-h: calc(14px * var(--ui-scale));
+
+  /* Meter segmentation. A hardware meter is a stack of lit segments, not a
+     smooth bar; 3px lit / 1px dark is the pitch that reads as segments without
+     costing resolution. The direction gives these as per-scale-band constants
+     (2px at 0.85, 4px at 1.4) — a media query cannot read a custom property, so
+     they are expressed as multiples of `--ui-scale` instead, which lands on the
+     same values continuously and obeys rule 3. Geometry, so they live here and
+     not in the three theme blocks. */
+  --meter-seg: calc(3px * var(--ui-scale));
+  --meter-gap: calc(1px * var(--ui-scale));
+
   /* Panel minimums, enforced by the resizable panel system. */
   --panel-min-side: calc(180px * var(--ui-scale));
   --panel-min-center: calc(320px * var(--ui-scale));
@@ -144,300 +191,588 @@
   --sar: env(safe-area-inset-right, 0px);
 }
 
+/* A finger needs a bigger cap and a wider slot than a pointer does. Geometry
+   only — the material is identical, because a touch fader is the same object. */
+@media (pointer: coarse) {
+  :root {
+    --fader-track-w: calc(9px * var(--ui-scale));
+    --fader-fill-w: calc(5px * var(--ui-scale));
+    --fader-cap-h: calc(20px * var(--ui-scale));
+  }
+}
+
 /* ====================================================================== */
-/* Dark theme — the product's default identity: graphite surfaces, a teal    */
-/* working accent, amber for musical selection, red reserved for record and  */
-/* clipping.                                                                */
+/* DARK — the product's identity.                                          */
+/*                                                                         */
+/* Chrome is warm-neutral graphite (OKLCH h≈75, C≤0.009): the desk itself,  */
+/* so panels, strips, toolbars, buttons and headers.                        */
+/* Wells are cold near-black (OKLCH h≈245, C≈0.013): everything cut INTO    */
+/* the desk, so fader slots, meter bodies, insert rails, value fields and   */
+/* the timeline ground.                                                     */
+/*                                                                         */
+/* The surfaces now run L* 2.3 → 31.3 with 4–5 L* between adjacent chrome   */
+/* steps, so a raised thing reads as raised. `--text` keeps its warm hue 45 */
+/* off-white; the whole chrome family was built out from it.                */
 /* ====================================================================== */
 :root,
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* Surfaces, from the deepest editing ground to the highest floating chrome */
-  --bg-app: #0a0d11;
-  --bg-deep: #06080b;
-  --bg-panel: #12161d;
-  --bg-panel-2: #161b23;
-  --bg-raised: #1d242d;
-  --bg-hover: #232b36;
-  --bg-active: #2a333f;
-  --bg-input: #0d1116;
-  --bg-float: #1a212a;
-  --bg-scrim: rgba(4, 6, 9, 0.66);
+  /* -- wells: cold. Anything cut INTO the desk. ------------------------- */
+  --bg-deep: #05090e; /* L* 2.3  — timeline ground, deepest well      */
+  --bg-input: #0a1015; /* L* 4.4  — editable value fields              */
+  --bg-well: #0f1419; /* L* 6.1  — fader slots, meter bodies,
+                                        insert rails, plugin displays      */
 
-  /* Lines */
-  --border: #262e39;
-  --border-soft: #1b212a;
-  --border-strong: #36414f;
-  --border-focus: #4bd1b2;
+  /* -- chrome: warm graphite. Anything that is the desk itself. --------- */
+  --bg-app: #191715; /* L* 7.9  — frame behind every panel           */
+  --bg-panel: #22201e; /* L* 12.4 — panel ground                       */
+  --bg-panel-2: #2b2926; /* L* 16.7 — strip body, secondary chrome       */
+  --bg-float: #32302d; /* L* 20.0 — menus, dialogs, floating windows   */
+  --bg-raised: #383632; /* L* 22.7 — button caps, master strip          */
+  --bg-hover: #433f3b; /* L* 26.9                                      */
+  --bg-active: #4d4945; /* L* 31.3 — pressed, and CHROME SELECTION      */
+  --bg-scrim: rgba(9, 8, 7, 0.72);
 
-  /* Text */
-  --text: #e9e6dd;
-  --text-dim: #9aa3ae;
-  --text-faint: #8b94a1;
-  --text-inverse: #06120e;
+  /* -- edges. A seam is a PAIR of lines, never one. A single 1px mid-grey
+        line is both the most generic structural device available and, at
+        1.07:1 against its own surface, invisible. Two adjacent lines read
+        at 2.36:1 against each other, which is how a panel joint reads on
+        real equipment. ---------------------------------------------------- */
+  --edge-lo: #12100e; /* L* 4.8  — the dark half of every seam       */
+  --edge-hi: #52504c; /* L* 34.1 — the light half; top edge of
+                                        anything raised. 2.36:1 vs edge-lo */
+  --border-soft: #12100e; /* alias of --edge-lo, kept for existing CSS    */
+  --border: #403d3a; /* L* 26.0 — a real, visible line               */
+  --border-strong: #615e59; /* L* 40.0                                      */
+  --border-focus: #edeae6; /* NEUTRAL. Reserved. Nothing else uses it.     */
 
-  /* Accents */
-  --accent: #37b89a;
-  --accent-hi: #4bd1b2;
-  --accent-dim: #2a8f78;
-  --accent-bg: rgba(55, 184, 154, 0.13);
-  --accent-line: rgba(55, 184, 154, 0.36);
+  /* -- text ------------------------------------------------------------- */
+  /* Text on --bg-raised / --bg-hover / --bg-active is --text-dim or --text,
+     never --text-faint: those are control-cap and chrome-selection surfaces,
+     and faint on them measures 4.35 / 3.76 / 3.21. */
+  --text: #edeae6; /* L* 92.8                                      */
+  --text-dim: #c2c1bc; /* L* 78.0                                      */
+  --text-faint: #9d9b97; /* L* 64.0                                      */
+  --text-inverse: #17150f;
+  --lamp-ink: #17150f; /* glyph colour on a LIT lamp                   */
 
-  --warm: #d9a13c;
-  --warm-hi: #ecb54f;
-  --warm-bg: rgba(217, 161, 60, 0.15);
-  --warm-line: rgba(217, 161, 60, 0.4);
+  /* -- semantic: green = signal present and passing ---------------------- */
+  --accent: #67c290;
+  --accent-hi: #7fdfaa;
+  --accent-dim: #428f66; /* non-text only                                */
+  --accent-lamp: #67c290; /* lit-lamp fill; --lamp-ink on it is 8.43      */
+  --accent-bg: rgba(103, 194, 144, 0.14);
+  --accent-line: rgba(103, 194, 144, 0.42);
 
-  --danger: #d84a44;
-  --danger-text: #ef7a73;
-  --danger-bg: rgba(216, 74, 68, 0.14);
-  --danger-line: rgba(216, 74, 68, 0.45);
+  /* -- semantic: yellow = SOLO + musical selection ----------------------- */
+  --solo: #efc945;
+  --solo-hi: #ffe182;
+  --solo-lamp: #efc945;
+  --solo-bg: rgba(239, 201, 69, 0.16);
+  --solo-line: rgba(239, 201, 69, 0.45);
+  /* --warm* are aliases of the solo family so existing rules keep working.
+     New code writes --solo. Selection (loop band, ranges) uses --warm. */
+  --warm: #efc945;
+  --warm-hi: #ffe182;
+  --warm-bg: rgba(239, 201, 69, 0.16);
+  --warm-line: rgba(239, 201, 69, 0.45);
 
-  --info: #4a90c4;
-  --info-bg: rgba(74, 144, 196, 0.15);
+  /* -- semantic: blue = MUTE + the data domain --------------------------- */
+  --mute: #63a0dc;
+  --mute-hi: #7abafc;
+  --mute-lamp: #63a0dc;
+  --mute-bg: rgba(99, 160, 220, 0.16);
+  --mute-line: rgba(99, 160, 220, 0.45);
+  --info: #63a0dc; /* the data domain and mute are one family       */
+  --info-bg: rgba(99, 160, 220, 0.16);
 
-  /* Meters. `-over` is the true-peak / over indicator, held separately from
-     the clip colour so an over can stay lit after the meter falls. */
-  --meter-lo: #2fa385;
-  --meter-mid: #37b89a;
-  --meter-hot: #d9a13c;
-  --meter-clip: #d84a44;
-  --meter-over: #ff5f57;
-  --meter-bg: #0a0e13;
-  --meter-rms: rgba(255, 255, 255, 0.22);
+  /* -- semantic: red = RECORD + CLIP. Nothing else. ---------------------- */
+  --danger: #e2534a; /* fill/lamp only                               */
+  --danger-text: #ff8074; /* the text-safe variant                        */
+  --danger-lamp: #e2534a;
+  --danger-bg: rgba(226, 83, 74, 0.16);
+  --danger-line: rgba(226, 83, 74, 0.48);
 
-  /* Timeline surfaces */
-  --grid-bar: rgba(255, 255, 255, 0.13);
-  --grid-beat: rgba(255, 255, 255, 0.06);
-  --grid-sub: rgba(255, 255, 255, 0.028);
-  --playhead: #f2f4f7;
-  --loop-band: rgba(217, 161, 60, 0.18);
+  /* -- semantic: violet = keyed / linked / driven from elsewhere ---------- */
+  --key: #c18dd8;
+  --key-lamp: #c18dd8;
+  --key-bg: rgba(193, 141, 216, 0.16);
+  --key-line: rgba(193, 141, 216, 0.45);
 
-  /* Elevation. Dark themes read depth from a light top edge plus a soft
-     shadow; a shadow alone disappears on a dark ground. */
-  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --sh-2: 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.03);
-  --sh-3: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.045);
-  --sh-4: 0 18px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
-  --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  /* -- processor families. A rack read at a glance, and the only
+        non-arbitrary colour for a knob's value arc. ---------------------- */
+  --fx-dyn: #c98844;
+  --fx-eq: #529cd7;
+  --fx-time: #988bda;
+  --fx-colour: #d87b7c;
+  --fx-util: #7f8a93;
+
+  /* -- track identity. Eight hues at one lightness and one chroma, so no
+        channel shouts louder than another, and none of them is a semantic
+        colour. Track colour is a parallel system: identity, never state. -- */
+  --track-1: #d87b7c;
+  --track-2: #c98844;
+  --track-3: #999b3e;
+  --track-4: #50a772;
+  --track-5: #00a6ad;
+  --track-6: #529cd7;
+  --track-7: #988bda;
+  --track-8: #c67eb7;
+
+  /* -- meters. Zones are dB boundaries, not gradient percentages: the
+        component converts each boundary through its own scale function and
+        writes the stops out, so the printed scale and the colour change
+        cannot disagree. See widgets.tsx. ------------------------------- */
+  --meter-lo: #2d8c5e; /* below -18 dBFS                               */
+  --meter-mid: #5ab370; /* -18 … -6                                     */
+  --meter-hot: #efc945; /* -6 … -1                                      */
+  --meter-clip: #f75d53; /* -1 … 0                                       */
+  --meter-over: #ff766f; /* held over indicator                          */
+  --meter-bg: #0f1419; /* = --bg-well                                  */
+  --meter-rms: rgba(255, 255, 255, 0.24);
+
+  /* -- timeline ---------------------------------------------------------- */
+  --grid-bar: rgba(233, 234, 238, 0.15);
+  --grid-beat: rgba(233, 234, 238, 0.07);
+  --grid-sub: rgba(233, 234, 238, 0.03);
+  --playhead: #f4f2ee;
+  --loop-band: rgba(239, 201, 69, 0.16);
+
+  /* -- material. Four states, and every element is exactly one of them:
+        flat (chrome, no shadow, separated by seams) / well (something lives
+        in here) / cap (you can press, grab or turn this) / float (above the
+        workstation). One light source, always top. --------------------- */
+  --sh-1: 0 1px 0 var(--edge-hi);
+  --sh-2: inset 0 1px 0 var(--edge-hi), 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--edge-lo);
+  --sh-3:
+    0 10px 26px rgba(0, 0, 0, 0.62), 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 var(--edge-hi),
+    0 0 0 1px var(--edge-lo);
+  --sh-4:
+    0 24px 60px rgba(0, 0, 0, 0.7), 0 4px 12px rgba(0, 0, 0, 0.45), inset 0 1px 0 var(--edge-hi),
+    0 0 0 1px var(--edge-lo);
+  --sh-well: inset 0 1px 2px rgba(0, 0, 0, 0.72), inset 0 0 0 1px var(--edge-lo);
+  --sh-well-deep: inset 0 2px 5px rgba(0, 0, 0, 0.8), inset 0 0 0 1px var(--edge-lo);
+  --sh-inset: inset 0 1px 0 var(--edge-hi);
+  --sh-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.6);
   --sh-focus: 0 0 0 2px var(--bg-app), 0 0 0 4px var(--border-focus);
+
+  /* -- cap gradient stops (raised controls). The 46/47% pair is a HARD
+        edge — the machined waist — and it is most of why a cap reads as
+        milled metal instead of as a rounded <div>. Never soften it. ------ */
+  --cap-hi: #56534e;
+  --cap-hover: #66625c; /* hover: the cap's top stop, one step up */
+  --cap-mid: #454340;
+  --cap-lo: #33312e;
+  --cap-base: #26241f;
+  --grad-cap: linear-gradient(
+    180deg,
+    var(--cap-hi) 0%,
+    var(--cap-mid) 46%,
+    var(--cap-lo) 47%,
+    var(--cap-base) 100%
+  );
 }
 
 /* System setting with no explicit choice: follow the OS.
    The palette below is byte-identical to :root[data-theme='light'] further
    down. CSS has no way to share one declaration block between a media-gated
    selector and a plain one, so the pair is kept in step by hand: any colour
-   change here must be made there too. */
+   change here must be made there too. Verified identical at the last edit. */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
     color-scheme: light;
 
-    --bg-app: #dfe2e7;
-    --bg-deep: #cdd2d9;
-    --bg-panel: #f1f3f6;
-    --bg-panel-2: #eaedf1;
-    --bg-raised: #ffffff;
-    --bg-hover: #e4e8ee;
-    --bg-active: #d8dee6;
-    --bg-input: #ffffff;
-    --bg-float: #ffffff;
-    --bg-scrim: rgba(28, 33, 40, 0.42);
+    --bg-deep: #a1a7ac;
+    --bg-input: #f8f6f4;
+    --bg-well: #b1b7bb;
 
-    --border: #c3cad3;
-    --border-soft: #d7dce3;
-    --border-strong: #a5aeba;
-    --border-focus: #17806a;
+    --bg-app: #c3c0bd;
+    --bg-panel: #dedcda;
+    --bg-panel-2: #d4d2ce;
+    --bg-float: #f9f8f6;
+    --bg-raised: #efeeeb;
+    --bg-hover: #e7e5e1;
+    --bg-active: #c9c6c2;
+    --bg-scrim: rgba(39, 38, 33, 0.46);
 
-    --text: #171c22;
-    --text-dim: #4e5763;
-    --text-faint: #5c6673;
-    --text-inverse: #ffffff;
+    --edge-lo: #a4a09b;
+    --edge-hi: #fafaf8;
+    --border-soft: #b8b5b2;
+    --border: #a4a09b;
+    --border-strong: #7b7671;
+    --border-focus: #272621;
 
-    --accent: #17806a;
-    --accent-hi: #0f6b58;
-    --accent-dim: #1a9a80;
-    --accent-bg: rgba(23, 128, 106, 0.12);
-    --accent-line: rgba(23, 128, 106, 0.4);
+    --text: #272621;
+    --text-dim: #4f4e49;
+    --text-faint: #5b5955;
+    --text-inverse: #f9f8f6;
+    --lamp-ink: #17150f;
 
-    --warm: #9a6a12;
-    --warm-hi: #b57d1c;
-    --warm-bg: rgba(154, 106, 18, 0.13);
-    --warm-line: rgba(154, 106, 18, 0.42);
+    --accent: #00683f;
+    --accent-hi: #005130;
+    --accent-dim: #45a271;
+    --accent-lamp: #45a271;
+    --accent-bg: rgba(0, 104, 63, 0.13);
+    --accent-line: rgba(0, 104, 63, 0.42);
 
-    --danger: #b3231c;
-    --danger-text: #a8201a;
-    --danger-bg: rgba(179, 35, 28, 0.1);
-    --danger-line: rgba(179, 35, 28, 0.4);
+    --solo: #735c00;
+    --solo-hi: #5f4b00;
+    --solo-lamp: #efc945;
+    --solo-bg: rgba(239, 201, 69, 0.3);
+    --solo-line: rgba(115, 92, 0, 0.45);
+    --warm: #735c00;
+    --warm-hi: #5f4b00;
+    --warm-bg: rgba(239, 201, 69, 0.3);
+    --warm-line: rgba(115, 92, 0, 0.45);
 
-    --info: #1d5f92;
-    --info-bg: rgba(29, 95, 146, 0.12);
+    --mute: #0e60a4;
+    --mute-hi: #004f8c;
+    --mute-lamp: #4e9be5;
+    --mute-bg: rgba(14, 96, 164, 0.13);
+    --mute-line: rgba(14, 96, 164, 0.42);
+    --info: #0e60a4;
+    --info-bg: rgba(14, 96, 164, 0.13);
 
-    --meter-lo: #1a9a80;
-    --meter-mid: #17806a;
-    --meter-hot: #b57d1c;
-    --meter-clip: #b3231c;
-    --meter-over: #d3352d;
-    --meter-bg: #d3d8de;
-    --meter-rms: rgba(0, 0, 0, 0.22);
+    --danger: #b92f2b;
+    --danger-text: #a92925;
+    --danger-lamp: #ea5249;
+    --danger-bg: rgba(185, 47, 43, 0.12);
+    --danger-line: rgba(185, 47, 43, 0.45);
 
-    --grid-bar: rgba(0, 0, 0, 0.18);
-    --grid-beat: rgba(0, 0, 0, 0.09);
-    --grid-sub: rgba(0, 0, 0, 0.04);
-    --playhead: #10151b;
-    --loop-band: rgba(154, 106, 18, 0.16);
+    --key: #804599;
+    --key-lamp: #c18dd8;
+    --key-bg: rgba(128, 69, 153, 0.13);
+    --key-line: rgba(128, 69, 153, 0.42);
 
-    --sh-1: 0 1px 2px rgba(24, 30, 38, 0.16);
-    --sh-2: 0 2px 6px rgba(24, 30, 38, 0.14), 0 0 0 1px rgba(24, 30, 38, 0.05);
-    --sh-3: 0 8px 24px rgba(24, 30, 38, 0.18), 0 0 0 1px rgba(24, 30, 38, 0.06);
-    --sh-4: 0 18px 48px rgba(24, 30, 38, 0.22), 0 0 0 1px rgba(24, 30, 38, 0.08);
-    --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    --fx-dyn: #ad6e27;
+    --fx-eq: #3782bb;
+    --fx-time: #7e72be;
+    --fx-colour: #bb6163;
+    --fx-util: #68727a;
+
+    --track-1: #bb6163;
+    --track-2: #ad6e27;
+    --track-3: #808020;
+    --track-4: #338b59;
+    --track-5: #008a8f;
+    --track-6: #3782bb;
+    --track-7: #7e72be;
+    --track-8: #aa649c;
+
+    --meter-lo: #008350;
+    --meter-mid: #389854;
+    --meter-hot: #a28300;
+    --meter-clip: #c3302c;
+    --meter-over: #d43538;
+    --meter-bg: #b1b7bb;
+    --meter-rms: rgba(0, 0, 0, 0.24);
+
+    --grid-bar: rgba(21, 20, 17, 0.2);
+    --grid-beat: rgba(21, 20, 17, 0.1);
+    --grid-sub: rgba(21, 20, 17, 0.045);
+    --playhead: #17150f;
+    --loop-band: rgba(239, 201, 69, 0.34);
+
+    --sh-1: 0 1px 0 var(--edge-hi);
+    --sh-2: inset 0 1px 0 var(--edge-hi), 0 1px 2px rgba(39, 38, 33, 0.2), 0 0 0 1px var(--edge-lo);
+    --sh-3:
+      0 10px 26px rgba(39, 38, 33, 0.22), 0 2px 6px rgba(39, 38, 33, 0.14),
+      inset 0 1px 0 var(--edge-hi), 0 0 0 1px var(--edge-lo);
+    --sh-4:
+      0 24px 60px rgba(39, 38, 33, 0.28), 0 4px 12px rgba(39, 38, 33, 0.18),
+      inset 0 1px 0 var(--edge-hi), 0 0 0 1px var(--edge-lo);
+    --sh-well: inset 0 1px 2px rgba(39, 38, 33, 0.35), inset 0 0 0 1px var(--edge-lo);
+    --sh-well-deep: inset 0 2px 5px rgba(39, 38, 33, 0.42), inset 0 0 0 1px var(--edge-lo);
+    --sh-inset: inset 0 1px 0 var(--edge-hi);
+    --sh-pressed: inset 0 1px 2px rgba(39, 38, 33, 0.3);
     --sh-focus: 0 0 0 2px var(--bg-panel), 0 0 0 4px var(--border-focus);
+
+    --cap-hi: #fafaf8;
+    --cap-hover: #ffffff; /* hover: the cap's top stop, one step up */
+    --cap-mid: #eceae7;
+    --cap-lo: #ddd9d5;
+    --cap-base: #cbc7c2;
+    --grad-cap: linear-gradient(
+      180deg,
+      var(--cap-hi) 0%,
+      var(--cap-mid) 46%,
+      var(--cap-lo) 47%,
+      var(--cap-base) 100%
+    );
   }
 }
 
 /* ====================================================================== */
-/* Light theme — for bright rooms and for print-adjacent work. Surfaces are  */
-/* deliberately not white-on-white: the editing ground stays darker than the */
-/* chrome so clips and waveforms keep the same figure/ground relationship as */
-/* in the dark theme.                                                        */
-/*                                                                           */
-/* Mirror of the @media (prefers-color-scheme: light) block above — change    */
-/* both together.                                                            */
+/* LIGHT — a bright room, not a white page. Chrome is a mid-light warm      */
+/* grey; the wells stay materially darker than the chrome, so figure and    */
+/* ground keep the same relationship they have in the dark theme and a      */
+/* fader slot is still a hole rather than a highlight.                      */
+/*                                                                          */
+/* A saturated hue appears here as a LAMP FILL with dark ink, not as        */
+/* coloured text — which is both more legible and more like hardware. That  */
+/* is why every semantic family has a `-lamp` value that is lighter than    */
+/* its text value.                                                          */
+/*                                                                          */
+/* Measured caveat, because the next person will hit it: the published      */
+/* ratios for --solo / --mute / --key are against --bg-panel (4.71 / 4.76 / */
+/* 4.76). On --bg-panel-2, which is the strip body and 3.7 L* darker, the    */
+/* same three land at 4.27 / 4.31 / 4.31 — under AA. As coloured TEXT on a   */
+/* strip they must use the darker -hi variant; as lamp fills (what the law   */
+/* of accent actually asks for here) they are fine, because the lamp is a    */
+/* fill and the ink is --lamp-ink.                                           */
+/*                                                                          */
+/* Mirror of the @media (prefers-color-scheme: light) block above — change   */
+/* both together.                                                           */
 /* ====================================================================== */
 :root[data-theme='light'] {
   color-scheme: light;
 
-  --bg-app: #dfe2e7;
-  --bg-deep: #cdd2d9;
-  --bg-panel: #f1f3f6;
-  --bg-panel-2: #eaedf1;
-  --bg-raised: #ffffff;
-  --bg-hover: #e4e8ee;
-  --bg-active: #d8dee6;
-  --bg-input: #ffffff;
-  --bg-float: #ffffff;
-  --bg-scrim: rgba(28, 33, 40, 0.42);
+  --bg-deep: #a1a7ac; /* L* 68.2 */
+  --bg-input: #f8f6f4; /* L* 97.0 */
+  --bg-well: #b1b7bb; /* L* 74.1 */
 
-  --border: #c3cad3;
-  --border-soft: #d7dce3;
-  --border-strong: #a5aeba;
-  --border-focus: #17806a;
+  --bg-app: #c3c0bd; /* L* 77.9 */
+  --bg-panel: #dedcda; /* L* 87.9 */
+  --bg-panel-2: #d4d2ce; /* L* 84.2 */
+  --bg-float: #f9f8f6; /* L* 97.6 */
+  --bg-raised: #efeeeb; /* L* 94.1 */
+  --bg-hover: #e7e5e1; /* L* 91.0 */
+  --bg-active: #c9c6c2; /* L* 80.0 */
+  --bg-scrim: rgba(39, 38, 33, 0.46);
 
-  --text: #171c22;
-  --text-dim: #4e5763;
-  --text-faint: #5c6673;
-  --text-inverse: #ffffff;
+  --edge-lo: #a4a09b;
+  --edge-hi: #fafaf8;
+  --border-soft: #b8b5b2;
+  --border: #a4a09b;
+  --border-strong: #7b7671;
+  --border-focus: #272621;
 
-  --accent: #17806a;
-  --accent-hi: #0f6b58;
-  --accent-dim: #1a9a80;
-  --accent-bg: rgba(23, 128, 106, 0.12);
-  --accent-line: rgba(23, 128, 106, 0.4);
+  --text: #272621; /* L* 15.1 */
+  --text-dim: #4f4e49; /* L* 33.1 */
+  --text-faint: #5b5955; /* L* 38.0 */
+  --text-inverse: #f9f8f6;
+  --lamp-ink: #17150f;
 
-  --warm: #9a6a12;
-  --warm-hi: #b57d1c;
-  --warm-bg: rgba(154, 106, 18, 0.13);
-  --warm-line: rgba(154, 106, 18, 0.42);
+  --accent: #00683f;
+  --accent-hi: #005130;
+  --accent-dim: #45a271; /* lamp fill, non-text */
+  --accent-lamp: #45a271;
+  --accent-bg: rgba(0, 104, 63, 0.13);
+  --accent-line: rgba(0, 104, 63, 0.42);
 
-  --danger: #b3231c;
-  --danger-text: #a8201a;
-  --danger-bg: rgba(179, 35, 28, 0.1);
-  --danger-line: rgba(179, 35, 28, 0.4);
+  --solo: #735c00; /* solo as TEXT */
+  --solo-hi: #5f4b00;
+  --solo-lamp: #efc945; /* solo as LIT LAMP, with --lamp-ink glyph */
+  --solo-bg: rgba(239, 201, 69, 0.3);
+  --solo-line: rgba(115, 92, 0, 0.45);
+  --warm: #735c00;
+  --warm-hi: #5f4b00;
+  --warm-bg: rgba(239, 201, 69, 0.3);
+  --warm-line: rgba(115, 92, 0, 0.45);
 
-  --info: #1d5f92;
-  --info-bg: rgba(29, 95, 146, 0.12);
+  --mute: #0e60a4;
+  --mute-hi: #004f8c;
+  --mute-lamp: #4e9be5;
+  --mute-bg: rgba(14, 96, 164, 0.13);
+  --mute-line: rgba(14, 96, 164, 0.42);
+  --info: #0e60a4;
+  --info-bg: rgba(14, 96, 164, 0.13);
 
-  --meter-lo: #1a9a80;
-  --meter-mid: #17806a;
-  --meter-hot: #b57d1c;
-  --meter-clip: #b3231c;
-  --meter-over: #d3352d;
-  --meter-bg: #d3d8de;
-  --meter-rms: rgba(0, 0, 0, 0.22);
+  --danger: #b92f2b;
+  --danger-text: #a92925;
+  --danger-lamp: #ea5249;
+  --danger-bg: rgba(185, 47, 43, 0.12);
+  --danger-line: rgba(185, 47, 43, 0.45);
 
-  --grid-bar: rgba(0, 0, 0, 0.18);
-  --grid-beat: rgba(0, 0, 0, 0.09);
-  --grid-sub: rgba(0, 0, 0, 0.04);
-  --playhead: #10151b;
-  --loop-band: rgba(154, 106, 18, 0.16);
+  --key: #804599;
+  --key-lamp: #c18dd8;
+  --key-bg: rgba(128, 69, 153, 0.13);
+  --key-line: rgba(128, 69, 153, 0.42);
 
-  --sh-1: 0 1px 2px rgba(24, 30, 38, 0.16);
-  --sh-2: 0 2px 6px rgba(24, 30, 38, 0.14), 0 0 0 1px rgba(24, 30, 38, 0.05);
-  --sh-3: 0 8px 24px rgba(24, 30, 38, 0.18), 0 0 0 1px rgba(24, 30, 38, 0.06);
-  --sh-4: 0 18px 48px rgba(24, 30, 38, 0.22), 0 0 0 1px rgba(24, 30, 38, 0.08);
-  --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --fx-dyn: #ad6e27;
+  --fx-eq: #3782bb;
+  --fx-time: #7e72be;
+  --fx-colour: #bb6163;
+  --fx-util: #68727a;
+
+  --track-1: #bb6163;
+  --track-2: #ad6e27;
+  --track-3: #808020;
+  --track-4: #338b59;
+  --track-5: #008a8f;
+  --track-6: #3782bb;
+  --track-7: #7e72be;
+  --track-8: #aa649c;
+
+  --meter-lo: #008350;
+  --meter-mid: #389854;
+  --meter-hot: #a28300;
+  --meter-clip: #c3302c;
+  --meter-over: #d43538;
+  --meter-bg: #b1b7bb;
+  --meter-rms: rgba(0, 0, 0, 0.24);
+
+  --grid-bar: rgba(21, 20, 17, 0.2);
+  --grid-beat: rgba(21, 20, 17, 0.1);
+  --grid-sub: rgba(21, 20, 17, 0.045);
+  --playhead: #17150f;
+  --loop-band: rgba(239, 201, 69, 0.34);
+
+  --sh-1: 0 1px 0 var(--edge-hi);
+  --sh-2: inset 0 1px 0 var(--edge-hi), 0 1px 2px rgba(39, 38, 33, 0.2), 0 0 0 1px var(--edge-lo);
+  --sh-3:
+    0 10px 26px rgba(39, 38, 33, 0.22), 0 2px 6px rgba(39, 38, 33, 0.14),
+    inset 0 1px 0 var(--edge-hi), 0 0 0 1px var(--edge-lo);
+  --sh-4:
+    0 24px 60px rgba(39, 38, 33, 0.28), 0 4px 12px rgba(39, 38, 33, 0.18),
+    inset 0 1px 0 var(--edge-hi), 0 0 0 1px var(--edge-lo);
+  --sh-well: inset 0 1px 2px rgba(39, 38, 33, 0.35), inset 0 0 0 1px var(--edge-lo);
+  --sh-well-deep: inset 0 2px 5px rgba(39, 38, 33, 0.42), inset 0 0 0 1px var(--edge-lo);
+  --sh-inset: inset 0 1px 0 var(--edge-hi);
+  --sh-pressed: inset 0 1px 2px rgba(39, 38, 33, 0.3);
   --sh-focus: 0 0 0 2px var(--bg-panel), 0 0 0 4px var(--border-focus);
+
+  --cap-hi: #fafaf8;
+  --cap-hover: #ffffff; /* hover: the cap's top stop, one step up */
+  --cap-mid: #eceae7;
+  --cap-lo: #ddd9d5;
+  --cap-base: #cbc7c2;
+  --grad-cap: linear-gradient(
+    180deg,
+    var(--cap-hi) 0%,
+    var(--cap-mid) 46%,
+    var(--cap-lo) 47%,
+    var(--cap-base) 100%
+  );
 }
 
 /* ====================================================================== */
-/* High contrast — for low-vision use and for bright stages. Every text and  */
-/* border pair here clears WCAG AAA on its own surface.                      */
+/* CONTRAST — for low-vision use and for bright stages. Every text and      */
+/* border pair here clears WCAG AAA on its own surface.                     */
+/*                                                                          */
+/* Material is expressed with LINES, not shadows: a shadow rendered at AAA  */
+/* contrast is just a black rectangle, so the four states are drawn as ring */
+/* weights (1px flat / 1px cap / 2px float / 2px inset) instead.            */
 /* ====================================================================== */
 :root[data-theme='contrast'] {
   color-scheme: dark;
 
-  --bg-app: #000000;
   --bg-deep: #000000;
-  --bg-panel: #0b0b0c;
-  --bg-panel-2: #101012;
-  --bg-raised: #17181a;
-  --bg-hover: #23252a;
-  --bg-active: #303339;
   --bg-input: #000000;
-  --bg-float: #17181a;
-  --bg-scrim: rgba(0, 0, 0, 0.82);
+  --bg-well: #000000;
+  --bg-app: #000000;
+  --bg-panel: #0a0a0b;
+  --bg-panel-2: #121213;
+  --bg-float: #232120;
+  --bg-raised: #1b1b1d;
+  --bg-hover: #2c2c2f;
+  --bg-active: #3b3b3f;
+  --bg-scrim: rgba(0, 0, 0, 0.86);
 
-  --border: #59606c;
-  --border-soft: #3a404a;
-  --border-strong: #8e97a4;
-  --border-focus: #ffd166;
+  --edge-lo: #000000;
+  --edge-hi: #6a6a70;
+  --border-soft: #4a4a4e;
+  --border: #7a7a80;
+  --border-strong: #b0b0b6;
+  --border-focus: #ffffff; /* 21:1 on black — better than the amber it
+                                replaces, and no longer near --solo */
 
   --text: #ffffff;
-  --text-dim: #d6dbe2;
-  --text-faint: #c3c9d2;
+  --text-dim: #e6e6e8;
+  --text-faint: #cfcfd3;
   --text-inverse: #000000;
+  --lamp-ink: #000000;
 
-  --accent: #56e8c6;
-  --accent-hi: #7ff5da;
-  --accent-dim: #2fb497;
-  --accent-bg: rgba(86, 232, 198, 0.2);
-  --accent-line: rgba(86, 232, 198, 0.6);
+  --accent: #6eeeab;
+  --accent-hi: #9fffc8;
+  --accent-dim: #46b37c;
+  --accent-lamp: #6eeeab;
+  --accent-bg: rgba(110, 238, 171, 0.22);
+  --accent-line: rgba(110, 238, 171, 0.65);
 
-  --warm: #ffc44d;
-  --warm-hi: #ffd980;
-  --warm-bg: rgba(255, 196, 77, 0.22);
-  --warm-line: rgba(255, 196, 77, 0.6);
+  --solo: #ffe082;
+  --solo-hi: #fff4d0;
+  --solo-lamp: #ffe082;
+  --solo-bg: rgba(255, 224, 130, 0.24);
+  --solo-line: rgba(255, 224, 130, 0.65);
+  --warm: #ffe082;
+  --warm-hi: #fff4d0;
+  --warm-bg: rgba(255, 224, 130, 0.24);
+  --warm-line: rgba(255, 224, 130, 0.65);
 
-  --danger: #ff6b62;
-  --danger-text: #ff8a82;
-  --danger-bg: rgba(255, 107, 98, 0.22);
-  --danger-line: rgba(255, 107, 98, 0.6);
+  --mute: #8ec6ff;
+  --mute-hi: #b8dbff;
+  --mute-lamp: #8ec6ff;
+  --mute-bg: rgba(142, 198, 255, 0.24);
+  --mute-line: rgba(142, 198, 255, 0.65);
+  --info: #8ec6ff;
+  --info-bg: rgba(142, 198, 255, 0.24);
 
-  --info: #79bdf0;
-  --info-bg: rgba(121, 189, 240, 0.2);
+  --danger: #ff8a7e;
+  --danger-text: #ffaca1;
+  --danger-lamp: #ff8a7e;
+  --danger-bg: rgba(255, 138, 126, 0.24);
+  --danger-line: rgba(255, 138, 126, 0.65);
 
-  --meter-lo: #56e8c6;
-  --meter-mid: #7ff5da;
-  --meter-hot: #ffc44d;
-  --meter-clip: #ff6b62;
-  --meter-over: #ff3b30;
+  --key: #e5acff;
+  --key-lamp: #e5acff;
+  --key-bg: rgba(229, 172, 255, 0.24);
+  --key-line: rgba(229, 172, 255, 0.65);
+
+  --fx-dyn: #f1a657;
+  --fx-eq: #6bbcff;
+  --fx-time: #b8abff;
+  --fx-colour: #ff9a9a;
+  --fx-util: #a9b3bb;
+
+  --track-1: #ff9a9a;
+  --track-2: #f1a657;
+  --track-3: #babb50;
+  --track-4: #65ca8c;
+  --track-5: #00cad2;
+  --track-6: #6bbcff;
+  --track-7: #b8abff;
+  --track-8: #ef9bdc;
+
+  --meter-lo: #4dc689;
+  --meter-mid: #7de797;
+  --meter-hot: #ffe082;
+  --meter-clip: #ff9287;
+  --meter-over: #ffaba4;
   --meter-bg: #000000;
-  --meter-rms: rgba(255, 255, 255, 0.4);
+  --meter-rms: rgba(255, 255, 255, 0.45);
 
-  --grid-bar: rgba(255, 255, 255, 0.35);
-  --grid-beat: rgba(255, 255, 255, 0.16);
-  --grid-sub: rgba(255, 255, 255, 0.08);
+  --grid-bar: rgba(255, 255, 255, 0.38);
+  --grid-beat: rgba(255, 255, 255, 0.18);
+  --grid-sub: rgba(255, 255, 255, 0.09);
   --playhead: #ffffff;
-  --loop-band: rgba(255, 196, 77, 0.24);
+  --loop-band: rgba(255, 224, 130, 0.26);
 
-  --sh-1: 0 0 0 1px #59606c;
-  --sh-2: 0 0 0 1px #8e97a4;
-  --sh-3: 0 10px 28px rgba(0, 0, 0, 0.9), 0 0 0 1px #8e97a4;
-  --sh-4: 0 20px 52px rgba(0, 0, 0, 0.95), 0 0 0 1px #8e97a4;
-  --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --sh-1: 0 0 0 1px var(--border-soft);
+  --sh-2: 0 0 0 1px var(--border);
+  --sh-3: 0 0 0 2px var(--border-strong), 0 10px 28px rgba(0, 0, 0, 0.92);
+  --sh-4: 0 0 0 2px var(--border-strong), 0 20px 52px rgba(0, 0, 0, 0.96);
+  --sh-well: inset 0 0 0 2px var(--border-soft);
+  --sh-well-deep: inset 0 0 0 2px var(--border);
+  --sh-inset: inset 0 1px 0 var(--edge-hi);
+  --sh-pressed: inset 0 0 0 2px var(--border-strong);
   --sh-focus: 0 0 0 2px #000000, 0 0 0 4px var(--border-focus);
+
+  --cap-hi: #3b3b3f;
+  --cap-hover: #4a4a4f; /* hover: the cap's top stop, one step up */
+  --cap-mid: #2c2c2f;
+  --cap-lo: #1b1b1d;
+  --cap-base: #121213;
+  --grad-cap: linear-gradient(
+    180deg,
+    var(--cap-hi) 0%,
+    var(--cap-mid) 46%,
+    var(--cap-lo) 47%,
+    var(--cap-base) 100%
+  );
 }
+
 /* ====================================================================== */
 /* OS "increase contrast", with the app left on the system theme. Without   */
 /* this the setting does nothing and the user gets the ordinary dark theme; */
@@ -453,65 +788,117 @@
   :root:not([data-theme]) {
     color-scheme: dark;
 
-    --bg-app: #000000;
     --bg-deep: #000000;
-    --bg-panel: #0b0b0c;
-    --bg-panel-2: #101012;
-    --bg-raised: #17181a;
-    --bg-hover: #23252a;
-    --bg-active: #303339;
     --bg-input: #000000;
-    --bg-float: #17181a;
-    --bg-scrim: rgba(0, 0, 0, 0.82);
+    --bg-well: #000000;
+    --bg-app: #000000;
+    --bg-panel: #0a0a0b;
+    --bg-panel-2: #121213;
+    --bg-float: #232120;
+    --bg-raised: #1b1b1d;
+    --bg-hover: #2c2c2f;
+    --bg-active: #3b3b3f;
+    --bg-scrim: rgba(0, 0, 0, 0.86);
 
-    --border: #59606c;
-    --border-soft: #3a404a;
-    --border-strong: #8e97a4;
-    --border-focus: #ffd166;
+    --edge-lo: #000000;
+    --edge-hi: #6a6a70;
+    --border-soft: #4a4a4e;
+    --border: #7a7a80;
+    --border-strong: #b0b0b6;
+    --border-focus: #ffffff;
 
     --text: #ffffff;
-    --text-dim: #d6dbe2;
-    --text-faint: #c3c9d2;
+    --text-dim: #e6e6e8;
+    --text-faint: #cfcfd3;
     --text-inverse: #000000;
+    --lamp-ink: #000000;
 
-    --accent: #56e8c6;
-    --accent-hi: #7ff5da;
-    --accent-dim: #2fb497;
-    --accent-bg: rgba(86, 232, 198, 0.2);
-    --accent-line: rgba(86, 232, 198, 0.6);
+    --accent: #6eeeab;
+    --accent-hi: #9fffc8;
+    --accent-dim: #46b37c;
+    --accent-lamp: #6eeeab;
+    --accent-bg: rgba(110, 238, 171, 0.22);
+    --accent-line: rgba(110, 238, 171, 0.65);
 
-    --warm: #ffc44d;
-    --warm-hi: #ffd980;
-    --warm-bg: rgba(255, 196, 77, 0.22);
-    --warm-line: rgba(255, 196, 77, 0.6);
+    --solo: #ffe082;
+    --solo-hi: #fff4d0;
+    --solo-lamp: #ffe082;
+    --solo-bg: rgba(255, 224, 130, 0.24);
+    --solo-line: rgba(255, 224, 130, 0.65);
+    --warm: #ffe082;
+    --warm-hi: #fff4d0;
+    --warm-bg: rgba(255, 224, 130, 0.24);
+    --warm-line: rgba(255, 224, 130, 0.65);
 
-    --danger: #ff6b62;
-    --danger-text: #ff8a82;
-    --danger-bg: rgba(255, 107, 98, 0.22);
-    --danger-line: rgba(255, 107, 98, 0.6);
+    --mute: #8ec6ff;
+    --mute-hi: #b8dbff;
+    --mute-lamp: #8ec6ff;
+    --mute-bg: rgba(142, 198, 255, 0.24);
+    --mute-line: rgba(142, 198, 255, 0.65);
+    --info: #8ec6ff;
+    --info-bg: rgba(142, 198, 255, 0.24);
 
-    --info: #79bdf0;
-    --info-bg: rgba(121, 189, 240, 0.2);
+    --danger: #ff8a7e;
+    --danger-text: #ffaca1;
+    --danger-lamp: #ff8a7e;
+    --danger-bg: rgba(255, 138, 126, 0.24);
+    --danger-line: rgba(255, 138, 126, 0.65);
 
-    --meter-lo: #56e8c6;
-    --meter-mid: #7ff5da;
-    --meter-hot: #ffc44d;
-    --meter-clip: #ff6b62;
-    --meter-over: #ff3b30;
+    --key: #e5acff;
+    --key-lamp: #e5acff;
+    --key-bg: rgba(229, 172, 255, 0.24);
+    --key-line: rgba(229, 172, 255, 0.65);
+
+    --fx-dyn: #f1a657;
+    --fx-eq: #6bbcff;
+    --fx-time: #b8abff;
+    --fx-colour: #ff9a9a;
+    --fx-util: #a9b3bb;
+
+    --track-1: #ff9a9a;
+    --track-2: #f1a657;
+    --track-3: #babb50;
+    --track-4: #65ca8c;
+    --track-5: #00cad2;
+    --track-6: #6bbcff;
+    --track-7: #b8abff;
+    --track-8: #ef9bdc;
+
+    --meter-lo: #4dc689;
+    --meter-mid: #7de797;
+    --meter-hot: #ffe082;
+    --meter-clip: #ff9287;
+    --meter-over: #ffaba4;
     --meter-bg: #000000;
-    --meter-rms: rgba(255, 255, 255, 0.4);
+    --meter-rms: rgba(255, 255, 255, 0.45);
 
-    --grid-bar: rgba(255, 255, 255, 0.35);
-    --grid-beat: rgba(255, 255, 255, 0.16);
-    --grid-sub: rgba(255, 255, 255, 0.08);
+    --grid-bar: rgba(255, 255, 255, 0.38);
+    --grid-beat: rgba(255, 255, 255, 0.18);
+    --grid-sub: rgba(255, 255, 255, 0.09);
     --playhead: #ffffff;
-    --loop-band: rgba(255, 196, 77, 0.24);
+    --loop-band: rgba(255, 224, 130, 0.26);
 
-    --sh-1: 0 0 0 1px #59606c;
-    --sh-2: 0 0 0 1px #8e97a4;
-    --sh-3: 0 10px 28px rgba(0, 0, 0, 0.9), 0 0 0 1px #8e97a4;
-    --sh-4: 0 20px 52px rgba(0, 0, 0, 0.95), 0 0 0 1px #8e97a4;
-    --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    --sh-1: 0 0 0 1px var(--border-soft);
+    --sh-2: 0 0 0 1px var(--border);
+    --sh-3: 0 0 0 2px var(--border-strong), 0 10px 28px rgba(0, 0, 0, 0.92);
+    --sh-4: 0 0 0 2px var(--border-strong), 0 20px 52px rgba(0, 0, 0, 0.96);
+    --sh-well: inset 0 0 0 2px var(--border-soft);
+    --sh-well-deep: inset 0 0 0 2px var(--border);
+    --sh-inset: inset 0 1px 0 var(--edge-hi);
+    --sh-pressed: inset 0 0 0 2px var(--border-strong);
     --sh-focus: 0 0 0 2px #000000, 0 0 0 4px var(--border-focus);
+
+    --cap-hi: #3b3b3f;
+    --cap-hover: #4a4a4f; /* hover: the cap's top stop, one step up */
+    --cap-mid: #2c2c2f;
+    --cap-lo: #1b1b1d;
+    --cap-base: #121213;
+    --grad-cap: linear-gradient(
+      180deg,
+      var(--cap-hi) 0%,
+      var(--cap-mid) 46%,
+      var(--cap-lo) 47%,
+      var(--cap-base) 100%
+    );
   }
 }

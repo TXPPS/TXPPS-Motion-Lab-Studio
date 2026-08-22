@@ -14,7 +14,7 @@
   gap: 6px;
   padding: 0 8px;
   background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-b);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -67,6 +67,8 @@
   width: 52px;
   float: left;
 }
+/* The keyboard is a real object with its own materials — ivory and ebony are
+   not theme colours and do not follow one. */
 .pr-key {
   position: relative;
   border-bottom: 1px solid var(--border-soft);
@@ -84,12 +86,13 @@
   background: #23272e;
   color: #aaa;
 }
+/* A key that is sounding IS signal present, which is the one green. */
 .pr-key.playing {
-  background: var(--accent) !important;
-  color: var(--text-inverse);
+  background: var(--accent-lamp) !important;
+  color: var(--lamp-ink);
 }
 .pr-key.c-note {
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
 }
 
 .pr-grid-area {
@@ -104,11 +107,20 @@
   pointer-events: none;
 }
 
+/*
+ * A note is MIDI material, and MIDI material is the data domain, which is blue
+ * (§2.1). It was a hard-coded teal gradient — a raw colour written past the
+ * token system, in the one hue that also meant solo, selection, engaged and
+ * nine other things.
+ */
 .pr-note {
   position: absolute;
   border-radius: var(--radius-xs);
-  background: linear-gradient(#48c9a9, #2f9d84);
-  border: 1px solid rgba(0, 0, 0, 0.5);
+  background: var(--mute-lamp);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    0 1px 2px rgb(0 0 0 / 0.4);
+  border: 1px solid color-mix(in srgb, var(--bg-deep) 60%, transparent);
   cursor: grab;
   touch-action: none;
   min-width: 5px;
@@ -118,8 +130,8 @@
   border-color: color-mix(in srgb, var(--text) 60%, transparent);
 }
 .pr-note.selected {
-  background: linear-gradient(var(--warm-hi), var(--warm));
-  outline: 1px solid #fff3;
+  background: var(--solo-lamp);
+  outline: 1px solid var(--solo-hi);
   z-index: calc(var(--z-clip) + 1);
 }
 .pr-note .pr-note-edge {
@@ -141,28 +153,29 @@
   top: 0;
   bottom: 0;
   width: 1px;
-  background: var(--warm);
+  background: var(--playhead);
   z-index: var(--z-playhead);
   pointer-events: none;
   will-change: transform;
 }
 
+/* The loop, again: yellow, because a loop is musical selection. */
 .pr-loop-hint {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(55, 184, 154, 0.05);
-  border-left: 1px dashed rgba(55, 184, 154, 0.5);
-  border-right: 1px dashed rgba(55, 184, 154, 0.5);
+  background: var(--loop-band);
+  border-left: 1px solid var(--solo-line);
+  border-right: 1px solid var(--solo-line);
   pointer-events: none;
   z-index: var(--z-lane);
 }
 
 /* Milestone 4: velocity lane, marquee, scale, labels ------------------------ */
 .pr-sep {
-  width: 1px;
+  width: 2px;
   height: 18px;
-  background: var(--border);
+  background: linear-gradient(to right, var(--edge-lo) 0 1px, var(--edge-hi) 1px 2px);
   flex: none;
   margin: 0 2px;
 }
@@ -174,9 +187,10 @@
   left: 3px;
   top: 50%;
   transform: translateY(-52%);
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
-  font-weight: 700;
-  color: rgba(8, 12, 10, 0.85);
+  font-weight: var(--fw-semibold);
+  color: var(--lamp-ink);
   pointer-events: none;
   line-height: 1;
 }
@@ -194,13 +208,13 @@
   position: absolute;
   z-index: var(--z-playhead);
   pointer-events: none;
-  background: rgba(55, 184, 154, 0.1);
-  border: 1px solid rgba(55, 184, 154, 0.55);
+  background: var(--solo-bg);
+  border: 1px solid var(--solo-line);
   border-radius: var(--radius-xs);
 }
 .hint-btn {
   color: var(--warm);
-  border-color: rgba(217, 161, 60, 0.4);
+  border-color: var(--warm-line);
 }
 
 /* Velocity lane: sticky to the bottom of the piano-roll scroller. */
@@ -209,7 +223,7 @@
   bottom: 0;
   z-index: var(--z-panel-chrome);
   background: var(--bg-panel-2);
-  border-top: 1px solid var(--border);
+  box-shadow: var(--ml-seam-t);
 }
 .pr-vel-label {
   position: sticky;
@@ -219,12 +233,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-caps);
   color: var(--text-faint);
   background: var(--bg-panel);
-  border-right: 1px solid var(--border);
+  box-shadow: var(--ml-seam-r);
   float: left;
 }
 .pr-vel-area {
@@ -232,20 +247,21 @@
   top: 3px;
   bottom: 3px;
 }
+/* Velocity is note data, so it takes the data colour. */
 .pr-vel-bar {
   position: absolute;
   bottom: 0;
-  background: var(--accent-dim);
+  background: color-mix(in srgb, var(--mute) 70%, var(--bg-panel-2));
   border-radius: var(--radius-xs) var(--radius-xs) 0 0;
   cursor: ns-resize;
   touch-action: none;
 }
 .pr-vel-bar.selected {
-  background: var(--warm);
+  background: var(--solo);
 }
 .pr-vel-bar.muted {
   opacity: 0.3;
 }
 .pr-vel-bar:hover {
-  background: var(--accent);
+  background: var(--mute-lamp);
 }

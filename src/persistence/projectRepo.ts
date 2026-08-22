@@ -4,7 +4,15 @@
  */
 import { newId } from '../model/ids';
 import { SCHEMA_VERSION } from '../model/types';
-import type { EffectKind, ProjectData, ProjectMeta, Track } from '../model/types';
+import type {
+  Effect,
+  EffectKind,
+  PluginParamCache,
+  PluginRef,
+  ProjectData,
+  ProjectMeta,
+  Track,
+} from '../model/types';
 import { isKnownEffect, MAX_INSERTS, normaliseParams } from '../model/effects';
 import { normalizeTempoMap } from '../model/tempo';
 import { normalizeWarpMap } from '../model/warp';
@@ -38,6 +46,126 @@ export interface Prefs {
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null;
+}
+
+/** Cached parameter descriptors we will keep for one plugin. */
+const MAX_PARAM_CACHE = 512;
+
+/**
+ * Validate one insert chain.
+ *
+ * Every chain in the project — a track's, the master's, the mastering rack's,
+ * a clip's — goes through here, which is the point: this used to be four
+ * copies of the same code, and a rule that has to hold everywhere should not
+ * be written down four times.
+ *
+ * The rule that matters most is what happens to a plugin. An effect of an
+ * unknown *kind* is still dropped, because we have no way to play it and no
+ * way to describe it. A `'wam'` effect is never dropped, whatever we can or
+ * cannot do with it: it keeps its slot, its order in the chain, its bypass
+ * state, every parameter value and its plugin's opaque state blob. Whether the
+ * plugin can actually be loaded is a *runtime* question — the CDN is down, the
+ * project came from a machine that had it, the browser will not reach that
+ * origin — and answering a runtime question by deleting the user's settings is
+ * how a project silently loses work. It becomes a tombstone in the rack
+ * instead, and a retry restores it exactly, because nothing was thrown away.
+ */
+function validateEffectList(raw: unknown, limit = MAX_INSERTS): Effect[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Effect[] = [];
+  for (const e of raw as unknown[]) {
+    if (out.length >= limit) break;
+    if (!isRecord(e) || typeof e.id !== 'string' || typeof e.kind !== 'string') continue;
+    if (!isKnownEffect(e.kind)) continue;
+    const kind: EffectKind = e.kind;
+    const fx: Effect = {
+      id: e.id,
+      kind,
+      bypass: e.bypass === true,
+      // For a plugin this keeps every finite value under its own key rather
+      // than rebuilding from a spec — a plugin's parameters are discovered from
+      // the plugin at runtime, so a spec-driven rebuild would produce `{}` and
+      // wipe the lot. See `normaliseParams`.
+      params: normaliseParams(kind, isRecord(e.params) ? e.params : undefined),
+    };
+    if (kind === 'wam') {
+      const ref = validatePluginRef(e.plugin);
+      if (ref) fx.plugin = ref;
+    }
+    out.push(fx);
+  }
+  return out;
+}
+
+/**
+ * Does this automation lane point at a plugin parameter on this track?
+ *
+ * `paramIdExists` answers "does the spec declare this key", which is the right
+ * question for every built-in effect and the wrong one for a plugin: a plugin's
+ * parameters come from the plugin, and it may not be loadable right now. A lane
+ * dropped on that basis is the user's automation deleted because a CDN was
+ * slow. So the test for a plugin slot is only that the slot is still there —
+ * the lane is kept, and whether it can be *applied* is decided at play time,
+ * where `findAutoParam` already returns undefined harmlessly.
+ */
+function targetsPlugin(track: unknown, paramId: string): boolean {
+  if (!paramId.startsWith('fx:')) return false;
+  if (!isRecord(track) || !Array.isArray(track.effects)) return false;
+  const effectId = paramId.split(':')[1];
+  return (track.effects as unknown[]).some(
+    (e) => isRecord(e) && e.id === effectId && e.kind === 'wam',
+  );
+}
+
+/**
+ * Validate a plugin reference.
+ *
+ * `state` is passed through untouched and deliberately uninspected: it is the
+ * plugin's own opaque blob and only the plugin knows what is in it. It has
+ * already been through the JSON round-trip at the top of `validateProject`, so
+ * it is bounded by what storage handed us and contains nothing exotic.
+ *
+ * A reference missing its identity is dropped while the effect it belonged to
+ * is kept — the slot stays, and the rack shows a plugin it cannot name, which
+ * is a truer picture than an insert that quietly disappeared.
+ */
+function validatePluginRef(raw: unknown): PluginRef | undefined {
+  if (!isRecord(raw)) return undefined;
+  if (typeof raw.identifier !== 'string' || typeof raw.source !== 'string') return undefined;
+  const ref: PluginRef = {
+    identifier: raw.identifier.slice(0, 200),
+    source: raw.source.slice(0, 2000),
+    name: typeof raw.name === 'string' ? raw.name.slice(0, 120) : raw.identifier.slice(0, 120),
+    vendor: typeof raw.vendor === 'string' ? raw.vendor.slice(0, 120) : '',
+    version: typeof raw.version === 'string' ? raw.version.slice(0, 60) : '0',
+  };
+  if (raw.state !== undefined) ref.state = raw.state;
+  if (Array.isArray(raw.paramCache)) {
+    const cache: PluginParamCache[] = [];
+    for (const p of raw.paramCache as unknown[]) {
+      if (cache.length >= MAX_PARAM_CACHE) break;
+      if (!isRecord(p) || typeof p.id !== 'string') continue;
+      const type = p.type;
+      cache.push({
+        id: p.id.slice(0, 120),
+        label: typeof p.label === 'string' ? p.label.slice(0, 120) : p.id.slice(0, 120),
+        type:
+          type === 'int' || type === 'boolean' || type === 'choice' || type === 'float'
+            ? type
+            : 'float',
+        defaultValue: typeof p.defaultValue === 'number' ? p.defaultValue : 0,
+        minValue: typeof p.minValue === 'number' ? p.minValue : 0,
+        maxValue: typeof p.maxValue === 'number' ? p.maxValue : 1,
+        ...(typeof p.exponent === 'number' && p.exponent ? { exponent: p.exponent } : {}),
+        ...(Array.isArray(p.choices)
+          ? { choices: (p.choices as unknown[]).filter((c): c is string => typeof c === 'string') }
+          : {}),
+        ...(typeof p.units === 'string' ? { units: p.units.slice(0, 40) } : {}),
+      });
+    }
+    if (cache.length) ref.paramCache = cache;
+  }
+  return ref;
 }
 
 /**
@@ -101,27 +229,7 @@ export function validateProject(raw: unknown): ProjectData {
     if (base.locked !== undefined && typeof base.locked !== 'boolean') delete base.locked;
     // v6: per-clip inserts, validated exactly like a channel's.
     if (base.eventFx !== undefined) {
-      const list = Array.isArray(base.eventFx)
-        ? (base.eventFx as unknown[])
-            .filter(
-              (e) =>
-                isRecord(e) &&
-                typeof e.id === 'string' &&
-                typeof e.kind === 'string' &&
-                isKnownEffect(e.kind),
-            )
-            .slice(0, 4)
-            .map((e) => {
-              const r = e as Record<string, unknown>;
-              const kind = r.kind as EffectKind;
-              return {
-                id: r.id as string,
-                kind,
-                bypass: r.bypass === true,
-                params: normaliseParams(kind, isRecord(r.params) ? r.params : undefined),
-              };
-            })
-        : [];
+      const list = validateEffectList(base.eventFx, 4);
       if (list.length) base.eventFx = list;
       else delete base.eventFx;
     }
@@ -242,27 +350,19 @@ export function validateProject(raw: unknown): ProjectData {
     // surviving parameter into its spec range so a corrupt value cannot reach
     // an AudioParam.
     if (tr.effects !== undefined && !Array.isArray(tr.effects)) delete tr.effects;
-    if (Array.isArray(tr.effects)) {
-      tr.effects = (tr.effects as unknown[])
-        .filter(
-          (e) =>
-            isRecord(e) &&
-            typeof e.id === 'string' &&
-            typeof e.kind === 'string' &&
-            isKnownEffect(e.kind),
-        )
-        .slice(0, MAX_INSERTS)
-        .map((e) => {
-          const rec = e as Record<string, unknown>;
-          const kind = rec.kind as EffectKind;
-          return {
-            id: rec.id as string,
-            kind,
-            bypass: rec.bypass === true,
-            params: normaliseParams(kind, isRecord(rec.params) ? rec.params : undefined),
-          };
-        });
-    }
+    if (Array.isArray(tr.effects)) tr.effects = validateEffectList(tr.effects);
+
+    // --- v6 → v7 migration: third-party plugins ---------------------------
+    // Purely additive, so there is nothing to convert: a v6 project has no
+    // `'wam'` effects and no `Effect.plugin`, and every v6 field means in v7
+    // exactly what it meant in v6. It loads unchanged and gets stamped v7 on
+    // the way out, which is the whole migration.
+    //
+    // The change v7 really makes is to the *rules*, not the shape, and those
+    // are enforced above in `validateEffectList`: a plugin effect survives a
+    // load even when the plugin does not, and its parameters are not rebuilt
+    // from a spec that cannot describe them. A v7 project written on a machine
+    // with plugins, opened here, keeps every one of them.
 
     // --- v6 -------------------------------------------------------------
     // Unknown track kinds (a newer project opened by an older build, or a
@@ -356,7 +456,9 @@ export function validateProject(raw: unknown): ProjectData {
       const lanes = (tr.automation as unknown[])
         .map((l) => validateLane(l))
         .filter((l): l is NonNullable<ReturnType<typeof validateLane>> => l !== null)
-        .filter((l) => paramIdExists(t as unknown as Track, l.paramId));
+        .filter(
+          (l) => paramIdExists(t as unknown as Track, l.paramId) || targetsPlugin(t, l.paramId),
+        );
       const droppedLanes = (tr.automation as unknown[]).length - lanes.length;
       if (droppedLanes > 0) {
         diagLog(
@@ -543,27 +645,7 @@ function validateMastering(raw: unknown): ProjectData['mastering'] {
     normalize: rec.normalize === true,
     ...(typeof rec.title === 'string' ? { title: rec.title.slice(0, 160) } : {}),
     ...(typeof rec.artist === 'string' ? { artist: rec.artist.slice(0, 160) } : {}),
-    effects: Array.isArray(rec.effects)
-      ? (rec.effects as unknown[])
-          .filter(
-            (e) =>
-              isRecord(e) &&
-              typeof e.id === 'string' &&
-              typeof e.kind === 'string' &&
-              isKnownEffect(e.kind),
-          )
-          .slice(0, MAX_INSERTS)
-          .map((e) => {
-            const r = e as Record<string, unknown>;
-            const kind = r.kind as EffectKind;
-            return {
-              id: r.id as string,
-              kind,
-              bypass: r.bypass === true,
-              params: normaliseParams(kind, isRecord(r.params) ? r.params : undefined),
-            };
-          })
-      : [],
+    effects: validateEffectList(rec.effects),
   };
 }
 
@@ -719,27 +801,7 @@ function validateNoteFx(raw: unknown): unknown {
 
 function validateMaster(raw: unknown, fallbackVolume: number): ProjectData['master'] {
   const rec = isRecord(raw) ? raw : {};
-  const effects = Array.isArray(rec.effects)
-    ? (rec.effects as unknown[])
-        .filter(
-          (e) =>
-            isRecord(e) &&
-            typeof e.id === 'string' &&
-            typeof e.kind === 'string' &&
-            isKnownEffect(e.kind),
-        )
-        .slice(0, MAX_INSERTS)
-        .map((e) => {
-          const r = e as Record<string, unknown>;
-          const kind = r.kind as EffectKind;
-          return {
-            id: r.id as string,
-            kind,
-            bypass: r.bypass === true,
-            params: normaliseParams(kind, isRecord(r.params) ? r.params : undefined),
-          };
-        })
-    : [];
+  const effects = validateEffectList(rec.effects);
   return {
     volume: clampNum(rec.volume, 0, 1.5, fallbackVolume),
     pan: clampNum(rec.pan, -1, 1, 0),

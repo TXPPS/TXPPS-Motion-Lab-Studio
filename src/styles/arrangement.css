@@ -36,7 +36,9 @@
   row-gap: 4px;
   padding: 4px 8px;
   background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-soft);
+  /* Chrome is separated from content by a seam, not by a hairline nobody can
+     resolve (§2.4). Same substitution everywhere a bar meets a work surface. */
+  box-shadow: var(--ml-seam-b);
 }
 .arr-toolbar > * {
   flex: none;
@@ -80,7 +82,7 @@
   width: var(--header-w);
   flex: none;
   background: var(--bg-panel);
-  border-right: 1px solid var(--border);
+  box-shadow: var(--ml-seam-r);
 }
 
 /* The corner and the global-track headers scroll horizontally with nothing and
@@ -100,7 +102,7 @@
   gap: 6px;
   padding: 0 8px;
   background: var(--bg-panel-2);
-  border-bottom: 1px solid var(--border);
+  box-shadow: var(--ml-seam-b);
   user-select: none;
 }
 
@@ -115,19 +117,22 @@
   z-index: var(--z-sticky);
   height: var(--ruler-h);
   background: var(--bg-panel-2);
-  border-bottom: 1px solid var(--border);
+  box-shadow: var(--ml-seam-b);
   cursor: pointer;
   touch-action: none;
 }
 .arr-ruler canvas {
   display: block;
 }
+/* The playhead is the live value, and the live value is neutral white — not a
+   hue (§2.1). It was amber, which made it a third meaning for the selection
+   colour and put it in a colour war with the loop band it sits inside. */
 .arr-ruler .ruler-playhead {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 1px;
-  background: var(--warm);
+  background: var(--playhead);
   pointer-events: none;
   will-change: transform;
 }
@@ -150,23 +155,32 @@
 .arr-lane:hover:not(.selected) {
   background: color-mix(in srgb, var(--text) 3%, transparent);
 }
+/* Selection in the chrome is light, never colour (§2.1): a lighter ground and
+   a lit top edge. This was a 5%-teal wash, which is both a colour the accent
+   law does not allow here and a wash nobody could see. */
 .arr-lane.selected {
-  background: rgba(55, 184, 154, 0.05);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  box-shadow: var(--sh-inset);
 }
-/* File drag hovering an audio lane. Inset outline so it cannot widen the lane. */
+/* File drag hovering an audio lane. A drop target is a lane that lights its
+   own rails, not a dashed rectangle (§2.11.9); the rail is yellow because a
+   drop position is a selection. */
 .arr-lane.drop-target {
-  background: var(--accent-bg);
-  outline: 2px dashed var(--accent);
-  outline-offset: -2px;
+  background: var(--solo-bg);
+  box-shadow:
+    inset 0 2px 0 var(--solo),
+    inset 0 -2px 0 var(--solo);
 }
 
+/* Neutral, and no glow: the one legal glow in the product is a lit lamp
+   (§2.4 rule 6). A 6px amber halo on the playhead was the loudest thing on
+   the timeline and it belonged to the selection colour. */
 .arr-playhead {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 1px;
-  background: var(--warm);
-  box-shadow: 0 0 6px rgba(217, 161, 60, 0.55);
+  background: var(--playhead);
   z-index: var(--z-playhead);
   pointer-events: none;
   will-change: transform;
@@ -178,16 +192,20 @@
   left: -5px;
   border-left: 5.5px solid transparent;
   border-right: 5.5px solid transparent;
-  border-top: 7px solid var(--warm);
+  border-top: 7px solid var(--playhead);
 }
 
+/* A loop is musical selection, so it is yellow — and it uses the token the
+   palette already had for exactly this band. It was teal, which is what put
+   "the loop is on" and "signal is passing" in the same colour. */
 .arr-loop {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: var(--accent-bg);
-  border-left: 2px solid var(--accent);
-  border-right: 2px solid var(--accent);
+  background: var(--loop-band);
+  box-shadow:
+    inset 2px 0 0 var(--solo),
+    inset -2px 0 0 var(--solo);
   pointer-events: none;
   z-index: var(--z-lane);
   opacity: 0.95;
@@ -203,9 +221,17 @@
   bottom: 3px;
   border-radius: var(--radius);
   overflow: hidden;
-  /* A hairline that darkens whatever surface it is on, rather than a pure black
-     one — which in the light theme was heavier than any other line in the UI. */
-  border: 1px solid color-mix(in srgb, var(--bg-deep) 70%, transparent);
+  /* A clip is a cap at 1px: it sits ON the timeline ground rather than being
+     drawn on it (§2.4). The ring keeps the hairline that darkens whatever
+     surface it is on — a pure black one was heavier than any other line in
+     the light theme — and adds the lit top edge and the cast below it that
+     say "raised" without spending a second border weight.  */
+  border: none;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--bg-deep) 70%, transparent),
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 1px 2px rgb(0 0 0 / 0.4);
+  transition: box-shadow var(--dur-fast) var(--ease-out);
   background: var(--clip-bg, var(--bg-raised));
   cursor: grab;
   user-select: none;
@@ -216,14 +242,21 @@
   z-index: var(--z-clip);
   container: clip / inline-size;
 }
+/* A clip answers the pointer by lifting, not by outlining: the cast doubles
+   and the top edge brightens. */
 .clip:hover {
-  border-color: var(--border-strong);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--bg-deep) 70%, transparent),
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 2px 4px rgb(0 0 0 / 0.45);
 }
 .clip:active {
   cursor: grabbing;
 }
+/* Yellow, because a selected clip is musical selection (§2.1) — the one
+   meaning this colour is allowed to carry alongside solo. */
 .clip.selected {
-  outline: 1.5px solid var(--warm);
+  outline: 1.5px solid var(--solo);
   z-index: calc(var(--z-clip) + 1);
 }
 .clip.muted {
@@ -235,7 +268,7 @@
   left: 5px;
   right: 4px;
   font-size: var(--fs-2xs);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   color: var(--text);
   text-shadow: 0 1px 2px color-mix(in srgb, var(--bg-deep) 60%, transparent);
   white-space: nowrap;
@@ -304,15 +337,22 @@
   display: flex;
   flex-direction: column;
   padding: var(--sp-3) var(--sp-4) var(--sp-2);
-  border-bottom: 1px solid var(--border-soft);
   background: var(--bg-panel);
+  box-shadow: var(--ml-seam-b);
   position: relative;
   overflow: hidden;
   user-select: none;
 }
+/* Chrome selection is light, never colour (§2.1): the ground lifts one step
+   and the top edge lights. The track's own colour rail widens instead of a
+   second colour arriving, so the selected header still says which track it is. */
 .th.selected {
   background: var(--bg-panel-2);
+  box-shadow: var(--ml-seam-b), var(--sh-inset);
 }
+/* Track colour is identity, and identity lives on rails and edges (§2.2).
+   The fallback is a neutral line, not the accent: a track with no colour is
+   not a track that is doing something. */
 .th::before {
   content: '';
   position: absolute;
@@ -320,7 +360,11 @@
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--th-color, var(--accent));
+  background: var(--th-color, var(--border-strong));
+  z-index: 1;
+}
+.th.selected::before {
+  width: 5px;
 }
 .th-row {
   display: flex;
@@ -332,7 +376,7 @@
   flex: 1 1 auto;
   min-width: 0;
   font-size: var(--fs-sm);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -357,51 +401,73 @@
   margin-top: 3px;
   min-width: 0;
 }
+/*
+ * The lamp (§2.6).
+ *
+ * Unlit it is a well cut into the chrome — dark, recessed, quiet. Lit it is a
+ * filled LED with dark ink and its own small glow. That is one object with two
+ * states, which is what a console button is; it was a 1px-bordered rounded
+ * rectangle with a tinted background, which is what a web toggle is.
+ *
+ * The colours are the correction the whole redesign turns on: solo was TEAL
+ * and mute was AMBER, which inverts the one colour convention in audio that is
+ * genuinely universal. Solo is yellow. Mute is blue. Arm is red. Everything
+ * else that means "engaged, signal is passing" is green.
+ */
 .th-mini {
   width: calc(22px * var(--ui-scale));
   height: var(--control-h-sm);
   flex: none;
   border-radius: var(--radius-xs);
-  border: 1px solid var(--border);
+  border: none;
+  /* --bg-input, not --bg-well: this well holds a LETTER, and --text-faint on
+     --bg-well measures 3.45 in the light theme against 6.48 here. Wells that
+     hold text are --bg-input; --bg-well is for the ones that hold none. */
+  background: var(--bg-input);
+  box-shadow: var(--ml-lamp-off);
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
-  font-weight: 700;
-  color: var(--text-dim);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-faint);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   user-select: none;
   transition:
     background var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out);
 }
 /* Mute, solo and arm are the buttons a mix gets driven from; they have to
-   answer the pointer before they are pressed. */
+   answer the pointer before they are pressed. An unlit lamp brightens its
+   glyph rather than changing colour — colour here would mean a state. */
 .th-mini:hover:not(:disabled) {
   background: var(--bg-hover);
-  border-color: var(--border-strong);
   color: var(--text);
 }
+.th-mini.m-on,
+.th-mini.s-on,
+.th-mini.r-on,
+.th-mini.on {
+  background: var(--lamp);
+  color: var(--lamp-ink);
+  box-shadow: var(--ml-lamp-on);
+}
 .th-mini.m-on {
-  background: var(--warm-bg);
-  color: var(--warm);
-  border-color: rgba(217, 161, 60, 0.5);
+  --lamp: var(--mute-lamp);
 }
 .th-mini.s-on {
-  background: var(--accent-bg);
-  color: var(--accent);
-  border-color: rgba(55, 184, 154, 0.5);
+  --lamp: var(--solo-lamp);
 }
 .th-mini.r-on {
-  background: var(--danger-bg);
-  color: var(--danger);
-  border-color: rgba(216, 74, 68, 0.55);
+  --lamp: var(--danger-lamp);
 }
-/* Generic "engaged" state, used by insert bypass and send enable toggles. */
+/* Generic "engaged" state, used by insert bypass and send enable toggles:
+   signal is present and passing, which is the green. */
 .th-mini.on {
-  background: var(--accent-bg);
-  color: var(--accent);
-  border-color: rgba(55, 184, 154, 0.5);
+  --lamp: var(--accent-lamp);
 }
 .th-mini:disabled {
   opacity: var(--opacity-disabled);
@@ -457,10 +523,14 @@
   align-items: center;
   justify-content: center;
   font-size: var(--fs-2xs);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-caps);
-  color: var(--danger);
-  background: repeating-linear-gradient(45deg, rgba(216, 74, 68, 0.12) 0 6px, transparent 6px 12px);
+  color: var(--danger-text);
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--danger) 14%, transparent) 0 6px,
+    transparent 6px 12px
+  );
   pointer-events: none;
 }
 
@@ -493,7 +563,7 @@
 }
 .clip:hover .fade-handle::after,
 .clip.selected .fade-handle::after {
-  background: var(--warm);
+  background: var(--solo);
 }
 @media (pointer: coarse) {
   .fade-handle {
@@ -507,30 +577,35 @@
 }
 
 /* Marquee selection rectangle (mouse rubber-band) -------------------------- */
+/* A marquee IS a selection, so it is yellow, and it is a token rather than
+   two hard-coded teals. */
 .arr-marquee {
   position: absolute;
   z-index: var(--z-playhead);
   pointer-events: none;
-  background: rgba(55, 184, 154, 0.1);
-  border: 1px solid rgba(55, 184, 154, 0.55);
+  background: var(--solo-bg);
+  border: 1px solid var(--solo-line);
   border-radius: var(--radius-xs);
 }
 
-/* The clip under a listen hold, so it is obvious what is sounding. */
+/* The clip under a listen hold, so it is obvious what is sounding. Green,
+   because this is the one thing on the timeline that means signal is
+   passing — and no halo, because glow belongs to lamps alone. */
 .clip.listening {
-  outline: 1px solid var(--warm);
+  outline: 1.5px solid var(--accent);
   outline-offset: -1px;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--warm) 35%, transparent);
 }
 
-/* The clip a paint drag is asking for, before it exists. */
+/* The clip a paint drag is asking for, before it exists. A pending object is
+   a selection, not a signal — and it is drawn solid, because a dashed border
+   as an about-to-exist affordance is a web convention (§2.11.9). */
 .arr-paint-ghost {
   position: absolute;
   z-index: var(--z-playhead);
   pointer-events: none;
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  border: 1px dashed color-mix(in srgb, var(--accent) 75%, transparent);
+  background: var(--solo-bg);
+  border: 1px solid var(--solo-line);
 }
 
 /* Tool cursors + handle gating --------------------------------------------- */
@@ -591,8 +666,11 @@
   overflow: hidden;
   touch-action: none;
 }
+/* The last global lane is where the header stack ends and the timeline
+   ground begins: that is a region boundary, so it is a seam. */
 .gt-lane:last-child {
-  border-bottom: 1px solid var(--border);
+  border-bottom: none;
+  box-shadow: var(--ml-seam-b);
 }
 
 .gt-header {
@@ -709,15 +787,19 @@
   justify-content: center;
   padding: 0 var(--sp-2);
   font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
-  color: var(--warm-hi);
-  background: var(--warm-bg);
-  border: 1px solid var(--warm-line);
+  font-weight: var(--fw-semibold);
+  /* A chord symbol is neither a state nor a selection, so it carries no hue:
+     it stands out by being lighter (§2.11.8). It was amber, which is now the
+     selection colour and would have said "this chord is selected". */
+  color: var(--text);
+  background: var(--bg-raised);
+  border: none;
+  box-shadow: var(--sh-2);
   border-radius: var(--radius-xs);
   overflow: hidden;
 }
 .gt-chord:hover {
-  background: color-mix(in srgb, var(--warm) 28%, transparent);
+  background: var(--bg-hover);
 }
 
 /* --- tempo --- */
@@ -731,16 +813,18 @@
   font-family: var(--font-num);
   font-size: var(--fs-2xs);
   font-weight: var(--fw-semibold);
-  color: var(--accent-hi);
-  background: var(--accent-bg);
-  border-left: 2px solid var(--accent);
+  /* Tempo is automation: it belongs to the data domain, which is blue (§2.1).
+     It was the accent, i.e. the same colour as "signal is passing". */
+  color: var(--mute-hi);
+  background: var(--mute-bg);
+  border-left: 2px solid var(--mute);
   cursor: ns-resize;
 }
 .gt-tempo.ramp {
   border-left-style: dashed;
 }
 .gt-tempo:hover {
-  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  background: color-mix(in srgb, var(--mute) 26%, transparent);
 }
 .gt-sig {
   position: absolute;
@@ -760,7 +844,7 @@
   position: relative;
   flex: none;
   background: var(--bg-deep);
-  border-bottom: 1px solid var(--border);
+  box-shadow: var(--sh-well), var(--ml-seam-b);
   cursor: pointer;
   overflow: hidden;
   touch-action: none;
@@ -833,10 +917,12 @@
   position: absolute;
   right: 1px;
   bottom: 0;
+  font-family: var(--font-num);
   font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-medium);
   line-height: 1;
-  color: var(--warm);
+  /* A count is a value, and a value is neutral (§2.1). */
+  color: var(--text);
   pointer-events: none;
 }
 
@@ -847,9 +933,9 @@
   top: 0;
   bottom: 0;
   z-index: var(--z-clip);
-  background: color-mix(in srgb, var(--warm) 14%, transparent);
-  border-left: 1px solid var(--warm);
-  border-right: 1px solid var(--warm);
+  background: var(--solo-bg);
+  border-left: 1px solid var(--solo);
+  border-right: 1px solid var(--solo);
   pointer-events: auto;
   cursor: context-menu;
 }

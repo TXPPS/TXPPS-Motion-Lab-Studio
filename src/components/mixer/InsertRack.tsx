@@ -17,6 +17,10 @@ import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
 import { EffectVisual, FxKnob, faceKindOf } from './PluginFace';
+import { SHELF, addShelfPlugin } from '../../audio/wam/shelf';
+
+/** Marks a picker option as a shelf plugin rather than a built-in effect kind. */
+const SHELF_OPTION_PREFIX = 'shelf:';
 
 /**
  * Which parameters to show at once.
@@ -245,10 +249,14 @@ export function InsertRack({ track, host }: { track?: Track; host?: ChainHost })
           aria-label="Add insert effect"
           data-testid={`fx-add-${chain.id}`}
           onChange={(e) => {
-            const kind = e.target.value as EffectKind;
-            if (!kind) return;
-            const id = chain.add(kind);
+            const value = e.target.value;
             e.currentTarget.value = '';
+            if (!value) return;
+            // A plugin is picked by name from the shelf rather than by kind,
+            // because 'wam' on its own does not say which plugin.
+            const id = value.startsWith(SHELF_OPTION_PREFIX)
+              ? addShelfPlugin(chain.add, value.slice(SHELF_OPTION_PREFIX.length))
+              : chain.add(value as EffectKind);
             if (!id) useUiStore.getState().toast('error', `Insert limit is ${MAX_INSERTS}.`);
           }}
         >
@@ -266,6 +274,17 @@ export function InsertRack({ track, host }: { track?: Track; host?: ChainHost })
               ))}
             </optgroup>
           ))}
+          <optgroup label="Plugins">
+            {SHELF.map((entry) => (
+              <option
+                key={entry.id}
+                value={`${SHELF_OPTION_PREFIX}${entry.id}`}
+                title={`${entry.blurb} — ${entry.vendor}, ${entry.licence}`}
+              >
+                {entry.name}
+              </option>
+            ))}
+          </optgroup>
         </select>
         <select
           value=""

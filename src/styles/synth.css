@@ -35,7 +35,10 @@
   min-width: 0;
 }
 .syn-title {
-  font-weight: 700;
+  font-family: var(--font-cond);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
   font-size: var(--fs-md);
   display: inline-flex;
   align-items: center;
@@ -62,7 +65,11 @@
   border-radius: var(--radius-xs);
   flex: none;
 }
+/* The track's name is text the user typed: never uppercased by CSS (§2.5). */
 .syn-title .syn-title-text {
+  font-family: var(--font);
+  letter-spacing: 0;
+  text-transform: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -82,7 +89,8 @@
   gap: 5px;
   padding: 8px 10px;
   background: var(--bg-panel-2);
-  border: 1px solid var(--border-soft);
+  border: none;
+  box-shadow: var(--sh-1);
   border-radius: var(--radius-lg);
 }
 .syn-group .g-title {
@@ -99,9 +107,10 @@
   gap: 2px;
 }
 .syn-knob .kv {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--text-dim);
+  font-family: var(--font-num);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  color: var(--text);
 }
 
 /* On-screen keyboard */
@@ -113,8 +122,8 @@
   height: 130px;
   min-height: 0;
   display: flex;
-  background: #0a0c10;
-  border-top: 1px solid var(--border);
+  background: var(--bg-deep);
+  box-shadow: var(--ml-seam-t);
   padding: 6px 8px 8px;
   gap: 0;
   touch-action: none;
@@ -133,8 +142,12 @@
   position: relative;
   min-width: 24px;
 }
+/* A key that is sounding IS signal present — the one green (§2.1). */
 .kbd-white.pressed {
-  background: linear-gradient(var(--accent-hi), var(--accent));
+  background: var(--accent-lamp);
+}
+.kbd-white.pressed .kn {
+  color: var(--lamp-ink);
 }
 .kbd-white .kn {
   position: absolute;
@@ -156,7 +169,7 @@
   z-index: 2;
 }
 .kbd-black.pressed {
-  background: linear-gradient(var(--accent), var(--accent-dim));
+  background: var(--accent-lamp);
 }
 
 .perform-page {
@@ -182,24 +195,29 @@
   gap: 8px;
   padding: 10px;
 }
+/* A performance pad is a cap: a milled body with a hard waist, not two
+   hand-written greys. */
 .pad {
   aspect-ratio: 1;
   border-radius: var(--radius-lg);
-  background: linear-gradient(#242b34, #171c23);
-  border: 1px solid var(--border-strong);
+  background: var(--grad-cap);
+  border: none;
+  box-shadow: var(--sh-2);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 3px;
   font-size: var(--fs-xs);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   color: var(--text-dim);
   user-select: none;
   touch-action: none;
 }
 .pad:active,
 .pad.hit {
-  background: linear-gradient(var(--accent), var(--accent-dim));
-  color: var(--text-inverse);
+  --lamp: var(--accent-lamp);
+  background: var(--lamp);
+  box-shadow: var(--ml-lamp-on);
+  color: var(--lamp-ink);
 }

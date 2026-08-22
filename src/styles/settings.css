@@ -18,8 +18,8 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(680px, 100%);
   max-height: min(86vh, 760px);
-  background: var(--bg-panel);
-  border: 1px solid var(--border-strong);
+  background: var(--bg-float);
+  border: none;
   border-radius: var(--radius-xl);
   box-shadow: var(--sh-4);
   overflow: hidden;
@@ -33,11 +33,11 @@
   padding: var(--sp-5);
 }
 .sheet-head {
-  border-bottom: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-b);
 }
 .sheet-foot {
-  border-top: 1px solid var(--border-soft);
-  background: var(--bg-panel-2);
+  box-shadow: var(--ml-seam-t);
+  background: var(--bg-raised);
 }
 .sheet-head h2 {
   flex: 1 1 auto;
@@ -109,10 +109,12 @@
   border-color: var(--border-strong);
   color: var(--text);
 }
+/* Chrome selection (§2.1): a lighter surface and a lit top edge. */
 .theme-card.on {
-  border-color: var(--accent);
-  background: var(--accent-bg);
-  color: var(--accent);
+  border-color: transparent;
+  background: var(--bg-active);
+  box-shadow: var(--sh-inset);
+  color: var(--text);
 }
 .theme-card:disabled {
   opacity: var(--opacity-disabled);
@@ -127,7 +129,8 @@
   height: 22px;
   flex: none;
   border-radius: var(--radius-pill);
-  background: var(--bg-deep);
+  background: var(--bg-input);
+  box-shadow: var(--sh-well);
   border: 1px solid var(--border);
   transition:
     background var(--dur-fast) var(--ease-out),
@@ -155,13 +158,16 @@
   opacity: var(--opacity-disabled);
   cursor: not-allowed;
 }
+/* A switch says its state with the knob's POSITION and its brightness; the
+   track was tinted with the accent, which made every preference in the product
+   claim that signal was passing through it. */
 .switch.on {
-  background: var(--accent-bg);
-  border-color: var(--accent);
+  background: var(--bg-active);
+  border-color: var(--border-strong);
 }
 .switch.on .switch-knob {
   transform: translateX(18px);
-  background: var(--accent);
+  background: var(--text);
 }
 
 /* ---------------------------------------------------------- export sheet */
@@ -188,8 +194,9 @@
   border-color: var(--border-strong);
 }
 .format-card.on {
-  border-color: var(--accent);
-  background: var(--accent-bg);
+  border-color: transparent;
+  background: var(--bg-active);
+  box-shadow: var(--sh-inset);
 }
 .format-card:disabled {
   opacity: var(--opacity-disabled);
@@ -222,12 +229,13 @@
 .export-status.error {
   color: var(--danger-text);
 }
+/* A finished render is the working state, which is the green. */
 .export-status.done {
   color: var(--accent);
 }
 .export-status.rendering,
 .export-status.preparing {
-  color: var(--warm);
+  color: var(--warm-hi);
 }
 
 /* ---------------------------------------------------------- key commands */
@@ -273,23 +281,27 @@
   color: var(--text-faint);
   white-space: nowrap;
 }
+/* A key combo is a cap you can press to rebind. */
 .kc-combo {
   min-width: 96px;
   padding: var(--sp-1) var(--sp-3);
   border-radius: var(--radius-xs);
-  border: 1px solid var(--border);
-  background: var(--bg-deep);
+  border: none;
+  background: var(--grad-cap);
+  box-shadow: var(--sh-2);
   color: var(--text);
   font-family: var(--font-num);
   font-size: var(--fs-xs);
 }
 .kc-combo:hover {
-  border-color: var(--border-strong);
+  background: var(--bg-hover);
 }
+/* "You changed this from the default" is not one of the five meanings, so it
+   is expressed as light: a raised binding among flat ones (§2.11.8). */
 .kc-combo.changed {
-  color: var(--accent);
-  border-color: var(--accent-line);
-  background: var(--accent-bg);
+  color: var(--text);
+  background: var(--bg-active);
+  box-shadow: var(--sh-2), var(--sh-inset);
 }
 /* Recording is a mode: it has to be unmistakable, because every key on the
    keyboard means something different while it lasts. */
@@ -306,7 +318,7 @@
   padding: var(--sp-3);
   border-radius: var(--radius);
   background: var(--warm-bg);
-  color: var(--warm);
+  color: var(--warm-hi);
   font-size: var(--fs-sm);
 }
 
@@ -338,14 +350,24 @@
   align-items: center;
   gap: var(--sp-2);
   padding: var(--sp-2);
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius);
-  background: var(--bg-raised);
+  background: var(--bg-panel-2);
+  box-shadow:
+    var(--sh-1),
+    inset 2px 0 0 var(--key);
 }
+/* A control link is the definition of "driven from somewhere else", which is
+   what violet means (§2.1) — and it is the only place in the product where
+   that meaning is the whole point of the row. The violet is the row's rail,
+   above: as text it has no darkened variant to fall back to in the light
+   theme, where it measures 4.31 on this ground. */
 .ctl-src {
   flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-weight: var(--fw-medium);
   font-variant-numeric: tabular-nums;
-  color: var(--accent);
+  color: var(--text);
   font-size: var(--fs-sm);
 }
 .ctl-tgt {
@@ -365,7 +387,9 @@
 /* A binding whose target was deleted still exists; saying so is better than
    leaving a row that looks fine and does nothing. */
 .ctl-row.broken {
-  border-color: var(--danger-line);
+  box-shadow:
+    var(--sh-1),
+    inset 2px 0 0 var(--danger);
 }
 .ctl-row.broken .ctl-tgt {
   color: var(--danger-text);

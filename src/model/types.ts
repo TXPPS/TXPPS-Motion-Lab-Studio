@@ -24,8 +24,16 @@ import type { Groove } from './groove';
  * tracks, folder and VCA and FX-channel track types, a real master channel with
  * its own inserts and automation, per-track input trim and polarity, and
  * scratch pads.
+ *
+ * v7 (v2.1) adds third-party plugins: `EffectKind` gains `'wam'` and `Effect`
+ * gains an optional `plugin` describing which Web Audio Modules plugin fills
+ * that slot and what state it was left in. The change is purely additive — a v6
+ * project is a valid v7 project — so the migration is a version stamp and
+ * nothing else. What is *not* additive is the load path: see
+ * `persistence/projectRepo.ts`, where a plugin the app cannot resolve has to
+ * survive as a tombstone rather than being filtered away.
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /** One layer/split inside an instrument rack. */
 export interface RackItem {
@@ -382,15 +390,77 @@ export type EffectKind =
   | 'gainMatch'
   | 'analyser'
   | 'tuner'
-  | 'vocaltune';
+  | 'vocaltune'
+  // third-party: a Web Audio Modules 2.0 plugin. Unlike every other kind this
+  // one has no built-in DSP and no static parameter spec — see `Effect.plugin`.
+  | 'wam';
+
+/**
+ * One parameter of a plugin, as it was last seen.
+ *
+ * A plugin's parameters are discovered at runtime by asking the plugin, so
+ * nothing static describes them. Caching the descriptors means an automation
+ * lane, a macro or a control link still renders with a real name, range and
+ * unit when the plugin is absent — the difference between "Cutoff (not in this
+ * version)" and an unnamed grey line.
+ */
+export interface PluginParamCache {
+  id: string;
+  label: string;
+  type: 'float' | 'int' | 'boolean' | 'choice';
+  defaultValue: number;
+  minValue: number;
+  maxValue: number;
+  /** Nonlinear skew of the range, 0 when linear. */
+  exponent?: number;
+  /** Discrete settings; the stored value is an index into this list. */
+  choices?: string[];
+  units?: string;
+}
+
+/**
+ * Which third-party plugin fills an insert slot, and what it was left holding.
+ *
+ * This is the whole of what we persist about a plugin, and it is deliberately
+ * enough to reconstruct the slot without the plugin being present: the name to
+ * show, the place to fetch it from, and the settings to hand back if it ever
+ * loads again. A plugin that fails to load becomes a tombstone built from this
+ * record, never a deletion.
+ */
+export interface PluginRef {
+  /** Stable identity from the plugin's own descriptor, e.g. "com.sequencerParty.simpleDistortion". */
+  identifier: string;
+  /** Where it came from: a curated shelf id ("shelf:distortion") or an absolute URL. */
+  source: string;
+  name: string;
+  vendor: string;
+  version: string;
+  /**
+   * Opaque state from `WamNode.getState()`. We store it and hand it back; we
+   * never interpret it, because only the plugin knows what is in it.
+   */
+  state?: unknown;
+  /** Parameter descriptors from the last successful load. */
+  paramCache?: PluginParamCache[];
+}
 
 export interface Effect {
   id: string;
   kind: EffectKind;
   /** Bypassed effects stay in the chain (and in the project) but pass audio through. */
   bypass: boolean;
-  /** Parameter values by name; see EFFECT_SPECS for ranges and defaults. */
+  /**
+   * Parameter values by name; see EFFECT_SPECS for ranges and defaults.
+   *
+   * For a `'wam'` effect the keys are the plugin's own parameter ids and there
+   * is no spec to validate them against — only the plugin knows their ranges,
+   * so the load path checks them for being finite numbers and keeps them all.
+   * The key scheme is unchanged (`fx:<effectId>:<key>`), which is why
+   * automation, macros and control links need to know nothing about plugins.
+   */
   params: Record<string, number>;
+  /** Present only on `kind: 'wam'`. */
+  plugin?: PluginRef;
 }
 
 /**

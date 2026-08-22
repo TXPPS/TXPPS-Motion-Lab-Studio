@@ -37,11 +37,14 @@
   width: 76px;
 }
 
-/* Empty quick-sampler drop target */
+/* Empty quick-sampler drop target. A drop target is a WELL that lights its
+   rail, not a dashed rectangle (§2.11.9) — this was the third of five. */
 .smp-drop {
   margin: 10px;
   min-height: 110px;
-  border: 2px dashed var(--border-strong);
+  border: none;
+  background: var(--bg-input);
+  box-shadow: var(--sh-well);
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
@@ -60,7 +63,8 @@
   height: 96px;
   margin: 6px 10px 0;
   background: var(--bg-deep);
-  border: 1px solid var(--border);
+  border: none;
+  box-shadow: var(--sh-well-deep);
   border-radius: var(--radius);
   overflow: hidden;
   touch-action: none;
@@ -76,16 +80,18 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(6, 8, 12, 0.62);
+  background: color-mix(in srgb, var(--bg-deep) 68%, transparent);
   pointer-events: none;
 }
+/* A sample loop is a selected range: yellow, like every other range in the
+   product. It was three hand-written blues and two hand-written ambers. */
 .smp-loop {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(66, 133, 244, 0.14);
-  border-left: 1px solid rgba(120, 170, 255, 0.7);
-  border-right: 1px solid rgba(120, 170, 255, 0.7);
+  background: var(--loop-band);
+  border-left: 1px solid var(--solo);
+  border-right: 1px solid var(--solo);
   pointer-events: none;
 }
 .smp-slice {
@@ -93,7 +99,7 @@
   top: 0;
   bottom: 0;
   width: 1px;
-  background: #e8b84a;
+  background: var(--solo);
   opacity: 0.85;
   pointer-events: none;
 }
@@ -103,7 +109,7 @@
   top: 0;
   left: -3px;
   border: 4px solid transparent;
-  border-top-color: #e8b84a;
+  border-top-color: var(--solo);
 }
 .smp-handle {
   position: absolute;
@@ -113,6 +119,7 @@
   cursor: ew-resize;
   z-index: 3;
 }
+/* A trim handle marks where the selection ends. */
 .smp-handle::before {
   content: '';
   position: absolute;
@@ -120,7 +127,7 @@
   bottom: 0;
   left: 4px;
   width: 2px;
-  background: var(--accent);
+  background: var(--solo);
 }
 .smp-handle::after {
   content: '';
@@ -130,11 +137,8 @@
   width: 10px;
   height: 24%;
   border-radius: var(--radius-xs);
-  background: var(--accent);
-}
-.smp-handle.r::before,
-.smp-handle.r::after {
-  background: var(--accent-hi);
+  background: var(--grad-cap);
+  box-shadow: var(--sh-2);
 }
 
 /* Drum pad grid (distinct from the classic .pads performance pads) */
@@ -162,25 +166,26 @@
   overflow: hidden;
 }
 .pad-grid .pad.empty {
-  border-top-color: transparent;
-  border-style: dashed;
+  background: var(--bg-input);
+  box-shadow: var(--sh-well);
   color: var(--text-faint);
   cursor: default;
 }
 .pad-grid .pad.selected {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--solo);
   outline-offset: -2px;
 }
 .pad-grid .pad.muted {
   opacity: 0.45;
 }
+/* A pad being struck IS signal present. */
 .pad-grid .pad:active:not(.empty) {
-  background: linear-gradient(var(--accent), var(--accent-dim));
-  color: var(--text-inverse);
+  background: var(--accent-lamp);
+  color: var(--lamp-ink);
 }
 .pad-grid .pad .pad-name {
   font-size: var(--fs-xs);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -207,7 +212,8 @@
   align-items: center;
   gap: 7px;
   padding: 3px 6px;
-  border: 1px solid var(--border-soft);
+  border: none;
+  box-shadow: var(--sh-1);
   border-radius: var(--radius);
   background: var(--bg-panel-2);
   flex-wrap: wrap;
@@ -225,7 +231,7 @@
 }
 .zone-row .alh-name {
   font-size: var(--fs-xs);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -237,15 +243,17 @@
   min-width: 70px;
   height: 10px;
   border-radius: var(--radius);
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-well);
+  border: none;
+  box-shadow: var(--sh-well);
   overflow: hidden;
 }
+/* A key zone is mapping data. */
 .zone-strip > div {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: var(--accent-dim);
+  background: color-mix(in srgb, var(--mute) 70%, var(--bg-well));
   border-radius: var(--radius);
 }
 
@@ -278,10 +286,12 @@ button.chip:hover {
   border-color: var(--border-strong);
   color: var(--text);
 }
+/* A filter chip is a chrome selection (§2.1). */
 button.chip.on {
-  color: var(--accent);
-  border-color: rgba(55, 184, 154, 0.55);
-  background: rgba(55, 184, 154, 0.09);
+  color: var(--text);
+  border-color: transparent;
+  background: var(--bg-active);
+  box-shadow: var(--sh-inset);
 }
 .sample-row {
   cursor: grab;
@@ -293,8 +303,9 @@ button.chip.on {
   height: 22px;
   border-radius: var(--radius-xs);
   overflow: hidden;
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-well);
+  border: none;
+  box-shadow: var(--sh-well);
   margin-right: 7px;
   pointer-events: none;
 }
@@ -309,7 +320,7 @@ button.chip.on {
   color: var(--text-faint);
 }
 .icon-btn.star.on {
-  color: #e8b84a;
+  color: var(--solo);
 }
 
 @media (max-width: 700px) {

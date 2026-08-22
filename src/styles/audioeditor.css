@@ -20,7 +20,7 @@
   align-items: center;
   gap: var(--sp-4);
   padding: var(--sp-3) var(--sp-4);
-  border-bottom: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-b);
 }
 .ae-name {
   font-size: var(--fs-lg);
@@ -28,10 +28,12 @@
   color: var(--text);
 }
 
+/* The waveform is the work surface: a deep well cut into the editor. */
 .ae-wave {
   position: relative;
   min-height: 0;
   background: var(--bg-deep);
+  box-shadow: var(--sh-well-deep);
   overflow: hidden;
 }
 .ae-wave > * {
@@ -45,11 +47,12 @@
   inset: 0;
   pointer-events: none;
 }
+/* Detected notes are MIDI material, which is the data domain (§2.1). */
 .ae-detected span {
   position: absolute;
   height: 3px;
   border-radius: var(--radius-xs);
-  background: var(--warm-hi);
+  background: var(--mute);
 }
 
 .ae-body {
@@ -98,10 +101,12 @@
   gap: 2px;
   height: 44px;
   padding: var(--sp-1);
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-well);
+  border: none;
+  box-shadow: var(--sh-well);
   border-radius: var(--radius);
 }
+/* Within tolerance is the working state; out of it is the warning. */
 .ae-err {
   flex: 1 1 0;
   min-width: 2px;
@@ -136,7 +141,7 @@
   top: 0;
   bottom: 0;
   width: 1px;
-  background: var(--warm-line);
+  background: var(--mute-line);
   opacity: 0.45;
   pointer-events: none;
 }
@@ -154,6 +159,8 @@
 }
 /* The hairline is drawn rather than sized, so the hit area can stay finger-wide
    while the line stays one pixel. */
+/* A warp marker pins audio to the grid: analysis, so the data colour, and
+   neutral white while it is being dragged, because that is the live value. */
 .ae-warp-marker::before {
   content: '';
   position: absolute;
@@ -161,13 +168,12 @@
   bottom: 0;
   left: 5px;
   width: 1px;
-  background: var(--accent-hi);
+  background: var(--mute);
 }
 .ae-warp-marker:hover::before,
 .ae-warp-marker:focus-visible::before,
 .ae-warp-marker.dragging::before {
   background: var(--text);
-  box-shadow: 0 0 0 1px var(--accent-line);
 }
 .ae-warp-marker:focus-visible {
   outline: none;
@@ -178,13 +184,15 @@
   left: 5px;
   padding: 1px var(--sp-2);
   border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
-  background: var(--accent);
-  color: var(--text-inverse);
-  font: var(--fw-semibold) var(--fs-2xs) / 1.3 var(--font-num);
+  background: var(--mute-lamp);
+  color: var(--lamp-ink);
+  font: var(--fw-medium) var(--fs-2xs) / 1.3 var(--font-num);
   pointer-events: none;
   white-space: nowrap;
 }
+/* Hovering lights the flag rather than recolouring it: --mute-hi is a
+   DARKENED variant in the light theme, and dark ink on it would fail. */
 .ae-warp-marker.dragging .ae-warp-flag,
 .ae-warp-marker:hover .ae-warp-flag {
-  background: var(--accent-hi);
+  box-shadow: 0 0 7px -1px color-mix(in srgb, var(--mute-lamp) 60%, transparent);
 }

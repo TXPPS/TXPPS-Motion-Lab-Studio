@@ -25,6 +25,8 @@ import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth'
 import { RackInstrument, SamplerInstrument, type RackChild } from './samplerInstrument';
 import { defaultSamplerParams, type SamplerParams } from '../model/sampler';
 import { InsertChain } from './effectChain';
+import { onPluginsResolved, preloadPlugins } from './wam/pluginPool';
+import { useUiStore } from '../state/uiStore';
 import { applyEnvelope, computeClipSchedule } from './clipSchedule';
 import { expandCompClip } from '../model/comping';
 import { Scheduler } from './scheduler';
@@ -207,6 +209,10 @@ class AudioEngine {
   private pausedAtBeat = 0;
   private lastBpm = 0;
   private storeUnsub: (() => void) | null = null;
+  private pluginUnsub: (() => void) | null = null;
+  /** Plugins we have already told the user about, so a failing plugin produces
+   *  one message rather than one per project edit. */
+  private reportedPluginFailures = new Set<string>();
 
   // ---- automation state ----
   /** Bindings applied at control rate; rebuilt on every project change. */
@@ -276,6 +282,12 @@ class AudioEngine {
         ctx.onstatechange = () => this.reflectContextState();
         this.subscribeToProject();
         this.syncGraph(useProjectStore.getState().project, true);
+        // A plugin lands after the graph was built without it, so the graph has
+        // to be rebuilt when it does. This is the return half of the seam.
+        this.pluginUnsub ??= onPluginsResolved(() => {
+          if (this.ctx) this.syncGraph(useProjectStore.getState().project, false);
+        });
+        this.preloadPluginsFor(useProjectStore.getState().project);
         this.startFrameLoop();
         diagLog('info', `AudioContext created (${ctx.sampleRate} Hz)`);
       }
@@ -400,7 +412,42 @@ class AudioEngine {
   private subscribeToProject(): void {
     if (this.storeUnsub) return;
     this.storeUnsub = useProjectStore.subscribe((s, prev) => {
-      if (s.project !== prev.project) this.syncGraph(s.project, false);
+      if (s.project !== prev.project) {
+        this.syncGraph(s.project, false);
+        this.preloadPluginsFor(s.project);
+      }
+    });
+  }
+
+  /**
+   * Resolve any third-party plugins the project needs, off the graph path.
+   *
+   * `syncGraph` above is synchronous and must stay that way — it runs on every
+   * project-store change, and an await inside it would let two overlapping
+   * edits interleave into one graph. So plugin instantiation, which is
+   * unavoidably asynchronous, happens *beside* the sync rather than inside it:
+   * the graph builds now with a pass-through where the plugin will go, the
+   * plugin resolves a moment later, and `onPluginsResolved` brings us back here
+   * for a second sync that picks it up. This is the same shape as decoded audio
+   * — `loadBuffer` off the path, `getBufferSync` on it.
+   */
+  private preloadPluginsFor(p: ProjectData): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    // Called unconditionally rather than behind a "does this project use
+    // plugins" guard, because the same pass is what *releases* an instance
+    // whose insert has just been deleted — and an unreferenced plugin is an
+    // AudioWorklet processor still running on the audio thread.
+    void preloadPlugins(p, ctx).then((report) => {
+      for (const f of report.failed) {
+        if (this.reportedPluginFailures.has(f.effectId)) continue;
+        this.reportedPluginFailures.add(f.effectId);
+        // The insert is still in the chain with its settings — this says what
+        // is missing rather than letting the project open quietly wrong.
+        useUiStore
+          .getState()
+          .toast('error', `Plugin "${f.ref.name}" could not be loaded. ${f.reason}`);
+      }
     });
   }
 
@@ -1957,5 +2004,14 @@ if (typeof window !== 'undefined') {
     isRunning: () => engine.isRunning(),
     automationValueAt: (trackId: string, paramId: string) =>
       engine.automationValueAt(trackId, paramId),
+    // Plugin parity can only be measured in a real browser: jsdom has neither
+    // an AudioWorklet nor an OfflineAudioContext, and the probe needs both. A
+    // lazy import rather than a static one, so the probe and the plugin SDK
+    // stay out of the main bundle for a session that never loads a plugin.
+    wamParity: () => import('./wam/parityProbe'),
+    // The other half of the seam: whether a plugin resolved on the *live*
+    // context after a project edit, and whether the chain noticed. Both are
+    // read-only lookups — nothing here can instantiate or mutate anything.
+    wamPool: () => import('./wam/pluginPool'),
   };
 }

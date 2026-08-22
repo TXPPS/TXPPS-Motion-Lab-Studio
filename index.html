@@ -7,12 +7,32 @@
       name="description"
       content="TXPPS MotionLab Studio — Professional Music Production. Anywhere."
     />
-    <meta name="theme-color" content="#11161c" />
+    <meta name="theme-color" content="#191715" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="mobile-web-app-capable" content="yes" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <!--
+      IBM Plex, in three widths of one superfamily: Sans for content, Sans
+      Condensed for the uppercase micro-labels a 96px channel strip is made of,
+      and Mono for every number in the product. Drawn for engineering
+      documentation, so it has a mechanical voice at 10px, real tabular figures
+      and a slashed zero — and it is deliberately none of the faces the "AI
+      slop" critiques name first (Inter, Roboto, Poppins, Montserrat).
+
+      `display=swap` is the whole reason this is allowed to exist: a DAW must
+      paint its chrome on the first frame and work with no network at all, so
+      the browser renders immediately in the system UI face from --font and
+      swaps Plex in when it arrives. Nothing in the layout depends on Plex's
+      metrics. Google Fonts is the only external origin the product uses.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
     <title>TXPPS MotionLab Studio</title>
   </head>
   <body>

@@ -123,7 +123,9 @@ export function PluginWindow() {
 
   return (
     <div
-      className="plugin-window"
+      // `fam-*` puts the processor family's colour on the header rail, which is
+      // how you tell nine open windows apart without reading any of them.
+      className={`plugin-window fam-${spec?.group ?? 'utility'}`}
       ref={panelRef}
       style={{ left: pos.x, top: pos.y }}
       role="dialog"

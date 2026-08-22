@@ -140,6 +140,30 @@ export async function freezeTrack(trackId: string): Promise<boolean> {
 }
 
 /**
+ * Print the tracks an export refuses to render live, then say whether it worked.
+ *
+ * This is the route out of a `print-required` plugin — one whose parity probe
+ * measured it rendering differently offline than it plays. Freezing is not a
+ * second renderer and cannot become one: `freezeTrack` above prints through
+ * `renderProject` on a single-track project, the same call an export makes, so
+ * a print cannot drift from a bounce. What changes is only *when* the plugin
+ * ran — during the freeze, at whatever rate that render went at — and the
+ * bounce afterwards is reading a finished audio file rather than asking the
+ * plugin anything.
+ *
+ * Sequential rather than parallel: each freeze is a full offline render, and
+ * running four at once on a laptop is how you turn a wait into a stall.
+ */
+export async function freezeTracksForExport(trackIds: readonly string[]): Promise<string[]> {
+  const failed: string[] = [];
+  for (const id of trackIds) {
+    const ok = await freezeTrack(id);
+    if (!ok) failed.push(id);
+  }
+  return failed;
+}
+
+/**
  * Give the instrument back.
  *
  * The print stops being referenced, and the engine drops its decoded copy on

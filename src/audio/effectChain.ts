@@ -48,6 +48,8 @@ import {
   timeConstantHz,
 } from './dsp/curves';
 import type { Effect } from '../model/types';
+import { getPluginSync, pluginToken } from './wam/pluginPool';
+import { buildWamEffectNode } from './wam/wamEffectNode';
 
 const RAMP = 0.02;
 
@@ -2047,9 +2049,40 @@ export function buildEffectNode(ctx: BaseAudioContext, effect: Effect): EffectNo
       });
     case 'vocaltune':
       return buildPassThrough(ctx, effect);
+    case 'wam':
+      return buildPlugin(ctx, effect);
     default:
       return buildPassThrough(ctx, effect);
   }
+}
+
+/**
+ * A third-party plugin slot.
+ *
+ * The instance is looked up *synchronously* — it was resolved ahead of time by
+ * `preloadPlugins`, exactly as a clip's audio is decoded ahead of time by
+ * `preloadForRender` and then found with `getBufferSync`. If it is not there
+ * this is a unity pass-through, and that covers both of the reasons it might
+ * not be:
+ *
+ * - it is still loading, in which case the chain rebuilds when it lands
+ *   (`pluginToken` folds the pool's state into the chain's shape signature, so
+ *   a plugin arriving *is* a shape change);
+ * - it could not be loaded at all, in which case this stays a pass-through and
+ *   the effect remains in the chain as a tombstone — in order, with its name,
+ *   its source and every parameter value intact, so nothing is destroyed and a
+ *   retry can still restore it.
+ *
+ * Either way audio flows immediately and the graph never waits.
+ */
+function buildPlugin(ctx: BaseAudioContext, effect: Effect): EffectNode {
+  const record = getPluginSync(ctx, effect.id);
+  if (!record) return buildPassThrough(ctx, effect);
+  return buildWamEffectNode(ctx, effect, {
+    instance: record.instance,
+    appliedParams: record.appliedParams,
+    initialBypass: record.bypass,
+  });
 }
 
 /**
@@ -2084,7 +2117,12 @@ export class InsertChain {
    * re-sync never stomps a value the automation engine currently owns.
    */
   sync(effects: Effect[], bpm: number, overrides?: Map<string, Record<string, number>>): void {
-    const sig = effects.map((e) => `${e.id}:${e.kind}`).join('|');
+    // `pluginToken` is empty for every built-in kind, so the signature is
+    // unchanged for them. For a plugin it carries the pool's state — pending,
+    // failed, or the instance's own id — which is what makes a plugin finishing
+    // its (asynchronous) load register here as a change of shape. Without it the
+    // placeholder pass-through would never be replaced.
+    const sig = effects.map((e) => `${e.id}:${e.kind}${pluginToken(this.ctx, e)}`).join('|');
     if (sig !== this.signature) {
       this.rebuild(effects);
       this.signature = sig;

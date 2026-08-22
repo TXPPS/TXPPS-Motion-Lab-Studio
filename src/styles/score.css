@@ -26,7 +26,7 @@
   gap: var(--sp-3);
   padding: 0 var(--sp-4);
   background: var(--bg-panel-2);
-  border-bottom: 1px solid var(--border-soft);
+  box-shadow: var(--ml-seam-b);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -101,29 +101,35 @@
   font-size: var(--fs-xs);
   color: var(--text-dim);
   background: var(--bg-input);
-  border: 1px solid var(--border-soft);
+  border: none;
+  box-shadow: var(--sh-well);
   border-radius: var(--radius);
   cursor: pointer;
 }
 .sc-tool:hover:not(:disabled) {
   color: var(--text);
-  border-color: var(--border);
+  background: var(--bg-hover);
 }
+/* An armed tool is a chrome selection: a cap seated in the palette's well
+   (§2.1, §2.6). */
 .sc-tool.on {
-  color: var(--accent-hi);
-  border-color: var(--accent);
-  background: var(--accent-bg);
+  color: var(--text);
+  border-color: transparent;
+  background: var(--grad-cap);
+  box-shadow: var(--sh-2);
 }
 .sc-tool:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
+/* One well holding cap-less segments (§2.6). */
 .sc-palette {
   display: inline-flex;
   gap: 1px;
   padding: 1px;
-  background: var(--border-soft);
+  background: var(--bg-well);
+  box-shadow: var(--sh-well);
   border-radius: var(--radius);
   overflow: hidden;
 }
@@ -145,8 +151,9 @@
   background: var(--bg-hover);
 }
 .sc-dur.on {
-  color: var(--accent-hi);
-  background: var(--accent-bg);
+  color: var(--text);
+  background: var(--grad-cap);
+  box-shadow: var(--sh-2);
 }
 .sc-dur:disabled {
   opacity: 0.3;
@@ -215,8 +222,8 @@
 }
 
 .sc-marquee {
-  fill: var(--accent-bg);
-  stroke: var(--accent);
+  fill: var(--solo-bg);
+  stroke: var(--solo);
   stroke-width: 1px;
   pointer-events: none;
 }
@@ -306,11 +313,12 @@
 }
 
 .sc-el-note:hover {
-  color: var(--accent-hi);
+  color: var(--text);
 }
 
+/* A selected note is musical selection. */
 .sc-el-note.selected {
-  color: var(--warm-hi);
+  color: var(--solo-hi);
 }
 
 /*
@@ -322,7 +330,7 @@
   box-shadow: none;
 }
 .sc-el:focus-visible .sc-hit {
-  fill: var(--accent-bg);
+  fill: none;
   stroke: var(--border-focus);
   stroke-width: 2px;
   rx: 3px;

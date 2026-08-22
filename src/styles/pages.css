@@ -26,18 +26,21 @@
   gap: var(--sp-4);
   padding: var(--sp-4) var(--sp-5);
   background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
+  box-shadow: var(--ml-seam-b);
 }
 
 /* ---------------------------------------------------- page navigation */
+/* A segmented control is a single WELL holding cap-less segments; the selected
+   one is a cap seated in it (§2.6). */
 .page-nav {
   display: flex;
   align-items: center;
   gap: 2px;
   flex: none;
   padding: 2px;
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-input);
+  border: none;
+  box-shadow: var(--sh-well);
   border-radius: var(--radius);
 }
 .page-tab {
@@ -60,9 +63,9 @@
   color: var(--text);
 }
 .page-tab.on {
-  background: var(--accent-bg);
-  color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent-line);
+  background: var(--grad-cap);
+  box-shadow: var(--sh-2);
+  color: var(--text);
 }
 .page-tab:disabled {
   opacity: var(--opacity-disabled);
@@ -73,13 +76,17 @@
    Start page
    ============================================================ */
 
+/*
+ * Flat. The two tinted radial washes that were here are the closest thing in
+ * the product to the "soft two-hue gradient background" tell — the only legal
+ * gradients are a machined control body and a meter fill (§2.11.1) — and they
+ * spent two semantic colours on decoration.
+ */
 .start-page {
   height: 100%;
   min-height: 0;
   overflow: auto;
-  background:
-    radial-gradient(1100px 460px at 12% -8%, var(--accent-bg), transparent 62%),
-    radial-gradient(900px 420px at 96% 4%, var(--warm-bg), transparent 60%), var(--bg-app);
+  background: var(--bg-app);
 }
 .start-inner {
   max-width: 1180px;
@@ -131,8 +138,10 @@
   border-color: var(--border-strong);
 }
 .start-list li.current {
-  border-color: var(--accent-line);
-  background: var(--accent-bg);
+  background: var(--bg-active);
+  box-shadow:
+    var(--sh-inset),
+    inset 2px 0 0 var(--edge-hi);
 }
 .start-item {
   flex: 1 1 auto;
@@ -274,8 +283,10 @@
   background: var(--bg-hover);
 }
 .ms-item.selected {
-  border-color: var(--accent-line);
-  background: var(--accent-bg);
+  background: var(--bg-active);
+  box-shadow:
+    var(--sh-inset),
+    inset 2px 0 0 var(--edge-hi);
 }
 .ms-num {
   font-family: var(--font-num);
@@ -296,7 +307,7 @@
   text-align: right;
 }
 .ms-lufs.off {
-  color: var(--warm);
+  color: var(--warm-hi);
 }
 .ms-tp.over {
   color: var(--danger-text);
@@ -337,8 +348,8 @@
   border-color: var(--border-strong);
 }
 .ms-target.on {
-  border-color: var(--accent);
-  background: var(--accent-bg);
+  background: var(--bg-active);
+  box-shadow: var(--sh-inset);
 }
 .mst-name {
   font-size: var(--fs-sm);
@@ -356,30 +367,36 @@
   gap: var(--sp-2);
   margin-top: var(--sp-3);
 }
+/* A measured value lives in a well — the shallow one, because it holds text. */
 .ms-cell {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1px;
   padding: var(--sp-3) var(--sp-2);
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-input);
+  border: none;
+  box-shadow: var(--sh-well);
   border-radius: var(--radius);
 }
 .ms-cell.warn {
   border-color: var(--warm-line);
 }
 .ms-val {
+  font-family: var(--font-num);
   font-size: var(--fs-lg);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-medium);
   color: var(--text);
 }
 .ms-cell.warn .ms-val {
-  color: var(--warm);
+  color: var(--warm-hi);
 }
 .ms-unit,
 .ms-label {
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-wide);
   color: var(--text-faint);
 }
 .ms-verdict {
@@ -389,12 +406,13 @@
   padding: var(--sp-3);
   border-radius: var(--radius);
 }
+/* "This master meets its target" is the working state, which is the green. */
 .ms-verdict.ok {
   color: var(--accent);
   background: var(--accent-bg);
 }
 .ms-verdict.warn {
-  color: var(--warm);
+  color: var(--warm-hi);
   background: var(--warm-bg);
 }
 
@@ -435,9 +453,11 @@
   border-radius: var(--radius);
   padding-right: var(--sp-2);
 }
+/* Cued is a selection in a list, so it is light (§2.1). The entry keeps its
+   own 4px identity rail, which is what tells the entries apart. */
 .show-entry.cued {
-  border-color: var(--accent);
-  background: var(--accent-bg);
+  background: var(--bg-active);
+  box-shadow: var(--sh-inset);
 }
 .se-main {
   flex: 1 1 auto;
@@ -495,25 +515,34 @@
   font-weight: var(--fw-bold);
   letter-spacing: var(--ls-tight);
 }
+/* Coloured text takes the darkened -hi variant, which is the only form the
+   accent law allows a hue to take as text (§2.1). */
 .stage-note {
   font-size: var(--fs-lg);
-  color: var(--warm);
+  color: var(--solo-hi);
   line-height: var(--lh-body);
 }
+/* The show readout is the biggest display window in the product: a deep well,
+   and the number in it is neutral, because a live value is never a hue. */
 .stage-readout {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--sp-1);
   padding: var(--sp-5);
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-input);
+  border: none;
+  box-shadow: var(--sh-well-deep);
   border-radius: var(--radius-lg);
 }
 .stage-pos {
+  font-family: var(--font-num);
   font-size: var(--fs-3xl);
-  font-weight: var(--fw-bold);
-  color: var(--accent-hi);
+  font-weight: var(--fw-normal);
+  font-feature-settings:
+    'tnum' 1,
+    'zero' 1;
+  color: var(--text);
 }
 .stage-tempo {
   font-size: var(--fs-lg);
@@ -532,19 +561,29 @@
   width: 60px;
   height: 60px;
   border-radius: var(--radius-lg);
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
+  background: var(--grad-cap);
+  border: none;
+  box-shadow: var(--sh-2);
   color: var(--text);
 }
-.stage-btn:hover {
+.stage-btn:hover:not(:disabled) {
   background: var(--bg-hover);
 }
+.stage-btn:active:not(:disabled) {
+  background: var(--bg-panel-2);
+  box-shadow: var(--sh-pressed);
+}
+/* GO is the one button on this page that means signal is about to pass, so it
+   is the green — as a lamp, with no border, because no element takes both a
+   ring and a shadow (§2.4 rule 4). */
 .stage-btn.go {
   width: 84px;
   height: 84px;
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-inverse);
+  --lamp: var(--accent-lamp);
+  background: var(--lamp);
+  border: none;
+  box-shadow: var(--ml-lamp-on);
+  color: var(--lamp-ink);
 }
 /* --text-inverse, not white: it is the only label colour that clears AA on
    --danger in all three themes (white fails on the contrast theme's #ff6b62 at
@@ -552,14 +591,16 @@
    .stage-btn.go already uses, so the button does not change species when it
    goes live. */
 .stage-btn.go.on {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: var(--text-inverse);
+  --lamp: var(--danger-lamp);
+  background: var(--lamp);
+  border: none;
+  box-shadow: var(--ml-lamp-on);
+  color: var(--lamp-ink);
 }
 .stage-btn.on:not(.go) {
-  color: var(--accent);
-  background: var(--accent-bg);
-  border-color: var(--accent-line);
+  color: var(--text);
+  background: var(--bg-active);
+  box-shadow: var(--sh-pressed), var(--sh-inset);
 }
 .stage-btn:disabled {
   opacity: var(--opacity-disabled);
@@ -615,8 +656,9 @@
   width: 28px;
   height: 28px;
   border-radius: var(--radius);
-  background: var(--accent-bg);
-  color: var(--accent);
+  background: var(--bg-input);
+  box-shadow: var(--sh-well);
+  color: var(--text-dim);
 }
 .news-list li > div {
   display: flex;

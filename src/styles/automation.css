@@ -1,8 +1,17 @@
-/* Automation lanes (arrangement) + mixer automation affordances. */
+/*
+ * Automation lanes (arrangement) + mixer automation affordances.
+ *
+ * Automation is the DATA DOMAIN, and the data domain is blue (§2.1): a curve,
+ * a mode, a written value. It was drawn in the accent, which is the colour
+ * that means signal is passing — so a lane full of automation and a channel
+ * passing audio said the same thing in the same green.
+ */
 
+/* A lane is a work surface, so it is separated from the one above it by a
+   hairline rather than by a dashed rule — dashes are for nothing here. */
 .auto-lane {
   position: relative;
-  border-top: 1px dashed var(--border-soft);
+  border-top: 1px solid var(--border-soft);
   background: color-mix(in srgb, var(--bg-deep) 18%, transparent);
   overflow: hidden;
   contain: strict;
@@ -23,16 +32,16 @@
 }
 .auto-line {
   fill: none;
-  stroke: var(--al-color, var(--accent));
+  stroke: var(--al-color, var(--mute));
   stroke-width: 1.6;
 }
 .auto-fill {
-  fill: var(--al-color, var(--accent));
+  fill: var(--al-color, var(--mute));
   opacity: 0.1;
   stroke: none;
 }
 .auto-static {
-  stroke: var(--al-color, var(--accent));
+  stroke: var(--al-color, var(--mute));
   stroke-width: 1;
   stroke-dasharray: 4 4;
   opacity: 0.5;
@@ -44,7 +53,7 @@
   height: 9px;
   border-radius: 50%;
   background: var(--bg-panel);
-  border: 1.5px solid var(--al-color, var(--accent));
+  border: 1.5px solid var(--al-color, var(--mute));
   box-sizing: border-box;
   cursor: grab;
   touch-action: none;
@@ -62,18 +71,19 @@
 }
 .auto-pt:hover {
   transform: scale(1.35);
-  background: var(--al-color, var(--accent));
+  background: var(--al-color, var(--mute));
 }
 .auto-pt.selected {
-  background: var(--al-color, var(--accent));
+  background: var(--al-color, var(--mute));
   border-color: var(--text);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--text) 22%, transparent);
 }
 
+/* A marquee is a selection, and selection is yellow. */
 .auto-marquee {
   position: absolute;
-  border: 1px solid var(--al-color, var(--accent));
-  background: var(--accent-bg);
+  border: 1px solid var(--solo-line);
+  background: var(--solo-bg);
   pointer-events: none;
   z-index: 3;
 }
@@ -84,7 +94,7 @@
   align-items: center;
   gap: 5px;
   padding: 0 6px 0 14px;
-  border-top: 1px dashed var(--border-soft);
+  border-top: 1px solid var(--border-soft);
   background: var(--bg-panel);
   position: relative;
   overflow: hidden;
@@ -98,7 +108,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--al-color, var(--accent));
+  background: var(--al-color, var(--mute));
   flex: none;
 }
 .alh-name {
@@ -115,7 +125,7 @@
   flex: none;
 }
 .alh-power.on {
-  color: var(--al-color, var(--accent));
+  color: var(--al-color, var(--mute));
 }
 .alh-resize {
   position: absolute;
@@ -129,28 +139,35 @@
 
 /* Track header automation controls */
 .th-auto.a-on {
-  color: var(--warm);
-  border-color: currentColor;
+  --lamp: var(--mute-lamp);
+  color: var(--lamp-ink);
+  background: var(--lamp);
+  box-shadow: var(--ml-lamp-on);
 }
+/* An automation mode is a value you read: a field cut into the desk. */
 .th-automode {
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
   height: 18px;
   max-width: 58px;
-  background: var(--bg-deep);
+  background: var(--bg-input);
   color: var(--text-faint);
-  border: 1px solid var(--border-soft);
+  border: none;
+  box-shadow: var(--sh-well);
   border-radius: var(--radius-xs);
 }
 
-/* Mixer: automation + bus affordances */
+/* Mixer: automation + bus affordances.
+   The strip's automation dot is a 4px LED in the data colour (§2.9). */
 .strip-auto-dot {
   display: inline-block;
   margin-left: 5px;
   padding: 0 3px;
   border-radius: var(--radius-xs);
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
   line-height: 12px;
-  color: var(--warm);
+  color: var(--mute-hi);
   border: 1px solid currentColor;
   vertical-align: 1px;
 }
@@ -162,7 +179,7 @@
   font-size: var(--fs-2xs);
   line-height: 12px;
   letter-spacing: var(--ls-caps);
-  color: var(--strip-color, var(--accent));
+  color: var(--strip-color, var(--text-dim));
   border: 1px solid currentColor;
   vertical-align: 1px;
 }
@@ -171,17 +188,17 @@
    surface with the bus's own colour is the same move .strip.vca and .strip.fx
    already make, and it survives a light ground. */
 .strip.bus {
-  background: color-mix(in srgb, var(--strip-color, var(--accent)) 12%, var(--bg-panel-2));
+  background: color-mix(in srgb, var(--strip-color, var(--bg-raised)) 12%, var(--bg-panel-2));
 }
 .strip.bus .strip-name {
-  color: var(--strip-color, var(--accent));
+  color: var(--text);
 }
 
 /* ---- Milestone 6: takes, comping, editing affordances ---- */
 
 .take-lane {
   position: relative;
-  border-top: 1px dashed var(--border-soft);
+  border-top: 1px solid var(--border-soft);
   background: color-mix(in srgb, var(--bg-deep) 22%, transparent);
   overflow: hidden;
   contain: strict;
@@ -224,7 +241,7 @@
   align-items: center;
   gap: 4px;
   padding: 0 6px 0 20px;
-  border-top: 1px dashed var(--border-soft);
+  border-top: 1px solid var(--border-soft);
   background: var(--bg-panel);
   overflow: hidden;
   font-size: var(--fs-xs);
@@ -267,13 +284,20 @@
   border-radius: var(--radius-xs);
   padding: 0 2px;
 }
+/* Group membership is "this control is driven from somewhere else", which is
+   exactly what violet means (§2.1) — the same family as a VCA and a key. The
+   hue is the badge's fill and border; the letters are neutral, because violet
+   ships without a darkened -hi variant and measures 4.31 as text on the strip
+   body in the light theme. */
 .th-group {
   margin-left: 5px;
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
   padding: 0 3px;
   border-radius: var(--radius-xs);
-  color: var(--accent);
-  border: 1px solid currentColor;
+  color: var(--text);
+  background: var(--key-bg);
+  border: 1px solid var(--key-line);
 }
 
 /* Bigger, friendlier hit targets for clip editing. */

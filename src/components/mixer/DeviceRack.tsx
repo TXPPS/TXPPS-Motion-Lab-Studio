@@ -25,6 +25,7 @@ import type { Effect, EffectKind, Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
+import { SHELF, addShelfPlugin } from '../../audio/wam/shelf';
 
 /**
  * One channel's device chain, whatever kind of channel it is.
@@ -194,9 +195,12 @@ function DeviceSlot({
 
   return (
     <li
-      className={`dev-slot${effect.bypass ? ' bypassed' : ''}${open ? ' open' : ''}${
-        dropIndex === index ? ' drop-before' : ''
-      }`}
+      // `fam-*` carries the processor family to the slot's 2px rail. It is the
+      // one thing the rack draws that CSS cannot work out for itself, and the
+      // spec is already in hand.
+      className={`dev-slot fam-${spec?.group ?? 'utility'}${effect.bypass ? ' bypassed' : ''}${
+        open ? ' open' : ''
+      }${dropIndex === index ? ' drop-before' : ''}`}
       data-testid={`device-${rack.name}-${index + 1}`}
       draggable
       onDragStart={(e) => {
@@ -305,6 +309,18 @@ function AddDevice({ rack, full }: { rack: RackHost; full: boolean }) {
                 action: () => addAndOpen(sp.kind),
               })),
             ]),
+            // Third-party plugins are chosen by name, not by kind: the shelf
+            // is what says which plugin, so the picker adds it directly rather
+            // than going through `rack.add` with a bare kind.
+            { label: '— Plugins —', disabled: true, action: () => {} },
+            ...SHELF.map((entry) => ({
+              label: entry.name,
+              action: () => {
+                const id = addShelfPlugin(rack.add, entry.id);
+                if (!id) return ui.toast('error', `Insert limit is ${MAX_INSERTS}.`);
+                ui.set({ openDevice: { trackId: rack.id, effectId: id } });
+              },
+            })),
             { label: '— Chains —', disabled: true, action: () => {} },
             ...CHAIN_PRESETS.map((c) => ({
               label: c.name,

@@ -6,3 +6,19 @@
 
 /index.html
   Cache-Control: no-cache
+
+# Self-hosted plugin bundles. Versioned by path and never changed in place, so
+# they can be cached hard. `Access-Control-Allow-Origin` is deliberate: it lets
+# other WAM hosts load the plugins we serve, which costs us nothing and is good
+# citizenship in a small ecosystem.
+#
+# Note what is NOT here: no Cross-Origin-Opener-Policy and no
+# Cross-Origin-Embedder-Policy. Hosting WAM plugins does not need cross-origin
+# isolation — the SDK's SharedArrayBuffer transport is opt-in by the plugin and
+# feature-gated on the constructor existing, and browsers hide that constructor
+# unless the page is isolated, so every plugin falls back to the MessagePort
+# path and works. Turning isolation on would break cross-origin assets and the
+# service worker's precache to buy a faster path we do not use.
+/plugins/*
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *

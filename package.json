@@ -2,7 +2,7 @@
   "name": "txpps-motionlab-studio",
   "private": true,
   "version": "0.1.0",
-  "description": "TXPPS MotionLab Studio \u2014 Professional Music Production. Anywhere.",
+  "description": "TXPPS MotionLab Studio — Professional Music Production. Anywhere.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -19,6 +19,8 @@
     "shot": "node scripts/screenshot.mjs"
   },
   "dependencies": {
+    "@webaudiomodules/api": "2.0.0-alpha.6",
+    "@webaudiomodules/sdk": "0.0.12",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-resizable-panels": "^4.12.2",

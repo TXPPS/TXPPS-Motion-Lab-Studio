@@ -18,11 +18,14 @@ body {
   font-size: var(--fs-md);
   line-height: var(--lh-tight);
   /* Contextual alternates off, tabular figures on: readouts must not jitter as
-     digits change, and a DAW has a lot of live digits. */
+     digits change, and a DAW has a lot of live digits.
+     `cv08` used to be here too. It is an Inter-specific character variant, and
+     Inter left the stack in 3d787cc — so the product was asking a font it does
+     not load for a feature it does not have. The slashed zero it was reaching
+     for is a real instrument-panel signal and is applied to numerics below,
+     where IBM Plex Mono answers it with `zero`. */
   font-variant-numeric: tabular-nums;
-  font-feature-settings:
-    'tnum' 1,
-    'cv08' 1;
+  font-feature-settings: 'tnum' 1;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
   touch-action: manipulation;
@@ -57,6 +60,13 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * A value field is a well: something lives in it. It keeps its outline as well
+ * as its inset ring, which is the one place the material table and the border
+ * budget disagree — a field has to be *findable* in a dense panel, and the
+ * hover and focus states already ride on `border-color`, so moving them to a
+ * shadow would put them in a fight with the global focus ring for no gain.
+ */
 input,
 select,
 textarea {
@@ -65,6 +75,7 @@ textarea {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  box-shadow: var(--sh-well);
   padding: var(--sp-2) var(--sp-3);
   outline: none;
   min-width: 0;
@@ -77,10 +88,12 @@ textarea:hover:not(:disabled) {
   border-color: var(--border-strong);
 }
 
+/* The focus outline is neutral, never a semantic colour: a hue on a focus ring
+   is a hue that has stopped carrying its own meaning everywhere else. */
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: var(--accent-dim);
+  border-color: var(--border-focus);
 }
 
 input:disabled,
@@ -133,10 +146,18 @@ select option {
   position: relative;
   z-index: var(--z-panel-chrome);
 }
+/*
+ * Material costs the focus ring something, and it has to be paid back by hand.
+ * Every state below writes its own box-shadow — that is what a cap, a well and
+ * a pressed cap *are* — and a class selector outranks the bare `:focus-visible`
+ * above, so without these the ring would vanish on exactly the controls that
+ * carry state. Each new shadowed state needs a line here.
+ */
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   border-color: var(--border-focus);
+  box-shadow: var(--sh-focus);
 }
 
 /*
@@ -170,12 +191,17 @@ html {
   scrollbar-color: var(--border-strong) transparent;
 }
 
-.mono {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Shared control primitives */
+/* Shared control primitives ------------------------------------------------ */
+/*
+ * A button is a CAP: a machined body you press. The waist — the hard value
+ * change at 46%/47% of `--grad-cap` — is what stops it reading as a rounded
+ * rectangle, and pressing swaps the cap's shadow for the well's, which is what
+ * a pressed button actually looks like. It used to be a 0.5px translate and a
+ * 3 L* background change nobody could see.
+ *
+ * No element takes both `--sh-2` and a border: the 1px ring is already inside
+ * the token.
+ */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -184,50 +210,62 @@ html {
   height: var(--control-h);
   padding: 0 10px;
   border-radius: var(--radius);
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
+  background: var(--grad-cap);
+  box-shadow: var(--sh-2);
+  border: none;
   color: var(--text);
+  font-family: var(--font);
   font-size: var(--fs-sm);
-  font-weight: 500;
+  font-weight: var(--fw-normal);
   white-space: nowrap;
   user-select: none;
 }
 .btn {
   transition:
     background var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out);
 }
+/* Hover lifts the cap's top stop one step toward the light. It is the same
+   move in all three themes because `--cap-hover` is a per-theme value, not a
+   white overlay — a white overlay reads as "lighter" in the dark theme and as
+   "washed out" in the light one. */
 .btn:hover:not(:disabled) {
-  background: var(--bg-hover);
-  border-color: var(--border-strong);
+  --cap-hi: var(--cap-hover);
 }
 .btn:active:not(:disabled) {
-  background: var(--bg-active);
+  background: var(--bg-panel-2);
+  box-shadow: var(--sh-pressed);
   transform: translateY(0.5px);
 }
+/* Engaged chrome is a LIGHTER SURFACE plus a light top edge, never a colour.
+   Colour in this product means one thing each — signal, solo, mute, record,
+   keyed — and a toggled toolbar button is none of them. */
 .btn.on {
-  background: var(--accent-bg);
-  border-color: var(--accent-line);
-  color: var(--accent);
+  background: var(--bg-active);
+  box-shadow:
+    var(--sh-pressed),
+    inset 0 1px 0 var(--edge-hi);
+  color: var(--text);
 }
 .btn.primary {
   /* The label has to invert with the accent: the light theme's accent is a dark
-     teal, and the near-black this used to hard-code sat at about 2:1 on it. */
+     green, and a near-black ink on it sits at about 2:1. `--text-inverse` is the
+     one token that flips with the theme, which is why the direction's
+     `--lamp-ink` is not used here — lamp ink is for a *lit lamp*, and the light
+     theme's lamp fills are bright while its accent is dark. */
   background: var(--accent);
-  border-color: var(--accent);
   color: var(--text-inverse);
+  box-shadow: var(--sh-2);
 }
-.btn.primary:hover {
+.btn.primary:hover:not(:disabled) {
   background: var(--accent-hi);
-  border-color: var(--accent-hi);
 }
 .btn.danger {
   color: var(--danger-text);
-  border-color: rgba(216, 74, 68, 0.4);
 }
-.btn.danger:hover {
-  background: var(--danger-bg);
+.btn.danger:hover:not(:disabled) {
+  background-image: linear-gradient(var(--danger-bg), var(--danger-bg)), var(--grad-cap);
 }
 .btn:disabled {
   opacity: var(--opacity-disabled);
@@ -241,6 +279,12 @@ html {
 .btn.full {
   width: 100%;
 }
+.btn:focus-visible,
+.btn.on:focus-visible,
+.btn.primary:focus-visible,
+.btn:active:focus-visible {
+  box-shadow: var(--sh-focus);
+}
 
 .icon-btn {
   display: inline-flex;
@@ -250,14 +294,14 @@ html {
   height: var(--control-h);
   border-radius: var(--radius);
   color: var(--text-dim);
-  border: 1px solid transparent;
+  border: none;
   user-select: none;
 }
 .icon-btn {
   transition:
     background var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
+    box-shadow var(--dur-fast) var(--ease-out);
 }
 .icon-btn:hover:not(:disabled) {
   background: var(--bg-hover);
@@ -265,6 +309,7 @@ html {
 }
 .icon-btn:active:not(:disabled) {
   background: var(--bg-active);
+  box-shadow: var(--sh-pressed);
 }
 /* Every disabled control reads the same way, whatever shape it is. */
 .icon-btn:disabled {
@@ -278,37 +323,65 @@ html {
   cursor: not-allowed;
   pointer-events: none;
 }
+/* Engaged: a lighter surface seated one step down. Not a colour. */
 .icon-btn.on {
-  color: var(--accent);
-  background: var(--accent-bg);
-  border-color: rgba(55, 184, 154, 0.35);
+  background: var(--bg-active);
+  color: var(--text);
+  box-shadow:
+    var(--sh-pressed),
+    inset 0 1px 0 var(--edge-hi);
 }
+/*
+ * These two are the exception, and it is the reason the exception exists: they
+ * are *lamps*, not selections. A lamp is a filled LED with dark ink and the one
+ * glow the product allows — in the lamp's own colour, at `0 0 7px -1px`, and
+ * nowhere else. Solo is yellow and record is red, which is the convention every
+ * console on earth already taught the user.
+ */
 .icon-btn.warm-on {
-  color: var(--warm);
-  background: var(--warm-bg);
-  border-color: rgba(217, 161, 60, 0.4);
+  background: var(--solo-lamp);
+  color: var(--lamp-ink);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    inset 0 -1px 2px rgb(0 0 0 / 0.32),
+    0 0 7px -1px color-mix(in srgb, var(--solo-lamp) 60%, transparent);
 }
 .icon-btn.danger-on {
-  color: var(--danger);
-  background: var(--danger-bg);
-  border-color: rgba(216, 74, 68, 0.45);
+  background: var(--danger-lamp);
+  color: var(--lamp-ink);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    inset 0 -1px 2px rgb(0 0 0 / 0.32),
+    0 0 7px -1px color-mix(in srgb, var(--danger-lamp) 60%, transparent);
+}
+.icon-btn.on:focus-visible,
+.icon-btn.warm-on:focus-visible,
+.icon-btn.danger-on:focus-visible,
+.icon-btn:active:focus-visible {
+  box-shadow: var(--sh-focus);
 }
 
+/* A segmented control is one well with caps seated in it: the selected option
+   is raised, the rest are holes in the same piece of metal. The 1px padding and
+   1px gaps replace the 1px border and 1px dividers exactly, so the control's
+   outer size is unchanged. */
 .seg {
   display: inline-flex;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  gap: 1px;
+  padding: 1px;
+  background: var(--bg-well);
+  box-shadow: var(--sh-well);
+  border: none;
   border-radius: var(--radius);
   overflow: hidden;
 }
 .seg button {
   padding: 4px 9px;
+  border-radius: var(--radius-xs);
   font-size: var(--fs-sm);
   color: var(--text-dim);
-  border-right: 1px solid var(--border-soft);
-}
-.seg button:last-child {
-  border-right: none;
+  background: transparent;
+  border: none;
 }
 .seg button {
   transition:
@@ -320,17 +393,15 @@ html {
   color: var(--text);
 }
 .seg button.on {
-  background: var(--accent-bg);
-  color: var(--accent);
-  box-shadow: inset 0 -2px 0 var(--accent);
+  background: var(--grad-cap);
+  box-shadow: var(--sh-2);
+  color: var(--text);
 }
-/* The marker above is a box-shadow at (0,2,1), so it beat the global
+/* The selected segment writes a box-shadow at (0,2,0), so it beat the global
    :focus-visible ring at (0,1,0) and the selected option was the one option in
    the group that showed no ring. Both are carried here. */
 .seg button.on:focus-visible {
-  box-shadow:
-    inset 0 -2px 0 var(--accent),
-    var(--sh-focus);
+  box-shadow: var(--sh-2), var(--sh-focus);
 }
 .seg button:disabled {
   opacity: var(--opacity-disabled);
@@ -344,7 +415,7 @@ html {
   padding: 3px 8px;
   border-radius: var(--radius-pill);
   font-size: var(--fs-xs);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-wide);
   border: 1px solid var(--border);
   color: var(--text-dim);
@@ -360,21 +431,21 @@ html {
 }
 .chip.ok {
   color: var(--accent);
-  border-color: rgba(55, 184, 154, 0.4);
+  border-color: var(--accent-line);
 }
 .chip.ok .dot {
   background: var(--accent);
 }
 .chip.warn {
   color: var(--warm);
-  border-color: rgba(217, 161, 60, 0.4);
+  border-color: var(--warm-line);
 }
 .chip.warn .dot {
   background: var(--warm);
 }
 .chip.err {
-  color: var(--danger);
-  border-color: rgba(216, 74, 68, 0.4);
+  color: var(--danger-text);
+  border-color: var(--danger-line);
 }
 .chip.err .dot {
   background: var(--danger);
@@ -397,53 +468,333 @@ html {
   }
 }
 
-/* Range inputs */
+/* Range inputs -------------------------------------------------------------
+ * The same parts as the fader, laid on their side: an inset slot with a light
+ * lip below it, and a cap with a waist and an index line you read the value
+ * from. What was here — a 13px accent-filled circle on a 4px hairline — is the
+ * default HTML range slider with one colour swapped, and it was carrying sends,
+ * plugin parameters and cue levels, i.e. most of the parameters in the product.
+ *
+ * The index line is painted as a background layer because a native range thumb
+ * cannot host a pseudo-element.
+ */
 input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
   height: 22px;
   background: transparent;
+  box-shadow: none;
   cursor: pointer;
   padding: 0;
   border: none;
 }
 input[type='range']::-webkit-slider-runnable-track {
-  height: 4px;
+  height: 5px;
   border-radius: var(--radius-xs);
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-well);
+  box-shadow:
+    var(--sh-well),
+    0 1px 0 var(--edge-hi);
+  border: none;
 }
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 13px;
-  height: 13px;
-  margin-top: -5.5px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 1px solid #0a0e12;
+  width: 20px;
+  height: 11px;
+  margin-top: -3px;
+  border-radius: var(--radius-xs);
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent calc(50% - 0.5px),
+      var(--text-dim) calc(50% - 0.5px),
+      var(--text-dim) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    ),
+    var(--grad-cap);
+  box-shadow: var(--sh-2);
+  border: none;
 }
 input[type='range']::-moz-range-track {
-  height: 4px;
+  height: 5px;
   border-radius: var(--radius-xs);
-  background: var(--bg-deep);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-well);
+  box-shadow:
+    var(--sh-well),
+    0 1px 0 var(--edge-hi);
+  border: none;
 }
 input[type='range']::-moz-range-thumb {
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 1px solid #0a0e12;
+  width: 20px;
+  height: 11px;
+  border-radius: var(--radius-xs);
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent calc(50% - 0.5px),
+      var(--text-dim) calc(50% - 0.5px),
+      var(--text-dim) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    ),
+    var(--grad-cap);
+  box-shadow: var(--sh-2);
+  border: none;
+}
+input[type='range']:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+}
+/* The `box-shadow: none` above is what cancels the well every other input
+   carries, and it is declared after the focus rule at the same specificity —
+   so without this the one control class most used for audio parameters would
+   be the one with no focus ring. */
+input[type='range']:focus-visible {
+  box-shadow: var(--sh-focus);
 }
 @media (pointer: coarse) {
   input[type='range'] {
     height: 30px;
   }
   input[type='range']::-webkit-slider-thumb {
-    width: 17px;
-    height: 17px;
-    margin-top: -7.5px;
+    width: 26px;
+    height: 15px;
+    margin-top: -5px;
   }
+  input[type='range']::-moz-range-thumb {
+    width: 26px;
+    height: 15px;
+  }
+}
+
+/* Hardware controls --------------------------------------------------------
+ * The fader, the meters and the knob label are the only things in the product
+ * meant to read as physical objects, so their *material* is defined here,
+ * beside the component that draws them (`src/components/common/widgets.tsx`),
+ * while the console keeps owning where each one sits and how wide its lane is.
+ *
+ * `.hw` on a widget root is what keeps those two halves independent of
+ * stylesheet order. base.css is imported before every regional sheet, so a
+ * plain `.meter` rule here would lose to a plain `.meter` rule in mixer.css on
+ * source order alone; the extra class means the material can live in one file
+ * instead of being restated in every file that places a meter.
+ */
+
+/* Fader. Four things make a fader read as hardware and it had none of them:
+   the slot is inset with a light lip rather than being a filled line, the cap
+   has a hard-edged waist rather than a soft three-stop blend, the cap carries
+   an index line you read the value from, and there is a scale printed beside
+   the slot with the unity detent marked. */
+/* `--fader-scale-w` is how far the control column is pushed right to make room
+   for the ladder. The ladder ends where the cap begins — which is always
+   `--fader-scale-w + 1px`, whatever the lane's width — because the thing you
+   read a fader against is the cap's index line, not the slot. */
+.fader-scale {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: calc(var(--fader-scale-w) - 1px);
+  pointer-events: none;
+}
+.fader-scale span {
+  position: absolute;
+  right: 0;
+  height: 1px;
+  width: calc(4px * var(--ui-scale));
+  transform: translateY(50%);
+  background: var(--text-faint);
+  opacity: 0.75;
+}
+/* The unity mark is longer and brighter than its neighbours: 0 dB has to be
+   findable without reading, and on a 30px lane it is the only mark that can
+   afford to be. */
+.fader-scale span.unity {
+  width: calc(6px * var(--ui-scale));
+  background: var(--text-dim);
+  opacity: 1;
+}
+.fader-slot,
+.fader-level,
+.fader-cap {
+  position: absolute;
+  left: calc(var(--fader-scale-w) + (100% - var(--fader-scale-w)) / 2);
+  transform: translateX(-50%);
+}
+.fader-slot {
+  top: calc(var(--fader-cap-h) / 2);
+  bottom: calc(var(--fader-cap-h) / 2);
+  width: var(--fader-track-w);
+  border-radius: var(--radius-xs);
+  background: var(--bg-well);
+  box-shadow:
+    var(--sh-well-deep),
+    0 1px 0 var(--edge-hi);
+}
+/* Flat, never a gradient: the console then reads as a colour-coded field of
+   levels, which is the whole reason to spend track colour here. */
+.fader-level {
+  bottom: calc(var(--fader-cap-h) / 2);
+  width: var(--fader-fill-w);
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--strip-color, var(--accent)) 70%, var(--bg-well));
+}
+.fader-detent {
+  position: absolute;
+  left: var(--fader-scale-w);
+  right: 0;
+  height: 1px;
+  transform: translateY(50%);
+  background: var(--text-faint);
+  opacity: 0.55;
+  pointer-events: none;
+}
+/* Nubs either side of the slot: the detent has to be visible where the cap is
+   about to cover the line. */
+.fader-detent::before,
+.fader-detent::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  height: 3px;
+  width: 2px;
+  background: var(--text-dim);
+  opacity: 0.75;
+}
+.fader-detent::before {
+  right: calc(50% + var(--fader-track-w) / 2);
+}
+.fader-detent::after {
+  left: calc(50% + var(--fader-track-w) / 2);
+}
+.fader-cap {
+  /* Sized off the lane rather than off a fixed width, so the touch console's
+     wider lane fills correctly without a second set of numbers. */
+  width: calc(100% - var(--fader-scale-w) - 2px);
+  height: var(--fader-cap-h);
+  margin-bottom: calc(var(--fader-cap-h) / -2);
+  border-radius: var(--radius-xs);
+  background: var(--grad-cap);
+  box-shadow:
+    var(--sh-2),
+    0 2px 4px rgb(0 0 0 / 0.55);
+}
+/* Grip: grooves cut across the cap face at a 3px pitch, each with a highlight
+   beneath it. The direction asks for three at 4px, which needs 12px of face —
+   the cap is 14px tall and 3px of that is inset, so the pitch is tightened to
+   3px instead and the count follows the cap: three on a mouse console, five on
+   a touch one. One repeating gradient, and the strongest "this is a thing you
+   hold" cue available for the price. */
+.fader-cap::before {
+  content: '';
+  position: absolute;
+  inset: 2px 3px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.28) 0 1px,
+    rgb(255 255 255 / 0.06) 1px 2px,
+    transparent 2px 3px
+  );
+}
+/* The index line sits ON the waist, in the channel's own colour. You read the
+   value from this line, not from the edge of the cap. */
+.fader-cap::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 46%;
+  height: 1px;
+  background: color-mix(in srgb, var(--strip-color, var(--accent)) 90%, #fff);
+}
+/* Dragging: the cap lifts. No scale transform, no colour change, no glow —
+   a fader that grows under the finger is a web animation, not a ride. */
+.fader:active .fader-cap {
+  --cap-hi: var(--cap-hover);
+  box-shadow:
+    var(--sh-2),
+    0 3px 7px rgb(0 0 0 / 0.6);
+}
+
+/* Meters. The body is a well with a lip; the bar is segmented rather than
+   smooth, and its colour changes at real dB boundaries — the component
+   converts each boundary through the meter's own scale function and writes the
+   stops out as `--mz-*`, so the printed scale and the colour change cannot
+   disagree. The fallbacks below are those same boundaries on the shipped
+   scale, for the case where a meter is styled without a component. */
+.meter.hw,
+.smeter.hw .smeter-ch {
+  background: var(--meter-bg);
+  border: none;
+  border-radius: var(--radius-xs);
+  box-shadow:
+    var(--sh-well-deep),
+    0 1px 0 var(--edge-hi);
+}
+.meter.hw .meter-fill,
+.smeter.hw .smeter-fill {
+  background: linear-gradient(
+    to top,
+    var(--meter-lo) 0 var(--mz-lo, 50.78%),
+    var(--meter-mid) var(--mz-lo, 50.78%) var(--mz-mid, 81.86%),
+    var(--meter-hot) var(--mz-mid, 81.86%) var(--mz-hot, 96.86%),
+    var(--meter-clip) var(--mz-hot, 96.86%) 100%
+  );
+}
+/* Segmentation. Drawn as unlit gaps painted OVER the bar rather than as a mask
+   on it: the fill is scaled with `transform: scaleY()`, and a mask on a scaled
+   element scales with it, which would make the segment pitch change with the
+   level. In the contrast theme `--meter-bg` is pure black on a pure black well,
+   so the bar stays solid there — which is that theme's own logic: material by
+   line, never by shading. */
+.meter.hw::after,
+.smeter.hw .smeter-ch::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to top,
+    transparent 0 var(--meter-seg),
+    var(--meter-bg) var(--meter-seg) calc(var(--meter-seg) + var(--meter-gap))
+  );
+}
+/* The live value is neutral white and it goes above the segmentation: a peak
+   hold that a gap can bite a piece out of is a peak hold you cannot trust. */
+.meter.hw .meter-hold,
+.smeter.hw .smeter-hold {
+  background: var(--text);
+  z-index: 2;
+}
+.meter.hw .meter-clip-led {
+  background: var(--meter-bg);
+  z-index: 3;
+}
+.meter.hw .meter-clip-led:hover {
+  background: color-mix(in srgb, var(--danger-lamp) 45%, var(--meter-bg));
+}
+.meter.hw .meter-clip-led.on,
+.smeter.hw .smeter-over[data-over='yes'] {
+  background: var(--meter-over);
+  border-color: transparent;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    0 0 7px -1px color-mix(in srgb, var(--meter-over) 60%, transparent);
+}
+/* Unlit, the over indicator is a hole in the desk, not an empty button. */
+.smeter.hw .smeter-over {
+  background: var(--meter-bg);
+  border: none;
+  box-shadow:
+    var(--sh-well),
+    0 1px 0 var(--edge-hi);
+}
+.smeter.hw .smeter-scale span {
+  font-family: var(--font-num);
+  font-weight: var(--fw-medium);
+  font-feature-settings:
+    'tnum' 1,
+    'zero' 1;
 }
 
 /* ------------------------------------------------------------------ type */
@@ -475,6 +826,10 @@ h3,
  * colours — which is why a side-panel header used to read heavier than the
  * section titles inside it. It is defined once, here; every class listed below
  * carries only its own layout.
+ *
+ * It is the *only* thing in the product allowed to be condensed and uppercase.
+ * A label is chrome and can be compressed; content — a track name, a clip name,
+ * a preset name — is the user's own text and is never uppercased by CSS.
  */
 .t-label,
 .panel-title,
@@ -487,6 +842,7 @@ h3,
 .take-review .tr-title,
 .smp-rack .ps-title,
 .syn-group .g-title {
+  font-family: var(--font-cond);
   font-size: var(--fs-2xs);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-caps);
@@ -498,10 +854,38 @@ h3,
   line-height: var(--lh-body);
   color: var(--text-dim);
 }
-.t-num {
+/*
+ * Every number in the product is monospaced, tabular, slashed-zero and at least
+ * medium weight — including the numbers inside labels ("+3.5", "48 kHz",
+ * "3 sends"). A digit set in the UI face beside a digit set in the numeric face
+ * is the tell that the product has no rule about which is which; the slashed
+ * zero is what an instrument panel does so a zero can never be read as an O.
+ */
+.t-num,
+.mono,
+.kv,
+[class*='-val'],
+[class*='-readout'] {
   font-family: var(--font-num);
+  font-weight: var(--fw-medium);
   font-variant-numeric: tabular-nums;
+  font-feature-settings:
+    'tnum' 1,
+    'zero' 1;
   letter-spacing: var(--ls-tight);
+}
+/*
+ * A value and its unit never share a weight or a colour. `-6.0` is the reading;
+ * `dB` is the word for what kind of reading it is, and it is quieter in every
+ * respect. Without this rule a dB value and a bus name carry the same weight,
+ * which is how a strip stops being scannable.
+ */
+.t-unit {
+  font-family: var(--font);
+  font-weight: var(--fw-normal);
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  letter-spacing: 0;
 }
 
 /* ---------------------------------------------------------------- layout */
@@ -529,16 +913,26 @@ h3,
 }
 
 /* --------------------------------------------------------------- surfaces */
+/* A card is flat: it holds content, it is not something you press and not
+   something signal lives in, so it takes no shadow. The outline stays — an
+   outline around an object is the one job a single border still has. */
 .card {
   background: var(--bg-panel-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--sh-1);
 }
+/*
+ * A divider is a SEAM: a dark line and a light line, adjacent. Neither half is
+ * high-contrast against the surface, but the pair reads at 2.36:1 against each
+ * other, which is exactly how a panel joint reads on real equipment — and it is
+ * two pixels of information where a single 1px mid-grey rule at 1.07:1 was
+ * neither visible nor distinguishable from the 130 other 1px rules in the
+ * product. Dark above light: one light source, from the top.
+ */
 .divider {
-  height: 1px;
-  background: var(--border-soft);
+  height: 2px;
   border: none;
+  background: linear-gradient(to bottom, var(--edge-lo) 0 1px, var(--edge-hi) 1px 2px);
 }
 
 /*
