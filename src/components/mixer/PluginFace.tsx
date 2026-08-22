@@ -1087,6 +1087,49 @@ const MOD_TARGET_LABEL: Record<ModulationField['target'], string> = {
 function LfoFace({ field }: { field: ModulationField }) {
   const cycles = cyclesFor(field.rateHz);
   const shape = (LFO_SHAPES[field.shape] ?? 'sine').toLowerCase();
+  const cursorRef = useRef<SVGGElement>(null);
+
+  /**
+   * The trace moves.
+   *
+   * A still waveform is a picture of a *setting*; a modulation device is a
+   * process, and the thing you are actually deciding — is this too fast, is it
+   * pulsing or gliding — is only visible when it moves. The marker runs at the
+   * device's own rate, so two devices side by side read as fast and slow
+   * without checking either number.
+   *
+   * It follows the rate, not the phase: the modulators are free-running, so
+   * where in its cycle one happens to be at any moment is not something this
+   * can know without asking the audio thread. Claiming otherwise would be the
+   * one kind of lie these faces exist to avoid.
+   */
+  useEffect(() => {
+    const g = cursorRef.current;
+    if (!g) return;
+    if (!(field.rateHz > 0) || field.depth <= 0) {
+      g.style.opacity = '0';
+      return;
+    }
+    g.style.opacity = '1';
+    return engine.onFrame(() => {
+      const ctx = engine.context;
+      const node = cursorRef.current;
+      if (!node) return;
+      // No audio context means nothing is running, so nothing should move.
+      if (!ctx) {
+        node.style.opacity = '0';
+        return;
+      }
+      node.style.opacity = '1';
+      const turns = (ctx.currentTime * field.rateHz) % cycles;
+      const x = (turns / cycles) * CURVE_W;
+      const v = lfoValue(shape, turns) * clamp(field.depth, 0, 1);
+      node.setAttribute(
+        'transform',
+        `translate(${x.toFixed(1)} ${(CURVE_H / 2 - v * (CURVE_H / 2.4)).toFixed(1)})`,
+      );
+    });
+  }, [shape, field.rateHz, field.depth, cycles]);
   const path = useMemo(() => {
     const pts: string[] = [];
     for (let i = 0; i <= 160; i++) {
@@ -1116,6 +1159,9 @@ function LfoFace({ field }: { field: ModulationField }) {
       <text x={CURVE_W - 4} y={CURVE_H - 4} fontSize="8" textAnchor="end" fill="var(--text-faint)">
         {field.rateHz < 1 ? `${field.rateHz.toFixed(2)} Hz` : `${field.rateHz.toFixed(1)} Hz`}
       </text>
+      <g ref={cursorRef} style={{ opacity: 0 }}>
+        <circle r={3} fill="var(--accent-lamp)" stroke="var(--bg-deep)" strokeWidth="1" />
+      </g>
     </svg>
   );
 }

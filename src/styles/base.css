@@ -965,7 +965,12 @@ h3,
   padding: var(--sp-7) var(--sp-6);
   text-align: center;
   color: var(--text-faint);
-  min-height: 0;
+  /* When the panel it stands in has a height of its own, the empty state IS
+     the panel and centres in it. A message pinned to the top of a thousand
+     pixels of nothing reads as a page that failed to finish loading, which is
+     the one impression an empty state exists to prevent. Where the parent's
+     height is content-driven this resolves to `auto` and changes nothing. */
+  min-height: 100%;
 }
 .empty-state .es-icon {
   color: var(--text-faint);
