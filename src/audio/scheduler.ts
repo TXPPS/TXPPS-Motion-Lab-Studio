@@ -11,7 +11,8 @@ import {
   sigAtBeat,
   type TempoMap,
 } from '../model/tempo';
-import type { AudioClip, ProjectData } from '../model/types';
+import type { AudioClip, MidiClip, ProjectData } from '../model/types';
+import { playedNotes } from './notePipeline';
 import { mediaDurationSec } from './mediaLibrary';
 import { startSteadyTimer, type SteadyTimer } from './workerTimer';
 
@@ -47,7 +48,8 @@ export function collectWindowEvents(
         out.push({ kind: 'clip', clip, beat: clip.start, offsetSec: clip.offset });
       }
     } else {
-      for (const n of clip.notes) {
+      const track = project.tracks.find((t) => t.id === clip.trackId);
+      for (const n of playedNotes(project, clip as MidiClip, track)) {
         if (n.muted) continue;
         const abs = clip.start + n.start;
         // notes must live inside their clip bounds
@@ -95,7 +97,8 @@ export function collectSoundingAt(project: ProjectData, beat: number): WindowEve
     if (clip.type === 'audio') {
       out.push({ kind: 'clipMid', clip, beat, intoBeats: beat - clip.start });
     } else {
-      for (const n of clip.notes) {
+      const track = project.tracks.find((t) => t.id === clip.trackId);
+      for (const n of playedNotes(project, clip as MidiClip, track)) {
         if (n.muted) continue;
         const abs = clip.start + n.start;
         const end = clip.start + Math.min(n.start + n.length, clip.length);

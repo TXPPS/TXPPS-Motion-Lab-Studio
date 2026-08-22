@@ -3,6 +3,7 @@ import { useUiStore } from '../../state/uiStore';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import { renameCurrent, saveCurrent } from '../../app/projectActions';
 import { exportLoopRegion, exportWav } from '../../app/exportActions';
+import { exportMidiFile, pickMidiFile } from '../../app/midiFileActions';
 import { Icon, type IconName } from '../common/Icon';
 import { useRouteStore } from '../../state/routeStore';
 import type { PageId } from '../../app/router';
@@ -51,8 +52,20 @@ export function TopBar({ layout }: { layout: Layout }) {
               { label: 'Reset layout', action: () => ws.reset() },
             ]
           : []),
-        { label: 'Export mix as WAV…', action: () => void exportWav() },
-        { label: 'Export loop region as WAV…', action: () => void exportLoopRegion() },
+        { label: 'Import MIDI file…', action: () => pickMidiFile() },
+        {
+          label: 'Export MIDI file',
+          action: () => {
+            exportMidiFile();
+          },
+        },
+        {
+          label: 'Export…',
+          shortcut: 'Ctrl+Shift+E',
+          action: () => ui.getState().set({ exportOpen: true }),
+        },
+        { label: 'Quick bounce: mix as WAV', action: () => void exportWav() },
+        { label: 'Quick bounce: loop as WAV', action: () => void exportLoopRegion() },
         {
           label: 'Keyboard shortcuts…',
           shortcut: '?',

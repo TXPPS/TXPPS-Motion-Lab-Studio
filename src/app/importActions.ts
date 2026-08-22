@@ -5,6 +5,7 @@
  * unit-tested without a UI.
  */
 import { engine } from '../audio/engine';
+import { importMidiFile, isMidiFile } from './midiFileActions';
 import {
   IMPORT_ACCEPT,
   audioFilesFromDrop,
@@ -61,22 +62,35 @@ export async function runImport(files: File[], target: ImportTarget): Promise<Im
 export function pickAndImport(target: ImportTarget): void {
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = IMPORT_ACCEPT;
+  input.accept = `${IMPORT_ACCEPT},.mid,.midi`;
   input.multiple = true;
   input.style.position = 'fixed';
   input.style.left = '-9999px';
   input.onchange = () => {
-    const files = input.files ? Array.from(input.files) : [];
+    const picked = input.files ? Array.from(input.files) : [];
     input.remove();
-    void runImport(files, target);
+    for (const file of picked.filter(isMidiFile)) {
+      void importMidiFile(file, { startBeat: target.startBeat ?? 0 });
+    }
+    const files = picked.filter((f) => !isMidiFile(f));
+    if (files.length) void runImport(files, target);
   };
   document.body.appendChild(input);
   input.click();
 }
 
-/** Import a drop event's payload onto a track at a beat. */
+/**
+ * Import a drop event's payload onto a track at a beat.
+ *
+ * A .mid in the drop is not audio and never was: it becomes tracks and clips
+ * rather than a clip on the track it landed on, so dropping a whole
+ * arrangement in does the obvious thing.
+ */
 export function importDrop(dt: DataTransfer | null, target: ImportTarget): void {
-  const files = audioFilesFromDrop(dt);
+  const all = dt?.files ? Array.from(dt.files) : [];
+  const midi = all.filter(isMidiFile);
+  for (const file of midi) void importMidiFile(file, { startBeat: target.startBeat ?? 0 });
+  const files = audioFilesFromDrop(dt).filter((f) => !isMidiFile(f));
   if (files.length === 0) return;
   void runImport(files, target);
 }

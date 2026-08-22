@@ -147,3 +147,62 @@
   transform: translateX(18px);
   background: var(--accent);
 }
+
+/* ---------------------------------------------------------- export sheet */
+.export-sheet {
+  width: min(760px, 100%);
+}
+.format-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-3);
+}
+.format-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--sp-4);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  text-align: left;
+}
+.format-card.on {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.fmt-name {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+.fmt-desc {
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+  color: var(--text-dim);
+}
+.export-estimate {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.export-estimate .t-num {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+}
+.export-status {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+.export-status.error {
+  color: var(--danger-text);
+}
+.export-status.done {
+  color: var(--accent);
+}
+.export-status.rendering,
+.export-status.preparing {
+  color: var(--warm);
+}

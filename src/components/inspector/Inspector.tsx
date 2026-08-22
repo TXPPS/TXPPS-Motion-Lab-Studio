@@ -7,6 +7,7 @@ import { useUiStore } from '../../state/uiStore';
 import { PanKnob } from '../common/widgets';
 import { TrackInputControls } from '../recording/RecordControls';
 import { InsertRack, SendRack } from '../mixer/InsertRack';
+import { NoteFxRack } from './NoteFxRack';
 import {
   analyzeClip,
   clipBufferReady,
@@ -363,6 +364,11 @@ export function Inspector() {
         {track.type === 'audio' && (
           <div className="panel-section">
             <TrackInputControls trackId={track.id} />
+          </div>
+        )}
+        {(track.type === 'instrument' || track.type === 'drum') && (
+          <div className="panel-section">
+            <NoteFxRack track={track} />
           </div>
         )}
         <div className="panel-section">

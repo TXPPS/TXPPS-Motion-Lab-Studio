@@ -133,6 +133,16 @@ export function useGlobalKeyboard(): void {
         void saveCurrent();
         return;
       }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && k === 'e') {
+        e.preventDefault();
+        useUiStore.getState().set({ exportOpen: true });
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && k === ',') {
+        e.preventDefault();
+        useUiStore.getState().set({ settingsOpen: true });
+        return;
+      }
       // Split at playhead. Bare "S" is the virtual keyboard's D natural, so the
       // split binding takes a modifier rather than stealing a musical key.
       if ((e.ctrlKey || e.metaKey) && k === 'e') {

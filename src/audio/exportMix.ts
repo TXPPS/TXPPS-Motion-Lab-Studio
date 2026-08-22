@@ -16,6 +16,7 @@
  */
 import { isAudioTrackType } from '../model/types';
 import { resolveChannels } from '../model/mixerGraph';
+import { playedNotes } from './notePipeline';
 import {
   clipSecondsPerBeat,
   projectBeatRangeSec,
@@ -545,7 +546,8 @@ export async function renderProject(
       const hasSynthAuto = !!track && synthAuto.has(clip.trackId);
       const sbox = samplerBoxes.get(clip.trackId);
       const hasSmpAuto = !!track && smpAuto.has(clip.trackId);
-      for (const note of (clip as MidiClip).notes) {
+      // The same expansion the live scheduler uses, so note effects render.
+      for (const note of playedNotes(project, clip as MidiClip, track)) {
         if (note.muted) continue;
         const absBeat = clip.start + note.start;
         if (absBeat < startBeat || absBeat >= endBeat) continue;

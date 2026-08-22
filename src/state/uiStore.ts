@@ -55,6 +55,8 @@ interface UiState {
   welcomeOpen: boolean;
   /** Preferences sheet */
   settingsOpen: boolean;
+  /** Export dialog */
+  exportOpen: boolean;
   /** Active arrangement tool */
   tool: ArrangeTool;
 
@@ -119,6 +121,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   shortcutsOpen: false,
   welcomeOpen: false,
   settingsOpen: false,
+  exportOpen: false,
   tool: 'pointer',
 
   selectedTrackId: null,

@@ -746,3 +746,34 @@
   pointer-events: none;
   will-change: transform;
 }
+
+/* Folder tracks: an indent guide makes membership readable at a glance without
+   costing a column, and the folder row itself is visually a header, not a lane. */
+.th {
+  padding-left: calc(var(--sp-2) + var(--th-depth, 0) * 10px);
+}
+.th.folder {
+  background: color-mix(in srgb, var(--th-color) 10%, var(--bg-panel));
+}
+.th.folder .th-name {
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  font-size: var(--fs-2xs);
+}
+.th-fold {
+  border: none;
+  background: none;
+  color: var(--th-color);
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.th-fold:hover {
+  color: var(--text);
+}
+.th .th-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}

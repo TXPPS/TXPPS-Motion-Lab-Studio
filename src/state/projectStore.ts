@@ -25,6 +25,8 @@ import type {
   CurveShape,
 } from '../model/automation';
 import { paramIdExists } from '../model/paramRegistry';
+import { createNoteFx } from '../model/noteFx';
+import type { NoteFxKind } from '../model/types';
 import { normalizeTempoMap, type TempoCurve } from '../model/tempo';
 import {
   normalizeChords,
@@ -324,6 +326,14 @@ export interface ProjectStore {
   assignVca: (trackId: string, vcaId: string | undefined) => void;
   /** Reorder tracks; the folder a track lands in follows from its neighbours. */
   moveTrack: (id: string, toIndex: number) => void;
+
+  // ---- note effects ----
+  addNoteFx: (trackId: string, kind: NoteFxKind) => string | null;
+  removeNoteFx: (trackId: string, fxId: string) => void;
+  setNoteFxParam: (trackId: string, fxId: string, key: string, value: number) => void;
+  setNoteFxBypass: (trackId: string, fxId: string, bypass: boolean) => void;
+  moveNoteFx: (trackId: string, fxId: string, delta: number) => void;
+  setNoteFxList: (trackId: string, fxId: string, list: number[]) => void;
 
   // ---- scratch pads ----
   createScratchPad: (name?: string) => string;
@@ -2031,6 +2041,63 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         if (from === to) return;
         const [moved] = d.tracks.splice(from, 1);
         d.tracks.splice(to, 0, moved);
+      }),
+
+    // -------------------------------------------------------- note effects
+
+    addNoteFx: (trackId, kind) => {
+      const id = newId('nfx');
+      let ok = false;
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t) return;
+        const list = (t.noteFx ??= []);
+        // Four is the point past which a chain stops being reasoned about and
+        // starts being guessed at; it is also what the schema validates to.
+        if (list.length >= 4) return;
+        list.push(createNoteFx(kind, id));
+        ok = true;
+      });
+      return ok ? id : null;
+    },
+
+    removeNoteFx: (trackId, fxId) =>
+      update((d) => {
+        const t = trackById(d, trackId);
+        if (!t?.noteFx) return;
+        t.noteFx = t.noteFx.filter((f) => f.id !== fxId);
+        if (t.noteFx.length === 0) delete t.noteFx;
+      }),
+
+    setNoteFxParam: (trackId, fxId, key, value) =>
+      update(
+        (d) => {
+          const f = trackById(d, trackId)?.noteFx?.find((x) => x.id === fxId);
+          if (f) f.params[key] = value;
+        },
+        { undoable: false },
+      ),
+
+    setNoteFxBypass: (trackId, fxId, bypass) =>
+      update((d) => {
+        const f = trackById(d, trackId)?.noteFx?.find((x) => x.id === fxId);
+        if (f) f.bypass = bypass;
+      }),
+
+    moveNoteFx: (trackId, fxId, delta) =>
+      update((d) => {
+        const list = trackById(d, trackId)?.noteFx;
+        if (!list) return;
+        const i = list.findIndex((f) => f.id === fxId);
+        const j = i + delta;
+        if (i < 0 || j < 0 || j >= list.length) return;
+        [list[i], list[j]] = [list[j], list[i]];
+      }),
+
+    setNoteFxList: (trackId, fxId, list) =>
+      update((d) => {
+        const f = trackById(d, trackId)?.noteFx?.find((x) => x.id === fxId);
+        if (f) f.list = [...list].slice(0, 24).map((n) => Math.round(n));
       }),
 
     // ------------------------------------------------------- scratch pads

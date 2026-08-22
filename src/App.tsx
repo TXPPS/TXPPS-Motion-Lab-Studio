@@ -16,6 +16,7 @@ import { useRouteStore, watchRoute } from './state/routeStore';
 import { ShortcutsSheet } from './components/common/ShortcutsSheet';
 import { WelcomeSheet, maybeShowWelcome } from './components/common/WelcomeSheet';
 import { SettingsSheet } from './components/settings/SettingsSheet';
+import { ExportSheet } from './components/common/ExportSheet';
 
 /**
  * Pages are code-split.
@@ -127,6 +128,7 @@ export function App() {
       <ShortcutsSheet />
       <WelcomeSheet />
       <SettingsSheet />
+      <ExportSheet />
       <DialogHost />
       <ContextMenuHost />
       <ToastHost />

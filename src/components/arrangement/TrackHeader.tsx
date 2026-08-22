@@ -22,9 +22,12 @@ const TYPE_ICON: Record<Track['type'], IconName> = {
 export const TrackHeader = memo(function TrackHeader({
   track,
   height,
+  depth = 0,
 }: {
   track: Track;
   height: number;
+  /** How many folders deep this track sits, for the indent guide. */
+  depth?: number;
 }) {
   const selected = useUiStore((s) => s.selectedTrackId === track.id);
   const store = useProjectStore;
@@ -63,6 +66,34 @@ export const TrackHeader = memo(function TrackHeader({
     const items = [
       { label: 'Rename…', action: rename },
       { label: 'Duplicate', action: () => store.getState().duplicateTrack(track.id) },
+      ...(track.type === 'folder'
+        ? [
+            {
+              label: track.folded ? 'Unfold' : 'Fold',
+              action: () => store.getState().setTrack(track.id, { folded: !track.folded }),
+            },
+            {
+              label: 'Ungroup (keep the tracks)',
+              action: () => store.getState().ungroupFolder(track.id),
+            },
+          ]
+        : [
+            {
+              label: 'Group into a new folder',
+              action: () => {
+                const id = store.getState().groupTracks([track.id]);
+                if (id) ui.getState().selectTrack(id);
+              },
+            },
+            ...(track.folderId
+              ? [
+                  {
+                    label: 'Remove from folder',
+                    action: () => store.getState().setFolderFor(track.id, undefined),
+                  },
+                ]
+              : []),
+          ]),
       {
         label: track.automationOpen ? 'Hide automation lanes' : 'Show automation lanes',
         shortcut: 'A btn',
@@ -111,8 +142,12 @@ export const TrackHeader = memo(function TrackHeader({
   const collapsed = height <= 32;
   return (
     <div
-      className={`th${selected ? ' selected' : ''}`}
-      style={{ height, ['--th-color' as string]: track.color }}
+      className={`th${selected ? ' selected' : ''}${track.type === 'folder' ? ' folder' : ''}`}
+      style={{
+        height,
+        ['--th-color' as string]: track.color,
+        ['--th-depth' as string]: String(depth),
+      }}
       onClick={() => ui.getState().selectTrack(track.id)}
       onDoubleClick={rename}
       onContextMenu={(e) => {
@@ -123,11 +158,27 @@ export const TrackHeader = memo(function TrackHeader({
       data-testid={`track-header-${track.name}`}
     >
       <div className="th-row">
-        <span className="th-type">
-          <Icon name={TYPE_ICON[track.type]} size={11} />
-        </span>
+        {track.type === 'folder' ? (
+          <button
+            className="th-type th-fold"
+            title={track.folded ? 'Unfold this group' : 'Fold this group'}
+            aria-expanded={!track.folded}
+            aria-label={`${track.folded ? 'Unfold' : 'Fold'} ${track.name}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              store.getState().setTrack(track.id, { folded: !track.folded });
+            }}
+            data-testid={`fold-${track.name}`}
+          >
+            <Icon name={track.folded ? 'folder' : 'folder-open'} size={12} />
+          </button>
+        ) : (
+          <span className="th-type">
+            <Icon name={TYPE_ICON[track.type]} size={11} />
+          </span>
+        )}
         <span className="th-name">
-          {track.locked ? '🔒 ' : ''}
+          {track.locked && <Icon name="lock" size={9} />}
           {track.name}
           {track.editGroup ? <span className="th-group">G{track.editGroup}</span> : null}
         </span>

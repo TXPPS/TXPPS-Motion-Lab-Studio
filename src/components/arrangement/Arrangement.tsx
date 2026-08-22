@@ -15,6 +15,7 @@ import { ClipView } from './ClipView';
 import { TrackHeader } from './TrackHeader';
 import { AUTO_LANE_H, AutoLaneHeader, AutoLaneRow } from './AutomationLanes';
 import { TAKE_LANE_H, TakeLaneHeader, TakeLaneRow } from './TakeLanes';
+import { visibleTracks, folderDepth } from '../../model/mixerGraph';
 import { MaximizeButton } from '../shell/MaximizeButton';
 import { GlobalTrackHeaders, GlobalTrackLanes, globalTrackMenuItems } from './GlobalTracks';
 import { ArrangementOverview } from './Overview';
@@ -85,7 +86,13 @@ function trackLanes(t: Track, project: ProjectData): LaneEntry[] {
  */
 export function Arrangement() {
   const project = useProjectStore((s) => s.project);
-  const tracks = useProjectStore((s) => s.project.tracks);
+  const allTracks = useProjectStore((s) => s.project.tracks);
+  /**
+   * A folded folder hides its whole subtree. Everything downstream — band
+   * heights, lane rows, marquee hit-testing — works off this list, so a folded
+   * folder cannot leave a gap where its children used to be.
+   */
+  const tracks = useMemo(() => visibleTracks(allTracks), [allTracks]);
   const clips = useProjectStore((s) => s.project.clips);
   const loop = useProjectStore((s) => s.project.loop);
   const timeSig = useProjectStore((s) => s.project.timeSig);
@@ -558,6 +565,16 @@ export function Arrangement() {
         { label: 'Multisample Track', action: () => addInstrument('multi') },
         { label: 'Drum Track (classic kit)', action: () => ui.selectTrack(store.addTrack('drum')) },
         { label: 'Bus', action: () => ui.selectTrack(store.addTrack('bus')) },
+        { label: 'FX Channel (send target)', action: () => ui.selectTrack(store.addTrack('fx')) },
+        { label: 'VCA Fader', action: () => ui.selectTrack(store.addVca()) },
+        {
+          label: 'Folder from selection',
+          disabled: selectedTrackId === null,
+          action: () => {
+            const id = store.groupTracks(selectedTrackId ? [selectedTrackId] : []);
+            if (id) ui.selectTrack(id);
+          },
+        },
       ],
     });
   };
@@ -710,7 +727,7 @@ export function Arrangement() {
             </div>
             {tracks.map((t, i) => (
               <Fragment key={t.id}>
-                <TrackHeader track={t} height={bands[i].clip} />
+                <TrackHeader track={t} height={bands[i].clip} depth={folderDepth(allTracks, t)} />
                 {lanesByTrack[i].map((le) => (
                   <AutoLaneHeader
                     key={le.lane.id}

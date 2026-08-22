@@ -64,6 +64,20 @@ export const SHORTCUTS: Shortcut[] = [
     description: 'Save project',
     category: 'Project',
   },
+  {
+    id: 'export',
+    combo: 'mod+shift+e',
+    display: `${MOD}+Shift+E`,
+    description: 'Export…',
+    category: 'Project',
+  },
+  {
+    id: 'preferences',
+    combo: 'mod+,',
+    display: `${MOD}+,`,
+    description: 'Preferences',
+    category: 'Project',
+  },
   { id: 'undo', combo: 'mod+z', display: `${MOD}+Z`, description: 'Undo', category: 'Project' },
   {
     id: 'redo',
