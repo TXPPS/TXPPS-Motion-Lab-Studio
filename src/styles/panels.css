@@ -837,3 +837,20 @@ button.li-main {
   min-width: 46px;
   text-align: right;
 }
+
+/* ---------------------------------------------------------------- groove */
+.grv-panel select {
+  width: 100%;
+}
+/* The curve is the point of the panel, so it gets real height rather than
+   being a decoration under the menu. */
+.grv-curve {
+  width: 100%;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-deep);
+}
+.grv-panel .insp-row .seg {
+  flex: 1 1 auto;
+}

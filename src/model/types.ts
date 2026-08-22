@@ -5,6 +5,7 @@ import type { TempoMap } from './tempo';
 import type { WarpMap } from './warp';
 import type { ArrangerSection, ChordEvent, Marker } from './arrangement';
 import type { ControlLink } from './controlLink';
+import type { Groove } from './groove';
 
 /** Core project data model. Everything here is plain serializable data. */
 
@@ -549,6 +550,8 @@ export interface ProjectData {
   activePadId?: string;
   /** hardware controls bound to parameters, macros and the transport */
   controlLinks?: ControlLink[];
+  /** grooves lifted off performances in this song, alongside the built-ins */
+  grooves?: Groove[];
   /** count-in bars before recording (0 = none) */
   countIn?: number;
   /** pre-roll in bars before the punch point */

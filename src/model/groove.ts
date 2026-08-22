@@ -207,3 +207,62 @@ export const BUILTIN_GROOVES: readonly Groove[] = [
 export function grooveByName(name: string): Groove | undefined {
   return BUILTIN_GROOVES.find((g) => g.name === name);
 }
+
+/** The most a project keeps: a groove list is a palette, not an archive. */
+export const MAX_SAVED_GROOVES = 24;
+
+/**
+ * Read a stored groove back, or reject it. A groove with mismatched offset and
+ * velocity lengths would silently apply half a pattern, which is worse than
+ * not loading at all.
+ */
+export function normalizeGroove(raw: unknown): Groove | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.name !== 'string') return null;
+  if (!Array.isArray(r.offsets) || !Array.isArray(r.velocities)) return null;
+  const resolution =
+    typeof r.resolution === 'number' && r.resolution >= 1 ? Math.round(r.resolution) : 4;
+  const slots = Math.min(r.offsets.length, r.velocities.length, 256);
+  if (slots < 1) return null;
+  const num = (v: unknown, lo: number, hi: number, fallback: number): number =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
+  return {
+    name: r.name.slice(0, 40),
+    resolution,
+    offsets: (r.offsets as unknown[]).slice(0, slots).map((v) => num(v, -1, 1, 0)),
+    velocities: (r.velocities as unknown[]).slice(0, slots).map((v) => num(v, 0, 4, 1)),
+  };
+}
+
+export function normalizeGrooves(raw: unknown): Groove[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Groove[] = [];
+  for (const item of raw as unknown[]) {
+    const groove = normalizeGroove(item);
+    if (groove) out.push(groove);
+    if (out.length >= MAX_SAVED_GROOVES) break;
+  }
+  return out;
+}
+
+/**
+ * A groove read off played notes.
+ *
+ * Onset detection gives audio a strength per hit; a MIDI note already carries
+ * one as its velocity, so the two paths meet at the same extractor rather than
+ * each growing their own.
+ */
+export function grooveFromNotes(
+  notes: readonly { start: number; velocity: number }[],
+  resolution: number,
+  options: ExtractGrooveOptions = {},
+): Groove {
+  // The bpm cancels out — beats in, beats out — so any positive tempo works.
+  const bpm = 60;
+  const transients = notes.map((n) => ({
+    timeSec: Math.max(0, n.start),
+    strength: Math.min(1, Math.max(0, n.velocity / 127)),
+  }));
+  return extractGroove(transients, bpm, resolution, options);
+}

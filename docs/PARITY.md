@@ -56,7 +56,7 @@ the benchmark is parity of the _workflow_, not of the mechanism.
 | Non-destructive audio editing | **Yes**     | Trim, split, heal, fades, crossfades, gain, normalise, polarity, mono sum, slip, ripple delete, nudge                                           |
 | Strip / insert silence        | **Yes**     | Over a range: strip silence, insert and delete time, cut/copy/paste, mute, fade, gain, reverse                                                  |
 | Audio bend / warp             | **Partial** | Transient detection, tempo detection, tempo-follow, speed and transpose with pitch preservation. Per-marker warp dragging is not in the UI      |
-| Groove extraction             | **Partial** | The model extracts and applies grooves; no UI surface yet                                                                                       |
+| Groove extraction             | **Yes**     | Lift a feel off a part, keep it with the song, put it on another at any strength                                                                |
 | Vocal Tune                    | **Yes**     | Analysis, scale-aware correction, retune speed, vibrato preservation, rendered as a new clip                                                    |
 | Audio → Note                  | **Yes**     | Monophonic and polyphonic                                                                                                                       |
 | Stem separation               | **Partial** | Classical DSP, not a trained model — separates a well-recorded mix usefully and a dense one only partly. The stems always sum back to the input |

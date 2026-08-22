@@ -35,6 +35,7 @@ import {
 } from '../model/controlLink';
 import { createNoteFx } from '../model/noteFx';
 import { MAX_MACROS, createMacro, macroWrites } from '../model/macros';
+import { MAX_SAVED_GROOVES, applyGroove, type Groove } from '../model/groove';
 import type { NoteFxKind } from '../model/types';
 import { normalizeTempoMap, type TempoCurve } from '../model/tempo';
 import {
@@ -349,6 +350,13 @@ export interface ProjectStore {
   ) => void;
 
   // ---- macros ----
+  // ---- groove ----
+  /** Nudge a clip's notes by a groove, at a strength. */
+  applyGrooveToClip: (clipId: string, groove: Groove, strength: number) => void;
+  /** Keep a groove with the song so it can be put on another part. */
+  saveGroove: (groove: Groove) => void;
+  removeGroove: (name: string) => void;
+
   /** Write one automatable parameter from a normalised 0..1, as a fader move. */
   setParamNorm: (trackId: string, paramId: string, norm: number) => void;
 
@@ -2122,6 +2130,34 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       ),
 
     // -------------------------------------------------------------- macros
+
+    applyGrooveToClip: (clipId, groove, strength) =>
+      update((d) => {
+        const c = clipById(d, clipId);
+        if (c?.type !== 'midi' || c.locked) return;
+        const moved = applyGroove(
+          c.notes.map((n) => ({ ...n, beat: n.start })),
+          groove,
+          strength,
+        );
+        c.notes = moved.map(({ beat, ...n }) => ({
+          ...n,
+          start: beat,
+          velocity: Math.round(n.velocity),
+        }));
+      }),
+
+    saveGroove: (groove) =>
+      update((d) => {
+        const kept = (d.grooves ?? []).filter((g) => g.name !== groove.name);
+        kept.push(groove);
+        d.grooves = kept.slice(-MAX_SAVED_GROOVES);
+      }),
+
+    removeGroove: (name) =>
+      update((d) => {
+        d.grooves = (d.grooves ?? []).filter((g) => g.name !== name);
+      }),
 
     setParamNorm: (trackId, paramId, norm) =>
       update(

@@ -7,6 +7,7 @@ import { useUiStore } from '../../state/uiStore';
 import { PanKnob } from '../common/widgets';
 import { TrackInputControls } from '../recording/RecordControls';
 import { InsertRack, SendRack, type ChainHost } from '../mixer/InsertRack';
+import { GroovePanel } from './GroovePanel';
 import { NoteFxRack } from './NoteFxRack';
 import { MacroPanel } from './MacroPanel';
 import { TimePitchPanel } from './TimePitchPanel';
@@ -256,6 +257,7 @@ export function Inspector() {
           {clip.type === 'audio' && <AudioClipTools clip={clip} />}
         </div>
         {clip.type === 'audio' && <TimePitchPanel clip={clip} />}
+        {clip.type === 'midi' && <GroovePanel clip={clip} />}
         {clip.type === 'audio' && (
           <div className="panel-section">
             <InsertRack host={eventChainHost(clip)} />
