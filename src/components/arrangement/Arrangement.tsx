@@ -35,6 +35,7 @@ import {
 } from '../../app/rangeActions';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import type { AudioClip, Clip } from '../../model/types';
+import { usePrefsStore } from '../../state/prefsStore';
 import {
   MAX_LANE_SCALE,
   MIN_LANE_SCALE,
@@ -292,7 +293,10 @@ export function Arrangement() {
       const x = engine.getPositionBeats() * pxPerBeat;
       if (playheadRef.current) playheadRef.current.style.transform = `translateX(${x}px)`;
       if (rulerHeadRef.current) rulerHeadRef.current.style.transform = `translateX(${x}px)`;
-      if (engine.isPlaying()) {
+      // Following is a preference, and it was one nothing read: the timeline
+      // chased the playhead whatever the setting said, which is the wrong
+      // behaviour for anyone editing one bar while the song plays past it.
+      if (engine.isPlaying() && usePrefsStore.getState().followPlayhead) {
         const headerW =
           (vp.querySelector('.arr-header-col') as HTMLElement | null)?.clientWidth ?? 0;
         const viewLeft = vp.scrollLeft;

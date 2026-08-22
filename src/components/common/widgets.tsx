@@ -9,6 +9,7 @@ import {
   linToDb,
 } from '../../model/music';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
+import { usePrefsStore } from '../../state/prefsStore';
 
 /**
  * Inline styles that also carry CSS custom properties.
@@ -599,6 +600,7 @@ export function Meter({ meterId, wide }: { meterId: string; wide?: boolean }) {
   const fillRef = useRef<HTMLDivElement>(null);
   const holdRef = useRef<HTMLDivElement>(null);
   const ledRef = useRef<HTMLButtonElement>(null);
+  const byPeak = usePrefsStore((s) => s.meterScale) === 'peak';
 
   useEffect(() => {
     const unwatch = engine.watchMeter(meterId);
@@ -608,10 +610,12 @@ export function Meter({ meterId, wide }: { meterId: string; wide?: boolean }) {
       const hold = holdRef.current;
       const led = ledRef.current;
       if (!fill || !hold || !led) return;
-      // The x1.4 is this meter's own long-standing lift on RMS — a transport
-      // meter reads short peaks, not an average. It stays; only the scale the
-      // result is placed on has changed.
-      const rmsN = m ? meterScalePosition(linToDb(m.rms * 1.4)) : 0;
+      // Which reading the bar shows is the user's, and it was a preference
+      // nothing read. The x1.4 is this meter's own long-standing lift on RMS —
+      // a transport meter reads short peaks, not an average — so it applies to
+      // the average and not to a peak, which needs no lift to be a peak.
+      const level = m ? (byPeak ? m.peak : m.rms * 1.4) : 0;
+      const rmsN = m ? meterScalePosition(linToDb(level)) : 0;
       const holdN = m ? meterScalePosition(linToDb(m.hold)) : 0;
       fill.style.transform = `scaleY(${rmsN})`;
       // hold line rides the full track height in percent — no pixel measurement
@@ -627,11 +631,15 @@ export function Meter({ meterId, wide }: { meterId: string; wide?: boolean }) {
       stop();
       unwatch();
     };
-  }, [meterId]);
+  }, [meterId, byPeak]);
 
   const reset = useCallback(() => engine.resetClipIndicators(), []);
   return (
-    <div className={`meter hw${wide ? ' wide' : ''}`} style={METER_ZONES} title="Signal meter">
+    <div
+      className={`meter hw${wide ? ' wide' : ''}`}
+      style={METER_ZONES}
+      title={`Signal meter — showing ${byPeak ? 'peak' : 'average'} level`}
+    >
       <div ref={fillRef} className="meter-fill" aria-hidden="true" />
       <div
         ref={holdRef}

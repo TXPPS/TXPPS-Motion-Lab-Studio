@@ -182,9 +182,12 @@ export function SettingsSheet() {
 
           <section>
             <h3 className="t-label">Metering &amp; time</h3>
-            <Row label="Meter reading" hint="What the channel meters emphasise">
+            <Row
+              label="Meter reading"
+              hint="What the channel meters show — BS.1770 loudness is measured on the Release page"
+            >
               <div className="seg" role="group" aria-label="Meter reading">
-                {(['peak', 'rms', 'lufs'] as const).map((m) => (
+                {(['peak', 'rms'] as const).map((m) => (
                   <button
                     key={m}
                     className={prefs.meterScale === m ? 'on' : ''}
@@ -237,18 +240,14 @@ export function SettingsSheet() {
                 label="Follow the playhead"
               />
             </Row>
-            <Row label="Confirm destructive edits" hint="Ask before deleting tracks and clips">
+            <Row
+              label="Confirm before deleting a track"
+              hint="Clip edits are not asked about — undo covers those"
+            >
               <Toggle
                 on={prefs.confirmDestructive}
                 onChange={(v) => set({ confirmDestructive: v })}
                 label="Confirm destructive edits"
-              />
-            </Row>
-            <Row label="Always show values" hint="Instead of only on hover">
-              <Toggle
-                on={prefs.alwaysShowValues}
-                onChange={(v) => set({ alwaysShowValues: v })}
-                label="Always show values"
               />
             </Row>
           </section>

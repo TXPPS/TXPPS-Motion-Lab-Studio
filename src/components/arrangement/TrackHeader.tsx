@@ -15,6 +15,7 @@ import { longPress } from '../../hooks/usePointerDrag';
 import { Icon, type IconName } from '../common/Icon';
 import { PanKnob } from '../common/widgets';
 import { captureParamChange, captureParamRelease } from '../../app/automationActions';
+import { usePrefsStore } from '../../state/prefsStore';
 
 const TYPE_ICON: Record<Track['type'], IconName> = {
   audio: 'wave',
@@ -142,15 +143,20 @@ export const TrackHeader = memo(function TrackHeader({
       {
         label: 'Delete track',
         danger: true,
+        // The preference decides. It is the one destructive edit worth asking
+        // about — a clip comes back with one undo, a track takes everything on
+        // it with it — and it was a setting that had never been read.
         action: () =>
-          ui.getState().showDialog({
-            kind: 'confirm',
-            title: `Delete "${track.name}"?`,
-            message: 'The track and all of its clips will be removed.',
-            confirmLabel: 'Delete',
-            danger: true,
-            onSubmit: () => store.getState().deleteTrack(track.id),
-          }),
+          usePrefsStore.getState().confirmDestructive
+            ? ui.getState().showDialog({
+                kind: 'confirm',
+                title: `Delete "${track.name}"?`,
+                message: 'The track and all of its clips will be removed.',
+                confirmLabel: 'Delete',
+                danger: true,
+                onSubmit: () => store.getState().deleteTrack(track.id),
+              })
+            : store.getState().deleteTrack(track.id),
       },
     ];
     ui.getState().showMenu({ x, y, items });

@@ -10,14 +10,20 @@ import { create } from 'zustand';
  */
 
 export type ThemeChoice = 'system' | 'dark' | 'light' | 'contrast';
-export type MeterScale = 'peak' | 'rms' | 'lufs';
+/**
+ * Which reading a channel meter emphasises.
+ *
+ * Two, not three. A BS.1770 loudness reading needs K-weighting, a gate and a
+ * three-second window; the Release page measures that properly and a channel
+ * strip does not measure it at all, so a "LUFS" option here could only ever
+ * have relabelled the peak meter.
+ */
+export type MeterScale = 'peak' | 'rms';
 
 export interface Prefs {
   theme: ThemeChoice;
   /** 0.85 – 1.4; multiplies every geometric token. */
   uiScale: number;
-  /** Show the numeric value on every control, not just on hover. */
-  alwaysShowValues: boolean;
   /** Which reading the channel meters emphasise. */
   meterScale: MeterScale;
   /** Ballistics: how fast meters fall, in dB per second. */
@@ -35,7 +41,6 @@ export interface Prefs {
 export const DEFAULT_PREFS: Prefs = {
   theme: 'system',
   uiScale: 1,
-  alwaysShowValues: false,
   meterScale: 'peak',
   meterFallDbPerSec: 26,
   followPlayhead: true,
@@ -55,6 +60,9 @@ function readStored(): Prefs {
       ...DEFAULT_PREFS,
       ...parsed,
       uiScale: clampScale(parsed.uiScale),
+      // A project saved while the third option existed must not load with a
+      // meter mode nothing implements.
+      meterScale: parsed.meterScale === 'rms' ? 'rms' : 'peak',
       theme: (['system', 'dark', 'light', 'contrast'] as const).includes(
         parsed.theme as ThemeChoice,
       )
@@ -95,13 +103,12 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
 
 function persist(p: Prefs): void {
   try {
-    const { theme, uiScale, alwaysShowValues, meterScale, meterFallDbPerSec } = p;
+    const { theme, uiScale, meterScale, meterFallDbPerSec } = p;
     localStorage.setItem(
       KEY,
       JSON.stringify({
         theme,
         uiScale,
-        alwaysShowValues,
         meterScale,
         meterFallDbPerSec,
         followPlayhead: p.followPlayhead,
@@ -125,5 +132,4 @@ export function applyAppearance(p: Prefs = usePrefsStore.getState()): void {
   else root.setAttribute('data-theme', p.theme);
   root.style.setProperty('--ui-scale', String(clampScale(p.uiScale)));
   root.toggleAttribute('data-reduce-motion', p.reduceMotion);
-  root.toggleAttribute('data-show-values', p.alwaysShowValues);
 }

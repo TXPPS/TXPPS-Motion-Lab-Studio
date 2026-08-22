@@ -21,6 +21,7 @@ import { diagLog } from '../state/diagnostics';
 import { evict, getBufferSync, loadBuffer } from './mediaLibrary';
 import { audioInput } from './inputManager';
 import { useInputStore, type RecordPhase } from '../state/inputStore';
+import { usePrefsStore } from '../state/prefsStore';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
 import { RackInstrument, SamplerInstrument, type RackChild } from './samplerInstrument';
 import { defaultSamplerParams, type SamplerParams } from '../model/sampler';
@@ -1909,25 +1910,35 @@ class AudioEngine {
 
   private updateMeters(dt: number): void {
     if (!this.ctx) return;
+    /*
+     * Ballistics, as the preference states them.
+     *
+     * A meter's fall is a rate in decibels per second — that is how every
+     * standard specifies one, and it is the only way the number in the
+     * settings sheet means anything. The old fall was a fixed subtraction in
+     * *amplitude*, so it took a loud signal down slowly and a quiet one to
+     * silence instantly, and the preference it was supposed to obey was read
+     * by nothing at all.
+     */
+    const fall = Math.pow(10, (-usePrefsStore.getState().meterFallDbPerSec * dt) / 20);
     const write = (
       id: string,
       l: { peak: number; rms: number },
       r: { peak: number; rms: number },
     ) => {
       const prev = this.meterData.get(id) ?? ZERO_METER;
-      const decay = dt * 0.4;
-      const holdL = l.peak >= prev.holdL ? l.peak : Math.max(0, prev.holdL - decay);
-      const holdR = r.peak >= prev.holdR ? r.peak : Math.max(0, prev.holdR - decay);
+      const holdL = l.peak >= prev.holdL ? l.peak : prev.holdL * fall;
+      const holdR = r.peak >= prev.holdR ? r.peak : prev.holdR * fall;
       const peak = Math.max(l.peak, r.peak);
       this.meterData.set(id, {
         peak,
-        rms: Math.max(Math.max(l.rms, r.rms), prev.rms * 0.82),
+        rms: Math.max(Math.max(l.rms, r.rms), prev.rms * fall),
         hold: Math.max(holdL, holdR),
         clipped: prev.clipped || peak >= 0.999,
         peakL: l.peak,
         peakR: r.peak,
-        rmsL: Math.max(l.rms, prev.rmsL * 0.82),
-        rmsR: Math.max(r.rms, prev.rmsR * 0.82),
+        rmsL: Math.max(l.rms, prev.rmsL * fall),
+        rmsR: Math.max(r.rms, prev.rmsR * fall),
         holdL,
         holdR,
       });
