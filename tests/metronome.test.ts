@@ -17,6 +17,8 @@ import { useProjectStore } from '../src/state/projectStore';
 
 interface RecordingParam {
   value: number;
+  /** Highest value ever *written* — an envelope's peak survives its own decay. */
+  peak: number;
   setTargetAtTime(v: number): void;
   setValueAtTime(v: number): void;
   linearRampToValueAtTime(v: number): void;
@@ -40,14 +42,20 @@ const edges: Edge[] = [];
 function param(value = 0): RecordingParam {
   return {
     value,
+    // Starts at zero rather than at the node's default, so "was written" and
+    // "happens to be one" cannot be confused.
+    peak: 0,
     setTargetAtTime(v) {
       this.value = v;
+      this.peak = Math.max(this.peak, v);
     },
     setValueAtTime(v) {
       this.value = v;
+      this.peak = Math.max(this.peak, v);
     },
     linearRampToValueAtTime(v) {
       this.value = v;
+      this.peak = Math.max(this.peak, v);
     },
     cancelScheduledValues() {},
   };
@@ -104,6 +112,44 @@ class FakeAudioContext {
   createChannelSplitter() {
     return node('splitter');
   }
+  createChannelMerger() {
+    return node('merger');
+  }
+  // The insert chains a channel builds on sync need these; nothing here reads
+  // them, but a missing factory is a crash rather than a silent no-op.
+  createDelay() {
+    return node('delay', { delayTime: param(0) });
+  }
+  createBiquadFilter() {
+    return node('biquad', {
+      type: 'lowpass',
+      frequency: param(350),
+      Q: param(1),
+      gain: param(0),
+      detune: param(0),
+    });
+  }
+  createWaveShaper() {
+    return node('waveshaper', { curve: null, oversample: 'none' });
+  }
+  createConvolver() {
+    return node('convolver', { buffer: null, normalize: true });
+  }
+  createConstantSource() {
+    return node('constant', { offset: param(1), start: () => {}, stop: () => {} });
+  }
+  createPeriodicWave() {
+    return {};
+  }
+  createBuffer(channels: number, length: number) {
+    return {
+      length,
+      numberOfChannels: channels,
+      sampleRate: 48000,
+      duration: length / 48000,
+      getChannelData: () => new Float32Array(length),
+    };
+  }
   createOscillator() {
     return node('oscillator', {
       type: 'sine',
@@ -127,18 +173,15 @@ function feeding(target: RecordingNode): RecordingNode[] {
   return edges.filter((e) => e.to === target).map((e) => e.from);
 }
 
-function metroGain(): RecordingNode {
-  const ctx = engine.context as unknown as FakeAudioContext;
-  const gains = feeding(ctx.destination).filter((n) => n.kind === 'gain');
-  expect(gains, 'exactly one gain node should reach the output directly').toHaveLength(1);
-  return gains[0];
-}
-
-/** The master fader: the gain whose output is the master pan. */
-function masterGain(): RecordingNode {
-  const pan = edges.find((e) => !isParam(e.to) && e.to.kind === 'panner' && e.from.kind === 'gain');
-  return pan!.from;
-}
+/**
+ * The two nodes this file is about, found structurally rather than by creation
+ * order: the click bus is the only gain wired straight into the output (the
+ * other thing there is the master analyser), and the master fader is the gain
+ * feeding the master pan. Both are resolved once, while the graph the engine
+ * built at startup is still the whole of the record.
+ */
+let metro: RecordingNode;
+let master: RecordingNode;
 
 function levelOf(n: RecordingNode): number {
   return (n.gain as RecordingParam).value;
@@ -149,10 +192,17 @@ beforeAll(async () => {
   // about — and a loop that keeps rescheduling itself outlives the test.
   globalThis.requestAnimationFrame = (() => 0) as unknown as typeof requestAnimationFrame;
   (globalThis as unknown as { AudioContext: unknown }).AudioContext = FakeAudioContext;
-  const project = createEmptyProject('Click');
-  project.clickLevel = 0.25;
-  useProjectStore.getState().setProject(project, { markClean: true });
+  useProjectStore.getState().setProject(createEmptyProject('Click'), { markClean: true });
   await engine.start();
+
+  const ctx = engine.context as unknown as FakeAudioContext;
+  const direct = feeding(ctx.destination).filter((n) => n.kind === 'gain');
+  expect(direct, 'exactly one gain node should reach the output directly').toHaveLength(1);
+  metro = direct[0];
+  const toPan = edges.find(
+    (e) => !isParam(e.to) && e.to.kind === 'panner' && e.from.kind === 'gain',
+  );
+  master = toPan!.from;
 });
 
 describe('the click level', () => {
@@ -166,26 +216,34 @@ describe('the click level', () => {
   });
 
   it('reaches the click, on a node that bypasses the analyser and the limiter', () => {
-    expect(levelOf(metroGain())).toBeCloseTo(0.25);
+    // Structural, and the reason the click can be levelled at all: the bus it
+    // is written to is wired to the output directly, past the master analyser
+    // and the safety limiter.
+    useProjectStore.getState().update((d) => {
+      d.clickLevel = 0.25;
+    });
+    expect(levelOf(metro)).toBeCloseTo(0.25);
   });
 
   it('follows the project without touching the master fader', () => {
-    const masterBefore = levelOf(masterGain());
+    const masterBefore = levelOf(master);
     useProjectStore.getState().update((d) => {
       d.clickLevel = 0.9;
     });
-    expect(levelOf(metroGain())).toBeCloseTo(0.9);
-    expect(levelOf(masterGain())).toBeCloseTo(masterBefore);
+    expect(levelOf(metro)).toBeCloseTo(0.9);
+    expect(levelOf(master)).toBeCloseTo(masterBefore);
   });
 
   it('scales the click itself, and keeps the accent above the beat', () => {
     edges.length = 0;
     engine.playMetronomeClick(true);
     engine.playMetronomeClick(false);
-    const clicks = edges.filter((e) => e.from.kind === 'gain' && e.to === metroGain());
+    const clicks = edges.filter((e) => e.from.kind === 'gain' && e.to === metro);
     expect(clicks, 'both clicks should reach the click bus').toHaveLength(2);
-    // The level lives on the bus; the envelope carries only the accent balance.
-    expect(levelOf(clicks[0].from)).toBeGreaterThan(levelOf(clicks[1].from));
+    // The level lives on the bus; each click's own envelope carries nothing
+    // but the accent balance, which the level must not flatten.
+    const peakOf = (n: RecordingNode) => (n.gain as RecordingParam).peak;
+    expect(peakOf(clicks[0].from)).toBeGreaterThan(peakOf(clicks[1].from));
   });
 });
 
@@ -215,15 +273,15 @@ describe('click only while recording', () => {
 
     edges.length = 0;
     engine.scheduleTransportClick(0, true);
-    expect(edges.filter((e) => e.to === metroGain())).toHaveLength(0);
+    expect(edges.filter((e) => e.to === metro)).toHaveLength(0);
 
     // The count-in calls the click directly, so it is unaffected.
     engine.playMetronomeClick(true);
-    expect(edges.filter((e) => e.to === metroGain())).toHaveLength(1);
+    expect(edges.filter((e) => e.to === metro)).toHaveLength(1);
 
     useInputStore.getState().set({ phase: 'recording' });
     edges.length = 0;
     engine.scheduleTransportClick(0, true);
-    expect(edges.filter((e) => e.to === metroGain())).toHaveLength(1);
+    expect(edges.filter((e) => e.to === metro)).toHaveLength(1);
   });
 });

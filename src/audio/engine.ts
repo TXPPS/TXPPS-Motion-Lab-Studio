@@ -1213,13 +1213,14 @@ class AudioEngine {
     const p = useProjectStore.getState().project;
     const spb = clipSecondsPerBeat(p, clip);
     /**
-     * A print carries the channel's trim and inserts already, so it joins the
-     * channel *after* them — at the fader — and is mixed, panned, muted and
-     * sent exactly as the instrument was. Feeding it back through the inserts
-     * would run every one of them twice.
+     * A print already carries the channel's trim and inserts, so it joins the
+     * channel at the insert chain's output — the exact point it was taken
+     * from. Everything downstream of there still applies to it live: mute,
+     * fader, pan, both kinds of send and all of their automation. Feeding it
+     * back in at the top would run every insert on it twice.
      */
     const frozen = isFreezeClipId(clip.id);
-    const dest: AudioNode = frozen ? ch.muteGain : ch.input;
+    const dest: AudioNode = frozen ? ch.inserts.exit : ch.input;
     // One print at a time per track. A loop wrap re-enters the print while the
     // previous pass is still running its whole length, so the old one is faded
     // out to land exactly where the new one starts rather than stacking.

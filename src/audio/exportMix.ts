@@ -746,8 +746,9 @@ export async function renderProject(
         applyEnvelope(g.gain, plan.envelope, when);
         src.connect(g);
         // A print already carries the channel's trim and inserts, so it joins
-        // at the fader; everything else enters at the top of the channel.
-        const dest: AudioNode = isFreezeClipId(part.id) ? ch.muteGain : ch.input;
+        // the channel where it was taken from — the insert chain's output —
+        // and everything after that (fader, pan, sends) still applies to it.
+        const dest: AudioNode = isFreezeClipId(part.id) ? ch.inserts.exit : ch.input;
         if (part.eventFx?.length) {
           // Same shape as live: the clip's own chain between it and the channel.
           const eventChain = new InsertChain(ctx);

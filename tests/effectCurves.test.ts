@@ -1155,13 +1155,8 @@ describe('effect groups', () => {
 });
 
 describe('the picture a waveshaping face draws', () => {
-  /** A default-parameter effect of one kind. */
-  const make = (kind: EffectKind): Effect => ({
-    id: `e-${kind}`,
-    kind,
-    bypass: false,
-    params: Object.fromEntries(effectSpec(kind).params.map((p) => [p.key, p.default])),
-  });
+  /** A default-parameter effect of one kind, as the rest of this file builds them. */
+  const make = effectOf;
 
   it('gives every waveshaping effect a curve, and nothing else one', () => {
     for (const kind of ['saturator', 'distortion', 'ampsim', 'bitcrusher'] as EffectKind[]) {
