@@ -44,7 +44,23 @@ not enter implementation without a row here and a sheet in `docs/reference/`.
 
 | Motion Wave unit | Class of reference | Spec sheet | Sources | Artwork |
 | --- | --- | --- | --- | --- |
-| _(pending — Research Analysts in progress)_ | | | | |
+| Program EQ | Passive program equaliser with valve make-up, late 1950s | `dyn-01-program-eq.md` | Manuals, published circuit analysis, an SMC 2024 wave-digital-filter paper | Original; era language only |
+| Optical Leveller | Electro-optical levelling amplifier, 1960s | `dyn-02-optical-leveller.md` | Manufacturer spec, published photocell behaviour | Original; era language only |
+| FET Limiter | FET limiting amplifier, late 1960s | `dyn-03-fet-limiter.md` | Manuals, published measurements | Original; era language only |
+| Variable-Mu Limiter | Valve variable-mu limiter, 1950s | `dyn-04-variable-mu.md` | Manual, published circuit analysis | Original; era language only |
+| Console EQ (two lineages) | Discrete console equalisers, British and American, c. 1967–1970 | `dyn-05-console-eq.md` | Manufacturer documentation, published circuit analysis | Original; era language only |
+| Motion Shaper | Multiband rhythmic modulation processor, contemporary | `fx-01-motion-shaper.md` | Vendor documentation, reviews, crossover and anti-aliasing literature | Original; interaction model only, no artwork studied |
+| Granular Reverb | No single reference — academic literature | `fx-02-granular-reverb.md` | Roads, Truax, Schroeder/Moorer/Jot/Dattorro, Välimäki's review | Original |
+| Granular Delay | No single reference — literature plus analogue-delay theory | `fx-03-granular-delay.md` | DAFx papers on BBD and tape modelling, magnetic-recording theory | Original |
+| DCO Poly | DCO polysynth, 1982–84 | `syn-01-dco-poly.md` | Service manuals, published circuit analysis | Original; era language only |
+| Phase Distortion | Phase-distortion synth, 1985 | `syn-02-phase-distortion.md` | Manuals, published algorithm analysis | Original; era language only |
+| Analog Five | Analogue five-voice, 1978–84 | `syn-03-analog-five.md` | Service manuals, published revision differences | Original; era language only |
+| Six-Op FM | Six-operator FM synth, 1983 | `syn-04-six-op-fm.md` | Manuals, patents, published algorithm tables | Original; era language only |
+
+Every sheet carries the IP banner at the top of the file, marks its own
+inferences inline, and writes "unknown" rather than filling a gap. No sheet
+describes panel artwork, a logo, a typeface or a badge; each describes only the
+era's design language, which is general to its period and fair to evoke.
 
 ## Third-party code and licences
 
@@ -61,4 +77,6 @@ not enter implementation without a row here and a sheet in `docs/reference/`.
   explicit.
 - Any decision to ship impulse responses, sample content or factory presets
   derived from third-party material needs a licensing answer before it ships.
-  None is planned.
+  None is planned. Note that ADR-0006 disqualifies convolution reverb on cost,
+  which removes the most likely reason anyone would have wanted to ship an
+  impulse-response library.
