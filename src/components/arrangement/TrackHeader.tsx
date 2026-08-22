@@ -254,8 +254,14 @@ export const TrackHeader = memo(function TrackHeader({
           {track.type !== 'bus' && (
             <button
               className={`th-mini${track.armed ? ' r-on' : ''}`}
-              title="Record arm (routes live input here)"
+              title={
+                track.type === 'audio'
+                  ? 'Record arm — routes live input here'
+                  : 'Record arm — what you play is recorded here'
+              }
+              aria-label={`Record arm ${track.name}`}
               aria-pressed={track.armed}
+              data-testid={`arm-${track.name}`}
               onClick={() => store.getState().setTrack(track.id, { armed: !track.armed })}
             >
               ●
