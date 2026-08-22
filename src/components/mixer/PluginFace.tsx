@@ -17,12 +17,9 @@ import {
   dbToGain,
   eqMagnitudeResponse,
   logFrequencies,
-  SATURATION_MODELS,
-  saturationCurve,
   type Complex,
   type CrossoverResponse,
   type EqBandSpec,
-  type SaturationModel,
 } from '../../audio/dsp/curves';
 import { engine } from '../../audio/engine';
 import {
@@ -39,6 +36,7 @@ import {
   paramOf,
   type DynamicsLaw,
   type ParamSpec,
+  shaperCurveOf,
 } from '../../model/effects';
 import { clamp } from '../../model/music';
 import type { Effect } from '../../model/types';
@@ -702,19 +700,41 @@ function MultibandFace({ effect, trackId }: { effect: Effect; trackId: string })
 
 // ------------------------------------------------------- saturation curve
 
-function ShaperFace({ model, driveDb }: { model: SaturationModel; driveDb: number }) {
+/** What the picture is of, for the reader who cannot see it. */
+function shaperLabel(effect: Effect): string {
+  switch (effect.kind) {
+    case 'bitcrusher':
+      return `Quantisation staircase at ${Math.round(paramOf(effect, 'bits'))} bits`;
+    case 'distortion':
+      return 'Clipping curve';
+    case 'ampsim':
+      return 'Preamp saturation curve';
+    default:
+      return 'Saturation curve';
+  }
+}
+
+/**
+ * A waveshaper's transfer curve, drawn from the array the audio is filled
+ * with. The full curve can be tens of thousands of points (the bitcrusher's
+ * staircase needs them), so it is decimated for the path — by picking real
+ * samples rather than averaging, because averaging a staircase draws a ramp.
+ */
+function ShaperFace({ curve, label }: { curve: Float32Array; label: string }) {
   const path = useMemo(() => {
-    const curve = saturationCurve(model, driveDb, 129);
-    return Array.from(curve)
-      .map((v, i) => {
-        const x = (i / (curve.length - 1)) * CURVE_H;
-        const y = CURVE_H / 2 - clamp(v, -1.4, 1.4) * (CURVE_H / 2.2);
-        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-      })
-      .join(' ');
-  }, [model, driveDb]);
+    const points = Math.min(curve.length, 257);
+    const step = (curve.length - 1) / (points - 1);
+    let d = '';
+    for (let i = 0; i < points; i++) {
+      const v = curve[Math.round(i * step)];
+      const x = (i / (points - 1)) * CURVE_H;
+      const y = CURVE_H / 2 - clamp(v, -1.4, 1.4) * (CURVE_H / 2.2);
+      d += `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)} `;
+    }
+    return d.trim();
+  }, [curve]);
   return (
-    <svg width={CURVE_H} height={CURVE_H} className="fx-curve" aria-label="Saturation curve">
+    <svg width={CURVE_H} height={CURVE_H} className="fx-curve" aria-label={label}>
       <line x1={0} y1={CURVE_H / 2} x2={CURVE_H} y2={CURVE_H / 2} stroke="var(--grid-sub)" />
       <line x1={CURVE_H / 2} y1={0} x2={CURVE_H / 2} y2={CURVE_H} stroke="var(--grid-sub)" />
       <line
@@ -920,12 +940,11 @@ export function EffectVisual({
     return law ? <DynamicsFace effect={effect} trackId={trackId} law={law} /> : null;
   }
   if (face === 'shaper') {
-    // Index into the models that exist. The list here used to carry a fourth
-    // name that `saturationCurve` has no case for, so an amp sim on its fourth
-    // model rendered `undefined` as a curve and threw on its own face.
-    const models = SATURATION_MODELS;
-    const model = models[clamp(Math.round(paramOf(effect, 'model')), 0, models.length - 1)];
-    return <ShaperFace model={model} driveDb={paramOf(effect, 'drive')} />;
+    // The curve the effect's own shaper is filled with, not a guess assembled
+    // from `model` and `drive`: the bitcrusher has neither and was drawing a
+    // tube curve for a quantiser, and the amp sim calls its drive `gain`.
+    const curve = shaperCurveOf(effect);
+    return curve ? <ShaperFace curve={curve} label={shaperLabel(effect)} /> : null;
   }
   if (face === 'lfo') {
     const shapeIndex = Math.round(paramOf(effect, 'shape'));

@@ -11,13 +11,17 @@
  */
 import {
   CABINETS,
+  clipCurve,
   compressorGain,
   describeDivision,
   expanderGain,
+  quantiserCurve,
+  saturationCurve,
+  SATURATION_MODELS,
   syncModifierByIndex,
   transferCurve,
 } from '../audio/dsp/curves';
-import type { BiquadType, EqBandSpec } from '../audio/dsp/curves';
+import type { BiquadType, EqBandSpec, SaturationModel } from '../audio/dsp/curves';
 import type { Effect, EffectKind } from './types';
 
 export interface ParamSpec {
@@ -805,6 +809,63 @@ export function dynamicsCurveKey(law: DynamicsLaw): string {
   return law.law === 'expand'
     ? `expand/${law.thresholdDb}/${law.ratio}/${law.rangeDb}`
     : `compress/${law.thresholdDb}/${law.ratio}/${law.kneeDb}`;
+}
+
+/**
+ * Preamp voicings: how hard an amp model drives its front end before the tone
+ * stack. The audio fills its shaper from this and the face draws from it too,
+ * so a model that sounds harder looks harder.
+ */
+export const AMP_MODELS: readonly { model: SaturationModel; driveDb: number }[] = [
+  { model: 'tube', driveDb: 2 },
+  { model: 'transistor', driveDb: 8 },
+  { model: 'transistor', driveDb: 16 },
+  { model: 'tape', driveDb: 4 },
+];
+
+/**
+ * The transfer curve of a waveshaping effect — the array its own shaper is
+ * filled with, so a face drawing this is drawing the processor.
+ *
+ * Every one of these faces used to read `model` and `drive` whatever the
+ * effect was: the bitcrusher drew a tube curve for a quantiser, the amp sim
+ * drew drive 0 for a parameter it calls `gain`, and the distortion drew a
+ * saturation curve for audio that is a clipper. Returns null for a kind whose
+ * shape is not a static curve.
+ */
+export function shaperCurveKey(effect: Effect): string {
+  switch (effect.kind) {
+    case 'saturator':
+      return `sat/${choiceOf(effect, 'model')}/${paramOf(effect, 'drive')}`;
+    case 'distortion':
+      return `clip/${paramOf(effect, 'drive')}/${paramOf(effect, 'hardness')}`;
+    case 'ampsim':
+      return `amp/${choiceOf(effect, 'model')}`;
+    case 'bitcrusher':
+      return `bits/${paramOf(effect, 'bits')}`;
+    default:
+      return '';
+  }
+}
+
+export function shaperCurveOf(effect: Effect): Float32Array | null {
+  switch (effect.kind) {
+    case 'saturator':
+      return saturationCurve(
+        SATURATION_MODELS[choiceOf(effect, 'model')] ?? 'tube',
+        paramOf(effect, 'drive'),
+      );
+    case 'distortion':
+      return clipCurve(paramOf(effect, 'drive'), paramOf(effect, 'hardness'));
+    case 'ampsim': {
+      const voice = AMP_MODELS[choiceOf(effect, 'model')] ?? AMP_MODELS[0];
+      return saturationCurve(voice.model, voice.driveDb);
+    }
+    case 'bitcrusher':
+      return quantiserCurve(paramOf(effect, 'bits'));
+    default:
+      return null;
+  }
 }
 
 /**

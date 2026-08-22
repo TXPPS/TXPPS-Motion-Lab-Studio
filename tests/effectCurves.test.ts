@@ -47,6 +47,7 @@ import {
   presetParams,
 } from '../src/model/effectPresets';
 import {
+  AMP_MODELS,
   DEESSER_KNEE_DB,
   EFFECT_SPECS,
   EFFECT_GROUPS,
@@ -61,6 +62,8 @@ import {
   multibandSplits,
   normaliseParams,
   paramOf,
+  shaperCurveKey,
+  shaperCurveOf,
 } from '../src/model/effects';
 import type { DynamicsLaw } from '../src/model/effects';
 import { DETECTOR_HEADROOM, InsertChain, buildEffectNode } from '../src/audio/effectChain';
@@ -1148,5 +1151,78 @@ describe('effect groups', () => {
     for (const group of EFFECT_GROUPS) {
       expect(EFFECT_SPECS.filter((s) => s.group === group).length, group).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('the picture a waveshaping face draws', () => {
+  /** A default-parameter effect of one kind. */
+  const make = (kind: EffectKind): Effect => ({
+    id: `e-${kind}`,
+    kind,
+    bypass: false,
+    params: Object.fromEntries(effectSpec(kind).params.map((p) => [p.key, p.default])),
+  });
+
+  it('gives every waveshaping effect a curve, and nothing else one', () => {
+    for (const kind of ['saturator', 'distortion', 'ampsim', 'bitcrusher'] as EffectKind[]) {
+      expect(shaperCurveOf(make(kind)), `${kind} has no curve`).not.toBeNull();
+    }
+    for (const kind of ['compressor', 'reverb', 'eq3', 'delay'] as EffectKind[]) {
+      expect(shaperCurveOf(make(kind)), `${kind} should not claim a shaper curve`).toBeNull();
+    }
+  });
+
+  it('draws a staircase for the bitcrusher, not a smooth curve', () => {
+    // The face used to read `model` and `drive`, which a bitcrusher does not
+    // declare, so it drew a tube saturation curve for a quantiser. A staircase
+    // is exactly the thing a smooth curve is not: consecutive samples are
+    // equal for long runs and then jump.
+    const crusher = make('bitcrusher');
+    crusher.params.bits = 4;
+    const curve = shaperCurveOf(crusher)!;
+    let equalRuns = 0;
+    let jumps = 0;
+    for (let i = 1; i < curve.length; i++) {
+      if (curve[i] === curve[i - 1]) equalRuns++;
+      else if (Math.abs(curve[i] - curve[i - 1]) > 0.05) jumps++;
+    }
+    expect(equalRuns / curve.length, 'a quantiser holds its value between steps').toBeGreaterThan(
+      0.9,
+    );
+    expect(jumps, 'a 4-bit quantiser has steps to jump between').toBeGreaterThan(4);
+  });
+
+  it('follows the amp sim through its own model list, including the last one', () => {
+    // Selecting the fourth model used to throw while rendering the face,
+    // because the face indexed a list carrying a name saturationCurve has no
+    // case for.
+    const amp = make('ampsim');
+    const curves = AMP_MODELS.map((_, i) => {
+      amp.params.model = i;
+      const c = shaperCurveOf(amp);
+      expect(c, `amp model ${i} has no curve`).not.toBeNull();
+      return c!;
+    });
+    // The models are voiced differently, so no two draw the same line.
+    for (let i = 1; i < curves.length; i++) {
+      expect(curves[i]).not.toEqual(curves[0]);
+    }
+  });
+
+  it('moves the distortion curve with hardness, which its face never read', () => {
+    const soft = make('distortion');
+    soft.params.hardness = 1;
+    const hard = make('distortion');
+    hard.params.hardness = 20;
+    expect(shaperCurveOf(hard)).not.toEqual(shaperCurveOf(soft));
+  });
+
+  it('rebuilds a curve only when the values it is built from move', () => {
+    const sat = make('saturator');
+    const before = shaperCurveKey(sat);
+    sat.params.output = (sat.params.output ?? 0) - 6;
+    expect(shaperCurveKey(sat), 'output level does not change the curve').toBe(before);
+    sat.params.drive = (sat.params.drive ?? 0) + 6;
+    expect(shaperCurveKey(sat)).not.toBe(before);
   });
 });

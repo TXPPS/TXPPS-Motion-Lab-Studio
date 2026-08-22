@@ -25,6 +25,8 @@ import {
   dynamicsLawOf,
   multibandSplits,
   paramOf,
+  shaperCurveKey,
+  shaperCurveOf,
 } from '../model/effects';
 import {
   BUTTERWORTH_Q,
@@ -45,7 +47,6 @@ import {
   syncSeconds,
   timeConstantHz,
 } from './dsp/curves';
-import type { SaturationModel } from './dsp/curves';
 import type { Effect } from '../model/types';
 
 const RAMP = 0.02;
@@ -1097,8 +1098,6 @@ function buildFilter(ctx: BaseAudioContext, effect: Effect): EffectNode {
   };
 }
 
-const SATURATION_BY_INDEX: readonly SaturationModel[] = ['tube', 'tape', 'transistor'];
-
 function buildSaturator(ctx: BaseAudioContext, effect: Effect): EffectNode {
   const wd = new WetDry(ctx);
   const shaper = makeShaper(ctx, saturationCurve('tube', 8), '4x');
@@ -1116,12 +1115,11 @@ function buildSaturator(ctx: BaseAudioContext, effect: Effect): EffectNode {
     input: wd.input,
     output: wd.output,
     update: (e, _bpm, bypass) => {
-      const model = SATURATION_BY_INDEX[choiceOf(e, 'model')] ?? 'tube';
-      const driveDb = paramOf(e, 'drive');
-      const key = `${model}/${driveDb}`;
+      // One evaluation, shared with the face: see shaperCurveOf.
+      const key = shaperCurveKey(e);
       if (key !== curveKey) {
         curveKey = key;
-        shaper.curve = saturationCurve(model, driveDb);
+        shaper.curve = shaperCurveOf(e) ?? shaper.curve;
       }
       setParam(output.gain, dbToGain(paramOf(e, 'output')), ctx);
       wd.setMix(paramOf(e, 'mix'), bypass);
@@ -1151,12 +1149,10 @@ function buildDistortion(ctx: BaseAudioContext, effect: Effect): EffectNode {
     input: wd.input,
     output: wd.output,
     update: (e, _bpm, bypass) => {
-      const driveDb = paramOf(e, 'drive');
-      const hardness = paramOf(e, 'hardness');
-      const key = `${driveDb}/${hardness}`;
+      const key = shaperCurveKey(e);
       if (key !== curveKey) {
         curveKey = key;
-        shaper.curve = clipCurve(driveDb, hardness);
+        shaper.curve = shaperCurveOf(e) ?? shaper.curve;
       }
       setParam(bass.gain, paramOf(e, 'bass'), ctx);
       setParam(treble.gain, paramOf(e, 'treble'), ctx);
@@ -1169,14 +1165,6 @@ function buildDistortion(ctx: BaseAudioContext, effect: Effect): EffectNode {
     },
   };
 }
-
-/** Preamp voicings: how hard the front end is driven before the tone stack. */
-const AMP_MODELS: readonly { model: SaturationModel; driveDb: number }[] = [
-  { model: 'tube', driveDb: 2 },
-  { model: 'transistor', driveDb: 8 },
-  { model: 'transistor', driveDb: 16 },
-  { model: 'tape', driveDb: 4 },
-];
 
 function buildAmpSim(ctx: BaseAudioContext, effect: Effect): EffectNode {
   const wd = new WetDry(ctx);
@@ -1204,8 +1192,7 @@ function buildAmpSim(ctx: BaseAudioContext, effect: Effect): EffectNode {
       const modelIndex = choiceOf(e, 'model');
       if (modelIndex !== modelKey) {
         modelKey = modelIndex;
-        const voice = AMP_MODELS[modelIndex] ?? AMP_MODELS[0];
-        shaper.curve = saturationCurve(voice.model, voice.driveDb);
+        shaper.curve = shaperCurveOf(e) ?? shaper.curve;
       }
       const cabIndex = choiceOf(e, 'cab');
       if (cabIndex !== cabKey) {
