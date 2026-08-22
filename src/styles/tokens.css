@@ -152,7 +152,12 @@
   --control-h-sm: calc(22px * var(--ui-scale));
 
   /* Mixer strip geometry — strips are fixed-width and never shrink. */
-  --strip-w: calc(96px * var(--ui-scale));
+  /* A console strip has to hold a track name, a device name and a fader lane
+     beside a stereo meter with a printed scale. At 96px it held none of them:
+     names read "Dr…", devices read "TX…", and the Insert button clipped. The
+     rack is the reason the strip exists now, so the strip is as wide as the
+     rack needs. */
+  --strip-w: calc(118px * var(--ui-scale));
   --strip-w-touch: calc(112px * var(--ui-scale));
   --fader-min-h: calc(44px * var(--ui-scale));
   --meter-w: calc(12px * var(--ui-scale));

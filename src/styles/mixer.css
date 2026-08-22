@@ -835,10 +835,12 @@
    -18 dB should not require hovering to find out where -18 is. */
 .smeter-scale {
   position: relative;
-  /* Wide enough for the widest tick ("-48") at the label size below. */
-  flex: 0 1 20px;
-  min-width: 0;
-  overflow: hidden;
+  /* Wide enough for the widest tick ("-48") at the label size below — and it
+     must not shrink, because a scale that loses its minus sign reads "48" and
+     tells the engineer the opposite of the truth. */
+  flex: 0 0 auto;
+  min-width: 22px;
+  overflow: visible;
 }
 .smeter-scale span {
   position: absolute;
@@ -1919,86 +1921,108 @@
 @container mixer (max-height: 22.4em) {
   .strip {
     grid-template-rows:
-      auto
-      auto
-      auto
+      auto /* name  */
+      auto /* input */
+      minmax(0, auto) /* rack  */
+      auto /* pan   */
       minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr)
       auto
       auto
       auto;
   }
-  .dev-rack,
-  .strip-pan {
-    grid-row: 3;
+  /* The rack and the pan had the same row here, so a chain and a pan knob
+     were drawn on top of one another — the rack needs a row of its own at
+     every tier that keeps it. Sends are what this tier drops. */
+  .strip-sends {
+    display: none;
   }
-  .strip-mid {
+  .dev-rack {
+    grid-row: 3;
+    max-height: calc(var(--dev-rack-h) * 0.55);
+  }
+  .strip-pan {
     grid-row: 4;
   }
-  .strip-btns {
+  .strip-mid {
     grid-row: 5;
   }
-  .strip-readout {
+  .strip-btns {
     grid-row: 6;
+  }
+  .strip-readout {
+    grid-row: 7;
   }
   .strip-foot,
   .strip-route {
-    grid-row: 7;
+    grid-row: 8;
   }
 }
 
 @container mixer (max-height: 20.4em) {
   .strip {
     grid-template-rows:
-      auto
+      auto /* name  */
+      minmax(0, auto) /* rack  */
       minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr)
       auto
       auto
       auto;
   }
-  /* The rack's row is gone from the template here, so the rack has to go with
-     it: an element assigned to a row that no longer exists stacks into the
-     next one and takes its height from the fader. The chain stays reachable
-     in the inspector and in the Channel Editor. */
+  /* The rack survives the input stage and the pan. A channel strip that
+     cannot show what is inserted on it is not a channel strip — it outranks
+     everything here except the fader itself. It shrinks to two devices and
+     scrolls; it does not leave. */
   .strip-input,
-  .dev-rack,
   .strip-pan {
     display: none;
   }
-  .strip-mid {
+  .dev-rack {
     grid-row: 2;
+    max-height: calc(var(--dev-rack-h) * 0.42);
   }
-  .strip-btns {
+  .strip-mid {
     grid-row: 3;
   }
-  .strip-readout {
+  .strip-btns {
     grid-row: 4;
+  }
+  .strip-readout {
+    grid-row: 5;
   }
   .strip-foot,
   .strip-route {
-    grid-row: 5;
+    grid-row: 6;
   }
 }
 
 @container mixer (max-height: 16.96em) {
   .strip {
     grid-template-rows:
-      auto
+      auto /* name */
+      minmax(0, auto) /* rack */
       minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr)
       auto
       auto;
   }
+  /* Even here the rack stays — one device row and the Insert button, scrolling
+     for the rest. This is the shortest console the product draws, and putting
+     a plugin on a channel is still the thing it is for. */
   .strip-readout {
     display: none;
   }
-  .strip-mid {
+  .dev-rack {
     grid-row: 2;
+    max-height: calc(var(--dev-rack-h) * 0.3);
+  }
+  .strip-mid {
+    grid-row: 3;
   }
   .strip-btns {
-    grid-row: 3;
+    grid-row: 4;
   }
   .strip-foot,
   .strip-route {
-    grid-row: 4;
+    grid-row: 5;
   }
 }
 

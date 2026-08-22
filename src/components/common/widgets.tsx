@@ -575,7 +575,10 @@ export function StereoMeter({
                 key={db}
                 /* Clamped so the 0 dB and floor labels sit fully inside the
                    scale rather than half-clipped at its ends. */
-                style={{ bottom: `${clamp(meterScalePosition(db), 0.02, 0.965) * 100}%` }}
+                /* The floor label is held far enough in that its descender
+                   clears the meter's own bottom edge — a "-48" cut in half
+                   reads as "48", which is the opposite sign. */
+                style={{ bottom: `${clamp(meterScalePosition(db), 0.055, 0.955) * 100}%` }}
               >
                 {db}
               </span>

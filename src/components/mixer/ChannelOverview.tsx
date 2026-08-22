@@ -233,12 +233,10 @@ export const ChannelOverview = memo(function ChannelOverview({ track }: { track:
 export function ChannelOverviewHost() {
   const id = useUiStore((s) => s.selectedTrackId);
   const track = useProjectStore((s) => s.project.tracks.find((t) => t.id === id));
-  if (!track || track.type === 'folder' || track.type === 'vca') {
-    return (
-      <div className="channel-overview empty" data-testid="channel-overview">
-        <span className="hint">Select a channel to see it laid out here.</span>
-      </div>
-    );
-  }
+  // Nothing selected: take no room at all. A band of empty console saying
+  // "select a channel" was costing a quarter of the mixer's height to tell
+  // the user something clicking a strip already tells them — and the height
+  // it took came off the strips, which is where the work happens.
+  if (!track || track.type === 'folder' || track.type === 'vca') return null;
   return <ChannelOverview track={track} />;
 }
