@@ -152,14 +152,25 @@ const SYNTH_PARAMS: {
     format: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)} kHz` : `${Math.round(v)} Hz`),
   },
   {
+    // Decibels, not Q. Both instruments write this straight into
+    // `filter.Q.value` on a lowpass, and Web Audio reads that field as dB for
+    // lowpass and highpass — it is the lift at the corner. The label said Q,
+    // so the number a musician automated read about ten decibels quieter than
+    // it sounded.
+    //
+    // Only the label and the format are corrected. The range and the log
+    // scale decide how a stored 0..1 lane value maps to a real one, so moving
+    // them would change how every saved automation lane sounds. The voice
+    // clamps 0.05..24; a lane cannot reach the top of that, which is worth
+    // widening one day in a change that can be heard for.
     key: 'resonance',
     name: 'Resonance',
-    unit: 'Q',
+    unit: 'dB',
     min: 0.1,
     max: 20,
     def: 1,
     scale: 'log',
-    format: (v) => v.toFixed(1),
+    format: (v) => `${v.toFixed(1)} dB`,
   },
   {
     key: 'attack',

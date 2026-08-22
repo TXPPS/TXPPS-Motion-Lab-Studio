@@ -370,19 +370,33 @@ export function PanKnob({
 export function ParamKnob({
   norm,
   onNorm,
+  onGestureStart,
+  onGestureEnd,
   size = 40,
   label,
   display,
 }: {
   norm: number;
   onNorm: (v: number) => void;
+  /**
+   * Open and close one undo entry for the whole drag. Without them every
+   * pointer move is its own undo step, so undoing a knob sweep takes as many
+   * presses as the sweep took frames — which is what every instrument knob in
+   * the product was doing. The mixer's Fader and PanKnob already take these.
+   */
+  onGestureStart?: () => void;
+  onGestureEnd?: () => void;
   size?: number;
   label: string;
   display: string;
 }) {
   const onPointerDown = usePointerDrag<number>({
-    onStart: () => norm,
+    onStart: () => {
+      onGestureStart?.();
+      return norm;
+    },
     onMove: (_dx, dy, _e, start) => onNorm(clamp(start - dy / 110, 0, 1)),
+    onEnd: () => onGestureEnd?.(),
   });
   const onKeyDown = (e: React.KeyboardEvent) => {
     const step = e.shiftKey ? 0.01 : 0.05;

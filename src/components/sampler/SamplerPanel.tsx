@@ -54,6 +54,10 @@ import { Waveform } from '../arrangement/Waveform';
 import { Keyboard } from '../synth/Keyboard';
 import { ZoneMap } from './ZoneMap';
 
+/** One undo entry per knob sweep, not one per animation frame. */
+const beginKnob = () => useProjectStore.getState().beginGesture();
+const endKnob = () => useProjectStore.getState().endGesture();
+
 const preview = (trackId: string, pitch: number, vel = 110) => {
   void engine.start().then(() => {
     engine.liveNoteOn(trackId, pitch, vel);
@@ -626,6 +630,8 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
             }
             display={`${Math.round(sel.gain * 100)}%`}
             size={34}
+            onGestureStart={beginKnob}
+            onGestureEnd={endKnob}
           />
           <ParamKnob
             label="Pan"
@@ -641,6 +647,8 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
                 : `${Math.abs(Math.round(sel.pan * 100))}${sel.pan < 0 ? 'L' : 'R'}`
             }
             size={34}
+            onGestureStart={beginKnob}
+            onGestureEnd={endKnob}
           />
           <label>
             Pitch
@@ -1108,6 +1116,8 @@ function VoiceSections({ track, params }: { track: Track; params: SamplerParams 
                 norm={clamp(Math.log(params.filterCutoff / 40) / Math.log(18000 / 40), 0, 1)}
                 onNorm={(n) => setP({ filterCutoff: Math.round(40 * Math.pow(18000 / 40, n)) })}
                 display={formatHz(params.filterCutoff)}
+                onGestureStart={beginKnob}
+                onGestureEnd={endKnob}
               />
               <ParamKnob
                 label="Res"
@@ -1116,6 +1126,8 @@ function VoiceSections({ track, params }: { track: Track; params: SamplerParams 
                 // Q on a pass filter is decibels, so this is the lift at the
                 // corner rather than an abstract quality factor.
                 display={`${params.filterRes.toFixed(1)} dB`}
+                onGestureStart={beginKnob}
+                onGestureEnd={endKnob}
               />
             </div>
           </>
@@ -1140,6 +1152,8 @@ function VoiceSections({ track, params }: { track: Track; params: SamplerParams 
             norm={Math.pow(params.attack / 2, 1 / 3)}
             onNorm={(n) => setP({ attack: Math.round(Math.pow(n, 3) * 2 * 1000) / 1000 })}
             display={formatSeconds(params.attack)}
+            onGestureStart={beginKnob}
+            onGestureEnd={endKnob}
           />
           <ParamKnob
             label="D"
@@ -1148,12 +1162,16 @@ function VoiceSections({ track, params }: { track: Track; params: SamplerParams 
               setP({ decay: Math.max(0.001, Math.round(Math.pow(n, 3) * 2 * 1000) / 1000) })
             }
             display={formatSeconds(params.decay)}
+            onGestureStart={beginKnob}
+            onGestureEnd={endKnob}
           />
           <ParamKnob
             label="S"
             norm={params.sustain}
             onNorm={(n) => setP({ sustain: Math.round(n * 100) / 100 })}
             display={`${Math.round(params.sustain * 100)}%`}
+            onGestureStart={beginKnob}
+            onGestureEnd={endKnob}
           />
           <ParamKnob
             label="R"
@@ -1162,12 +1180,16 @@ function VoiceSections({ track, params }: { track: Track; params: SamplerParams 
               setP({ release: Math.max(0.005, Math.round(Math.pow(n, 3) * 3 * 1000) / 1000) })
             }
             display={formatSeconds(params.release)}
+            onGestureStart={beginKnob}
+            onGestureEnd={endKnob}
           />
           <ParamKnob
             label="Vel"
             norm={params.velToGain}
             onNorm={(n) => setP({ velToGain: Math.round(n * 100) / 100 })}
             display={`${Math.round(params.velToGain * 100)}%`}
+            onGestureStart={beginKnob}
+            onGestureEnd={endKnob}
           />
         </div>
       </InstrumentSection>
@@ -1213,12 +1235,16 @@ function VoiceSections({ track, params }: { track: Track; params: SamplerParams 
                 setP({ lfoRate: Math.round(0.05 * Math.pow(20 / 0.05, n) * 100) / 100 })
               }
               display={`${params.lfoRate.toFixed(2)} Hz`}
+              onGestureStart={beginKnob}
+              onGestureEnd={endKnob}
             />
             <ParamKnob
               label="Depth"
               norm={params.lfoDepth}
               onNorm={(n) => setP({ lfoDepth: Math.round(n * 100) / 100 })}
               display={`${Math.round(params.lfoDepth * 100)}%`}
+              onGestureStart={beginKnob}
+              onGestureEnd={endKnob}
             />
           </div>
         )}
@@ -1231,6 +1257,8 @@ function VoiceSections({ track, params }: { track: Track; params: SamplerParams 
             norm={clamp(params.volume / 1.5, 0, 1)}
             onNorm={(n) => setP({ volume: Math.round(n * 1.5 * 100) / 100 })}
             display={`${Math.round(params.volume * 100)}%`}
+            onGestureStart={beginKnob}
+            onGestureEnd={endKnob}
           />
           <ParamKnob
             label="Pan"
@@ -1243,6 +1271,8 @@ function VoiceSections({ track, params }: { track: Track; params: SamplerParams 
                 ? 'C'
                 : `${Math.abs(Math.round(track.pan * 100))}${track.pan < 0 ? 'L' : 'R'}`
             }
+            onGestureStart={beginKnob}
+            onGestureEnd={endKnob}
           />
         </div>
       </InstrumentSection>

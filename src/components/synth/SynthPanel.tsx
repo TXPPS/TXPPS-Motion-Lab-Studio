@@ -39,6 +39,10 @@ import { InstrumentFrame } from '../instrument/InstrumentFrame';
 import { InstrumentKindSelect, SamplerPanel } from '../sampler/SamplerPanel';
 import { Keyboard } from './Keyboard';
 
+/** One undo entry per knob sweep, not one per animation frame. */
+const beginKnob = () => useProjectStore.getState().beginGesture();
+const endKnob = () => useProjectStore.getState().endGesture();
+
 /** Pick the synth target: armed instrument/drum track, else selected, else first. */
 export function useSynthTarget(): Track | null {
   const tracks = useProjectStore((s) => s.project.tracks);
@@ -304,6 +308,8 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
                     set({ cutoff: Math.round(SYNTH_CUTOFF_MIN_HZ * Math.exp(n * cutoffSpan)) })
                   }
                   display={formatHz(p.cutoff)}
+                  onGestureStart={beginKnob}
+                  onGestureEnd={endKnob}
                 />
                 <ParamKnob
                   label="Res"
@@ -323,6 +329,8 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
                   // Q is in decibels — so this number is the lift you can read
                   // off the curve above, not an abstract quality factor.
                   display={`${p.resonance.toFixed(1)} dB`}
+                  onGestureStart={beginKnob}
+                  onGestureEnd={endKnob}
                 />
               </div>
             </InstrumentSection>
@@ -341,6 +349,8 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
                   norm={Math.pow(p.attack / 2, 1 / 3)}
                   onNorm={(n) => set({ attack: Math.round(Math.pow(n, 3) * 2 * 1000) / 1000 })}
                   display={formatSeconds(p.attack)}
+                  onGestureStart={beginKnob}
+                  onGestureEnd={endKnob}
                 />
                 <ParamKnob
                   label="D"
@@ -349,12 +359,16 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
                     set({ decay: Math.max(0.01, Math.round(Math.pow(n, 3) * 2 * 1000) / 1000) })
                   }
                   display={formatSeconds(p.decay)}
+                  onGestureStart={beginKnob}
+                  onGestureEnd={endKnob}
                 />
                 <ParamKnob
                   label="S"
                   norm={p.sustain}
                   onNorm={(n) => set({ sustain: Math.round(n * 100) / 100 })}
                   display={`${Math.round(p.sustain * 100)}%`}
+                  onGestureStart={beginKnob}
+                  onGestureEnd={endKnob}
                 />
                 <ParamKnob
                   label="R"
@@ -363,6 +377,8 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
                     set({ release: Math.max(0.01, Math.round(Math.pow(n, 3) * 3 * 1000) / 1000) })
                   }
                   display={formatSeconds(p.release)}
+                  onGestureStart={beginKnob}
+                  onGestureEnd={endKnob}
                 />
               </div>
             </InstrumentSection>
@@ -376,6 +392,8 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
               norm={p.volume}
               onNorm={(n) => set({ volume: Math.round(n * 100) / 100 })}
               display={`${Math.round(p.volume * 100)}%`}
+              onGestureStart={beginKnob}
+              onGestureEnd={endKnob}
             />
             <ParamKnob
               label="Pan"
@@ -390,6 +408,8 @@ export function SynthPanel({ performMode }: { performMode?: boolean }) {
                   ? 'C'
                   : `${Math.abs(Math.round(track.pan * 100))}${track.pan < 0 ? 'L' : 'R'}`
               }
+              onGestureStart={beginKnob}
+              onGestureEnd={endKnob}
             />
           </div>
         </InstrumentSection>
