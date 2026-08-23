@@ -704,6 +704,73 @@ MW_TEST("a bypassed unit publishes the truth rather than a stale frame") {
   }
 }
 
+MW_TEST("the published band gain is the factor applied, not the curve behind it") {
+  // The house rule from the drawing side: a picture is made from the same
+  // evaluation the audio uses, never a second one. Between a band's curve and
+  // its gain sit Depth, Range and Mix, and a frame carrying the curve value
+  // would show a full swing while the audio was untouched — confidently wrong,
+  // which is worse than showing nothing.
+  //
+  // The default settings hide this: at Depth 1, Range −60 dB and Mix 1 the
+  // curve and the gain agree to within 0.001, which is why every earlier test
+  // here passed either way. These two settings separate them.
+  const std::vector<dsp::Breakpoint> square = squareCurve();
+
+  {
+    // Mix 0. Every band passes at unity, so nothing is modulated and the face
+    // must say so however hard the curve is swinging.
+    Rig rig(&broadband);
+    rig.unit->setBandCount(3);
+    rig.unit->setSmooth(0.0);
+    rig.unit->setMix(0.0);
+    for (int b = 0; b < 3; ++b) rig.unit->setCurve(b, square.data(), square.size());
+    rig.unit->phase().setMode(dsp::PhaseMode::Free);
+    rig.unit->phase().setRateHz(3.0);
+    MW_EXPECT(rig.graph.prepare(48000.0, 128, 2));
+    dsp::VisualFrame frame;
+    double worst = 0.0;
+    for (int block = 0; block < 200; ++block) {
+      rig.graph.process(128, static_cast<double>(block) * 128.0 / 48000.0, true);
+      MW_EXPECT(rig.unit->visual().read(frame));
+      for (int b = 0; b < dsp::kVisualBands; ++b) {
+        const double d = std::fabs(static_cast<double>(frame.bandGain[b]) - 1.0);
+        if (d > worst) worst = d;
+      }
+    }
+    std::printf("    at Mix 0 the published gain departs from unity by at most %.6f\n", worst);
+    MW_EXPECT(worst < 1.0e-6);
+  }
+
+  {
+    // Range −6 dB. The gain floor is 0.5012, not zero, and a frame reporting
+    // the curve would bottom out at zero — a face showing twice the depth the
+    // user set.
+    Rig rig(&broadband);
+    rig.unit->setBandCount(3);
+    rig.unit->setSmooth(0.0);
+    BandSettings s;
+    s.depth = 1.0;
+    s.rangeDb = -6.0;
+    for (int b = 0; b < 3; ++b) {
+      rig.unit->setBand(b, s);
+      rig.unit->setCurve(b, square.data(), square.size());
+    }
+    rig.unit->phase().setMode(dsp::PhaseMode::Free);
+    rig.unit->phase().setRateHz(3.0);
+    MW_EXPECT(rig.graph.prepare(48000.0, 128, 2));
+    dsp::VisualFrame frame;
+    float floorSeen = 2.0f;
+    for (int block = 0; block < 200; ++block) {
+      rig.graph.process(128, static_cast<double>(block) * 128.0 / 48000.0, true);
+      MW_EXPECT(rig.unit->visual().read(frame));
+      if (frame.bandGain[0] < floorSeen) floorSeen = frame.bandGain[0];
+    }
+    std::printf("    at Range -6 dB the published gain bottoms at %.4f (10^(-6/20) = 0.5012)\n",
+                static_cast<double>(floorSeen));
+    MW_EXPECT_NEAR(static_cast<double>(floorSeen), 0.5011872336272722, 0.01);
+  }
+}
+
 MW_TEST("the band levels published are the bands' own content") {
   // Not the crossover's response curve, which is a property of the filter, but
   // what those bands actually carry — which depends on the material. A 50 Hz

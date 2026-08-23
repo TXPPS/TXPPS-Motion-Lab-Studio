@@ -122,9 +122,44 @@ the alias floor is −87 dB at _every_ corner from 0.30 to 0.98 of Nyquist, whil
 a _lower_ corner causes more clicks, because a fourth-order Butterworth rings
 longer on a step the lower it is set. 0.75 is clear of the 0.60 edge.
 
-`X24` is PASS: the WASM boundary is verified bit-for-bit against the native
-golden render, including block-size invariance across it
-(`motionwave/ui/test/wasm_boundary.test.ts`).
+`D1` is PASS, and half of it is now a thing that cannot be got wrong rather
+than a thing that is checked. The cell has two claims — that the controls the
+UI exposes and the setters the DSP has are the same set, and that each setter
+reaches audio. The first was going to be a parity test between two
+hand-maintained tables, which is a test that passes for a long time and then
+fails once, after the drift has shipped; across fourteen units that is fourteen
+chances. Both tables are now generated from
+`motionwave/manifests/fx-01-motion-shaper.json`, so a control naming a
+parameter the processor does not have fails to compile
+(`scripts/generate-params.mjs`, and `npm run params:check` in the build stops a
+hand edit to either generated file).
+
+The second claim is measured, because it cannot be made structural: a generated
+switch proves a call happens, not that the value changes the sound.
+`core/test/param_delta_tests.cpp` renders every parameter at two values and
+requires an audible difference — the sixteen come in between −16.4 and
+−42.8 dBFS against a −60 dB gate. It is held to the stricter reading as well: a
+band control must move _its own_ band, checked spectrally, because wiring
+`DepthHigh` to band 0 was tried against the delta test alone and passed at
+−17.6 dB. Both mutations are recorded in that file.
+
+`X24` is PASS. The boundary is verified bit-for-bit against the native golden
+render (`motionwave/ui/test/wasm_boundary.test.ts`), and the unit is then driven
+end to end through it (`motionwave/ui/test/integration_motion_shaper.test.ts`):
+the face's own control table, the specs' own tapers, the manifest's own ids, the
+shipped `.wasm`, and back out as audio and as the frame the audio path
+published. It measured the drawn curve's modulation at −24.22 dB against a
+−24 dB range control, and the published band gain against the curve at the
+published phase to 2.6e-3.
+
+**X24 found a defect no native test could.** The published `bandGain` was the
+raw curve value, not the factor the audio multiplies by — and between the two
+sit Depth, Range and Mix. A face fed from it drew a full-depth swing while the
+audio was untouched at Mix 0, which is the house rule's exact failure: a picture
+made from a second evaluation. At the default Depth 1, Range −60 dB and Mix 1
+the two agree to within 0.001, which is why every native case passed either way.
+Fixed in `publishFrame`, with a native case at Mix 0 and at Range −6 dB that
+fails without the fix.
 
 **Not yet measured:** V5 (modulator alias floor — needs the BLEP path, which is
 not built), V9 (topology-change pop — needs the 4 ms crossfade of §4.6, not
@@ -132,25 +167,34 @@ built), V10 (denormal stall — needs per-block timing, and the timing here is n
 trustworthy enough to assert a 1.2× ratio; a candidate for
 `HARDWARE_VERIFICATION.md`).
 
-**Not started:** every UI cell. `U19`–`U23` need the framework Stream C is
-building.
+`U19`, `U20` and `U23` are PASS against the face's declaration.
 
-| Unit                | Sheet    | Status      | D1  | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21                         | U22                       | U23  | X24  |
-| ------------------- | -------- | ----------- | --- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | --------------------------- | ------------------------- | ---- | ---- |
-| Motion Shaper       | `fx-01`  | DSP PARTIAL | —   | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | BLOCKED (no displayRefresh) | BLOCKED (no layoutEngine) | PASS | PASS |
-| Program EQ          | `dyn-01` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| Optical Leveller    | `dyn-02` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| FET Limiter         | `dyn-03` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| Variable-Mu Limiter | `dyn-04` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| Console EQ          | `dyn-05` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| Granular Reverb     | `fx-02`  | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| Granular Delay      | `fx-03`  | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| Slipstream Sampler  | `smp-01` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
-| DCO Poly            | `syn-01` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
-| Phase Distortion    | `syn-02` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
-| Analog Five         | `syn-03` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
-| Six-Op FM           | `syn-04` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
-| Matrix Twelve       | `syn-05` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
+`U21` and `U22` remain BLOCKED, and the reason has changed: it is no longer that
+the capability does not exist. This host has Chromium and Playwright, so
+`layoutEngine` is available and `U22` is closable as soon as there is something
+to lay out — a DOM renderer for a `UnitFace`, which is framework work all
+fourteen units want and none of them has yet. `U21` additionally needs
+`realtimeThread`, which means the core running in an AudioWorklet: the browser
+shell, which is its own stream. Both are recorded here as work scheduled rather
+than as an environment limit, because calling an absent renderer an absent
+browser is how a cell stays blocked forever.
+
+| Unit                | Sheet    | Status      | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21                         | U22                       | U23  | X24  |
+| ------------------- | -------- | ----------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | --------------------------- | ------------------------- | ---- | ---- |
+| Motion Shaper       | `fx-01`  | DSP DONE    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | BLOCKED (no displayRefresh) | BLOCKED (no layoutEngine) | PASS | PASS |
+| Program EQ          | `dyn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| Optical Leveller    | `dyn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| FET Limiter         | `dyn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| Variable-Mu Limiter | `dyn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| Console EQ          | `dyn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| Granular Reverb     | `fx-02`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
+| DCO Poly            | `syn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
+| Phase Distortion    | `syn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
+| Analog Five         | `syn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
+| Six-Op FM           | `syn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
+| Matrix Twelve       | `syn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
 
 ## What each column is
 

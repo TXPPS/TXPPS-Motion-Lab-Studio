@@ -27,33 +27,12 @@
  * exactly like the truth until the engine stalls.
  */
 import type { FaceElement, UnitFace } from '../../harness/types';
+import { motionShaperControls } from './params.gen';
 
-/**
- * Parameter ids, matching the unit's own declaration.
- *
- * Numeric rather than string because `ParamSpec` is a mirror of the C++ side
- * where a parameter crosses the audio boundary as an id and a value — see
- * ADR-0004. A face that invented its own names would need a mapping, and a
- * mapping is a second place for the two to disagree.
- */
-export const MotionShaperParam = {
-  BandCount: 1,
-  CrossoverLowMid: 2,
-  CrossoverMidHigh: 3,
-  Slope: 4,
-  Smooth: 5,
-  Mix: 6,
-  DepthLow: 7,
-  DepthMid: 8,
-  DepthHigh: 9,
-  RangeLow: 10,
-  RangeMid: 11,
-  RangeHigh: 12,
-  Rate: 13,
-  Swing: 14,
-  PhaseOffset: 15,
-  SyncMode: 16,
-} as const;
+// Re-exported because the face is where a panel's readers look for it, and a
+// second import path for the same table is how two of them end up disagreeing
+// about which is authoritative.
+export { MotionShaperParam } from './params.gen';
 
 /** Meter channels the unit publishes, matching `VisualFrame`. */
 export const MotionShaperMeter = {
@@ -160,23 +139,19 @@ export const motionShaperFace: UnitFace = {
     meter('input-trace', MotionShaperMeter.InputPeak, 'Input level'),
     meter('output-trace', MotionShaperMeter.OutputPeak, 'Output level'),
 
-    switchControl('band-count', MotionShaperParam.BandCount, 'Number of bands'),
-    switchControl('slope', MotionShaperParam.Slope, 'Crossover slope'),
-    switchControl('sync-mode', MotionShaperParam.SyncMode, 'Sync mode'),
-
-    knob('crossover-low-mid', MotionShaperParam.CrossoverLowMid, 'Low to mid crossover'),
-    knob('crossover-mid-high', MotionShaperParam.CrossoverMidHigh, 'Mid to high crossover'),
-    knob('rate', MotionShaperParam.Rate, 'Modulation rate'),
-    knob('swing', MotionShaperParam.Swing, 'Swing'),
-    knob('phase-offset', MotionShaperParam.PhaseOffset, 'Phase offset'),
-    knob('smooth', MotionShaperParam.Smooth, 'Smoothing'),
-    knob('mix', MotionShaperParam.Mix, 'Wet and dry mix'),
-    knob('depth-low', MotionShaperParam.DepthLow, 'Low band depth'),
-    knob('depth-mid', MotionShaperParam.DepthMid, 'Mid band depth'),
-    knob('depth-high', MotionShaperParam.DepthHigh, 'High band depth'),
-    knob('range-low', MotionShaperParam.RangeLow, 'Low band range'),
-    knob('range-mid', MotionShaperParam.RangeMid, 'Mid band range'),
-    knob('range-high', MotionShaperParam.RangeHigh, 'High band range'),
+    // Every control, from the generated table.
+    //
+    // The set is not written here and cannot be: it comes from the manifest the
+    // C++ dispatch is also generated from, so a control naming a parameter the
+    // DSP does not have fails to compile rather than failing a parity test
+    // later. What stays here is what is genuinely the face's — which control
+    // shape a parameter gets, and the token pairs it puts together — because
+    // those are design decisions and the manifest has no opinion about them.
+    ...motionShaperControls.map((c) =>
+      c.role === 'switch'
+        ? switchControl(c.id, c.paramId, c.accessibleName)
+        : knob(c.id, c.paramId, c.accessibleName),
+    ),
   ],
 
   /**

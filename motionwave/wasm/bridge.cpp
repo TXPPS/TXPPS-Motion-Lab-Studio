@@ -21,6 +21,7 @@
 
 #include "../core/render/offline_render.h"
 #include "../core/render/reference_graph.h"
+#include "../core/units/generated/motion_shaper_params.gen.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -40,6 +41,26 @@ namespace {
  * lifetime.
  */
 std::vector<float> g_output;
+
+/**
+ * The unit the browser drives, and the buffers it is driven through.
+ *
+ * One instance rather than a handle table, because the boundary a browser needs
+ * today is one unit under test — X24 renders a face against a real engine, not
+ * a session. A handle table added now would be an API shaped by a guess about
+ * the second caller, and ADR-0004 already says the parameter path is the thing
+ * that must stay narrow.
+ *
+ * Held by value at module scope so no allocation crosses the boundary and there
+ * is nothing for a caller to forget to free.
+ */
+mw::units::MotionShaper g_shaper;
+std::vector<float> g_shaperIn;
+std::vector<float> g_shaperOut;
+std::vector<float> g_planarIn;
+std::vector<float> g_planarOut;
+std::vector<double> g_visual;
+int g_shaperChannels = 2;
 
 }  // namespace
 
@@ -83,5 +104,151 @@ int mw_render_length() { return static_cast<int>(g_output.size()); }
 /// The gain the golden render was made at, so the caller cannot guess it wrong.
 EMSCRIPTEN_KEEPALIVE
 float mw_golden_gain() { return mw::reference::kGoldenGain; }
+
+// ------------------------------------------------------------ the Motion Shaper
+//
+// Cell X24 asks for one integration test per unit: a real face driving a real
+// engine and getting back real audio and real published state. That is what
+// these exports are for, and it is why they are the *same* entry points the app
+// will use rather than a test-only path — a boundary exercised only by tests is
+// a boundary whose first real caller finds the bugs.
+
+/// Prepare the unit. Off the audio thread, which across this boundary is all of it.
+EMSCRIPTEN_KEEPALIVE
+void mw_shaper_prepare(double sampleRate, int blockSize, int channels) {
+  g_shaperChannels = channels < 1 ? 1 : (channels > 2 ? 2 : channels);
+  g_shaper.prepare(sampleRate, blockSize);
+  g_shaper.reset();
+  g_shaperIn.assign(static_cast<std::size_t>(blockSize) *
+                        static_cast<std::size_t>(g_shaperChannels),
+                    0.0f);
+  g_shaperOut.assign(g_shaperIn.size(), 0.0f);
+}
+
+/**
+ * Set one parameter, by the id the manifest gave it.
+ *
+ * The dispatch is generated from the same manifest the TypeScript control table
+ * is generated from, so an id arriving here is an id the unit has — the
+ * boundary cannot be handed a control that names nothing.
+ */
+EMSCRIPTEN_KEEPALIVE
+void mw_shaper_set_param(int id, double value) {
+  mw::units::applyMotionShaperParam(g_shaper, id, value);
+}
+
+/**
+ * Set one band's curve from a flat array of `[x, y, shape, tension]` quads.
+ *
+ * Flat doubles rather than a struct layout the caller has to reproduce: a
+ * JavaScript view that agrees with a C++ struct is a duplicated ABI, and the
+ * first time a field is added the two disagree silently.
+ */
+EMSCRIPTEN_KEEPALIVE
+void mw_shaper_set_curve(int band, const double* quads, int count) {
+  if (quads == nullptr || count <= 0) return;
+  std::vector<mw::dsp::Breakpoint> points;
+  points.reserve(static_cast<std::size_t>(count));
+  for (int i = 0; i < count; ++i) {
+    const double* q = quads + static_cast<std::ptrdiff_t>(i) * 4;
+    const int shape = static_cast<int>(q[2] + 0.5);
+    points.push_back(mw::dsp::Breakpoint{
+        q[0], q[1],
+        shape == 1   ? mw::dsp::SegmentShape::Arc
+        : shape == 2 ? mw::dsp::SegmentShape::SCurve
+        : shape == 3 ? mw::dsp::SegmentShape::Step
+                     : mw::dsp::SegmentShape::Line,
+        q[3]});
+  }
+  g_shaper.setCurve(band, points.data(), points.size());
+}
+
+EMSCRIPTEN_KEEPALIVE
+void mw_shaper_set_bpm(double bpm) { g_shaper.setBpm(bpm); }
+
+EMSCRIPTEN_KEEPALIVE
+void mw_shaper_set_bypass(int bypass) { g_shaper.setBypass(bypass != 0); }
+
+/// Where the caller writes the block's input, interleaved.
+EMSCRIPTEN_KEEPALIVE
+float* mw_shaper_input() { return g_shaperIn.data(); }
+
+/// Where the caller reads the block's output, interleaved.
+EMSCRIPTEN_KEEPALIVE
+const float* mw_shaper_output() { return g_shaperOut.data(); }
+
+/**
+ * Process one block at `songSeconds`.
+ *
+ * The song position is a parameter rather than a counter the module keeps,
+ * because the transport is the host's and a module with its own idea of where
+ * the song is would drift from it — which is the whole failure mode the
+ * transport-derived phase in `LfoPhase` exists to avoid.
+ */
+EMSCRIPTEN_KEEPALIVE
+void mw_shaper_process(int frames, double sampleRate, double songSeconds, int playing) {
+  const int channels = g_shaperChannels;
+  const std::size_t span = static_cast<std::size_t>(frames);
+  g_planarIn.assign(static_cast<std::size_t>(channels) * span, 0.0f);
+  g_planarOut.assign(g_planarIn.size(), 0.0f);
+  float* inPtr[2] = {nullptr, nullptr};
+  float* outPtr[2] = {nullptr, nullptr};
+  for (int c = 0; c < channels; ++c) {
+    inPtr[c] = g_planarIn.data() + static_cast<std::size_t>(c) * span;
+    outPtr[c] = g_planarOut.data() + static_cast<std::size_t>(c) * span;
+    for (int i = 0; i < frames; ++i) {
+      inPtr[c][i] = g_shaperIn[static_cast<std::size_t>(i * channels + c)];
+    }
+  }
+  // Deinterleaved for the call and re-interleaved after, because `AudioBuffer`
+  // is a planar view and the boundary is interleaved. The copy is the honest
+  // cost of one convention across the boundary; a planar boundary would push
+  // the same copy into every JavaScript caller instead.
+  mw::AudioBuffer in(inPtr, channels, frames);
+  mw::AudioBuffer out(outPtr, channels, frames);
+  mw::ProcessContext ctx;
+  ctx.inputs = &in;
+  ctx.inputCount = 1;
+  ctx.outputs = &out;
+  ctx.outputCount = 1;
+  ctx.frames = frames;
+  ctx.sampleRate = sampleRate;
+  ctx.songSeconds = songSeconds;
+  ctx.playing = playing != 0;
+  g_shaper.process(ctx);
+  for (int c = 0; c < channels; ++c) {
+    for (int i = 0; i < frames; ++i) {
+      g_shaperOut[static_cast<std::size_t>(i * channels + c)] = outPtr[c][i];
+    }
+  }
+}
+
+/**
+ * Read the frame the audio path published, as nine doubles.
+ *
+ * Read through the seqlock rather than copied out of a shared struct: the
+ * browser's reader and the audio path are the same thread here and would agree
+ * whatever this did, but the app's will not be, and an integration test that
+ * exercised a different read path than the product would be checking something
+ * the product does not do.
+ */
+EMSCRIPTEN_KEEPALIVE
+const double* mw_shaper_visual() {
+  mw::dsp::VisualFrame frame;
+  g_shaper.visual().read(frame);
+  g_visual.assign(9, 0.0);
+  g_visual[0] = static_cast<double>(frame.phase);
+  for (int b = 0; b < 3; ++b) {
+    g_visual[static_cast<std::size_t>(1 + b)] = static_cast<double>(frame.bandGain[b]);
+    g_visual[static_cast<std::size_t>(4 + b)] = static_cast<double>(frame.bandPeak[b]);
+  }
+  g_visual[7] = static_cast<double>(frame.inputPeak);
+  g_visual[8] = static_cast<double>(frame.outputPeak);
+  return g_visual.data();
+}
+
+/// How many times the audio path has published. A face that stalls shows here.
+EMSCRIPTEN_KEEPALIVE
+unsigned int mw_shaper_generation() { return g_shaper.visual().generation(); }
 
 }  // extern "C"

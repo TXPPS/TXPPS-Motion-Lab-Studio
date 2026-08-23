@@ -14,174 +14,22 @@
  * the two agree rather than trusting that they do.
  */
 import type { MeterChannel } from '../../metering/bus';
-import { defineParam } from '../../param/spec';
-import type { ParamSpec } from '../../param/spec';
-import { Taper, Unit } from '../../param/units';
 import type { UnitUnderTest } from '../../harness/types';
 import { declareLatency } from '../../mix/latency';
-import { MotionShaperMeter, MotionShaperParam, motionShaperFace } from './face';
+import { MotionShaperMeter, motionShaperFace } from './face';
+import { motionShaperSpecs as specs } from './params.gen';
 
 /**
- * The taper on a crossover is logarithmic because frequency is heard that way:
- * a linear sweep would spend most of its travel above 10 kHz, where a
- * crossover is almost never placed, and cross the whole useful range in the
- * first centimetre.
+ * The parameter table, generated from `motionwave/manifests/fx-01-motion-shaper.json`.
+ *
+ * Re-exported rather than re-declared. This used to be sixteen hand-written
+ * `defineParam` calls sitting beside sixteen hand-written C++ setters, and the
+ * two agreeing was a property somebody had to keep true. Now they are the same
+ * list read twice, so the first half of D1 — that the controls the UI exposes
+ * and the setters the DSP has are the same set — is not a test that could pass
+ * while drifting, it is a thing that cannot be written down wrongly.
  */
-const CROSSOVER_TAPER = Taper.Logarithmic;
-
-export const motionShaperSpecs: readonly ParamSpec[] = [
-  defineParam({
-    id: MotionShaperParam.BandCount,
-    name: 'Bands',
-    unit: Unit.Choice,
-    min: 0,
-    max: 2,
-    def: 2,
-    taper: Taper.Stepped,
-    steps: 3,
-    choices: ['One', 'Two', 'Three'],
-    // Zero, because this is a switch. Smoothing it would mean interpolating
-    // between two topologies, which is meaningless — the crossfade in the DSP
-    // is what makes the change inaudible, and that is a different mechanism.
-    smoothingMs: 0,
-  }),
-  defineParam({
-    id: MotionShaperParam.CrossoverLowMid,
-    name: 'Low / Mid',
-    unit: Unit.Hertz,
-    min: 30,
-    max: 2000,
-    def: 220,
-    taper: CROSSOVER_TAPER,
-    smoothingMs: 20,
-  }),
-  defineParam({
-    id: MotionShaperParam.CrossoverMidHigh,
-    name: 'Mid / High',
-    unit: Unit.Hertz,
-    min: 500,
-    max: 16000,
-    def: 3200,
-    taper: CROSSOVER_TAPER,
-    smoothingMs: 20,
-  }),
-  defineParam({
-    id: MotionShaperParam.Slope,
-    name: 'Slope',
-    unit: Unit.Choice,
-    min: 0,
-    max: 2,
-    def: 2,
-    taper: Taper.Stepped,
-    steps: 3,
-    choices: ['6 dB/oct', '12 dB/oct', '24 dB/oct'],
-    smoothingMs: 0,
-  }),
-  defineParam({
-    id: MotionShaperParam.Smooth,
-    name: 'Smooth',
-    unit: Unit.Percent,
-    min: 0,
-    max: 1,
-    def: 0,
-    // Linear on the control, logarithmic in seconds — the mapping onto
-    // 0.05…200 ms lives in the DSP, so that the anti-click floor is applied in
-    // one place rather than depending on a taper the UI chose.
-    taper: Taper.Linear,
-    smoothingMs: 30,
-  }),
-  defineParam({
-    id: MotionShaperParam.Mix,
-    name: 'Mix',
-    unit: Unit.Percent,
-    min: 0,
-    max: 1,
-    def: 1,
-    taper: Taper.Linear,
-    smoothingMs: 30,
-  }),
-  ...(
-    [
-      [MotionShaperParam.DepthLow, 'Low Depth'],
-      [MotionShaperParam.DepthMid, 'Mid Depth'],
-      [MotionShaperParam.DepthHigh, 'High Depth'],
-    ] as const
-  ).map(([id, name]) =>
-    defineParam({
-      id,
-      name,
-      unit: Unit.Percent,
-      min: 0,
-      max: 1,
-      def: 1,
-      taper: Taper.Linear,
-      smoothingMs: 30,
-    }),
-  ),
-  ...(
-    [
-      [MotionShaperParam.RangeLow, 'Low Range'],
-      [MotionShaperParam.RangeMid, 'Mid Range'],
-      [MotionShaperParam.RangeHigh, 'High Range'],
-    ] as const
-  ).map(([id, name]) =>
-    defineParam({
-      id,
-      name,
-      unit: Unit.Decibels,
-      min: -90,
-      max: 0,
-      def: -60,
-      taper: Taper.Linear,
-      smoothingMs: 30,
-    }),
-  ),
-  defineParam({
-    id: MotionShaperParam.Rate,
-    name: 'Rate',
-    unit: Unit.Hertz,
-    min: 0.05,
-    max: 200,
-    def: 2,
-    // Logarithmic across four decades. The device explicitly supports
-    // audio-rate modulation, so the top of this range is a real setting rather
-    // than a limit nobody reaches.
-    taper: Taper.Logarithmic,
-    smoothingMs: 20,
-  }),
-  defineParam({
-    id: MotionShaperParam.Swing,
-    name: 'Swing',
-    unit: Unit.Percent,
-    min: 0,
-    max: 1,
-    def: 0,
-    taper: Taper.Linear,
-    smoothingMs: 20,
-  }),
-  defineParam({
-    id: MotionShaperParam.PhaseOffset,
-    name: 'Offset',
-    unit: Unit.Linear,
-    min: 0,
-    max: 360,
-    def: 0,
-    taper: Taper.Linear,
-    smoothingMs: 20,
-  }),
-  defineParam({
-    id: MotionShaperParam.SyncMode,
-    name: 'Sync',
-    unit: Unit.Choice,
-    min: 0,
-    max: 2,
-    def: 0,
-    taper: Taper.Stepped,
-    steps: 3,
-    choices: ['Host', 'Free', 'Trigger'],
-    smoothingMs: 0,
-  }),
-];
+export { motionShaperSpecs } from './params.gen';
 
 /**
  * The channels the DSP publishes, matching `VisualFrame` field for field.
@@ -215,7 +63,7 @@ export const motionShaperUnit: UnitUnderTest = {
   id: 'fx-01',
   name: 'Motion Shaper',
   kind: 'effect',
-  specs: motionShaperSpecs,
+  specs,
   // Nothing in the wet path has latency: the crossover is minimum-phase, the
   // gain is memoryless, and the oversampled modulator is a control signal that
   // never touches the audio path's timing.

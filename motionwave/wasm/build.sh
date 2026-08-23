@@ -54,8 +54,8 @@ emcc "$HERE/bridge.cpp" \
   -sALLOW_MEMORY_GROWTH=1 \
   -sASSERTIONS=0 \
   -sENVIRONMENT=web,worker,node \
-  -sEXPORTED_FUNCTIONS='["_mw_render_reference","_mw_render_length","_mw_golden_gain","_malloc","_free"]' \
-  -sEXPORTED_RUNTIME_METHODS='["HEAPF32","cwrap"]' \
+  -sEXPORTED_FUNCTIONS='["_mw_render_reference","_mw_render_length","_mw_golden_gain","_mw_shaper_prepare","_mw_shaper_set_param","_mw_shaper_set_curve","_mw_shaper_set_bpm","_mw_shaper_set_bypass","_mw_shaper_input","_mw_shaper_output","_mw_shaper_process","_mw_shaper_visual","_mw_shaper_generation","_malloc","_free"]' \
+  -sEXPORTED_RUNTIME_METHODS='["HEAPF32","HEAPF64","cwrap"]' \
   -o "$OUT/motionwave.mjs"
 
 echo "wasm: $(du -h "$OUT/motionwave.wasm" | cut -f1) at $OUT/motionwave.wasm"

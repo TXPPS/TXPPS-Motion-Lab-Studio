@@ -107,6 +107,24 @@ class MotionShaper : public Node {
     if (s.enabled != bands_[band].enabled) beginTopologyChange();
     bands_[band] = s;
   }
+  /**
+   * Read-back, for the generated parameter dispatch and nothing else.
+   *
+   * The unit's own API groups what belongs together — both crossover corners
+   * go in at once because they are one filter network, and a band's settings
+   * arrive as a struct because enabling one is a topology change and changing
+   * its depth is not. A parameter, though, is one control moving one value, so
+   * the generated dispatch has to set a field without disturbing its
+   * neighbours. It reads the current settings back rather than keeping its own
+   * copy, because a second copy of the parameter state is precisely the drift
+   * the manifest exists to make impossible.
+   */
+  double lowMidHz() const noexcept { return lowMid_; }
+  double midHighHz() const noexcept { return midHigh_; }
+  BandSettings band(int index) const noexcept {
+    return (index >= 0 && index < kMaxBands) ? bands_[index] : BandSettings{};
+  }
+
   void setCurve(int band, const dsp::Breakpoint* points, std::size_t count) noexcept {
     if (band >= 0 && band < kMaxBands) curves_[band].set(points, count);
   }
@@ -267,7 +285,14 @@ class MotionShaper : public Node {
 
       // Tracked for the face. The peak of what actually went in and came out
       // this block, not an estimate from the controls — cell 20's whole point.
-      for (int b = 0; b < kMaxBands; ++b) frameGain_[b] = static_cast<float>(gain[b]);
+      // The *applied* factor, not the curve value — `blend` is exactly what the
+      // sample below is multiplied by. Publishing the raw curve was wrong in
+      // the way this codebase's house rule names: a face fed from it drew a
+      // full-depth swing while the audio was doing nothing at all, because
+      // Depth, Range and Mix all live between the curve and the gain. X24
+      // caught it; no native test could, because at the default Depth 1,
+      // Range −60 dB and Mix 1 the two are within 0.001 of each other.
+      for (int b = 0; b < kMaxBands; ++b) frameGain_[b] = static_cast<float>(blend(b, gain[b]));
 
       for (int c = 0; c < channels; ++c) {
         const double x = static_cast<double>(in.channel(c)[i]);
