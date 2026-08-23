@@ -73,6 +73,19 @@ Every figure below comes from a named case in
 | V11 smooth taper monotonicity                 | ≤ 15 % per step | **8.6 %**                               |
 | Cell 7 block sizes 32…1024                    | identical       | **bit-identical**                       |
 
+**Cells now PASS, each with the C++ case behind it** (Directive 05 §2 — owned by
+the C++ suite, proven natively, not re-run through TypeScript):
+
+| Cell              | Named test                                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------------------- |
+| `D2` taper laws   | `modulator_tests` "tension is mirror-symmetric about the diagonal"; `motion_shaper_tests` V11             |
+| `D4` bypass null  | `motion_shaper_tests` "bypass is a wire", "V1 a neutral unit nulls against dry"                           |
+| `D6` sample rates | `crossover_tests` "the sum stays flat at every supported sample rate" — 44.1/48/88.2/96/192 kHz           |
+| `D7` buffer sizes | `motion_shaper_tests` "renders identically at every block size"; also across the WASM boundary            |
+| `D8` latency      | `render_tests` "a declared latency moves the samples it says it does"; the unit declares 0 and measures 0 |
+| `D10` no zipper   | `motion_shaper_tests` V3 and V4 — zero flagged samples                                                    |
+| `D12` tempo map   | `modulator_tests` V7 and V8                                                                               |
+
 **Not yet measured:** V5 (modulator alias floor — needs the BLEP path, which is
 not built), V9 (topology-change pop — needs the 4 ms crossfade of §4.6, not
 built), V10 (denormal stall — needs per-block timing, and the timing here is not
@@ -82,22 +95,22 @@ trustworthy enough to assert a 1.2× ratio; a candidate for
 **Not started:** every UI cell. `U19`–`U23` need the framework Stream C is
 building.
 
-| Unit                | Sheet    | Status      | D1  | D2  | D3  | D4   | D5  | D6  | D7   | D8   | D9  | D10 | D11 | D12 | I13 | I14 | I15 | I16 | I17 | I18 | U19 | U20 | U21 | U22 | U23 |
-| ------------------- | -------- | ----------- | --- | --- | --- | ---- | --- | --- | ---- | ---- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Motion Shaper       | `fx-01`  | DSP PARTIAL | —   | —   | —   | PASS | —   | —   | PASS | PASS | —   | —   | —   | —   | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   |
-| Program EQ          | `dyn-01` | NOT STARTED | —   | —   | —   | —    | —   | —   | —    | —    | —   | —   | —   | —   | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   |
-| Optical Leveller    | `dyn-02` | NOT STARTED | —   | —   | —   | —    | —   | —   | —    | —    | —   | —   | —   | —   | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   |
-| FET Limiter         | `dyn-03` | NOT STARTED | —   | —   | —   | —    | —   | —   | —    | —    | —   | —   | —   | —   | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   |
-| Variable-Mu Limiter | `dyn-04` | NOT STARTED | —   | —   | —   | —    | —   | —   | —    | —    | —   | —   | —   | —   | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   |
-| Console EQ          | `dyn-05` | NOT STARTED | —   | —   | —   | —    | —   | —   | —    | —    | —   | —   | —   | —   | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   |
-| Granular Reverb     | `fx-02`  | NOT STARTED | —   | —   | —   | —    | —   | —   | —    | —    | —   | —   | —   | —   | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   |
-| Granular Delay      | `fx-03`  | NOT STARTED | —   | —   | —   | —    | —   | —   | —    | —    | —   | —   | —   | —   | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   |
-| Slipstream Sampler  | `smp-01` | NOT STARTED | —   | —   | —   | —    | —   | —   | —    | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   |
-| DCO Poly            | `syn-01` | NOT STARTED | —   | —   | —   | —    | —   | —   | —    | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   |
-| Phase Distortion    | `syn-02` | NOT STARTED | —   | —   | —   | —    | —   | —   | —    | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   |
-| Analog Five         | `syn-03` | NOT STARTED | —   | —   | —   | —    | —   | —   | —    | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   |
-| Six-Op FM           | `syn-04` | NOT STARTED | —   | —   | —   | —    | —   | —   | —    | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   |
-| Matrix Twelve       | `syn-05` | NOT STARTED | —   | —   | —   | —    | —   | —   | —    | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   |
+| Unit                | Sheet    | Status      | D1  | D2   | D3  | D4   | D5  | D6   | D7   | D8   | D9  | D10  | D11 | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19 | U20 | U21 | U22 | U23 | X24 |
+| ------------------- | -------- | ----------- | --- | ---- | --- | ---- | --- | ---- | ---- | ---- | --- | ---- | --- | ---- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Motion Shaper       | `fx-01`  | DSP PARTIAL | —   | PASS | —   | PASS | —   | PASS | PASS | PASS | —   | PASS | —   | PASS | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —   |
+| Program EQ          | `dyn-01` | NOT STARTED | —   | —    | —   | —    | —   | —    | —    | —    | —   | —    | —   | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —   |
+| Optical Leveller    | `dyn-02` | NOT STARTED | —   | —    | —   | —    | —   | —    | —    | —    | —   | —    | —   | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —   |
+| FET Limiter         | `dyn-03` | NOT STARTED | —   | —    | —   | —    | —   | —    | —    | —    | —   | —    | —   | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —   |
+| Variable-Mu Limiter | `dyn-04` | NOT STARTED | —   | —    | —   | —    | —   | —    | —    | —    | —   | —    | —   | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —   |
+| Console EQ          | `dyn-05` | NOT STARTED | —   | —    | —   | —    | —   | —    | —    | —    | —   | —    | —   | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —   |
+| Granular Reverb     | `fx-02`  | NOT STARTED | —   | —    | —   | —    | —   | —    | —    | —    | —   | —    | —   | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —   |
+| Granular Delay      | `fx-03`  | NOT STARTED | —   | —    | —   | —    | —   | —    | —    | —    | —   | —    | —   | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —   |
+| Slipstream Sampler  | `smp-01` | NOT STARTED | —   | —    | —   | —    | —   | —    | —    | —    | —   | —    | —   | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   |
+| DCO Poly            | `syn-01` | NOT STARTED | —   | —    | —   | —    | —   | —    | —    | —    | —   | —    | —   | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   |
+| Phase Distortion    | `syn-02` | NOT STARTED | —   | —    | —   | —    | —   | —    | —    | —    | —   | —    | —   | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   |
+| Analog Five         | `syn-03` | NOT STARTED | —   | —    | —   | —    | —   | —    | —    | —    | —   | —    | —   | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   |
+| Six-Op FM           | `syn-04` | NOT STARTED | —   | —    | —   | —    | —   | —    | —    | —    | —   | —    | —   | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   |
+| Matrix Twelve       | `syn-05` | NOT STARTED | —   | —    | —   | —    | —   | —    | —    | —    | —   | —    | —   | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   |
 
 ## What each column is
 
@@ -128,6 +141,40 @@ building.
 | `U23` | UI               | themes + a11y            |
 
 `n/a` in `I13`–`I18` marks a unit that is an effect and has no voices.
+
+| Id    | Group       | Definition-of-Done item                                                                                           |
+| ----- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| `X24` | Integration | The unit's real DSP, compiled to WASM, driven by its real UI, produces correct audio and correct visualiser state |
+
+## Who owns which cell, and where it runs
+
+Directive 05 §2. The harness was blocking cells 1, 3–10, 12, 13 and 16–18
+whenever a unit's DSP is C++ — which is every unit — on the grounds that it
+could not run that DSP through TypeScript. Those are precisely the cells the C++
+suite already proves natively with measured numbers, so the model was
+re-verifying in TypeScript what was already verified in C++ and reporting the
+duplication as a blockage. Across fourteen units that defers about 154 cells to
+a hardware pass that does not exist.
+
+| Layer          | Owns                                                                                | Runs where                                  | Needs Emscripten |
+| -------------- | ----------------------------------------------------------------------------------- | ------------------------------------------- | ---------------- |
+| C++ test suite | `D1`–`I18` — all DSP and instrument behaviour                                       | Native, `ctest --test-dir motionwave/build` | No               |
+| TS harness     | `U19`–`U23` — artwork and IP, visualisers, responsive matrix, themes, accessibility | jsdom and Playwright                        | No               |
+| Integration    | `X24`                                                                               | `npm run test:mw`                           | **Yes**          |
+
+A cell owned by the C++ suite is `PASS` on the strength of its named C++ test.
+It is not re-run through TypeScript, and the harness no longer claims it — a
+second implementation of the same check is not a second proof, it is a second
+thing that can be wrong.
+
+`X24` is the one legitimate WASM dependency, and it is a real one: it is where a
+unit stops being two separately-correct halves and becomes a thing a user can
+hear. The boundary it rests on is verified bit-for-bit against the native golden
+render (`motionwave/ui/test/wasm_boundary.test.ts`).
+
+`BLOCKED` stays valid only for a genuine device capability — timing under a
+real-time thread, display measurement, thermal behaviour — and those live in
+`docs/HARDWARE_VERIFICATION.md` with their procedures.
 
 ## Build order — strict
 

@@ -68,6 +68,22 @@ for (let i = headerIndex + 2; i < lines.length; i++) {
     }
   }
 
+  // Ownership, per Directive 05 §2. A cell owned by the C++ suite may not be
+  // recorded as BLOCKED for a WASM reason: the whole point of the split is that
+  // those cells are proven natively and need no toolchain. A `BLOCKED (no
+  // wasmCore)` on D1..I18 is the old model leaking back, and it would silently
+  // defer about 154 cells across fourteen units to a hardware pass.
+  for (const [n, value] of rest.entries()) {
+    const column = columns[n + 3];
+    if (!/^(D|I)\d+$/.test(column ?? '')) continue;
+    if (/BLOCKED/.test(value) && /wasm|emscripten/i.test(value)) {
+      problems.push(
+        `${unit} · ${column}: BLOCKED for a WASM reason, but this cell is owned by the ` +
+          `C++ suite and runs natively — see docs/UNIT_LEDGER.md, "Who owns which cell"`,
+      );
+    }
+  }
+
   if (status === 'SHIPPING') {
     shipping++;
     const notPass = rest
@@ -92,4 +108,7 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-console.log(`ledger-guard: ${units} units, ${shipping} shipping, every claim supported`);
+console.log(
+  `ledger-guard: ${units} units, ${shipping} shipping, ${columns.length - 3} cells each, ` +
+    'every claim supported',
+);
