@@ -17,6 +17,7 @@
 // be the beginning of thirteen slightly different band splits.
 #pragma once
 
+#include <cmath>
 #include <cstddef>
 
 #include "../dsp/crossover.h"
@@ -31,6 +32,22 @@ namespace mw::units {
 inline constexpr int kMaxBands = 3;
 /// Channels one instance handles.
 inline constexpr int kMaxChannels = 2;
+
+/**
+ * The crossfade a topology change takes, in seconds.
+ *
+ * 4 ms, from `fx-01` §4.6. Long enough that a step in the signal path is
+ * spread below what reads as a click, short enough that a user changing the
+ * band count does not hear a swell.
+ */
+inline constexpr double kCrossfadeSeconds = 0.004;
+
+/// What distinguishes one signal path from another, for the crossfade.
+struct PathConfig {
+  int bandCount = 3;
+  dsp::Slope slope = dsp::Slope::Db24;
+  bool enabled[3] = {true, true, true};
+};
 
 /// Everything one band's modulator is set from.
 struct BandSettings {
@@ -55,19 +72,38 @@ class MotionShaper : public Node {
   // ---- configuration, off the audio thread ----
 
   void setBandCount(int count) noexcept {
-    bandCount_ = count < 1 ? 1 : (count > kMaxBands ? kMaxBands : count);
+    const int wanted = count < 1 ? 1 : (count > kMaxBands ? kMaxBands : count);
+    if (wanted != bandCount_) beginTopologyChange();
+    bandCount_ = wanted;
   }
+
+  /**
+   * Crossover frequency, which deliberately does **not** crossfade.
+   *
+   * `fx-01` §4.6 names this as the exception and gives the reason: recomputing
+   * biquad coefficients for a moving corner is fine because the filter's state
+   * remains meaningful — the same signal history is still the right history for
+   * a slightly different filter. What is not fine is switching *topology* under
+   * a filter that has state, which is what the crossfade below exists for.
+   */
   void setCrossovers(double lowMid, double midHigh) noexcept {
     lowMid_ = lowMid;
     midHigh_ = midHigh;
     dirty_ = true;
   }
+
   void setSlope(dsp::Slope slope) noexcept {
+    if (slope != slope_) beginTopologyChange();
     slope_ = slope;
     dirty_ = true;
   }
   void setBand(int band, const BandSettings& s) noexcept {
-    if (band >= 0 && band < kMaxBands) bands_[band] = s;
+    if (band < 0 || band >= kMaxBands) return;
+    // Enabling or disabling a slot changes which path the signal takes, so it
+    // is a topology change. Depth and range are not — they move a gain, and a
+    // gain is already smoothed.
+    if (s.enabled != bands_[band].enabled) beginTopologyChange();
+    bands_[band] = s;
   }
   void setCurve(int band, const dsp::Breakpoint* points, std::size_t count) noexcept {
     if (band >= 0 && band < kMaxBands) curves_[band].set(points, count);
@@ -111,8 +147,15 @@ class MotionShaper : public Node {
 
   void prepare(double sampleRate, int) override {
     sampleRate_ = sampleRate;
+    fadeSamples_ = static_cast<int>(kCrossfadeSeconds * sampleRate + 0.5);
+    fadeRemaining_ = 0;
+    live_ = 0;
+    snapshot(config_[0]);
+    snapshot(config_[1]);
     rebuild();
-    for (int c = 0; c < kMaxChannels; ++c) split_[c].reset();
+    for (int p = 0; p < 2; ++p) {
+      for (int c = 0; c < kMaxChannels; ++c) split_[p][c].prepare(sampleRate_, lowMid_, midHigh_, slope_);
+    }
     for (int b = 0; b < kMaxBands; ++b) {
       // Snapped rather than ramped from zero: a unit that faded in over its
       // smoothing time at the start of every render would put a different
@@ -123,7 +166,13 @@ class MotionShaper : public Node {
   }
 
   void reset() override {
-    for (int c = 0; c < kMaxChannels; ++c) split_[c].reset();
+    for (int p = 0; p < 2; ++p) {
+      for (int c = 0; c < kMaxChannels; ++c) split_[p][c].reset();
+    }
+    // A seek ends any crossfade rather than carrying it across: the material
+    // either side of a locate is unrelated, so there is nothing to fade
+    // between and holding the fade would blend two different parts of the song.
+    fadeRemaining_ = 0;
     phase_.reset();
   }
 
@@ -161,26 +210,27 @@ class MotionShaper : public Node {
         gain[b] = smoothers_[b].process(raw);
       }
 
+      // Equal-power rather than linear. A linear crossfade between two paths
+      // carrying the same programme dips about 3 dB in the middle, which is
+      // audible as a hole — and a topology change is exactly when nobody
+      // expects the level to move.
+      double gainIn = 1.0;
+      double gainOut = 0.0;
+      const bool fading = fadeRemaining_ > 0;
+      if (fading) {
+        const double t = 1.0 - static_cast<double>(fadeRemaining_) / static_cast<double>(fadeSamples_);
+        gainIn = std::sin(t * 1.5707963267948966);
+        gainOut = std::cos(t * 1.5707963267948966);
+        --fadeRemaining_;
+      }
+
       for (int c = 0; c < channels; ++c) {
         const double x = static_cast<double>(in.channel(c)[i]);
-        double y = 0.0;
-        if (bandCount_ == 1) {
-          // Unsplit: the band *is* the input, so blending here is blending
-          // against the identical signal and cannot comb.
-          y = x * blend(0, gain[0]);
-        } else {
-          double low = 0.0;
-          double mid = 0.0;
-          double high = 0.0;
-          split_[c].process(x, low, mid, high);
-          if (bandCount_ == 2) {
-            // Two bands: the split's mid and high both belong to the upper one,
-            // so they are summed before the gain rather than gained separately.
-            y = low * blend(0, gain[0]) + (mid + high) * blend(1, gain[1]);
-          } else {
-            y = low * blend(0, gain[0]) + mid * blend(1, gain[1]) + high * blend(2, gain[2]);
-          }
-        }
+        double y = pathOutput(live_, c, x, gain) * gainIn;
+        // The outgoing path keeps running with its own state and its own
+        // configuration for the whole fade. Stopping it and fading its last
+        // sample would be a fade of silence, not a fade between two signals.
+        if (fading) y += pathOutput(1 - live_, c, x, gain) * gainOut;
         out.channel(c)[i] = static_cast<float>(y);
       }
     }
@@ -188,6 +238,9 @@ class MotionShaper : public Node {
 
   /// Tempo the unit resolves its length against. Set by the host per block.
   void setBpm(double bpm) noexcept { bpm_ = bpm > 1.0 ? bpm : 1.0; }
+
+  /// True while a topology change is being faded. Test and diagnostic probe.
+  bool crossfading() const noexcept { return fadeRemaining_ > 0; }
 
   /// What the modulator is doing now, for the face to draw. Read-only.
   double lastGain(int band) const noexcept {
@@ -197,6 +250,55 @@ class MotionShaper : public Node {
  private:
   double tempoQuartersPerSample(const ProcessContext& ctx) const noexcept {
     return bpm_ / 60.0 / ctx.sampleRate;
+  }
+
+  /**
+   * Render one configured path for one sample.
+   *
+   * Each path carries its own band count, slope and per-band enable, because
+   * during a crossfade the two differ — that is what is being faded between.
+   * Reading the live members here instead would make the outgoing path adopt
+   * the new topology instantly, which is the pop the crossfade exists to
+   * prevent, dressed up as a fade.
+   */
+  double pathOutput(int path, int channel, double x, const double* gain) noexcept {
+    const PathConfig& cfg = config_[path];
+    const double g0 = cfg.enabled[0] ? blend(0, gain[0]) : 1.0;
+    if (cfg.bandCount == 1) return x * g0;
+
+    double low = 0.0;
+    double mid = 0.0;
+    double high = 0.0;
+    split_[path][channel].process(x, low, mid, high);
+    const double g1 = cfg.enabled[1] ? blend(1, gain[1]) : 1.0;
+    if (cfg.bandCount == 2) return low * g0 + (mid + high) * g1;
+    const double g2 = cfg.enabled[2] ? blend(2, gain[2]) : 1.0;
+    return low * g0 + mid * g1 + high * g2;
+  }
+
+  /// Copy the live settings into a path's own record of them.
+  void snapshot(PathConfig& cfg) const noexcept {
+    cfg.bandCount = bandCount_;
+    cfg.slope = slope_;
+    for (int b = 0; b < kMaxBands; ++b) cfg.enabled[b] = bands_[b].enabled;
+  }
+
+  /**
+   * Hand the current path over to the outgoing slot and start a fade into a
+   * fresh one.
+   *
+   * A change arriving *during* a fade snaps the fade to its end first. The
+   * alternative is a third path, and three-way fades compound: each one is
+   * quieter than either signal, so a user dragging the band count back and
+   * forth would hear the level sag. Snapping loses at most 4 ms of a fade
+   * nobody has heard the end of yet.
+   */
+  void beginTopologyChange() noexcept {
+    if (!prepared_) return;  // Before `prepare` there is nothing to fade from.
+    snapshot(config_[live_]);
+    live_ = 1 - live_;
+    fadeRemaining_ = fadeSamples_;
+    dirty_ = true;
   }
 
   /// One band's gain with the wet/dry blend already folded in.
@@ -218,15 +320,30 @@ class MotionShaper : public Node {
     return std::exp(db * 0.11512925464970229);  // 10^(db/20)
   }
 
+  /// Rebuild only the live path, so a fade's outgoing side keeps its state.
   void rebuild() noexcept {
-    for (int c = 0; c < kMaxChannels; ++c) split_[c].prepare(sampleRate_, lowMid_, midHigh_, slope_);
+    snapshot(config_[live_]);
+    for (int c = 0; c < kMaxChannels; ++c) {
+      split_[live_][c].prepare(sampleRate_, lowMid_, midHigh_, slope_);
+    }
     for (int b = 0; b < kMaxBands; ++b) {
       smoothers_[b].setTimeConstant(dsp::smoothingSecondsFor(smooth_), sampleRate_);
     }
+    prepared_ = true;
     dirty_ = false;
   }
 
-  dsp::ThreeBandSplit split_[kMaxChannels];
+  /**
+   * Both signal paths, so a topology change can fade between them.
+   *
+   * `fx-01` §4.6: switching filter coefficients in place while the filter has
+   * state is the standard source of a pop and is not acceptable at any setting.
+   * Two sets of state is what "both running for the crossfade duration" costs,
+   * and it is cheap — a split is a handful of biquads, and only one of the two
+   * is active outside the 4 ms.
+   */
+  dsp::ThreeBandSplit split_[2][kMaxChannels];
+  PathConfig config_[2];
   dsp::Curve curves_[kMaxBands];
   dsp::Smoother smoothers_[kMaxBands];
   dsp::LfoPhase phase_;
@@ -240,8 +357,12 @@ class MotionShaper : public Node {
   double bpm_ = 120.0;
   dsp::Slope slope_ = dsp::Slope::Db24;
   int bandCount_ = 3;
+  int live_ = 0;
+  int fadeSamples_ = 192;
+  int fadeRemaining_ = 0;
   bool bypass_ = false;
   bool dirty_ = true;
+  bool prepared_ = false;
 };
 
 }  // namespace mw::units

@@ -328,6 +328,105 @@ MW_TEST("V11 the smooth control is monotonic across its range") {
   MW_EXPECT(worstStep <= 0.15);
 }
 
+MW_TEST("V9 toggling topology two hundred times each does not pop") {
+  // The sheet: toggle slot bypass, band count 1<->3 and slope 6<->24, 200 times
+  // each over programme material, and require zero flagged samples. It calls a
+  // pop here unacceptable at any setting, which is why the fix is a crossfade
+  // rather than a shorter smoothing time — switching filter coefficients in
+  // place while the filter has state is a step, and no gain ramp on the far
+  // side of it can undo that.
+  Rig carrier(&broadband);
+  carrier.unit->setBypass(true);
+  const RenderResult clean = renderOffline(carrier.graph, spec(48000 * 2), carrier.out);
+
+  struct Change {
+    const char* what;
+    void (*apply)(MotionShaper&, int);
+  };
+  const Change changes[] = {
+      {"slot enable",
+       [](MotionShaper& u, int n) {
+         BandSettings b;
+         b.enabled = (n % 2) == 0;
+         u.setBand(1, b);
+       }},
+      {"band count", [](MotionShaper& u, int n) { u.setBandCount((n % 2) == 0 ? 1 : 3); }},
+      {"slope",
+       [](MotionShaper& u, int n) {
+         u.setSlope((n % 2) == 0 ? dsp::Slope::Db6 : dsp::Slope::Db24);
+       }},
+  };
+
+  for (const Change& change : changes) {
+    EngineGraph graph;
+    const NodeId src = graph.addNode(std::make_unique<SignalSourceNode>(&broadband, nullptr));
+    auto owned = std::make_unique<MotionShaper>();
+    MotionShaper* unit = owned.get();
+    const NodeId out = graph.addNode(std::move(owned));
+    graph.connect(src, out);
+    unit->setBandCount(3);
+    const std::vector<dsp::Breakpoint> flat = flatCurve();
+    for (int i = 0; i < 3; ++i) unit->setCurve(i, flat.data(), flat.size());
+
+    const int block = 128;
+    const int blocks = 96000 / block;
+    MW_EXPECT(graph.prepare(48000.0, block, 2));
+
+    RenderResult captured;
+    captured.channels.assign(2, std::vector<float>(static_cast<std::size_t>(blocks * block), 0.0f));
+    captured.frames = blocks * block;
+    captured.sampleRate = 48000.0;
+    captured.ok = true;
+
+    // 200 changes spread over two seconds, so each fade completes before the
+    // next begins and the test is measuring 200 fades rather than one long one.
+    const int everyNth = blocks / 200;
+    int applied = 0;
+    for (int b = 0; b < blocks; ++b) {
+      if (everyNth > 0 && b % everyNth == 0 && applied < 200) {
+        change.apply(*unit, applied);
+        ++applied;
+      }
+      graph.process(block, static_cast<double>(b * block) / 48000.0, true);
+      const AudioBuffer rendered = graph.output(out, block);
+      for (int c = 0; c < 2; ++c) {
+        const float* srcCh = rendered.channel(c);
+        float* dst = captured.channels[static_cast<std::size_t>(c)].data() + b * block;
+        for (int i = 0; i < block; ++i) dst[i] = srcCh[i];
+      }
+    }
+
+    const int flagged = clicksAgainst(captured, clean);
+    std::printf("    V9 %s: %d changes, %d flagged samples\n", change.what, applied, flagged);
+    MW_EXPECT(applied >= 199);
+    MW_EXPECT_EQ(flagged, 0);
+  }
+}
+
+MW_TEST("a crossover frequency move does not crossfade, and should not") {
+  // The sheet names this as the exception: recomputing coefficients for a
+  // moving corner is fine because the filter's state stays meaningful. If this
+  // started a fade, an automated crossover would be permanently mid-crossfade
+  // and permanently running two paths — twice the CPU for a worse answer.
+  Rig rig(&broadband);
+  rig.unit->setBandCount(3);
+  const std::vector<dsp::Breakpoint> flat = flatCurve();
+  for (int i = 0; i < 3; ++i) rig.unit->setCurve(i, flat.data(), flat.size());
+  MW_EXPECT(rig.graph.prepare(48000.0, 128, 2));
+  rig.graph.process(128, 0.0, true);
+
+  // Sweeping the corner must leave the unit not fading.
+  for (int i = 0; i < 50; ++i) {
+    rig.unit->setCrossovers(200.0 + static_cast<double>(i) * 10.0, 3200.0);
+    rig.graph.process(128, static_cast<double>(i + 1) * 128.0 / 48000.0, true);
+  }
+  MW_EXPECT(!rig.unit->crossfading());
+
+  // Where a slope change must.
+  rig.unit->setSlope(dsp::Slope::Db6);
+  MW_EXPECT(rig.unit->crossfading());
+}
+
 MW_TEST("the unit renders identically at every block size") {
   // Ledger cell 7. The modulator reads song position per sample, so this is
   // really a check that nothing in the unit advanced once per block instead.
