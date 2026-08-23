@@ -207,7 +207,7 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | Motion Shaper       | `fx-01`  | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Program EQ          | `dyn-01` | DSP PARTIAL | PASS | —    | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
 | Optical Leveller    | `dyn-02` | DSP PARTIAL | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
-| FET Limiter         | `dyn-03` | DSP PARTIAL | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
+| FET Limiter         | `dyn-03` | DSP DONE    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
 | Variable-Mu Limiter | `dyn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Console EQ          | `dyn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Granular Reverb     | `fx-02`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
@@ -309,10 +309,14 @@ And one in shared code: the photoresistive attenuator reused its lit resistance
 as the series element, which caps the divider at exactly −6.02 dB in a unit
 specified to reach 40.
 
-### FET Limiter, so far
+### FET Limiter
 
-Six of `dyn-03` §9's rows pass, plus `D1` across all nine parameters and four of
-the six UI cells.
+All sixteen of `dyn-03` §9's rows measure, across four suites, plus `D1` across
+all nine parameters and four of the six UI cells. The two outstanding cells are
+U21 and X24, which need the WASM bridge.
+
+Three of the last five rows found bugs that were not in this unit, and all three
+are recorded under "What the shared library learned from this unit" below.
 
 **The detector runs inside the oversampling wrapper, and that is the unit's
 architecture rather than a tuning choice.** Its fastest attack is 20 µs, which
@@ -384,7 +388,63 @@ the first time, but leaves the loop effectively feed-forward with a measured
 1.72:1 where the algebra says 8:1, and regresses three dynamics rows that pass
 today. Not taken. `PROGRESS.md` carries the next step.
 
-Rows 9, 10, 11, 14, 15 and 16 are not written yet.
+Rows 9, 10, 11, 14 and 16 each needed a probe fixed or a mechanism found before
+they could measure anything, and three of them found bugs outside this unit —
+see the section that follows.
+
+**Row 11 is a logged deviation, and the only one in this unit.** §9 asks ATTACK
+fully clockwise and fully counter-clockwise to differ by 6 dB in distortion at
+40 Hz. They cannot, and not because of this model: §4's published endpoints are
+20 µs and 800 µs, and after the ln(9) conversion the slower one is a 375 µs
+constant — one sixty-seventh of a 40 Hz period. Both endpoints therefore track
+the cycle completely, and measured they produce 0.83 dB and 0.82 dB of gain
+ripple. Forcing a separation would mean slowing the attack roughly thirty-fold
+and failing test 1's published endpoints, which are a measurement rather than a
+QA instruction.
+
+The row asserts §4's *stated* mechanism instead, and asserts more than the sheet
+asked: distortion above 1 %, the third harmonic rising 23.3 dB as the frequency
+falls from 1 kHz to 40 Hz, and the timing control that does set the ripple
+separating by 21.7 dB. Total THD cannot see any of it — the element's own
+distortion is second-harmonic led and reads 6.9 % against 6.4 % across that
+whole frequency span, which is the element twice. The detector rectifies, so its
+ripple is at 2f and lands on the third harmonic; H2 is the element's signature
+and H3 is the detector's.
+
+### What the shared library learned from this unit
+
+**One oversampler per channel is a correctness requirement.** The wrapper was a
+single instance shared by both channels with the channel loop outside the sample
+loop, so the right channel was filtered through the left channel's halfband
+history and each block boundary was a discontinuity. It measured as sidebands at
+exactly the host's block rate — −32.7 dBc at 64 frames, −47.9 dBc at 256 — and
+it meant an export and a realtime render of the same project did not agree.
+Eleven rows had passed over it because a mono render is bit-identical at every
+block size. `expectBlockSizeIndependent` now lives in `delta_harness.h`, so the
+remaining ten units inherit the check instead of each rediscovering it.
+
+**A hysteresis loop's width is not constant.** The magnetic core's play operator
+had a fixed half-width, so its residual had a fixed absolute size and its share
+of the signal rose as 1/B without limit. Flux falls as 1/f, so a 15 kHz tone
+behaved like a 1 kHz tone 24 dB quieter: 0.96 % distortion against a published
+ceiling of 0.5 %, from a core that is supposed to be a *low-frequency* source.
+Steinmetz gives loss per cycle as B^1.6 and so loop width as B^0.6; anchoring
+the taper at the published calibration flux leaves that point unchanged to five
+digits and takes the 15 kHz reading to 0.0058 %. The floor still rises as the
+level falls, which is the documented behaviour — as B^−0.4 rather than B^−1.
+
+NL-07's threshold moved with it and was **re-derived, not refitted**: the play
+residual is a triangle bounded by ±c, `hysteresisDepth` sets how much reaches
+the curve, and the inverse filter weights the nth harmonic by n, giving
+2·α·c/B = 0.0036 % at 30 Hz and −60 dBFS against 0.0032 % measured. The law was
+checked at a second flux before being used — it predicts 1.437× between −60 and
+−52 dBFS and delivers 1.465×.
+
+**A balanced pair drifts differently from a single-ended stage**, so
+`applyPushPullVariance` joins `applyVariance` and shares its hash. Its imbalance
+term is additive rather than multiplicative, because a balanced pair's imbalance
+is zero by design and a factor applied to zero is inert on exactly the units the
+control exists for.
 
 ## What each column is
 

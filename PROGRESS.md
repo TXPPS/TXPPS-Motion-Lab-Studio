@@ -2,36 +2,27 @@
 
 ```
 RESUME: Directive 06
-Current unit:  FET Limiter (dyn-03) — DSP PARTIAL. Six dynamics rows, D1 across
-               nine parameters, and four of six UI cells all pass. The curve
-               suite (rows 2, 4, 6, 7, 13) is written and unregistered: 6 and 13
-               pass, 2/4/7 do not.
-Last PASS:     dyn-03 rows 1, 3, 5, 8, 12 and the 44.1 kHz monotonicity row;
-               D1 all nine; U19, U20, U22, U23.
-Next action:   The transfer curve turns over at about 12 dB of reduction and runs
-               to the element's stop, so three of the four ratio buttons measure
-               as EXPANDING. Diagnosed, not fixed. The cause is the detector
-               reading the output's WAVEFORM: at depth the FET's own harmonics
-               raise the peak it sees, which asks for more reduction, which makes
-               more harmonics — positive feedback through distortion. Confirmed
-               by sweeping drainVolts, which fixes the buttons in order (4:1
-               comes right first, then 8:1, then 12:1) and is the wrong fix,
-               because that asymmetry is the unit's signature and row 10 needs it.
-               Tried: detecting on the output's LEVEL instead (element input x
-               applied gain). That stabilises the loop and makes the release rows
-               measurable for the first time — but the reconstruction and the
-               applied gain then cancel exactly, leaving the loop feed-forward
-               with a measured 1.72:1 where the algebra says 8:1, and it broke
-               three dynamics rows that pass today. Reverted; the working tree is
-               the version with all six dynamics rows green.
-               So: probe the loop per sub-sample as was done for the
-               drain-scaling bug and find where the law and the render part
-               company. Do not tune toward the endpoints.
-               Then rows 9, 10, 11, 14, 15, 16; face is already built.
-               Then Variable-Mu, Console EQ, Program EQ WASM bridge, R2.
+Current unit:  Variable-Mu Limiter (dyn-04) — IN PROGRESS. The unit, the timing
+               network and the manifest exist; the M/S suite has 12 and 14
+               passing and 13 failing on a probe, and the timing suite is
+               written but not yet compiled.
+Last PASS:     dyn-03 DSP DONE — all sixteen §9 rows across four suites, D1
+               across nine parameters plus block-size independence, and
+               U19/U20/U22/U23. Full ctest 22/22.
+Next action:   dyn-04 test 13 fails because the test fed a signal with large
+               mono content and called it "vertical only". The unit now has
+               PER-CHANNEL threshold, time constant, DC threshold and input
+               attenuation (dyn-04 §3.5 and §3.7 require it and the first draft
+               had one set for both), so the row should set channel 1's
+               threshold low and channel 0's high rather than relying on the
+               signal. Then: compile variable_mu_tests (rows 1-5, 8), write the
+               curve suite (rows 6, 7, 9, 10, 11, 15), regenerate the manifest
+               for the per-channel setters, D1, face.
+               Then Console EQ, then the Program EQ WASM bridge, then R2.
 Units done:    Motion Shaper SHIPPING 24/24.
                Program EQ DSP DONE, 13/13 sheet rows, D1, four UI cells.
                Optical Leveller DSP DONE, 13/13 sheet rows, D1, four UI cells.
+               FET Limiter DSP DONE, 16/16 sheet rows, D1, four UI cells.
 Shared libraries built:
                core/dsp/biquad.h        RBJ sections, double state, denormal flush
                core/dsp/shelving.h      shelf + peaking + one-pole HP
@@ -43,11 +34,13 @@ Shared libraries built:
                core/dsp/fft.h           radix-2 FFT + Blackman-Harris window
                core/dsp/optical_cell.h  two-branch release + exposure history
                core/dsp/peak_detector.h timing network, panel-scale mapping
+               core/dsp/timing_network.h  chained storage elements; dyn-04 pos 5/6
                core/dsp/nonlinear/      curve, stages, variable gain, FET, core,
                                         oversampler (exact integer latency), specs
                core/render/             deterministic render, analysis, reference graph
                core/test/spectrum.h     proves its grids resolvable before reporting
                core/test/delta_harness.h D1's measured half, once, for every unit
+                                        + block-size independence, for every unit
                motionwave/ui/render/    facePanel — any UnitFace into the DOM
                motionwave/ui/dev/       panel harness + AudioWorklet engine
                Specs only: lib-grain-engine, lib-voice-substrate
@@ -55,17 +48,28 @@ Standing rules earned the hard way:
              - DERIVE, DON'T RE-FIT. When a shared fix moves a finished unit's
                number, re-derive it from the physics. The Optical Leveller's
                attack passed at 10.6 ms while the cell ran four times slower,
-               because model and test were both downstream of a DC offset.
-             - PROBE FIRST. Five measurements so far were the instrument, not
-               the unit: a settling window from the probe frequency, an
-               unassigned 20 kHz reading, a peak detector measured through a
-               1 kHz sine, a D1 base 18 dB past the element's ceiling, and a
-               transfer curve read from the fundamental while the energy was in
-               the harmonics.
+               because model and test were both downstream of a DC offset. Most
+               recently: NL-07's hysteresis floor, re-derived from the play
+               operator (0.0036 % predicted, 0.0032 % measured) after the
+               Steinmetz taper moved it, and the law checked at a second flux
+               before being used.
+             - PROBE FIRST. Ten measurements so far were the instrument, not the
+               unit. The last four: a transfer curve read from the fundamental
+               while the energy was in the harmonics; two rows timing "one
+               sample after arrival" from a 1 kHz sine, so they carried a cycle
+               of the stimulus; an aliasing probe at exactly Fs/4, where every
+               alias folds onto the probe's own bin and the band reads -139 dBc
+               whatever the unit does; and a drive-split row measured at 1 kHz,
+               where a transformer's flux is 33x below its specified saturation
+               and the core has no answer to give at any level.
              - NO VACUOUS ASSERTIONS. MW_EXPECT_AT_LEAST_TIMES and
                MW_EXPECT_EXCEEDS_BY refuse two zeros, two equal values, or
                anything under a floor the row declares. The predicate is
                unit-tested in param_tests.cpp.
+             - ONE WRAPPER PER CHANNEL. A shared oversampler filters the right
+               channel through the left channel's history and makes the output
+               depend on the host's block size. Mono renders are bit-identical,
+               so it hides. expectBlockSizeIndependent is in delta_harness.h.
 Open deviations:
              - Mix 0 on a multiband unit returns the all-pass of the input, not
                the input. Magnitude-flat, phase-rotated. Bypass returns it
@@ -83,7 +87,23 @@ Open deviations:
              - dyn-03 §9 test 1 specifies a 1 kHz sine, which cannot measure a
                20 us attack: a peak detector only rises when a peak arrives, and
                that probe delivers one every 0.5 ms. Rows use a rectified level.
-             - dyn-03 test 4/7 unresolved — see Next action.
+             - dyn-03 §9 test 11 asks ATTACK to separate two distortion readings
+               at 40 Hz by 6 dB. It cannot, and the sheet contradicts itself:
+               §4's own published endpoints are 20 us and 800 us, and after the
+               ln(9) conversion the slower is a 375 us constant — 1/67 of a
+               40 Hz period. Both track the cycle completely and measure 0.83 dB
+               and 0.82 dB of ripple. Separating them would need the attack
+               about thirty times slower and would fail test 1's published
+               endpoints, which are a measurement rather than a QA instruction.
+               The row asserts §4's stated mechanism instead, and asserts more
+               than was asked: THD above 1 %, H3 rising 23.3 dB as frequency
+               falls from 1 kHz to 40 Hz, and the timing control that does set
+               the ripple separating by 21.7 dB. H3 rather than THD because the
+               element's own distortion is H2-led and swamps total THD.
+             - dyn-03 §9 test 16 specifies a 12 kHz probe. At 48 kHz that is
+               exactly Fs/4 and the row is vacuous; it runs at 44.1 kHz, where
+               the same tone folds to 8.1 and 3.9 kHz inside the band, and which
+               is also where a 20 us attack has least room.
              - Amp Sim (MotionLab) declares no latency; cabinet onset moves with
                the selected cab. Carried from Directive 03.
 ```
