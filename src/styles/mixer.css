@@ -1731,7 +1731,11 @@
 .plugin-window {
   position: fixed;
   z-index: var(--z-plugin);
-  min-width: 320px;
+  /* The minimum has to yield below 344 px of viewport or it beats the maximum
+     and the window overflows by the difference — CSS resolves min-width last,
+     so a flat 320px here made a 320px-wide phone show a window 24px wider than
+     the screen however the maximum was written. */
+  min-width: min(320px, calc(100vw - 2 * var(--sp-2)));
   max-width: min(760px, calc(100vw - 24px));
   max-height: calc(100vh - 24px);
   display: flex;

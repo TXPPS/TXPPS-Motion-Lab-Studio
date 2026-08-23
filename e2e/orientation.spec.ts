@@ -131,11 +131,13 @@ test.describe('the track header row fits the controls it was given', () => {
       test(`${phone.name} phone, ${orientation}: no header control is cut off`, async ({
         browser,
       }) => {
-        // RA-002. `@media (pointer: coarse)` grew the mute/solo/arm strip to
-        // 44px so a finger could hit it, but the lane row it lives in is a
-        // constant 64px (`LANE_H` in Arrangement.tsx) and `.th` clips. The
-        // controls are the right size and most of them are not on screen.
-        test.fail();
+        // RA-002, fixed. `@media (pointer: coarse)` grew the mute/solo/arm
+        // strip to 44px so a finger could hit it, but the lane row it lives in
+        // is a constant 64px (`LANE_H` in Arrangement.tsx) and `.th` clips, so
+        // 25 of the strip's 44px were off screen. Two stacked 44px rows need
+        // 88, so row 1 gave up its buttons: 2 padding + 18 name + 44 strip is
+        // 64 exactly. This guards the arithmetic, which is the part that will
+        // break again the moment anything is added back to row 1.
         const context = await browser.newContext({
           viewport: orientation === 'portrait' ? phone.portrait : rotate(phone.portrait),
           hasTouch: true,
@@ -177,7 +179,9 @@ test.describe('a plugin editor opens where it can be used', () => {
       // save it: the window is placed, not laid out.
       // A landscape phone is wide enough for the window and 240px too short
       // for it, so the cell is keyed by form factor rather than by width.
-      if (cell.name.startsWith('phone')) test.fail();
+      // Fixed: `windowPlace.ts` measures the window against the viewport
+      // instead of opening it at a constant, and re-places it on resize and
+      // orientationchange so a rotation cannot strand it either.
       const context = await browser.newContext({
         viewport: cell.viewport,
         hasTouch: cell.touch,
@@ -308,15 +312,20 @@ test.describe('sheets stay inside the screen and can be got rid of', () => {
     // the sheet's own `overflow: hidden` cuts roughly 1100px of shortcuts off
     // with nothing to scroll. This one is not viewport-specific: it is wrong
     // on a 2560px desktop too.
-    test.fail();
+    //
+    // Fixed by giving the shortcuts sheet its own prefix — `ks-`, since the
+    // score owns `sc-` with fifty classes to this one's seven. The selectors
+    // below moved with it: querying `.sc-sheet` here now finds the score's
+    // staff paper, which is a different component that happens to satisfy
+    // nothing this test is asking about.
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
     await boot(page);
     await openFromOverflow(page, 'Keyboard shortcuts');
 
     const reach = await page.evaluate(() => {
-      const sheet = document.querySelector('.sc-sheet');
-      const body = document.querySelector('.sc-body');
+      const sheet = document.querySelector('.ks-sheet');
+      const body = document.querySelector('.ks-body');
       if (!sheet || !body) return null;
       return {
         sheetH: sheet.clientHeight,

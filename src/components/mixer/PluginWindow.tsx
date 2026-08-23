@@ -20,9 +20,16 @@ import { useUiStore } from '../../state/uiStore';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
 import { Icon } from '../common/Icon';
 import { EffectVisual, FxKnob } from './PluginFace';
+import { clampToViewport, placeWindow } from './windowPlace';
+import type { Rect } from './windowPlace';
 
-/** Where a window opens when it has no remembered place. */
-const DEFAULT_POS = { x: 220, y: 120 };
+/**
+ * Where a window opens when there is room for it there.
+ *
+ * Clear of the console on a desktop. On anything narrower `placeWindow` centres
+ * it instead — this is a preference, not a position. See `windowPlace.ts`.
+ */
+const PREFERRED_POS = { x: 220, y: 120 };
 
 /**
  * The A/B slots.
@@ -73,13 +80,15 @@ export function PluginWindow() {
   );
   const effect = track?.effects?.find((e) => e.id === open?.effectId);
 
-  const [pos, setPos] = useState(DEFAULT_POS);
+  const [pos, setPos] = useState(PREFERRED_POS);
   const [ab, setAb] = useState<{ slot: 'a' | 'b'; a: Snapshot | null; b: Snapshot | null }>({
     slot: 'a',
     a: null,
     b: null,
   });
   const panelRef = useRef<HTMLDivElement>(null);
+  /** False until this device's window has been given its opening place. */
+  const placed = useRef(false);
 
   const close = useCallback(() => useUiStore.getState().set({ openDevice: null }), []);
 
@@ -96,16 +105,55 @@ export function PluginWindow() {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [open, close]);
 
+  /** The window's measured box, or its CSS minimum before it has been laid out. */
+  const measure = useCallback((): Rect => {
+    const el = panelRef.current;
+    return { width: el?.offsetWidth || 320, height: el?.offsetHeight || 240 };
+  }, []);
+
   const onHeaderDown = usePointerDrag<{ x: number; y: number }>({
     onStart: () => pos,
     onMove: (dx, dy, _e, start) =>
-      setPos({
-        // Kept inside the window: a plugin dragged off the edge is a plugin
-        // that has to be found again with the keyboard.
-        x: Math.max(8, Math.min(window.innerWidth - 220, start.x + dx)),
-        y: Math.max(8, Math.min(window.innerHeight - 60, start.y + dy)),
-      }),
+      // Kept inside the viewport: a plugin dragged off the edge is a plugin
+      // that has to be found again with the keyboard. Clamped against the
+      // window's real width — the old constant 220 was neither the window's
+      // width nor related to it, so a wide device could still be dragged out.
+      setPos(
+        clampToViewport({ x: start.x + dx, y: start.y + dy }, measure(), {
+          width: window.innerWidth,
+          height: window.innerHeight,
+        }),
+      ),
   });
+
+  // Place on open, and re-place whenever the viewport changes underneath it.
+  // Rotating a phone otherwise leaves a correctly-placed window off-screen,
+  // and there is no way back to it because the drag handle went with it.
+  useEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      setPos((current) =>
+        placed.current
+          ? clampToViewport(current, measure(), viewport)
+          : placeWindow(PREFERRED_POS, measure(), viewport),
+      );
+      placed.current = true;
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('orientationchange', place);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('orientationchange', place);
+    };
+  }, [open, measure]);
+
+  // Reset when a different device is opened, so the next one is placed rather
+  // than inheriting wherever the last one was dragged to.
+  useEffect(() => {
+    placed.current = false;
+  }, [open?.trackId, open?.effectId]);
 
   const presets = useMemo(() => (effect ? presetsFor(effect.kind) : []), [effect]);
 

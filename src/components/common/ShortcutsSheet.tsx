@@ -42,11 +42,11 @@ export function ShortcutsSheet() {
 
   return (
     <div
-      className="sheet-overlay sc-center"
+      className="sheet-overlay ks-center"
       onPointerDown={(e) => e.target === e.currentTarget && close()}
     >
       <div
-        className="sc-sheet"
+        className="ks-sheet"
         ref={panelRef}
         tabIndex={-1}
         role="dialog"
@@ -68,16 +68,16 @@ export function ShortcutsSheet() {
             ✕
           </button>
         </div>
-        <div className="sc-body">
+        <div className="ks-body">
           {CATEGORIES.map((cat) => (
-            <section key={cat} className="sc-group">
+            <section key={cat} className="ks-group">
               <h3>{cat}</h3>
               {SHORTCUTS.filter((s) => s.category === cat).map((s) => (
-                <div className="sc-row" key={s.id}>
+                <div className="ks-row" key={s.id}>
                   <kbd>{s.display}</kbd>
-                  <span className="sc-desc">
+                  <span className="ks-desc">
                     {s.description}
-                    {s.when && <span className="sc-when"> — {s.when}</span>}
+                    {s.when && <span className="ks-when"> — {s.when}</span>}
                   </span>
                 </div>
               ))}

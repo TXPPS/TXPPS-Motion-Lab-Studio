@@ -484,28 +484,69 @@
  * workspace is where one belongs on a phone. They are reachable from the track
  * menu rather than gone (§1 forbids silently disappearing).
  */
+/*
+ * The touch header is one text line over one row of targets, and that is
+ * arithmetic rather than taste.
+ *
+ * Directive 02 §1 grew the strip to the 44 px touch minimum without growing the
+ * row it sits in, and the row is `LANE_H = 64`. Two stacked 44 px rows need 88,
+ * so the header added up to 93 px in a 64 px box and `overflow: hidden` took
+ * 29 px — 25 of them off the mute/solo/arm strip, which was more than half
+ * invisible on every touch cell measured (RA-002).
+ *
+ * The two requirements cannot both hold with two rows of controls, so row 1
+ * gives up its buttons: 2 padding + 18 name + 44 strip = 64 exactly. What row 1
+ * held — automation mode, collapse — joins what the strip already sheds, and
+ * the menu that reaches them moves into the strip, because on a phone the strip
+ * is the row that is still there. Growing `LANE_H` instead was the other way
+ * out and is the wrong one: it buys a taller header by showing fewer tracks, on
+ * the devices that already show the fewest.
+ */
 @media (pointer: coarse) {
   :root {
     --header-w: calc(208px * var(--ui-scale));
   }
+  .th {
+    padding: 2px var(--sp-4) 0;
+    gap: 0;
+  }
   .th-controls .th-mini {
     width: 44px;
     height: 44px;
+    /* Four at 44 with 4 px between them is 188 px against the 208 px column. */
+    flex: none;
+  }
+  .th-controls {
+    margin-top: 0;
   }
   .th-controls .th-vol,
-  .th-controls .knob {
+  .th-controls .knob,
+  .th-controls .th-monitor {
     display: none;
   }
-  .th-row .th-mini {
-    width: 36px;
-    height: 36px;
+  /* Row 1 is text: the name, its type icon and its badges, nothing pressable. */
+  .th-row {
+    height: 18px;
+    flex: none;
   }
-  /* Automation mode is second-lowest in the collapse priority, so on a phone
-     it leaves the name row and lives in the track menu. Nine characters of
-     track name mattered more than a button that opens a lane. */
+  .th-row .th-mini,
   .th-row .th-auto {
     display: none;
   }
+  /* Except when the track is collapsed — the strip is not rendered at all
+     then, so row 1's menu is the only way back to the track's own commands. */
+  .th.th-collapsed .th-row .th-mini {
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+  }
+  .th-menu-strip {
+    display: inline-flex;
+  }
+}
+/* On a mouse the strip's menu is the duplicate, so it is the one that goes. */
+.th-menu-strip {
+  display: none;
 }
 
 /* Mute, solo and arm are the buttons a mix gets driven from; they have to
