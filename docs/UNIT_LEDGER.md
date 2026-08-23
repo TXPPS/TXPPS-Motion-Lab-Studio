@@ -24,6 +24,37 @@ sessions. **Read this first**, then the resume block at the top of
 and the framework its UI builds on is still in progress, so it is not shipping
 and its row says so.
 
+### How a sheet's V-numbers relate to the Ledger's cells
+
+Two numbering schemes are in play and they are not competing, so this says once
+which is which rather than leaving each reader to work it out.
+
+**The Ledger's cells (`D1`…`U23`) are the index.** They are identical for all
+fourteen units and they are what a unit ships against.
+
+**A sheet's V-numbers are evidence.** Each spec sheet carries its own
+verification section written for that unit's physics, and cell 3 is literally
+"the unit's own verification section has been run and passes" — so the V-tests
+_are_ cell 3. Several of them also stand as the evidence for other cells, which
+is why a single measurement can appear twice below without being counted twice.
+
+| Sheet test                | Cells it is evidence for         |
+| ------------------------- | -------------------------------- |
+| V1 neutral null           | `D3`, and `D4` bypass null       |
+| V2 crossover sum flatness | `D3`, and `D6` sample rates      |
+| V3, V4 click detection    | `D3`, and `D10` no zipper        |
+| V5 modulator alias floor  | `D3`, and `D5` aliasing measured |
+| V6 mix comb               | `D3`, and `D8` latency           |
+| V7, V8 timing and swing   | `D3`, and `D12` tempo map        |
+| V9 topology-change pop    | `D3`, and `D10`                  |
+| V10 denormal stall        | `D3`                             |
+| V11 smooth taper          | `D3`, and `D2` taper laws        |
+
+The harness in `motionwave/ui/harness/` emits the Ledger's scheme directly, so
+its output is what fills the table above; the C++ tests emit V-numbers because
+that is what the sheet calls them. Neither needs converting — one is the claim,
+the other is the reason to believe it.
+
 ### Motion Shaper — what is measured, and what each number was measured against
 
 Every figure below comes from a named case in
