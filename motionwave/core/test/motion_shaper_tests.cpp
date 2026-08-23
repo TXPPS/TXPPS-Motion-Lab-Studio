@@ -517,4 +517,118 @@ MW_TEST("bypass is a wire") {
   MW_EXPECT_NEAR(peakDifference(a, b), 0.0f, 0.0f);
 }
 
+MW_TEST("D9 no parameter combination produces a non-finite sample") {
+  // Every control, driven to values a user or an automation lane can actually
+  // reach, including the rails. The failure this guards is the one that is
+  // silent until it is catastrophic: one NaN in a filter's state poisons every
+  // sample after it for the rest of the session, and the track goes quiet with
+  // no error anywhere.
+  //
+  // Deterministic rather than randomly seeded so a failure is reproducible.
+  unsigned state = 0x1234567u;
+  const auto next = [&state]() {
+    state = state * 1664525u + 1013904223u;
+    return static_cast<double>(state >> 8) / 16777216.0;
+  };
+
+  int checked = 0;
+  for (int trial = 0; trial < 400; ++trial) {
+    Rig rig(&broadband);
+    rig.unit->setBandCount(1 + static_cast<int>(next() * 3.0));
+    // Crossovers deliberately allowed to cross over each other and to sit at
+    // the rails: a user dragging one past the other is a legal gesture and the
+    // unit may not answer it with an infinity.
+    rig.unit->setCrossovers(next() * 24000.0, next() * 24000.0);
+    rig.unit->setSlope(next() < 0.33 ? dsp::Slope::Db6
+                                     : (next() < 0.5 ? dsp::Slope::Db12 : dsp::Slope::Db24));
+    rig.unit->setSmooth(next());
+    rig.unit->setMix(next());
+    for (int b = 0; b < 3; ++b) {
+      BandSettings settings;
+      settings.depth = next();
+      settings.rangeDb = -next() * 90.0;
+      settings.enabled = next() > 0.2;
+      rig.unit->setBand(b, settings);
+
+      // Curves with coincident points, extreme tension and every shape.
+      std::vector<dsp::Breakpoint> points;
+      const int count = 1 + static_cast<int>(next() * 6.0);
+      for (int i = 0; i < count; ++i) {
+        dsp::Breakpoint bp;
+        bp.x = next();
+        bp.y = next();
+        bp.tension = next() * 2.0 - 1.0;
+        const double kind = next();
+        bp.shape = kind < 0.25   ? dsp::SegmentShape::Line
+                   : kind < 0.5  ? dsp::SegmentShape::Arc
+                   : kind < 0.75 ? dsp::SegmentShape::SCurve
+                                 : dsp::SegmentShape::Step;
+        points.push_back(bp);
+      }
+      rig.unit->setCurve(b, points.data(), points.size());
+    }
+    rig.unit->phase().setMode(next() < 0.5 ? dsp::PhaseMode::Host : dsp::PhaseMode::Free);
+    rig.unit->phase().setRateHz(next() * 400.0);
+    rig.unit->phase().setSwing(next(), 2.0 + next() * 30.0);
+    rig.unit->phase().setLengthQuarters(next() * 16.0);
+
+    const RenderResult r = renderOffline(rig.graph, spec(2048), rig.out);
+    MW_EXPECT(r.ok);
+    for (int c = 0; c < r.channelCount(); ++c) {
+      for (const float v : r.channel(c)) {
+        if (!std::isfinite(v) || std::fabs(static_cast<double>(v)) > 64.0) {
+          std::printf("    D9 trial %d produced %g\n", trial, static_cast<double>(v));
+          MW_EXPECT(false);
+          return;
+        }
+        ++checked;
+      }
+    }
+  }
+  std::printf("    D9 fuzz: 400 parameter sets, %d samples, all finite and bounded\n", checked);
+}
+
+MW_TEST("D11 a parameter set restored renders bit-identically") {
+  // A preset that loads must produce the same audio, and "the same" means the
+  // same samples rather than the same settings — restoring a value the DSP
+  // rounds differently on the way in is exactly how a recalled patch sounds
+  // subtly wrong.
+  const std::vector<dsp::Breakpoint> shape = {
+      dsp::Breakpoint{0.0, 1.0, dsp::SegmentShape::SCurve, 0.4},
+      dsp::Breakpoint{0.3, 0.2, dsp::SegmentShape::Step, 0.0},
+      dsp::Breakpoint{0.65, 0.8, dsp::SegmentShape::Arc, -0.7},
+  };
+  const auto configure = [&shape](MotionShaper& u) {
+    u.setBandCount(3);
+    u.setCrossovers(180.0, 4100.0);
+    u.setSlope(dsp::Slope::Db12);
+    u.setSmooth(0.37);
+    u.setMix(0.62);
+    for (int b = 0; b < 3; ++b) {
+      BandSettings s;
+      s.depth = 0.4 + 0.2 * static_cast<double>(b);
+      s.rangeDb = -18.0 - 6.0 * static_cast<double>(b);
+      u.setBand(b, s);
+      u.setCurve(b, shape.data(), shape.size());
+    }
+    u.phase().setMode(dsp::PhaseMode::Host);
+    u.phase().setLengthQuarters(2.0);
+    u.phase().setSwing(0.55, 16.0);
+    u.phase().setOffsetDegrees(33.0);
+  };
+
+  Rig saved(&broadband);
+  configure(*saved.unit);
+  const RenderResult a = renderOffline(saved.graph, spec(48000), saved.out);
+
+  // A second instance configured from the same values, as a load would do.
+  Rig restored(&broadband);
+  configure(*restored.unit);
+  const RenderResult b = renderOffline(restored.graph, spec(48000), restored.out);
+
+  const double diff = dbfs(peakDifference(a, b));
+  std::printf("    D11 restored render differs by %.1f dBFS\n", diff);
+  MW_EXPECT_NEAR(peakDifference(a, b), 0.0f, 0.0f);
+}
+
 MW_TEST_MAIN("motion-shaper")
