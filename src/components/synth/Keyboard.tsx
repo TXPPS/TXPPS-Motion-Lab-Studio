@@ -1,44 +1,41 @@
-import { useCallback, useRef, useState } from 'react';
-import { engine } from '../../audio/engine';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import { heldNotes } from '../../audio/heldNotes';
 import { clamp, midiToName } from '../../model/music';
 import type { Track } from '../../model/types';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
+
+/** Scopes this surface's pointer ids in the held-note registry. */
+const SURFACE = 'keyboard';
+/** A stable empty set for the server snapshot; a fresh one would re-render. */
+const EMPTY: ReadonlySet<number> = new Set();
 
 const WHITE_OFFSETS = [0, 2, 4, 5, 7, 9, 11];
 const BLACK_AFTER: Record<number, number> = { 0: 1, 1: 3, 3: 6, 4: 8, 5: 10 };
 
 export function Keyboard({ track, octaves = 2 }: { track: Track; octaves?: number }) {
   const octave = useUiStore((s) => s.keyboardOctave);
-  const [pressed, setPressed] = useState<Set<number>>(new Set());
-  const pointerPitch = useRef(new Map<number, number>());
   const base = (octave + 1) * 12; // C of the current octave
 
+  // What is lit comes from the same registry that decides what is sounding, so
+  // the two cannot disagree — a key drawn lit is a note the engine is holding.
+  // Reading it through `useSyncExternalStore` is what lets a release dispatched
+  // by a window listener repaint the key; component state could not see it.
+  const pressed = useSyncExternalStore(
+    heldNotes.subscribe,
+    () => heldNotes.snapshot(SURFACE),
+    () => EMPTY,
+  );
+
   const press = useCallback(
-    (pitch: number, pointerId: number) => {
-      const prev = pointerPitch.current.get(pointerId);
-      if (prev === pitch) return;
-      if (prev !== undefined) engine.liveNoteOff(track.id, prev);
-      pointerPitch.current.set(pointerId, pitch);
-      engine.liveNoteOn(track.id, pitch, 100);
-      setPressed((s) => new Set(s).add(pitch));
-    },
+    (pitch: number, pointerId: number) => heldNotes.press(SURFACE, pointerId, track.id, pitch),
     [track.id],
   );
-  const release = useCallback(
-    (pointerId: number) => {
-      const pitch = pointerPitch.current.get(pointerId);
-      if (pitch === undefined) return;
-      pointerPitch.current.delete(pointerId);
-      engine.liveNoteOff(track.id, pitch);
-      setPressed((s) => {
-        const n = new Set(s);
-        n.delete(pitch);
-        return n;
-      });
-    },
-    [track.id],
-  );
+  const release = useCallback((pointerId: number) => heldNotes.release(SURFACE, pointerId), []);
+
+  // A keyboard that goes away while a finger is down leaves a note nothing can
+  // reach: the element is gone, so no release will ever be dispatched at it.
+  useEffect(() => () => heldNotes.releaseAll(SURFACE), []);
 
   const whites: { pitch: number; label: string }[] = [];
   for (let o = 0; o < octaves; o++) {
@@ -62,6 +59,10 @@ export function Keyboard({ track, octaves = 2 }: { track: Track; octaves?: numbe
     onPointerEnter: (e: React.PointerEvent) => {
       if (e.buttons > 0 || e.pointerType === 'touch') press(pitch, e.pointerId);
     },
+    // The window listener in `heldNotes` is what actually guarantees these
+    // fire — a lift outside the key never reaches the key. These stay because
+    // releasing on the element is a frame earlier when the lift *is* over it,
+    // and a second release of the same id is a no-op.
     onPointerUp: (e: React.PointerEvent) => release(e.pointerId),
     onPointerCancel: (e: React.PointerEvent) => release(e.pointerId),
     onPointerLeave: (e: React.PointerEvent) => {

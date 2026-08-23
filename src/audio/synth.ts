@@ -445,6 +445,21 @@ export class PolySynth implements Instrument {
     return this.voices.size;
   }
 
+  /**
+   * Voices still being held — the count that defines a stuck note.
+   *
+   * Not the same as `activeVoices`: a voice that has been released correctly
+   * stays in the allocation set until its tail finishes, and offline (or under
+   * a stub context) nothing ever retires it, so `activeVoices` can be non-zero
+   * with nothing wrong. What must be zero after every note-off is *this* — a
+   * voice whose release was never scheduled will sustain until panic.
+   */
+  sustainingVoices(): number {
+    let held = 0;
+    for (const v of this.voices) if (!v.released) held++;
+    return held;
+  }
+
   dispose(): void {
     this.allNotesOff();
   }
@@ -453,6 +468,21 @@ export class PolySynth implements Instrument {
 /** Sample-based drum kit (kick/snare/clap/hats) sharing the Instrument interface. */
 export class DrumKit implements Instrument {
   private active = new Set<{ src: AudioBufferSourceNode; g: GainNode; handle: ActiveHandle }>();
+
+  /** Test/diagnostic probe: hits still sounding. See `PolySynth.activeVoices`. */
+  activeVoices(): number {
+    return this.active.size;
+  }
+
+  /**
+   * Always zero: a drum hit is a one-shot whose source stops itself at the end
+   * of the buffer, so it has no held state to get stuck in. Present so that
+   * every instrument answers the same question — an instrument that cannot be
+   * asked is one a stuck-note sweep skips.
+   */
+  sustainingVoices(): number {
+    return 0;
+  }
 
   constructor(
     private ctx: BaseAudioContext,

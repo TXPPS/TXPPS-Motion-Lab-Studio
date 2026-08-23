@@ -336,6 +336,17 @@ export class SamplerInstrument implements Instrument {
   activeVoices(): number {
     return this.voices.size;
   }
+
+  /**
+   * Voices still being held. `endsAt` is Infinity exactly while a voice has no
+   * scheduled end, which is what a stuck note is. See `PolySynth` for why this
+   * and not `activeVoices` is the count a note-off test asserts on.
+   */
+  sustainingVoices(): number {
+    let held = 0;
+    for (const v of this.voices) if (!Number.isFinite(v.endsAt)) held++;
+    return held;
+  }
 }
 
 /**
@@ -354,6 +365,31 @@ export interface RackChild {
 
 export class RackInstrument implements Instrument {
   constructor(private children: () => RackChild[]) {}
+
+  /**
+   * Test/diagnostic probe: the sum of what its children are holding.
+   *
+   * A rack owns no voices of its own, so a stuck note here is always a stuck
+   * note in a child — but the sum is what a caller wants to assert on, because
+   * the rack is the instrument the track has.
+   */
+  activeVoices(): number {
+    return this.sum('activeVoices');
+  }
+
+  /** Held voices across its children. See `PolySynth.sustainingVoices`. */
+  sustainingVoices(): number {
+    return this.sum('sustainingVoices');
+  }
+
+  private sum(probe: 'activeVoices' | 'sustainingVoices'): number {
+    let total = 0;
+    for (const child of this.children()) {
+      const inst = child.instrument as Partial<Record<typeof probe, () => number>>;
+      total += inst?.[probe]?.() ?? 0;
+    }
+    return total;
+  }
 
   private targets(pitch: number): Instrument[] {
     const kids = this.children();

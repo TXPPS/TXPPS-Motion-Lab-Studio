@@ -23,6 +23,19 @@ import { recording } from '../audio/recordingController';
 import { inScale } from '../model/scales';
 import { repeatNotes } from '../model/midiTools';
 import type { MidiClip } from '../model/types';
+import { heldNotes } from '../audio/heldNotes';
+
+/**
+ * Scopes the computer keyboard's holders in the held-note registry.
+ *
+ * Its holder ids are key characters rather than pointer ids, which is the whole
+ * reason the registry keys on `string | number`: what matters is that the thing
+ * doing the holding can be named the same way twice, not what kind of thing it
+ * is. Blur and tab-hide are handled inside the registry for every surface at
+ * once, which is why this hook no longer carries its own blur listener — that
+ * one called `allNotesOff`, silencing notes it had never started.
+ */
+const KEYS_SURFACE = 'computer-keys';
 
 /** The piano roll is the active editing surface for note-level shortcuts. */
 function pianoContext(): { clip: MidiClip; noteIds: string[] } | null {
@@ -183,8 +196,6 @@ function eventForCombo(combo: string, real: KeyboardEvent): KeyboardEvent {
 
 export function useGlobalKeyboard(): void {
   useEffect(() => {
-    const held = new Set<string>();
-
     const down = (rawEvent: KeyboardEvent) => {
       // A rebound key is translated into the combo the handlers below already
       // understand, so user key commands cost one map lookup rather than a
@@ -448,43 +459,38 @@ export function useGlobalKeyboard(): void {
         return;
       }
 
-      // Note input
+      // Note input.
+      //
+      // Through `heldNotes` rather than straight to the engine, because the
+      // release has to name what the press started and this used to recompute
+      // it: note-on took the pitch from the octave at press time and note-off
+      // took it from the octave at release time, so pressing a key, hitting Z
+      // or X, and letting go sent note-off for a pitch nobody was playing and
+      // left the real one sounding until panic (BUG-005, and the second
+      // instance of it — the on-screen keyboard's was a different cause). The
+      // same was true of the target track: selecting a different track between
+      // press and release sent the note-off to the wrong instrument.
       const semi = KEY_TO_SEMITONE[k];
-      if (semi !== undefined && !held.has(k)) {
-        held.add(k);
+      if (semi !== undefined) {
         const target = playableTargetId();
         if (target) {
           const octave = useUiStore.getState().keyboardOctave;
-          engine.liveNoteOn(target, (octave + 1) * 12 + semi, 100);
+          // Auto-repeat presses the same key many times; the registry treats a
+          // press of what that holder already holds as a no-op.
+          heldNotes.press(KEYS_SURFACE, k, target, (octave + 1) * 12 + semi, 100);
         }
       }
     };
 
     const up = (e: KeyboardEvent) => {
-      const k = e.key.toLowerCase();
-      const semi = KEY_TO_SEMITONE[k];
-      if (semi !== undefined && held.has(k)) {
-        held.delete(k);
-        const target = playableTargetId();
-        if (target) {
-          const octave = useUiStore.getState().keyboardOctave;
-          engine.liveNoteOff(target, (octave + 1) * 12 + semi);
-        }
-      }
-    };
-
-    const blur = () => {
-      held.clear();
-      engine.allNotesOff();
+      heldNotes.release(KEYS_SURFACE, e.key.toLowerCase());
     };
 
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
-    window.addEventListener('blur', blur);
     return () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
-      window.removeEventListener('blur', blur);
     };
   }, []);
 }
