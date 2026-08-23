@@ -89,7 +89,9 @@ export const NO_LATENCY: DeclaredLatency = declareLatency(
 export function sumLatency(...parts: readonly DeclaredLatency[]): DeclaredLatency {
   const frames = parts.reduce((total, part) => total + part.frames, 0);
   if (frames === 0) return NO_LATENCY;
-  const notes = parts.filter((part) => part.frames > 0).map((part) => `${part.frames}: ${part.note}`);
+  const notes = parts
+    .filter((part) => part.frames > 0)
+    .map((part) => `${part.frames}: ${part.note}`);
   const source: LatencySource = parts.some((part) => part.source === 'derived')
     ? 'derived'
     : 'measured';

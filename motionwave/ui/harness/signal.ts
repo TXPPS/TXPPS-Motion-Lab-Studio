@@ -20,7 +20,12 @@ export function silence(frames: number): Float32Array {
   return new Float32Array(frames);
 }
 
-export function sine(frames: number, hz: number, sampleRate: number, amplitude = 0.5): Float32Array {
+export function sine(
+  frames: number,
+  hz: number,
+  sampleRate: number,
+  amplitude = 0.5,
+): Float32Array {
   const out = new Float32Array(frames);
   const step = (2 * Math.PI * hz) / sampleRate;
   for (let i = 0; i < frames; i++) out[i] = amplitude * Math.sin(step * i);

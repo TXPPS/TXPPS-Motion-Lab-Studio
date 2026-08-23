@@ -12,7 +12,13 @@ import { AutomationLane, PPQ } from '../automation/lane';
 import { ParamSet } from '../param/set';
 import { type ParamId, isChoice, toNormalised, toReal } from '../param/spec';
 import { Taper } from '../param/units';
-import { applyPreset, capturePreset, carriedValues, parsePreset, serialisePreset } from '../preset/codec';
+import {
+  applyPreset,
+  capturePreset,
+  carriedValues,
+  parsePreset,
+  serialisePreset,
+} from '../preset/codec';
 import { type CellOutcome, fail, notApplicable, pass } from './cells';
 import { magnitudeSpectrum, nearestBin } from './fft';
 import { renderOffline } from './render';
@@ -74,7 +80,8 @@ export function cellRangesAndTapers(unit: UnitUnderTest): CellOutcome {
       const n = step / 8;
       const real = toReal(spec, n);
       const back = toNormalised(spec, real);
-      const expected = spec.taper === Taper.Stepped || isChoice(spec) ? toNormalised(spec, toReal(spec, n)) : n;
+      const expected =
+        spec.taper === Taper.Stepped || isChoice(spec) ? toNormalised(spec, toReal(spec, n)) : n;
       if (Math.abs(back - expected) > 1e-9) {
         problems.push(`${spec.id}: round-trip at ${n} returned ${back}`);
       }
@@ -155,7 +162,9 @@ export function cellParamFuzz(unit: UnitUnderTest): CellOutcome {
       `output reached ${dbfs(loudest).toFixed(1)} dBFS under parameter fuzz — seed 0x${seed.toString(16)}`,
     );
   }
-  return pass(`${lanes.length} lane(s) of random traffic, peak ${dbfs(loudest).toFixed(1)} dBFS, finite throughout`);
+  return pass(
+    `${lanes.length} lane(s) of random traffic, peak ${dbfs(loudest).toFixed(1)} dBFS, finite throughout`,
+  );
 }
 
 /**
@@ -172,24 +181,48 @@ export function cellAutomationNoZipper(unit: UnitUnderTest): CellOutcome {
   if (swept === undefined) return notApplicable('the unit declares no smoothed parameter');
 
   const frames = BLOCK * 48;
-  const input = sine(frames, 220, RATE, 0.5);
+  // A low carrier on purpose. The measurement is a ratio between the step at a
+  // block boundary and the steps either side of it, and a high-frequency probe
+  // has a large natural slope of its own that a real discontinuity has to
+  // compete with. At 55 Hz the signal moves about a thousandth of full scale
+  // per sample, so a parameter that steps once per block stands out by an order
+  // of magnitude instead of by a factor of two.
+  const input = sine(frames, 55, RATE, 0.5);
   const lane = new AutomationLane(swept.id);
   const ticks = ((120 / 60) * PPQ * frames) / RATE;
   lane.add({ tick: 0, value: 0, curve: 'linear' });
   lane.add({ tick: Math.round(ticks), value: 1, curve: 'linear' });
 
-  const rendered = renderOffline(unit, { input, lanes: [lane], sampleRate: RATE, blockFrames: BLOCK });
-  let boundary = 0;
-  for (let index = BLOCK; index < frames; index += BLOCK) {
-    boundary = Math.max(boundary, Math.abs(rendered.output[index] - rendered.output[index - 1]));
+  const rendered = renderOffline(unit, {
+    input,
+    lanes: [lane],
+    sampleRate: RATE,
+    blockFrames: BLOCK,
+  });
+
+  // Each boundary is compared against the block it opens, not against the whole
+  // render. A gain sweep makes the signal itself grow, so a boundary late in
+  // the sweep is legitimately a bigger step than one at the start — measured
+  // against a global maximum, a clean unit fails and a stepping one passes.
+  let worstRatio = 0;
+  let worstStep = 0;
+  for (let boundary = BLOCK; boundary + BLOCK <= frames; boundary += BLOCK) {
+    const step = Math.abs(rendered.output[boundary] - rendered.output[boundary - 1]);
+    const interior = maxStep(rendered.output.subarray(boundary, boundary + BLOCK));
+    const ratio = interior > 0 ? step / interior : step > 1e-9 ? Number.POSITIVE_INFINITY : 0;
+    if (ratio > worstRatio) {
+      worstRatio = ratio;
+      worstStep = step;
+    }
   }
-  const interior = maxStep(rendered.output.subarray(1, BLOCK - 1));
-  if (boundary > interior * 2 && boundary > 1e-6) {
+  if (worstRatio > 2) {
     return fail(
-      `block boundaries step ${dbfs(boundary).toFixed(1)} dBFS against ${dbfs(interior).toFixed(1)} dBFS inside a block while "${swept.name}" sweeps`,
+      `a block boundary steps ${worstRatio.toFixed(1)}x further than any sample inside the same block (${dbfs(worstStep).toFixed(1)} dBFS) while "${swept.name}" sweeps`,
     );
   }
-  return pass(`"${swept.name}" swept 0→1: boundary step ${dbfs(boundary).toFixed(1)} dBFS, no discontinuity`);
+  return pass(
+    `"${swept.name}" swept 0→1: the worst block boundary steps ${worstRatio.toFixed(2)}x a neighbouring sample, no discontinuity`,
+  );
 }
 
 /** D11 — a preset round-trips exactly, and carries what it does not understand. */
@@ -231,7 +264,9 @@ export function cellPresetRoundTrip(unit: UnitUnderTest): CellOutcome {
   if (resaved.values[String(unknownId)] !== 0.375) {
     return fail('an unknown parameter id was lost on the next save');
   }
-  return pass(`${unit.specs.length} parameter(s) bit-identical through save/load, unknown ids carried`);
+  return pass(
+    `${unit.specs.length} parameter(s) bit-identical through save/load, unknown ids carried`,
+  );
 }
 
 /** D12 — a tempo-synced parameter actually reads the tempo map. */
@@ -241,11 +276,29 @@ export function cellTempoMap(unit: UnitUnderTest): CellOutcome {
 
   const frames = BLOCK * 64;
   const input = probeSignal(frames, RATE);
-  const params = new Map<ParamId, number>();
-  const slow = renderOffline(unit, { input, params, tempoBpm: 60, sampleRate: RATE, blockFrames: BLOCK });
-  const fast = renderOffline(unit, { input, params, tempoBpm: 180, sampleRate: RATE, blockFrames: BLOCK });
+  // The same context the wiring check uses. A tempo-synced control is usually
+  // inaudible until something else is switched on — a synced delay time does
+  // nothing at zero feedback — and rendering at two tempos with everything at
+  // its default would report a correctly synced unit as not reading the map.
+  const params = new Map<ParamId, number>(unit.wiringContext?.(synced[0]) ?? []);
+  const slow = renderOffline(unit, {
+    input,
+    params,
+    tempoBpm: 60,
+    sampleRate: RATE,
+    blockFrames: BLOCK,
+  });
+  const fast = renderOffline(unit, {
+    input,
+    params,
+    tempoBpm: 180,
+    sampleRate: RATE,
+    blockFrames: BLOCK,
+  });
   if (identical(slow.output, fast.output)) {
-    return fail(`parameters ${synced.join(', ')} are declared tempo-synced but 60 and 180 bpm render identically`);
+    return fail(
+      `parameters ${synced.join(', ')} are declared tempo-synced but 60 and 180 bpm render identically`,
+    );
   }
   return pass(`${synced.length} tempo-synced parameter(s) track the map: 60 and 180 bpm differ`);
 }

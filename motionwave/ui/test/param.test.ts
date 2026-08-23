@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  accessibleValue,
-  formatValue,
-  parseDisplay,
-  suffixFor,
-  unitSuffix,
-} from '../param/format';
+import { accessibleValue, formatValue, parseDisplay, suffixFor, unitSuffix } from '../param/format';
 import {
   ParamSpecError,
   defaultNormalised,
@@ -127,7 +121,9 @@ describe('a spec that cannot describe a usable control is refused at declaration
 
   it('refuses an inverted range, a default outside it, and a one-way choice', () => {
     expect(() => defineParam({ id: 9, name: 'Bad', min: 10, max: 1 })).toThrow(ParamSpecError);
-    expect(() => defineParam({ id: 9, name: 'Bad', min: 0, max: 1, def: 2 })).toThrow(ParamSpecError);
+    expect(() => defineParam({ id: 9, name: 'Bad', min: 0, max: 1, def: 2 })).toThrow(
+      ParamSpecError,
+    );
     expect(() => defineParam({ id: 9, name: 'Bad', unit: Unit.Choice, choices: ['One'] })).toThrow(
       ParamSpecError,
     );

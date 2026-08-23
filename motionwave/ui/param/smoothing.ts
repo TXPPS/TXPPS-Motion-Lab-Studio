@@ -68,7 +68,10 @@ export class Smoother {
     // has arrived reports `moving === false` and every processor downstream
     // takes its constant path instead of interpolating a line of zero length
     // for the rest of the session.
-    if (Math.abs(this.targetValue - this.currentValue) < EPSILON * (1 + Math.abs(this.targetValue))) {
+    if (
+      Math.abs(this.targetValue - this.currentValue) <
+      EPSILON * (1 + Math.abs(this.targetValue))
+    ) {
       this.currentValue = this.targetValue;
     }
     return rampOf(from, this.currentValue);

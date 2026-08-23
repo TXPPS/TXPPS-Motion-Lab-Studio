@@ -50,7 +50,11 @@ interface Voice {
 }
 
 export class ReferenceInstrument implements VoiceControl, UnitRenderer {
-  readonly declaredLatency = declareLatency(0, 'none', 'the first sample of a note is produced on the note');
+  readonly declaredLatency = declareLatency(
+    0,
+    'none',
+    'the first sample of a note is produced on the note',
+  );
   readonly maxVoices = MAX_VOICES;
   private readonly voices: Voice[] = [];
   private readonly tuning = new Array<number>(12).fill(0);
@@ -165,7 +169,8 @@ export class ReferenceInstrument implements VoiceControl, UnitRenderer {
       // derived from the sample rate, so the same setting is the same filter at
       // 44.1 and at 192 kHz — which is what D6 is looking for.
       const cutoff = 200 + rampAt(tone, i, frames) * 15000;
-      const coefficient = 1 - Math.exp((-2 * Math.PI * Math.min(cutoff, this.sampleRate * 0.45)) / this.sampleRate);
+      const coefficient =
+        1 - Math.exp((-2 * Math.PI * Math.min(cutoff, this.sampleRate * 0.45)) / this.sampleRate);
       this.onePole += (sum * gain - this.onePole) * coefficient;
       output[i] = this.onePole;
     }
@@ -178,7 +183,8 @@ export class ReferenceInstrument implements VoiceControl, UnitRenderer {
     if (voice.phase >= 1) voice.phase -= 1;
 
     const sine = Math.sin(2 * Math.PI * voice.phase);
-    const shaped = wave === 1 ? Math.abs(sine) * 2 - 1 : wave === 2 ? Math.max(0, sine) * 2 - 1 : sine;
+    const shaped =
+      wave === 1 ? Math.abs(sine) * 2 - 1 : wave === 2 ? Math.max(0, sine) * 2 - 1 : sine;
 
     if (!voice.sustaining) {
       // A fixed 20 ms fall. Long enough that the release is audible and short

@@ -55,9 +55,7 @@ function toLinear(channel: number): number {
 }
 
 export function relativeLuminance(colour: Rgb): number {
-  return (
-    0.2126 * toLinear(colour.r) + 0.7152 * toLinear(colour.g) + 0.0722 * toLinear(colour.b)
-  );
+  return 0.2126 * toLinear(colour.r) + 0.7152 * toLinear(colour.g) + 0.0722 * toLinear(colour.b);
 }
 
 /** Contrast ratio between two colours, 1..21. Order does not matter. */

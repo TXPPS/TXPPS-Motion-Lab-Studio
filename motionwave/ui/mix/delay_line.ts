@@ -15,7 +15,9 @@ export class DelayLine {
 
   constructor(delayFrames: number) {
     if (!Number.isInteger(delayFrames) || delayFrames < 0) {
-      throw new RangeError(`delay must be a non-negative whole number of frames, got ${delayFrames}`);
+      throw new RangeError(
+        `delay must be a non-negative whole number of frames, got ${delayFrames}`,
+      );
     }
     this.delay = delayFrames;
     // One extra slot so a delay of n can be read before the write of the same

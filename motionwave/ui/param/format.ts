@@ -123,7 +123,8 @@ export function formatValue(spec: ParamSpec, normalised: number): string {
   const real = toReal(spec, normalised);
   if (isChoice(spec)) return formatReal(spec, toChoice(spec, normalised));
   const body = formatReal(spec, real);
-  const signed = spec.unit === Unit.Decibels && real > 0 && !body.startsWith('+') ? `+${body}` : body;
+  const signed =
+    spec.unit === Unit.Decibels && real > 0 && !body.startsWith('+') ? `+${body}` : body;
   return `${signed}${suffixFor(spec, real)}`;
 }
 

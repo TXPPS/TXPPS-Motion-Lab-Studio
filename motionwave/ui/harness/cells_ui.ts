@@ -69,7 +69,9 @@ export function cellOriginalArtwork(unit: UnitUnderTest, options: UiCellOptions 
     }
   }
   return problems.length === 0
-    ? pass(`${face.artwork.length} asset(s), provenance declared${forbidden.length > 0 ? `, ${forbidden.length} name(s) scanned` : ''}`)
+    ? pass(
+        `${face.artwork.length} asset(s), provenance declared${forbidden.length > 0 ? `, ${forbidden.length} name(s) scanned` : ''}`,
+      )
     : fail(problems.join('; '));
 }
 
@@ -97,7 +99,9 @@ export function cellRealEngineState(unit: UnitUnderTest): CellOutcome {
     }
     if (element.paramId !== null) {
       if (!specIds.has(element.paramId)) {
-        problems.push(`"${element.id}" names parameter ${element.paramId}, which the unit does not declare`);
+        problems.push(
+          `"${element.id}" names parameter ${element.paramId}, which the unit does not declare`,
+        );
       } else {
         bound.add(element.paramId);
       }
@@ -106,7 +110,9 @@ export function cellRealEngineState(unit: UnitUnderTest): CellOutcome {
       if (element.meterChannel === undefined) {
         problems.push(`${element.role} "${element.id}" reads no meter channel`);
       } else if (!meterNames.has(element.meterChannel)) {
-        problems.push(`"${element.id}" reads meter "${element.meterChannel}", which the unit does not publish`);
+        problems.push(
+          `"${element.id}" reads meter "${element.meterChannel}", which the unit does not publish`,
+        );
       }
     }
   }
@@ -118,7 +124,9 @@ export function cellRealEngineState(unit: UnitUnderTest): CellOutcome {
     );
   }
   return problems.length === 0
-    ? pass(`${face.elements.length} element(s) bound to ${specIds.size} parameter(s) and ${meterNames.size} meter(s)`)
+    ? pass(
+        `${face.elements.length} element(s) bound to ${specIds.size} parameter(s) and ${meterNames.size} meter(s)`,
+      )
     : fail(problems.slice(0, 4).join('; '));
 }
 
@@ -185,7 +193,10 @@ export function cellThemesAndAccessibility(
     for (const element of face.elements) {
       const minimum = READOUT_ROLES.includes(element.role) ? 3 : 4.5;
       for (const pair of element.colours ?? []) {
-        const ratio = tokenContrast(palette.get(pair.foreground) ?? '', palette.get(pair.background) ?? '');
+        const ratio = tokenContrast(
+          palette.get(pair.foreground) ?? '',
+          palette.get(pair.background) ?? '',
+        );
         if (ratio === null) {
           problems.push(`${theme}: "${element.id}" uses tokens that do not resolve to colours`);
         } else if (ratio < minimum) {
@@ -198,6 +209,8 @@ export function cellThemesAndAccessibility(
   }
 
   return problems.length === 0
-    ? pass(`${face.elements.length} element(s) named and reachable; both themes complete and legible`)
+    ? pass(
+        `${face.elements.length} element(s) named and reachable; both themes complete and legible`,
+      )
     : fail(problems.slice(0, 4).join('; '));
 }

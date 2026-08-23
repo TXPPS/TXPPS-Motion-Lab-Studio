@@ -154,7 +154,10 @@ export class ParamSet {
    * garbage collector a reason to run during playback.
    */
   snapshot(into?: Float64Array): Float64Array {
-    const out = into !== undefined && into.length >= this.values.length ? into : new Float64Array(this.values.length);
+    const out =
+      into !== undefined && into.length >= this.values.length
+        ? into
+        : new Float64Array(this.values.length);
     out.set(this.values);
     return out;
   }

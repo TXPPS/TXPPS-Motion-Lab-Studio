@@ -106,7 +106,19 @@ export function defineParam(init: ParamSpecInit): ParamSpec {
   if (!(smoothingMs >= 0)) fail('smoothingMs must not be negative');
   if (!Number.isFinite(def) || def < min || def > max) fail('def must lie within min..max');
 
-  return { id: init.id, name: init.name, unit, min, max, def, taper, exponent, steps, smoothingMs, choices };
+  return {
+    id: init.id,
+    name: init.name,
+    unit,
+    min,
+    max,
+    def,
+    taper,
+    exponent,
+    steps,
+    smoothingMs,
+    choices,
+  };
 }
 
 export function isChoice(spec: ParamSpec): boolean {

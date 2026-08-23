@@ -53,9 +53,7 @@ export class ModulationMatrix {
   }
 
   disconnect(sourceId: string, paramId: ParamId): boolean {
-    const index = this.routes.findIndex(
-      (r) => r.sourceId === sourceId && r.paramId === paramId,
-    );
+    const index = this.routes.findIndex((r) => r.sourceId === sourceId && r.paramId === paramId);
     if (index < 0) return false;
     this.routes.splice(index, 1);
     return true;

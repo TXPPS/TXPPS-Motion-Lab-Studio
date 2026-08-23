@@ -34,7 +34,7 @@ export const DEPTH: ParamId = 6;
 export const RATE: ParamId = 7;
 
 /** Symmetric, so the impulse response is symmetric and the peak is the centre. */
-const TAPS = 65;
+const TAPS = 129;
 const LATENCY_FRAMES = (TAPS - 1) / 2;
 
 /** Beats per cycle for each division the Rate switch offers. */
@@ -48,7 +48,7 @@ export const REFERENCE_SPECS = [
     unit: Unit.Hertz,
     min: 200,
     max: 8000,
-    def: 2000,
+    def: 4000,
     taper: Taper.Logarithmic,
     smoothingMs: 30,
   }),
@@ -56,7 +56,13 @@ export const REFERENCE_SPECS = [
   defineParam({ id: MIX, name: 'Mix', unit: Unit.Percent, min: 0, max: 1, def: 1 }),
   defineParam({ id: OUTPUT, name: 'Output', unit: Unit.Decibels, min: -12, max: 6, def: 0 }),
   defineParam({ id: DEPTH, name: 'Depth', unit: Unit.Percent, min: 0, max: 1, def: 0 }),
-  defineParam({ id: RATE, name: 'Rate', unit: Unit.Choice, choices: ['1/1', '1/2', '1/4', '1/8'], def: 2 }),
+  defineParam({
+    id: RATE,
+    name: 'Rate',
+    unit: Unit.Choice,
+    choices: ['1/1', '1/2', '1/4', '1/8'],
+    def: 2,
+  }),
 ];
 
 export const REFERENCE_METERS: readonly MeterChannel[] = [
@@ -75,7 +81,9 @@ function lowPassKernel(into: Float64Array, normalisedCutoff: number): void {
   for (let i = 0; i < TAPS; i++) {
     const offset = i - centre;
     const sinc =
-      offset === 0 ? 2 * normalisedCutoff : Math.sin(2 * Math.PI * normalisedCutoff * offset) / (Math.PI * offset);
+      offset === 0
+        ? 2 * normalisedCutoff
+        : Math.sin(2 * Math.PI * normalisedCutoff * offset) / (Math.PI * offset);
     // Hann. A rectangular window leaves −21 dB of stopband ripple, which on the
     // noise section of the harness's probe signal is loud enough to make two
     // different cutoffs measure the same.
@@ -158,7 +166,8 @@ export class ReferenceEffectRenderer implements UnitRenderer {
     for (let i = 0; i < frames; i++) {
       const gain = decibelsToGain(rampAt(drive, i, frames));
       const filtered = this.filter(input[i] * gain);
-      const modulation = 1 - rampAt(depth, i, frames) * 0.5 * (1 - Math.cos(2 * Math.PI * this.tremoloPhase));
+      const modulation =
+        1 - rampAt(depth, i, frames) * 0.5 * (1 - Math.cos(2 * Math.PI * this.tremoloPhase));
       this.wet[i] = filtered * modulation;
       this.tremoloPhase += phaseStep;
       if (this.tremoloPhase >= 1) this.tremoloPhase -= 1;
@@ -262,15 +271,14 @@ export function referenceLane(paramId: ParamId, ticks: number): AutomationLane {
 }
 
 function referenceFace(): UnitUnderTest['face'] {
-  const control = (id: string, paramId: ParamId, name: string) =>
-    ({
-      id,
-      role: 'knob' as const,
-      paramId,
-      accessibleName: name,
-      keyboardFocusable: true,
-      colours: [{ foreground: '--mw-fg', background: '--mw-bg-panel' }],
-    });
+  const control = (id: string, paramId: ParamId, name: string) => ({
+    id,
+    role: 'knob' as const,
+    paramId,
+    accessibleName: name,
+    keyboardFocusable: true,
+    colours: [{ foreground: '--mw-fg', background: '--mw-bg-panel' }],
+  });
   return {
     elements: [
       control('drive', DRIVE, 'Drive'),

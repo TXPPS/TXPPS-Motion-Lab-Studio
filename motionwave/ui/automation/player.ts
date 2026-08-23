@@ -99,7 +99,11 @@ export class AutomationPlayer {
       const base =
         lane !== undefined && !lane.isEmpty
           ? lane.evaluate(fromTick, toTick)
-          : { start: this.set.normalised(paramId), end: this.set.normalised(paramId), moving: false };
+          : {
+              start: this.set.normalised(paramId),
+              end: this.set.normalised(paramId),
+              moving: false,
+            };
 
       const offset = this.modulation.offsetFor(paramId, read);
       const ramp = rampOf(clamp01(base.start + offset), clamp01(base.end + offset));

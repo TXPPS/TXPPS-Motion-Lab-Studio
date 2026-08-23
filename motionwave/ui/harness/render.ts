@@ -87,7 +87,8 @@ export function renderOffline(
   // A single held A440 is the default: it is what the tuning and MPE cells
   // measure against, and holding it rather than releasing it keeps the render
   // independent of the block size, which D7 compares.
-  const autoNote = unit.kind === 'instrument' && unit.voices !== undefined && options.beforeBlock === undefined;
+  const autoNote =
+    unit.kind === 'instrument' && unit.voices !== undefined && options.beforeBlock === undefined;
   if (autoNote) unit.voices?.panic();
 
   let blockIndex = 0;

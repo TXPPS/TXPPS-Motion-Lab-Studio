@@ -54,7 +54,9 @@ export function cellBypassNull(unit: UnitUnderTest): CellOutcome {
     expected.subarray(latency, frames),
   );
   return difference <= NULL_TARGET_DB
-    ? pass(`bypass nulls at ${difference.toFixed(1)} dBFS against the input delayed ${latency} frames`)
+    ? pass(
+        `bypass nulls at ${difference.toFixed(1)} dBFS against the input delayed ${latency} frames`,
+      )
     : fail(`bypass leaves ${difference.toFixed(1)} dBFS of residual, against a −120 dBFS target`);
 }
 
@@ -151,10 +153,14 @@ export function cellBufferSizes(unit: UnitUnderTest): CellOutcome {
     const rendered = renderOffline(unit, { input, sampleRate: RATE, blockFrames: size });
     const difference = differenceDb(rendered.output, reference);
     if (difference > NULL_TARGET_DB) {
-      return fail(`a ${size}-frame render differs from a 1024-frame one by ${difference.toFixed(1)} dBFS`);
+      return fail(
+        `a ${size}-frame render differs from a 1024-frame one by ${difference.toFixed(1)} dBFS`,
+      );
     }
   }
-  return pass(`32–1024 frames: every buffer size renders within ${NULL_TARGET_DB} dBFS of the others`);
+  return pass(
+    `32–1024 frames: every buffer size renders within ${NULL_TARGET_DB} dBFS of the others`,
+  );
 }
 
 /**
@@ -191,7 +197,9 @@ export function cellLatencyMatchesPdc(unit: UnitUnderTest): CellOutcome {
     }
     if (first < 0) return fail('the instrument produced nothing to measure a delay from');
     return first === declared.frames
-      ? pass(`first sample ${first} frames after the note, ${declared.frames} declared (${declared.source})`)
+      ? pass(
+          `first sample ${first} frames after the note, ${declared.frames} declared (${declared.source})`,
+        )
       : fail(`sound starts ${first} frames after the note against ${declared.frames} declared`);
   }
 

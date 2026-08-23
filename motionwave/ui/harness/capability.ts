@@ -130,7 +130,9 @@ function probeLayout(environment: ProbeEnvironment): boolean {
   }
 }
 
-export function probeHost(environment: ProbeEnvironment = globalThis as ProbeEnvironment): HostCapabilities {
+export function probeHost(
+  environment: ProbeEnvironment = globalThis as ProbeEnvironment,
+): HostCapabilities {
   const present: Capability[] = [];
   if (environment.WebAssembly !== undefined && coreModuleRegistered) present.push('wasmCore');
   if (typeof environment.AudioContext === 'function') present.push('audioContext');

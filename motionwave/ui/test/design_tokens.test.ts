@@ -75,7 +75,7 @@ describe('the three-theme contract', () => {
   it('guards the light media block against an explicit dark choice', () => {
     // Without the :not() the cascade lets a dark OS override a user who asked
     // for light, and "system" and "dark" become the same setting.
-    expect(CSS).toContain("@media (prefers-color-scheme: light)");
+    expect(CSS).toContain('@media (prefers-color-scheme: light)');
     expect(CSS).toContain(":root:not([data-theme='dark'])");
   });
 

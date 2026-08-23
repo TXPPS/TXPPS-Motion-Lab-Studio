@@ -10,8 +10,21 @@
  */
 
 // Design system
-export { DEFAULT_ROOT_FONT_PX, pxToRem, readRootFontPx, remToDevicePx, remToPx } from './design/metrics';
-export { THEME_ATTRIBUTE, THEME_CHOICES, applyTheme, paletteSelectorFor, readTheme, resolveTheme } from './design/theme';
+export {
+  DEFAULT_ROOT_FONT_PX,
+  pxToRem,
+  readRootFontPx,
+  remToDevicePx,
+  remToPx,
+} from './design/metrics';
+export {
+  THEME_ATTRIBUTE,
+  THEME_CHOICES,
+  applyTheme,
+  paletteSelectorFor,
+  readTheme,
+  resolveTheme,
+} from './design/theme';
 export { contrastRatio, parseColour, relativeLuminance, tokenContrast } from './design/contrast';
 export { allTokenNames, blockFor, readTokenBlocks } from './design/stylesheet';
 export {
@@ -26,7 +39,14 @@ export type { ThemeTarget } from './design/theme';
 export type { TokenBlock } from './design/stylesheet';
 
 // Parameters
-export { Taper, Unit, clampNormalised, denormalise, normalise, quantiseNormalised } from './param/units';
+export {
+  Taper,
+  Unit,
+  clampNormalised,
+  denormalise,
+  normalise,
+  quantiseNormalised,
+} from './param/units';
 export {
   ParamSpecError,
   defaultNormalised,
@@ -40,7 +60,14 @@ export {
   toReal,
 } from './param/spec';
 export type { ParamId, ParamSpec, ParamSpecInit } from './param/spec';
-export { accessibleValue, formatReal, formatValue, parseDisplay, suffixFor, unitSuffix } from './param/format';
+export {
+  accessibleValue,
+  formatReal,
+  formatValue,
+  parseDisplay,
+  suffixFor,
+  unitSuffix,
+} from './param/format';
 export { DEFAULT_QUEUE_DEPTH, ParamQueue } from './param/queue';
 export type { ParamChange } from './param/queue';
 export { ParamSet } from './param/set';
@@ -59,9 +86,21 @@ export { AutomationRecorder } from './automation/recorder';
 export type { AutomationMode } from './automation/recorder';
 
 // Presets
-export { KNOWN_FIELDS, PRESET_FORMAT, PRESET_SCHEMA_VERSION, PresetFormatError } from './preset/format';
+export {
+  KNOWN_FIELDS,
+  PRESET_FORMAT,
+  PRESET_SCHEMA_VERSION,
+  PresetFormatError,
+} from './preset/format';
 export type { PresetDocument, PresetLoadReport, PresetValues } from './preset/format';
-export { applyPreset, capturePreset, carriedValues, parsePreset, presetIds, serialisePreset } from './preset/codec';
+export {
+  applyPreset,
+  capturePreset,
+  carriedValues,
+  parsePreset,
+  presetIds,
+  serialisePreset,
+} from './preset/codec';
 export type { PresetMeta } from './preset/codec';
 export { PresetMigrations, remapParam, renameParam, seedParam } from './preset/migrate';
 export type { MigrationResult, PresetMigration } from './preset/migrate';
@@ -81,7 +120,13 @@ export type { LatencyDeclaring, MixLaw, WetDryOptions } from './mix/wet_dry';
 // The verification harness
 export { CELLS, CELL_IDS, cellDefinition } from './harness/cells';
 export type { CellDefinition, CellId, CellNeed, CellOutcome } from './harness/cells';
-export { HostCapabilities, UNBLOCKED_BY, probeHost, registerCoreModule, unregisterCoreModule } from './harness/capability';
+export {
+  HostCapabilities,
+  UNBLOCKED_BY,
+  probeHost,
+  registerCoreModule,
+  unregisterCoreModule,
+} from './harness/capability';
 export type { Capability } from './harness/capability';
 export { isShipping, testNameFor, verifyUnit } from './harness/verify';
 export type { CellResult, VerifyOptions } from './harness/verify';

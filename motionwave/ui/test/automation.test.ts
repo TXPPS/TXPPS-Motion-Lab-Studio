@@ -82,8 +82,18 @@ describe('modulation is summed and clamped once, after automation', () => {
   it('cannot drive a parameter outside its range', () => {
     const matrix = new ModulationMatrix();
     matrix.connect({ sourceId: 'lfo', paramId: GAIN, depth: 0.8 });
-    expect(matrix.applyTo(0.9, matrix.offsetFor(GAIN, () => 1))).toBe(1);
-    expect(matrix.applyTo(0.1, matrix.offsetFor(GAIN, () => -1))).toBe(0);
+    expect(
+      matrix.applyTo(
+        0.9,
+        matrix.offsetFor(GAIN, () => 1),
+      ),
+    ).toBe(1);
+    expect(
+      matrix.applyTo(
+        0.1,
+        matrix.offsetFor(GAIN, () => -1),
+      ),
+    ).toBe(0);
   });
 
   it('clamps once, so two sources near a limit do not cancel each other wrongly', () => {

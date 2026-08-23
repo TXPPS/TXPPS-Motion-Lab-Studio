@@ -134,7 +134,10 @@ function unrunnable(
         break;
       case 'voices':
         if (unit.voices === undefined) {
-          return { status: 'FAIL', detail: 'the unit is an instrument and declares no voice control' };
+          return {
+            status: 'FAIL',
+            detail: 'the unit is an instrument and declares no voice control',
+          };
         }
         break;
       case 'face':
@@ -144,7 +147,10 @@ function unrunnable(
         break;
       case 'sheet':
         if ((unit.sheetTargets ?? []).length === 0) {
-          return { status: 'FAIL', detail: 'the unit declares no measurable claims from its sheet' };
+          return {
+            status: 'FAIL',
+            detail: 'the unit declares no measurable claims from its sheet',
+          };
         }
         break;
       case 'oversampling':

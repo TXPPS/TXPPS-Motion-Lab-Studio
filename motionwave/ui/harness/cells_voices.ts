@@ -150,13 +150,16 @@ export function cellMpe(unit: UnitUnderTest): CellOutcome {
   const flat = measure(0);
   const bent = measure(7);
   voices.panic();
-  if (!Number.isFinite(flat) || !Number.isFinite(bent)) return fail('MPE render produced no signal');
+  if (!Number.isFinite(flat) || !Number.isFinite(bent))
+    return fail('MPE render produced no signal');
   if (flat - bent < 3) {
     return fail(
       `bending one member channel moved the 440 Hz bin by ${(flat - bent).toFixed(2)} dB, so the bend reached both voices or neither`,
     );
   }
-  return pass(`per-note bend on one of two voices on the same key dropped the fundamental ${(flat - bent).toFixed(2)} dB`);
+  return pass(
+    `per-note bend on one of two voices on the same key dropped the fundamental ${(flat - bent).toFixed(2)} dB`,
+  );
 }
 
 /** I17 — every factory preset loads, sounds, and stays in bounds. */
@@ -183,7 +186,8 @@ export function cellPresetsAudition(unit: UnitUnderTest): CellOutcome {
       },
     });
     const level = dbfs(peak(rendered.output));
-    if (hasNonFinite(rendered.output)) return fail(`preset "${preset.name}" produced a non-finite sample`);
+    if (hasNonFinite(rendered.output))
+      return fail(`preset "${preset.name}" produced a non-finite sample`);
     if (level < -60) return fail(`preset "${preset.name}" is silent at ${level.toFixed(1)} dBFS`);
     if (level > 6) return fail(`preset "${preset.name}" peaks at ${level.toFixed(1)} dBFS`);
   }

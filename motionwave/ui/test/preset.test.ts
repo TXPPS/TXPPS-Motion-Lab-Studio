@@ -150,7 +150,11 @@ describe('versioning migrates rather than silently reinterpreting', () => {
   it('runs every registered step in order', () => {
     const migrations = new PresetMigrations();
     migrations.register('ref-00', 1, renameParam(2, 7));
-    migrations.register('ref-00', 2, remapParam(7, (value) => 1 - value));
+    migrations.register(
+      'ref-00',
+      2,
+      remapParam(7, (value) => 1 - value),
+    );
     migrations.register('ref-00', 3, seedParam(8, 0.25));
     const result = migrations.migrate({ ...base, unitVersion: 1, values: { '2': 0.4 } }, 4);
     expect(result.steps).toBe(3);
