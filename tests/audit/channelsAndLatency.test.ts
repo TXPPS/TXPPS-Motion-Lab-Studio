@@ -104,10 +104,15 @@ describe('PA-009 · declared latency', () => {
     //
     // Compensating either would be undoing a design decision, so the rule this
     // guards is "constant latency only", not "any delay at all".
+    // The Filter joined this set when its Drive stage stopped combing (PA-012):
+    // once both legs of that blend are aligned the insert is late by one
+    // constant, which is a number that can be declared. While they disagreed it
+    // was not — there was no single delay to name.
+    //
     // Not the Amp Sim: its cabinet convolver's own onset dominates its delay and
     // moves with the selected cab, so any fixed number would be measurably
     // false. See `buildAmpSim` and PROGRESS.md.
-    const DECLARING = new Set(['limiter', 'multiband', 'saturator', 'distortion']);
+    const DECLARING = new Set(['limiter', 'multiband', 'saturator', 'distortion', 'filter']);
     for (const spec of EFFECT_SPECS) {
       const { node } = built(spec.kind);
       const declares = typeof node.latencySamples === 'function';
@@ -123,6 +128,9 @@ describe('PA-009 · declared latency', () => {
 
   it('declares nothing when bypassed, because a bypassed insert is a wire', () => {
     for (const kind of ['limiter', 'multiband', 'saturator', 'distortion'] as const) {
+      // The Filter is absent here on purpose: its declaration is zero only when
+      // Drive is zero, not when the insert is bypassed, so it is checked in the
+      // drive-specific case rather than this one.
       const { node } = built(kind);
       node.update({ ...effectOf(kind), bypass: true }, 120, true);
       expect(node.latencySamples!(), `${kind} bypassed`).toBe(0);
