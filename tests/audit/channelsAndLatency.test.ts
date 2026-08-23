@@ -91,11 +91,54 @@ describe('PA · mono, stereo and mono→stereo instantiation', () => {
 });
 
 describe('PA-009 · declared latency', () => {
-  it('declares none: no insert publishes a latency figure at all', () => {
+  it('declares exactly the five inserts that delay their channel, and no others', () => {
+    // This asserted the opposite when the audit found it — nothing declared
+    // anything, which is what PA-010 was. The five that do delay were measured
+    // against a real browser rather than assumed (`e2e/latency.spec.ts`), and
+    // the two that were left out were left out on purpose:
+    //
+    //   Filter   7/8/16/32 samples at 44.1/48/96/192 kHz — constant in *time*,
+    //            so it is the group delay of a resonant filter, which is part
+    //            of how the filter sounds.
+    //   Rotary   239/260/496/933 — its Doppler line, which is the whole effect.
+    //
+    // Compensating either would be undoing a design decision, so the rule this
+    // guards is "constant latency only", not "any delay at all".
+    // Not the Amp Sim: its cabinet convolver's own onset dominates its delay and
+    // moves with the selected cab, so any fixed number would be measurably
+    // false. See `buildAmpSim` and PROGRESS.md.
+    const DECLARING = new Set(['limiter', 'multiband', 'saturator', 'distortion']);
     for (const spec of EFFECT_SPECS) {
       const { node } = built(spec.kind);
-      expect(Object.keys(node), spec.kind).not.toContain('latencySec');
-      expect(Object.keys(node), spec.kind).not.toContain('latencySamples');
+      const declares = typeof node.latencySamples === 'function';
+      expect(declares, `${spec.kind} declaration`).toBe(DECLARING.has(spec.kind));
+      if (declares) {
+        const samples = node.latencySamples!();
+        expect(samples, `${spec.kind} declared a negative or absurd latency`).toBeGreaterThan(0);
+        expect(samples, `${spec.kind} declared more than half a second`).toBeLessThan(SR / 2);
+      }
+      node.dispose();
+    }
+  });
+
+  it('declares nothing when bypassed, because a bypassed insert is a wire', () => {
+    for (const kind of ['limiter', 'multiband', 'saturator', 'distortion'] as const) {
+      const { node } = built(kind);
+      node.update({ ...effectOf(kind), bypass: true }, 120, true);
+      expect(node.latencySamples!(), `${kind} bypassed`).toBe(0);
+      node.dispose();
+    }
+  });
+
+  it("follows the limiter's lookahead knob, because latency is not always a constant", () => {
+    // 192 samples of oversampled clipper plus the lookahead delay itself.
+    for (const [ms, expected] of [
+      [0.5, Math.round(0.0005 * SR) + 192],
+      [3, Math.round(0.003 * SR) + 192],
+      [10, Math.round(0.01 * SR) + 192],
+    ] as const) {
+      const { node } = built('limiter', { lookahead: ms });
+      expect(node.latencySamples!(), `${ms} ms lookahead`).toBe(expected);
       node.dispose();
     }
   });

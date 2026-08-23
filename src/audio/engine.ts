@@ -39,6 +39,8 @@ import { denormParam, findAutoParam } from '../model/paramRegistry';
 import type { AutoParam } from '../model/paramRegistry';
 
 const MAX_ACTIVE_SOURCES = 128;
+/** Ceiling on delay compensation, and so on a `DelayNode`'s allocation. */
+const MAX_PDC_SEC = 0.5;
 /** Lookahead and tick of the listen preview's note pump, in seconds and ms. */
 const PREVIEW_LOOKAHEAD_SEC = 0.3;
 const PREVIEW_TICK_MS = 60;
@@ -142,6 +144,8 @@ interface Channel {
   /** Input trim, polarity and mono sum, ahead of the inserts. */
   trim: GainNode;
   inserts: InsertChain;
+  /** Holds this channel back to match the deepest one. See `applyPdc`. */
+  pdc: DelayNode;
   muteGain: GainNode;
   volGain: GainNode;
   panner: StereoPannerNode;
@@ -495,6 +499,47 @@ class AudioEngine {
    * Gated on a relative change rather than run every frame — see
    * `tempoSync.ts` for why, and for the size of the error that buys.
    */
+  /**
+   * Hold every channel back to match the deepest one.
+   *
+   * PA-010: seven inserts delay their channel and none of them said so, so a
+   * limiter on the vocal put the vocal 7 ms behind the drums and nobody was
+   * told. Now that each declares (`InsertChain.latencySamples`), the fix is the
+   * standard one — find the worst offender and delay everything else to meet
+   * it, so the session stays in phase with itself at the cost of one uniform
+   * latency rather than a different one per channel.
+   *
+   * The master chain counts as a floor rather than as a peer: it is downstream
+   * of every channel, so its own latency is common to all of them and cannot be
+   * compensated by moving channels relative to each other.
+   *
+   * Written with the same ramp as every other parameter here. A `DelayNode`
+   * whose time is reassigned outright clicks, and this one moves whenever an
+   * insert is added, removed or bypassed.
+   */
+  private applyPdc(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    let deepest = 0;
+    for (const ch of this.channels.values()) {
+      deepest = Math.max(deepest, ch.inserts.latencySamples());
+    }
+    const cap = MAX_PDC_SEC * ctx.sampleRate;
+    for (const ch of this.channels.values()) {
+      const behind = Math.min(cap, deepest - ch.inserts.latencySamples());
+      safeSet(ch.pdc.delayTime, Math.max(0, behind) / ctx.sampleRate, ctx.currentTime, PARAM_TAU);
+    }
+  }
+
+  /** What delay compensation is currently costing, in samples. Test probe. */
+  pdcSamples(): number {
+    let deepest = 0;
+    for (const ch of this.channels.values()) {
+      deepest = Math.max(deepest, ch.inserts.latencySamples());
+    }
+    return deepest;
+  }
+
   private applyTempoSync(): void {
     if (!this.ctx) return;
     const p = useProjectStore.getState().project;
@@ -718,6 +763,9 @@ class AudioEngine {
     this.masterGain.gain.setTargetAtTime(master?.volume ?? p.masterVolume, t, masterSmooth);
     this.masterPan?.pan.setTargetAtTime(master?.pan ?? 0, t, masterSmooth);
     this.masterInserts?.sync(master?.effects ?? [], syncBpm, this.fxOverrides.get(MASTER_ID));
+    // After every chain has been re-synced, because that is when a chain's
+    // declared latency can have changed — an insert added, removed or bypassed.
+    this.applyPdc();
     if (this.masterMono) {
       const mono = master?.monoCheck === true;
       if ((this.masterMono.channelCount === 1) !== mono) {
@@ -867,6 +915,10 @@ class AudioEngine {
     const input = ctx.createGain();
     const trim = ctx.createGain();
     const inserts = new InsertChain(ctx, this.modulationClock());
+    // Sized for the worst case a chain can declare: eight limiters at 10 ms of
+    // lookahead each. A `DelayNode`'s maximum is fixed at construction, so it
+    // cannot be grown later when a user adds one more insert.
+    const pdc = ctx.createDelay(MAX_PDC_SEC);
     const muteGain = ctx.createGain();
     const volGain = ctx.createGain();
     const panner = ctx.createStereoPanner();
@@ -878,7 +930,11 @@ class AudioEngine {
     // fader does not change how hard that compressor works.
     input.connect(trim);
     trim.connect(inserts.entry);
-    inserts.exit.connect(muteGain);
+    // Delay compensation sits after the inserts and before the fader, so what
+    // it holds back is exactly this channel's processed signal and nothing
+    // downstream of the mix decisions. Its length is set by `applyPdc`.
+    inserts.exit.connect(pdc);
+    pdc.connect(muteGain);
     muteGain.connect(volGain);
     volGain.connect(panner);
     panner.connect(analyser);
@@ -890,6 +946,7 @@ class AudioEngine {
       input,
       trim,
       inserts,
+      pdc,
       muteGain,
       volGain,
       panner,
@@ -2088,5 +2145,9 @@ if (typeof window !== 'undefined') {
     // context after a project edit, and whether the chain noticed. Both are
     // read-only lookups — nothing here can instantiate or mutate anything.
     wamPool: () => import('./wam/pluginPool'),
+    // Insert latency can only be measured where there is a real
+    // OfflineAudioContext, which jsdom is not. Lazy for the same reason as the
+    // two above: a session that never measures never loads it.
+    latencyProbe: () => import('./latencyProbe'),
   };
 }

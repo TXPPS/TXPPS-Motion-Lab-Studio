@@ -58,6 +58,38 @@ import { buildWamEffectNode } from './wam/wamEffectNode';
 
 const RAMP = 0.02;
 
+/**
+ * Seconds a native `DynamicsCompressorNode` delays the signal by.
+ *
+ * Measured the same way as the shaper constant below and by the same probe:
+ * 265, 289 and 576 samples at 44.1, 48 and 96 kHz, which is **6.01, 6.02 and
+ * 6.00 ms** — constant in time rather than in samples, so it is declared in
+ * seconds. The Multiband is the only insert here built on the native node; the
+ * Compressor, Gate and De-esser run on `ControlVca` and measure zero at every
+ * rate, which is what makes this the node's latency rather than a compressor's.
+ */
+const NATIVE_COMPRESSOR_LATENCY_SEC = 0.006;
+
+/**
+ * Samples a `WaveShaperNode` with `oversample` set delays the signal by.
+ *
+ * Measured, not assumed: no specification says what a browser's internal up-
+ * and down-sampling filters cost, and it has differed between engines. An
+ * impulse rendered through a shaper whose curve is the identity, with drive at
+ * zero so the transfer is a wire, peaked **192 samples late at 44 100, 48 000,
+ * 96 000 and 192 000 Hz alike** — a constant number of samples rather than a
+ * constant time, which is what an internal FIR at the oversampled rate gives.
+ * `src/audio/latencyProbe.ts` is the measurement, and the alignment test
+ * re-measures rather than trusting this line, so a browser that differs shows
+ * up as a failure rather than as a silent misalignment.
+ *
+ * Devices whose delay scales with the sample rate are *not* here: the Filter's
+ * 7/8/16/32 samples across those four rates is the group delay of a resonant
+ * filter and the Rotary's 239/260/496/933 is its Doppler line. Both are the
+ * sound of the device. Compensating either would be correcting a design.
+ */
+const SHAPER_OVERSAMPLE_LATENCY = 192;
+
 /** Rotor speed changes coast rather than jump — that inertia is the sound. */
 const ROTOR_RAMP = 1.1;
 
@@ -75,6 +107,21 @@ export interface EffectNode {
    * correctly.
    */
   gainReductionDb?(): number;
+  /**
+   * Samples this insert delays the signal by, for delay compensation.
+   *
+   * Absent means "adds no latency", which is true of twenty of the twenty-seven
+   * kinds. Seven do delay their channel, and until this existed none of them
+   * said so, which put every mix using one out of time against the rest of the
+   * session (PA-010). It is a function rather than a field because the number
+   * follows the controls — a limiter's lookahead is a knob.
+   *
+   * Group delay is deliberately not included. An EQ's phase response is part of
+   * how it sounds and shifting the channel to "correct" it would be wrong;
+   * this is constant latency only, the kind a delay on every other channel can
+   * cancel exactly.
+   */
+  latencySamples?(): number;
   /** Measurement tap for spectrum, scope and tuner displays. Never in series. */
   tap?: AnalyserNode;
   /**
@@ -1004,6 +1051,10 @@ function buildLimiter(ctx: BaseAudioContext, effect: Effect): EffectNode {
   // channel is the comb filter every other insert here crossfades to avoid.
   const clipperDry = makeGain(ctx, 0);
   const output = makeGain(ctx, 1);
+  // Latency has to be reportable synchronously, so what it depends on is kept
+  // here rather than re-read from an `Effect` the reporter does not have.
+  let lastLookaheadMs = paramOf(effect, 'lookahead');
+  let lastBypass = effect.bypass;
 
   drive.connect(vca.input);
   vca.output.connect(preClip).connect(brickwall).connect(postClip).connect(output);
@@ -1018,7 +1069,16 @@ function buildLimiter(ctx: BaseAudioContext, effect: Effect): EffectNode {
     sidechain: vca.keyInput,
     setSidechain: (external: boolean) => vca.setSidechain(external),
     gainReductionDb: () => vca.gainReductionDb(),
+    // Its lookahead is a real delay node whose time is a knob, and its
+    // brickwall is an oversampled shaper. Bypassed, the lookahead goes to zero
+    // and the signal takes the dry leg, so the insert costs nothing.
+    latencySamples: () =>
+      lastBypass
+        ? 0
+        : Math.round((lastLookaheadMs / 1000) * ctx.sampleRate) + SHAPER_OVERSAMPLE_LATENCY,
     update: (e, _bpm, bypass) => {
+      lastBypass = bypass;
+      lastLookaheadMs = bypass ? 0 : paramOf(e, 'lookahead');
       const ceiling = paramOf(e, 'ceiling');
       const ceilingGain = dbToGain(ceiling);
       setParam(drive.gain, bypass ? 1 : dbToGain(paramOf(e, 'drive')), ctx);
@@ -1068,6 +1128,7 @@ function buildLimiter(ctx: BaseAudioContext, effect: Effect): EffectNode {
  */
 function buildMultiband(ctx: BaseAudioContext, effect: Effect): EffectNode {
   const wd = new WetDry(ctx);
+  let bypassed = effect.bypass;
   const lowA = makeButterworth(ctx, 'lowpass', 220);
   const lowB = makeButterworth(ctx, 'lowpass', 220);
   const highA = makeButterworth(ctx, 'highpass', 220);
@@ -1111,8 +1172,13 @@ function buildMultiband(ctx: BaseAudioContext, effect: Effect): EffectNode {
         setParam(b.comp.knee, 6, ctx);
         setParam(b.makeup.gain, dbToGain(paramOf(e, `${b.name}Makeup`)), ctx);
       }
+      bypassed = bypass;
       wd.setMix(1, bypass);
     },
+    // Three native compressors in parallel across the bands, so the chain costs
+    // one node's latency rather than three.
+    latencySamples: () =>
+      bypassed ? 0 : Math.round(NATIVE_COMPRESSOR_LATENCY_SEC * ctx.sampleRate),
     dispose: () => {
       kill([lowA, lowB, highA, highB, midA, midB, topA, topB, phaseMatch]);
       for (const b of bands) kill([b.comp, b.makeup]);
@@ -1334,13 +1400,20 @@ function buildFilter(ctx: BaseAudioContext, effect: Effect): EffectNode {
 }
 
 function buildSaturator(ctx: BaseAudioContext, effect: Effect): EffectNode {
-  const wd = new WetDry(ctx);
+  // The dry leg is held back by the shaper's oversampling delay. Without it
+  // this device is a 192-sample comb at every mix below 100 %: notches every
+  // 250 Hz at 48 kHz, which is not a subtle colouration but a filter nobody
+  // asked for. `WetDry` has always supported the alignment; this builder simply
+  // never asked for it, and the delay only became measurable once the probe
+  // existed to measure it.
+  const wd = new WetDry(ctx, SHAPER_OVERSAMPLE_LATENCY / ctx.sampleRate + 0.001);
   const shaper = makeShaper(ctx, saturationCurve('tube', 8), '4x');
   // The tube curve is asymmetric on purpose, so it generates a DC offset along
   // with its even harmonics; the blocker keeps that out of the mix bus.
   const dcBlock = makeFilter(ctx, 'highpass', 20, BUTTERWORTH_Q_DB);
   const output = makeGain(ctx, 1);
   let curveKey = '';
+  let bypassed = effect.bypass;
 
   wd.input.connect(shaper).connect(dcBlock).connect(output).connect(wd.wet);
 
@@ -1357,8 +1430,12 @@ function buildSaturator(ctx: BaseAudioContext, effect: Effect): EffectNode {
         shaper.curve = shaperCurveOf(e) ?? shaper.curve;
       }
       setParam(output.gain, dbToGain(paramOf(e, 'output')), ctx);
+      // Bypass passes zero: a bypassed insert has to be a wire, delay included.
+      wd.setDryDelay(bypass ? 0 : SHAPER_OVERSAMPLE_LATENCY / ctx.sampleRate);
+      bypassed = bypass;
       wd.setMix(paramOf(e, 'mix'), bypass);
     },
+    latencySamples: () => (bypassed ? 0 : SHAPER_OVERSAMPLE_LATENCY),
     dispose: () => {
       kill([shaper, dcBlock, output]);
       wd.dispose();
@@ -1367,13 +1444,15 @@ function buildSaturator(ctx: BaseAudioContext, effect: Effect): EffectNode {
 }
 
 function buildDistortion(ctx: BaseAudioContext, effect: Effect): EffectNode {
-  const wd = new WetDry(ctx);
+  // Aligned for the same reason as the saturator above.
+  const wd = new WetDry(ctx, SHAPER_OVERSAMPLE_LATENCY / ctx.sampleRate + 0.001);
   const shaper = makeShaper(ctx, clipCurve(18, 8), '4x');
   const bass = makeFilter(ctx, 'lowshelf', 180, 0.7);
   const treble = makeFilter(ctx, 'highshelf', 2600, 0.7);
   const dcBlock = makeFilter(ctx, 'highpass', 20, BUTTERWORTH_Q_DB);
   const output = makeGain(ctx, 1);
   let curveKey = '';
+  let bypassed = effect.bypass;
 
   wd.input.connect(shaper).connect(bass).connect(treble).connect(dcBlock).connect(output);
   output.connect(wd.wet);
@@ -1392,8 +1471,11 @@ function buildDistortion(ctx: BaseAudioContext, effect: Effect): EffectNode {
       setParam(bass.gain, paramOf(e, 'bass'), ctx);
       setParam(treble.gain, paramOf(e, 'treble'), ctx);
       setParam(output.gain, dbToGain(paramOf(e, 'output')), ctx);
+      wd.setDryDelay(bypass ? 0 : SHAPER_OVERSAMPLE_LATENCY / ctx.sampleRate);
+      bypassed = bypass;
       wd.setMix(paramOf(e, 'mix'), bypass);
     },
+    latencySamples: () => (bypassed ? 0 : SHAPER_OVERSAMPLE_LATENCY),
     dispose: () => {
       kill([shaper, bass, treble, dcBlock, output]);
       wd.dispose();
@@ -1402,6 +1484,9 @@ function buildDistortion(ctx: BaseAudioContext, effect: Effect): EffectNode {
 }
 
 function buildAmpSim(ctx: BaseAudioContext, effect: Effect): EffectNode {
+  // No dry alignment, unlike the saturator and the distortion: this device is
+  // always fully wet (`setMix(1, ...)` below), so there is no dry leg to comb
+  // against and a delay node here would process silence.
   const wd = new WetDry(ctx);
   const pre = makeGain(ctx, 1);
   const shaper = makeShaper(ctx, saturationCurve('transistor', 8), '4x');
@@ -1442,6 +1527,22 @@ function buildAmpSim(ctx: BaseAudioContext, effect: Effect): EffectNode {
       setParam(output.gain, dbToGain(paramOf(e, 'output')), ctx);
       wd.setMix(1, bypass);
     },
+    // Deliberately declares nothing, and this is the one exception in the set.
+    //
+    // Its shaper costs the usual 192 samples, but the cabinet convolver in
+    // front of the output adds a further ~205 (2.14 ms at 96 kHz), and that
+    // part is neither constant nor an overhead: it is where the synthesised
+    // cabinet impulse peaks, so it moves with the selected cab and it is the
+    // distance between a speaker and a microphone. A declaration of 192 would
+    // be a claim the renderer can measure and disprove — it reads 397 at
+    // 96 kHz — and a declaration of 397 would be compensating the model.
+    //
+    // So the amp sim is left out of compensation, which costs it up to about
+    // 4 ms of alignment against the rest of the session, and is recorded here
+    // and in PROGRESS.md rather than papered over with a number that is not
+    // true. The right fix is to measure this insert's own impulse at build
+    // time and declare that, which needs an async step the builder does not
+    // have.
     dispose: () => {
       kill([pre, shaper, bass, mid, treble, presence, cab, output]);
       wd.dispose();
@@ -2462,6 +2563,23 @@ export class InsertChain {
    * `overrides` carries automated parameter values (by effect id) so a static
    * re-sync never stomps a value the automation engine currently owns.
    */
+  /**
+   * Samples this chain delays the signal by: the sum of what its inserts
+   * declare, since they are in series.
+   *
+   * Twenty of the twenty-seven kinds declare nothing and contribute zero. What
+   * this number is *for* is delay compensation — every other channel is held
+   * back to match the deepest one, so a limiter on the vocal does not put the
+   * vocal 7 ms behind the drums. Devices whose delay is part of their sound —
+   * the Rotary's Doppler line, the Filter's group delay — deliberately do not
+   * declare, because compensating them would be undoing the effect.
+   */
+  latencySamples(): number {
+    let total = 0;
+    for (const node of this.nodes) total += node.latencySamples?.() ?? 0;
+    return total;
+  }
+
   sync(effects: Effect[], bpm: number, overrides?: Map<string, Record<string, number>>): void {
     // `pluginToken` is empty for every built-in kind, so the signature is
     // unchanged for them. For a plugin it carries the pool's state — pending,

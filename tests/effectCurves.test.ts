@@ -2007,27 +2007,41 @@ describe('the Mix control as a blend rather than a comb', () => {
     }
   });
 
-  it('leaves the oversampled shapers uncompensated, because their latency is not knowable', () => {
-    // The honest half of the finding: a '4x' WaveShaper's resampling filters
-    // delay by an amount the specification does not state, so the saturator and
-    // the distortion still comb slightly at intermediate Mix settings. What
-    // must not happen is a guess — a dry delay of the wrong length moves the
-    // null rather than removing it — so there is no alignment delay there at
-    // all, and the parameter's declaration says so.
+  it('compensates the oversampled shapers, now that their latency has been measured', () => {
+    // This test used to assert the opposite, and the reasoning was sound at the
+    // time: a '4x' WaveShaper's resampling filters delay by an amount no
+    // specification states, and a dry delay of the wrong length moves the comb
+    // rather than removing it. So the saturator and the distortion combed at
+    // every Mix below 100 % and the test recorded that as deliberate.
     //
-    // Counted over the whole graph rather than off the input's own connections,
-    // so "none" is a statement about the insert and not about where this test
-    // happened to look. The crusher is the control: the same count finds its
-    // seven, so a zero here is a real zero.
+    // What changed is that the number stopped being unknowable. An impulse
+    // rendered through an identity shaper, with the parameter ramps allowed to
+    // settle first, peaks a constant **192 samples** late at 44 100, 48 000,
+    // 96 000 and 192 000 Hz — constant in samples, which is what an internal
+    // FIR at the oversampled rate gives. `src/audio/latencyProbe.ts` is that
+    // measurement and `e2e/latency.spec.ts` re-runs it against a real browser,
+    // so this constant cannot drift from the engine it describes without the
+    // suite saying so.
+    //
+    // 192 samples is 4 ms at 48 kHz: a comb with a notch every 250 Hz, which is
+    // not a subtle colouration.
     for (const kind of ['saturator', 'distortion'] as EffectKind[]) {
       const { ctx, connections } = recordingContext();
       const effect = effectOf(kind);
       const node = buildEffectNode(ctx, effect);
       node.update(effect, 120, false);
       expect(fedBy(connections, node.input).length, `${kind} wired nothing`).toBeGreaterThan(0);
-      expect(delayNodesIn(connections), `${kind} carries a delay it cannot have measured`).toEqual(
-        [],
-      );
+      const delays = delayNodesIn(connections);
+      expect(delays.length, `${kind} dry alignment`).toBe(1);
+      expect(
+        (delays[0].delayTime as RecordingParam).value * SR,
+        `${kind} holds the dry leg by the shaper's delay`,
+      ).toBeCloseTo(192, 6);
+
+      // And bypass hands back a wire, delay included.
+      node.update({ ...effect, bypass: true }, 120, true);
+      expect((delays[0].delayTime as RecordingParam).value, `${kind} bypassed`).toBe(0);
+      expect(node.latencySamples?.(), `${kind} declares nothing when bypassed`).toBe(0);
     }
 
     const { ctx, connections } = recordingContext();
