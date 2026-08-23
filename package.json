@@ -2,11 +2,11 @@
   "name": "txpps-motionlab-studio",
   "private": true,
   "version": "0.1.0",
-  "description": "TXPPS MotionLab Studio — Professional Music Production. Anywhere.",
+  "description": "TXPPS MotionLab Studio \u2014 Professional Music Production. Anywhere.",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/licence-guard.mjs && tsc -b && vite build",
     "preview": "vite preview --port 4173 --strictPort",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -17,7 +17,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "icons": "node scripts/generate-icons.mjs",
-    "shot": "node scripts/screenshot.mjs"
+    "shot": "node scripts/screenshot.mjs",
+    "licence-guard": "node scripts/licence-guard.mjs"
   },
   "dependencies": {
     "@webaudiomodules/api": "2.0.0-alpha.6",

@@ -17,7 +17,7 @@ by the Program Director and updated whenever a modelled unit is added.
    names, marketing copy or comments under `motionwave/`.
 3. **No trade dress.** Panel artwork, logos, typefaces, badges and distinctive
    visual identity are never copied, traced or screenshot-lifted. Original
-   artwork may evoke the *era's* design language — knob families, control
+   artwork may evoke the _era's_ design language — knob families, control
    taxonomy, panel proportions, period colour temperature, display technology —
    because a design language is not a trademark.
 4. **No extraction.** No commercial plugin is decompiled, disassembled, or has
@@ -42,20 +42,21 @@ a stylistic preference.
 One row per modelled unit. Added as each Reference Spec Sheet lands; a unit may
 not enter implementation without a row here and a sheet in `docs/reference/`.
 
-| Motion Wave unit | Class of reference | Spec sheet | Sources | Artwork |
-| --- | --- | --- | --- | --- |
-| Program EQ | Passive program equaliser with valve make-up, late 1950s | `dyn-01-program-eq.md` | Manuals, published circuit analysis, an SMC 2024 wave-digital-filter paper | Original; era language only |
-| Optical Leveller | Electro-optical levelling amplifier, 1960s | `dyn-02-optical-leveller.md` | Manufacturer spec, published photocell behaviour | Original; era language only |
-| FET Limiter | FET limiting amplifier, late 1960s | `dyn-03-fet-limiter.md` | Manuals, published measurements | Original; era language only |
-| Variable-Mu Limiter | Valve variable-mu limiter, 1950s | `dyn-04-variable-mu.md` | Manual, published circuit analysis | Original; era language only |
-| Console EQ (two lineages) | Discrete console equalisers, British and American, c. 1967–1970 | `dyn-05-console-eq.md` | Manufacturer documentation, published circuit analysis | Original; era language only |
-| Motion Shaper | Multiband rhythmic modulation processor, contemporary | `fx-01-motion-shaper.md` | Vendor documentation, reviews, crossover and anti-aliasing literature | Original; interaction model only, no artwork studied |
-| Granular Reverb | No single reference — academic literature | `fx-02-granular-reverb.md` | Roads, Truax, Schroeder/Moorer/Jot/Dattorro, Välimäki's review | Original |
-| Granular Delay | No single reference — literature plus analogue-delay theory | `fx-03-granular-delay.md` | DAFx papers on BBD and tape modelling, magnetic-recording theory | Original |
-| DCO Poly | DCO polysynth, 1982–84 | `syn-01-dco-poly.md` | **Instrumented hardware measurements (MIT-licensed repo)**, manufacturer specifications, published circuit analysis; some constants from a GPL emulator, quarantined — see below | Original; era language only |
-| Phase Distortion | Phase-distortion synth, 1985 | `syn-02-phase-distortion.md` | Manuals, published algorithm analysis | Original; era language only |
-| Analog Five | Analogue five-voice, 1978–84 | `syn-03-analog-five.md` | Service manuals, published revision differences | Original; era language only |
-| Six-Op FM | Six-operator FM synth, 1983 | `syn-04-six-op-fm.md` | Manuals, patents, published algorithm tables; a GPL emulator was cloned in-session — provenance under review | Original; era language only |
+| Motion Wave unit          | Class of reference                                                | Spec sheet                   | Sources                                                                                                                                                                                     | Artwork                                              |
+| ------------------------- | ----------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Program EQ                | Passive program equaliser with valve make-up, late 1950s          | `dyn-01-program-eq.md`       | Manuals, published circuit analysis, an SMC 2024 wave-digital-filter paper                                                                                                                  | Original; era language only                          |
+| Optical Leveller          | Electro-optical levelling amplifier, 1960s                        | `dyn-02-optical-leveller.md` | Manufacturer spec, published photocell behaviour                                                                                                                                            | Original; era language only                          |
+| FET Limiter               | FET limiting amplifier, late 1960s                                | `dyn-03-fet-limiter.md`      | Manuals, published measurements                                                                                                                                                             | Original; era language only                          |
+| Variable-Mu Limiter       | Valve variable-mu limiter, 1950s                                  | `dyn-04-variable-mu.md`      | Manual, published circuit analysis                                                                                                                                                          | Original; era language only                          |
+| Console EQ (two lineages) | Discrete console equalisers, British and American, c. 1967–1970   | `dyn-05-console-eq.md`       | Manufacturer documentation, published circuit analysis                                                                                                                                      | Original; era language only                          |
+| Motion Shaper             | Multiband rhythmic modulation processor, contemporary             | `fx-01-motion-shaper.md`     | Vendor documentation, reviews, crossover and anti-aliasing literature                                                                                                                       | Original; interaction model only, no artwork studied |
+| Granular Reverb           | No single reference — academic literature                         | `fx-02-granular-reverb.md`   | Roads, Truax, Schroeder/Moorer/Jot/Dattorro, Välimäki's review                                                                                                                              | Original                                             |
+| Granular Delay            | No single reference — literature plus analogue-delay theory       | `fx-03-granular-delay.md`    | DAFx papers on BBD and tape modelling, magnetic-recording theory                                                                                                                            | Original                                             |
+| DCO Poly                  | DCO polysynth, 1982–84                                            | `syn-01-dco-poly.md`         | **Instrumented hardware measurements (MIT-licensed repo)**, manufacturer specifications, published circuit analysis; GPL-emulator constants remain quarantined `[I]` and unused — see below | Original; era language only                          |
+| Phase Distortion          | Phase-distortion synth, 1985                                      | `syn-02-phase-distortion.md` | Manuals, published algorithm analysis                                                                                                                                                       | Original; era language only                          |
+| Analog Five               | Analogue five-voice, 1978–84                                      | `syn-03-analog-five.md`      | Service manuals, published revision differences                                                                                                                                             | Original; era language only                          |
+| Matrix Twelve             | Twelve-voice analogue polysynth with a modulation matrix, 1984–85 | `syn-05-matrix-twelve.md`    | Manufacturer MIDI specification and service documentation; the specification was read from a GPL-licensed _mirror_, which is documentation rather than implementation — see §Purge          | Original; era language only                          |
+| Six-Op FM                 | Six-operator FM synth, 1983                                       | `syn-04-six-op-fm.md`        | Manuals, patents, published algorithm tables. **GPL clone purged — see §Purge**                                                                                                             | Original; era language only                          |
 
 Every sheet carries the IP banner at the top of the file, marks its own
 inferences inline, and writes "unknown" rather than filling a gap. No sheet
@@ -71,7 +72,7 @@ it forces a distinction the brief implied and did not spell out.
 
 **A repository that publishes measurements of hardware is an excellent source.**
 Instrumented captures of envelope timings, filter corners and chorus rates are
-*facts about a physical device*, and facts are not copyrightable. This is
+_facts about a physical device_, and facts are not copyrightable. This is
 exactly the "published measurements" class §2.3 authorises. `syn-01`'s primary
 source is one of these — MIT-licensed, method stated, cross-checked against a
 second author — and it is the best-sourced sheet in the set because of it.
@@ -81,6 +82,53 @@ are somebody's design decisions expressed in code, not measurements of hardware.
 Where such a project is copyleft, transcribing those decisions into a commercial
 product is a real contamination risk, and reading it at all is an evidentiary
 fact you would rather not have.
+
+## Purge of copyleft material — closed
+
+Directive 03 §2.1. Recorded here rather than in a commit message because a
+provenance register that does not say what was removed is not a register.
+
+**What was cloned during research.** Four repositories were fetched into the
+working environment (never into this repository — no third-party source was ever
+committed, which `git log --diff-filter=A` confirms):
+
+| Clone                    | Licence                                                    | Used for                                           | Disposition                                                    |
+| ------------------------ | ---------------------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------- |
+| `pendragon-andyh/juno60` | **MIT**                                                    | Instrumented hardware measurements behind `syn-01` | **Kept.** MIT is compatible; it is cited in the register above |
+| `thorinside/czd_osc`     | **MIT**                                                    | Phase-distortion oscillator behaviour, `syn-02`    | **Kept.** MIT is compatible                                    |
+| `ajwills72/cz101`        | Documentation only — manuals and price lists, no source    | `syn-02` background                                | **Kept.** Nothing executable in it                             |
+| `grame/faustlibraries`   | **GPL** across the library, including its `dx7/` emulation | `syn-04` background                                | **Deleted, 29 MB.** Removed from disk in full                  |
+
+**What replaces the deleted material.** `syn-04`'s implementation inputs are its
+manuals, the patents, and the published algorithm tables, all of which are named
+in that sheet's sources. The Faust `dx7` library was read as _context_ for what a
+six-operator engine does; nothing was transcribed from it, and nothing needs to
+be, because the operator topology and the envelope model are documented in the
+primary sources. The sheet's own §"what I could not confirm" is the honest record
+of what those sources leave open.
+
+**The quarantine still stands.** `syn-01`'s `[I]`-marked constants — cutoff
+mapping, modulation depths, mixer soft-compression threshold, chorus wet/dry and
+filter frequencies, gate-mode times, VCA gain law, envelope tables, PWM width
+mapping — came from a GPL emulator and remain research context. None has reached
+any implementation, because no implementation exists yet; each must be re-derived
+from measurement or documentation, or chosen freshly, before it does.
+
+**On the Matrix Twelve mirror.** `syn-05` reads its MIDI specification from a
+GPL-3.0 repository. What that repository _contains_ is a rework of a
+manufacturer's published specification — a document, not an implementation — so
+what is used from it is fact about a hardware interface rather than expression.
+Facts are not copyrightable and no code is taken. The AGPL-licensed editor
+application listed in that sheet is marked "no — re-confirm first" and has not
+been read.
+
+**Enforcement.** `scripts/licence-guard.mjs` runs as the first step of
+`npm run build` and fails it if any source file's header declares GPL, LGPL,
+AGPL or SSPL terms. It scans source extensions only and deliberately ignores
+Markdown: the reference sheets have to be able to say "this emulator is GPL-3.0,
+so its constants are quarantined", and banning the words would delete the audit
+trail rather than the risk. Verified in both directions — clean tree passes, a
+planted `SPDX-License-Identifier: GPL-3.0-or-later` file fails the build.
 
 Therefore:
 
@@ -106,9 +154,9 @@ Therefore:
 
 ## Third-party code and licences
 
-| Component | Licence | Where used | Notes |
-| --- | --- | --- | --- |
-| _(none yet — the core has no dependencies by design, ADR-0003)_ | | | |
+| Component                                                       | Licence | Where used | Notes |
+| --------------------------------------------------------------- | ------- | ---------- | ----- |
+| _(none yet — the core has no dependencies by design, ADR-0003)_ |         |            |       |
 
 ## Open questions for the user
 
