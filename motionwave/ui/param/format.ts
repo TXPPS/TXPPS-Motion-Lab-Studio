@@ -70,6 +70,19 @@ function decimalsFor(unit: Unit, magnitude: number): number {
 }
 
 /**
+ * Whether a frequency prints in kilohertz.
+ *
+ * The threshold is 999.5 rather than 1000 because below a kilohertz the readout
+ * carries no decimals: a value of 999.7 Hz would round to the string "1000 Hz"
+ * while 1000.1 Hz prints "1.00 kHz", and the same frequency would appear in two
+ * forms depending on which side of an invisible line the float landed. One
+ * question, one answer — including at the boundary.
+ */
+function usesKilohertz(real: number): boolean {
+  return Math.abs(real) >= 999.5;
+}
+
+/**
  * The number as displayed, without its suffix.
  *
  * Hertz above a kilohertz is printed in kHz because a four-digit frequency and
@@ -85,7 +98,7 @@ export function formatReal(spec: ParamSpec, real: number): string {
     const percent = real * 100;
     return percent.toFixed(decimalsFor(Unit.Percent, Math.abs(percent)));
   }
-  if (spec.unit === Unit.Hertz && Math.abs(real) >= 1000) {
+  if (spec.unit === Unit.Hertz && usesKilohertz(real)) {
     return (real / 1000).toFixed(2);
   }
   return real.toFixed(decimalsFor(spec.unit, Math.abs(real)));
@@ -93,7 +106,7 @@ export function formatReal(spec: ParamSpec, real: number): string {
 
 /** The suffix for a specific value, which frequency changes as it crosses 1 kHz. */
 export function suffixFor(spec: ParamSpec, real: number): string {
-  if (spec.unit === Unit.Hertz && Math.abs(real) >= 1000) return ' kHz';
+  if (spec.unit === Unit.Hertz && usesKilohertz(real)) return ' kHz';
   if (spec.unit === Unit.Ratio) return ':1';
   return unitSuffix(spec.unit);
 }

@@ -109,9 +109,14 @@ export function cellSheetVerification(unit: UnitUnderTest): CellOutcome {
       blockFrames: BLOCK,
     });
     const bin = nearestBin(target.probeHz, 1 << 14, RATE);
-    const before = magnitudeSpectrum(input)[bin];
     const after = magnitudeSpectrum(rendered.output)[bin];
-    const measuredDb = dbfs(after) - dbfs(before);
+    // An effect is measured as a ratio because the claim is about what it does
+    // to a signal. An instrument has no input to be a ratio against, so its
+    // sheet claims are absolute levels — a note at 440 Hz produces this much at
+    // 440 Hz. Measuring an instrument as a ratio would compare its output to a
+    // probe tone it ignored, which is a number with no meaning at all.
+    const measuredDb =
+      unit.kind === 'instrument' ? dbfs(after) : dbfs(after) - dbfs(magnitudeSpectrum(input)[bin]);
     if (Math.abs(measuredDb - target.expectedDb) > target.toleranceDb) {
       misses.push(
         `${target.what}: measured ${measuredDb.toFixed(2)} dB against ${target.expectedDb} ±${target.toleranceDb}`,

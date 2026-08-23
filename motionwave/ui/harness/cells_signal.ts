@@ -11,7 +11,7 @@
 import { type CellOutcome, fail, notApplicable, pass } from './cells';
 import { binHz, loudestBinExcluding, magnitudeSpectrum, nearestBin } from './fft';
 import { renderOffline } from './render';
-import { dbfs, differenceDb, impulse, peak, peakIndex, rms, sine } from './signal';
+import { dbfs, differenceDb, impulse, peak, peakIndex, rms, silence, sine } from './signal';
 import type { UnitUnderTest } from './types';
 
 const RATE = 48000;
@@ -30,6 +30,9 @@ export const NULL_TARGET_DB = -120;
  * the null test is the place that finds out whether it does.
  */
 export function cellBypassNull(unit: UnitUnderTest): CellOutcome {
+  if (unit.kind === 'instrument') {
+    return notApplicable('an instrument has no input to null a bypass against');
+  }
   const renderer = unit.renderer;
   if (renderer?.setBypass === undefined) {
     return fail('the unit declares no bypass, so it cannot be null-tested');
@@ -167,6 +170,31 @@ export function cellLatencyMatchesPdc(unit: UnitUnderTest): CellOutcome {
   if (renderer === undefined) return fail('no renderer');
   const declared = renderer.declaredLatency;
   const frames = 1 << 14;
+
+  if (unit.kind === 'instrument') {
+    // An instrument has no input edge to measure a delay from, but it does have
+    // a note-on, and the distance from the note to the first sample it produces
+    // is the same quantity a host has to compensate. Measured against a −80 dBFS
+    // floor rather than against exact zero, because an envelope that opens over
+    // a few samples is not latency.
+    const played = renderOffline(unit, {
+      input: silence(frames),
+      sampleRate: RATE,
+      blockFrames: BLOCK,
+    });
+    let first = -1;
+    for (let i = 0; i < played.output.length; i++) {
+      if (dbfs(played.output[i]) > -80) {
+        first = i;
+        break;
+      }
+    }
+    if (first < 0) return fail('the instrument produced nothing to measure a delay from');
+    return first === declared.frames
+      ? pass(`first sample ${first} frames after the note, ${declared.frames} declared (${declared.source})`)
+      : fail(`sound starts ${first} frames after the note against ${declared.frames} declared`);
+  }
+
   const input = impulse(frames, 64, 0.25);
   const rendered = renderOffline(unit, { input, sampleRate: RATE, blockFrames: BLOCK });
 

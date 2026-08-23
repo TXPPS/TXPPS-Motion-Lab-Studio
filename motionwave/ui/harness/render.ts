@@ -82,9 +82,20 @@ export function renderOffline(
   const outputBlock = new Float32Array(blockFrames);
   const ticksPerBlock = ((options.tempoBpm ?? 120) / 60) * PPQ * (blockFrames / sampleRate);
 
+  // An instrument fed nothing plays nothing, so a cell that renders one without
+  // saying what to play would measure silence and report every control dead.
+  // A single held A440 is the default: it is what the tuning and MPE cells
+  // measure against, and holding it rather than releasing it keeps the render
+  // independent of the block size, which D7 compares.
+  const autoNote = unit.kind === 'instrument' && unit.voices !== undefined && options.beforeBlock === undefined;
+  if (autoNote) unit.voices?.panic();
+
   let blockIndex = 0;
   for (let start = 0; start < frames; start += blockFrames) {
     const count = Math.min(blockFrames, frames - start);
+    if (autoNote && blockIndex === 0) {
+      unit.voices?.noteOn({ noteId: 1, key: 69, velocity: 0.9, channel: 0 });
+    }
     options.beforeBlock?.(blockIndex, start);
 
     const fromTick = blockIndex * ticksPerBlock;

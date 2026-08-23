@@ -1,0 +1,247 @@
+// Motion Wave — Motion Shaper.
+//
+// A multiband rhythmic modulation processor: split the signal into bands, and
+// drive a gain on each from a shape the user drew against the transport.
+//
+// This is the first of the fourteen units, and it is first because it proves
+// the framework rather than because it is the easiest. It exercises every part
+// the others need — a band split whose sum must be the input, a modulator that
+// must be sample-accurate against the tempo map, a gain path that must not
+// click, and a wet/dry blend that must not comb — so anything the substrate got
+// wrong shows up here rather than in unit nine.
+//
+// What it is *not* is a wrapper around a stack of existing pieces. The pieces
+// are in `core/dsp/` deliberately: the crossover is used again by every
+// multiband unit, the curve and phase by anything with a drawn modulator, and
+// the smoother by every gain that moves. A unit that owned private copies would
+// be the beginning of thirteen slightly different band splits.
+#pragma once
+
+#include <cstddef>
+
+#include "../dsp/crossover.h"
+#include "../dsp/curve.h"
+#include "../dsp/lfo_phase.h"
+#include "../dsp/smoother.h"
+#include "../graph/node.h"
+
+namespace mw::units {
+
+/// Bands the unit can run. One is the whole signal, unsplit.
+inline constexpr int kMaxBands = 3;
+/// Channels one instance handles.
+inline constexpr int kMaxChannels = 2;
+
+/// Everything one band's modulator is set from.
+struct BandSettings {
+  /// 0 … 1. How far the curve is allowed to move the gain.
+  double depth = 1.0;
+  /// Curve value 1.0 means unity gain and 0.0 means this much attenuation.
+  double rangeDb = -60.0;
+  bool enabled = true;
+};
+
+/**
+ * The unit.
+ *
+ * Stereo, three bands, one modulation slot — which is the configuration `fx-01`
+ * §7.1 costs and the one the CPU budget is stated against. More slots are more
+ * of the same loop and are deliberately not built until a second unit needs the
+ * generalisation, because a slot list that nothing uses is a guess about what
+ * the second use will want.
+ */
+class MotionShaper : public Node {
+ public:
+  // ---- configuration, off the audio thread ----
+
+  void setBandCount(int count) noexcept {
+    bandCount_ = count < 1 ? 1 : (count > kMaxBands ? kMaxBands : count);
+  }
+  void setCrossovers(double lowMid, double midHigh) noexcept {
+    lowMid_ = lowMid;
+    midHigh_ = midHigh;
+    dirty_ = true;
+  }
+  void setSlope(dsp::Slope slope) noexcept {
+    slope_ = slope;
+    dirty_ = true;
+  }
+  void setBand(int band, const BandSettings& s) noexcept {
+    if (band >= 0 && band < kMaxBands) bands_[band] = s;
+  }
+  void setCurve(int band, const dsp::Breakpoint* points, std::size_t count) noexcept {
+    if (band >= 0 && band < kMaxBands) curves_[band].set(points, count);
+  }
+  /// Smooth control, 0 … 1. The floor is applied inside the smoother.
+  void setSmooth(double control) noexcept {
+    smooth_ = control;
+    dirty_ = true;
+  }
+  dsp::LfoPhase& phase() noexcept { return phase_; }
+
+  /**
+   * Wet/dry, 0 … 1. Applied **per band, before the sum**, and that is the whole
+   * design rather than an implementation detail.
+   *
+   * The obvious version — blend the summed bands against the raw input — is a
+   * comb, and V6 caught it at −8.2 dB. The reason is that a Linkwitz-Riley
+   * split's bands sum to an *all-pass* of the input, not to the input: flat in
+   * magnitude, rotating in phase. So the wet leg is phase-rotated and a raw dry
+   * leg is not, and mixing them cancels and reinforces across the spectrum.
+   * That is the same class of defect as MotionLab's saturator comb, arrived at
+   * by a completely different route — there it was a delayed wet leg, here a
+   * phase-rotated one — which is why the framework rule is "never blend two
+   * paths that took different routes" rather than "remember to compensate
+   * latency".
+   *
+   * Blending inside each band keeps both legs on the same path: every sample
+   * that reaches the output has been through the same filters, and only its
+   * gain differs. The consequence, stated plainly because it is a real
+   * behaviour and not a bug: at Mix 0 the output is the all-pass of the input,
+   * which is magnitude-flat to within V2's ±0.05 dB but is not sample-identical
+   * to dry. Bypass is what gives back the input exactly, and it is a separate
+   * control for that reason.
+   */
+  void setMix(double mix) noexcept { mix_ = mix < 0.0 ? 0.0 : (mix > 1.0 ? 1.0 : mix); }
+
+  /// Bypass passes the input through untouched, which V1 measures as an exact null.
+  void setBypass(bool bypass) noexcept { bypass_ = bypass; }
+
+  // ---- Node ----
+
+  void prepare(double sampleRate, int) override {
+    sampleRate_ = sampleRate;
+    rebuild();
+    for (int c = 0; c < kMaxChannels; ++c) split_[c].reset();
+    for (int b = 0; b < kMaxBands; ++b) {
+      // Snapped rather than ramped from zero: a unit that faded in over its
+      // smoothing time at the start of every render would put a different
+      // envelope on the first 200 ms of a bounce than on the same bars played
+      // back, and the two are supposed to be the same audio.
+      smoothers_[b].snapTo(curves_[b].valueAt(0.0));
+    }
+  }
+
+  void reset() override {
+    for (int c = 0; c < kMaxChannels; ++c) split_[c].reset();
+    phase_.reset();
+  }
+
+  int latencySamples() const override { return 0; }
+  const char* name() const override { return "motion-shaper"; }
+
+  void process(const ProcessContext& ctx) override {
+    if (dirty_) rebuild();
+
+    const AudioBuffer& in = ctx.inputs[0];
+    AudioBuffer& out = ctx.outputs[0];
+    const int channels = out.channelCount() < kMaxChannels ? out.channelCount() : kMaxChannels;
+
+    if (bypass_) {
+      out.copyFrom(in);
+      return;
+    }
+
+    // Song position advances per sample, because the modulator is read per
+    // sample. Deriving it here rather than once per block is what makes a
+    // 200 Hz modulator land on the right sample instead of the right block.
+    const double quartersPerSample = ctx.playing ? tempoQuartersPerSample(ctx) : 0.0;
+    const double startQuarters = ctx.songSeconds * (bpm_ / 60.0);
+
+    for (int i = 0; i < ctx.frames; ++i) {
+      const double quarters = startQuarters + static_cast<double>(i) * quartersPerSample;
+      const double phi = phase_.next(quarters, ctx.sampleRate);
+
+      // One phase read per frame, shared by every band and both channels. Two
+      // bands reading the phase separately would be two chances for them to
+      // disagree about where the bar is.
+      double gain[kMaxBands];
+      for (int b = 0; b < bandCount_; ++b) {
+        const double raw = bands_[b].enabled ? curves_[b].valueAt(phi) : 1.0;
+        gain[b] = smoothers_[b].process(raw);
+      }
+
+      for (int c = 0; c < channels; ++c) {
+        const double x = static_cast<double>(in.channel(c)[i]);
+        double y = 0.0;
+        if (bandCount_ == 1) {
+          // Unsplit: the band *is* the input, so blending here is blending
+          // against the identical signal and cannot comb.
+          y = x * blend(0, gain[0]);
+        } else {
+          double low = 0.0;
+          double mid = 0.0;
+          double high = 0.0;
+          split_[c].process(x, low, mid, high);
+          if (bandCount_ == 2) {
+            // Two bands: the split's mid and high both belong to the upper one,
+            // so they are summed before the gain rather than gained separately.
+            y = low * blend(0, gain[0]) + (mid + high) * blend(1, gain[1]);
+          } else {
+            y = low * blend(0, gain[0]) + mid * blend(1, gain[1]) + high * blend(2, gain[2]);
+          }
+        }
+        out.channel(c)[i] = static_cast<float>(y);
+      }
+    }
+  }
+
+  /// Tempo the unit resolves its length against. Set by the host per block.
+  void setBpm(double bpm) noexcept { bpm_ = bpm > 1.0 ? bpm : 1.0; }
+
+  /// What the modulator is doing now, for the face to draw. Read-only.
+  double lastGain(int band) const noexcept {
+    return band >= 0 && band < kMaxBands ? smoothers_[band].value() : 1.0;
+  }
+
+ private:
+  double tempoQuartersPerSample(const ProcessContext& ctx) const noexcept {
+    return bpm_ / 60.0 / ctx.sampleRate;
+  }
+
+  /// One band's gain with the wet/dry blend already folded in.
+  ///
+  /// Folded rather than applied afterwards because the blend has to happen on
+  /// this band's own signal — see `setMix`. `1` is the dry contribution and
+  /// `gainFor` the wet one, so at Mix 0 every band passes at unity and the sum
+  /// is the split's own all-pass.
+  double blend(int band, double curveValue) const noexcept {
+    return 1.0 + (gainFor(band, curveValue) - 1.0) * mix_;
+  }
+
+  /// Curve value 0…1 mapped onto the band's gain range, scaled by Depth.
+  double gainFor(int band, double curveValue) const noexcept {
+    const BandSettings& s = bands_[band];
+    // Depth 0 must be exactly unity, not nearly — V1 nulls against dry.
+    if (s.depth <= 0.0) return 1.0;
+    const double db = (1.0 - curveValue) * s.rangeDb * s.depth;
+    return std::exp(db * 0.11512925464970229);  // 10^(db/20)
+  }
+
+  void rebuild() noexcept {
+    for (int c = 0; c < kMaxChannels; ++c) split_[c].prepare(sampleRate_, lowMid_, midHigh_, slope_);
+    for (int b = 0; b < kMaxBands; ++b) {
+      smoothers_[b].setTimeConstant(dsp::smoothingSecondsFor(smooth_), sampleRate_);
+    }
+    dirty_ = false;
+  }
+
+  dsp::ThreeBandSplit split_[kMaxChannels];
+  dsp::Curve curves_[kMaxBands];
+  dsp::Smoother smoothers_[kMaxBands];
+  dsp::LfoPhase phase_;
+  BandSettings bands_[kMaxBands];
+
+  double sampleRate_ = 48000.0;
+  double lowMid_ = 220.0;
+  double midHigh_ = 3200.0;
+  double smooth_ = 0.0;
+  double mix_ = 1.0;
+  double bpm_ = 120.0;
+  dsp::Slope slope_ = dsp::Slope::Db24;
+  int bandCount_ = 3;
+  bool bypass_ = false;
+  bool dirty_ = true;
+};
+
+}  // namespace mw::units
