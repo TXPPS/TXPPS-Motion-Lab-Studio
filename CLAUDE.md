@@ -32,7 +32,29 @@ cd motionwave
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
 ./build/param_tests      # or: ctest --test-dir build
+
+# Motion Wave (browser target)
+npm run build:wasm       # needs emsdk — see below
+npm run test:mw          # includes the WASM boundary test
 ```
+
+## Build prerequisites
+
+**Emscripten is required, not optional.** ADR-0001 makes the browser target the
+C++ core compiled to WebAssembly, so without a WASM toolchain there is no
+product on the web platform — not "no verification", no build. Fourteen units
+could be finished and none of them would run in the app.
+
+- Pinned to **4.0.7**, installed at `/home/user/emsdk`. Override with `EMSDK_DIR`.
+- `git clone https://github.com/emscripten-core/emsdk.git && cd emsdk && ./emsdk install 4.0.7 && ./emsdk activate 4.0.7`
+- `motionwave/wasm/build.sh` sources `emsdk_env.sh` itself, so no shell setup is
+  needed to build.
+
+**The WASM build is `-O2` and `-fno-fast-math`, deliberately.** The boundary test
+asserts a bit-for-bit match against the native golden render, and the more
+aggressive optimisation levels license floating-point reassociation that would
+make the two targets legitimately disagree. A faster build that does not match is
+not a faster product; it is a different product.
 
 ## Gotchas that have already cost time
 
@@ -40,7 +62,7 @@ cmake --build build
   `tsconfig.json` is `files: []` with project references, so a bare invocation
   reports success having compiled zero files. Five real errors reached the
   branch behind it. Use `npm run typecheck`.
-- **`tsc -b` is a *build*.** Running it with `--noEmit false` emits a `.js`
+- **`tsc -b` is a _build_.** Running it with `--noEmit false` emits a `.js`
   beside every `.ts` in the tree. If you find a few hundred stray `.js` files,
   that is what happened; delete them and use the script.
 - **`@container mixer` blocks in `src/styles/mixer.css` are source-order
@@ -48,6 +70,12 @@ cmake --build build
   the middle can change which row an element lands in.
 - The preview server (`npm run preview`) sometimes needs `setsid` to survive a
   backgrounded shell. Screenshots via `scripts/screenshot.mjs` need it running.
+- **Comparing a C++ float against a value parsed in TypeScript needs
+  `Math.fround`.** `golden_render.h` stores each sample as a decimal literal of a
+  float32; `Number()` parses it to a float64, and the two differ by about 5e-11.
+  The first run of the WASM boundary test reported exactly that, and it read as
+  the two toolchains disagreeing. They did not. Put both sides into float32
+  before comparing — it is the only precision the audio ever exists in.
 
 ## Conventions, both products
 
@@ -101,7 +129,7 @@ cmake --build build
   stamps nothing and follows `prefers-color-scheme`. Every palette token must be
   defined on bare `:root` first.
 - **`paramIdExists` in `src/persistence/projectRepo.ts` is deliberately wide.**
-  It is the predicate `validateProject` *drops* lanes by; narrowing it deletes
+  It is the predicate `validateProject` _drops_ lanes by; narrowing it deletes
   users' automation on the next save.
 
 ## Where the decisions are

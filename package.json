@@ -20,7 +20,8 @@
     "icons": "node scripts/generate-icons.mjs",
     "shot": "node scripts/screenshot.mjs",
     "licence-guard": "node scripts/licence-guard.mjs",
-    "ledger-guard": "node scripts/ledger-guard.mjs"
+    "ledger-guard": "node scripts/ledger-guard.mjs",
+    "build:wasm": "bash motionwave/wasm/build.sh"
   },
   "dependencies": {
     "@webaudiomodules/api": "2.0.0-alpha.6",

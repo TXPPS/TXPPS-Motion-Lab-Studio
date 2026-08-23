@@ -47,7 +47,12 @@ describe('the house rules hold for this tree as well', () => {
   });
 
   it('takes no dependency outside the standard library and the test runner', () => {
-    const allowed = new Set(['vitest', 'node:fs', 'node:url', 'vitest/config']);
+    // `node:path` joins the list for the WASM boundary test, which has to
+    // locate the native golden header on disk. The rule this guard exists to
+    // enforce is "no third-party dependency" — a standard-library module is
+    // exactly what it is meant to allow, and widening it here is not the same
+    // as weakening it.
+    const allowed = new Set(['vitest', 'node:fs', 'node:url', 'node:path', 'vitest/config']);
     for (const path of FILES) {
       if (!path.endsWith('.ts')) continue;
       const source = readFileSync(path, 'utf8');
