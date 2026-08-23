@@ -17,6 +17,8 @@
 #include "../dsp/grain/engine.h"
 #include "../dsp/visual_state.h"
 #include "../graph/node.h"
+#include "reverb_decay.h"
+#include "shimmer_sets.h"
 
 #include <cmath>
 #include <cstdint>
@@ -46,6 +48,13 @@ using GranularReverbPublisher = dsp::FramePublisher<GranularReverbFrame>;
 
 class GranularReverb : public Node {
  public:
+  /// §3.2's interval sets; see `shimmer_sets.h` for the table and for the
+  /// stability rule each one forces on the loop.
+  void setPitchSet(shimmer::Set set) noexcept {
+    pitchSet_ = set;
+    dirty_ = true;
+  }
+
   // ---- configuration, off the audio thread ----
 
   void setMix(double amount) noexcept { mix_ = clamp01(amount); }
@@ -350,58 +359,37 @@ class GranularReverb : public Node {
      */
     meanOffsetSeconds_ = minOffsetSeconds_ + sizeSeconds_ * 0.5;
 
+    const shimmer::Intervals intervals = shimmer::intervalsFor(pitchSet_);
+    for (int i = 0; i < intervals.count; ++i) {
+      pitchSemitones_[i] = intervals.semitones[i];
+      pitchWeights_[i] = intervals.weights[i];
+    }
+    pitchCount_ = intervals.count;
     /*
-     * **Calibrated against measured RT60, which §2.2 requires and §9 V5 says in
-     * as many words not to skip.** The uncalibrated formula measured +37.8 %,
-     * +19.4 %, +12.0 %, −2.8 % and −6.3 % at targets of 1, 2, 4, 8 and 16
-     * seconds. Two mechanisms account for all of it, and both were measured
-     * before either was corrected.
+     * §3.3, and it is a clamp rather than a warning on purpose.
      *
-     * **The cloud smears before the loop does anything.** With the feedback
-     * opened the impulse still decays over a time set by the grain length and
-     * the read window: 0.144 s at a 0.2 s size, 0.199 s at 0.8, 0.367 s at 2.0.
-     * That is additive with the loop's decay, which is why the error is worst
-     * where the target is shortest and vanishes by eight seconds. The two
-     * coefficients below fit those three points to 2.4 %.
-     *
-     * **And a loop whose per-pass gain is random decays faster than its mean
-     * gain says.** The decay is governed by the mean of the log rather than the
-     * log of the mean, and Jensen's inequality puts the first below the second.
-     * Measured, the effective gain is 0.988 of nominal at both eight and
-     * sixteen seconds — agreeing to a tenth of a per cent, which is what says
-     * it is one mechanism rather than a fitted fudge.
+     * An upward shift in a feedback loop moves energy up on every pass: after
+     * `k` passes the band `[f, 2f]` has become `[2^k·f, 2^{k+1}·f]`, energy
+     * piles into the top octave, the loop screams and then aliases. A downward
+     * shift does the mirror thing into the low end and turns into a rumble.
+     * The sheet's remedy is to make the damping track the set and to raise the
+     * DC corner with the deepest shift — "both turn an unstable configuration
+     * into an impossible one, which is better than a warning label".
      */
-    // The engine is configured first, so `overlap()` below is the capped
-    // number actually in force rather than the one the panel asked for.
+    const double ceiling = shimmer::dampingCornerCeiling(intervals, sampleRate_);
+    chain_.setDampingFloor(intervals.highest() > 0.0f
+                               ? static_cast<float>(chain_.dampingForCorner(ceiling))
+                               : 0.0f);
+    chain_.setDcCorner(shimmer::blockerCorner(intervals));
+
+    // The engine is configured first, so `overlap()` is the capped number
+    // actually in force rather than the one the panel asked for.
     configureEngine();
-    const double fromGrain = kSmearFromGrain * grainSeconds_;
-    const double fromOffset = kSmearFromOffset * meanOffsetSeconds_;
-    smearSeconds_ = std::sqrt(fromGrain * fromGrain + fromOffset * fromOffset);
-    /*
-     * **And the smear itself depends on how many grains are overlapping.**
-     * A sparse cloud spreads an impulse further than a dense one, because the
-     * energy arrives in fewer, more scattered pieces — so the subtraction has
-     * to move with density or the decay does. Left density-independent it
-     * measured 4.57 s at a hundred grains a second against 4.21 at the tier's
-     * cap, an eight per cent spread where §9 V6 allows five.
-     *
-     * The square root is the same counting argument the pool arithmetic uses:
-     * the spread of a sum of `O` independent arrivals goes as `1/sqrt(O)`.
-     * Referenced to the default overlap so the default setting is unchanged.
-     */
-    const double overlapNow = engine_.overlap(0) > 0.1f ? static_cast<double>(engine_.overlap(0))
-                                                        : 0.1;
-    double densityScale = std::sqrt(kReferenceOverlap / overlapNow);
-    if (densityScale > 4.0) densityScale = 4.0;
-    smearSeconds_ *= densityScale;
-    double loopTarget = decaySeconds_ - smearSeconds_;
-    // Below the smear the architecture cannot go: the cloud's own spread is a
-    // floor on the decay, which is why §6 says Size interacts with Decay's
-    // calibration. Asking for less gives the floor and the readout says so.
-    if (loopTarget < 0.010) loopTarget = 0.010;
-    const double exponent = -3.0 * meanOffsetSeconds_ / loopTarget;
-    feedback_ = std::pow(10.0, exponent) / kPerPassEfficiency;
-    // Capped at 0.98 internally, §2.2. Freeze does not use it at all.
+    // §2.2's relation, uncalibrated. §9 V5 requires a calibration against
+    // measured RT60 and `reverb_decay.h` records why the first attempt was
+    // withdrawn and what a sound one needs; until then the unit ships the
+    // relation the sheet gives and the ledger says V5 is not met.
+    feedback_ = decay::feedbackFor(meanOffsetSeconds_, decaySeconds_);
     if (feedback_ > 0.98) feedback_ = 0.98;
 
     diffuser_.setAmount(static_cast<float>(diffusion_));
@@ -430,6 +418,9 @@ class GranularReverb : public Node {
     spawn.shape = windowShape_ <= 0.0 ? grain::WindowShape::Hann : grain::WindowShape::Tukey;
     spawn.tukeyAlpha = static_cast<float>(1.0 - 0.9 * windowShape_);
     spawn.pitchSpreadCents = static_cast<float>(pitchSpreadCents_);
+    spawn.pitchSemitones = pitchSemitones_;
+    spawn.pitchWeights = pitchWeights_;
+    spawn.pitchCount = pitchCount_;
     engine_.setSpawn(0, spawn);
     engine_.setSchedule(0, schedule);
     engine_.setTier(tier_);
@@ -447,24 +438,12 @@ class GranularReverb : public Node {
     // The loop applies `fb · |H_damp(ω)|` per pass, so the decay at 8 kHz is
     // §2.2's relation evaluated with that product rather than with `fb` alone.
     const double perPass = feedback_ * chain_.dampingMagnitudeAt(8000.0);
-    frame.rt60At8k =
-        perPass >= 1.0 || perPass <= 0.0
-            ? 0.0f
-            : static_cast<float>(-3.0 * meanOffsetSeconds_ /
-                                     std::log10(perPass * kPerPassEfficiency) +
-                                 smearSeconds_);
+    frame.rt60At8k = static_cast<float>(decay::rt60For(meanOffsetSeconds_, perPass));
     visual_.publish(frame);
   }
 
   /// See the feedback tap. `1 / 0.6397`, from the pan law rather than fitted.
   static constexpr float kMonoFoldCompensation = 1.5632f;
-  /// The calibration above. Both come from the measured sweep §9 V5 requires.
-  static constexpr double kSmearFromGrain = 2.368;
-  static constexpr double kSmearFromOffset = 0.332;
-  static constexpr double kPerPassEfficiency = 0.988;
-  /// The overlap the smear coefficients were measured at: 350 grains a second
-  /// of 60 ms each.
-  static constexpr double kReferenceOverlap = 21.0;
   /// Below this the freeze fade is finished and the head stops.
   static constexpr float kFrozenThreshold = 1.0e-4f;
 
@@ -507,11 +486,14 @@ class GranularReverb : public Node {
   double outputTrim_ = 1.0;
   double feedback_ = 0.5;
   double meanOffsetSeconds_ = 0.42;
-  double smearSeconds_ = 0.2;
   float loopPeak_ = 0.0f;
   float freezeGain_ = 1.0f;
   float freezeTarget_ = 1.0f;
   float freezeCoeff_ = 0.002f;
+  float pitchSemitones_[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  float pitchWeights_[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+  int pitchCount_ = 1;
+  shimmer::Set pitchSet_ = shimmer::Set::Unison;
   grain::Tier tier_ = grain::Tier::Studio;
   bool bypass_ = false;
   bool dirty_ = true;

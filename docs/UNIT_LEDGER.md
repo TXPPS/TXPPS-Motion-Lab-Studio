@@ -210,7 +210,7 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | FET Limiter         | `dyn-03` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Variable-Mu Limiter | `dyn-04` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Console EQ          | `dyn-05` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| Granular Reverb     | `fx-02`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Granular Reverb     | `fx-02`  | DSP PARTIAL | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
 | DCO Poly            | `syn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
@@ -522,6 +522,47 @@ never took effect. §10 test 16 caught it. That is the class `tests/schemaWired`
 exists for one product over, and it is worth recording that a manifest-generated
 dispatch does not protect against it: the parameter reached the setter, and the
 setter was the thing that was wrong.
+
+### Granular Reverb, so far — and one calibration withdrawn
+
+Four of `fx-02` §9's rows measure: V1 nulls at −360 dBFS, V6 holds the decay to
+3.51 % across a 15:1 density sweep, V9 keeps the loop signal at −3.44 dBFS with
+no growth after the input stops, and V10 keeps the output DC at −136 dBFS.
+
+**V5 and V11 are not met, and the attempt to meet V5 is worth recording because
+it was wrong in an instructive way.** §2.2's feedback relation is marked
+inference and §9 V5 says to calibrate it against measured RT60 rather than ship
+it. Two real mechanisms were identified — the cloud smears an impulse before the
+loop does anything, and a loop whose per-pass gain is random decays faster than
+its mean gain says — and coefficients were fitted to them from three
+measurements. The fit looked good: it took the errors from +37.8 % to under 8 %.
+
+It was fitting noise. The cloud's own decay is not a stable quantity measured
+from a single impulse: which grains happen to catch the impulse decides how much
+energy enters the loop at all, and eight renders at one setting ranged from
+0.0997 s to 0.4027 s. The fit proved it by breaking — adding the pitch sets
+moved the spawn RNG stream and every coefficient shifted by about two to one.
+Averaging over starting phases does not repair it, because walking the engine to
+a different phase changes the state the impulse lands in rather than resampling
+one quantity; going from eight phases to sixteen moved the two-second error from
++10.6 % to +12.4 % rather than converging it.
+
+So the calibration is withdrawn, the unit ships §2.2's relation unmodified, and
+these two rows are open. What they need is a designed excitation — an averaged
+energy decay over many independent seeds, or a swept sine that does not depend
+on one impulse finding grains. The lesson generalises past this unit: **a
+stochastic engine needs its measurement designed before its numbers are
+trusted**, and the fact that a fit improves the residual is not evidence that
+the fit is real.
+
+Three genuine defects were found on the way and are fixed. The feedback tap
+folds the stereo cloud to mono for a mono buffer, and that fold costs 0.6397 by
+the pan law, so the loop ran at 64 % of the gain the decay control asked for.
+Freeze wrote faded samples while advancing the head, which erases the buffer a
+lap at a time rather than holding it. And a grain cloud's gain for coherent
+content is 0.816·sqrt(O), so a +0.5 DC offset left the wet output at 1.18 with
+nothing having accumulated — there is now a blocker on the way into the buffer
+as well as in the loop.
 
 ### What X24 found once every unit had one
 

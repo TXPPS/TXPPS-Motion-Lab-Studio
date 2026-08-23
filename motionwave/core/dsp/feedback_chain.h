@@ -23,7 +23,7 @@ class FeedbackChain {
     // at 20 Hz in the feedback path is not optional — V10 feeds +0.5 DC for
     // sixty seconds at a thirty-second decay and requires the output DC under
     // −80 dBFS.
-    dcBlocker_.setCoeffs(onePoleHighpassCoeffs(20.0, sampleRate_));
+    setDcCorner(20.0);
     releaseCoeff_ = static_cast<float>(std::exp(-1.0 / (0.005 * sampleRate_)));
     setTilt(0.0f);
     reset();
@@ -37,12 +37,55 @@ class FeedbackChain {
     envelope_ = 0.0f;
   }
 
+  /**
+   * §3.3: a downward pitch shift moves energy *down* on every pass, so the
+   * blocker's corner has to rise with the deepest shift in the set or the loop
+   * turns into a rumble. `20 · 2^(−s_min/12)` Hz, which for a −12 set is 40.
+   */
+  void setDcCorner(double hz) noexcept {
+    dcBlocker_.setCoeffs(onePoleHighpassCoeffs(hz, sampleRate_));
+    dcCorner_ = hz;
+  }
+
+  double dcCorner() const noexcept { return dcCorner_; }
+
+  /**
+   * The damping coefficient a corner frequency implies.
+   *
+   * §3.3 needs the *inverse* of the one-pole's corner relation, because the
+   * rule is stated as a maximum corner and the filter is parameterised by its
+   * coefficient. For `y = (1−d)x + d·y[−1]` the −3 dB point satisfies
+   * `cos ω = 1 − (1−d)²/(2d)`, and solving the quadratic for `d` gives this.
+   */
+  double dampingForCorner(double hz) const noexcept {
+    const double w = 2.0 * 3.14159265358979323846 * hz / sampleRate_;
+    const double c = 2.0 - std::cos(w);
+    const double d = c - std::sqrt(c * c - 1.0);
+    return d < 0.0 ? 0.0 : (d > 0.999 ? 0.999 : d);
+  }
+
   /// §2.5: `d` in [0, 0.95]. The feedback low-pass makes RT60 fall with
   /// frequency, which is what air absorption does.
   void setDamping(float amount) noexcept {
     const float clamped = amount < 0.0f ? 0.0f : (amount > 1.0f ? 1.0f : amount);
     dampingCoeff_ = clamped * 0.95f;
+    // §3.3: the floor is not advisory. An upward shift in a feedback loop moves
+    // the band `[f, 2f]` to `[2^k·f, 2^{k+1}·f]` after k passes, so energy piles
+    // into the top octave and the loop screams and then aliases. Clamping here
+    // rather than warning turns an unstable configuration into an impossible
+    // one, which is what the sheet asks for.
+    if (dampingCoeff_ < dampingFloor_) dampingCoeff_ = dampingFloor_;
   }
+
+  /// The lower bound §3.3 derives from the pitch set. Applied to whatever the
+  /// user asks for, including a later change to the control.
+  void setDampingFloor(float floorCoefficient) noexcept {
+    dampingFloor_ = floorCoefficient < 0.0f ? 0.0f : (floorCoefficient > 0.95f ? 0.95f
+                                                                               : floorCoefficient);
+    if (dampingCoeff_ < dampingFloor_) dampingCoeff_ = dampingFloor_;
+  }
+
+  float dampingCoefficient() const noexcept { return dampingCoeff_; }
 
   /**
    * §2.5's symmetric shelving pair pivoting at 1 kHz.
@@ -110,6 +153,8 @@ class FeedbackChain {
   float damping_ = 0.0f;
   float envelope_ = 0.0f;
   float releaseCoeff_ = 0.999f;
+  float dampingFloor_ = 0.0f;
+  double dcCorner_ = 20.0;
 };
 
 }  // namespace mw::dsp
