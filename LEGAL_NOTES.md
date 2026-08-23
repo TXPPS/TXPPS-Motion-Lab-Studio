@@ -118,9 +118,27 @@ from measurement or documentation, or chosen freshly, before it does.
 GPL-3.0 repository. What that repository _contains_ is a rework of a
 manufacturer's published specification — a document, not an implementation — so
 what is used from it is fact about a hardware interface rather than expression.
-Facts are not copyrightable and no code is taken. The AGPL-licensed editor
-application listed in that sheet is marked "no — re-confirm first" and has not
-been read.
+Facts are not copyrightable and no code is taken.
+
+**A correction to this register, found by the analyst writing `smp-01`.** An
+earlier version of this paragraph said the AGPL-3.0 editor application listed in
+that sheet "has not been read". That was wrong, and understating what was read
+is the one direction an IP record must never err in. `syn-05` §0.1 is the
+accurate account: the editor **was** cloned in an earlier session and read for
+the numeric ranges of the continuous controls and the capacity constants, and
+every value taken that way is marked `[I]` in that sheet for exactly that
+reason. It is not on disk in this environment and no clone of it survives.
+
+The distinction that keeps this safe is the one the sheet itself draws: reading
+an implementation to learn _what a control's range is_, then confirming that
+range against the manufacturer's published specification, takes a fact rather
+than an expression. Several of those ranges are independently confirmed by the
+specification's own bit masks — the 6-bit amount mask, the sign bit and the
+quantise bit — and are `[C]` on that basis. The rest stay `[I]`, quarantined
+exactly like `syn-01`'s: each must be confirmed by measurement or documentation,
+or replaced with our own choice, before it reaches an implementation. No code,
+structure or parameter table from that editor may enter the product, and none
+has — no implementation of this unit exists yet.
 
 **Enforcement.** `scripts/licence-guard.mjs` runs as the first step of
 `npm run build` and fails it if any source file's header declares GPL, LGPL,
