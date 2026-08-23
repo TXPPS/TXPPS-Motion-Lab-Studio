@@ -1114,3 +1114,81 @@
     display: none;
   }
 }
+
+/* ===== Short viewports: a landscape phone is not a squashed portrait =====
+ *
+ * RA-001. Rotating a phone kept every horizontal band at its portrait height,
+ * and the bands add up to more than the screen: at 740×360 the product spent
+ * 272 px of 360 on chrome, leaving an 88 px scroller of which 82 px was the
+ * ruler. Zero, zero and one whole track rows were visible at the three phone
+ * sizes, against four, seven and eight upright. Nothing in the layout had an
+ * orientation concept — sixteen stylesheets and no `@media (orientation: …)`,
+ * and `useViewport` keyed off size alone.
+ *
+ * Height is the scarce axis here and width is not, so the fix spends width to
+ * buy height. Every band that can be shorter is, the overview goes (it is a map
+ * of a thing there is no room to show), and the bottom nav becomes a side rail —
+ * which is the single biggest win, because it returns its whole 54 px rather
+ * than a fraction of it.
+ *
+ * 500 px is the same threshold `useViewport` already uses to call a viewport a
+ * phone, so the CSS and the layout agree about what a short screen is instead
+ * of each having its own opinion.
+ */
+@media (max-height: 500px) {
+  :root {
+    --topbar-h: calc(36px * var(--ui-scale));
+    --transport-h: calc(40px * var(--ui-scale));
+    --bottomnav-h: calc(44px * var(--ui-scale));
+    --ruler-h: calc(28px * var(--ui-scale));
+    /* Kept, not dropped: these are the tempo and marker lanes, and losing the
+       only way to reach them is a worse trade than 6 px a lane. */
+    --global-lane-h: calc(14px * var(--ui-scale));
+  }
+  /* The compact transport hard-codes its height, so the token above does not
+     reach it. It is already the reduced control set; this is only the box. */
+  .transport.compact {
+    height: var(--transport-h);
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  /*
+   * The rail. `.app` is a three-row grid — bar, body, nav — and this makes it
+   * two rows by two columns with the nav down the leading edge. Named areas
+   * rather than reordering, so the DOM order stays what a screen reader and the
+   * tab sequence follow: the bar is still first and the nav still precedes the
+   * body it switches between.
+   */
+  .app {
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'bar bar'
+      'nav body';
+    /* The nav owns the leading inset now that it is the leading edge. */
+    padding-left: 0;
+  }
+  .topbar {
+    grid-area: bar;
+  }
+  .app-body {
+    grid-area: body;
+  }
+  .bottomnav {
+    grid-area: nav;
+    flex-direction: column;
+    width: calc(56px * var(--ui-scale));
+    height: auto;
+    /* The bottom inset belonged to this element when it was the bottom-most
+       one. It is the leading edge now, so it takes that inset instead. */
+    padding-bottom: 0;
+    padding-left: var(--sal);
+    box-shadow: var(--ml-seam-r, var(--ml-seam-t));
+  }
+  .bottomnav button {
+    flex: none;
+    /* Still the touch minimum, measured on the axis that is now constrained. */
+    height: calc(48px * var(--ui-scale));
+  }
+}

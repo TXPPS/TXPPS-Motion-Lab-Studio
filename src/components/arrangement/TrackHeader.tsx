@@ -393,25 +393,6 @@ export const TrackHeader = memo(function TrackHeader({
               ●
             </button>
           )}
-          {/*
-            The menu is the only route to what the strip sheds on a phone —
-            monitor, automation mode, level and pan — so on a coarse pointer it
-            has to be in the strip that is still visible. Row 1 becomes a text
-            line there and keeps no buttons of its own. Hidden on a mouse,
-            where row 1's copy is the one that shows.
-          */}
-          <button
-            className="th-mini th-menu-strip"
-            title="Track menu"
-            aria-label={`Track menu for ${track.name}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              openMenu(e.clientX, e.clientY);
-            }}
-            data-testid={`track-menu-strip-${track.name}`}
-          >
-            <Icon name="dots" size={14} />
-          </button>
           <div className="th-vol">
             <input
               type="range"

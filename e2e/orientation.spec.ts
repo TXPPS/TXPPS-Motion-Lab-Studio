@@ -70,13 +70,14 @@ test.describe('landscape is an arrangement, not a squashed portrait', () => {
     test(`a ${phone.name} phone in landscape opens on at least one whole track`, async ({
       browser,
     }) => {
-      // RA-001. Nothing in the layout answers orientation — there is no
-      // `@media (orientation: …)` rule in the product and `useViewport` keys
-      // off size alone — so a rotated phone is the portrait arrangement with
-      // 380px less height, and the chrome eats all of it. The largest phone
-      // scrapes one row and so clears this floor; the comparison test below is
-      // what catches it.
-      if (phone.name !== 'large') test.fail();
+      // RA-001, fixed. Nothing in the layout answered orientation — there was
+      // no `@media (orientation: …)` rule in the product and `useViewport`
+      // keys off size alone — so a rotated phone was the portrait arrangement
+      // with 380px less height and the chrome ate all of it: 272px of 360 at
+      // the smallest size, for an 88px scroller of which 82px was the ruler.
+      // A short viewport now shortens every band, drops the overview and turns
+      // the bottom nav into a side rail, which is the change that returns a
+      // whole 54px rather than a fraction of one.
       const context = await browser.newContext({
         viewport: rotate(phone.portrait),
         hasTouch: true,
@@ -97,7 +98,12 @@ test.describe('landscape is an arrangement, not a squashed portrait', () => {
       // RA-001, the comparison that answers the directive's question. A real
       // landscape arrangement rearranges to keep the work visible; a squashed
       // one just shows a fraction of the same rows.
-      test.fail();
+      //
+      // Measured after the fix: 2, 3 and 4 rows rotated against 4, 7 and 8
+      // upright, from 0, 0 and 1 before it. That clears this floor exactly
+      // rather than comfortably — 4 against floor(8/2) is the bar, not a
+      // margin over it — so anything that adds a band back to a short viewport
+      // will fail here, which is the point of keeping the comparison.
       const portrait = await browser.newContext({ viewport: phone.portrait, hasTouch: true });
       const pPage = await portrait.newPage();
       await boot(pPage);

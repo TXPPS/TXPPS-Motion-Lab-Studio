@@ -496,11 +496,16 @@
  *
  * The two requirements cannot both hold with two rows of controls, so row 1
  * gives up its buttons: 2 padding + 18 name + 44 strip = 64 exactly. What row 1
- * held — automation mode, collapse — joins what the strip already sheds, and
- * the menu that reaches them moves into the strip, because on a phone the strip
- * is the row that is still there. Growing `LANE_H` instead was the other way
- * out and is the wrong one: it buys a taller header by showing fewer tracks, on
- * the devices that already show the fewest.
+ * held — automation mode, collapse — joins what the strip already sheds into
+ * the track menu, which a touch user reaches by long-pressing the header. The
+ * strip itself keeps mute, solo, monitor and arm: four at 44 with 4 px between
+ * them is 188 px against the 208 px column, which is what it has to fit in.
+ * Monitor stays because BUG-002 put it there and a phone is exactly where
+ * "am I listening to this input" is hardest to answer from anything else.
+ *
+ * Growing `LANE_H` instead was the other way out and is the wrong one: it buys
+ * a taller header by showing fewer tracks, on the devices that already show
+ * the fewest.
  */
 @media (pointer: coarse) {
   :root {
@@ -520,8 +525,7 @@
     margin-top: 0;
   }
   .th-controls .th-vol,
-  .th-controls .knob,
-  .th-controls .th-monitor {
+  .th-controls .knob {
     display: none;
   }
   /* Row 1 is text: the name, its type icon and its badges, nothing pressable. */
@@ -540,13 +544,6 @@
     width: 44px;
     height: 44px;
   }
-  .th-menu-strip {
-    display: inline-flex;
-  }
-}
-/* On a mouse the strip's menu is the duplicate, so it is the one that goes. */
-.th-menu-strip {
-  display: none;
 }
 
 /* Mute, solo and arm are the buttons a mix gets driven from; they have to
@@ -1084,4 +1081,48 @@
      and it should read as arriving rather than as already there. */
   background: color-mix(in srgb, var(--bg-raised) 55%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* ===== Short viewports: the arrangement's own bands ===== (RA-001)
+ *
+ * The toolbar wraps, which is right when there is height to wrap into and wrong
+ * when there is not: at 740×360 it took 84 px of a 360 px screen for two rows of
+ * controls. On a short viewport it becomes one row that scrolls sideways —
+ * nothing is removed, it is reached by a swipe instead of by a second row, and
+ * width is the axis that has room.
+ */
+@media (max-height: 500px) {
+  .arr-toolbar {
+    /* Its own padding is a sixth of its height once it stops wrapping. Set
+       here rather than beside the other short-viewport tokens in shell.css:
+       both rules are one class deep, so the later import would win and
+       arrangement.css is the later import. */
+    padding: 2px 8px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    /* A toolbar that scrolls must not also swallow the vertical gesture the
+       lanes below it need. */
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    /* A bar that scrolls has to look like one. Without an edge treatment the
+       last control simply stops at the bezel and reads as the end of the bar,
+       so nobody swipes and the controls past it may as well not exist. The
+       trailing padding is what the fade lands on once it is scrolled to the
+       end, so the affordance disappears exactly when there is nothing more. */
+    padding-right: 20px;
+    mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+  }
+  .arr-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+  /*
+   * The overview goes. It is a map of the arrangement, and on a screen with
+   * room for two track rows the arrangement it maps is not on screen to be
+   * navigated — 46 px spent on a picture of what cannot be shown. The scroller
+   * and the ruler still locate you.
+   */
+  .arr-overview {
+    display: none;
+  }
 }

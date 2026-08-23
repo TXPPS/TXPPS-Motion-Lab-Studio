@@ -189,6 +189,39 @@ test.describe('responsive chrome integrity', () => {
           el.getAttribute('data-testid') ||
           el.getAttribute('aria-label') ||
           (el.textContent || '').trim().slice(0, 16);
+
+        /**
+         * The nearest ancestor that both permits horizontal scrolling and has
+         * something to scroll. A control past the right edge of a bar that
+         * scrolls is a control you swipe to; one past the edge of a bar that
+         * does not is a control you cannot reach at all, and only the second is
+         * a defect. Requiring `scrollWidth > clientWidth` rather than trusting
+         * `overflow-x` alone keeps this from excusing a bar that merely
+         * *declares* itself scrollable while clipping.
+         */
+        const scrollerFor = (el: Element): Element | null => {
+          for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+            const overflowX = getComputedStyle(p).overflowX;
+            if (
+              (overflowX === 'auto' || overflowX === 'scroll') &&
+              p.scrollWidth > p.clientWidth + 1
+            ) {
+              return p;
+            }
+          }
+          return null;
+        };
+
+        /** True when scrolling that ancestor would bring the control into view. */
+        const reachableByScroll = (el: Element): boolean => {
+          const scroller = scrollerFor(el);
+          if (!scroller) return false;
+          const r = el.getBoundingClientRect();
+          const s = scroller.getBoundingClientRect();
+          const rightInContent = r.right - s.left + scroller.scrollLeft;
+          const leftInContent = r.left - s.left + scroller.scrollLeft;
+          return leftInContent >= -1 && rightInContent <= scroller.scrollWidth + 1;
+        };
         for (const region of regions) {
           const els = [...region.querySelectorAll('button, input, select')].filter((el) => {
             const r = el.getBoundingClientRect();
@@ -196,8 +229,10 @@ test.describe('responsive chrome integrity', () => {
           });
           for (const el of els) {
             const r = el.getBoundingClientRect();
-            if (r.right > vw + 1) out.push(`${name(el)} clipped right at ${Math.round(r.right)}`);
-            if (r.left < -1) out.push(`${name(el)} clipped left`);
+            if (r.right > vw + 1 && !reachableByScroll(el)) {
+              out.push(`${name(el)} clipped right at ${Math.round(r.right)}`);
+            }
+            if (r.left < -1 && !reachableByScroll(el)) out.push(`${name(el)} clipped left`);
           }
           for (let i = 0; i < els.length; i++) {
             for (let j = i + 1; j < els.length; j++) {

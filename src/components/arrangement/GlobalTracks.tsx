@@ -20,7 +20,18 @@ import { useUiStore } from '../../state/uiStore';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import { Icon, type IconName } from '../common/Icon';
 
+/**
+ * A global lane's height at the default density.
+ *
+ * The lanes take their height from `--global-lane-h` rather than from this
+ * number, so that a short viewport can lower it with every other band (RA-001 —
+ * at 740x360 the ruler and these two lanes were 82 of an 88 px scroller). This
+ * stays exported as the nominal value for anything that needs to reason about
+ * the lane without measuring it.
+ */
 export const GLOBAL_LANE_H = 20;
+/** What the elements are actually sized by. */
+const LANE_H_CSS = 'var(--global-lane-h)';
 
 const PITCH_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 
@@ -74,7 +85,7 @@ function Lane({
   return (
     <div
       className={`gt-lane gt-${kind}`}
-      style={{ width: timelineW, height: GLOBAL_LANE_H }}
+      style={{ width: timelineW, height: LANE_H_CSS }}
       data-testid={`global-lane-${kind}`}
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
@@ -508,7 +519,7 @@ export function GlobalTrackHeaders() {
         <div
           key={m.kind}
           className="gt-header"
-          style={{ height: GLOBAL_LANE_H }}
+          style={{ height: LANE_H_CSS }}
           data-testid={`global-header-${m.kind}`}
         >
           <Icon name={m.icon} size={11} />
