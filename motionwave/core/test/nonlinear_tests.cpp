@@ -178,18 +178,14 @@ MW_TEST("NL-03: a balanced pair cancels even order to the arithmetic floor") {
   // means here and is still 180 dB above the cancelled even order.
   MW_EXPECT(db(h.ratio(3)) >= -60.0);
 
-  // And the stronger claim the topology actually supports, which the sheet
-  // misses: at bias zero the cancellation survives *any* imbalance, because a
-  // difference of two evaluations of an odd function at +gx and −gx is odd
-  // however either half is scaled. A model that returned even order here would
-  // be one where the two halves are not the same curve.
-  PushPullStage lopsided;
-  PushPullStage::Config mismatched = config;
-  mismatched.imbalance = 0.10f;
-  lopsided.prepare(kRate, mismatched);
-  const Harmonics m = harmonicsOf([&](float x) { return lopsided.process(x); }, 1000.0, 0.5012);
-  std::printf("    NL-03 with 10 %% mismatch at bias 0: H2 %.1f dBc\n", db(m.ratio(2)));
-  MW_EXPECT(db(m.ratio(2)) <= -80.0);
+  // What used to be here was a "stronger claim": that at zero bias the
+  // cancellation survives *any* imbalance, which I had measured and believed.
+  // It was the bug written down as a property. The measurement was right — a
+  // gain or drive mismatch between two odd halves cannot make even order — but
+  // the conclusion should have been that the imbalance was reaching nothing
+  // that mattered, not that the topology was better than its sheet claimed. The
+  // case that replaces it is NL-04b, which asserts the opposite and fails
+  // against the model that passed this.
 }
 
 MW_TEST("NL-04: imbalance returns even order in proportion to itself") {
@@ -233,15 +229,79 @@ MW_TEST("NL-04: imbalance returns even order in proportion to itself") {
   const double r2 = 1.0 - ssResidual / ssTotal;
   std::printf("    NL-04 slope %.4f, R2 %.6f\n", slope, r2);
   MW_EXPECT(r2 >= 0.99);
-  // The proportionality itself is a prediction rather than a free number:
-  // H2/H1 = |c2(bias)|·β·A, so at bias 0.15 and A = 0.2735·0.5012 the slope
-  // should be about 0.0137·... — computed here from the curve rather than
-  // written down, so that changing the curve fails this rather than silently
-  // moving it.
+  // The proportionality is a prediction rather than a free number, and it comes
+  // from the stage's *own* `curvature()` — the same value a face would draw —
+  // rather than from a formula written out again here. H2/H1 = |c2|·A/2, so the
+  // slope against β is that divided by β.
+  PushPullStage reference;
+  PushPullStage::Config at10;
+  at10.imbalance = 0.10f;
+  at10.bias = 0.15f;
+  at10.imbalancePerBias = 0.0f;
+  reference.prepare(kRate, at10);
   const double a = 0.2735 * 0.5012;
-  const double predicted = std::fabs(static_cast<double>(curvature(0.15f).c2)) * a;
-  std::printf("    NL-04 slope predicted from the curve: %.4f\n", predicted);
+  const double predicted =
+      std::fabs(static_cast<double>(reference.curvature().c2)) * a / 2.0 / 0.10;
+  std::printf("    NL-04 slope predicted from the stage's own curvature: %.4f\n", predicted);
   MW_EXPECT_NEAR(slope, predicted, predicted * 0.20);
+}
+
+MW_TEST("NL-04b: even order rises with imbalance at zero bias") {
+  // The row this suite was missing, and the one that would have caught the
+  // defect it now covers. A push-pull pair sitting exactly at its balance point
+  // is where a mismatch matters most to a listener — it is the setting the unit
+  // idles at — and the model had an imbalance control that did literally
+  // nothing there. Both mechanisms that could have been blamed were measured
+  // and both are inert at zero bias: a 10 % output-gain difference and a 10 %
+  // drive difference each produce exactly 0.0000000000 of even part, because
+  // scaling an odd function on either side of a subtraction leaves it odd.
+  //
+  // What is asserted is monotonic *and* proportional. Monotonic alone would be
+  // satisfied by a model that returned even order through some threshold
+  // effect; the mechanism is an operating-point difference, which is linear in
+  // the mismatch, and a fit through the origin is what says so.
+  const double amounts[5] = {0.0, 0.02, 0.05, 0.10, 0.20};
+  double measured[5] = {0, 0, 0, 0, 0};
+  for (int i = 0; i < 5; ++i) {
+    PushPullStage stage;
+    PushPullStage::Config config;
+    config.imbalance = static_cast<float>(amounts[i]);
+    config.bias = 0.0f;  // exactly at balance
+    config.imbalancePerBias = 0.0f;
+    stage.prepare(kRate, config);
+    const Harmonics h = harmonicsOf([&](float x) { return stage.process(x); }, 1000.0, 0.5012);
+    measured[i] = h.ratio(2);
+    std::printf("    NL-04b imbalance %.2f at bias 0 -> H2 %.1f dBc (%.5f)\n", amounts[i],
+                db(measured[i]), measured[i]);
+  }
+  // A matched pair still cancels to the arithmetic floor. That end of the
+  // sweep is NL-03's claim and it must survive the fix.
+  MW_EXPECT(db(measured[0]) <= -80.0);
+  // And every step up is a step up.
+  for (int i = 1; i < 5; ++i) MW_EXPECT(measured[i] > measured[i - 1]);
+  // Linear in the mismatch, through the origin.
+  double sxy = 0.0;
+  double sxx = 0.0;
+  for (int i = 0; i < 5; ++i) {
+    sxy += amounts[i] * measured[i];
+    sxx += amounts[i] * amounts[i];
+  }
+  const double slope = sxy / sxx;
+  double ssResidual = 0.0;
+  double ssTotal = 0.0;
+  double mean = 0.0;
+  for (int i = 0; i < 5; ++i) mean += measured[i];
+  mean /= 5.0;
+  for (int i = 0; i < 5; ++i) {
+    const double r = measured[i] - slope * amounts[i];
+    ssResidual += r * r;
+    ssTotal += (measured[i] - mean) * (measured[i] - mean);
+  }
+  const double r2 = 1.0 - ssResidual / ssTotal;
+  std::printf("    NL-04b slope %.5f, R2 %.6f\n", slope, r2);
+  MW_EXPECT(r2 >= 0.99);
+  // At the top of the sweep it is plainly audible rather than merely present.
+  MW_EXPECT(db(measured[4]) >= -50.0);
 }
 
 MW_TEST("NL-05: the ratio rises with gain reduction, from the element") {

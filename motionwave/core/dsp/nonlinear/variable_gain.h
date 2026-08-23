@@ -64,20 +64,21 @@ class RemoteCutoffCell {
      * which is the sheet's requirement and is a consequence here rather than a
      * parameter.
      *
-     * 0.004 is ours, and it is small for a reason worth recording. The law's
+     * 0.001 is ours, and it is small for a reason worth recording. The law's
      * own even order rises 6.8 dB between 3 dB and 20 dB of reduction — the
      * ratio of (1 − v/Vc) at those two points, and no more, because the second
      * harmonic of a power law is first order in the coupling. That is short of
      * the 10 dB the sheet requires, so the coupling cannot be the whole
      * mechanism at any value: raising it makes the cell distort more at *both*
-     * points and the rise stays at 6.8 dB. What supplies the steep part is the
-     * pair's operating point moving toward cutoff, whose returned even order
-     * goes as bias squared. So this is set low enough that the pair's mechanism
-     * dominates, and the two together measure 12.8 dB. No published measurement
-     * of the reference unit's grid coupling exists; `LEGAL_NOTES.md` records
-     * the class of number this is.
+     * points while the rise stays at 6.8 dB. What supplies the steep part is
+     * the pair's operating point moving toward cutoff, which pulls its two
+     * halves apart in proportion and returns even order in proportion to that.
+     * So this is set low enough that the pair's mechanism dominates, and the
+     * two together measure 12.3 dB. No published measurement of the reference
+     * unit's grid coupling exists; `LEGAL_NOTES.md` records the class of number
+     * this is.
      */
-    float gridCoupling = 0.004f;
+    float gridCoupling = 0.001f;
     PushPullStage::Config stage{};
   };
 

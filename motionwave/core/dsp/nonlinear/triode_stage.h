@@ -119,6 +119,15 @@ class TriodeStage {
 };
 
 /**
+ * How far apart the two halves' operating points sit, per unit of mismatch.
+ *
+ * Ours, and it is the number that sets how much even order a given imbalance
+ * returns. No published measurement of the reference unit's push-pull balance
+ * exists; `LEGAL_NOTES.md` records the class of number this is.
+ */
+inline constexpr float kImbalanceOperatingPointScale = 0.5f;
+
+/**
  * Two half-stages driven anti-phase and subtracted.
  *
  *     y = ½·[ (1+β)·R(g(x + b)) − (1−β)·R(g(−x + b)) ]              §4.2 (5)
@@ -142,28 +151,33 @@ class PushPullStage {
     /// control.
     float bias = 0.0f;
     /**
-     * Fractional transconductance mismatch between the two halves.
+     * How mismatched the two halves are, as a fraction.
      *
-     * A note that cost an afternoon, because the sheet's §4.2 is wrong about
-     * this and the wrongness is instructive. Equation (5) there applies the
-     * mismatch as an output gain difference and claims that at bias 0 the even
-     * order returns "in proportion to β". It does not, and no push-pull model
-     * can make it: at bias 0 the curve is odd, and a difference of two
-     * evaluations at +gx and −gx of an odd function is odd for *any* scaling of
-     * either half. Scaling one branch by (1+β) and the other by (1−β) and
-     * subtracting gives exactly R(gx) back — the β cancels algebraically.
+     * It moves two things at once, and it has to move the second of them or it
+     * does nothing at all at the operating point where a balanced stage sits.
      *
-     * So even-order cancellation at bias 0 is *stronger* than the sheet claims,
-     * not weaker: it survives any imbalance. What actually returns even order
-     * is a mismatch at a non-zero operating point, where the curve has
-     * curvature for the mismatch to sample. The returned second harmonic is
-     * proportional to β and to R''(bias), which is why it vanishes at bias 0
-     * and grows as the pair is pushed toward cutoff — and that is exactly the
-     * behaviour `imbalancePerBias` exists to produce.
+     * The sheet's equation (5) applies the mismatch as an output gain
+     * difference. Split any half-stage into odd and even parts and the
+     * composite is `(A+B)·f_odd + (A−B)·f_even`, so a gain mismatch returns
+     * even order in proportion to `A−B` — but only in proportion to `f_even`
+     * as well, and at zero bias `f_even` is *identically* zero, because
+     * `R(g·x)` is an odd function. Scaling an odd function, on either side of
+     * the subtraction, leaves it odd. Measured: a 10 % gain mismatch at zero
+     * bias produces exactly 0.0000000000 of even part, and so does a 10 %
+     * drive mismatch, which is what this used to apply.
      *
-     * Applied to the drive rather than to the output because that is where a
-     * transconductance mismatch lives; an output trim would be a level error
-     * and would not distort at all.
+     * What actually breaks the symmetry is the halves sitting at *different
+     * operating points*, which is what two mismatched devices physically are —
+     * valves that differ in transconductance differ in cutoff too. Offsetting
+     * them by ±δ makes each half's transfer non-odd, so `f_even` is non-zero at
+     * any common-mode bias including zero, and the returned second harmonic is
+     * `0.444·δ·A` — linear in the mismatch, and present where the stage
+     * actually runs.
+     *
+     * That is not a detail. Even-order asymmetry is most of what makes a valve
+     * stage sound like one, and both the Optical Leveller and the Variable-Mu
+     * depend on it; a model whose imbalance control was inert at the balance
+     * point would have shipped a stage that could not be unbalanced.
      */
     float imbalance = 0.0f;
     /**
@@ -171,11 +185,18 @@ class PushPullStage {
      *
      * This is the mechanism behind the second harmonic reappearing at deep gain
      * reduction, and it is a mechanism rather than a fudge: pushing a balanced
-     * pair toward cutoff does not push both halves equally. §4.2 (7). The
-     * value is ours — no published measurement of the reference unit's
+     * pair toward cutoff does not push both halves equally, so their operating
+     * points separate and the pair stops cancelling. §4.2 (7).
+     *
+     * It is also what supplies the steep part of the Variable-Mu's
+     * "distortion rises faster than gain falls" — the transconductance law's
+     * own even order can only rise by the ratio of (1 − v/Vc) across the two
+     * measurement points, which is 6.8 dB and short of the 10 dB required.
+     *
+     * The value is ours — no published measurement of the reference unit's
      * push-pull balance exists, which `LEGAL_NOTES.md` and §8.2 both record.
      */
-    float imbalancePerBias = 0.35f;
+    float imbalancePerBias = 0.5f;
     float restoreHz = 5.0f;
   };
 
@@ -199,8 +220,12 @@ class PushPullStage {
     const float beta = effectiveImbalance();
     const float g = config_.drive;
     const float b = config_.bias;
-    const float upper = curve(g * (1.0f + beta) * x + b);
-    const float lower = curve(-g * (1.0f - beta) * x + b);
+    // Both mechanisms, because a mismatched pair has both. The gain difference
+    // is the sheet's equation (5); the operating-point difference is what makes
+    // the even order appear at all when the pair is sitting at balance.
+    const float delta = beta * kImbalanceOperatingPointScale;
+    const float upper = (1.0f + beta) * curve(g * x + b + delta);
+    const float lower = (1.0f - beta) * curve(-g * x + b - delta);
     const float shaped = 0.5f * (upper - lower) * normal_;
     return restore_.process(shaped) / g;
   }
@@ -214,8 +239,19 @@ class PushPullStage {
    * reporting zero would hide the imbalance the unit is deliberately running.
    */
   Curvature curvature() const noexcept {
-    Curvature out = nl::curvature(config_.bias);
-    out.c2 *= effectiveImbalance();
+    const CurveDerivatives d = curveDerivatives(config_.bias);
+    const float beta = effectiveImbalance();
+    const float delta = beta * kImbalanceOperatingPointScale;
+    Curvature out;
+    if (d.first > 1.0e-6f) {
+      // Expanding the pair about its common-mode point, the x² coefficient is
+      // ½g²[R'''(b)·δ + β·R''(b)] against a slope of g·R'(b), which normalises
+      // to this. It reduces to the single-ended `R''/2R'` when the halves match
+      // and to `R'''·δ/2R'` at zero bias — the term that survives where the
+      // gain difference cannot.
+      out.c2 = (d.third * delta + beta * d.second) / (2.0f * d.first);
+      out.c3 = d.third / (6.0f * d.first);
+    }
     return out;
   }
 
