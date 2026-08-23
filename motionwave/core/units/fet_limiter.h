@@ -184,6 +184,7 @@ class FetLimiter : public Node {
           applied_[c] = smoothed;
           control_[c] =
               static_cast<double>(fet_[c].controlForReduction(static_cast<float>(smoothed)));
+
           return shaped;
         };
         float amplified = 0.0f;

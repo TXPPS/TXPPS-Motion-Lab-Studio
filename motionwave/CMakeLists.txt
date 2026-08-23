@@ -66,18 +66,29 @@ mw_add_test(optical_leveller_amp_tests core/test/optical_leveller_amp_tests.cpp)
 mw_add_test(optical_leveller_delta_tests core/test/optical_leveller_delta_tests.cpp)
 # The FET Limiter's suite is deliberately NOT registered yet.
 #
-# Six of its rows fail, and they fail because the unit is not calibrated rather
-# than because the tests are wrong — the loop's steady state is still being set
-# by the onset ringing of an abruptly-started tone rather than by the tone's
-# level. Registering it would either break the build or invite the tests to be
-# weakened until it passed, and the second is how a suite stops meaning
-# anything.
+# Two of its rows still fail — down from six — and they fail because the unit is
+# not finished rather than because the tests are wrong. Registering it would
+# either break the build or invite the tests to be weakened until it passed, and
+# the second is how a suite stops meaning anything.
+#
+# What passes: the monotonicity row, the panel's reversed control sense, the
+# moving threshold (6.85 dB between 4:1 and 20:1, inside the sheet's 4-to-10),
+# and the line-amplifier mode.
+#
+# What does not, and why it is one cause rather than two: the loop's observed
+# timing is much slower than the detector's own constants, by 4.9x at the slow
+# end of ATTACK and 14.4x at the fast end. A single scale factor cannot fix a
+# ratio that is not constant, so this is structural — most likely the knee's
+# quadratic region decelerating the approach as the request nears its final
+# value — and the fix is to derive the loop factor rather than to tune toward
+# the endpoints. Test 1's endpoints and test 8's four-button lag are both
+# downstream of it.
 #
 # What *is* finished is the architecture the unit exists to prove, and it is
 # measured: `fet_limiter_tests.cpp`'s first row separates the attack control
-# cleanly across positions 1 to 6 at 44.1 kHz — 6.1, 10.3, 16.7, 26.1, 35.1 and
-# 45.1 dB reached at a fixed instant — which is precisely what a host-rate
-# detector cannot do, since 20 µs is 0.88 of a sample there.
+# cleanly across all seven positions at 44.1 kHz — 4.9, 7.2, 9.2, 10.8, 11.9,
+# 12.6 and 12.9 dB reached at a fixed instant — which is precisely what a
+# host-rate detector cannot do, since 20 µs is 0.88 of a sample there.
 #
 # Build and run it directly while it is being finished:
 #   cmake --build build --target fet_limiter_tests && ./build/fet_limiter_tests

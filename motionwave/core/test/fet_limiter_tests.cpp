@@ -53,6 +53,31 @@ class Driver {
     return unit_.gainReductionDb();
   }
 
+  /**
+   * A tone whose amplitude is raised over `rampFrames` before it is held.
+   *
+   * Steady-state rows must use this and transient rows must not, and the two
+   * are different measurements of different things. An abruptly started tone is
+   * a step *and* a tone: its onset excites the wrapper's reconstruction filter,
+   * and a peak detector with a 20 µs attack and a 200 ms release catches that
+   * ringing and holds it for the whole measurement window. What comes back is
+   * the transient, wearing a ratio's clothes — and no amount of loop tuning
+   * fixes it, because the loop is answering the question honestly.
+   *
+   * A raised cosine over several attack constants gets the tone to full
+   * amplitude without a discontinuity, so the settled region is about the level.
+   */
+  double rampedTone(double amplitude, double hz, int rampFrames, int holdFrames) {
+    for (int i = 0; i < rampFrames; ++i) {
+      const double t = static_cast<double>(phase_ + i) / rate_;
+      const double shape =
+          0.5 - 0.5 * std::cos(kPi * static_cast<double>(i) / static_cast<double>(rampFrames));
+      push(amplitude * shape * std::sin(2.0 * kPi * hz * t));
+    }
+    phase_ += rampFrames;
+    return tone(amplitude, hz, holdFrames);
+  }
+
   /// A tone for `frames` samples, from phase zero. Returns the final reduction.
   double tone(double amplitude, double hz, int frames) {
     double reduction = 0.0;
@@ -253,8 +278,16 @@ MW_TEST("dyn-03 test 5: the threshold moves with the ratio") {
 MW_TEST("dyn-03 test 8: the four-button state's lag is what defines it") {
   // §9 calls this the single behaviour that defines the state and asks for at
   // least ten times the 20:1 delay — the "reverse look-ahead" people describe.
+  //
+  // Timed to the *same absolute* reduction in both states, not to half of each
+  // one's own final value. The four-button state sits on a much lower threshold
+  // and settles 15 dB deeper, so "half of final" is a different depth in each
+  // and the comparison would be of two different journeys — the same instrument
+  // error that made the Optical Leveller's release rows disagree with
+  // themselves. Six decibels is a depth both states pass through.
   constexpr double kRate = 96000.0;
-  double halfway[2] = {0, 0};
+  constexpr double kMark = 6.0;
+  double toMark[2] = {0, 0};
   const FetRatio ratios[2] = {FetRatio::R20, FetRatio::AllIn};
   for (int i = 0; i < 2; ++i) {
     FetLimiter unit;
@@ -262,23 +295,27 @@ MW_TEST("dyn-03 test 8: the four-button state's lag is what defines it") {
     Driver driver(unit, kRate);
     driver.silence(4096);
     driver.restartPhase();
-    const double finalDb = driver.tone(0.3, 1000.0, static_cast<int>(kRate * 0.25));
-
-    FetLimiter again;
-    configure(again, kRate, ratios[i], 7.0, 4.0);
-    Driver second(again, kRate);
-    second.silence(4096);
-    second.restartPhase();
-    for (int f = 0; f < static_cast<int>(kRate * 0.25); ++f) {
-      if (second.tone(0.3, 1000.0, 1) >= finalDb * 0.5) {
-        halfway[i] = static_cast<double>(f) * 1.0e6 / kRate;
+    // Timed from the signal's *arrival* rather than from the call, because the
+    // wrapper delays it by its declared latency and consuming that delay with
+    // the tone would run the attack before the clock started. The first version
+    // did exactly that and reported 0.0 µs for both states — which satisfies
+    // "at least ten times" arithmetically and measures nothing at all.
+    int arrived = -1;
+    for (int f = 0; f < static_cast<int>(kRate * 0.4); ++f) {
+      const double reduction = driver.tone(0.3, 1000.0, 1);
+      if (arrived < 0 && reduction > 0.5) arrived = f;
+      if (arrived >= 0 && reduction >= kMark) {
+        toMark[i] = static_cast<double>(f - arrived) * 1.0e6 / kRate;
         break;
       }
     }
-    std::printf("    test 8 %s: half of %.2f dB after %.1f us\n",
-                i == 0 ? "20:1     " : "all-in   ", finalDb, halfway[i]);
+    std::printf("    test 8 %s: reaches %.0f dB after %.1f us\n",
+                i == 0 ? "20:1  " : "all-in", kMark, toMark[i]);
   }
-  MW_EXPECT(halfway[1] >= halfway[0] * 10.0);
+  // Neither may be zero. A ratio test between two zeros passes and proves
+  // nothing, which is what the first version of this did.
+  MW_EXPECT(toMark[0] > 0.0);
+  MW_EXPECT(toMark[1] >= toMark[0] * 10.0);
 }
 
 MW_TEST("dyn-03 test 12: with the attack off it is a line amplifier") {

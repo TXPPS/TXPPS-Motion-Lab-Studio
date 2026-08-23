@@ -42,6 +42,24 @@ class FetDivider {
     float bias = 0.8361f;
     /// The distortion trim. Defaults to a correctly calibrated unit.
     float feedbackFraction = 0.5f;
+    /**
+     * How much of the pinch-off voltage a full-scale signal swings at the drain.
+     *
+     * Without it the audio is treated as though it were already in pinch-off
+     * volts, and it is not — a line-level signal across the channel is a small
+     * fraction of a JFET's gate voltage, which is precisely why the distortion
+     * trim is a *trim* and not a tone control.
+     *
+     * Leaving it out was not subtle and took a trace to find. The whole useful
+     * control span here is 0.164 volts, so a −12 dBFS signal contributed ±0.10
+     * of drain feedback and swung the operating point across most of it:
+     * `gainDb` reported 45 dB of attenuation for a control the element was
+     * actually applying 1.7 dB at — the meter and the audio describing
+     * different devices — and the limiter's loop, told it had 45 dB and hearing
+     * almost none, drove the control to its stop and stayed there at every
+     * input and every ratio.
+     */
+    float drainVolts = 0.08f;
   };
 
   void prepare(double, const Config& config) noexcept {
@@ -68,12 +86,12 @@ class FetDivider {
     // step from there is converged; one step from zero would not be, and the
     // error would be signal-dependent — which is to say, it would be
     // distortion the model did not intend.
-    const float v = base + config_.feedbackFraction * lastY_;
+    const float v = base + config_.feedbackFraction * config_.drainVolts * lastY_;
     const float r = resistance(v);
     const float y = x * config_.seriesResistance / (config_.seriesResistance + r);
     // A second pass with the solution just found. This is the Newton step: the
     // first evaluation places the operating point, the second lands on it.
-    const float v2 = base + config_.feedbackFraction * y;
+    const float v2 = base + config_.feedbackFraction * config_.drainVolts * y;
     const float r2 = resistance(v2);
     lastY_ = flushSmall(x * config_.seriesResistance / (config_.seriesResistance + r2));
     return lastY_;
