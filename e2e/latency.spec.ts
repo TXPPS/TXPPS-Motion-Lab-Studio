@@ -37,6 +37,18 @@ const CASES = [
   { kind: 'saturator', params: { drive: 0, output: 0, mix: 1 }, amplitude: 1 },
   { kind: 'saturator', params: { drive: 0, output: 0, mix: 0.5 }, amplitude: 1 },
   { kind: 'distortion', params: { drive: 0, mix: 1 }, amplitude: 1 },
+  // The Filter is measured with its cutoff at the top of its range and its
+  // resonance at the bottom, because its group delay rides on top of the
+  // shaper's constant one and is a function of both. At 20 kHz and Q 0.5 that
+  // term is under a sample; at the default 1200 Hz and Q 1.2 it is 8, which is
+  // real and deliberately uncompensated — group delay is part of how a filter
+  // sounds. Drive is above zero so the stage is engaged and its dry leg is
+  // actually being aligned, which is the thing this row exists to catch.
+  {
+    kind: 'filter',
+    params: { cutoff: 20000, resonance: 0.5, drive: 12 },
+    amplitude: 0.01,
+  },
 ] as const;
 
 /** Inserts that must declare nothing, and why. Guards against over-correction. */
@@ -45,9 +57,6 @@ const MUST_NOT_DECLARE = [
   // ~205 more that move with the selected cab and are the modelled distance
   // between speaker and microphone. Measured 397 at 96 kHz. See the builder.
   'ampsim',
-  // Group delay of a resonant filter: 7/8/16/32 samples at the four rates, so
-  // constant in time. Part of how the filter sounds.
-  'filter',
   // Its Doppler delay line, which is the entire effect.
   'rotary',
   // Detector-based, no lookahead: measured 0 at every rate.

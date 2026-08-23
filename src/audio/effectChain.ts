@@ -1323,6 +1323,18 @@ class DriveStage {
   private readonly shaper: WaveShaperNode;
   private readonly wet: GainNode;
   private readonly dry: GainNode;
+  /**
+   * Holds the dry leg back by the shaper's oversampling delay.
+   *
+   * Without it this stage is the same defect the Saturator and the Distortion
+   * had (PA-010, and PA-012 which is this one): the wet leg goes through a `4x`
+   * shaper and arrives 192 samples late, the dry leg is a bare wire, and Drive
+   * crossfades between them — so every intermediate Drive setting is a comb
+   * with a notch every 250 Hz at 48 kHz. It is not a subtle colouration, and no
+   * amount of channel-level compensation can reach it, because both legs are
+   * inside this one stage.
+   */
+  private readonly align: DelayNode;
 
   constructor(
     private ctx: BaseAudioContext,
@@ -1334,8 +1346,10 @@ class DriveStage {
     this.shaper = makeShaper(ctx, saturationCurve('tape', 12), '4x');
     this.wet = makeGain(ctx, 0);
     this.dry = makeGain(ctx, 1);
+    this.align = ctx.createDelay(SHAPER_OVERSAMPLE_LATENCY / ctx.sampleRate + 0.001);
+    this.align.delayTime.value = SHAPER_OVERSAMPLE_LATENCY / ctx.sampleRate;
     this.input.connect(this.pre).connect(this.shaper).connect(this.wet).connect(this.output);
-    this.input.connect(this.dry).connect(this.output);
+    this.input.connect(this.align).connect(this.dry).connect(this.output);
   }
 
   setDrive(driveDb: number, active: boolean): void {
@@ -1343,10 +1357,21 @@ class DriveStage {
     setParam(this.pre.gain, dbToGain(active ? driveDb : 0), this.ctx);
     setParam(this.wet.gain, amount, this.ctx);
     setParam(this.dry.gain, 1 - amount, this.ctx);
+    // Inactive means this stage has to be a wire, and a wire does not delay.
+    setParam(
+      this.align.delayTime,
+      active ? SHAPER_OVERSAMPLE_LATENCY / this.ctx.sampleRate : 0,
+      this.ctx,
+    );
+  }
+
+  /** Samples this stage delays by, for whoever declares the insert's latency. */
+  latencySamples(active: boolean): number {
+    return active ? SHAPER_OVERSAMPLE_LATENCY : 0;
   }
 
   dispose(): void {
-    kill([this.input, this.output, this.pre, this.shaper, this.wet, this.dry]);
+    kill([this.input, this.output, this.pre, this.shaper, this.wet, this.dry, this.align]);
   }
 }
 
@@ -1360,6 +1385,7 @@ const FILTER_MODES: readonly BiquadFilterType[] = ['lowpass', 'bandpass', 'highp
 function buildFilter(ctx: BaseAudioContext, effect: Effect): EffectNode {
   const input = makeGain(ctx, 1);
   const drive = new DriveStage(ctx, 24);
+  let driveActive = !effect.bypass;
   const output = makeGain(ctx, 1);
   const dry = makeGain(ctx, 0);
   input.connect(drive.input);
@@ -1380,6 +1406,7 @@ function buildFilter(ctx: BaseAudioContext, effect: Effect): EffectNode {
       const chosen = bypass ? -1 : choiceOf(e, 'mode');
       const cutoff = paramOf(e, 'cutoff');
       const resonance = paramOf(e, 'resonance');
+      driveActive = !bypass;
       drive.setDrive(paramOf(e, 'drive'), !bypass);
       for (let i = 0; i < modes.length; i++) {
         const m = modes[i];
@@ -1391,6 +1418,11 @@ function buildFilter(ctx: BaseAudioContext, effect: Effect): EffectNode {
       // When bypassed every mode is muted, so the dry path carries the signal.
       setParam(dry.gain, bypass ? 1 : 0, ctx);
     },
+    // The drive stage's oversampled shaper delays this insert, and it now
+    // aligns its own dry leg (see `DriveStage`) so the whole insert is late by
+    // one constant rather than combing internally. That makes the number
+    // declarable, which it was not while the two legs disagreed.
+    latencySamples: () => drive.latencySamples(driveActive),
     dispose: () => {
       drive.dispose();
       for (const m of modes) kill([m.filter, m.gain]);

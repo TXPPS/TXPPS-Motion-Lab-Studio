@@ -762,6 +762,31 @@ function delayNodesIn(connections: Connection[]): RecordingNode[] {
 }
 
 /**
+ * Every `WaveShaperNode` in a recorded graph that has oversampling switched on.
+ *
+ * The count matters rather than the identity: a device with one is a device
+ * whose signal path is 192 samples late on this engine, and if it also has a
+ * parallel dry leg it combs. Devices at `'none'` do not delay and are not the
+ * class this is hunting.
+ */
+function oversampledShapersIn(connections: Connection[]): number {
+  const found = new Set<RecordingNode>();
+  for (const c of connections) {
+    for (const end of [c.from, c.to]) {
+      if (
+        'kind' in end &&
+        end.kind === 'waveshaper' &&
+        typeof (end as RecordingNode).oversample === 'string' &&
+        (end as RecordingNode).oversample !== 'none'
+      ) {
+        found.add(end as RecordingNode);
+      }
+    }
+  }
+  return found.size;
+}
+
+/**
  * What an oscillator is putting out at context time `t`.
  *
  * The Web Audio definition of a `PeriodicWave`, evaluated: harmonic k
@@ -2004,6 +2029,74 @@ describe('the Mix control as a blend rather than a comb', () => {
       // millisecond — the bypass-transparency check counts on it.
       node.update({ ...effect, bypass: true }, 120, true);
       expect((align.delayTime as RecordingParam).value, 'bypassed').toBe(0);
+    }
+  });
+
+  /**
+   * Devices that oversample but are always 100 % wet, so they have no dry leg
+   * to comb against and need no alignment.
+   *
+   * A list rather than an inference, because "does this device ever sum a dry
+   * path" is a question about gain values over time and a structural test that
+   * tried to answer it would be guessing. Membership is verified below rather
+   * than trusted: the device must have no Mix parameter at all.
+   */
+  const ALWAYS_FULLY_WET = new Set(['ampsim']);
+
+  /** True when a kind exposes no Mix control, so its blend cannot be partial. */
+  const alwaysFullyWet = (kind: EffectKind): boolean => {
+    const spec = EFFECT_SPECS.find((s) => s.kind === kind);
+    return spec !== undefined && !spec.params.some((p) => p.key === 'mix');
+  };
+
+  it('leaves no oversampled shaper blended against an unaligned dry leg', () => {
+    // Directive 04 §2 makes this a *class* rather than three instances. The
+    // shape is always the same: a wet leg through a `4x` shaper, a dry leg on a
+    // bare wire, and a control that crossfades between them — which is a comb
+    // with a notch every 250 Hz at 48 kHz, and which no channel-level delay
+    // compensation can reach because both legs are inside the one insert.
+    //
+    // Three devices had it. The Saturator and the Distortion blend through
+    // `WetDry` and were fixed under PA-010; the Filter's Drive is a *second*
+    // parallel blend inside `DriveStage` that does not go through `WetDry` at
+    // all, which is exactly why it survived that pass and needed PA-012.
+    //
+    // This walks every kind and asserts the structural property directly, so a
+    // fourth instance added later fails here rather than being found by ear.
+    for (const spec of EFFECT_SPECS) {
+      const { ctx, connections } = recordingContext();
+      const effect = effectOf(spec.kind);
+      const node = buildEffectNode(ctx, effect);
+      // Half drive and half mix where the device has them: the comb is worst
+      // where the two legs are most equal, and absent at either extreme.
+      const params: Record<string, number> = {};
+      for (const p of spec.params) {
+        if (p.key === 'drive') params.drive = (p.min + p.max) / 2;
+        if (p.key === 'mix') params.mix = 0.5;
+      }
+      node.update({ ...effect, params: { ...effect.params, ...params } }, 120, false);
+
+      const shapers = oversampledShapersIn(connections);
+      if (shapers === 0) {
+        node.dispose();
+        continue;
+      }
+      // A device that oversamples and blends must hold a delay to align with.
+      const delays = delayNodesIn(connections);
+      if (ALWAYS_FULLY_WET.has(spec.kind)) {
+        // Correct by construction rather than by compensation: with no audible
+        // dry leg there is nothing for the wet leg to comb against. Asserted
+        // rather than skipped, so a device that quietly grows a Mix control
+        // stops being exempt.
+        expect(alwaysFullyWet(spec.kind), `${spec.kind} grew a partial-mix path`).toBe(true);
+        node.dispose();
+        continue;
+      }
+      expect(
+        delays.length,
+        `${spec.kind} oversamples and blends but aligns nothing`,
+      ).toBeGreaterThan(0);
+      node.dispose();
     }
   });
 
