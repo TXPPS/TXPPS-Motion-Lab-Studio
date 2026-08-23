@@ -67,7 +67,7 @@ class FetLimiter : public Node {
 
   /// How much slower the detector must be than the span it is meant to produce,
   /// because the loop accelerates it. See the derivation in `rebuild`.
-  static constexpr double kLoopAcceleration = 1.63;
+  static constexpr double kLoopAcceleration = 1.03;
 
   /**
    * How much the four-button state slows the detector.
@@ -81,9 +81,28 @@ class FetLimiter : public Node {
    * It is large because two effects fight. Pressing every button also drops the
    * threshold a long way, so the loop is driven much harder and reaches a given
    * depth sooner — at 26 the lag measured 2.6× rather than the ten the sheet
-   * wants. At 110 the same measurement reads 11.2×.
+   * wants. At 200 the same measurement reads 12.2×.
+   *
+   * Re-chosen when the detector moved from reading the output's waveform to
+   * reading its level, because that changed how fast the loop reaches any given
+   * depth. Re-choosing a free parameter against the *published* constraint when
+   * the design changes is calibration; re-fitting it to a measurement of our own
+   * code would not be.
    */
-  static constexpr double kAllInAttackFactor = 110.0;
+  static constexpr double kAllInAttackFactor = 200.0;
+  // The four ratio buttons switch resistors into the network that loads the
+  // element and feeds its control electrode back from the drain, so pressing
+  // all four puts all four in parallel and the conductance of that network
+  // quadruples. More of the audio swing therefore reaches the control
+  // electrode, and it is that fraction — not the bias — which decides how much
+  // the element distorts at a given depth of reduction.
+  //
+  // The bias was tried first and is provably inert: `controlForReduction`
+  // solves for the operating point the wanted gain implies and subtracts the
+  // bias to express it as a control, so `bias + control` is the same number
+  // whatever the bias is. It cancels exactly. Measured, shifting it by four
+  // times moved the four-button state's distortion by 0.06 dB.
+  static constexpr float kAllInDrainScale = 4.0f;
 
   // ---- configuration, off the audio thread ----
 
@@ -124,10 +143,17 @@ class FetLimiter : public Node {
   void prepare(double sampleRate, int blockSize) override {
     sampleRate_ = sampleRate;
     blockSize_ = blockSize > 0 ? blockSize : 128;
-    scratch_.assign(nl::oversamplerScratchFloats(8, blockSize_), 0.0f);
+    scratch_.assign(static_cast<std::size_t>(kFetChannels) * nl::oversamplerScratchFloats(8, 1), 0.0f);
     for (int c = 0; c < kFetChannels; ++c) {
+      // The library's calibrated core, unmodified. It used to be given 2.4
+      // times the saturation flux, which inverted §6.5: that section requires
+      // the *output* transformer to distort less than the input one because it
+      // has a feedback winding, and a 2.4× input core with a plain output core
+      // put the two the wrong way round. It also left the input transformer
+      // inert — at full scale and 50 Hz it added 0.5 dB to the unit's total
+      // distortion, so §6.1's "low-frequency, level-dependent, third-harmonic
+      // dominant" source was contributing none of those three things.
       nl::MagneticCore::Config input;
-      input.saturationFlux *= 2.4f;
       inputCore_[c].prepare(sampleRate, input);
     }
     rebuild();
@@ -143,10 +169,10 @@ class FetLimiter : public Node {
       detector_[c].reset();
       control_[c] = 0.0;
       applied_[c] = 0.0;
+      over2_[c].reset();
+      over4_[c].reset();
+      over8_[c].reset();
     }
-    over2_.reset();
-    over4_.reset();
-    over8_.reset();
     rng_ = seed_ * 2654435761u + 1u;
     reductionDb_ = 0.0;
   }
@@ -174,7 +200,16 @@ class FetLimiter : public Node {
         const double x = static_cast<double>(source[i]) * inputGain_;
         const float ax = static_cast<float>(x < 0.0 ? -x : x);
         if (ax > inputPeak) inputPeak = ax;
-        float staged = inputCore_[c].process(static_cast<float>(x));
+        // **INPUT attenuates after the transformer, not before it.** The
+        // control is a T-pad between the input transformer and the element, so
+        // the transformer sees the source whatever INPUT is set to. Feeding the
+        // transformer the attenuated signal instead makes INPUT and OUTPUT two
+        // routes to one result: a hot source with INPUT backed off then
+        // measures identically to a quiet source with INPUT up, and §9 test 14
+        // — which asks those two to differ — cannot be satisfied by any
+        // amount of tuning, because nothing in the path depends on the split.
+        float staged = static_cast<float>(
+            static_cast<double>(inputCore_[c].process(source[i])) * inputGain_);
 
         // The loop, entirely at the inner rate. Everything the detector needs
         // to see and everything it controls is inside this lambda, so its
@@ -184,8 +219,19 @@ class FetLimiter : public Node {
           const double attenuated =
               static_cast<double>(fet_[c].process(v, static_cast<float>(previous)));
           const float amplified = amplifier_[c].process(static_cast<float>(attenuated));
-          const float shaped = outputCore_[c].process(amplified);
-          const double magnitude = static_cast<double>(shaped < 0.0f ? -shaped : shaped);
+          // **OUTPUT drives the transformer; it does not follow it.** In the
+          // hardware the control is an attenuator sitting between the preamp
+          // and the line amplifier, so it sets how hard the output stage and
+          // its transformer are worked. Applying it after the core instead
+          // makes INPUT and OUTPUT interchangeable — two settings reaching the
+          // same level by opposite routes then measure bit-identical, which is
+          // what §9 test 14 exists to reject, and is what this model did.
+          const float driven = static_cast<float>(static_cast<double>(amplified) * outputGain_);
+          const float shaped = outputCore_[c].process(driven);
+          const double magnitude =
+              static_cast<double>(v < 0.0f ? -v : v) *
+              std::pow(10.0,
+                       static_cast<double>(fet_[c].gainDb(static_cast<float>(previous))) / 20.0);
           // **The static law runs before the timing network, not after it.**
           //
           // The detector smooths the *control voltage*, which is what the
@@ -209,13 +255,13 @@ class FetLimiter : public Node {
         };
         float amplified = 0.0f;
         switch (tier_) {
-          case Tier::Off: over1_.process(&staged, &amplified, 1, loop); break;
-          case Tier::X2: over2_.process(&staged, &amplified, 1, loop); break;
-          case Tier::X4: over4_.process(&staged, &amplified, 1, loop); break;
-          case Tier::X8: over8_.process(&staged, &amplified, 1, loop); break;
+          case Tier::Off: over1_[c].process(&staged, &amplified, 1, loop); break;
+          case Tier::X2: over2_[c].process(&staged, &amplified, 1, loop); break;
+          case Tier::X4: over4_[c].process(&staged, &amplified, 1, loop); break;
+          case Tier::X8: over8_[c].process(&staged, &amplified, 1, loop); break;
         }
 
-        double y = static_cast<double>(amplified) * outputGain_ + noise_ * nextNoise();
+        double y = static_cast<double>(amplified) + noise_ * nextNoise();
         const float sample = static_cast<float>(y);
         const float ay = sample < 0.0f ? -sample : sample;
         if (ay > outputPeak) outputPeak = ay;
@@ -293,16 +339,23 @@ class FetLimiter : public Node {
   }
 
   void rebuild() noexcept {
-    nl::StageScratch slice{scratch_.data(), scratch_.size()};
-    over1_.prepare(sampleRate_, blockSize_, slice);
-    over2_.prepare(sampleRate_, blockSize_, slice);
-    over4_.prepare(sampleRate_, blockSize_, slice);
-    over8_.prepare(sampleRate_, blockSize_, slice);
+    // The wrapper is always driven one frame at a time — the detector has to
+    // see the sample the shaper just produced — so each channel's scratch is
+    // sized for one frame rather than for the host's block. That is what makes
+    // a per-channel copy cost sixteen floats instead of a buffer each.
+    const std::size_t span = nl::oversamplerScratchFloats(8, 1);
+    for (int c = 0; c < kFetChannels; ++c) {
+      nl::StageScratch slice{scratch_.data() + static_cast<std::size_t>(c) * span, span};
+      over1_[c].prepare(sampleRate_, 1, slice);
+      over2_[c].prepare(sampleRate_, 1, slice);
+      over4_[c].prepare(sampleRate_, 1, slice);
+      over8_[c].prepare(sampleRate_, 1, slice);
+    }
     switch (tier_) {
-      case Tier::Off: latency_ = over1_.latencySamples(); break;
-      case Tier::X2: latency_ = over2_.latencySamples(); break;
-      case Tier::X4: latency_ = over4_.latencySamples(); break;
-      case Tier::X8: latency_ = over8_.latencySamples(); break;
+      case Tier::Off: latency_ = over1_[0].latencySamples(); break;
+      case Tier::X2: latency_ = over2_[0].latencySamples(); break;
+      case Tier::X4: latency_ = over4_[0].latencySamples(); break;
+      case Tier::X8: latency_ = over8_[0].latencySamples(); break;
     }
     const double innerRate = sampleRate_ * static_cast<double>(tierFactor(tier_));
 
@@ -313,7 +366,7 @@ class FetLimiter : public Node {
       case FetRatio::R4:
         slope_ = 3.0;
         thresholdDb_ = -37.0;
-        kneeDb_ = 9.0;
+        kneeDb_ = 13.0;
         break;
       case FetRatio::R8:
         slope_ = 7.0;
@@ -328,7 +381,7 @@ class FetLimiter : public Node {
       case FetRatio::R20:
         slope_ = 19.0;
         thresholdDb_ = -26.0;
-        kneeDb_ = 4.5;
+        kneeDb_ = 3.0;
         break;
       case FetRatio::AllIn:
         // Every button in: the threshold drops a long way and the attack is
@@ -336,7 +389,13 @@ class FetLimiter : public Node {
         // that defines the state, and asks for it to be at least ten times the
         // 20:1 delay — the "reverse look-ahead" people describe.
         slope_ = 11.0;
-        thresholdDb_ = -44.0;
+        // Not eighteen decibels below 20:1, which is what this was and which
+        // was invented. §10's measured figures put the four buttons' own
+        // thresholds seven decibels apart end to end — about -32 dBm at 4:1 and
+        // -25 dBm at 20:1 — so shorting all four lands at or a little past the
+        // 4:1 end of that span, not far outside it. -38 is one decibel beyond
+        // the 4:1 threshold this model uses.
+        thresholdDb_ = -38.0;
         kneeDb_ = 14.0;
         break;
     }
@@ -369,13 +428,31 @@ class FetLimiter : public Node {
     detector.attackSeconds =
         dsp::panelScaleToSeconds(attack_, 0.000020, 0.000800) / dsp::kTenToNinety *
         kLoopAcceleration;
-    detector.releaseSeconds = dsp::panelScaleToSeconds(release_, 0.050, 1.100);
+    /**
+     * The published release endpoints are a *recovery to 1 dB remaining from
+     * ten*, which §9 test 2 measures, so the conversion is ln(10) — the same
+     * shape of conversion the attack needs, at the other end of the envelope.
+     *
+     * The loop factor is not applied here. Release happens with no signal, so
+     * there is no loop to accelerate it: the detector decays on its own, and
+     * measured that way position 1 recovers in 1.23 s against a published 1.1
+     * and position 7 in 55 ms against 50.
+     */
+    detector.releaseSeconds =
+        dsp::panelScaleToSeconds(release_, 0.050, 1.100) / dsp::kTenToOne;
     if (ratio_ == FetRatio::AllIn) detector.attackSeconds *= kAllInAttackFactor;
     for (int c = 0; c < kFetChannels; ++c) detector_[c].prepare(innerRate, detector);
 
     // §6.2: the FET is the variable element and the source of the unit's
     // asymmetry — second-harmonic led, and rising steeply with reduction.
     nl::FetDivider::Config fet;
+    // §9 test 9 compares the four-button state against 20:1 at *matched gain
+    // reduction*, and that is the whole difficulty of the row: the state's
+    // threshold is lower, so matched reduction means a lower input, and a model
+    // that changed only the threshold and the slope measures the four-button
+    // state as the *cleaner* of the two. This one did, by 10.8 dB, at 11 dB
+    // less drive.
+    if (ratio_ == FetRatio::AllIn) fet.drainVolts *= kAllInDrainScale;
     nl::TriodeStage::Config amplifier;
     amplifier.drive = 0.16f;
     amplifier.bias = 0.030f;
@@ -428,10 +505,19 @@ class FetLimiter : public Node {
   nl::MagneticCore inputCore_[kFetChannels];
   nl::MagneticCore outputCore_[kFetChannels];
   dsp::PeakDetector detector_[kFetChannels];
-  nl::Oversampler<1> over1_;
-  nl::Oversampler<2> over2_;
-  nl::Oversampler<4> over4_;
-  nl::Oversampler<8> over8_;
+  // **One per channel, and that is a correctness requirement rather than a
+  // performance choice.** The channel loop is outside the sample loop, so a
+  // single shared oversampler filters the right channel through the left
+  // channel's halfband history, and starts each block from whatever the other
+  // channel left behind. The output then depends on the host's buffer size:
+  // measured, a 12 kHz tone grew sidebands at exactly the block rate — -32.7
+  // dBc at 64 frames and -47.9 dBc at 256 — which is an export and a realtime
+  // render of the same project disagreeing. Mono was bit-identical throughout,
+  // which is why it survived the earlier rows.
+  nl::Oversampler<1> over1_[kFetChannels];
+  nl::Oversampler<2> over2_[kFetChannels];
+  nl::Oversampler<4> over4_[kFetChannels];
+  nl::Oversampler<8> over8_[kFetChannels];
   FetLimiterPublisher visual_;
 
   std::vector<float> scratch_;
@@ -443,7 +529,13 @@ class FetLimiter : public Node {
   double inputGain_ = 1.0;
   double outputGain_ = 1.0;
   /// 81 dB below the threshold of limiting, per §8. rms, times √3.
-  double noise_ = 3.0e-5;
+  // §9 test 15 asks for better than 81 dB signal-to-noise at the threshold of
+  // limiting. The 8:1 threshold sits at -34 dBFS, so the floor has to be under
+  // -115 dBFS rms; this is -121 dBFS rms, which leaves the published figure
+  // intact without spending the specification's own -3 dB tolerance at build
+  // time. The generator is uniform on [-1, 1), so rms is the amplitude over
+  // root three, which is why this is not simply ten to the minus 121 over 20.
+  double noise_ = 1.54e-6;
   double slope_ = 3.0;
   double thresholdDb_ = -34.0;
   double kneeDb_ = 9.0;

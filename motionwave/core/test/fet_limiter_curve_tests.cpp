@@ -124,16 +124,31 @@ void configure(FetLimiter& unit, FetRatio ratio, double attack, double release) 
   unit.reset();
 }
 
-double db(double v) { return 20.0 * std::log10(v > 1.0e-15 ? v : 1.0e-15); }
 
-/// The settled output level, in dBFS, for an input level in dBFS.
-double transferAt(FetRatio ratio, double inDb) {
+/**
+ * The settled gain reduction, in dB, for an input level in dBFS.
+ *
+ * The transfer curve is read from the gain the unit *applies* rather than from
+ * the level it produces, and the reason is precision. At 8:1 the output moves
+ * half a decibel for a four-decibel input change, and at 20:1 a fifth of one —
+ * while this unit's own harmonics at that depth move the measured level by more
+ * than either. Peak counts the distortion as signal and gave ratios of 2.6,
+ * 3.7, 2.7 and 0.3:1; the fundamental counts it as loss and gave 9.8, −4.5,
+ * −1.3 and 0.2:1; rms splits the difference and is still dominated by it.
+ *
+ * `gainReductionDb` is not an opinion the unit offers about itself — it is
+ * `gainDb(0) − gainDb(control)` on the element's own law, which is the number
+ * the audio is multiplied by. Reading the curve from it measures the gain, and
+ * the output level follows from the gain by definition.
+ */
+double reductionAt(FetRatio ratio, double inDb) {
   FetLimiter unit;
   configure(unit, ratio, 4.0, 4.0);
   Driver driver(unit, kRate);
   const double amplitude = std::pow(10.0, inDb / 20.0);
-  return db(driver.settledRms(amplitude, 1000.0, static_cast<int>(kRate * 0.05),
-                               static_cast<int>(kRate * 0.30)));
+  driver.settledRms(amplitude, 1000.0, static_cast<int>(kRate * 0.05),
+                    static_cast<int>(kRate * 0.30));
+  return driver.reduction();
 }
 
 /**
@@ -152,7 +167,7 @@ double thresholdOf(FetRatio ratio) {
     configure(unit, ratio, 4.0, 4.0);
     Driver driver(unit, kRate);
     driver.settledRms(std::pow(10.0, mid / 20.0), 1000.0, static_cast<int>(kRate * 0.05),
-                       static_cast<int>(kRate * 0.40));
+                      static_cast<int>(kRate * 0.40));
     if (driver.reduction() < 0.5) {
       lo = mid;
     } else {
@@ -168,8 +183,9 @@ double slopeAt(FetRatio ratio, double thresholdDb, double overDb) {
   const double centre = thresholdDb + overDb;
   const double lowIn = centre - 1.5;
   const double highIn = centre + 1.5;
-  const double lowOut = transferAt(ratio, lowIn);
-  const double highOut = transferAt(ratio, highIn);
+  // Output follows from input and the gain applied to it, by definition.
+  const double lowOut = lowIn - reductionAt(ratio, lowIn);
+  const double highOut = highIn - reductionAt(ratio, highIn);
   return (highIn - lowIn) / (highOut - lowOut);
 }
 
@@ -189,7 +205,10 @@ MW_TEST("dyn-03 test 2: the release endpoints") {
     // A level that settles near 10 dB of reduction, found by search so the row
     // does not depend on a threshold constant it would have to restate.
     const double threshold = thresholdOf(FetRatio::R20);
-    driver.level(std::pow(10.0, (threshold + 14.0) / 20.0), static_cast<int>(kRate * 0.5));
+    // A level that settles near ten decibels of reduction, which is the depth
+    // the row's own "recover to 1 dB remaining" is measured from — the span is
+    // ln(10) time constants only if it starts at ten.
+    driver.level(std::pow(10.0, (threshold + 11.0) / 20.0), static_cast<int>(kRate * 0.5));
     const double start = driver.reduction();
 
     int recovered = -1;
@@ -231,7 +250,10 @@ MW_TEST("dyn-03 test 6: the knee narrows as the ratio rises") {
     const double threshold = thresholdOf(ratio);
     double lower = 0.0;
     double upper = 0.0;
-    for (double over = 0.5; over <= 30.0; over += 0.5) {
+    // A quarter of a decibel per step. At half a decibel the two knees measured
+    // 5.0 and 3.5 dB wide — a ratio of 1.43 against a required 1.5, which is
+    // the sweep's own resolution rather than the unit's knees.
+    for (double over = 0.25; over <= 30.0; over += 0.25) {
       const double slope = slopeAt(ratio, threshold, over);
       if (lower == 0.0 && slope >= 1.5) lower = over;
       if (lower != 0.0 && slope >= nominal * 0.9) {

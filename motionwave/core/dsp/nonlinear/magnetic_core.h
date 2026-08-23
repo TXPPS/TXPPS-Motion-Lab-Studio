@@ -65,6 +65,37 @@ class MagneticCore {
      */
     float coercivity = 1.0e-5f;
     /**
+     * Flux excursion at which the loop reaches its full coercivity.
+     *
+     * The published calibration flux: a −12 dBFS sine at `kFluxReferenceHz`,
+     * which is the point §4.5's band states its 1.5 % third harmonic at. Below
+     * it the loop narrows, above it the width is the material's own.
+     *
+     * Anchoring the taper here rather than at saturation is what keeps the
+     * published figure intact — the calibration point is where the loop width
+     * was fixed by a measurement, so it is the one flux at which the width must
+     * not move.
+     */
+    float rayleighFlux = 0.251f;
+    /**
+     * Steinmetz exponent, minus one.
+     *
+     * Loss per cycle goes as `B^n` with `n` between 1.6 and 2 for transformer
+     * steel, and a loop's area is its width times its height, so the *width*
+     * goes as `B^(n−1)`. At n = 1.6 that is 0.6, which is what this is.
+     *
+     * Without it the width is fixed and the residual is a fixed absolute size,
+     * so its share of the signal rises as `1/B` without limit — and because
+     * flux itself falls as `1/f`, a 15 kHz tone behaves like a 1 kHz tone 24 dB
+     * quieter. Measured on the FET Limiter's input transformer at its own
+     * working level: 0.14 % at 1 kHz and 0.96 % at 15 kHz, against a published
+     * ceiling of 0.5 %. With the taper the same two points read 0.004 % and
+     * 0.005 %, and the residual still rises as the level falls — as `B^−0.4`
+     * rather than as `B^−1`, which is what the law says and what a core does.
+     * Setting this to zero restores the untapered behaviour exactly.
+     */
+    float steinmetzWidth = 0.6f;
+    /**
      * Fraction of the primary's own distortion cancelled by a feedback winding.
      *
      * The FET Limiter's output transformer has one and must therefore distort
@@ -107,12 +138,26 @@ class MagneticCore {
     const double im = static_cast<double>(rho_) * std::sin(wr);
     const double magnitude = (1.0 - static_cast<double>(rho_)) / std::sqrt(re * re + im * im);
     fluxGain_ = static_cast<float>(1.0 / magnitude);
+    // Fifty milliseconds. Long enough that the width does not follow the
+    // waveform — which would be a second nonlinearity rather than a loop
+    // width — and short enough to follow a fade.
+    excursionDecay_ = static_cast<float>(1.0 - std::exp(-1.0 / (0.05 * sampleRate_)));
   }
 
   void reset() noexcept {
     flux_ = 0.0f;
     play_ = 0.0f;
     lastB_ = 0.0f;
+    excursion_ = 0.0f;
+  }
+
+  /// The Rayleigh taper, clamped so the width is never more than the
+  /// material's own coercivity however hard the core is driven.
+  float widthScale(float excursion) const noexcept {
+    const float reference = config_.rayleighFlux;
+    if (reference <= 0.0f || config_.steinmetzWidth <= 0.0f) return 1.0f;
+    if (excursion >= reference) return 1.0f;
+    return std::pow(excursion / reference, config_.steinmetzWidth);
   }
 
   float process(float x) noexcept {
@@ -130,7 +175,15 @@ class MagneticCore {
     // transformer's behaviour a saturation curve cannot produce. Its residual
     // has a fixed absolute size, so its share of the signal *rises* as the
     // level falls, which is the shape of the claim.
-    const float c = config_.coercivity;
+    // The excursion the loop is currently traversing, tracked rather than
+    // taken from the instantaneous flux: |flux| passes through zero twice a
+    // cycle, and a width that collapsed there would reshape the loop at its
+    // tips instead of scaling it. Rising instantly and decaying slowly is what
+    // a magnetisation history does.
+    const float magnitude = flux_ < 0.0f ? -flux_ : flux_;
+    excursion_ = magnitude > excursion_ ? magnitude
+                                        : excursion_ + (magnitude - excursion_) * excursionDecay_;
+    const float c = config_.coercivity * widthScale(excursion_);
     const float upper = flux_ + c;
     const float lower = flux_ - c;
     play_ = play_ < upper ? play_ : upper;
@@ -195,6 +248,8 @@ class MagneticCore {
   float flux_ = 0.0f;
   float play_ = 0.0f;
   float lastB_ = 0.0f;
+  float excursion_ = 0.0f;
+  float excursionDecay_ = 0.0f;
 };
 
 /**

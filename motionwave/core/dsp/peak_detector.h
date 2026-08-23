@@ -86,6 +86,16 @@ class PeakDetector {
 inline constexpr double kTenToNinety = 2.197224577;
 
 /**
+ * A first-order decay falls from ten units to one in this many time constants.
+ *
+ * ln(10). Published *release* figures are usually a recovery to a stated
+ * remaining depth rather than a time constant, and this is the conversion — the
+ * same trap as `kTenToNinety` at the other end of the envelope, and the same
+ * factor of two-and-a-bit that looks like a calibration error.
+ */
+inline constexpr double kTenToOne = 2.302585093;
+
+/**
  * The 1-to-7 panel scale mapped onto published endpoints, logarithmically.
  *
  * `dyn-03` §4 gives both endpoints and says neither taper is published, marking

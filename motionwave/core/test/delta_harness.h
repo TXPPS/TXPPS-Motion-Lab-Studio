@@ -97,4 +97,52 @@ void expectRendersAreDeterministic(const Row* rows, int count, RenderFn&& render
   }
 }
 
+/**
+ * The same input must render the same audio whatever block size the host uses.
+ *
+ * This is a D1-class claim rather than a per-unit one, so it lives here: any
+ * state a unit shares across channels, or resets at a block boundary, or sizes
+ * from `blockSize`, breaks it, and none of those show up in a mono render or in
+ * a spectrum unless you already suspect them. The FET Limiter shared one
+ * oversampler between its two channels with the channel loop outside the sample
+ * loop, so the right channel ran through the left channel's halfband history
+ * and every block boundary was a discontinuity. It measured as sidebands at
+ * exactly the block rate — -32.7 dBc at 64 frames, -47.9 dBc at 256 — and it
+ * meant an export and a realtime render of the same project did not agree.
+ *
+ * `render` is given a block size and must feed the unit that many frames at a
+ * time, in stereo, and return the whole output. Comparing bit-for-bit is
+ * deliberate: a unit that is block-size dependent is dependent by a mechanism,
+ * and mechanisms do not produce differences that happen to be under a
+ * tolerance.
+ */
+template <typename RenderFn>
+void expectBlockSizeIndependent(RenderFn&& render, const int* blockSizes, int count) {
+  if (count < 2) {
+    MW_EXPECT(count >= 2);
+    return;
+  }
+  const std::vector<float> reference = render(blockSizes[0]);
+  MW_EXPECT(!reference.empty());
+  for (int i = 1; i < count; ++i) {
+    const std::vector<float> other = render(blockSizes[i]);
+    double worst = 0.0;
+    std::size_t at = 0;
+    const std::size_t span = std::min(reference.size(), other.size());
+    for (std::size_t k = 0; k < span; ++k) {
+      const double d = std::fabs(static_cast<double>(reference[k]) - static_cast<double>(other[k]));
+      if (d > worst) {
+        worst = d;
+        at = k;
+      }
+    }
+    if (worst > 0.0) {
+      std::printf("    block size %d against %d: worst difference %.3e at sample %zu\n",
+                  blockSizes[i], blockSizes[0], worst, at);
+    }
+    MW_EXPECT(reference.size() == other.size());
+    MW_EXPECT_NEAR(worst, 0.0, 0.0);
+  }
+}
+
 }  // namespace mw::test

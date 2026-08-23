@@ -380,13 +380,39 @@ MW_TEST("NL-06: core distortion rises as the frequency falls") {
   MW_EXPECT(h3overH2 >= 6.0);
 }
 
+/**
+ * The floor at 30 Hz and −60 dBFS, derived rather than measured.
+ *
+ * The play operator's residual is bounded by ±`c` and rides on a flux of
+ * amplitude `B`; `hysteresisDepth` is how much of it reaches the curve, so the
+ * relative harmonic content is `alpha·c/B` times the residual's own shape
+ * factor. The residual is a triangle, whose harmonics fall as `1/n²`, and the
+ * inverse filter that turns flux back into voltage weights the nth harmonic by
+ * `n` — so they fall as `1/n` and their quadrature sum is close to twice the
+ * fundamental's. Hence the factor two.
+ *
+ * With the Steinmetz taper `c` at this flux is `coercivity·(B/rayleighFlux)^0.6`
+ * = 1e−5 × (0.001/0.251)^0.6 = 3.63e−7, so the floor is
+ * 2 × 0.05 × 3.63e−7 / 0.001 = 3.6e−5, or 0.0036 %.
+ *
+ * **Derived, because the taper moved it and a threshold refitted to the new
+ * measurement would have stopped being a check on the law that moved it.** The
+ * old threshold of 0.02 % was set when the loop width was fixed, which made the
+ * floor rise as `1/B` without limit; it now rises as `B^−0.4`, which is what
+ * Steinmetz gives and what a core does. The prediction was checked against a
+ * second flux before being used here: from −60 dBFS to −52 dBFS the law expects
+ * the floor to fall by 1.437× and it falls by 1.465×.
+ */
+constexpr double kDerivedFloorPercent = 0.0036;
+
 MW_TEST("NL-07: the hysteresis floor is there at low level and never goes away") {
   MagneticCore::Config config;
   MagneticCore core;
   core.prepare(kRate, config);
   const Harmonics h = harmonicsOf([&](float x) { return core.process(x); }, 30.0, 0.001);
-  std::printf("    NL-07 THD at 30 Hz, -60 dBFS: %.4f %%\n", h.thd() * 100.0);
-  MW_EXPECT(h.thd() * 100.0 >= 0.02);
+  std::printf("    NL-07 THD at 30 Hz, -60 dBFS: %.4f %% (derived floor %.4f %%)\n",
+              h.thd() * 100.0, kDerivedFloorPercent);
+  MW_EXPECT(h.thd() * 100.0 >= kDerivedFloorPercent * 0.6);
 
   // The mutation, run rather than described. Coercivity is what turns the model
   // from a saturation curve into a hysteresis loop, and the whole reason the
@@ -400,6 +426,10 @@ MW_TEST("NL-07: the hysteresis floor is there at low level and never goes away")
   std::printf("    NL-07 with coercivity 0: %.5f %% — the floor is the play operator's\n",
               low.thd() * 100.0);
   MW_EXPECT(low.thd() * 100.0 <= 0.001);
+  // Scale-free, and the half of this row that cannot be satisfied by moving a
+  // constant: whatever the floor's absolute size, removing the play operator
+  // has to collapse it.
+  MW_EXPECT_AT_LEAST_TIMES(h.thd(), low.thd(), 20.0, 1.0e-9);
 }
 
 MW_TEST("NL-08: a feedback winding reduces the core's distortion, never adds") {

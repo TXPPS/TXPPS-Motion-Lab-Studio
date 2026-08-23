@@ -13,6 +13,7 @@
 #include "../units/generated/fet_limiter_params.gen.h"
 #include "delta_harness.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <vector>
@@ -131,6 +132,64 @@ MW_TEST("D1: every FET Limiter parameter's setter reaches the audio") {
 MW_TEST("D1: two renders of the same setting are identical") {
   test::expectRendersAreDeterministic(kFetLimiterParams, kFetLimiterParamCount,
                                       renderWith);
+}
+
+/// A power of two, an odd size no host would pick but a plug-in must survive,
+/// and one large enough to cross the wrapper's latency in a single call.
+constexpr int kBlockSizes[3] = {64, 97, 1024};
+
+MW_TEST("D1: the block size the host chooses does not change the audio") {
+  // Stereo and both channels different, which is what it takes to see this: a
+  // mono render of this unit was bit-identical at every block size while the
+  // right channel was being filtered through the left channel's history.
+  test::expectBlockSizeIndependent(
+      [](int blockSize) {
+        FetLimiter unit;
+        unit.prepare(kRate, blockSize);
+        unit.setNoise(0.0);
+        unit.setLimiting(true);
+        unit.setTier(FetLimiter::Tier::X8);
+        unit.setRatio(FetRatio::R8);
+        unit.setAttack(7.0);
+        unit.setRelease(4.0);
+        unit.reset();
+
+        const std::size_t span = static_cast<std::size_t>(blockSize);
+        std::vector<float> left(span, 0.0f);
+        std::vector<float> right(span, 0.0f);
+        std::vector<float> outLeft(span, 0.0f);
+        std::vector<float> outRight(span, 0.0f);
+        float* channels[2] = {left.data(), right.data()};
+        float* outChannels[2] = {outLeft.data(), outRight.data()};
+        std::vector<float> captured;
+        captured.reserve(static_cast<std::size_t>(kFrames));
+        for (int at = 0; at < kFrames; at += blockSize) {
+          // The last call is short whenever the block size does not divide the
+          // render, which is the point of including a size that does not.
+          const int frames = std::min(blockSize, kFrames - at);
+          for (int i = 0; i < frames; ++i) {
+            left[static_cast<std::size_t>(i)] = broadband(at + i, 0, kRate);
+            right[static_cast<std::size_t>(i)] = broadband(at + i, 1, kRate);
+          }
+          AudioBuffer in(channels, 2, frames);
+          AudioBuffer out(outChannels, 2, frames);
+          ProcessContext ctx;
+          ctx.inputs = &in;
+          ctx.inputCount = 1;
+          ctx.outputs = &out;
+          ctx.outputCount = 1;
+          ctx.frames = frames;
+          ctx.sampleRate = kRate;
+          ctx.playing = true;
+          unit.process(ctx);
+          for (int i = 0; i < frames; ++i) {
+            captured.push_back(outLeft[static_cast<std::size_t>(i)]);
+            captured.push_back(outRight[static_cast<std::size_t>(i)]);
+          }
+        }
+        return captured;
+      },
+      kBlockSizes, 3);
 }
 
 MW_TEST_MAIN("fet-limiter-d1")

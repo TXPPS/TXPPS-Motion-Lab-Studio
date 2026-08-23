@@ -143,6 +143,40 @@ inline void applyVariance(float variance, std::uint32_t seed, TriodeStage::Confi
 }
 
 /**
+ * The same drift, applied to a push-pull gain cell and its output core.
+ *
+ * Separate from `applyVariance` because a balanced pair drifts in a way a
+ * single-ended stage cannot: its two halves age at different rates, and that
+ * shows up as *imbalance* rather than as gain. `dyn-04` §7 names the audible
+ * consequence — in lateral/vertical mode a drifted channel is an image shift
+ * rather than a level imbalance, because the two channels are not the two
+ * speakers there.
+ *
+ * Shares `applyVariance`'s hash so a given seed drifts the whole unit together,
+ * which is the point of having one variance control rather than several.
+ */
+inline void applyPushPullVariance(float variance, std::uint32_t seed,
+                                  PushPullStage::Config& stage,
+                                  MagneticCore::Config& core) noexcept {
+  if (variance <= 0.0f) return;
+  auto spread = [&](std::uint32_t salt) {
+    std::uint32_t h = seed * 2654435761u + salt * 2246822519u;
+    h ^= h >> 15;
+    h *= 2654435761u;
+    h ^= h >> 13;
+    return (static_cast<float>(h & 0xFFFFu) / 32768.0f - 1.0f) * variance;
+  };
+  stage.drive *= 1.0f + 0.10f * spread(1);
+  // Additive rather than multiplicative, because a balanced pair's imbalance is
+  // zero by design and a factor applied to zero is still zero — the control
+  // would be inert on exactly the units it exists for.
+  stage.imbalance += 0.05f * spread(5);
+  stage.imbalancePerBias *= 1.0f + 0.20f * spread(6);
+  core.saturationFlux *= 1.0f + 0.15f * spread(3);
+  core.coercivity *= 1.0f + 0.30f * spread(4);
+}
+
+/**
  * The same drift, applied to a variable-gain element's own trims.
  *
  * Separate from `applyVariance` because not every unit has one, and shares its

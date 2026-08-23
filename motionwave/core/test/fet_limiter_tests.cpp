@@ -145,34 +145,59 @@ double db(double v) { return 20.0 * std::log10(v > 1.0e-15 ? v : 1.0e-15); }
 
 }  // namespace
 
+/**
+ * The reduction reached one sample after the reduction first appears.
+ *
+ * Against a rectified level rather than a tone, and that is the whole
+ * difference between this and the probe it replaces. Read from a 1 kHz sine,
+ * "one sample after arrival" lands at whatever phase the arrival happened to
+ * fall on, so the number carries a cycle's worth of the *stimulus* in it: the
+ * slowest setting measured 0.4241 dB and the next one 0.2577, which reads as
+ * the control running backwards and is really the probe. A rectified level has
+ * no phase to land on, so what is left is the unit.
+ *
+ * Timed from arrival because the wrapper delays the signal; the delay is equal
+ * at every setting and cancels out of the comparison, whereas the declared
+ * latency does not — the detector sits *inside* the wrapper and sees the signal
+ * after the interpolator alone.
+ */
+double reachedAfterArrival(double rate, double position) {
+  FetLimiter unit;
+  configure(unit, rate, FetRatio::R20, position, 4.0);
+  Driver driver(unit, rate);
+  driver.silence(8192);
+  driver.restartPhase();
+  double reduction = 0.0;
+  int guard = 0;
+  while (reduction <= 0.0 && guard++ < 8192) reduction = driver.level(0.3, 1);
+  return driver.level(0.3, 1);
+}
+
 MW_TEST("dyn-03: the attack is still a control at 44.1 kHz") {
   // The row a host-rate detector fails. 20 µs is 0.88 samples at 44.1 kHz, so a
   // detector clocked at the host rate cannot be faster than one sample and
   // every setting above about position 5 collapses onto one behaviour.
   //
-  // What is measured is the reduction reached a fixed short time after the
-  // signal arrives — 91 µs, four host samples, which sits inside the control's
-  // own 20-to-800 µs range. A faster setting must be further along by then. The
-  // wrapper's latency delays every setting equally, so it cancels out of the
-  // comparison.
+  // What is measured is the reduction reached after *one* host sample — 22.7 µs
+  // at this rate, which sits inside the control's own 20-to-800 µs range and is
+  // the shortest interval a host-rate observer has. A faster setting must be
+  // further along by then; a host-rate detector cannot be further along at all,
+  // because one sample is the whole of its first step. The wrapper's latency
+  // delays every setting equally, so it cancels out of the comparison.
   constexpr double kRate = 44100.0;
   double reached[7] = {0, 0, 0, 0, 0, 0, 0};
   for (int p = 0; p < 7; ++p) {
     const double position = 1.0 + static_cast<double>(p);
-    FetLimiter unit;
-    configure(unit, kRate, FetRatio::R20, position, 4.0);
-    Driver driver(unit, kRate);
-    // Rested first, so the timing network starts from zero charge.
-    driver.silence(2048);
-    driver.restartPhase();
-    // The wrapper delays the signal by its declared latency, so the detector
-    // sees nothing at all for the first 49 samples. Measuring from the input's
-    // arrival rather than from the call reported 0.0000 dB at every setting —
-    // which looks exactly like the failure this row is written to catch, and
-    // was the instrument instead.
-    driver.tone(0.25, 1000.0, unit.latencySamples());
-    reached[p] = driver.tone(0.25, 1000.0, 4);
-    std::printf("    position %d (%6.1f us nominal): %.4f dB after 4 samples (91 us)\n", p + 1,
+    // Timed from the reduction's *arrival*, not from the call and not from the
+    // wrapper's declared latency. Both of those were tried and both were the
+    // instrument rather than the unit: measuring from the call reported 0.0000
+    // dB at every setting, because the wrapper delays the signal; skipping the
+    // declared latency over-shoots, because the detector lives *inside* the
+    // wrapper and sees the signal after the interpolator alone rather than
+    // after the round trip. Either way every setting read the same number,
+    // which is exactly the failure this row exists to catch.
+    reached[p] = reachedAfterArrival(kRate, position);
+    std::printf("    position %d (%6.1f us nominal): %.4f dB one sample after arrival\n", p + 1,
                 dsp::panelScaleToSeconds(position, 20.0, 800.0), reached[p]);
   }
   // Strictly monotonic across the whole control, which is the claim.
@@ -239,16 +264,14 @@ MW_TEST("dyn-03 test 3: the panel's sense, which is backwards from a plug-in's")
   constexpr double kRate = 96000.0;
   double attackReached[2] = {0, 0};
   for (int i = 0; i < 2; ++i) {
-    FetLimiter unit;
-    configure(unit, kRate, FetRatio::R20, i == 0 ? 1.0 : 7.0, 4.0);
-    Driver driver(unit, kRate);
-    driver.silence(4096);
-    driver.restartPhase();
-    attackReached[i] = driver.tone(0.25, 1000.0, 20);
+    // Twenty frames past the call used to be enough here by luck: the wrapper
+    // delays by 49 samples, so both settings read 0.0000 dB and the row passed
+    // on 0 > 0 until the comparison was guarded. Timed from arrival instead.
+    attackReached[i] = reachedAfterArrival(kRate, i == 0 ? 1.0 : 7.0);
   }
   std::printf("    test 3: ATTACK 1 reaches %.4f dB, ATTACK 7 reaches %.4f dB in the same time\n",
               attackReached[0], attackReached[1]);
-  MW_EXPECT(attackReached[1] > attackReached[0]);
+  MW_EXPECT_EXCEEDS_BY(attackReached[1], attackReached[0], 0.05, 0.01);
 
   double releaseLeft[2] = {0, 0};
   for (int i = 0; i < 2; ++i) {
