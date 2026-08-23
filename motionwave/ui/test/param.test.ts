@@ -157,6 +157,17 @@ describe('a control says the same thing to every reader', () => {
     expect(formatValue(CHOICE, toNormalised(CHOICE, 2))).toBe('High');
   });
 
+  it('never prints a frequency as "1000 Hz", which would be the same value twice', () => {
+    // A logarithmic default of 1000 Hz lands a hair below it in floating point,
+    // and a naive threshold prints "1000 Hz" there and "1.00 kHz" a step later.
+    for (const hz of [999.4, 999.6, 999.9999, 1000, 1000.4]) {
+      const printed = formatValue(LOG, toNormalised(LOG, hz));
+      expect(printed, `${hz} printed as ${printed}`).not.toMatch(/^\d{4} Hz$/);
+    }
+    expect(formatValue(LOG, toNormalised(LOG, 999.4))).toBe('999 Hz');
+    expect(formatValue(LOG, toNormalised(LOG, 1000))).toBe('1.00 kHz');
+  });
+
   it('signs a boost so it cannot be read as a cut in a column of numbers', () => {
     expect(formatValue(LINEAR, toNormalised(LINEAR, 12)).startsWith('+')).toBe(true);
     expect(formatValue(LINEAR, toNormalised(LINEAR, -12)).startsWith('-')).toBe(true);
