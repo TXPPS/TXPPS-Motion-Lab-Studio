@@ -368,7 +368,23 @@ difference survives. Perturbing §3.8's Q BIAS and DIST TRIM — which is where 
 drifted unit of this design actually differs — moved the row from −112 to
 −94 dBFS; the remaining smallness is the loop doing its job.
 
-Rows 2, 4, 6, 7, 9, 10, 11, 13, 14, 15 and 16 are not written yet.
+Rows 2, 4, 6, 7 and 13 are written and their suite is not registered: 6 and 13
+pass, 2, 4 and 7 do not. They share one diagnosed cause. The detector reads the
+output's _waveform_, so at depth the FET's own harmonics raise the peak it sees,
+which asks for more reduction and makes more harmonics — positive feedback
+through distortion. The transfer curve turns over at about 12 dB of reduction
+and runs to the element's stop, and three of the four ratio buttons measure as
+_expanding_. Sweeping the drain coupling fixes the buttons in order, which
+confirms the cause and is the wrong fix: that asymmetry is the unit's signature
+and row 10 requires it.
+
+Detecting on the output's _level_ instead — the element's input times the gain
+it is applying — stabilises the loop and makes the release rows measurable for
+the first time, but leaves the loop effectively feed-forward with a measured
+1.72:1 where the algebra says 8:1, and regresses three dynamics rows that pass
+today. Not taken. `PROGRESS.md` carries the next step.
+
+Rows 9, 10, 11, 14, 15 and 16 are not written yet.
 
 ## What each column is
 

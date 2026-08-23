@@ -2,43 +2,90 @@
 
 ```
 RESUME: Directive 06
-Current unit:  Motion Shaper — 13 of 24 PASS. Every DSP-owned cell is done
-               except D1, which needs the UI to exist.
-Last PASS:     D3, D9, D11. D5 at −87.0 dBFS (90 Hz) and −89.0 (97.3 Hz).
-Next action:   Build the Motion Shaper face against motionwave/ui — the
-               drawable multi-point LFO editor is the hero: live playhead on the
-               drawn shape, input waveform ghosted behind, per-band spectrum
-               shading, touch-editable nodes at >=44px. That closes D1 (every
-               control wired UI->param->DSP) and U19-U23 together.
-               Then ship, build the nonlinear library, start Program EQ.
+Current unit:  FET Limiter (dyn-03) — DSP PARTIAL. Six dynamics rows, D1 across
+               nine parameters, and four of six UI cells all pass. The curve
+               suite (rows 2, 4, 6, 7, 13) is written and unregistered: 6 and 13
+               pass, 2/4/7 do not.
+Last PASS:     dyn-03 rows 1, 3, 5, 8, 12 and the 44.1 kHz monotonicity row;
+               D1 all nine; U19, U20, U22, U23.
+Next action:   The transfer curve turns over at about 12 dB of reduction and runs
+               to the element's stop, so three of the four ratio buttons measure
+               as EXPANDING. Diagnosed, not fixed. The cause is the detector
+               reading the output's WAVEFORM: at depth the FET's own harmonics
+               raise the peak it sees, which asks for more reduction, which makes
+               more harmonics — positive feedback through distortion. Confirmed
+               by sweeping drainVolts, which fixes the buttons in order (4:1
+               comes right first, then 8:1, then 12:1) and is the wrong fix,
+               because that asymmetry is the unit's signature and row 10 needs it.
+               Tried: detecting on the output's LEVEL instead (element input x
+               applied gain). That stabilises the loop and makes the release rows
+               measurable for the first time — but the reconstruction and the
+               applied gain then cancel exactly, leaving the loop feed-forward
+               with a measured 1.72:1 where the algebra says 8:1, and it broke
+               three dynamics rows that pass today. Reverted; the working tree is
+               the version with all six dynamics rows green.
+               So: probe the loop per sub-sample as was done for the
+               drain-scaling bug and find where the law and the render part
+               company. Do not tune toward the endpoints.
+               Then rows 9, 10, 11, 14, 15, 16; face is already built.
+               Then Variable-Mu, Console EQ, Program EQ WASM bridge, R2.
+Units done:    Motion Shaper SHIPPING 24/24.
+               Program EQ DSP DONE, 13/13 sheet rows, D1, four UI cells.
+               Optical Leveller DSP DONE, 13/13 sheet rows, D1, four UI cells.
 Shared libraries built:
-               core/dsp/biquad.h     RBJ sections, double state, denormal flush
-               core/dsp/crossover.h  LR 6/12/24, three-band all-pass compensated
-               core/dsp/curve.h      analytic per-sample breakpoint curve
-               core/dsp/lfo_phase.h  transport-derived phase, swing, trigger
-               core/dsp/smoother.h   two cascaded one-poles, 0.05 ms floor
-               core/dsp/decimate.h   8x oversampling + 4th-order Butterworth
-               core/dsp/fft.h        radix-2 FFT + Blackman-Harris window
-               core/render/          deterministic render, analysis, reference graph
-               core/test/spectrum.h  SpectrumPlan — proves its grids resolvable
-                                     before reporting any number (Directive 06 §1)
-               motionwave/ui/        tokens, params, presets, automation,
-                                     metering, WetDryMixer, 24-cell harness
-               Specs only: lib-nonlinear, lib-grain-engine, lib-voice-substrate
+               core/dsp/biquad.h        RBJ sections, double state, denormal flush
+               core/dsp/shelving.h      shelf + peaking + one-pole HP
+               core/dsp/crossover.h     LR 6/12/24, three-band all-pass compensated
+               core/dsp/curve.h         analytic per-sample breakpoint curve
+               core/dsp/lfo_phase.h     transport-derived phase, swing, trigger
+               core/dsp/smoother.h      two cascaded one-poles, 0.05 ms floor
+               core/dsp/decimate.h      8x oversampling + 4th-order Butterworth
+               core/dsp/fft.h           radix-2 FFT + Blackman-Harris window
+               core/dsp/optical_cell.h  two-branch release + exposure history
+               core/dsp/peak_detector.h timing network, panel-scale mapping
+               core/dsp/nonlinear/      curve, stages, variable gain, FET, core,
+                                        oversampler (exact integer latency), specs
+               core/render/             deterministic render, analysis, reference graph
+               core/test/spectrum.h     proves its grids resolvable before reporting
+               core/test/delta_harness.h D1's measured half, once, for every unit
+               motionwave/ui/render/    facePanel — any UnitFace into the DOM
+               motionwave/ui/dev/       panel harness + AudioWorklet engine
+               Specs only: lib-grain-engine, lib-voice-substrate
+Standing rules earned the hard way:
+             - DERIVE, DON'T RE-FIT. When a shared fix moves a finished unit's
+               number, re-derive it from the physics. The Optical Leveller's
+               attack passed at 10.6 ms while the cell ran four times slower,
+               because model and test were both downstream of a DC offset.
+             - PROBE FIRST. Five measurements so far were the instrument, not
+               the unit: a settling window from the probe frequency, an
+               unassigned 20 kHz reading, a peak detector measured through a
+               1 kHz sine, a D1 base 18 dB past the element's ceiling, and a
+               transfer curve read from the fundamental while the energy was in
+               the harmonics.
+             - NO VACUOUS ASSERTIONS. MW_EXPECT_AT_LEAST_TIMES and
+               MW_EXPECT_EXCEEDS_BY refuse two zeros, two equal values, or
+               anything under a floor the row declares. The predicate is
+               unit-tested in param_tests.cpp.
 Open deviations:
              - Mix 0 on a multiband unit returns the all-pass of the input, not
                the input. Magnitude-flat, phase-rotated. Bypass returns it
                exactly, which is why it is a separate control.
-             - polyBLEP removed rather than left dormant. Directive 06 §0.2 is
-               right that it fixes value discontinuities and a tensioned node is
-               a slope discontinuity — but the oversampled path reaches the
-               target alone, and a second unused mechanism for one job is how
-               two of them drift apart.
+             - polyBLEP removed rather than left dormant (Directive 06 §0.2).
+             - dyn-01 §4.1: the second/third crossover is at A = 6*u0, not the
+               3*u0 the prose states; 3*u0 is the 6 dB lead condition. Both are
+               now asserted separately.
+             - lib-nonlinear §4.2 eq (5): a push-pull pair returns no even order
+               at zero bias for ANY gain imbalance. What returns it is an
+               operating-point difference between the halves.
+             - dyn-02 §4: one attack and two releases. A slow attack on the
+               second branch was a workaround for a DC bug and became the unit's
+               attack.
+             - dyn-03 §9 test 1 specifies a 1 kHz sine, which cannot measure a
+               20 us attack: a peak detector only rises when a peak arrives, and
+               that probe delivers one every 0.5 ms. Rows use a rectified level.
+             - dyn-03 test 4/7 unresolved — see Next action.
              - Amp Sim (MotionLab) declares no latency; cabinet onset moves with
                the selected cab. Carried from Directive 03.
-Blocked cells awaiting hardware: 5 in docs/HARDWARE_VERIFICATION.md
-               (V10 denormal stall, U21 fps, U22 responsive, CPU budgets,
-               thermal). Most cells thought to need hardware do not.
 ```
 
 **Read this first:** the Definition of Done is **not reachable on this build
