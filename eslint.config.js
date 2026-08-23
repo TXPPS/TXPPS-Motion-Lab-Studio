@@ -16,6 +16,10 @@ export default tseslint.config(
       // build output — linting or reformatting them would both be meaningless
       // and would break the `import.meta.url` asset resolution they rely on.
       'public/plugins',
+      // Emscripten's generated module. Build output, not source — and it is
+      // written for several environments at once, so it references `process`
+      // and `URL` unguarded by design.
+      'motionwave/wasm/dist/**',
     ],
   },
   js.configs.recommended,

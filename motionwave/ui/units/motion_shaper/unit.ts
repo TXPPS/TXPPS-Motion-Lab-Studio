@@ -100,11 +100,13 @@ export const motionShaperSpecs: readonly ParamSpec[] = [
     taper: Taper.Linear,
     smoothingMs: 30,
   }),
-  ...([
-    [MotionShaperParam.DepthLow, 'Low Depth'],
-    [MotionShaperParam.DepthMid, 'Mid Depth'],
-    [MotionShaperParam.DepthHigh, 'High Depth'],
-  ] as const).map(([id, name]) =>
+  ...(
+    [
+      [MotionShaperParam.DepthLow, 'Low Depth'],
+      [MotionShaperParam.DepthMid, 'Mid Depth'],
+      [MotionShaperParam.DepthHigh, 'High Depth'],
+    ] as const
+  ).map(([id, name]) =>
     defineParam({
       id,
       name,
@@ -116,11 +118,13 @@ export const motionShaperSpecs: readonly ParamSpec[] = [
       smoothingMs: 30,
     }),
   ),
-  ...([
-    [MotionShaperParam.RangeLow, 'Low Range'],
-    [MotionShaperParam.RangeMid, 'Mid Range'],
-    [MotionShaperParam.RangeHigh, 'High Range'],
-  ] as const).map(([id, name]) =>
+  ...(
+    [
+      [MotionShaperParam.RangeLow, 'Low Range'],
+      [MotionShaperParam.RangeMid, 'Mid Range'],
+      [MotionShaperParam.RangeHigh, 'High Range'],
+    ] as const
+  ).map(([id, name]) =>
     defineParam({
       id,
       name,

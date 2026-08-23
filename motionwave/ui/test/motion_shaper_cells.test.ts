@@ -54,21 +54,18 @@ function resultsFor(host?: HostCapabilities) {
 describe('the Motion Shaper face, judged by the harness', () => {
   it('passes U19 — original artwork with declared provenance', () => {
     const result = resultsFor().get('U19')!;
-    // eslint-disable-next-line no-console
     console.log(`U19 ${result.status}: ${result.detail}`);
     expect(result.status).toBe('PASS');
   });
 
   it('passes U20 — every element bound to real engine state', () => {
     const result = resultsFor().get('U20')!;
-    // eslint-disable-next-line no-console
     console.log(`U20 ${result.status}: ${result.detail}`);
     expect(result.status).toBe('PASS');
   });
 
   it('passes U23 — themes complete, pairs legible, controls named', () => {
     const result = resultsFor().get('U23')!;
-    // eslint-disable-next-line no-console
     console.log(`U23 ${result.status}: ${result.detail}`);
     expect(result.status).toBe('PASS');
   });
@@ -83,7 +80,6 @@ describe('the Motion Shaper face, judged by the harness', () => {
       // A bare BLOCKED fails the ledger guard, so the reason must name the
       // missing capability rather than gesturing at one.
       expect(result.detail.length).toBeGreaterThan(10);
-      // eslint-disable-next-line no-console
       console.log(`${cell} BLOCKED: ${result.detail}`);
     }
   });

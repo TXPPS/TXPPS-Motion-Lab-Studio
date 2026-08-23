@@ -135,22 +135,22 @@ trustworthy enough to assert a 1.2× ratio; a candidate for
 **Not started:** every UI cell. `U19`–`U23` need the framework Stream C is
 building.
 
-| Unit                | Sheet    | Status      | D1  | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19 | U20 | U21 | U22 | U23 | X24  |
-| ------------------- | -------- | ----------- | --- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---- |
-| Motion Shaper       | `fx-01`  | DSP PARTIAL | —   | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | PASS |
-| Program EQ          | `dyn-01` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —    |
-| Optical Leveller    | `dyn-02` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —    |
-| FET Limiter         | `dyn-03` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —    |
-| Variable-Mu Limiter | `dyn-04` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —    |
-| Console EQ          | `dyn-05` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —    |
-| Granular Reverb     | `fx-02`  | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —    |
-| Granular Delay      | `fx-03`  | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —    |
-| Slipstream Sampler  | `smp-01` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —    |
-| DCO Poly            | `syn-01` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —    |
-| Phase Distortion    | `syn-02` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —    |
-| Analog Five         | `syn-03` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —    |
-| Six-Op FM           | `syn-04` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —    |
-| Matrix Twelve       | `syn-05` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   | —    |
+| Unit                | Sheet    | Status      | D1  | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21                         | U22                       | U23  | X24  |
+| ------------------- | -------- | ----------- | --- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | --------------------------- | ------------------------- | ---- | ---- |
+| Motion Shaper       | `fx-01`  | DSP PARTIAL | —   | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | BLOCKED (no displayRefresh) | BLOCKED (no layoutEngine) | PASS | PASS |
+| Program EQ          | `dyn-01` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| Optical Leveller    | `dyn-02` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| FET Limiter         | `dyn-03` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| Variable-Mu Limiter | `dyn-04` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| Console EQ          | `dyn-05` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| Granular Reverb     | `fx-02`  | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| Granular Delay      | `fx-03`  | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
+| Slipstream Sampler  | `smp-01` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
+| DCO Poly            | `syn-01` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
+| Phase Distortion    | `syn-02` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
+| Analog Five         | `syn-03` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
+| Six-Op FM           | `syn-04` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
+| Matrix Twelve       | `syn-05` | NOT STARTED | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
 
 ## What each column is
 

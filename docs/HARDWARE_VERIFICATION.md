@@ -64,6 +64,39 @@ on real devices, plus the five cells that audit itself had to mark BLOCKED:
 notch and home-indicator insets, the home-indicator gesture against the bottom
 nav, the software keyboard, rotation mid-gesture, and momentum-scroll hand-off.
 
+### U21 — 60 fps sustained, decoupled (Motion Shaper)
+
+**Blocked by:** `no displayRefresh — needs a display and a requestAnimationFrame
+clock`. Frame pacing needs two clocks this host does not have: a refresh to
+count against, and an audio thread to be decoupled _from_.
+
+**Half of it is already proven natively.** The decoupling property — that the
+face costs the audio thread nothing — is asserted in
+`motion_shaper_tests.cpp` under the RT guard, and the publish path is a seqlock
+whose writer never waits for a reader. What remains for hardware is the frame
+_rate_, which is a property of the drawing and not of the engine.
+
+**Procedure.** Twelve instances, phone tier, 256-sample buffer. Record frame
+times for 60 s while sweeping Depth and Rate on every instance and dragging a
+curve node. Require the 99th-percentile frame time under 16.7 ms, and — the
+measurement that matters more — **zero** change in audio-thread block time
+between the visualiser running and being hidden.
+
+### U22 — responsive matrix (Motion Shaper)
+
+**Blocked by:** `no layoutEngine — needs a browser that computes layout; jsdom
+reports every box as zero`.
+
+**Procedure.** The nineteen-cell matrix from `docs/audit/RESPONSIVE_AUDIT.md`,
+plus the face's own declared breakpoints at 30 em and 48 em, exercised at root
+font sizes of 100 %, 130 % and 200 %. The breakpoints are in `em` precisely so
+that the third of those reflows; a px breakpoint would not, which is
+MotionLab's RA-007 one layer up.
+
+Also verify the curve editor's minimum height on a real device:
+`minimumEditorHeightPx(true, inset)` returns 68 px for a 12 px inset, and below
+that the top and bottom of the value range become the same touch target.
+
 ---
 
 ## All units — the checks that need a device by their nature

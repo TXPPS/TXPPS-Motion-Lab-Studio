@@ -138,7 +138,8 @@ describe('the WebAssembly build agrees with the native one', () => {
     // A boundary test nobody can fail is a boundary test nobody should trust.
     const got = renderChannel(0.5 * 1.0593, golden.frames, 128, golden.sampleRate, 0);
     let worst = 0;
-    for (let i = 0; i < golden.frames; i++) worst = Math.max(worst, Math.abs(got[i] - golden.left[i]));
+    for (let i = 0; i < golden.frames; i++)
+      worst = Math.max(worst, Math.abs(got[i] - golden.left[i]));
     expect(worst).toBeGreaterThan(1e-6);
   });
 

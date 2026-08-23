@@ -26,7 +26,11 @@ function forbiddenNames(): string[] {
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && !line.startsWith('#'));
 }
-import { motionShaperFace, MotionShaperMeter, MotionShaperParam } from '../units/motion_shaper/face';
+import {
+  motionShaperFace,
+  MotionShaperMeter,
+  MotionShaperParam,
+} from '../units/motion_shaper/face';
 import {
   POINTER_RADIUS_PX,
   TOUCH_RADIUS_PX,
@@ -65,9 +69,10 @@ describe('the face declares what the harness requires', () => {
     for (const element of motionShaperFace.elements) {
       if (element.role !== 'meter' && element.role !== 'graph') continue;
       expect(element.meterChannel, `${element.id} reads no channel`).toBeDefined();
-      expect(published.has(element.meterChannel!), `${element.id} reads an unpublished channel`).toBe(
-        true,
-      );
+      expect(
+        published.has(element.meterChannel!),
+        `${element.id} reads an unpublished channel`,
+      ).toBe(true);
     }
   });
 
@@ -90,9 +95,10 @@ describe('the face declares what the harness requires', () => {
     // `UiCellOptions.forbiddenNames` takes the list from its caller for the
     // same reason.
     const names = forbiddenNames();
-    expect(names.length, 'the forbidden-name list is empty, so this proves nothing').toBeGreaterThan(
-      5,
-    );
+    expect(
+      names.length,
+      'the forbidden-name list is empty, so this proves nothing',
+    ).toBeGreaterThan(5);
     const text = JSON.stringify(motionShaperFace).toLowerCase();
     for (const forbidden of names) {
       expect(text.includes(forbidden.toLowerCase()), `the face names a reference product`).toBe(
@@ -192,7 +198,8 @@ describe('editing a curve does not surprise the person doing it', () => {
 
   it('keeps nodes ordered after an insert', () => {
     const grown = insertNode(square, 0.25, () => 0.5);
-    for (let i = 1; i < grown.length; i++) expect(grown[i].x).toBeGreaterThanOrEqual(grown[i - 1].x);
+    for (let i = 1; i < grown.length; i++)
+      expect(grown[i].x).toBeGreaterThanOrEqual(grown[i - 1].x);
   });
 
   it('refuses to delete below two nodes', () => {
