@@ -1,0 +1,33 @@
+# Names that may not appear anywhere under motionwave/
+#
+# LEGAL_NOTES.md and CLAUDE.md: no trademarked reference name appears anywhere
+# under `motionwave/` — not in a filename, type, symbol, preset name or comment.
+# Reference names live only in `docs/reference/`, and that includes *this list*.
+#
+# The subtlety is worth stating because it is easy to miss and I missed it: a
+# guard that scans for forbidden names, written inside `motionwave/`, contains
+# every one of those names and therefore breaks the rule it enforces. So the
+# list lives here and the guard reads it from here. The framework's own
+# `UiCellOptions.forbiddenNames` takes the list from its caller for exactly
+# this reason.
+#
+# One name per line. Blank lines and lines starting with # are ignored.
+
+Cableguys
+ShaperBox
+VolumeShaper
+FilterShaper
+TimeShaper
+PanShaper
+DriftShaper
+WidthShaper
+CrushShaper
+LiquidSonics
+FabFilter
+Soundtoys
+Xfer
+Serum
+Massive
+Sylenth
+Kontakt
+Omnisphere
