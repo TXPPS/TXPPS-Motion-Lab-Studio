@@ -86,25 +86,41 @@ the C++ suite, proven natively, not re-run through TypeScript):
 | `D10` no zipper   | `motion_shaper_tests` V3 and V4 — zero flagged samples                                                    |
 | `D12` tempo map   | `modulator_tests` V7 and V8                                                                               |
 
-**`D5` is FAIL, not BLOCKED, and not PASS.** The band-limiting correction is
-implemented — the published polyBLEP form, two-sided — and it is **switched
-off**, because turning it on makes V3 fail with 476 flagged samples across the
-0.1–200 Hz sweep. V3 caught an earlier one-sided version of the same correction,
-so it is a detector worth believing: at high modulation rates the residual this
-adds is itself a step. Shipping DSP that a trustworthy test calls harmful, on
-the grounds that a sheet asks for it, would be the wrong way round.
+**`D5` is PASS: −87.0 dBFS at the sheet's 90 Hz, −89.0 dBFS at 97.3 Hz**, against
+a −80 dBFS target with +3 dB tolerance. The oversampled modulator is what buys
+it — 1× measures −69.0 and −70.1 dBFS, so the eightfold path is worth 18 dB.
 
-The measurement is the other half of the problem, and three attempts failed for
-three different reasons, all recorded in the test:
+Getting there took **five** wrong measurements, every one of which produced a
+plausible number. They are listed in `core/test/spectrum_tests.cpp` because a
+spectral measurement never looks broken, and the list is the reason that file
+exists:
 
-1. At the sheet's own 90 Hz, folded harmonics land back **on** multiples of the
-   modulation rate — the bins legitimate sidebands occupy — because 48 kHz and
-   90 Hz share a large factor. The sheet's stated method cannot be carried out
-   at the frequency the sheet names.
-2. Excluding only ±40 sidebands counted legitimate high-order sidebands as
-   spurious; a 0.05 ms smoother passes harmonics well past k = 30.
-3. Measuring the modulator against DC removed that and introduced a worse one —
-   the window's skirt from the modulator's large DC term dominates nearby bins.
+1. N = 4096 gave 11.72 Hz bins against a 10 Hz alias-to-sideband gap — the two
+   shared a bin, so the "alias floor" was the sideband. I concluded from this
+   that the sheet's 90 Hz was unusable. **That was wrong**: 46000 is not a
+   multiple of 90, so alias and signal are never coincident, only closer than
+   the transform could see. N = 32768 resolves them.
+2. The exclusion set stopped at ±40 sidebands; a 0.05 ms smoother passes
+   harmonics far past that, so legitimate signal counted as spurious.
+3. Measured against DC rather than a carrier, the modulator's own DC term
+   dominated its window skirt.
+4. Lower sidebands reflect through zero — `carrier − 12·spacing` is −80 Hz and
+   appears at +80 Hz — and skipping the negative ones counted every reflection
+   as spurious.
+5. A Hann window's sidelobes sit near −31 dB, so a −6 dBFS carrier smeared
+   energy across the spectrum at about −54 dBFS. **That was the floor being
+   reported**, and the tell was that crushing the modulator's bandwidth
+   elevenfold moved it by 0.1 dB. Blackman-Harris, at −92 dB, sees past it.
+
+The instrument is now calibrated against known answers before it is believed:
+a clean tone reads −100 dBFS, a planted −60 dBFS spur measures −60.0, and a
+plan that cannot resolve its grids returns an impossible value no assertion can
+accept.
+
+The decimation corner was chosen by measurement too, and against the intuition:
+the alias floor is −87 dB at _every_ corner from 0.30 to 0.98 of Nyquist, while
+a _lower_ corner causes more clicks, because a fourth-order Butterworth rings
+longer on a step the lower it is set. 0.75 is clear of the 0.60 edge.
 
 `X24` is PASS: the WASM boundary is verified bit-for-bit against the native
 golden render, including block-size invariance across it
@@ -121,7 +137,7 @@ building.
 
 | Unit                | Sheet    | Status      | D1  | D2   | D3  | D4   | D5   | D6   | D7   | D8   | D9  | D10  | D11 | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19 | U20 | U21 | U22 | U23 | X24  |
 | ------------------- | -------- | ----------- | --- | ---- | --- | ---- | ---- | ---- | ---- | ---- | --- | ---- | --- | ---- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---- |
-| Motion Shaper       | `fx-01`  | DSP PARTIAL | —   | PASS | —   | PASS | FAIL | PASS | PASS | PASS | —   | PASS | —   | PASS | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | PASS |
+| Motion Shaper       | `fx-01`  | DSP PARTIAL | —   | PASS | —   | PASS | PASS | PASS | PASS | PASS | —   | PASS | —   | PASS | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | PASS |
 | Program EQ          | `dyn-01` | NOT STARTED | —   | —    | —   | —    | —    | —    | —    | —    | —   | —    | —   | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —    |
 | Optical Leveller    | `dyn-02` | NOT STARTED | —   | —    | —   | —    | —    | —    | —    | —    | —   | —    | —   | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —    |
 | FET Limiter         | `dyn-03` | NOT STARTED | —   | —    | —   | —    | —    | —    | —    | —    | —   | —    | —   | —    | n/a | n/a | n/a | n/a | n/a | n/a | —   | —   | —   | —   | —   | —    |
