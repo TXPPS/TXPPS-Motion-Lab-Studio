@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Motion Wave — panel harness</title>
+    <link rel="stylesheet" href="/tokens.css" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: var(--mw-bg);
+        color: var(--mw-fg);
+      }
+      /* The panel is given the whole viewport width, so a reflow the test drives
+         by resizing the viewport is a reflow of the panel and not of a wrapper
+         that happens to be narrower. */
+      #mount {
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="mount"></div>
+    <script type="module" src="/panel.ts"></script>
+  </body>
+</html>

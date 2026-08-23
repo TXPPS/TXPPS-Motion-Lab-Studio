@@ -1,0 +1,281 @@
+/*
+ * Motion Wave — the design system's tokens.
+ *
+ * Every font size, and every dimension that should grow with text, is expressed
+ * in `rem`, without exception. This is not a stylistic preference: MotionLab
+ * Studio's responsive audit finding RA-007 measured 130% and 200% root font
+ * size producing byte-identical geometry across all nineteen device cells,
+ * because its type scale is `px * --ui-scale` and sixteen stylesheets contain
+ * no `rem` at all. A user who has enlarged text at the OS level gets nothing
+ * back, on any screen. Retrofitting that costs a rewrite of a shipped shell;
+ * starting this way costs nothing, so it is done here and guarded by a test
+ * that fails on the first `px` font size anybody adds.
+ *
+ * The palette follows the three-theme contract: every token is defined on bare
+ * `:root` first, an explicit choice stamps `data-theme`, and "system" stamps
+ * nothing and falls through to `prefers-color-scheme`. A token defined only
+ * inside a media query or a `[data-theme]` block is undefined in one of the
+ * three states, which surfaces as an invisible control rather than as an error,
+ * so `design_tokens.test.ts` asserts the three declaration sets match exactly.
+ */
+
+:root {
+  /* ---------------------------------------------------------------- type */
+
+  /*
+   * The scale is a ratio of the root font size, so an OS text-size setting
+   * multiplies through all of it. The px equivalents in the comments are what
+   * these resolve to at the browser default of 16px; they are documentation,
+   * and nothing in the system may hard-code them.
+   */
+  --mw-text-3xs: 0.625rem; /* 10px — meter scale legends, tick labels */
+  --mw-text-2xs: 0.6875rem; /* 11px — parameter value readouts */
+  --mw-text-xs: 0.75rem; /* 12px — control labels */
+  --mw-text-sm: 0.8125rem; /* 13px — secondary UI text */
+  --mw-text-md: 0.875rem; /* 14px — the base UI size */
+  --mw-text-lg: 1rem; /* 16px — panel titles */
+  --mw-text-xl: 1.125rem; /* 18px — a unit's name on its face */
+  --mw-text-2xl: 1.375rem; /* 22px — section headings */
+  --mw-text-3xl: 1.75rem; /* 28px — the only display size */
+
+  /* Unitless, so a line box scales with whatever size it lands on. */
+  --mw-leading-tight: 1.15;
+  --mw-leading-normal: 1.45;
+  --mw-leading-loose: 1.7;
+
+  --mw-weight-regular: 400;
+  --mw-weight-medium: 500;
+  --mw-weight-bold: 650;
+
+  --mw-font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  /*
+   * Tabular figures on anything that counts. A readout whose digits change
+   * width while the number moves makes the row beside it twitch, and a twitching
+   * row on a meter reads as a glitch in the audio rather than in the font.
+   */
+  --mw-font-numeric: 'Inter', ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, monospace;
+
+  /* -------------------------------------------------------------- spacing */
+
+  --mw-space-0: 0rem;
+  --mw-space-1: 0.125rem;
+  --mw-space-2: 0.25rem;
+  --mw-space-3: 0.375rem;
+  --mw-space-4: 0.5rem;
+  --mw-space-5: 0.75rem;
+  --mw-space-6: 1rem;
+  --mw-space-7: 1.5rem;
+  --mw-space-8: 2rem;
+  --mw-space-9: 3rem;
+
+  /*
+   * Control geometry, in rem for the same reason the type is: a knob sized in
+   * px beside a label sized in rem comes apart the moment the two scale
+   * differently, and the label is the half that wins the argument.
+   */
+  --mw-control-knob: 3rem;
+  --mw-control-knob-sm: 2.25rem;
+  --mw-control-fader: 9rem;
+  --mw-control-row: 1.75rem;
+  --mw-control-gutter: var(--mw-space-4);
+
+  /*
+   * The 44px minimum touch target the platform guidelines name, expressed as a
+   * ratio of the root size so enlarging text enlarges the target with it. A
+   * user who needs larger text usually also needs a larger target, and a target
+   * pinned in px is the one that stays 44px while everything around it grows.
+   */
+  --mw-target-min: 2.75rem;
+
+  --mw-radius-sm: 0.1875rem;
+  --mw-radius-md: 0.3125rem;
+  --mw-radius-lg: 0.5rem;
+  --mw-radius-pill: 62.4375rem;
+
+  /*
+   * Hairlines are the one deliberate exception to the rem rule, and the only
+   * one. A border exists to separate two surfaces; scaling it with text
+   * thickens every division in the shell until, at 200%, the layout reads as a
+   * grid of heavy boxes rather than as panels. A 1px rule wants device pixels.
+   */
+  --mw-hairline: 1px;
+  --mw-hairline-strong: 2px;
+
+  /* --------------------------------------------------------------- motion */
+
+  --mw-motion-instant: 0ms;
+  --mw-motion-fast: 90ms;
+  --mw-motion-base: 160ms;
+  --mw-motion-slow: 260ms;
+  --mw-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --mw-ease-enter: cubic-bezier(0, 0, 0, 1);
+  --mw-ease-exit: cubic-bezier(0.3, 0, 1, 1);
+
+  /* -------------------------------------------------------- colour (dark) */
+
+  /*
+   * Dark is the bare-`:root` palette because it is the product's default and
+   * what a mixing room is lit for. Light is a complete override below.
+   */
+  --mw-bg-app: #0b0e12;
+  --mw-bg-panel: #11161c;
+  --mw-bg-raised: #19212a;
+  --mw-bg-sunken: #070a0d;
+  --mw-bg-input: #0e141a;
+  --mw-bg-hover: #202a35;
+  --mw-bg-active: #27333f;
+  --mw-fg: #e8eef5;
+  --mw-fg-muted: #9fb0c2;
+  --mw-fg-faint: #7a8b9e;
+  --mw-fg-inverse: #0b0e12;
+  --mw-line: #232d38;
+  --mw-line-strong: #35434f;
+  --mw-accent: #4bb3ff;
+  --mw-accent-strong: #7fc9ff;
+  --mw-accent-fg: #04131f;
+  --mw-accent-weak: #14344a;
+  --mw-ok: #56d38a;
+  --mw-ok-fg: #04170d;
+  --mw-warn: #f0c04a;
+  --mw-warn-fg: #1a1300;
+  --mw-danger: #ff6b62;
+  --mw-danger-fg: #200302;
+  --mw-meter-bg: #060a0e;
+  --mw-meter-low: #39b56d;
+  --mw-meter-mid: #b6d24a;
+  --mw-meter-high: #f0c04a;
+  --mw-meter-over: #ff5a4e;
+  --mw-meter-reduction: #4bb3ff;
+  --mw-automation: #b98cff;
+  --mw-modulation: #4bd6c4;
+  --mw-focus: #8fd0ff;
+  --mw-shadow-rgb: 0 0 0;
+
+  /* ------------------------------------------------------------ elevation */
+
+  /*
+   * Offsets in rem so a panel's lift stays proportional to the text it carries;
+   * the alpha ramps along with the blur because against a near-black app
+   * background an increase in blur alone is almost invisible, and four steps
+   * that cannot be told apart are one step with extra names.
+   */
+  --mw-elev-0: none;
+  --mw-elev-1: 0 0.0625rem 0.125rem rgb(var(--mw-shadow-rgb) / 0.4);
+  --mw-elev-2: 0 0.25rem 0.5rem rgb(var(--mw-shadow-rgb) / 0.45);
+  --mw-elev-3: 0 0.625rem 1.25rem rgb(var(--mw-shadow-rgb) / 0.5);
+  --mw-elev-4: 0 1.25rem 2.5rem rgb(var(--mw-shadow-rgb) / 0.55);
+}
+
+/*
+ * The light palette, declared twice on purpose. The media block serves the
+ * "system" state, which stamps no attribute; the attribute block serves an
+ * explicit choice and has to beat a dark OS setting. Guarding the media block
+ * with `:not([data-theme='dark'])` is what stops a dark OS from overriding a
+ * user who has explicitly asked for light — without it, "system" and "dark"
+ * are the same setting and one of the three themes does not exist.
+ *
+ * The duplication is the drift risk this file carries, so the test asserts the
+ * two blocks are token-for-token and value-for-value identical.
+ */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --mw-bg-app: #e9edf2;
+    --mw-bg-panel: #f7f9fb;
+    --mw-bg-raised: #ffffff;
+    --mw-bg-sunken: #dde3ea;
+    --mw-bg-input: #ffffff;
+    --mw-bg-hover: #e4eaf1;
+    --mw-bg-active: #d6dee8;
+    --mw-fg: #10161d;
+    --mw-fg-muted: #4a5765;
+    --mw-fg-faint: #63707f;
+    --mw-fg-inverse: #f7f9fb;
+    --mw-line: #d3dae2;
+    --mw-line-strong: #b3bfcc;
+    --mw-accent: #0b6fc4;
+    --mw-accent-strong: #0a5da4;
+    --mw-accent-fg: #ffffff;
+    --mw-accent-weak: #d9ebfb;
+    --mw-ok: #17743f;
+    --mw-ok-fg: #ffffff;
+    --mw-warn: #8a5a00;
+    --mw-warn-fg: #ffffff;
+    --mw-danger: #b3241c;
+    --mw-danger-fg: #ffffff;
+    --mw-meter-bg: #dfe5ec;
+    --mw-meter-low: #1f8a4d;
+    --mw-meter-mid: #6b7d0f;
+    --mw-meter-high: #a8720a;
+    --mw-meter-over: #c22f22;
+    --mw-meter-reduction: #0b6fc4;
+    --mw-automation: #6c3fd0;
+    --mw-modulation: #0f7a70;
+    --mw-focus: #0b6fc4;
+    --mw-shadow-rgb: 12 22 34;
+  }
+}
+
+:root[data-theme='light'] {
+  --mw-bg-app: #e9edf2;
+  --mw-bg-panel: #f7f9fb;
+  --mw-bg-raised: #ffffff;
+  --mw-bg-sunken: #dde3ea;
+  --mw-bg-input: #ffffff;
+  --mw-bg-hover: #e4eaf1;
+  --mw-bg-active: #d6dee8;
+  --mw-fg: #10161d;
+  --mw-fg-muted: #4a5765;
+  --mw-fg-faint: #63707f;
+  --mw-fg-inverse: #f7f9fb;
+  --mw-line: #d3dae2;
+  --mw-line-strong: #b3bfcc;
+  --mw-accent: #0b6fc4;
+  --mw-accent-strong: #0a5da4;
+  --mw-accent-fg: #ffffff;
+  --mw-accent-weak: #d9ebfb;
+  --mw-ok: #17743f;
+  --mw-ok-fg: #ffffff;
+  --mw-warn: #8a5a00;
+  --mw-warn-fg: #ffffff;
+  --mw-danger: #b3241c;
+  --mw-danger-fg: #ffffff;
+  --mw-meter-bg: #dfe5ec;
+  --mw-meter-low: #1f8a4d;
+  --mw-meter-mid: #6b7d0f;
+  --mw-meter-high: #a8720a;
+  --mw-meter-over: #c22f22;
+  --mw-meter-reduction: #0b6fc4;
+  --mw-automation: #6c3fd0;
+  --mw-modulation: #0f7a70;
+  --mw-focus: #0b6fc4;
+  --mw-shadow-rgb: 12 22 34;
+}
+
+/*
+ * `data-theme='dark'` re-states nothing: the bare `:root` block above already
+ * is the dark palette. The selector exists so that an explicit dark choice
+ * beats the light media block, which is the case the cascade would otherwise
+ * get wrong on a machine set to light.
+ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+/*
+ * Reduced motion collapses the durations rather than removing the transitions.
+ * A transition of 1ms still fires its `transitionend`, so any code that waits
+ * for one keeps working; setting `transition: none` globally instead is how a
+ * dialog ends up never being told it finished opening and stays inert.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mw-motion-instant: 0ms;
+    --mw-motion-fast: 1ms;
+    --mw-motion-base: 1ms;
+    --mw-motion-slow: 1ms;
+  }
+}
