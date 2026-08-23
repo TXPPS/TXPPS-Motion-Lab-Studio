@@ -52,7 +52,7 @@ struct VisualFrame {
 };
 
 /**
- * A seqlock around one `VisualFrame`.
+ * A seqlock around one frame of any shape.
  *
  * The sequence is odd while a write is in progress and even when it is
  * complete, so a reader that sees the same even sequence either side of its
@@ -60,15 +60,21 @@ struct VisualFrame {
  * anyone is reading, which is the property that makes this safe to call from
  * `process`.
  *
+ * The payload is whatever type the unit publishes. Templated rather than
+ * duplicated per unit: the ordering argument below is the subtle part, it was
+ * got right once, and a second copy of it would be a second chance to get it
+ * wrong.
+ *
  * `relaxed` for the payload with `release`/`acquire` on the sequence: the
  * ordering that matters is that the payload's stores land *before* the closing
  * sequence bump, and that a reader's loads happen *after* it sees the opening
  * one. Making every field atomic would be slower and would not add a guarantee.
  */
-class VisualPublisher {
+template <typename Frame>
+class FramePublisher {
  public:
   /// Called from the audio thread. Never blocks, never allocates.
-  void publish(const VisualFrame& frame) noexcept {
+  void publish(const Frame& frame) noexcept {
     const std::uint32_t start = sequence_.load(std::memory_order_relaxed);
     sequence_.store(start + 1, std::memory_order_relaxed);
     std::atomic_thread_fence(std::memory_order_release);
@@ -87,7 +93,7 @@ class VisualPublisher {
    * frame old, and invisible. Spinning would be a UI thread waiting on audio,
    * which is the dependency this whole structure exists to avoid.
    */
-  bool read(VisualFrame& out) const noexcept {
+  bool read(Frame& out) const noexcept {
     const std::uint32_t before = sequence_.load(std::memory_order_acquire);
     if ((before & 1u) != 0u) return false;
     std::atomic_thread_fence(std::memory_order_acquire);
@@ -103,7 +109,19 @@ class VisualPublisher {
 
  private:
   std::atomic<std::uint32_t> sequence_{0};
-  VisualFrame frame_{};
+  Frame frame_{};
 };
+
+/**
+ * The Motion Shaper's publisher, and the name every caller already uses.
+ *
+ * The seqlock was templated when the second unit needed a frame of a different
+ * shape — a Program EQ publishes a harmonic profile and two levels, not a
+ * playhead and three bands. Templating it rather than adding a second
+ * publisher matters for one reason: the ordering argument above is subtle, it
+ * was got right once, and a copy of it would be a second place to get it
+ * wrong that nobody would think to re-derive.
+ */
+using VisualPublisher = FramePublisher<VisualFrame>;
 
 }  // namespace mw::dsp

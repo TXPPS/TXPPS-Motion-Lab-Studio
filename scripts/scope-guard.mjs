@@ -50,7 +50,10 @@ const prefixes = scope.split(/\s+/).filter(Boolean);
  * usually notices when the answer is "I do not know".
  */
 const exempt = new Map();
-for (const entry of also.split(',').map((s) => s.trim()).filter(Boolean)) {
+for (const entry of also
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)) {
   const at = entry.indexOf(':');
   if (at <= 0 || entry.slice(at + 1).trim() === '') {
     console.error(`scope-guard: MW_SCOPE_ALSO entry "${entry}" has no reason.`);

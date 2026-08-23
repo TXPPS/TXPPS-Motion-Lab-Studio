@@ -205,7 +205,7 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | Unit                | Sheet    | Status      | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  |
 | ------------------- | -------- | ----------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- |
 | Motion Shaper       | `fx-01`  | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| Program EQ          | `dyn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Program EQ          | `dyn-01` | DSP PARTIAL | PASS | —    | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Optical Leveller    | `dyn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | FET Limiter         | `dyn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Variable-Mu Limiter | `dyn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
@@ -218,6 +218,47 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | Analog Five         | `syn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
 | Six-Op FM           | `syn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
 | Matrix Twelve       | `syn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
+
+### Program EQ, so far
+
+The DSP is built and all thirteen of `dyn-01` §9's measurements pass, at 48 kHz
+and — where the sheet asks for it — 96 kHz. `D1` is closed the same way the
+Motion Shaper's is: both parameter tables are generated from
+`motionwave/manifests/dyn-01-program-eq.json`, so the parity half cannot be
+written down wrongly, and `core/test/program_eq_delta_tests.cpp` measures the
+half that has to be measured. `D3` is the sheet itself, in `program_eq_tests.cpp`
+(response) and `program_eq_amp_tests.cpp` (amplifier and transformers). `D5` is
+the alias measurement, test 13, at −89.3 dBFS against a −70 dBFS requirement.
+
+The rest of the D column is not claimed yet, and the UI cells are not started.
+
+Four things the sheet's own numbers could not settle, each resolved toward its
+equations and recorded where it was found rather than in a footnote:
+
+- The 3.5-octave displacement of the low cut is the centre of a published
+  three-to-four-octave range and is inference, as §3.3 says. Measured, it puts
+  the 30, 60 and 100 Hz selectors' dips at 339, 682 and 1153 Hz.
+- The low shelf's corner sits 2.5× above the selector's label. With the corner
+  _at_ the label a 20 Hz setting's plateau falls below 5 Hz and the boost
+  measures +8.9 dB where the manual says +13.5. §9 test 3 explicitly expects an
+  offset and says to log it rather than fail on it; at 2.5 the four settings
+  measure +12.8, +13.2, +13.7 and +13.8 dB and each peaks within a quarter of an
+  octave of its label.
+- The BANDWIDTH endpoints are ours, Q 0.6 to 2.0, and the sheet says they must
+  be flagged as such until measured.
+- The published −16 dB high shelf cannot assert its asymptote at a 48 kHz host
+  when the selector is at 20 kHz, because the corner is then at Nyquist's
+  doorstep. Graded at 96 kHz, recorded at 48.
+
+**Two bugs found by these tests, both in shared code.** The stages inside an
+oversampled block were prepared at the host rate rather than the oversampled
+one, so their 5 Hz restoration filters sat at 20 Hz and the unit measured 6.0 dB
+down at 20 Hz with every control at zero. And the restoration filter itself
+stalls in float32: once `(1−c)·|x−s|` falls below half an ULP of `s` the update
+rounds back and the filter stops converging, leaving 2.3e−4 of standing DC that
+the noise-floor test read as a floor 30 dB above the manual's. Its state is a
+double now, and `nonlinear_tests.cpp` checks convergence at every rate a wrapper
+can present.
 
 ## What each column is
 

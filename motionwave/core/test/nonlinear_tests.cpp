@@ -501,4 +501,37 @@ MW_TEST("no element in the library allocates on the audio path") {
   MW_EXPECT(std::isfinite(sink));
 }
 
+MW_TEST("the DC restoration converges, at every rate a wrapper can run it at") {
+  // A biased stage's offset has to be removed or it walks into the next stage
+  // and biases *it*. The filter that removes it is a one-pole, and in float32 a
+  // one-pole with a low corner at a high rate stops converging while its output
+  // is still wrong: once (1−c)|x−s| falls below half an ULP of s, the update
+  // rounds back to s and the filter sits there for ever.
+  //
+  // This is not hypothetical and it is not small. Found through the Program EQ,
+  // whose two valve stages run inside a 4× wrapper at 192 kHz: the unit settled
+  // to a standing −2.0e−4 of DC and its noise-floor test read 30 dB above the
+  // manual's figure. The tell was that the offset did not decay — it was the
+  // same number after ten seconds as after one, and exactly four times smaller
+  // with oversampling off, which is the ratio of (1−c) at the two rates.
+  //
+  // Every rate a wrapper can present to a stage, so the case fails at the rate
+  // where it actually bit rather than only at the host rate.
+  for (double rate : {48000.0, 96000.0, 192000.0, 384000.0}) {
+    TriodeStage stage;
+    TriodeStage::Config config;
+    config.restoreHz = 2.0f;
+    stage.prepare(rate, config);
+    // Ten seconds of silence into a stage biased well away from zero.
+    const int frames = static_cast<int>(rate * 10.0);
+    float last = 0.0f;
+    for (int i = 0; i < frames; ++i) last = stage.process(0.0f);
+    std::printf("    DC restore at %7.0f Hz: settles to %+.3e\n", rate,
+                static_cast<double>(last));
+    // −120 dBFS. The float32 state settles at 2.3e−4 at 192 kHz, which is
+    // 66 dB louder than this and would fail by three orders of magnitude.
+    MW_EXPECT(std::fabs(static_cast<double>(last)) < 1.0e-6);
+  }
+}
+
 MW_TEST_MAIN("nonlinear")

@@ -59,7 +59,9 @@ for (let i = headerIndex + 2; i < lines.length; i++) {
 
   for (const [n, value] of rest.entries()) {
     if (!CELL.test(value)) {
-      problems.push(`${unit} · ${columns[n + 3]}: "${value}" is not one of PASS/FAIL/n\\/a/—/BLOCKED (reason)`);
+      problems.push(
+        `${unit} · ${columns[n + 3]}: "${value}" is not one of PASS/FAIL/n\\/a/—/BLOCKED (reason)`,
+      );
     }
     // A bare BLOCKED with no reason is the loophole this closes: it would let
     // any cell be waved through without naming what is missing.

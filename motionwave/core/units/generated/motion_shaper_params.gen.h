@@ -53,27 +53,40 @@ struct MotionShaperParamRow {
    */
   double deltaLow;
   double deltaHigh;
+  /**
+   * The difference, in dBFS, that render-delta must exceed for this parameter.
+   *
+   * Per parameter rather than one number for the unit, because a control whose
+   * whole job is to sit at a stated level cannot be graded against a gate above
+   * that level. The Program EQ's noise floor is specified at 92 dB below
+   * +10 dBm — turning it on and off differs by −104 dBFS, which is the
+   * parameter working exactly as its manual says and would read as a dead
+   * setter against a −70 dB gate. Declaring the gate in the manifest keeps that
+   * an explicit claim with a reason beside it, rather than a special case
+   * hidden in a test.
+   */
+  double deltaFloorDb;
 };
 
 inline constexpr int kMotionShaperParamCount = 16;
 
 inline constexpr MotionShaperParamRow kMotionShaperParams[kMotionShaperParamCount] = {
-    {1, "BandCount", "Bands", 0.0, 2.0, 2.0, 0.0, 2.0},
-    {2, "CrossoverLowMid", "Low / Mid", 30.0, 2000.0, 220.0, 40.0, 1500.0},
-    {3, "CrossoverMidHigh", "Mid / High", 500.0, 16000.0, 3200.0, 700.0, 12000.0},
-    {4, "Slope", "Slope", 0.0, 2.0, 2.0, 0.0, 2.0},
-    {5, "Smooth", "Smooth", 0.0, 1.0, 0.0, 0.0, 1.0},
-    {6, "Mix", "Mix", 0.0, 1.0, 1.0, 0.0, 1.0},
-    {7, "DepthLow", "Low Depth", 0.0, 1.0, 1.0, 0.0, 1.0},
-    {8, "DepthMid", "Mid Depth", 0.0, 1.0, 1.0, 0.0, 1.0},
-    {9, "DepthHigh", "High Depth", 0.0, 1.0, 1.0, 0.0, 1.0},
-    {10, "RangeLow", "Low Range", -90.0, 0.0, -60.0, -90.0, -6.0},
-    {11, "RangeMid", "Mid Range", -90.0, 0.0, -60.0, -90.0, -6.0},
-    {12, "RangeHigh", "High Range", -90.0, 0.0, -60.0, -90.0, -6.0},
-    {13, "Rate", "Rate", 0.05, 200.0, 2.0, 0.5, 40.0},
-    {14, "Swing", "Swing", 0.0, 1.0, 0.0, 0.0, 1.0},
-    {15, "PhaseOffset", "Offset", 0.0, 360.0, 0.0, 0.0, 180.0},
-    {16, "SyncMode", "Sync", 0.0, 2.0, 0.0, 0.0, 1.0},
+    {1, "BandCount", "Bands", 0.0, 2.0, 2.0, 0.0, 2.0, -70.0},
+    {2, "CrossoverLowMid", "Low / Mid", 30.0, 2000.0, 220.0, 40.0, 1500.0, -70.0},
+    {3, "CrossoverMidHigh", "Mid / High", 500.0, 16000.0, 3200.0, 700.0, 12000.0, -70.0},
+    {4, "Slope", "Slope", 0.0, 2.0, 2.0, 0.0, 2.0, -70.0},
+    {5, "Smooth", "Smooth", 0.0, 1.0, 0.0, 0.0, 1.0, -70.0},
+    {6, "Mix", "Mix", 0.0, 1.0, 1.0, 0.0, 1.0, -70.0},
+    {7, "DepthLow", "Low Depth", 0.0, 1.0, 1.0, 0.0, 1.0, -70.0},
+    {8, "DepthMid", "Mid Depth", 0.0, 1.0, 1.0, 0.0, 1.0, -70.0},
+    {9, "DepthHigh", "High Depth", 0.0, 1.0, 1.0, 0.0, 1.0, -70.0},
+    {10, "RangeLow", "Low Range", -90.0, 0.0, -60.0, -90.0, -6.0, -70.0},
+    {11, "RangeMid", "Mid Range", -90.0, 0.0, -60.0, -90.0, -6.0, -70.0},
+    {12, "RangeHigh", "High Range", -90.0, 0.0, -60.0, -90.0, -6.0, -70.0},
+    {13, "Rate", "Rate", 0.05, 200.0, 2.0, 0.5, 40.0, -70.0},
+    {14, "Swing", "Swing", 0.0, 1.0, 0.0, 0.0, 1.0, -70.0},
+    {15, "PhaseOffset", "Offset", 0.0, 360.0, 0.0, 0.0, 180.0, -70.0},
+    {16, "SyncMode", "Sync", 0.0, 2.0, 0.0, 0.0, 1.0, -70.0},
 };
 
 /**

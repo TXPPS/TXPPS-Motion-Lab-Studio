@@ -27,23 +27,39 @@ namespace mw::dsp::nl {
  * the next stage and biases *it* — which is how a chain of three stages ends up
  * asymmetric in a way nobody designed and nobody can find, because each stage
  * on its own is correct.
+ *
+ * **The state is a double, and that is load-bearing.** In float32 this filter
+ * stops converging while its output is still visibly wrong, and the mechanism
+ * is worth stating because it looks like nothing: the update is
+ * `s += (1−c)(x − s)`, and once `(1−c)|x − s|` falls below half an ULP of `s`
+ * the addition rounds back to `s` and the filter stalls there for ever. With a
+ * 2 Hz corner at 192 kHz — a stage inside a 4× wrapper — `1−c` is 6.5e−5, so
+ * it stalls with up to 2.8e−5 of the offset left. Divided back out by a drive
+ * of 0.12 that is 2.3e−4 of standing DC on the output, which the Program EQ's
+ * noise-floor test measured as a noise floor 30 dB louder than the manual's.
+ *
+ * The tell was that the offset did not decay: it settled to a constant and sat
+ * there through ten seconds of silence, and it was four times smaller with
+ * oversampling off — which is exactly the ratio of `1−c` at the two rates.
  */
 class DcRestore {
  public:
   void prepare(double sampleRate, float cornerHz) noexcept {
     const double w = 2.0 * 3.14159265358979323846 * static_cast<double>(cornerHz) / sampleRate;
-    coeff_ = static_cast<float>(std::exp(-w));
-    state_ = 0.0f;
+    coeff_ = std::exp(-w);
+    state_ = 0.0;
   }
-  void reset() noexcept { state_ = 0.0f; }
+  void reset() noexcept { state_ = 0.0; }
   float process(float x) noexcept {
-    state_ = flushSmall(coeff_ * state_ + (1.0f - coeff_) * x);
-    return x - state_;
+    const double in = static_cast<double>(x);
+    state_ = coeff_ * state_ + (1.0 - coeff_) * in;
+    if (state_ < 1.0e-300 && state_ > -1.0e-300) state_ = 0.0;
+    return static_cast<float>(in - state_);
   }
 
  private:
-  float coeff_ = 0.999f;
-  float state_ = 0.0f;
+  double coeff_ = 0.999;
+  double state_ = 0.0;
 };
 
 /**

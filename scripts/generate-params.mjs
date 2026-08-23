@@ -85,7 +85,8 @@ function generateCpp(m, file) {
     .map(
       (p) =>
         `    {${p.id}, "${p.symbol}", "${p.name}", ${cppLiteral(p.min)}, ${cppLiteral(p.max)}, ` +
-        `${cppLiteral(p.def)}, ${cppLiteral(p.delta[0])}, ${cppLiteral(p.delta[1])}},`,
+        `${cppLiteral(p.def)}, ${cppLiteral(p.delta[0])}, ${cppLiteral(p.delta[1])}, ` +
+        `${cppLiteral(p.deltaFloorDb ?? -70)}},`,
     )
     .join('\n');
   const cases = m.params
@@ -143,6 +144,19 @@ struct ${m.className}ParamRow {
    */
   double deltaLow;
   double deltaHigh;
+  /**
+   * The difference, in dBFS, that render-delta must exceed for this parameter.
+   *
+   * Per parameter rather than one number for the unit, because a control whose
+   * whole job is to sit at a stated level cannot be graded against a gate above
+   * that level. The Program EQ's noise floor is specified at 92 dB below
+   * +10 dBm — turning it on and off differs by −104 dBFS, which is the
+   * parameter working exactly as its manual says and would read as a dead
+   * setter against a −70 dB gate. Declaring the gate in the manifest keeps that
+   * an explicit claim with a reason beside it, rather than a special case
+   * hidden in a test.
+   */
+  double deltaFloorDb;
 };
 
 inline constexpr int k${m.className}ParamCount = ${m.params.length};

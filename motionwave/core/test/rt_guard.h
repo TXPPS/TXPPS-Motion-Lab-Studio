@@ -73,16 +73,40 @@ class RtGuard {
 // replaceable by the standard, so this is a supported interception rather than
 // a trick. Deliberately not `noexcept`-throwing on failure beyond the standard
 // contract: the point is to observe, not to change behaviour under test.
-inline void* operator new(std::size_t size) {
+//
+// GCC at -O2 pairs a `new` in this translation unit with the *builtin* delete
+// while this replacement takes the allocation, and then reports the `free`
+// below as freeing memory a mismatched allocator returned. It is the optimiser
+// reasoning about a replacement it has already decided to ignore, and the pair
+// here is `malloc`/`free` throughout, which is correct by construction.
+// Suppressed narrowly and only here; nothing else in the tree replaces these.
+//
+// **Not `inline`, deliberately.** A replacement `operator new` may not be
+// inline — [basic.stc.dynamic] says so — and marking it inline lets an
+// optimising compiler pair a `new` in this translation unit with the *global*
+// delete while the replacement takes the allocation, which is a genuine
+// mismatch and which -O2 diagnoses as one. Every test binary includes this
+// header exactly once, so a non-inline definition is a single definition and
+// there is nothing to collide with.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmismatched-new-delete"
+#endif
+
+void* operator new(std::size_t size) {
   ::mw::test::AllocationSpy::note();
   void* p = std::malloc(size == 0 ? 1 : size);
   if (p == nullptr) throw std::bad_alloc();
   return p;
 }
 
-inline void* operator new[](std::size_t size) { return ::operator new(size); }
+void* operator new[](std::size_t size) { return ::operator new(size); }
 
-inline void operator delete(void* p) noexcept { std::free(p); }
-inline void operator delete[](void* p) noexcept { std::free(p); }
-inline void operator delete(void* p, std::size_t) noexcept { std::free(p); }
-inline void operator delete[](void* p, std::size_t) noexcept { std::free(p); }
+void operator delete(void* p) noexcept { std::free(p); }
+void operator delete[](void* p) noexcept { std::free(p); }
+void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+void operator delete[](void* p, std::size_t) noexcept { std::free(p); }
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
