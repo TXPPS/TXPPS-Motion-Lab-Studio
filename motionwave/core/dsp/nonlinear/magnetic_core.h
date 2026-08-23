@@ -220,7 +220,11 @@ class ControlShaper {
   void prepare(double, const Config& config) noexcept { config_ = config; }
   void setConfig(const Config& config) noexcept { config_ = config; }
 
-  float process(float control) noexcept {
+  /// `const`, because this shaper genuinely has none of the state the other
+  /// elements do — it is a static curve on a control signal, and saying so lets
+  /// a unit call it from a const path rather than making that path non-const to
+  /// accommodate a member that never changes.
+  float process(float control) const noexcept {
     return curve(config_.drive * control + config_.bias) / config_.drive;
   }
 

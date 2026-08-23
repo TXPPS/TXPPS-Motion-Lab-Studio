@@ -172,8 +172,25 @@ class RemoteCutoffCell {
 class PhotoresistiveCell {
  public:
   struct Config {
+    /**
+     * The cell's own resistance at each end of its illumination, and the series
+     * element it divides against.
+     *
+     * The series resistance is its *own* number and has to be. An earlier
+     * version reused the lit resistance as the series element, which caps the
+     * divider at exactly −6.02 dB — the two are equal at full illumination, so
+     * the cell can never attenuate past a half — and this unit is specified to
+     * reach 40 dB of gain reduction. The bug is invisible at small reductions
+     * and impossible past six of them.
+     *
+     * Values are normalised rather than in ohms: no citable published figure
+     * for the reference cell's dark and light resistance was found, which §6 of
+     * the sheet records as an outstanding item. What is calibrated is the
+     * *ratio*, against the published 40 dB of available reduction.
+     */
     float darkResistance = 1.0f;
-    float lightResistance = 0.002f;
+    float lightResistance = 1.0e-4f;
+    float seriesResistance = 0.01f;
     float signalDependence = 0.0f;
   };
 
@@ -191,13 +208,13 @@ class PhotoresistiveCell {
     // output would give the same harmonic at one setting and the wrong one at
     // every other.
     const float r = resistanceAt(c) * (1.0f + config_.signalDependence * ax);
-    return x * r / (r + config_.lightResistance);
+    return x * r / (r + config_.seriesResistance);
   }
 
   float gainDb(float conductance) const noexcept {
     const float c = conductance < 0.0f ? 0.0f : (conductance > 1.0f ? 1.0f : conductance);
     const float r = resistanceAt(c);
-    return 20.0f * std::log10(r / (r + config_.lightResistance));
+    return 20.0f * std::log10(r / (r + config_.seriesResistance));
   }
 
  private:
