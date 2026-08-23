@@ -498,10 +498,8 @@
  * gives up its buttons: 2 padding + 18 name + 44 strip = 64 exactly. What row 1
  * held — automation mode, collapse — joins what the strip already sheds into
  * the track menu, which a touch user reaches by long-pressing the header. The
- * strip itself keeps mute, solo, monitor and arm: four at 44 with 4 px between
- * them is 188 px against the 208 px column, which is what it has to fit in.
- * Monitor stays because BUG-002 put it there and a phone is exactly where
- * "am I listening to this input" is hardest to answer from anything else.
+ * strip itself keeps record arm, mute and monitor — see the rule below for why
+ * solo is the one that leaves rather than monitor.
  *
  * Growing `LANE_H` instead was the other way out and is the wrong one: it buys
  * a taller header by showing fewer tracks, on the devices that already show
@@ -525,7 +523,21 @@
     margin-top: 0;
   }
   .th-controls .th-vol,
-  .th-controls .knob {
+  .th-controls .knob,
+  /*
+   * Solo, not Monitor, is what the strip sheds on a phone.
+   *
+   * Four 44 px targets and their gaps are 188 px against a 208 px column, so
+   * one of the five has to go into the track menu. Directive 03 §1 settles
+   * which: on a phone the arrangement is most often being used to *track*, and
+   * while tracking "am I hearing this input" is a control you reach for far
+   * more often than "silence everything else". Solo is also the one with a
+   * loud global alternative — the solo-clear in the transport — where an
+   * unnoticed monitor state is silent by definition.
+   *
+   * Visible on a phone: Record arm, Mute, Monitor.
+   */
+  .th-controls .th-solo {
     display: none;
   }
   /* Row 1 is text: the name, its type icon and its badges, nothing pressable. */

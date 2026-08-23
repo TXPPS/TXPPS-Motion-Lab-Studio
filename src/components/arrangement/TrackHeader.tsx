@@ -352,7 +352,7 @@ export const TrackHeader = memo(function TrackHeader({
             M
           </button>
           <button
-            className={`th-mini${track.solo ? ' s-on' : ''}`}
+            className={`th-mini th-solo${track.solo ? ' s-on' : ''}`}
             title="Solo"
             aria-label={`Solo ${track.name}`}
             aria-pressed={track.solo}

@@ -1872,13 +1872,36 @@
 .pw-ab button:hover:not(.on) {
   color: var(--text);
 }
+/*
+ * The one control that dismisses a device window, so on touch it has to be
+ * reachable. It was 17x17 against a 44 pt minimum (RA-005), which on a phone
+ * left the editor with no way out at all — the window covers the console it
+ * was opened from, and Escape needs a keyboard.
+ *
+ * The visual glyph stays small; what grows is the target. A 44 pt X in a
+ * toolbar of 17 pt icons would be the loudest thing in the window.
+ */
 .pw-close {
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 2px;
   border: 0;
   background: none;
   color: var(--text-dim);
+}
+@media (pointer: coarse) {
+  .pw-close,
+  .pw-ab button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  /* The header has to be tall enough to hold them, or the strip clips the way
+     the track header did — the same arithmetic, one panel over. */
+  .pw-head {
+    height: auto;
+    min-height: 48px;
+  }
 }
 .pw-close:hover {
   color: var(--text);

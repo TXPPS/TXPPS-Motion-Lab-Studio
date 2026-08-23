@@ -31,6 +31,9 @@ import type { Rect } from './windowPlace';
  */
 const PREFERRED_POS = { x: 220, y: 120 };
 
+/** How far the header must be thrown downward before a drag counts as a dismiss. */
+const SWIPE_CLOSE_PX = 120;
+
 /**
  * The A/B slots.
  *
@@ -111,19 +114,38 @@ export function PluginWindow() {
     return { width: el?.offsetWidth || 320, height: el?.offsetHeight || 240 };
   }, []);
 
+  /**
+   * Swipe the header down to dismiss, on touch.
+   *
+   * The header is already the drag handle, so this rides on the same gesture
+   * rather than adding a second one: drag it and the window moves, throw it
+   * downward and it closes. `SWIPE_CLOSE_PX` is far enough that repositioning a
+   * window low on the screen does not dismiss it by accident.
+   */
+  const swipe = useRef({ dy: 0, touch: false });
+
   const onHeaderDown = usePointerDrag<{ x: number; y: number }>({
-    onStart: () => pos,
-    onMove: (dx, dy, _e, start) =>
+    onStart: (e) => {
+      swipe.current = { dy: 0, touch: e.pointerType === 'touch' };
+      return pos;
+    },
+    onEnd: () => {
+      if (swipe.current.touch && swipe.current.dy > SWIPE_CLOSE_PX) close();
+    },
+    onMove: (dx, dy, _e, start) => {
+      swipe.current.dy = dy;
+      return
       // Kept inside the viewport: a plugin dragged off the edge is a plugin
       // that has to be found again with the keyboard. Clamped against the
       // window's real width — the old constant 220 was neither the window's
       // width nor related to it, so a wide device could still be dragged out.
-      setPos(
-        clampToViewport({ x: start.x + dx, y: start.y + dy }, measure(), {
-          width: window.innerWidth,
-          height: window.innerHeight,
-        }),
-      ),
+        setPos(
+          clampToViewport({ x: start.x + dx, y: start.y + dy }, measure(), {
+            width: window.innerWidth,
+            height: window.innerHeight,
+          }),
+        );
+    },
   });
 
   // Place on open, and re-place whenever the viewport changes underneath it.
