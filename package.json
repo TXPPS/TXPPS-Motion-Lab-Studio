@@ -25,6 +25,8 @@
     "ledger-guard": "node scripts/ledger-guard.mjs",
     "params": "node scripts/generate-params.mjs",
     "params:check": "node scripts/generate-params.mjs --check",
+    "windows": "node scripts/generate-window-tables.mjs",
+    "windows:check": "node scripts/generate-window-tables.mjs --check",
     "build:wasm": "bash motionwave/wasm/build.sh",
     "scope-guard": "node scripts/scope-guard.mjs"
   },

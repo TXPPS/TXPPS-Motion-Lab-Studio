@@ -2,13 +2,33 @@
 
 ```
 RESUME: Directive 06
-Current unit:  None. R2 reported at Console EQ SHIPPING.
-Last PASS:     All five dynamics units at 24/24, plus the Motion Shaper. Native
-               ctest 29/29, UI 277/277 including one X24 integration test per
-               unit, e2e 11/11 including U21 and U22 for every face.
-Next action:   Directive 06's next block — the grain engine, then Granular
-               Reverb and Granular Delay and Slipstream (R3); then the voice
-               substrate and the five synths (R4).
+Current unit:  Grain engine — core done, 15 of 21 GE rows measuring.
+Last PASS:     GE-01,02,03,05 (engine), GE-08,09,10,12,14,15,16,19 (pool and
+               real-time), GE-13,17,18 (visualiser). Native 32/32.
+Next action:   GE-04, GE-11 and GE-21 alongside the reverb; GE-06 and GE-07 need
+               a unit around the engine and land with it. Then Granular Reverb,
+               Granular Delay, the voice substrate, and Slipstream.
+BUILD ORDER CORRECTED (user, before R3): the voice substrate is built DURING
+               Slipstream and proven through it, the way the nonlinear library
+               was built during Program EQ — not after Slipstream. Slipstream is
+               the first instrument and needs I13-I18 (polyphony and stealing,
+               stuck-note fuzz, panic, MPE, preset audition, tuning), which is
+               exactly what the substrate provides. Design it for SIX consumers
+               from the start and let Slipstream be its first, rather than
+               building a sampler-shaped voice system and extracting a library
+               from it afterwards.
+               It must close three bugs BY CONSTRUCTION, not by convention:
+                 - BUG-004/005: the note-off identity is fixed at press time and
+                   never recomputed at release; pointer-cancel, blur, tab-hide,
+                   unmount and octave-shift-while-held all release.
+                 - PA-003: the voice ceiling holds under chords, and stealing
+                   walks distinct voices.
+               For the granular pair: the grain pool is pre-allocated with a
+               fixed ceiling (done — 256 slots, §5.6's arithmetic, GE-08 asserts
+               dropped == 0), and U20 requires the visualiser to read real grain
+               state, so the publish path was designed alongside the engine
+               rather than after it (done — GE-17 measures the published
+               position against the render's to 0.0007 samples).
 Units done:    Motion Shaper     SHIPPING 24/24.
                Program EQ        SHIPPING 24/24, 13/13 sheet rows.
                Optical Leveller  SHIPPING 24/24, 13/13 sheet rows.
@@ -29,6 +49,7 @@ Shared libraries built:
                core/dsp/timing_network.h  chained storage elements; dyn-04 pos 5/6
                core/dsp/bridged_t.h     proportional-Q RC bands + band-pass
                core/dsp/inductor_section.h  LC bell/shelf, third-order high-pass
+               core/dsp/grain/            windows, pool, scheduler, engine, visual
                wasm/unit_bridge.h       one boundary shape for every unit
                ui/test/x24_driver.ts    X24's mechanics, once, for every unit
                core/dsp/nonlinear/      curve, stages, variable gain, FET, core,
