@@ -138,7 +138,7 @@ configuration in which sustaining is reachable, or it tests nothing.
 | `voice/mod_grid.h`        | the control-rate grid and `ModFrame`            | 190    |
 | `voice/drift.h`           | `DriftModel`, the OU walk, tune events          | 210    |
 | `voice/mpe.h`             | zones, channel state, dimension routing         | 300    |
-| `voice/portamento.h`      | `Glide`, the four modes, the three laws         | 200    |
+| `voice/portamento.h`      | `Glide`, the duration law, the shapes, stagger  | 260    |
 | `voice/specs.h`           | `ParamSpec` writers and block binding           | 240    |
 
 ---
@@ -222,7 +222,7 @@ class VoiceSet {
   ///
   /// There is deliberately no public `stealOne`, no `selectVictims`, and no
   /// `victims(int n, VoiceId* out)`. Invariant I-C is that a victim leaves the
-  /// allocated set before anyone can see it, and an API that handed out a list
+  /// allocated set before anyone can see it, and an interface that handed out a list
   /// would let a caller reconstruct PA-003 in three lines.
   VoiceId allocate(NoteId note) noexcept;
 
@@ -562,52 +562,117 @@ class MpeRouter {
 
 // ============================================================ portamento
 
-enum class GlideMode : std::uint8_t {
+enum class GlideTrigger : std::uint8_t {
   Off,
-  /// One glide state for the instrument. A monophonic line.
-  Mono,
-  /// Each voice glides from the note **that voice** last played. This is what
-  /// "multi-portamento" means and it is the sampler's requirement: with five
-  /// voices and five different previous notes there are five different starting
-  /// pitches, and a single shared last-note state gives one.
-  PolyPerVoice,
-  /// Each new note glides from the nearest currently or most recently sounding
-  /// pitch, which is what a chord change wants.
-  PolyNearest,
+  /// Every note glides from where its own voice currently is.
+  On,
+  /// Only when the new note overlaps a held one — fingered portamento. Overlap
+  /// is asked of `NoteRegistry`, which already owns the held set, so a glide and
+  /// an arpeggiator cannot disagree about whether a key was down.
+  Legato,
 };
 
-enum class GlideLaw : std::uint8_t {
-  ConstantRate,   ///< time proportional to interval
-  ConstantTime,   ///< every transition takes the same time regardless of distance
-  Exponential,    ///< slew toward the target
+/// Shape of the pitch travel, independent of how long it takes.
+///
+/// Shape and duration law are separate controls because they answer separate
+/// questions, and conflating them — an "exponential" that is both a curve and a
+/// timing rule — is what makes a glide that never arrives.
+enum class GlideShape : std::uint8_t {
+  Linear,
+  /// `(1 − e^(−3.5u)) / (1 − e^(−3.5))`. Fast then slow, the shape a first-order
+  /// slew circuit makes, **normalised over 3.5 time constants so `s(1) = 1`
+  /// exactly**. The obvious implementation — a one-pole slewing toward the
+  /// target — never arrives, leaves the note permanently flat by a fraction of
+  /// a cent, and beats against the voices that arrived. The same constant and
+  /// the same fix as the envelope's exponential segments, so one curve serves
+  /// both.
+  Rc,
+  /// `0.5·(1 − cos πu)`. Zero pitch velocity at both ends. The default whenever
+  /// stagger is non-zero: with staggered arrivals a linear law puts a corner in
+  /// each voice's pitch trace at its own arrival instant, and the ear hears four
+  /// little stops rather than one gesture.
+  SCurve,
 };
+
+/// How per-voice duration offsets are derived. All three are specified because
+/// they sound different and each answers a real question.
+enum class StaggerMode : std::uint8_t {
+  /// Deterministic, by position in the chord: voices sorted by target pitch get
+  /// durations spread symmetrically about the nominal.
+  Spread,
+  /// Derived from each voice's own interval. At `kappa == 1` it is 1 for every
+  /// voice, because a constant-rate glide already staggers arrival by interval.
+  /// This mode is what puts that natural stagger back under constant time —
+  /// stagger is not an effect bolted onto portamento, it is the part of
+  /// constant-rate portamento that constant time throws away.
+  IntervalDerived,
+  /// Each allocator **slot** carries an offset drawn once at construction from
+  /// the seeded generator. Reproduces documented hardware in which a different
+  /// component value was fitted per voice, so the voices spread into different
+  /// pitches during a slide before converging. Because the offsets belong to
+  /// slots rather than to notes, the same chord glides identically twice while a
+  /// repeated note landing on a different slot glides differently — the same
+  /// round-robin character §5.1 argues for, arriving for free.
+  VoiceFixed,
+};
+
+enum class StaggerOrder : std::uint8_t { LowFirst, HighFirst, OutsideIn, InsideOut, PlayOrder };
 
 struct GlideConfig {
-  GlideMode mode = GlideMode::Off;
-  GlideLaw law = GlideLaw::ConstantRate;
-  float rateSemitonesPerSecond = 24.0f;
-  float timeSeconds = 0.100f;
-  /// Glide only when notes overlap — fingered portamento. Overlap is asked of
-  /// `NoteRegistry`, which already owns the held set, so a glide and an
-  /// arpeggiator cannot disagree about whether a key was down.
-  bool legatoOnly = false;
+  GlideTrigger trigger = GlideTrigger::Off;
+  GlideShape shape = GlideShape::Rc;
+  StaggerMode staggerMode = StaggerMode::Spread;
+  StaggerOrder staggerOrder = StaggerOrder::LowFirst;
+  /// Nominal duration for a twelve-semitone glide, seconds.
+  float timeSeconds = 0.400f;
+  /// One continuous duration law. `0` is constant time, `1` is constant rate.
+  /// A two-way switch would force a choice between two laws that are each wrong
+  /// in a documented way: with constant time, a glide right for an octave makes
+  /// a whole tone too short to notice; with constant rate, the same glide makes
+  /// a whole tone too slow and it wails. One `pow` per note-on removes the
+  /// argument.
+  float kappa = 0.5f;
+  /// Stagger depth, 0..1.
+  float stagger = 0.0f;
+  std::uint64_t seed = 0x14057B7EF767814Full;
 };
 
 class Glide {
  public:
-  void prepare(double sampleRate, int voices, void* storage, std::size_t bytes) noexcept;
+  void prepare(double sampleRate, int voices, const GlideConfig& config,
+               void* storage, std::size_t bytes) noexcept;
   void setConfig(const GlideConfig& config) noexcept;
   void reset() noexcept;
 
-  void start(VoiceId voice, float fromNote, float toNote, bool anotherKeyHeld) noexcept;
-  float advance(VoiceId voice, int frames) noexcept;
-  float note(VoiceId voice) const noexcept;
+  /// Begins a glide on one voice.
+  ///
+  /// There is no `fromNote` parameter, and its absence is the point: **the
+  /// origin is where the voice actually is**, which `Glide` already holds. A
+  /// caller that could pass an origin would eventually pass the previous
+  /// *note*, and a voice interrupted mid-glide would jump to a new ramp instead
+  /// of smearing continuously — the sampler sheet names that as its first
+  /// portamento failure mode and it is one line of state to get wrong.
+  void start(VoiceId voice, float toNote, bool anotherKeyHeld) noexcept;
 
-  /// False once the glide has arrived. An exponential law never arrives, so the
-  /// glide **snaps** within 0.5 cents and clears this flag; without the snap a
-  /// voice glides forever, the drift model's random walk rides on a target that
-  /// is still moving, and every downstream consumer takes its slow path for the
-  /// life of the note.
+  /// Called once per chord, after every `start` in it, so the stagger modes
+  /// that need the whole chord — the sort in `Spread`, the mean interval in
+  /// `IntervalDerived` — have it. A chord is the note-ons that arrived in one
+  /// block; a stagger computed per note could not see the others.
+  void commitChord() noexcept;
+
+  /// Writes `frames` of per-sample pitch, in semitones.
+  ///
+  /// Per sample, not one value per block: a per-block pitch produces zipper
+  /// noise at exactly the rate the host's buffer size sets, so the artefact
+  /// moves when the user changes their buffer and reads as an environment
+  /// problem. This is ADR-0004's argument for `ParamBlock`, one layer down.
+  void render(VoiceId voice, float* pitchOut, int frames) noexcept;
+
+  float note(VoiceId voice) const noexcept;
+  /// Duration this voice's glide was given, for the UI's arrival display.
+  float durationSeconds(VoiceId voice) const noexcept;
+  /// max(arrival) − min(arrival) across the last chord, seconds.
+  float arrivalSpread() const noexcept;
   bool gliding(VoiceId voice) const noexcept;
 };
 
@@ -909,35 +974,118 @@ Three smaller rules, each of which has produced a bug somewhere:
 
 ### 5.6 Portamento
 
-Three laws:
+**The glide runs in semitones — the log-frequency domain — always.** A glide
+linear in hertz from C2 to C4 spends more than half its time in the top octave
+and sounds like a mistake. Working in semitones also drops the glide straight
+into (7)'s pitch sum, where it is exponentiated exactly once along with
+everything else.
+
+**The glide touches only the note term of (7).** If it smoothed the whole sum,
+pitch bend, vibrato and per-note MPE bend would all be dragged through the
+glide's time constant, and a two-second glide time would give the pitch wheel two
+seconds of lag. Players read that as a broken controller, not as a portamento
+setting.
+
+**Duration is one continuous law, not a two-way switch.** With `d` the interval
+in semitones, `T` the glide time, `κ` the law control and `δᵥ` the per-voice
+offset:
 
 ```
-    ConstantRate:  t = |Δ| / rate                                             (8)
-    ConstantTime:  t = timeSeconds,     independent of |Δ|                    (9)
-    Exponential:   p[n] = p[n−1] + (target − p[n−1])·(1 − e^(−Δt/τ))         (10)
+    durationᵥ = clamp( T · (d/12)^κ · δᵥ ,  1 ms ,  30 s )                  (11)
 ```
 
-(10) never arrives, so the glide **snaps** when `|target − p| < 0.005` semitones
-(0.5 cents, below the just-noticeable difference at every pitch) and clears
-`gliding`. Without the snap, three things go wrong at once and none of them looks
-like a portamento bug: the voice never reports a settled pitch, the drift walk of
-§5.4 rides on a moving target, and every downstream consumer takes its
-interpolating path for the life of the note.
+`κ = 0` is constant time and `κ = 1` is constant rate. Both classical laws are
+documented and so is the complaint against each: if a constant-time glide is
+right for an octave then a whole tone is too short to notice, and if a
+constant-rate glide is right for an octave then a whole tone is too slow and
+wails. Neither is correct in general, so the control is `κ` rather than a switch
+— one `pow` per note-on and the argument goes away.
 
-Four modes, and what each is for:
+The clamps are not decoration. A glide shorter than a millisecond is a click with
+extra steps, and a glide that outlives its note is a stuck voice waiting to be
+reported as a bug.
 
-- `Mono` — one glide state. A monophonic lead.
-- `PolyPerVoice` — **multi-portamento**. Each voice glides from the note that
-  voice last played. Five voices with five different previous notes give five
-  different starting pitches; a single shared last-note state gives one, and the
-  chord arrives as a unison sweep instead of five independent lines. This is the
-  sampler's stated requirement and it is the reason glide state is per voice
-  rather than per instrument.
-- `PolyNearest` — glides from the nearest currently or recently sounding pitch,
-  which is what a chord change wants.
-- `legatoOnly` — the glide starts only if another key was down at the moment of
-  the press. The held set comes from `NoteRegistry`, which already owns it, so
-  the glide and the arpeggiator cannot disagree about whether a key was down.
+**Shape is separate from duration**, and (11) says nothing about the path:
+
+```
+    pitch(u) = origin + d · s(u),      u = elapsed / duration ∈ [0,1]
+    Linear:   s(u) = u
+    RC:       s(u) = (1 − e^(−3.5u)) / (1 − e^(−3.5))                       (12)
+    S-curve:  s(u) = 0.5·(1 − cos πu)                                       (13)
+```
+
+(12)'s normalisation is the whole point of writing it out. A one-pole slewing
+toward the target **never arrives**: it approaches asymptotically, the note sits
+permanently flat by a fraction of a cent, and two voices glide-locked to the same
+target never quite lock. The physical circuit has the same property and it does
+not matter there because the residue disappears into thermal noise; here it
+disappears into a beat against the other voices. Normalising over 3.5 time
+constants so `s(1) = 1` exactly is the same fix (3) applies to the envelope's
+exponential segments, which is why one curve implementation serves both.
+
+**Arrival must be exact to 0.1 cent**, and that number is derived rather than
+chosen. 0.1 cent at 440 Hz is a 0.025 Hz beat — one cycle every 39 seconds,
+longer than any note. Five cents is a 1.27 Hz beat, plainly audible as chorusing
+on a sustained chord, and five cents is roughly what an un-normalised RC glide
+leaves behind. VS-26 asserts 0.1 cent and it is the test (12) exists to pass.
+
+**The origin is where the voice actually is, not where its previous note was.**
+A voice interrupted mid-glide continues from its instantaneous pitch, which is
+what makes a fast passage smear continuously instead of jumping to a new ramp.
+This is one line of state and it is easy to get wrong by storing the previous
+_note_ instead — which is why `Glide::start` has no `fromNote` parameter at all.
+A caller that could supply an origin would eventually supply the wrong one.
+
+**Multi-portamento** is per-voice offsets and therefore staggered arrival: when
+notes replace notes while glide is engaged, each sounding voice glides on its own
+origin, its own duration and therefore its own arrival time. The chord does not
+move as a block; it unfurls.
+
+Three derivations of `δᵥ`, because they sound different:
+
+```
+    Spread:           δᵢ = 1 + S·(2i/(V−1) − 1),   V > 1;   δ = 1 when V = 1  (14)
+    IntervalDerived:  δᵢ = (dᵢ / d̄)^(1−κ)                                    (15)
+    VoiceFixed:       δ drawn once per allocator slot, uniform in [1−S, 1+S]  (16)
+```
+
+with `δᵢ` floored at 0.05 and `i` the voice's index after sorting by the
+`StaggerOrder` key — only the sort key changes between orders; (14) is untouched.
+
+(15) is the one that makes the feature comprehensible. At `κ = 1` it is 1 for
+every voice, because **a constant-rate glide already staggers arrival by
+interval**, and that stagger is the natural one. Stagger is not an effect bolted
+onto portamento; it is the part of constant-rate portamento that constant time
+throws away, put back where it can be controlled independently of the law.
+
+(16) belongs to allocator **slots**, not to notes, and is drawn from the seeded
+generator at construction — so the same chord glides identically twice while a
+repeated note landing on a different slot glides differently. That is the same
+round-robin character §5.1 argues for, arriving for free, and the seeding is what
+keeps a bounce and a live pass identical.
+
+Worked example, used verbatim as VS-27. Four voices, equal intervals so `κ`
+cannot matter, `T = 400 ms`, `κ = 0`, `Spread`, `S = 0.5`, `LowFirst`:
+
+| Voice | `δᵢ`   | Duration     |
+| ----- | ------ | ------------ |
+| 0     | 0.5000 | **200.0 ms** |
+| 1     | 0.8333 | **333.3 ms** |
+| 2     | 1.1667 | **466.7 ms** |
+| 3     | 1.5000 | **600.0 ms** |
+
+Arrival spread **400.0 ms**, arrival order exactly 0, 1, 2, 3.
+
+**`V = 1` must give `δ = 1`, not `1 − S`.** Otherwise the stagger control audibly
+changes monophonic glide time, which nobody expects and which reads as the
+stagger control being broken rather than as the law being asymmetric. It is one
+branch in (14) and VS-28 asserts it.
+
+**Pitch is written per sample, not per block.** A per-block pitch produces zipper
+noise at exactly the rate the host's buffer size sets, so the artefact moves when
+a user changes their buffer and reads as an environment problem rather than as a
+glide bug. `Glide::render` therefore fills a per-sample array, and the mod grid
+of §4 interpolates every other pitch contribution into the same array.
 
 ---
 
@@ -1086,52 +1234,61 @@ Executable claims. Ledger cells — these map onto the instrument columns `I13`
 polyphony and stealing, `I14` stuck-note fuzz, `I15` panic clears, `I16` MPE and
 `I18` tuning. Run through `renderOffline` at 48 kHz unless stated.
 
-| ID    | Measurement                                                                                                                                                     | Method                                                                | Pass criterion                                                                                                                                                                                                                        |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| VS-01 | **Voice cap.** 60 note-ons at one instant, capacity 24. Repeat with 80 against 48.                                                                              | `liveCount()`, `stealCount()`.                                        | `liveCount() == 24` **exactly**; `stealCount() == 36` **exactly**. Second case: 48 and 32. This is PA-003 made executable.                                                                                                            |
-| VS-02 | **Partition integrity.** After 100 000 randomised allocate/release/retire/steal operations.                                                                     | Walk the permutation.                                                 | Every `VoiceId` appears **exactly once** across free ∪ allocated; `liveCount()` equals the allocated span; **zero** duplicates. Mutation: replace the partition with a boolean flag per voice and this case must fail by name.        |
-| VS-03 | **Stuck-note fuzz.** 5000 seeded events over four instruments: 4400 presses, 4000 releases, 1000 cancels, 500 octave shifts, 20 panics, 200 damper transitions. | Replay from the seed on failure.                                      | **0** held notes; **0** unmatched note-ons; `sustainingCount() == 0` at the end. Non-vacuity: the run must reach `sustainingCount() > 0` at least 500 times mid-run, or the configuration cannot sustain and the test proves nothing. |
-| VS-04 | **A release names the press.** 1000 presses, each followed by a randomised transpose or octave change, then a release.                                          | Compare the returned `NoteId` against the minted one.                 | Equal in **1000 of 1000**. This is BUG-005 made executable.                                                                                                                                                                           |
-| VS-05 | **Ghost note-off.** Steal voice V from note A with note B, then deliver note-off for A.                                                                         | `sustainingCount()`, `voiceOf(B)`.                                    | `releaseNote(A)` returns **false**; `sustainingCount() == 1`; B still owns V.                                                                                                                                                         |
-| VS-06 | **Damper does not extend identity.** Damper down, 12 notes pressed and released, then damper up.                                                                | Three counts at each step.                                            | Immediately after release: `heldCount() == 0`, bound channels **0**, `sustainingCount() == 12`. Within **1 block** of damper up: `sustainingCount() == 0`.                                                                            |
-| VS-07 | **Block-size invariance.** 10 s of a 16-voice pattern, block sizes 16, 17, 64, 128, 1024.                                                                       | `peakDifference` against the 128 render.                              | ≤ **6e−8** (half a Float32 step).                                                                                                                                                                                                     |
-| VS-08 | **Sample-rate independence.** The same patch at 44.1, 48, 96, 192 kHz.                                                                                          | Time from note-on to −60 dB.                                          | Equal across the four rates within **±0.5 %**.                                                                                                                                                                                        |
-| VS-09 | **Rate-driven zero-distance segment.** `L1 == L2`, rate R across 0..99.                                                                                         | Segment duration in samples.                                          | **> 0** at every rate; for R > 76, duration ≤ `20·(99 − R)` samples ± 20 %. A model that advances instantly through a zero-distance segment fails.                                                                                    |
-| VS-10 | **Decibel-domain decay is straight.** Domain `Decibel`, R = 50, decay from 0 to −96 dB.                                                                         | Linear regression of level(dB) against time.                          | **R² ≥ 0.999**; slope **64.8 dB/s ± 5 %**. A linear-in-amplitude interpolation gives R² well below 0.9.                                                                                                                               |
-| VS-11 | **Attack ends at one time constant.** DCO-polysynth attack shape.                                                                                               | Level at x = 0.5 and x = 1.0.                                         | `L(1.0) = 1.000 ± 0.001`; `L(0.5) = 0.6225 ± 0.002` (= (1 − e^−0.5)/0.632).                                                                                                                                                           |
-| VS-12 | **Decay duration independent of sustain.** Same envelope at sustain 0.0 and 0.5, decay control fixed.                                                           | Duration of the decay segment.                                        | The two differ by ≤ **15 %**. A textbook capacitor model differs by ~50 % and fails.                                                                                                                                                  |
-| VS-13 | **LFO scope.** Two voices started 250 ms apart, instrument-scoped LFO; then voice-scoped with `Single` retrigger.                                               | Phase difference between the two voices' LFO outputs.                 | Instrument scope: **0.000 ± 1e−6**. Voice scope: equal to 250 ms × rate, modulo 1, ± 1e−4.                                                                                                                                            |
-| VS-14 | **Two-stage LFO delay.** Delay 0.85 s, fade 0.188 s.                                                                                                            | Output envelope after note-on.                                        | Output is **exactly 0** for 0.85 s ± 5 %; reaches 0.99 of full depth 0.188 s ± 5 % later. A one-stage model has no zero region and fails the first half.                                                                              |
-| VS-15 | **Maximum, not sum.** Pitch modulation depth with LFO and wheel both at full.                                                                                   | Peak pitch deviation.                                                 | Within **2 %** of the larger contribution; at least **40 % below** their sum.                                                                                                                                                         |
-| VS-16 | **Drift determinism.** Two full renders, same seed, separate processes; then a render of bars 33–40 against the tail of a render of bars 1–40.                  | `peakDifference`.                                                     | Same seed: **exactly 0.0f**. Song-position case: **exactly 0.0f**. Then change only the seed and assert the difference exceeds −40 dBFS, so the test is not passing on an engine that ignores drift.                                  |
-| VS-17 | **Drift off by default.** `vintage = 0`, two voices on the same key.                                                                                            | Null one voice against the other.                                     | Residual ≤ **−140 dBFS**. The divider-derived instrument must be exact.                                                                                                                                                               |
-| VS-18 | **Drift magnitude and correlation.** `vintage = 1`, 600 s of song time.                                                                                         | Standard deviation of pitch deviation; autocorrelation of the series. | σ = **3.0 cents ± 10 %**; autocorrelation crosses 1/e at **30 s ± 15 %**. Repeat at grid strides 16, 32, 64 and assert σ changes by ≤ 3 % — that is the test that (5) is the exact OU step and not an Euler one.                      |
-| VS-19 | **Tuning-error shape.** `vintage = 1`, immediately after `tune()`, sample every semitone C0–C8.                                                                 | RMS deviation per octave.                                             | RMS below C3 is **≥ 2.5×** RMS above C3; RMS immediately after `tune()` is ≤ **0.4 cents**. Uniform random detune fails the first.                                                                                                    |
-| VS-20 | **MPE sensitivity defaults.** Configuration message, then a full member bend and a full master bend.                                                            | Pitch deviation in semitones.                                         | Member: **48.00 ± 0.01**. Master: **2.00 ± 0.01**.                                                                                                                                                                                    |
-| VS-21 | **MPE snapshot.** Set channel 3 bend to +12 semitones with nothing sounding, then note-on channel 3.                                                            | Starting pitch.                                                       | **+12.00 semitones ± 0.01** at the first sample of the note.                                                                                                                                                                          |
-| VS-22 | **MPE release isolation.** Note-off on channel 3, then a full member bend on channel 3 during the release tail.                                                 | Pitch of the releasing voice.                                         | Changes by **0.000 semitones**. Then note-on a new note on channel 3 and assert _it_ starts bent — so the test is not passing on a router that dropped channel 3 entirely.                                                            |
-| VS-23 | **Zone truncation.** Lower zone 10 members, then upper zone 10 members.                                                                                         | Both zones' channel sets.                                             | The two sets are **disjoint**; total members ≤ **14**; the lower zone was truncated, not the message ignored.                                                                                                                         |
-| VS-24 | **Note-on velocity 0.**                                                                                                                                         | Registry and voice state.                                             | Treated as note-off; release velocity **64/127 ± 1/127**.                                                                                                                                                                             |
-| VS-25 | **Portamento laws.** A 1-semitone and a 24-semitone glide, in `ConstantTime` and in `ConstantRate`.                                                             | Time to arrive.                                                       | `ConstantTime`: the two are equal within **1 ms**. `ConstantRate`: ratio **24:1 ± 2 %**.                                                                                                                                              |
-| VS-26 | **Glide snaps.** `Exponential` law, 12-semitone glide.                                                                                                          | `gliding()` and the final pitch.                                      | `gliding()` becomes false within **0.005 semitones** of the target, and the reported pitch is then **bit-exactly** the target.                                                                                                        |
-| VS-27 | **Multi-portamento.** `PolyPerVoice`, three voices with three different previous notes, then a three-note chord.                                                | Starting pitch of each glide.                                         | The three starting pitches equal the three previous notes **exactly**. With `Mono` the same case gives one starting pitch, which the test asserts as the contrast.                                                                    |
-| VS-28 | **Panic clears.** `panic()` from the audio thread with 16 voices sounding.                                                                                      | Counts and samples.                                                   | `sustainingCount() == 0` **in the same block**; no per-sample first difference exceeds `peak/(0.0015·fs)` — i.e. the declick envelope was applied and there is no step.                                                               |
-| VS-29 | **Capacity change under load.** 16 voices sounding, `setCapacity(8)`.                                                                                           | Counts across the transition.                                         | **Zero** sounding voices cut; `liveCount()` stays 16 until notes release; the 9th subsequent allocation steals rather than exceeding 8.                                                                                               |
-| VS-30 | **Zero allocations in process.** `RtGuard` over the seven cases of §6.2.                                                                                        | `guard.allocations()`.                                                | **0** in each. Mutation-tested: a deliberate `new` in `allocate` fails the case by name.                                                                                                                                              |
-| VS-31 | **One allocation in prepare.** `RtGuard` across the instrument's whole `prepare()`.                                                                             | `guard.allocations()`.                                                | **Exactly 1.**                                                                                                                                                                                                                        |
+| ID    | Measurement                                                                                                                                                     | Method                                                                     | Pass criterion                                                                                                                                                                                                                                                        |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VS-01 | **Voice cap.** 60 note-ons at one instant, capacity 24. Repeat with 80 against 48.                                                                              | `liveCount()`, `stealCount()`.                                             | `liveCount() == 24` **exactly**; `stealCount() == 36` **exactly**. Second case: 48 and 32. This is PA-003 made executable.                                                                                                                                            |
+| VS-02 | **Partition integrity.** After 100 000 randomised allocate/release/retire/steal operations.                                                                     | Walk the permutation.                                                      | Every `VoiceId` appears **exactly once** across free ∪ allocated; `liveCount()` equals the allocated span; **zero** duplicates. Mutation: replace the partition with a boolean flag per voice and this case must fail by name.                                        |
+| VS-03 | **Stuck-note fuzz.** 5000 seeded events over four instruments: 4400 presses, 4000 releases, 1000 cancels, 500 octave shifts, 20 panics, 200 damper transitions. | Replay from the seed on failure.                                           | **0** held notes; **0** unmatched note-ons; `sustainingCount() == 0` at the end. Non-vacuity: the run must reach `sustainingCount() > 0` at least 500 times mid-run, or the configuration cannot sustain and the test proves nothing.                                 |
+| VS-04 | **A release names the press.** 1000 presses, each followed by a randomised transpose or octave change, then a release.                                          | Compare the returned `NoteId` against the minted one.                      | Equal in **1000 of 1000**. This is BUG-005 made executable.                                                                                                                                                                                                           |
+| VS-05 | **Ghost note-off.** Steal voice V from note A with note B, then deliver note-off for A.                                                                         | `sustainingCount()`, `voiceOf(B)`.                                         | `releaseNote(A)` returns **false**; `sustainingCount() == 1`; B still owns V.                                                                                                                                                                                         |
+| VS-06 | **Damper does not extend identity.** Damper down, 12 notes pressed and released, then damper up.                                                                | Three counts at each step.                                                 | Immediately after release: `heldCount() == 0`, bound channels **0**, `sustainingCount() == 12`. Within **1 block** of damper up: `sustainingCount() == 0`.                                                                                                            |
+| VS-07 | **Block-size invariance.** 10 s of a 16-voice pattern, block sizes 16, 17, 64, 128, 1024.                                                                       | `peakDifference` against the 128 render.                                   | ≤ **6e−8** (half a Float32 step).                                                                                                                                                                                                                                     |
+| VS-08 | **Sample-rate independence.** The same patch at 44.1, 48, 96, 192 kHz.                                                                                          | Time from note-on to −60 dB.                                               | Equal across the four rates within **±0.5 %**.                                                                                                                                                                                                                        |
+| VS-09 | **Rate-driven zero-distance segment.** `L1 == L2`, rate R across 0..99.                                                                                         | Segment duration in samples.                                               | **> 0** at every rate; for R > 76, duration ≤ `20·(99 − R)` samples ± 20 %. A model that advances instantly through a zero-distance segment fails.                                                                                                                    |
+| VS-10 | **Decibel-domain decay is straight.** Domain `Decibel`, R = 50, decay from 0 to −96 dB.                                                                         | Linear regression of level(dB) against time.                               | **R² ≥ 0.999**; slope **64.8 dB/s ± 5 %**. A linear-in-amplitude interpolation gives R² well below 0.9.                                                                                                                                                               |
+| VS-11 | **Attack ends at one time constant.** DCO-polysynth attack shape.                                                                                               | Level at x = 0.5 and x = 1.0.                                              | `L(1.0) = 1.000 ± 0.001`; `L(0.5) = 0.6225 ± 0.002` (= (1 − e^−0.5)/0.632).                                                                                                                                                                                           |
+| VS-12 | **Decay duration independent of sustain.** Same envelope at sustain 0.0 and 0.5, decay control fixed.                                                           | Duration of the decay segment.                                             | The two differ by ≤ **15 %**. A textbook capacitor model differs by ~50 % and fails.                                                                                                                                                                                  |
+| VS-13 | **LFO scope.** Two voices started 250 ms apart, instrument-scoped LFO; then voice-scoped with `Single` retrigger.                                               | Phase difference between the two voices' LFO outputs.                      | Instrument scope: **0.000 ± 1e−6**. Voice scope: equal to 250 ms × rate, modulo 1, ± 1e−4.                                                                                                                                                                            |
+| VS-14 | **Two-stage LFO delay.** Delay 0.85 s, fade 0.188 s.                                                                                                            | Output envelope after note-on.                                             | Output is **exactly 0** for 0.85 s ± 5 %; reaches 0.99 of full depth 0.188 s ± 5 % later. A one-stage model has no zero region and fails the first half.                                                                                                              |
+| VS-15 | **Maximum, not sum.** Pitch modulation depth with LFO and wheel both at full.                                                                                   | Peak pitch deviation.                                                      | Within **2 %** of the larger contribution; at least **40 % below** their sum.                                                                                                                                                                                         |
+| VS-16 | **Drift determinism.** Two full renders, same seed, separate processes; then a render of bars 33–40 against the tail of a render of bars 1–40.                  | `peakDifference`.                                                          | Same seed: **exactly 0.0f**. Song-position case: **exactly 0.0f**. Then change only the seed and assert the difference exceeds −40 dBFS, so the test is not passing on an engine that ignores drift.                                                                  |
+| VS-17 | **Drift off by default.** `vintage = 0`, two voices on the same key.                                                                                            | Null one voice against the other.                                          | Residual ≤ **−140 dBFS**. The divider-derived instrument must be exact.                                                                                                                                                                                               |
+| VS-18 | **Drift magnitude and correlation.** `vintage = 1`, 600 s of song time.                                                                                         | Standard deviation of pitch deviation; autocorrelation of the series.      | σ = **3.0 cents ± 10 %**; autocorrelation crosses 1/e at **30 s ± 15 %**. Repeat at grid strides 16, 32, 64 and assert σ changes by ≤ 3 % — that is the test that (5) is the exact OU step and not an Euler one.                                                      |
+| VS-19 | **Tuning-error shape.** `vintage = 1`, immediately after `tune()`, sample every semitone C0–C8.                                                                 | RMS deviation per octave.                                                  | RMS below C3 is **≥ 2.5×** RMS above C3; RMS immediately after `tune()` is ≤ **0.4 cents**. Uniform random detune fails the first.                                                                                                                                    |
+| VS-20 | **MPE sensitivity defaults.** Configuration message, then a full member bend and a full master bend.                                                            | Pitch deviation in semitones.                                              | Member: **48.00 ± 0.01**. Master: **2.00 ± 0.01**.                                                                                                                                                                                                                    |
+| VS-21 | **MPE snapshot.** Set channel 3 bend to +12 semitones with nothing sounding, then note-on channel 3.                                                            | Starting pitch.                                                            | **+12.00 semitones ± 0.01** at the first sample of the note.                                                                                                                                                                                                          |
+| VS-22 | **MPE release isolation.** Note-off on channel 3, then a full member bend on channel 3 during the release tail.                                                 | Pitch of the releasing voice.                                              | Changes by **0.000 semitones**. Then note-on a new note on channel 3 and assert _it_ starts bent — so the test is not passing on a router that dropped channel 3 entirely.                                                                                            |
+| VS-23 | **Zone truncation.** Lower zone 10 members, then upper zone 10 members.                                                                                         | Both zones' channel sets.                                                  | The two sets are **disjoint**; total members ≤ **14**; the lower zone was truncated, not the message ignored.                                                                                                                                                         |
+| VS-24 | **Note-on velocity 0.**                                                                                                                                         | Registry and voice state.                                                  | Treated as note-off; release velocity **64/127 ± 1/127**.                                                                                                                                                                                                             |
+| VS-25 | **Duration law is a continuum.** A 2-semitone and a 24-semitone glide at `kappa` = 0.0, 0.5 and 1.0, `T` = 400 ms, stagger 0.                                   | Time from note-on to arrival.                                              | `kappa = 0`: the two durations are equal within **1 ms**. `kappa = 1`: ratio **12.0 : 1 ± 2 %**. `kappa = 0.5`: ratio **3.46 : 1 ± 3 %** (= sqrt 12). All three within the 1 ms – 30 s clamp. A two-way switch cannot produce the middle row.                         |
+| VS-26 | **Arrival is exact.** All three shapes, 12-semitone glide, `T` = 400 ms.                                                                                        | Pitch at `t = duration`, and at `t = 2 × duration`.                        | Pitch equals the target within **0.1 cent** at `t = duration` for every shape, and `gliding()` is false. Mutation: replace (12) with an unnormalised one-pole and this case must fail — an unnormalised RC leaves roughly 5 cents, which is a 1.27 Hz beat at 440 Hz. |
+| VS-27 | **Staggered arrival, the worked case.** Four voices, equal intervals, `T` = 400 ms, `kappa` = 0, `Spread`, `S` = 0.5, `LowFirst`.                               | Duration of each voice's glide; arrival order; spread.                     | Durations **200.0 / 333.3 / 466.7 / 600.0 ms**, each ± 1 %. Arrival order exactly 0, 1, 2, 3. `arrivalSpread()` = **400.0 ms ± 1 %**.                                                                                                                                 |
+| VS-28 | **Origin is the voice, not the note.** Start a 24-semitone glide; at 40 % of its duration, send a new note to the same voice.                                   | Pitch at the instant of the second note-on, and the first sample after it. | The two differ by **< 0.02 semitone** — the second glide starts from where the voice was, not from the first note's nominal pitch. Separately, with `V = 1` and `S` swept 0 → 1, glide duration varies by **≤ 1 %**: a single note must get `δ = 1`, not `1 − S`.     |
+| VS-29 | **Panic clears.** `panic()` from the audio thread with 16 voices sounding.                                                                                      | Counts and samples.                                                        | `sustainingCount() == 0` **in the same block**; no per-sample first difference exceeds `peak/(0.0015·fs)` — i.e. the declick envelope was applied and there is no step.                                                                                               |
+| VS-30 | **Capacity change under load.** 16 voices sounding, `setCapacity(8)`.                                                                                           | Counts across the transition.                                              | **Zero** sounding voices cut; `liveCount()` stays 16 until notes release; the 9th subsequent allocation steals rather than exceeding 8.                                                                                                                               |
+| VS-31 | **Zero allocations in process.** `RtGuard` over the seven cases of §6.2.                                                                                        | `guard.allocations()`.                                                     | **0** in each. Mutation-tested: a deliberate `new` in `allocate` fails the case by name.                                                                                                                                                                              |
+| VS-32 | **One allocation in prepare.** `RtGuard` across the instrument's whole `prepare()`.                                                                             | `guard.allocations()`.                                                     | **Exactly 1.**                                                                                                                                                                                                                                                        |
 
 ---
 
 ## 9. Open questions
 
-1. **The sampler's reference sheet does not exist.** `PROGRESS.md` names writing
-   `docs/reference/smp-01` as the action that unblocks that unit, and it is the
-   only missing sheet of fourteen. Everything this document says about the
-   sampler — that it wants an attack-hold-decay-sustain-release shape, that its
-   `stealFadeMs` default is 1.5 ms, that "multi-portamento" means
-   `GlideMode::PolyPerVoice` — is **assumed**, and every one of those assumptions
-   must be re-checked when the sheet lands. `GlideMode::PolyPerVoice` in
-   particular is a reading of a two-word phrase in a phase plan.
+1. **The sampler's sheet landed while this document was being written, and §4
+   and §5.6 were rewritten against it — but two of its consequences are still
+   open.** The sheet closed the largest assumption here: multi-portamento is
+   per-voice _origins, durations and arrival times_, not "each voice glides from
+   the note it last played", and that reading is now named in the sheet as its
+   own first failure mode. The interface changed accordingly — `Glide::start`
+   has no `fromNote`, the two-way law became `κ`, and shape separated from
+   duration. What is still open: (a) the sheet's four playback engines each want
+   a different thing from a glide, and only one of them exhibits the material
+   drift that makes a classic sampler glide sound like tape, so whether `Glide`
+   should know which engine it is feeding is unresolved; (b) `stealFadeMs = 1.5`
+   for the sampler remains our judgement — the sheet does not give a steal
+   declick figure.
+   The sheet also states that the core has no FFT and one will have to be written
+   for its spectral engine. That is not this library's, but it is on the same
+   critical path and it is named here so nobody discovers it twice.
 2. **One consumer's voice-assignment behaviour is unknown.** Its own sheet records
    rotation order and stealing policy as unfound. The substrate defaults it to
    `RoundRobin` with `ReleasingQuietestFirst`, and that is our choice, not a
