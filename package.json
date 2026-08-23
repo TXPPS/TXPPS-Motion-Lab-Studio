@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:mw": "vitest run --config motionwave/ui/vitest.config.ts",
+    "build:panel": "vite build --config motionwave/ui/dev/vite.config.ts",
+    "e2e:mw": "npm run build:panel && playwright test --config motionwave/ui/playwright.config.ts",
     "e2e": "playwright test",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p motionwave/ui/tsconfig.json --noEmit",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json",

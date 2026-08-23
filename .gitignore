@@ -39,3 +39,10 @@ docs/audit/shots/
 
 # Motion Wave native build output
 motionwave/build/
+
+# The panel harness's build, and the worklet copy build.sh drops beside it.
+# Both are outputs of `npm run build:panel` / `npm run build:wasm`; a committed
+# copy is a second binary that can disagree with the one the boundary test
+# verified.
+motionwave/ui/dev/dist/
+motionwave/ui/dev/public/motionwave.worklet.js

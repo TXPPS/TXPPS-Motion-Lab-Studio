@@ -71,9 +71,17 @@ describe('the Motion Shaper face, judged by the harness', () => {
   });
 
   it('blocks U21 and U22 here, naming the capability each needs', () => {
-    // Not a failure and not a pass. Frame pacing needs a refresh clock to count
-    // against and an audio thread to be decoupled from; layout needs a browser
-    // that computes it. Both are on the hardware punch list with procedures.
+    // Not a failure and not a pass — in *this* runtime. Frame pacing needs a
+    // refresh clock to count against and an audio thread to be decoupled from;
+    // layout needs a browser that computes it, and jsdom answers zero for every
+    // box. Both cells are judged for real in `motionwave/ui/e2e/panel.spec.ts`,
+    // where Chromium supplies all three: the core runs in an AudioWorklet, the
+    // panel repaints from a seqlock on `requestAnimationFrame`, and the
+    // breakpoints are measured as computed geometry.
+    //
+    // This case stays, because the block here is still the right answer here. A
+    // cell that reported PASS from jsdom would be reporting a layout nobody
+    // laid out.
     for (const cell of ['U21', 'U22'] as const) {
       const result = resultsFor().get(cell)!;
       expect(result.status).toBe('BLOCKED');

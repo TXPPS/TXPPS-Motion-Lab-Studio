@@ -20,6 +20,10 @@ export default tseslint.config(
       // written for several environments at once, so it references `process`
       // and `URL` unguarded by design.
       'motionwave/wasm/dist/**',
+      // Built by `npm run build:panel`, and the worklet copy `build.sh` drops
+      // beside it. Both are outputs, not sources.
+      'motionwave/ui/dev/dist/**',
+      'motionwave/ui/dev/public/motionwave.worklet.js',
     ],
   },
   js.configs.recommended,
@@ -50,13 +54,17 @@ export default tseslint.config(
     // window nor a worker: it has no DOM, no timers and no fetch, and its own
     // globals are the two below. Linted rather than ignored, because a real
     // mistake in a processor is a mistake on the audio thread.
-    files: ['public/worklets/*.js'],
+    files: ['public/worklets/*.js', 'motionwave/ui/dev/public/shaper_worklet.js'],
     languageOptions: {
       globals: {
         AudioWorkletProcessor: 'readonly',
         registerProcessor: 'readonly',
         sampleRate: 'readonly',
         currentTime: 'readonly',
+        // Motion Wave's processor only: `addModule` evaluates the core's
+        // classic build in this scope before the processor's own script, so the
+        // factory is a global here and nowhere else.
+        createMotionWaveCore: 'readonly',
       },
     },
   },

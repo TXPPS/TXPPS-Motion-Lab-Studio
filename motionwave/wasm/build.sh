@@ -42,6 +42,11 @@ source "$EMSDK_DIR/emsdk_env.sh" >/dev/null 2>&1
 
 mkdir -p "$OUT"
 
+# One list for both builds below. Two copies would drift the first time an
+# export was added, and the failure would be a worklet that cannot call the
+# function the main-thread build just gained.
+EXPORTS='["_mw_render_reference","_mw_render_length","_mw_golden_gain","_mw_shaper_prepare","_mw_shaper_set_param","_mw_shaper_set_curve","_mw_shaper_set_bpm","_mw_shaper_set_bypass","_mw_shaper_input","_mw_shaper_output","_mw_shaper_process","_mw_shaper_visual","_mw_shaper_generation","_malloc","_free"]'
+
 emcc "$HERE/bridge.cpp" \
   -I"$ROOT/core" \
   -std=c++17 \
@@ -54,8 +59,52 @@ emcc "$HERE/bridge.cpp" \
   -sALLOW_MEMORY_GROWTH=1 \
   -sASSERTIONS=0 \
   -sENVIRONMENT=web,worker,node \
-  -sEXPORTED_FUNCTIONS='["_mw_render_reference","_mw_render_length","_mw_golden_gain","_mw_shaper_prepare","_mw_shaper_set_param","_mw_shaper_set_curve","_mw_shaper_set_bpm","_mw_shaper_set_bypass","_mw_shaper_input","_mw_shaper_output","_mw_shaper_process","_mw_shaper_visual","_mw_shaper_generation","_malloc","_free"]' \
+  -sEXPORTED_FUNCTIONS="$EXPORTS" \
   -sEXPORTED_RUNTIME_METHODS='["HEAPF32","HEAPF64","cwrap"]' \
   -o "$OUT/motionwave.mjs"
 
 echo "wasm: $(du -h "$OUT/motionwave.wasm" | cut -f1) at $OUT/motionwave.wasm"
+
+# ---------------------------------------------------------------- the worklet
+#
+# A second build of the same bridge, for the AudioWorklet.
+#
+# It exists because a worklet's global scope is not a module scope: it has no
+# `import.meta`, no dynamic `import()`, and no `fetch` to go and get a `.wasm`
+# with. `addModule` takes a classic script and that is all it takes. So this one
+# is MODULARIZE without EXPORT_ES6, and SINGLE_FILE so the WebAssembly arrives
+# inside the script rather than as a second request the worklet cannot make.
+#
+# The flags that decide the *arithmetic* are identical to the build above, which
+# is the part that matters: the audio a user hears comes from this file, and if
+# it were optimised differently from the one the boundary test verifies then the
+# verified build would not be the shipped one.
+emcc "$HERE/bridge.cpp" \
+  -I"$ROOT/core" \
+  -std=c++17 \
+  -O2 \
+  -fno-fast-math \
+  -Wall -Wextra -Wpedantic -Werror \
+  -sMODULARIZE=1 \
+  -sEXPORT_ES6=0 \
+  -sEXPORT_NAME=createMotionWaveCore \
+  -sSINGLE_FILE=1 \
+  -sALLOW_MEMORY_GROWTH=1 \
+  -sASSERTIONS=0 \
+  -sENVIRONMENT=shell \
+  -sEXPORTED_FUNCTIONS="$EXPORTS" \
+  -sEXPORTED_RUNTIME_METHODS='["HEAPF32","HEAPF64"]' \
+  -o "$OUT/motionwave.worklet.js"
+
+# MODULARIZE without EXPORT_ES6 declares the factory with `var` at the script's
+# top level. That reaches the worklet's global scope in every engine tried, but
+# only by a rule about `var` in classic scripts, and a rule that happens to hold
+# is not a contract. Stated explicitly instead.
+echo "globalThis.createMotionWaveCore = createMotionWaveCore;" >> "$OUT/motionwave.worklet.js"
+
+# Copied where the panel harness serves from. The harness has to load the same
+# binary the boundary test verified; a second build for the browser would be a
+# second product.
+cp "$OUT/motionwave.worklet.js" "$ROOT/ui/dev/public/motionwave.worklet.js"
+
+echo "worklet: $(du -h "$OUT/motionwave.worklet.js" | cut -f1) at $OUT/motionwave.worklet.js"

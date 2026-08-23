@@ -52,12 +52,29 @@ describe('the house rules hold for this tree as well', () => {
     // enforce is "no third-party dependency" — a standard-library module is
     // exactly what it is meant to allow, and widening it here is not the same
     // as weakening it.
+    //
+    // `vite` joins it for build configuration only, and only there: the panel
+    // harness has to be built and served before Chromium can measure U21 and
+    // U22 against it, and a build config that cannot import its build tool is
+    // not a config. What the rule protects is the code that *ships* — the
+    // harness, the units, the faces — so the allowance is scoped to files whose
+    // name says they configure a build rather than run in one.
     const allowed = new Set(['vitest', 'node:fs', 'node:url', 'node:path', 'vitest/config']);
+    // `@playwright/test` is the browser suite's runner, and the rule already
+    // allows a test runner — vitest cannot drive Chromium, so the cells that
+    // need one are written against the runner that can. Scoped to the browser
+    // suite's own files so it never becomes an import shipping code can use.
+    const buildConfig = /(^|\/)(vite|vitest|playwright)\.config\.ts$/;
+    const browserSuite = /(^|\/)e2e\/[^/]+\.spec\.ts$/;
     for (const path of FILES) {
       if (!path.endsWith('.ts')) continue;
       const source = readFileSync(path, 'utf8');
+      const permitted =
+        buildConfig.test(path) || browserSuite.test(path)
+          ? new Set([...allowed, 'vite', '@playwright/test'])
+          : allowed;
       for (const match of source.matchAll(/from\s+'([^'.][^']*)'/g)) {
-        expect(allowed.has(match[1]), `${relative(path)} imports ${match[1]}`).toBe(true);
+        expect(permitted.has(match[1]), `${relative(path)} imports ${match[1]}`).toBe(true);
       }
     }
   });

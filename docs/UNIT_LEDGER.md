@@ -169,32 +169,55 @@ trustworthy enough to assert a 1.2× ratio; a candidate for
 
 `U19`, `U20` and `U23` are PASS against the face's declaration.
 
-`U21` and `U22` remain BLOCKED, and the reason has changed: it is no longer that
-the capability does not exist. This host has Chromium and Playwright, so
-`layoutEngine` is available and `U22` is closable as soon as there is something
-to lay out — a DOM renderer for a `UnitFace`, which is framework work all
-fourteen units want and none of them has yet. `U21` additionally needs
-`realtimeThread`, which means the core running in an AudioWorklet: the browser
-shell, which is its own stream. Both are recorded here as work scheduled rather
-than as an environment limit, because calling an absent renderer an absent
-browser is how a cell stays blocked forever.
+`U21` and `U22` were BLOCKED, and the recorded reason — "no display", "no layout
+engine" — had quietly stopped being true: this host has Chromium. What was
+actually missing was something to lay out and something to pace. Both now exist
+and both cells are measured, in `motionwave/ui/e2e/panel.spec.ts`:
 
-| Unit                | Sheet    | Status      | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21                         | U22                       | U23  | X24  |
-| ------------------- | -------- | ----------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | --------------------------- | ------------------------- | ---- | ---- |
-| Motion Shaper       | `fx-01`  | DSP DONE    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | BLOCKED (no displayRefresh) | BLOCKED (no layoutEngine) | PASS | PASS |
-| Program EQ          | `dyn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| Optical Leveller    | `dyn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| FET Limiter         | `dyn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| Variable-Mu Limiter | `dyn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| Console EQ          | `dyn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| Granular Reverb     | `fx-02`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —                           | —                         | —    | —    |
-| Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
-| DCO Poly            | `syn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
-| Phase Distortion    | `syn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
-| Analog Five         | `syn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
-| Six-Op FM           | `syn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
-| Matrix Twelve       | `syn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —                           | —                         | —    | —    |
+- `motionwave/ui/render/facePanel.ts` renders any `UnitFace` into the DOM,
+  built once for all fourteen units. It knows nothing about any unit, and may
+  not: the moment it grows a special case, the next thirteen faces stop being
+  declarations.
+- `motionwave/ui/dev/public/shaper_worklet.js` runs the core on the browser's
+  real-time thread and publishes through a `SharedArrayBuffer` seqlock — the
+  same odd/even discipline as the C++ `VisualPublisher`, for the same reason.
+  Nothing is posted per block; the reader is never waited for.
+
+`U21` measures **60.0 fps with 0 torn reads**, a playhead taking 20 distinct
+positions in 20 frames while the engine runs — and **exactly one** while the
+engine is suspended and the display clock keeps ticking. That last is the case
+that gives the others meaning: a face animating on a timer is indistinguishable
+from a face reading engine state until the engine stops. It was mutation-tested
+by fabricating the phase from `performance.now()`, which passed every other
+check and failed that one with 20 positions.
+
+`U22` measures the column count either side of each breakpoint the _face_
+declares — 1 → 2 at 30 em, 2 → 4 at 48 em — every press target against the 44 px
+minimum in both axes and not clipped by its container, and no horizontal
+overflow from 320 px up. The touch check was mutation-tested twice: the first
+version measured the control's _wrapper_ and a 19 px target passed it, which is
+RA-002's own mistake committed by the test written for RA-002. Measured against
+the box that receives the press, it fails.
+
+The vitest suite still reports both BLOCKED, and that is correct there: a cell
+that reported PASS from jsdom would be reporting a layout nobody laid out.
+
+| Unit                | Sheet    | Status      | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  |
+| ------------------- | -------- | ----------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- |
+| Motion Shaper       | `fx-01`  | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
+| Program EQ          | `dyn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Optical Leveller    | `dyn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| FET Limiter         | `dyn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Variable-Mu Limiter | `dyn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Console EQ          | `dyn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Granular Reverb     | `fx-02`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
+| DCO Poly            | `syn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
+| Phase Distortion    | `syn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
+| Analog Five         | `syn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
+| Six-Op FM           | `syn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
+| Matrix Twelve       | `syn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
 
 ## What each column is
 
