@@ -92,12 +92,47 @@ function stylesheetFor(face: UnitFace): string {
 .mw-panel-body { display: flex; flex-direction: column; gap: var(--mw-space-5); }
 .mw-panel-controls {
   display: grid;
-  grid-template-columns: repeat(var(--mw-panel-columns), minmax(0, 1fr));
+  /* The tier says how many columns it *wants*; the touch target says how narrow
+     a column may get. Asking for a fixed count instead makes the two collide
+     silently — a face whose controls pane is squeezed by a wide readout column
+     gets four columns of 46 px, each holding a control that will not go below
+     44 plus its own padding, and the grid overflows its container by the
+     difference. Measured on the Variable-Mu at 1000 px: 28 px out of a 233 px
+     pane, which surfaced as 12 px of horizontal scroll on the document and
+     nothing at all wrong with any individual element's box.
+
+     An auto-fit track with the tier's own share as its preferred size gives
+     the requested count wherever it fits and fewer where it does not, so the
+     count still rises with width — which is what U22 measures — and the floor
+     is never breached. */
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(
+      max(
+        var(--mw-target-min),
+        calc(
+          (100% - (var(--mw-panel-columns) - 1) * var(--mw-control-gutter)) /
+            var(--mw-panel-columns)
+        )
+      ),
+      1fr
+    )
+  );
   gap: var(--mw-control-gutter);
 }
 .mw-control {
   display: flex;
   flex-direction: column;
+  /* A label may not widen its column. Without this a control named "Right or
+     vertical channel timing network charge" sets its own min-content width from
+     the longest word, the grid track grows past its share, and the panel
+     overflows the document — measured on the Variable-Mu at 1000 px as 12 px of
+     horizontal scroll with every individual element's box inside the viewport,
+     which is the hardest shape of this bug to find. A zero min-width lets the
+     track shrink, and overflow-wrap lets the word break rather than the
+     layout. */
+  min-width: 0;
+  overflow-wrap: anywhere;
   align-items: stretch;
   gap: var(--mw-space-2);
   /* The touch minimum, applied to the control itself rather than to a wrapper.

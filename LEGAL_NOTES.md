@@ -182,14 +182,19 @@ The rule they are all made under is the project's: a free parameter may be
 chosen against **published** constraints — that is calibration — but never
 against a measurement of our own code, which is a model grading itself.
 
-| Unit     | Constant                | What it is                                                             | What constrained it                                                                             |
-| -------- | ----------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `dyn-03` | four-button drain scale | How much more of the audio reaches the element's control electrode     | The ratio network's own topology — four resistors in parallel                                   |
-| `dyn-03` | four-button threshold   | Where the state's threshold sits                                       | §10's measured 7 dB span across the four buttons                                                |
-| `dyn-04` | `kImbalancePerBias`     | How far the pair's halves separate as the bias approaches cutoff       | §9 rows 9 and 11 from both sides — the third must lead at 3 dB, the second must return by 20 dB |
-| `dyn-04` | `kAccumulateRatio`      | The storage network's charge path, against the fast branch's discharge | §4's four published recoveries in positions 5 and 6                                             |
-| `dyn-04` | `kSidechainMin` / `Max` | Loop gain at the two ends of the DC threshold trim                     | §3.6's published 2:1 to 30:1 ratio range, through the loop's closed form                        |
-| `dyn-04` | matrix scaling          | Where the ×0.5 goes in the lateral/vertical encode and decode          | §3.5 marks the reference unit's own scaling unpublished and names this convention as ours       |
+| Unit     | Constant                | What it is                                                             | What constrained it                                                                                         |
+| -------- | ----------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `dyn-03` | four-button drain scale | How much more of the audio reaches the element's control electrode     | The ratio network's own topology — four resistors in parallel                                               |
+| `dyn-03` | four-button threshold   | Where the state's threshold sits                                       | §10's measured 7 dB span across the four buttons                                                            |
+| `dyn-04` | `kImbalancePerBias`     | How far the pair's halves separate as the bias approaches cutoff       | §9 rows 9 and 11 from both sides — the third must lead at 3 dB, the second must return by 20 dB             |
+| `dyn-04` | `kAccumulateRatio`      | The storage network's charge path, against the fast branch's discharge | §4's four published recoveries in positions 5 and 6                                                         |
+| `dyn-04` | `kSidechainMin` / `Max` | Loop gain at the two ends of the DC threshold trim                     | §3.6's published 2:1 to 30:1 ratio range, through the loop's closed form                                    |
+| `dyn-04` | matrix scaling          | Where the ×0.5 goes in the lateral/vertical encode and decode          | §3.5 marks the reference unit's own scaling unpublished and names this convention as ours                   |
+| `dyn-05` | `kBoostDamping`         | How far the boost control's own position undamps the inductor network  | §10 test 3's 30 % Q rise from below and §10 test 1's band maxima from above                                 |
+| `dyn-05` | `kSlope`                | How under-damped the LC shelf's transition is                          | §10 test 4's overshoot window and §10 test 6's 0.2–2 dB of band interaction                                 |
+| `dyn-05` | transformer sizes       | Where each core's knee sits                                            | §9.1's 0.07 % at +20 dBu and 50 Hz, which is the binding corner because flux goes as 1/f                    |
+| `dyn-05` | `kShelfPlateau`         | How far above the labelled frequency a bridged-T shelf's corner sits   | §10 test 15's one-decibel window between 20 and 50 Hz                                                       |
+| `dyn-05` | high-pass alignment     | Which third-order alignment the 18 dB/octave filter uses               | §6.1 marks the reference unit's alignment **unknown**; maximally flat is our choice and is recorded as such |
 
 **On `wavechild670`.** `dyn-04` §10 names it as available for cross-checking
 behaviour and flags its licence. It is GPL, and under the rule above it is the

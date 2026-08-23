@@ -161,8 +161,9 @@ class BandPass12 {
   void rebuild() noexcept {
     // Butterworth, so the pair is maximally flat in the pass band and the
     // −3 dB points land where the published corners say. A Q chosen for a
-    // steeper knee would move both corners and §10 test 16 measures them.
-    constexpr double kButterworthQ = 0.70710678118654752;
+    // steeper knee would move both corners and §10 test 16 measures them. The
+    // constant is `biquad.h`'s, not a local copy — two spellings of the same
+    // number is how they come to differ.
     high_.setCoeffs(highpassCoeffs(lowHz_, kButterworthQ, sampleRate_));
     low_.setCoeffs(lowpassCoeffs(highHz_, kButterworthQ, sampleRate_));
   }

@@ -205,11 +205,11 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | Unit                | Sheet    | Status      | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  |
 | ------------------- | -------- | ----------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- |
 | Motion Shaper       | `fx-01`  | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| Program EQ          | `dyn-01` | DSP PARTIAL | PASS | —    | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
-| Optical Leveller    | `dyn-02` | DSP PARTIAL | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
-| FET Limiter         | `dyn-03` | DSP DONE    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
-| Variable-Mu Limiter | `dyn-04` | DSP DONE    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
-| Console EQ          | `dyn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Program EQ          | `dyn-01` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
+| Optical Leveller    | `dyn-02` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
+| FET Limiter         | `dyn-03` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
+| Variable-Mu Limiter | `dyn-04` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
+| Console EQ          | `dyn-05` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Granular Reverb     | `fx-02`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
@@ -219,7 +219,7 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | Six-Op FM           | `syn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
 | Matrix Twelve       | `syn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
 
-### Program EQ, so far
+### Program EQ
 
 The DSP is built and all thirteen of `dyn-01` §9's measurements pass, at 48 kHz
 and — where the sheet asks for it — 96 kHz. `D1` is closed the same way the
@@ -272,7 +272,7 @@ the noise-floor test read as a floor 30 dB above the manual's. Its state is a
 double now, and `nonlinear_tests.cpp` checks convergence at every rate a wrapper
 can present.
 
-### Optical Leveller, so far
+### Optical Leveller
 
 All thirteen of `dyn-02` §9's measurements pass. The cell is the whole dynamics
 engine, so most of them are about time: COMPRESS 3.79:1 and LIMIT 8.43:1 at
@@ -402,7 +402,7 @@ ripple. Forcing a separation would mean slowing the attack roughly thirty-fold
 and failing test 1's published endpoints, which are a measurement rather than a
 QA instruction.
 
-The row asserts §4's *stated* mechanism instead, and asserts more than the sheet
+The row asserts §4's _stated_ mechanism instead, and asserts more than the sheet
 asked: distortion above 1 %, the third harmonic rising 23.3 dB as the frequency
 falls from 1 kHz to 40 Hz, and the timing control that does set the ripple
 separating by 21.7 dB. Total THD cannot see any of it — the element's own
@@ -450,7 +450,7 @@ trim position rather than at one.
 
 **The sidechain has no compression of its own, and removing it was a fix.** A
 compressive term looked prudent and was wrong on this unit specifically: §5's
-defining property is that the ratio *rises* with reduction, and a sidechain
+defining property is that the ratio _rises_ with reduction, and a sidechain
 whose gain falls as the control grows cancels exactly that. It measured 1.61:1
 at 3 dB of reduction and 1.55:1 at 20 — falling, where the sheet's whole §5 says
 it must rise.
@@ -480,6 +480,68 @@ and resolved the same way, with a rectified level. And test 8 compared 13.76 dB
 against exactly 0.00 dB, which the harness guard refused — correctly, because a
 comparison against zero says nothing about a control's direction.
 
+### Console EQ
+
+All nineteen of `dyn-05` §10's rows measure, across three suites, plus `D1`
+across twenty parameters. It is two lineages in one device and they do not share
+a filter engine — §10 test 19 asserts that directly, and `bridged_t.h` and
+`inductor_section.h` have nothing in common but a biquad.
+
+**The transformers were an order of magnitude too small, and the library's
+default is what made them so.** That default is calibrated for a _coloured_
+transformer — 1.5 % third harmonic at −12 dBFS and 30 Hz. A console module's are
+sized for a line level they are not supposed to colour: §9.1 publishes 0.07 %
+from 50 Hz to 10 kHz at +20 dBu output, and with the default this path measured
+49.9 % at 50 Hz. Fifty hertz is the binding corner, because flux goes as 1/f and
+the 1 kHz and 10 kHz readings are twenty and two hundred times easier. Sized
+from that one figure it now reads 0.0501 %.
+
+**The EQ inductors see the network's own current, not the signal passing
+through.** With the boost control at centre the network is out of circuit and
+the inductor carries nothing. Driving the core with the through signal instead
+made the EQ section a distortion source at every setting including flat, and
+then §10 test 7 — which wants saturation under boost — and §9.1 — which wants
+0.07 % with the EQ flat — pulled against each other with _no_ size of core
+satisfying both: their two conditions are only four times apart in flux. Driving
+it with what the network added satisfies both by construction, and test 7 now
+separates by 44 dB rather than the 6 it asks for.
+
+**Three probes here were the instrument.** A "near 1.6 kHz" peak search with a
+six-octave window returned the low shelf's maximum, so the mid band's peak read
+17.17 dB when the mid band was set to 12. A shelf's maximum was read at its peak
+rather than its plateau, which made §9.1's ±16 dB and §10 test 4's overshoot
+contradict each other — they are the same curve measured at two places. And the
+band-pass's stop-band slope was read at 30 and 60 kHz on a 48 kHz render, past
+half of Nyquist for the sections, where the bilinear transform steepens
+everything: 17.68 dB per octave against a published twelve, of which 5.7 dB was
+the transform.
+
+**And one control did nothing.** `setBandPass` set its flag without marking the
+unit dirty, so the filter's own switch — read in `rebuild`, not in `process` —
+never took effect. §10 test 16 caught it. That is the class `tests/schemaWired`
+exists for one product over, and it is worth recording that a manifest-generated
+dispatch does not protect against it: the parameter reached the setter, and the
+setter was the thing that was wrong.
+
+### What X24 found once every unit had one
+
+The Motion Shaper had an integration test and the other four did not, and the
+difference showed up the moment they got one: **four of the five published zeros
+from their meters while passing audio in bypass.** A bypassed unit is still in
+circuit and still audible, so a face reading silence for it is the one thing a
+meter must never do. Every native row passed over it, because bypass is not what
+any of them measure, and the Motion Shaper was right only because X24 had asked.
+
+The browser cells found the second one. U22 measures that the panel never
+overflows sideways, and the Variable-Mu overflowed the document by 12 px at
+1000 px wide with _every individual element's box inside the viewport_ — the
+hardest shape of this bug to find. The cause was a control label: an accessible
+name long enough that its longest word set the grid track's min-content width,
+which grew the track past its share. A zero min-width and `overflow-wrap` on the
+control fixed it for every face at once, and the controls grid now asks for the
+tier's column count rather than being pinned to it, so a squeezed pane loses a
+column instead of overflowing.
+
 ### What the shared library learned from this unit
 
 These sections carry what each unit taught the shared code. The `dyn-03`
@@ -501,7 +563,7 @@ remaining ten units inherit the check instead of each rediscovering it.
 had a fixed half-width, so its residual had a fixed absolute size and its share
 of the signal rose as 1/B without limit. Flux falls as 1/f, so a 15 kHz tone
 behaved like a 1 kHz tone 24 dB quieter: 0.96 % distortion against a published
-ceiling of 0.5 %, from a core that is supposed to be a *low-frequency* source.
+ceiling of 0.5 %, from a core that is supposed to be a _low-frequency_ source.
 Steinmetz gives loss per cycle as B^1.6 and so loop width as B^0.6; anchoring
 the taper at the published calibration flux leaves that point unchanged to five
 digits and takes the 15 kHz reading to 0.0058 %. The floor still rises as the

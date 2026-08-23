@@ -2,27 +2,19 @@
 
 ```
 RESUME: Directive 06
-Current unit:  Console EQ (dyn-05) — STARTING. Two lineages, two filter
-               engines, nineteen QA rows. core/dsp/bridged_t.h and
-               core/dsp/inductor_section.h are written; the unit, the manifest,
-               the tests and the face are not.
-Last PASS:     dyn-04 DSP DONE — all fifteen §9 rows across four suites, D1
-               across ten parameters plus block-size independence, and
-               U19/U20/U22/U23.
-Next action:   Write core/units/console_eq.h with a lineage switch (§10 test 19
-               asserts the two engines produce measurably different curves, so
-               one shared engine fails by construction). British: inductor bell
-               with Q rising on frequency and on amount, LC shelves, third-order
-               HPF, and MagneticCore INSIDE the EQ section for test 7's core
-               saturation. American: bridged-T proportional Q, reciprocal cut,
-               NO EQ-section saturation (test 17 asserts its absence), separate
-               band-pass. Then manifest, tests, D1, face.
-               Then the Program EQ WASM bridge, then report R2.
-Units done:    Motion Shaper SHIPPING 24/24.
-               Program EQ DSP DONE, 13/13 sheet rows, D1, four UI cells.
-               Optical Leveller DSP DONE, 13/13 sheet rows, D1, four UI cells.
-               FET Limiter DSP DONE, 16/16 sheet rows, D1, four UI cells.
-               Variable-Mu DSP DONE, 15/15 sheet rows, D1, four UI cells.
+Current unit:  None. R2 reported at Console EQ SHIPPING.
+Last PASS:     All five dynamics units at 24/24, plus the Motion Shaper. Native
+               ctest 29/29, UI 277/277 including one X24 integration test per
+               unit, e2e 11/11 including U21 and U22 for every face.
+Next action:   Directive 06's next block — the grain engine, then Granular
+               Reverb and Granular Delay and Slipstream (R3); then the voice
+               substrate and the five synths (R4).
+Units done:    Motion Shaper     SHIPPING 24/24.
+               Program EQ        SHIPPING 24/24, 13/13 sheet rows.
+               Optical Leveller  SHIPPING 24/24, 13/13 sheet rows.
+               FET Limiter       SHIPPING 24/24, 16/16 sheet rows.
+               Variable-Mu       SHIPPING 24/24, 15/15 sheet rows.
+               Console EQ        SHIPPING 24/24, 19/19 sheet rows.
 Shared libraries built:
                core/dsp/biquad.h        RBJ sections, double state, denormal flush
                core/dsp/shelving.h      shelf + peaking + one-pole HP
@@ -37,6 +29,8 @@ Shared libraries built:
                core/dsp/timing_network.h  chained storage elements; dyn-04 pos 5/6
                core/dsp/bridged_t.h     proportional-Q RC bands + band-pass
                core/dsp/inductor_section.h  LC bell/shelf, third-order high-pass
+               wasm/unit_bridge.h       one boundary shape for every unit
+               ui/test/x24_driver.ts    X24's mechanics, once, for every unit
                core/dsp/nonlinear/      curve, stages, variable gain, FET, core,
                                         oversampler (exact integer latency), specs
                core/render/             deterministic render, analysis, reference graph
@@ -55,8 +49,8 @@ Standing rules earned the hard way:
                operator (0.0036 % predicted, 0.0032 % measured) after the
                Steinmetz taper moved it, and the law checked at a second flux
                before being used.
-             - PROBE FIRST. Twelve measurements so far were the instrument, not
-               the unit. The last four: a transfer curve read from the fundamental
+             - PROBE FIRST. Fifteen measurements so far were the instrument,
+               not the unit. The last four: a transfer curve read from the fundamental
                while the energy was in the harmonics; two rows timing "one
                sample after arrival" from a 1 kHz sine, so they carried a cycle
                of the stimulus; an aliasing probe at exactly Fs/4, where every
@@ -66,7 +60,11 @@ Standing rules earned the hard way:
                and the core has no answer to give at any level. Then dyn-04's
                attack read through a 1 kHz sine, quantising to the rectifier's
                peak spacing, and its threshold-sense row comparing 13.76 dB
-               against exactly 0.00 — which the guard refused.
+               against exactly 0.00 — which the guard refused. Then dyn-05's
+               peak search finding the low shelf's maximum through a six-octave
+               window; a shelf read at its peak where the spec means its
+               plateau; and a stop-band slope read past half of Nyquist, where
+               the bilinear transform contributed 5.7 of its 17.7 dB/octave.
              - NO VACUOUS ASSERTIONS. MW_EXPECT_AT_LEAST_TIMES and
                MW_EXPECT_EXCEEDS_BY refuse two zeros, two equal values, or
                anything under a floor the row declares. The predicate is
@@ -116,6 +114,15 @@ Open deviations:
                and the published law quotes 3 octaves AT 2 dB. Rows measure the
                half-gain bandwidth, which is also how the section is
                parameterised.
+             - dyn-05 §10 test 1 gives the shelves as ±16 dB and §10 test 4
+               asks the same shelves to overshoot. Both are true of one curve
+               measured in two places: the maximum is read at the plateau and
+               the overshoot against it. The high shelf's plateau is above the
+               audio band at 48 kHz, so that row runs at 96.
+             - dyn-05 §10 test 16's stop-band slopes run at 192 kHz. A 15 kHz
+               corner has an octave and a half of band above it at 48, so the
+               probes land past half of Nyquist where the bilinear transform
+               steepens the reading by 5.7 dB/octave.
              - dyn-03 §9 test 16 specifies a 12 kHz probe. At 48 kHz that is
                exactly Fs/4 and the row is vacuous; it runs at 44.1 kHz, where
                the same tone folds to 8.1 and 3.9 kHz inside the band, and which

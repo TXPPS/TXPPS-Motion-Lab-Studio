@@ -21,7 +21,13 @@
 
 #include "../core/render/offline_render.h"
 #include "../core/render/reference_graph.h"
+#include "../core/units/generated/console_eq_params.gen.h"
+#include "../core/units/generated/fet_limiter_params.gen.h"
 #include "../core/units/generated/motion_shaper_params.gen.h"
+#include "../core/units/generated/optical_leveller_params.gen.h"
+#include "../core/units/generated/program_eq_params.gen.h"
+#include "../core/units/generated/variable_mu_params.gen.h"
+#include "unit_bridge.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -61,6 +67,20 @@ std::vector<float> g_planarIn;
 std::vector<float> g_planarOut;
 std::vector<double> g_visual;
 int g_shaperChannels = 2;
+
+/**
+ * The other four units, each behind the same boundary.
+ *
+ * The Motion Shaper keeps its hand-written exports because it has two the
+ * others do not — a curve of breakpoints and a tempo — and folding those into a
+ * shared shape would mean a boundary designed around one caller's exception.
+ * Everything the five have in common lives in `UnitBridge` and is written once.
+ */
+mw::wasm::UnitBridge<mw::units::ProgramEq> g_programEq;
+mw::wasm::UnitBridge<mw::units::OpticalLeveller> g_opticalLeveller;
+mw::wasm::UnitBridge<mw::units::FetLimiter> g_fetLimiter;
+mw::wasm::UnitBridge<mw::units::VariableMu> g_variableMu;
+mw::wasm::UnitBridge<mw::units::ConsoleEq> g_consoleEq;
 
 }  // namespace
 
@@ -250,5 +270,98 @@ const double* mw_shaper_visual() {
 /// How many times the audio path has published. A face that stalls shows here.
 EMSCRIPTEN_KEEPALIVE
 unsigned int mw_shaper_generation() { return g_shaper.visual().generation(); }
+
+// The four dynamics units. Each gets the common exports from the macro and one
+// visual export of its own, because a frame is the unit's own shape — a generic
+// serialiser would be a schema neither side of the boundary checks, which is
+// exactly the duplicated ABI the curve export avoids.
+
+MW_UNIT_EXPORTS(mw_program_eq, g_programEq, mw::units::applyProgramEqParam)
+
+/// Six doubles: the two peaks, the make-up amplifier's second- and third-order
+/// coefficients, and how hard each transformer is being driven.
+EMSCRIPTEN_KEEPALIVE
+const double* mw_program_eq_visual() {
+  mw::units::ProgramEqFrame frame;
+  g_programEq.unit().visual().read(frame);
+  std::vector<double>& out = g_programEq.visualScratch(6);
+  out[0] = static_cast<double>(frame.inputPeak);
+  out[1] = static_cast<double>(frame.outputPeak);
+  out[2] = static_cast<double>(frame.c2);
+  out[3] = static_cast<double>(frame.c3);
+  out[4] = static_cast<double>(frame.inputCoreDrive);
+  out[5] = static_cast<double>(frame.outputCoreDrive);
+  return out.data();
+}
+
+MW_UNIT_EXPORTS(mw_optical_leveller, g_opticalLeveller, mw::units::applyOpticalLevellerParam)
+
+/// Five doubles: the two peaks, the meter cell's reduction, the exposure state,
+/// and the second release branch's current constant.
+EMSCRIPTEN_KEEPALIVE
+const double* mw_optical_leveller_visual() {
+  mw::units::OpticalLevellerFrame frame;
+  g_opticalLeveller.unit().visual().read(frame);
+  std::vector<double>& out = g_opticalLeveller.visualScratch(5);
+  out[0] = static_cast<double>(frame.inputPeak);
+  out[1] = static_cast<double>(frame.outputPeak);
+  out[2] = static_cast<double>(frame.gainReductionDb);
+  out[3] = static_cast<double>(frame.exposure);
+  out[4] = static_cast<double>(frame.releaseSeconds);
+  return out.data();
+}
+
+MW_UNIT_EXPORTS(mw_fet_limiter, g_fetLimiter, mw::units::applyFetLimiterParam)
+
+/// Four doubles: the two peaks, the reduction, and the timing network's charge.
+EMSCRIPTEN_KEEPALIVE
+const double* mw_fet_limiter_visual() {
+  mw::units::FetLimiterFrame frame;
+  g_fetLimiter.unit().visual().read(frame);
+  std::vector<double>& out = g_fetLimiter.visualScratch(4);
+  out[0] = static_cast<double>(frame.inputPeak);
+  out[1] = static_cast<double>(frame.outputPeak);
+  out[2] = static_cast<double>(frame.gainReductionDb);
+  out[3] = static_cast<double>(frame.detector);
+  return out.data();
+}
+
+MW_UNIT_EXPORTS(mw_variable_mu, g_variableMu, mw::units::applyVariableMuParam)
+
+/// Seven doubles: the two peaks, a reduction and a storage state *per channel*
+/// because the two channels are independent, and whether the matrix is in.
+EMSCRIPTEN_KEEPALIVE
+const double* mw_variable_mu_visual() {
+  mw::units::VariableMuFrame frame;
+  g_variableMu.unit().visual().read(frame);
+  std::vector<double>& out = g_variableMu.visualScratch(7);
+  out[0] = static_cast<double>(frame.inputPeak);
+  out[1] = static_cast<double>(frame.outputPeak);
+  out[2] = static_cast<double>(frame.gainReductionDb[0]);
+  out[3] = static_cast<double>(frame.gainReductionDb[1]);
+  out[4] = static_cast<double>(frame.storage[0]);
+  out[5] = static_cast<double>(frame.storage[1]);
+  out[6] = frame.lateralVertical ? 1.0 : 0.0;
+  return out.data();
+}
+
+MW_UNIT_EXPORTS(mw_console_eq, g_consoleEq, mw::units::applyConsoleEqParam)
+
+/// Seven doubles: the two peaks, which lineage is in circuit, the inductor
+/// mid band's working Q, and the three bridged-T bandwidths.
+EMSCRIPTEN_KEEPALIVE
+const double* mw_console_eq_visual() {
+  mw::units::ConsoleEqFrame frame;
+  g_consoleEq.unit().visual().read(frame);
+  std::vector<double>& out = g_consoleEq.visualScratch(7);
+  out[0] = static_cast<double>(frame.inputPeak);
+  out[1] = static_cast<double>(frame.outputPeak);
+  out[2] = frame.american ? 1.0 : 0.0;
+  out[3] = static_cast<double>(frame.midQ);
+  for (int b = 0; b < 3; ++b) {
+    out[static_cast<std::size_t>(4 + b)] = static_cast<double>(frame.bandwidthOctaves[b]);
+  }
+  return out.data();
+}
 
 }  // extern "C"

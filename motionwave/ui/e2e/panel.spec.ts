@@ -225,7 +225,7 @@ test.describe('U22 — the panel reflows where the face says, and stays touchabl
   // grown a special case for the face it was written against would pass for
   // that one and fail on the next, which is why this runs the *same* assertions
   // for each rather than a relaxed version of them.
-  for (const unit of ['dyn-01', 'dyn-02', 'dyn-03', 'dyn-04']) {
+  for (const unit of ['dyn-01', 'dyn-02', 'dyn-03', 'dyn-04', 'dyn-05']) {
     test(`the ${unit} face is held to the same geometry`, async ({ page }) => {
       await boot(page, unit);
       const { breakpoints, rootFontPx, minWidthRem } = await page.evaluate(() => ({

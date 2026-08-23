@@ -67,14 +67,46 @@ struct Voicing {
  */
 inline Voicing british() noexcept {
   Voicing v;
+  // **These cores are an order of magnitude larger than the library's default,
+  // and the default is what was wrong here.** The default is calibrated for a
+  // deliberately coloured transformer — 1.5 % third harmonic at −12 dBFS and
+  // 30 Hz, which is a spec sheet's worth of character. A console module's
+  // transformers are sized for a line level they are not supposed to colour:
+  // §9.1 publishes 0.07 % from 50 Hz to 10 kHz at +20 dBu *output*. Working
+  // back through the flux normalisation, +20 dBu at 50 Hz is a flux of 0.48,
+  // and 50 Hz is the binding corner because a core's flux goes as 1/f — the
+  // 1 kHz and 10 kHz readings are twenty and two hundred times easier. Holding
+  // a quadratic core under half the published figure there needs a saturation
+  // flux near sixteen. With the library's default this path measured 49.9 % at
+  // 50 Hz; at ten times it still measured 0.16 %.
+  //
+  // A core this large is not a large-sounding transformer, it is a correctly
+  // sized one: the unit's own maximum output of +26 dBu is a flux of 1.6 at
+  // 30 Hz, a tenth of the knee, which is why §9.1 states the clipping point as
+  // an amplifier limit and not a transformer one.
+  //
+  // The nickel core's low hysteresis distortion survives the resize, because
+  // that is the coercivity and it is separate.
   v.input.coercivity *= 0.45f;
-  v.input.saturationFlux *= 0.85f;
-  v.output.saturationFlux *= 0.70f;
-  v.eq.saturationFlux *= 0.30f;
-  v.stageA.drive = 0.14f;
-  v.stageA.bias = 0.052f;
-  v.stageB.drive = 0.11f;
-  v.stageB.bias = 0.044f;
+  v.input.saturationFlux *= 18.0f;
+  // §7.1 puts the output transformer at the highest level in the unit, so it is
+  // the smaller of the two and reaches its knee first.
+  v.output.saturationFlux *= 14.0f;
+  // The EQ inductors are *small*, and they can be because the unit drives them
+  // with the network's own current rather than with the through signal — see
+  // `ConsoleEq::shape`. With the boost control at centre they carry nothing, so
+  // their size is bounded only by §10 test 7's 6 dB rather than pulling against
+  // §9.1's flat-EQ specification.
+  v.eq.saturationFlux *= 2.0f;
+  // Two Class A single-ended stages, second-harmonic-led and rising with level,
+  // with the drive split between them — §7.1 says that split is why the
+  // harmonic profile depends on where the gain is taken. Sized so the pair
+  // meets §9.1's 0.07 % at 1 kHz rather than by eye: at the library's usual
+  // drive they measured 0.44 %.
+  v.stageA.drive = 0.014f;
+  v.stageA.bias = 0.0052f;
+  v.stageB.drive = 0.011f;
+  v.stageB.bias = 0.0044f;
   return v;
 }
 
@@ -99,9 +131,15 @@ inline Voicing british() noexcept {
  */
 inline Voicing american() noexcept {
   Voicing v;
-  v.output.saturationFlux *= 0.42f;
-  v.stageB.drive = 0.10f;
-  v.stageB.bias = 0.004f;
+  // A third of the British output stage's, so the step-up is unambiguously the
+  // dominant nonlinearity at high level — which is what §7.2 says it is and
+  // where it says the punch comes from. No THD figure is published for this
+  // lineage at all (§9.2 marks it **unknown** and calls a measured curve the
+  // highest-value outstanding research item), so its size is set by the
+  // relationship the sheet does state rather than by a number it does not.
+  v.output.saturationFlux *= 3.0f;
+  v.stageB.drive = 0.010f;
+  v.stageB.bias = 0.0004f;
   return v;
 }
 

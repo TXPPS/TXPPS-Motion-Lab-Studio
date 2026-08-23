@@ -127,7 +127,11 @@ class InductorBell {
  * the shelving design shrinks as the slope rises, which is an under-damped
  * transition and is what an LC network has. Above about 3.2 the term goes
  * negative at ±16 dB and the section stops being a shelf at all, so this is
- * bounded by the arithmetic as well as by the measurement.
+ * bounded by the arithmetic as well as by two measurements — §10 test 4's
+ * overshoot window and §10 test 6, which asks the low shelf to move the mid
+ * band's peak by between 0.2 and 2 dB. The under-damped transition dips
+ * slightly above the corner as well as overshooting below it, and that dip is
+ * where the band interaction the sheet asks for actually comes from.
  */
 class InductorShelf {
  public:
@@ -168,7 +172,7 @@ class InductorShelf {
 
   /// See the class comment. Ours, bounded by §10 test 4 and by the design
   /// arithmetic; `LEGAL_NOTES.md` records the class of number this is.
-  static constexpr double kSlope = 1.6;
+  static constexpr double kSlope = 1.9;
 
   Biquad filter_;
   Config config_{};

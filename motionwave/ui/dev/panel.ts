@@ -22,6 +22,8 @@ import { programEqSpecs } from '../units/program_eq/params.gen';
 import { opticalLevellerFace } from '../units/optical_leveller/face';
 import { opticalLevellerSpecs } from '../units/optical_leveller/params.gen';
 import { fetLimiterFace } from '../units/fet_limiter/face';
+import { consoleEqFace } from '../units/console_eq/face';
+import { consoleEqSpecs } from '../units/console_eq/params.gen';
 import { variableMuFace } from '../units/variable_mu/face';
 import { variableMuSpecs } from '../units/variable_mu/params.gen';
 import { fetLimiterSpecs } from '../units/fet_limiter/params.gen';
@@ -86,6 +88,7 @@ const FACES = {
   'dyn-02': { face: opticalLevellerFace, specs: opticalLevellerSpecs, title: 'Optical Leveller' },
   'dyn-03': { face: fetLimiterFace, specs: fetLimiterSpecs, title: 'FET Limiter' },
   'dyn-04': { face: variableMuFace, specs: variableMuSpecs, title: 'Variable-Mu Limiter' },
+  'dyn-05': { face: consoleEqFace, specs: consoleEqSpecs, title: 'Console EQ' },
 } as const;
 
 const requested = new URLSearchParams(window.location.search).get('unit') ?? 'fx-01';
@@ -164,11 +167,14 @@ async function start() {
   sequence = new Int32Array(shared, 0, 1);
   frame = new Float64Array(shared, 8, 9);
 
-  node = new AudioWorkletNode(context, 'motion-shaper', {
+  node = new AudioWorkletNode(context, 'motion-wave-unit', {
     numberOfInputs: 1,
     numberOfOutputs: 1,
     outputChannelCount: [2],
-    processorOptions: { shared },
+    // Which unit the worklet should instantiate. Without it the audio thread
+    // runs whichever unit the worklet happens to name, and U21 would measure a
+    // face against an engine that is not behind it.
+    processorOptions: { shared, unit: requested },
   });
 
   const osc = context.createOscillator();

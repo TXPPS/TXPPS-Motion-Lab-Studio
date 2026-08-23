@@ -26,25 +26,58 @@
  * classic rather than the ES module the main thread loads.
  */
 
-/** Doubles in a published frame: phase, 3 gains, 3 peaks, in, out. */
-const FRAME_DOUBLES = 9;
+/**
+ * What each unit's boundary is called and how wide its frame is.
+ *
+ * The worklet used to name one unit's exports directly, which meant cell U21 —
+ * "the face repaints from state the audio thread published" — could only ever
+ * be measured on that unit. The other four had faces, engines and a boundary
+ * and no audio thread to be decoupled from, so the cell stayed open for a
+ * reason that was really a missing table.
+ *
+ * The frame width is per unit because a frame is the unit's own shape. Reading
+ * the wrong number of doubles would not fail: it would publish neighbouring
+ * heap into a meter, which is the kind of wrong that looks like a plausible
+ * signal.
+ */
+const UNITS = {
+  'fx-01': { prefix: 'mw_shaper', frame: 9, curve: true, bpm: true },
+  'dyn-01': { prefix: 'mw_program_eq', frame: 6, curve: false, bpm: false },
+  'dyn-02': { prefix: 'mw_optical_leveller', frame: 5, curve: false, bpm: false },
+  'dyn-03': { prefix: 'mw_fet_limiter', frame: 4, curve: false, bpm: false },
+  'dyn-04': { prefix: 'mw_variable_mu', frame: 7, curve: false, bpm: false },
+  'dyn-05': { prefix: 'mw_console_eq', frame: 7, curve: false, bpm: false },
+};
 
-class ShaperProcessor extends AudioWorkletProcessor {
+/** The widest frame any unit publishes, which is what the shared buffer holds. */
+const MAX_FRAME_DOUBLES = 9;
+
+class UnitProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
     const shared = options.processorOptions.shared;
+    this.spec = UNITS[options.processorOptions.unit] ?? UNITS['fx-01'];
     // Two views over one buffer. The sequence is an Int32Array because
     // `Atomics` works on integers, and the frame is doubles because that is
     // what the bridge hands back.
     this.sequence = new Int32Array(shared, 0, 1);
-    this.frame = new Float64Array(shared, 8, FRAME_DOUBLES);
+    this.frame = new Float64Array(shared, 8, MAX_FRAME_DOUBLES);
     this.ready = false;
     this.blocks = 0;
     this.sampleRateUsed = sampleRate;
     createMotionWaveCore().then((core) => {
       this.core = core;
-      core._mw_shaper_prepare(sampleRate, 128, 2);
-      core._mw_shaper_set_bpm(120);
+      // Bound once, so `process` is a few indexed calls rather than a lookup
+      // per block on the audio thread.
+      const p = this.spec.prefix;
+      this.prepare = core[`_${p}_prepare`];
+      this.setParam = core[`_${p}_set_param`];
+      this.inputPtr = core[`_${p}_input`];
+      this.outputPtr = core[`_${p}_output`];
+      this.processCall = core[`_${p}_process`];
+      this.visualPtr = core[`_${p}_visual`];
+      this.prepare(sampleRate, 128, 2);
+      if (this.spec.bpm) core._mw_shaper_set_bpm(120);
       this.port.onmessage = (event) => this.onCommand(event.data);
       this.ready = true;
       this.port.postMessage({ kind: 'ready' });
@@ -53,8 +86,8 @@ class ShaperProcessor extends AudioWorkletProcessor {
 
   onCommand(message) {
     if (message.kind === 'param') {
-      this.core._mw_shaper_set_param(message.id, message.value);
-    } else if (message.kind === 'curve') {
+      this.setParam(message.id, message.value);
+    } else if (message.kind === 'curve' && this.spec.curve) {
       const bytes = message.nodes.length * 4 * 8;
       const ptr = this.core._malloc(bytes);
       const base = ptr / 8;
@@ -75,7 +108,7 @@ class ShaperProcessor extends AudioWorkletProcessor {
     }
     const core = this.core;
     const input = inputs[0];
-    const inBase = core._mw_shaper_input() / 4;
+    const inBase = this.inputPtr() / 4;
     const heap = core.HEAPF32;
     // Interleave in, deinterleave out. The boundary is interleaved because one
     // convention across it is worth more than saving a copy on each side.
@@ -85,13 +118,8 @@ class ShaperProcessor extends AudioWorkletProcessor {
         heap[inBase + i * 2 + c] = source ? source[i] : 0;
       }
     }
-    core._mw_shaper_process(
-      frames,
-      this.sampleRateUsed,
-      (this.blocks * frames) / this.sampleRateUsed,
-      1,
-    );
-    const outBase = core._mw_shaper_output() / 4;
+    this.processCall(frames, this.sampleRateUsed, (this.blocks * frames) / this.sampleRateUsed, 1);
+    const outBase = this.outputPtr() / 4;
     const heapOut = core.HEAPF32;
     for (let c = 0; c < out.length; c++) {
       const channel = out[c];
@@ -103,8 +131,9 @@ class ShaperProcessor extends AudioWorkletProcessor {
     // the release fences the C++ side uses.
     const seq = Atomics.load(this.sequence, 0);
     Atomics.store(this.sequence, 0, seq + 1);
-    const visualBase = core._mw_shaper_visual() / 8;
-    for (let i = 0; i < FRAME_DOUBLES; i++) this.frame[i] = core.HEAPF64[visualBase + i];
+    const visualBase = this.visualPtr() / 8;
+    for (let i = 0; i < this.spec.frame; i++) this.frame[i] = core.HEAPF64[visualBase + i];
+    for (let i = this.spec.frame; i < MAX_FRAME_DOUBLES; i++) this.frame[i] = 0;
     Atomics.store(this.sequence, 0, seq + 2);
 
     this.blocks++;
@@ -112,4 +141,4 @@ class ShaperProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('motion-shaper', ShaperProcessor);
+registerProcessor('motion-wave-unit', UnitProcessor);

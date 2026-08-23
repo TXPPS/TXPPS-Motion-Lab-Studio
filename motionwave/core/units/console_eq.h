@@ -73,18 +73,30 @@ class ConsoleEq : public Node {
   void setOutputDb(double db) noexcept { output_ = std::pow(10.0, db / 20.0); }
 
   // British lineage. Frequencies are detent indices; the tables are §3.
-  void setBritishLow(int frequencyIndex, double amountDb) noexcept {
-    britishLowIndex_ = clampIndex(frequencyIndex, voicing::kBritishLowCount);
-    britishLowDb_ = clampAmount(amountDb, 16.0);
+  //
+  // One setter per control rather than one per band, because that is what the
+  // panel has — the frequency and the amount are two rings of a concentric
+  // switch, not one value — and because the generated parameter dispatch is one
+  // statement per parameter.
+  void setBritishLowFrequency(int index) noexcept {
+    britishLowIndex_ = clampIndex(index, voicing::kBritishLowCount);
     dirty_ = true;
   }
-  void setBritishMid(int frequencyIndex, double amountDb) noexcept {
-    britishMidIndex_ = clampIndex(frequencyIndex, voicing::kBritishMidCount);
-    britishMidDb_ = clampAmount(amountDb, 18.0);
+  void setBritishLowAmount(double db) noexcept {
+    britishLowDb_ = clampAmount(db, 16.0);
     dirty_ = true;
   }
-  void setBritishHigh(double amountDb) noexcept {
-    britishHighDb_ = clampAmount(amountDb, 16.0);
+  void setBritishMidFrequency(int index) noexcept {
+    britishMidIndex_ = clampIndex(index, voicing::kBritishMidCount);
+    dirty_ = true;
+  }
+  void setBritishMidAmount(double db) noexcept {
+    britishMidDb_ = clampAmount(db, 18.0);
+    dirty_ = true;
+  }
+  /// §3.2: the high band has no frequency control at all.
+  void setBritishHighAmount(double db) noexcept {
+    britishHighDb_ = clampAmount(db, 16.0);
     dirty_ = true;
   }
   /// Index 0 is out; 1 to 4 are 50, 80, 160 and 300 Hz.
@@ -94,17 +106,58 @@ class ConsoleEq : public Node {
   }
 
   // American lineage.
-  void setAmericanBand(int band, int frequencyIndex, double amountDb, Shape shape) noexcept {
+  void setAmericanFrequency(int band, int index) noexcept {
     if (band < 0 || band >= 3) return;
-    americanIndex_[band] = clampIndex(frequencyIndex, voicing::kAmericanCount);
-    americanDb_[band] = clampAmount(amountDb, 12.0);
+    americanIndex_[band] = clampIndex(index, voicing::kAmericanCount);
+    dirty_ = true;
+  }
+  void setAmericanAmount(int band, double db) noexcept {
+    if (band < 0 || band >= 3) return;
+    americanDb_[band] = clampAmount(db, 12.0);
+    dirty_ = true;
+  }
+  void setAmericanShape(int band, Shape shape) noexcept {
+    if (band < 0 || band >= 3) return;
     // §4.3: only bands 1 and 3 switch shape, and band 2 is peak only. Silently
     // accepting a shelf on band 2 would make a control that does nothing, which
     // is the same class of bug as a wrong number.
     americanShape_[band] = band == 1 ? Shape::Peak : shape;
     dirty_ = true;
   }
-  void setBandPass(bool enabled) noexcept { bandPassEnabled_ = enabled; }
+
+  /// The detent tables, for a face that has to label the switches.
+  static double britishLowHz(int index) noexcept {
+    return voicing::kBritishLowHz[clampIndex(index, voicing::kBritishLowCount)];
+  }
+  static double britishMidHz(int index) noexcept {
+    return voicing::kBritishMidHz[clampIndex(index, voicing::kBritishMidCount)];
+  }
+  static double americanHz(int band, int index) noexcept {
+    const int b = band < 0 ? 0 : (band > 2 ? 2 : band);
+    return voicing::kAmericanHz[b][clampIndex(index, voicing::kAmericanCount)];
+  }
+
+  /**
+   * §4.2's five detents each way, plus zero.
+   *
+   * The steps are 2, 4, 6, 9 and 12, which is not a series — the gap widens at
+   * the top — so the control is a position on a switch and this is the table it
+   * selects from. A linear or logarithmic mapping would put the middle detents
+   * in the wrong places and §10 test 11 measures every one of them.
+   */
+  static double americanStepDb(int position) noexcept {
+    static constexpr double kSteps[11] = {-12.0, -9.0, -6.0, -4.0, -2.0, 0.0,
+                                          2.0,   4.0,  6.0,  9.0,  12.0};
+    return kSteps[clampIndex(position, 11)];
+  }
+
+  void setBandPass(bool enabled) noexcept {
+    bandPassEnabled_ = enabled;
+    // The filter's own switch is read in `rebuild`, not in `process`, so
+    // without this the control does nothing at all — which is a bug of the same
+    // class as a wrong number and is what §10 test 16 caught.
+    dirty_ = true;
+  }
 
   void setTier(Tier tier) noexcept {
     tier_ = tier;
@@ -161,7 +214,9 @@ class ConsoleEq : public Node {
         out.channelCount() < kConsoleChannels ? out.channelCount() : kConsoleChannels;
     if (bypass_) {
       out.copyFrom(in);
-      publish(0.0f, 0.0f);
+      // Bypass passes the signal through, so the meters carry on reading it.
+      const float passed = peakOfBuffer(out);
+      publish(passed, passed);
       return;
     }
 
@@ -260,16 +315,31 @@ class ConsoleEq : public Node {
     // rather than three independent biquads and the interaction appears on its
     // own, which §10 test 6 measures.
     const float staged = stageA_[c].process(inputCore_[c].process(v));
-    double y = static_cast<double>(staged);
+    const double flat = static_cast<double>(staged);
+    double y = flat;
     if (eqIn_) {
       y = britishLow_[c].process(y);
       y = britishMid_[c].process(y);
       y = britishHigh_[c].process(y);
-      // §6.1: the cores saturate under high low-frequency level, and it belongs
-      // in the EQ section rather than in the amplifier model — a large low
-      // shelf boost on bass-heavy material adds harmonic content a linear
-      // filter cannot. §10 test 7 fails by name if this is missing.
-      y = static_cast<double>(eqCore_[c].process(static_cast<float>(y)));
+      /*
+       * §6.1: the cores saturate under high low-frequency level, and it belongs
+       * in the EQ section rather than in the amplifier model — a large low
+       * shelf boost on bass-heavy material adds harmonic content a linear
+       * filter cannot. §10 test 7 fails by name if this is missing.
+       *
+       * **The core sees what the network added, not the signal passing
+       * through.** An inductor carries the network's own current; with the
+       * boost control at centre the network is out of circuit and the inductor
+       * carries nothing. Driving the core with the through signal instead makes
+       * the EQ section a distortion source at every setting including flat, and
+       * then the row that asks for saturation under boost and the specification
+       * that asks for 0.07 % with the EQ flat pull against each other with no
+       * size of core that satisfies both — they are only four times apart in
+       * flux. Measured with the through signal, 50 Hz at the unit's own
+       * published operating level read 0.22 % against a 0.07 % specification.
+       */
+      const double added = y - flat;
+      y = flat + static_cast<double>(eqCore_[c].process(static_cast<float>(added)));
     }
     // The high-pass is a separate network on its own switch, so it is outside
     // the EQ-in latch exactly as the band controls are inside it.
@@ -356,14 +426,45 @@ class ConsoleEq : public Node {
         dsp::BridgedTBand::Config band;
         band.frequency = voicing::kAmericanHz[b][americanIndex_[b]];
         band.amountDb = americanDb_[b];
-        band.shape = americanShape_[b] == Shape::Shelf ? dsp::BridgedTBand::Shape::Shelf
-                                                       : dsp::BridgedTBand::Shape::Peak;
+        const bool shelf = americanShape_[b] == Shape::Shelf;
+        band.shape = shelf ? dsp::BridgedTBand::Shape::Shelf : dsp::BridgedTBand::Shape::Peak;
         band.highShelf = b == 2;
+        if (shelf) {
+          // **In shelf mode the detent labels the plateau, not the corner.**
+          // A console shelf marked 50 Hz lifts the 50 Hz region by the amount
+          // selected; a shelving section whose *midpoint* sits at 50 Hz is only
+          // half way there by then, and §10 test 15 measures exactly that — it
+          // asks the gain at 20 Hz to be within a decibel of the gain at 50 Hz.
+          // Placed at the midpoint the two read 11.61 and 6.00 dB.
+          band.frequency *= shelf && !band.highShelf ? kShelfPlateau : 1.0 / kShelfPlateau;
+        }
         american_[c][b].prepare(innerRate);
         american_[c][b].setConfig(band);
       }
     }
     dirty_ = false;
+  }
+
+  /**
+   * The loudest sample in a buffer, for the bypass path.
+   *
+   * **A bypassed unit still passes audio, so its meters must still read.**
+   * Publishing zeros there makes a face show silence for a unit the user can
+   * hear, which is the one thing a meter must never do — and it looked correct
+   * in every native row, because bypass is not what those measure. Ledger cell
+   * X24 caught it: four of the five units did this and the Motion Shaper, which
+   * had an integration test, did not.
+   */
+  static float peakOfBuffer(const AudioBuffer& buffer) noexcept {
+    float peak = 0.0f;
+    for (int c = 0; c < buffer.channelCount(); ++c) {
+      const float* samples = buffer.channel(c);
+      for (int i = 0; i < buffer.frames(); ++i) {
+        const float magnitude = samples[i] < 0.0f ? -samples[i] : samples[i];
+        if (magnitude > peak) peak = magnitude;
+      }
+    }
+    return peak;
   }
 
   void publish(float inputPeak, float outputPeak) noexcept {
@@ -382,6 +483,11 @@ class ConsoleEq : public Node {
     rng_ = rng_ * 1664525u + 1013904223u;
     return static_cast<double>(rng_ >> 8) / 8388608.0 - 1.0;
   }
+
+  /// How far above the labelled frequency a low shelf's corner sits so that the
+  /// label is the plateau. Bounded by §10 test 15's one-decibel window between
+  /// 20 and 50 Hz at band 1's lowest position.
+  static constexpr double kShelfPlateau = 2.5;
 
   static int tierFactor(Tier tier) noexcept {
     switch (tier) {
@@ -416,7 +522,10 @@ class ConsoleEq : public Node {
   int latency_ = 0;
   double drive_ = 1.0;
   double output_ = 1.0;
-  double noise_ = 1.6e-5;
+  /// §9.1: −83 dBu at line gain, which is −105 dBFS on this project's
+  /// alignment of +4 dBu to −18 dBFS. The generator is uniform on [−1, 1), so
+  /// the amplitude is that over root three.
+  double noise_ = 9.8e-6;
   double britishLowDb_ = 0.0;
   double britishMidDb_ = 0.0;
   double britishHighDb_ = 0.0;

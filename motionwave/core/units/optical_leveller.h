@@ -154,7 +154,9 @@ class OpticalLeveller : public Node {
         out.channelCount() < kOpticalChannels ? out.channelCount() : kOpticalChannels;
     if (bypass_) {
       out.copyFrom(in);
-      publish(0.0f, 0.0f);
+      // Bypass passes the signal through, so the meters carry on reading it.
+      const float passed = peakOfBuffer(out);
+      publish(passed, passed);
       return;
     }
 
@@ -399,6 +401,28 @@ class OpticalLeveller : public Node {
   double nextNoise() noexcept {
     rng_ = rng_ * 1664525u + 1013904223u;
     return static_cast<double>(rng_ >> 8) / 8388608.0 - 1.0;
+  }
+
+  /**
+   * The loudest sample in a buffer, for the bypass path.
+   *
+   * **A bypassed unit still passes audio, so its meters must still read.**
+   * Publishing zeros there makes a face show silence for a unit the user can
+   * hear, which is the one thing a meter must never do — and it looked correct
+   * in every native row, because bypass is not what those measure. Ledger cell
+   * X24 caught it: four of the five units did this and the Motion Shaper, which
+   * had an integration test, did not.
+   */
+  static float peakOfBuffer(const AudioBuffer& buffer) noexcept {
+    float peak = 0.0f;
+    for (int c = 0; c < buffer.channelCount(); ++c) {
+      const float* samples = buffer.channel(c);
+      for (int i = 0; i < buffer.frames(); ++i) {
+        const float magnitude = samples[i] < 0.0f ? -samples[i] : samples[i];
+        if (magnitude > peak) peak = magnitude;
+      }
+    }
+    return peak;
   }
 
   void publish(float inputPeak, float outputPeak) noexcept {

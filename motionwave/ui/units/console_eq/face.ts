@@ -1,0 +1,164 @@
+/**
+ * Console EQ — the face.
+ *
+ * **One device, two panels, and the switch between them changes what the
+ * controls mean.** §8's table is not a list of presets: the inductor lineage
+ * has a fixed 12 kHz high shelf, six mid detents and an 18 dB/octave high-pass;
+ * the bridged-T lineage has three five-position bands, stepped amounts and a
+ * band-pass. A face that showed one set of controls for both would be
+ * describing a device that does not exist, so the lineage switch is the first
+ * element and everything after it is grouped by which panel it belongs to.
+ *
+ * **No Q control, on either panel, and that is a modelling statement.** §6.2
+ * ends by saying any UI that exposes a Q control on this family has
+ * misunderstood it — on the bridged-T side the shape and the amount are
+ * mechanically tied, and on the inductor side Q is set by which frequency is
+ * selected and by how much is asked for. Both are consequences, so both are
+ * *shown* rather than offered.
+ *
+ * **The amounts are stepped on one panel and continuous on the other**, which
+ * looks like an inconsistency and is the hardware. The bridged-T panel is a
+ * detented switch whose five values widen at the top; the inductor panel is a
+ * continuous concentric control. Rounding one to match the other would be
+ * tidying away the difference §10 test 11 measures.
+ *
+ * **U19 is an IP cell.** The era language is a narrow module with concentric
+ * stepped rotaries carrying frequency and amount on one shaft, and a small
+ * latching EQ switch — general to late-1960s and early-1970s console modules
+ * and nobody's property. What is absent is anything specific: no panel artwork,
+ * no badge, no typeface, no coloured skirt copied from a photograph, and no
+ * reference name in this file or in any identifier it declares. Every asset is
+ * drawn in code from design tokens.
+ *
+ * **U20 means real state.** The curve readout and the working Q and bandwidth
+ * come from the unit's own running coefficients, not from the control values —
+ * which is the house rule and the reason a drawn curve here cannot disagree
+ * with what is heard.
+ */
+import type { FaceElement, UnitFace } from '../../harness/types';
+import { consoleEqControls } from './params.gen';
+
+export { ConsoleEqParam } from './params.gen';
+
+/** Meter channels the unit publishes, matching `ConsoleEqFrame`. */
+export const ConsoleEqMeter = {
+  InputPeak: 'input-peak',
+  OutputPeak: 'output-peak',
+  MidQ: 'mid-q',
+  BandOneWidth: 'band-one-width',
+  BandTwoWidth: 'band-two-width',
+  BandThreeWidth: 'band-three-width',
+} as const;
+
+function knob(id: string, paramId: number, name: string): FaceElement {
+  return {
+    id,
+    role: 'knob',
+    paramId,
+    accessibleName: name,
+    keyboardFocusable: true,
+    colours: [
+      { foreground: '--mw-accent', background: '--mw-bg-raised' },
+      { foreground: '--mw-fg-muted', background: '--mw-bg-raised' },
+    ],
+  };
+}
+
+function selector(id: string, paramId: number, name: string): FaceElement {
+  return {
+    id,
+    role: 'switch',
+    paramId,
+    accessibleName: name,
+    keyboardFocusable: true,
+    colours: [{ foreground: '--mw-fg', background: '--mw-bg-raised' }],
+  };
+}
+
+function meter(id: string, channel: string, name: string): FaceElement {
+  return {
+    id,
+    role: 'meter',
+    paramId: null,
+    meterChannel: channel,
+    accessibleName: name,
+    keyboardFocusable: false,
+    colours: [{ foreground: '--mw-meter-mid', background: '--mw-bg-sunken' }],
+  };
+}
+
+/**
+ * The curve, declared as a `graph` so the harness holds it to a meter's
+ * standard: it must name a channel the unit publishes.
+ *
+ * It names the mid band's working Q, because that is the number a user cannot
+ * predict from the panel — it moves with the selected frequency *and* with the
+ * amount, and on the bridged-T panel the equivalent number moves with the
+ * amount alone. Drawing the curve without it would leave the one thing the
+ * controls do not say.
+ */
+const curve: FaceElement = {
+  id: 'eq-curve',
+  role: 'graph',
+  paramId: null,
+  meterChannel: ConsoleEqMeter.MidQ,
+  accessibleName: 'Equaliser response, drawn from the coefficients in circuit.',
+  keyboardFocusable: true,
+  colours: [
+    { foreground: '--mw-accent', background: '--mw-bg-sunken' },
+    { foreground: '--mw-fg-muted', background: '--mw-bg-sunken' },
+  ],
+};
+
+export const consoleEqFace: UnitFace = {
+  elements: [
+    curve,
+
+    // The three bridged-T bandwidths, which are what proportional Q looks like
+    // from the outside: they move when the *amount* moves and by nothing else.
+    meter('band-one-width', ConsoleEqMeter.BandOneWidth, 'Band 1 bandwidth in octaves'),
+    meter('band-two-width', ConsoleEqMeter.BandTwoWidth, 'Band 2 bandwidth in octaves'),
+    meter('band-three-width', ConsoleEqMeter.BandThreeWidth, 'Band 3 bandwidth in octaves'),
+    meter('input-level', ConsoleEqMeter.InputPeak, 'Input level'),
+    meter('output-level', ConsoleEqMeter.OutputPeak, 'Output level'),
+
+    // Every control, from the generated table — the set is the manifest's and
+    // cannot be written here.
+    ...consoleEqControls.map((c) =>
+      c.role === 'switch'
+        ? selector(c.id, c.paramId, c.accessibleName)
+        : knob(c.id, c.paramId, c.accessibleName),
+    ),
+  ],
+
+  artwork: [
+    {
+      id: 'panel-surface',
+      origin: 'original',
+      attribution: 'Drawn in code from design tokens for Motion Wave',
+    },
+    {
+      id: 'concentric-geometry',
+      origin: 'original',
+      attribution: 'Drawn in code from design tokens for Motion Wave',
+    },
+    {
+      id: 'curve-plot',
+      origin: 'original',
+      attribution: 'Drawn in code from design tokens for Motion Wave',
+    },
+    {
+      id: 'detent-marks',
+      origin: 'original',
+      attribution: 'Drawn in code from design tokens for Motion Wave',
+    },
+  ],
+
+  /**
+   * `em`, never `px` — RA-007 one layer up. Twenty controls in two panels that
+   * are never both in use, so the first breakpoint is where a whole panel and
+   * its curve fit side by side.
+   */
+  breakpointsEm: [36, 56],
+  minWidthRem: 21,
+};
