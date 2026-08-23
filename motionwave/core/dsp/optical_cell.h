@@ -54,8 +54,17 @@ struct OpticalCellConfig {
    * the detector was watching the output it had just attenuated. The numbers
    * here are the ones that produce the published figures where the sheet
    * measures them, which is at the unit's output.
+   *
+   * And they were recalibrated once more after a bug in a *different* file was
+   * fixed, which is worth recording. Every triode stage used to emit a decaying
+   * DC offset on reset, because its restoration filter started from zero rather
+   * than from the offset the stage actually sits at. That gave this unit's
+   * detector a head start, and the attack measured 10.6 ms when the cell was
+   * genuinely running at four times that. With the offset gone the same
+   * measurement read 41.9 ms — the model had been wrong and its test had been
+   * agreeing with it, because both were downstream of the same transient.
    */
-  double attackSeconds = 0.00675;
+  double attackSeconds = 0.00161;
   /// Release branch one, calibrated the same way and in the same loop, against
   /// the 60 ms every source agrees on.
   double releaseFastSeconds = 0.095;

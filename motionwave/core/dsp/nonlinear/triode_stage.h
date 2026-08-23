@@ -50,6 +50,24 @@ class DcRestore {
     state_ = 0.0;
   }
   void reset() noexcept { state_ = 0.0; }
+
+  /**
+   * Start the filter already holding a known offset.
+   *
+   * A biased stage's output for zero input is not zero — it is `curve(bias)`
+   * scaled — and a restoration filter starting from zero therefore emits that
+   * whole offset and decays it away over its own time constant. At a 2 Hz
+   * corner that is eighty milliseconds of DC on every reset, which is a thump
+   * at every transport start.
+   *
+   * It also broke a detector loop, which is how it was found: the FET Limiter's
+   * sidechain saw 0.1875 of DC — `curve(0.030)` divided by a drive of 0.16 —
+   * decided the signal was 14 dB above threshold, and pinned the element at
+   * full attenuation for the whole eighty milliseconds. Every unit built before
+   * it had the same transient and no test that could see it, because they all
+   * measure after settling.
+   */
+  void prime(double value) noexcept { state_ = value; }
   float process(float x) noexcept {
     const double in = static_cast<double>(x);
     state_ = coeff_ * state_ + (1.0 - coeff_) * in;
@@ -92,6 +110,7 @@ class TriodeStage {
     // whose bias control also moved its gain would be two controls in one, and
     // the second of them would be invisible.
     normal_ = 1.0f / curveDerivatives(config.bias).first;
+    primeRestore();
   }
 
   void setConfig(const Config& config) noexcept {
@@ -99,9 +118,13 @@ class TriodeStage {
     config_ = config;
     normal_ = 1.0f / curveDerivatives(config.bias).first;
     if (cornerMoved) restore_.prepare(sampleRate_, config.restoreHz);
+    primeRestore();
   }
 
-  void reset() noexcept { restore_.reset(); }
+  void reset() noexcept {
+    restore_.reset();
+    primeRestore();
+  }
 
   float process(float x) noexcept {
     const float shaped = curve(config_.drive * x + config_.bias) * normal_;
@@ -112,6 +135,12 @@ class TriodeStage {
   Curvature curvature() const noexcept { return nl::curvature(config_.bias); }
 
  private:
+  /// The offset the stage sits at with no input, handed to the restoration
+  /// filter so it starts settled rather than settling.
+  void primeRestore() noexcept {
+    restore_.prime(static_cast<double>(curve(config_.bias) * normal_));
+  }
+
   Config config_{};
   DcRestore restore_;
   double sampleRate_ = 48000.0;
@@ -205,6 +234,7 @@ class PushPullStage {
     config_ = config;
     restore_.prepare(sampleRate, config.restoreHz);
     normal_ = 1.0f / curveDerivatives(config.bias).first;
+    primeRestore();
   }
 
   void setConfig(const Config& config) noexcept {
@@ -212,9 +242,13 @@ class PushPullStage {
     config_ = config;
     normal_ = 1.0f / curveDerivatives(config.bias).first;
     if (cornerMoved) restore_.prepare(sampleRate_, config.restoreHz);
+    primeRestore();
   }
 
-  void reset() noexcept { restore_.reset(); }
+  void reset() noexcept {
+    restore_.reset();
+    primeRestore();
+  }
 
   float process(float x) noexcept {
     const float beta = effectiveImbalance();
@@ -238,6 +272,17 @@ class PushPullStage {
    * is second-dominant when the whole point of the topology is that it is not;
    * reporting zero would hide the imbalance the unit is deliberately running.
    */
+  /// The pair's offset with no input — not zero once the halves are mismatched
+  /// or biased, for the same reason the single-ended stage's is not.
+  void primeRestore() noexcept {
+    const float beta = effectiveImbalance();
+    const float delta = beta * kImbalanceOperatingPointScale;
+    const float b = config_.bias;
+    const float upper = (1.0f + beta) * curve(b + delta);
+    const float lower = (1.0f - beta) * curve(-0.0f + b - delta);
+    restore_.prime(static_cast<double>(0.5f * (upper - lower) * normal_));
+  }
+
   Curvature curvature() const noexcept {
     const CurveDerivatives d = curveDerivatives(config_.bias);
     const float beta = effectiveImbalance();

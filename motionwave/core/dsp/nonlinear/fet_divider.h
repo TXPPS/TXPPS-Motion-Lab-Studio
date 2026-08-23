@@ -51,9 +51,18 @@ class FetDivider {
   void setConfig(const Config& config) noexcept { config_ = config; }
   void reset() noexcept { lastY_ = 0.0f; }
 
-  /// `control` reduces the gate voltage and so increases the attenuation.
+  /**
+   * `control` drives the element toward pinch-off, so more of it is more
+   * attenuation.
+   *
+   * The sign is a convention and it was the other way round first, which made
+   * the limiter that uses this *quieter* as its detector worked harder — a
+   * loop with positive feedback wearing a compressor's clothes. Which
+   * direction a gate voltage runs in is a modelling choice; that more control
+   * means more attenuation is not.
+   */
   float process(float x, float control) noexcept {
-    const float base = config_.bias - control;
+    const float base = config_.bias + control;
     // Seeded from the previous sample rather than from zero. At audio rates the
     // solution moves by a fraction of a Float32 step between samples, so one
     // step from there is converged; one step from zero would not be, and the
@@ -79,21 +88,53 @@ class FetDivider {
    * meter.
    */
   float gainDb(float control) const noexcept {
-    const float r = resistance(config_.bias - control);
+    const float r = resistance(config_.bias + control);
     return 20.0f *
            std::log10(config_.seriesResistance / (config_.seriesResistance + r));
   }
 
- private:
   float resistance(float v) const noexcept {
     // Clamped short of pinch-off: at V = Vp the channel resistance is infinite
     // and the divider passes the signal untouched, and a control that can reach
     // it makes the last of its travel do nothing.
     const float u = v / config_.pinchOffVolts;
-    const float clamped = u > 0.999f ? 0.999f : (u < -3.0f ? -3.0f : u);
+    // 0.9999 rather than 0.999, which is 45 dB of available attenuation rather
+    // than 25. The tighter clamp was not a safety margin, it was a ceiling: the
+    // FET Limiter's own specification gives 45 dB, and at 0.999 every setting
+    // that asked for more than 25 dB got 25 and the whole top of the control
+    // read as one value.
+    const float clamped = u > 0.9999f ? 0.9999f : (u < -3.0f ? -3.0f : u);
     return config_.onResistance / (1.0f - clamped);
   }
 
+  /**
+   * The control voltage that produces a given attenuation, in closed form.
+   *
+   * A limiter needs the inverse of this element, not the element: its loop
+   * computes how many decibels to remove and then has to ask the FET for them.
+   * Solving `Rs/(Rs+r) = G` for `r` and `r = r_on/(1 − V/Vp)` for `V` gives one
+   * divide, which is worth having on the audio thread — the alternative is a
+   * search per sample or a table that is wrong between its entries.
+   *
+   * Relative to the element's resting gain, so a unit asking for 10 dB gets
+   * 10 dB below where the bias trim already put it rather than 10 dB below
+   * unity.
+   */
+  float controlForReduction(float reductionDb) const noexcept {
+    if (reductionDb <= 0.0f) return 0.0f;
+    const float resting = std::pow(10.0f, gainDb(0.0f) / 20.0f);
+    float wanted = resting * std::pow(10.0f, -reductionDb / 20.0f);
+    // Floored: at zero gain the required resistance is infinite, and the
+    // clamp in `resistance` would silently cap it anyway. Better to cap here,
+    // where the number still means something.
+    if (wanted < 1.0e-4f) wanted = 1.0e-4f;
+    const float r = config_.seriesResistance * (1.0f - wanted) / wanted;
+    const float v = config_.pinchOffVolts * (1.0f - config_.onResistance / r);
+    const float control = v - config_.bias;
+    return control < 0.0f ? 0.0f : control;
+  }
+
+ private:
   Config config_{};
   float lastY_ = 0.0f;
 };

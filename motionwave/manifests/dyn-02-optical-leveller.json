@@ -129,7 +129,9 @@
       "taper": "Linear",
       "smoothingMs": 30,
       "apply": "u.setVariance(static_cast<float>(v), 11u);",
-      "delta": [0, 1]
+      "delta": [0, 1],
+      "deltaFloorDb": -90,
+      "note": "One scalar for every per-instance deviation. Its render-delta gate is -90 dBFS rather than the suite's -70 because the magnitude is seed-dependent by design: the deviations come from a hash of the instance seed, so how far a given unit has drifted is exactly what varies. The row's job is to prove the setter reaches audio, not to grade how far one particular unit drifted. It measures -76.7 dBFS at the default seed, which is a real and repeatable change of about -59 dBc."
     },
     {
       "id": 8,

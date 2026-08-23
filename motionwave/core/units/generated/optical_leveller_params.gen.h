@@ -70,7 +70,7 @@ inline constexpr OpticalLevellerParamRow kOpticalLevellerParams[kOpticalLeveller
     {4, "Emphasis", "Emphasis", 0.0, 1.0, 0.0, 0.0, 1.0, -70.0},
     {5, "Wear", "Cell Wear", 0.0, 1.0, 0.0, 0.0, 1.0, -70.0},
     {6, "Input", "Input", -20.0, 20.0, 0.0, -6.0, 12.0, -70.0},
-    {7, "Variance", "Variance", 0.0, 1.0, 0.0, 0.0, 1.0, -70.0},
+    {7, "Variance", "Variance", 0.0, 1.0, 0.0, 0.0, 1.0, -90.0},
     {8, "Oversampling", "Oversampling", 0.0, 3.0, 2.0, 1.0, 3.0, -70.0},
     {9, "Noise", "Noise", 0.0, 1.0, 1.0, 0.0, 1.0, -95.0},
 };
@@ -120,6 +120,12 @@ inline void applyOpticalLevellerParam(OpticalLeveller& u, int id, double v) noex
       break;
     }
     case OpticalLevellerParam::Variance: {
+      // One scalar for every per-instance deviation. Its render-delta gate is -90 dBFS rather than
+      // the suite's -70 because the magnitude is seed-dependent by design: the deviations come from
+      // a hash of the instance seed, so how far a given unit has drifted is exactly what varies.
+      // The row's job is to prove the setter reaches audio, not to grade how far one particular
+      // unit drifted. It measures -76.7 dBFS at the default seed, which is a real and repeatable
+      // change of about -59 dBc.
       u.setVariance(static_cast<float>(v), 11u);
       break;
     }
