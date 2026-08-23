@@ -205,7 +205,7 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | Unit                | Sheet    | Status      | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  |
 | ------------------- | -------- | ----------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- |
 | Motion Shaper       | `fx-01`  | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| Program EQ          | `dyn-01` | DSP PARTIAL | PASS | —    | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Program EQ          | `dyn-01` | DSP PARTIAL | PASS | —    | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
 | Optical Leveller    | `dyn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | FET Limiter         | `dyn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Variable-Mu Limiter | `dyn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
@@ -230,7 +230,19 @@ half that has to be measured. `D3` is the sheet itself, in `program_eq_tests.cpp
 (response) and `program_eq_amp_tests.cpp` (amplifier and transformers). `D5` is
 the alias measurement, test 13, at −89.3 dBFS against a −70 dBFS requirement.
 
-The rest of the D column is not claimed yet, and the UI cells are not started.
+The rest of the D column is not claimed yet. Four of the six UI cells are:
+`U19`, `U20` and `U23` in `motionwave/ui/test/program_eq_cells.test.ts`, and
+`U22` in the browser suite — the same renderer, the same assertions, a second
+face. That last is the first real test of the framework rather than of a unit: a
+renderer that had grown a special case for the face it was written against would
+have passed for that one and failed here.
+
+`U21` and `X24` wait on the same thing, which is this unit's engine across the
+WebAssembly boundary. `U21` is a claim about two clocks and cannot be shortcut
+the way `U22` can — geometry needs a face and a browser, but frame pacing needs
+an engine actually running. The panel harness says so rather than rendering a
+dead panel, because a face nothing is driving is exactly what that cell exists to
+catch.
 
 Four things the sheet's own numbers could not settle, each resolved toward its
 equations and recorded where it was found rather than in a footnote:

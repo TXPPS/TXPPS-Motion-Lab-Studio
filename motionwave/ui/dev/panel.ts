@@ -17,6 +17,8 @@ import { renderFace, type PanelHandle } from '../render/facePanel';
 import { motionShaperFace, MotionShaperMeter } from '../units/motion_shaper/face';
 import { motionShaperSpecs } from '../units/motion_shaper/params.gen';
 import { MotionShaperParam } from '../units/motion_shaper/params.gen';
+import { programEqFace } from '../units/program_eq/face';
+import { programEqSpecs } from '../units/program_eq/params.gen';
 
 /** The channel each published double carries, in the bridge's packing order. */
 const CHANNELS = [
@@ -60,6 +62,21 @@ interface Harness {
 
 const mount = document.getElementById('mount') as HTMLElement;
 
+/**
+ * Which unit's face to lay out, from `?unit=`.
+ *
+ * U22 is a claim about *geometry*, and geometry needs a face and a browser and
+ * nothing else — no engine, no audio thread. So every unit's face can be
+ * measured here from the day it exists, which matters: the alternative is that
+ * a unit's responsive cell waits on its WebAssembly bridge, and thirteen units
+ * would queue behind one piece of plumbing that has nothing to do with layout.
+ *
+ * U21 is different and cannot be shortcut this way — it is a claim about two
+ * clocks, so it needs that unit's engine actually running.
+ */
+const requested = new URLSearchParams(window.location.search).get('unit') ?? 'fx-01';
+const isShaper = requested === 'fx-01';
+
 let node: AudioWorkletNode | null = null;
 let sequence: Int32Array | null = null;
 let frame: Float64Array | null = null;
@@ -71,9 +88,9 @@ let context: AudioContext | null = null;
 
 const panel = renderFace({
   container: mount,
-  face: motionShaperFace,
-  specs: motionShaperSpecs,
-  title: 'Motion Shaper',
+  face: isShaper ? motionShaperFace : programEqFace,
+  specs: isShaper ? motionShaperSpecs : programEqSpecs,
+  title: isShaper ? 'Motion Shaper' : 'Program EQ',
   onParam(id, real) {
     node?.port.postMessage({ kind: 'param', id, value: real });
   },
@@ -117,6 +134,11 @@ function tick() {
 }
 
 async function start() {
+  // Only the Motion Shaper has an engine across the boundary today, and this
+  // page says so rather than pretending: a harness that silently rendered a
+  // dead panel would let U21 be measured against a face nothing is driving,
+  // which is the exact failure that cell exists to catch.
+  if (!isShaper) return;
   context = new AudioContext({ sampleRate: 48000 });
   await context.audioWorklet.addModule('/motionwave.worklet.js');
   await context.audioWorklet.addModule('/shaper_worklet.js');
@@ -181,8 +203,8 @@ async function start() {
   async stopEngine() {
     await context?.suspend();
   },
-  breakpointsEm: motionShaperFace.breakpointsEm,
-  minWidthRem: motionShaperFace.minWidthRem,
+  breakpointsEm: isShaper ? motionShaperFace.breakpointsEm : programEqFace.breakpointsEm,
+  minWidthRem: isShaper ? motionShaperFace.minWidthRem : programEqFace.minWidthRem,
   start,
   paints: () => paints,
   reads: () => reads,
