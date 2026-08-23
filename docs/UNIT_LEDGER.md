@@ -207,7 +207,7 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | Motion Shaper       | `fx-01`  | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Program EQ          | `dyn-01` | DSP PARTIAL | PASS | —    | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
 | Optical Leveller    | `dyn-02` | DSP PARTIAL | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
-| FET Limiter         | `dyn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| FET Limiter         | `dyn-03` | DSP PARTIAL | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
 | Variable-Mu Limiter | `dyn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Console EQ          | `dyn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Granular Reverb     | `fx-02`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
@@ -308,6 +308,67 @@ Five model errors, each caught by a row rather than by review:
 And one in shared code: the photoresistive attenuator reused its lit resistance
 as the series element, which caps the divider at exactly −6.02 dB in a unit
 specified to reach 40.
+
+### FET Limiter, so far
+
+Six of `dyn-03` §9's rows pass, plus `D1` across all nine parameters and four of
+the six UI cells.
+
+**The detector runs inside the oversampling wrapper, and that is the unit's
+architecture rather than a tuning choice.** Its fastest attack is 20 µs, which
+is 0.88 of a sample at 44.1 kHz — a detector clocked at the host rate cannot
+express any setting faster than one sample, so the top third of the ATTACK
+control would collapse onto one behaviour while the unit went on limiting and
+sounding plausible. At 8× the inner period is 2.8 µs. The row that measures it
+separates all seven positions cleanly at 44.1 kHz.
+
+The attack constants are derived in two steps, neither a fit. The published
+endpoints are 10-to-90 _spans_ and the detector wants a _time constant_, so the
+first conversion is ln(9). The second is the loop: a proportional feedback loop
+accelerates its own observed constant by 1/(1+L), so the detector must be slower
+than the span it produces. Measured against a probe whose peak spacing cannot
+limit it, that factor is 0.61, 0.66 and 0.59 at panel positions 1, 4 and 7 —
+constant to within a tenth across a forty-to-one range of constants, which is
+what says the loop gain really is roughly constant. One law reproduces both
+endpoints: 812.5 µs against a published 800, and 20.8 against 20.
+
+It looked like the factor varied — 4.9× at the slow end against 14.4× at the
+fast end — and that was the **probe**. A peak detector only rises when a new
+peak arrives, and the 1 kHz sine the sheet's own test 1 specifies delivers one
+every 0.5 ms: ten times the span the fast end is meant to show. The sheet's test
+cannot measure the number it asks for, and the row now uses a rectified level.
+
+Three model bugs found, all by rows rather than by review:
+
+- The FET's control sense was inverted, so more control meant _less_
+  attenuation — a limiter that gets quieter as its detector works harder.
+- Its drain feedback treated the audio as though it were already in pinch-off
+  volts. The whole control span is 0.164 V, so a −12 dBFS signal swung the
+  operating point across most of it: `gainDb` reported 45 dB for a control the
+  element applied 1.7 dB at, and the loop drove to its stop at every input.
+- Its pinch-off clamp capped attenuation at 25 dB where the specification gives 45.
+
+Two instrument bugs, which is the more interesting half. `D1`'s base drove 18 dB
+past the element's ceiling, so the control sat clamped and _could not release_ —
+RELEASE measured as a dead control at every setting, and driving a limiter into
+its stop turned out to be a test of the stop. And the four-button lag row timed
+both states from the wrong instant, so both read 0.0 µs and `0 ≥ 0 × 10` passed.
+
+That last one is now impossible to write. `MW_EXPECT_AT_LEAST_TIMES` and
+`MW_EXPECT_EXCEEDS_BY` refuse any comparison whose operands are two zeros, two
+identical values, or below a floor the row itself declares — and the predicate
+behind them is unit-tested in `param_tests.cpp`, because a guard against vacuous
+assertions that was itself vacuous would be the same bug one level up. Every
+existing ratio and margin assertion across the suites now goes through them.
+
+`Variance` carries a declared gate of −105 dBFS, and the reason is the topology
+rather than a weak control: a feedback limiter drives to a fixed output level,
+so drift in the gain element is absorbed by the loop and only the distortion
+difference survives. Perturbing §3.8's Q BIAS and DIST TRIM — which is where a
+drifted unit of this design actually differs — moved the row from −112 to
+−94 dBFS; the remaining smallness is the loop doing its job.
+
+Rows 2, 4, 6, 7, 9, 10, 11, 13, 14, 15 and 16 are not written yet.
 
 ## What each column is
 

@@ -224,4 +224,29 @@ MW_TEST("the allocation guard catches an allocation, or it is proving nothing") 
   }
 }
 
+MW_TEST("the harness refuses a comparison whose operands prove nothing") {
+  // The guard against vacuous assertions, tested — because a guard that was
+  // itself vacuous would be the same bug one level up.
+  //
+  // It exists because of a real failure: a row asserting the four-button
+  // attack lag was at least ten times another lag timed both from the wrong
+  // instant, so both read 0.0 µs, and `0 >= 0 * 10` is true. It passed, printed
+  // two zeros, and proved nothing. That shape — "a is at least N times b", "a
+  // exceeds b by d" — is satisfied by two zeros and usually by two identical
+  // values, and nine units remain to write dozens of them.
+  MW_EXPECT(!test::isComparable(0.0, 0.0, 1.0e-6));
+  MW_EXPECT(!test::isComparable(0.0, 5.0, 1.0e-6));
+  MW_EXPECT(!test::isComparable(5.0, 0.0, 1.0e-6));
+  // Two identical values, however large. A ratio between them is 1 whatever
+  // they are, so no claim about that ratio is a claim about the unit.
+  MW_EXPECT(!test::isComparable(7.5, 7.5, 1.0e-6));
+  // Below the floor the row itself declared. The floor has to be the row's,
+  // because what counts as too small to believe is the measurement's knowledge
+  // and not the harness's.
+  MW_EXPECT(!test::isComparable(1.0e-9, 4.0, 1.0e-6));
+  // And the case that should pass.
+  MW_EXPECT(test::isComparable(0.05, 0.5, 1.0e-6));
+  MW_EXPECT(test::isComparable(-3.0, -9.0, 1.0e-6));
+}
+
 MW_TEST_MAIN("param")

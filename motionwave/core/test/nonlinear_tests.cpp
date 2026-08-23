@@ -107,7 +107,7 @@ MW_TEST("NL-01: the second-over-third rule holds at the sheet's anchor") {
   MW_EXPECT_NEAR(h.ratio(2), 1.40e-3, 1.40e-3 * 0.15);
   MW_EXPECT_NEAR(h.ratio(3), 3.50e-4, 3.50e-4 * 0.15);
   MW_EXPECT_NEAR(h.thd() * 100.0, 0.144, 0.02);
-  MW_EXPECT(db(h.ratio(2)) - db(h.ratio(3)) >= 6.0);
+  MW_EXPECT_EXCEEDS_BY(db(h.ratio(2)), db(h.ratio(3)), 6.0, 1.0e-9);
 }
 
 MW_TEST("NL-02: the second/third crossover sits where the drive rule says") {
@@ -336,7 +336,7 @@ MW_TEST("NL-05: the ratio rises with gain reduction, from the element") {
   }
   MW_EXPECT(slopes[1] > slopes[0]);
   MW_EXPECT(slopes[2] > slopes[1]);
-  MW_EXPECT(slopes[2] >= slopes[0] * 1.40);
+  MW_EXPECT_AT_LEAST_TIMES(slopes[2], slopes[0], 1.40, 1.0e-6);
 
   // And the distortion rises faster than the gain falls. Measured at matched
   // output, so what is compared is harmonic content and not level.
@@ -356,7 +356,7 @@ MW_TEST("NL-05: the ratio rises with gain reduction, from the element") {
   }
   std::printf("    NL-05 THD at 3 dB %.4f %%, at 20 dB %.4f %%, rise %.2f dB\n", thd[0] * 100.0,
               thd[1] * 100.0, db(thd[1]) - db(thd[0]));
-  MW_EXPECT(db(thd[1]) - db(thd[0]) >= 10.0);
+  MW_EXPECT_EXCEEDS_BY(db(thd[1]), db(thd[0]), 10.0, 1.0e-9);
 }
 
 MW_TEST("NL-06: core distortion rises as the frequency falls") {
@@ -376,7 +376,7 @@ MW_TEST("NL-06: core distortion rises as the frequency falls") {
               thd[0] * 100.0, thd[1] * 100.0, db(thd[1]) - db(thd[0]), h3overH2);
   MW_EXPECT(thd[0] * 100.0 <= 0.03);
   MW_EXPECT_NEAR(thd[1] * 100.0, 1.5, 1.0);
-  MW_EXPECT(db(thd[1]) - db(thd[0]) >= 3.0);
+  MW_EXPECT_EXCEEDS_BY(db(thd[1]), db(thd[0]), 3.0, 1.0e-9);
   MW_EXPECT(h3overH2 >= 6.0);
 }
 

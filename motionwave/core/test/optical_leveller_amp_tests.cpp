@@ -226,7 +226,7 @@ MW_TEST("dyn-02 test 9: the pre-emphasis makes the detector deaf to bass") {
   std::printf("    test 9 full: 100 Hz %.2f dB, 10 kHz %.2f dB (difference %.2f)\n", shapedLow,
               shapedHigh, shapedHigh - shapedLow);
   MW_EXPECT(std::fabs(flatHigh - flatLow) <= 2.0);
-  MW_EXPECT(shapedHigh - shapedLow >= 6.0);
+  MW_EXPECT_EXCEEDS_BY(shapedHigh, shapedLow, 6.0, 1.0e-3);
 }
 
 MW_TEST("dyn-02 test 10: the published distortion, at both published levels") {
@@ -243,7 +243,7 @@ MW_TEST("dyn-02 test 10: the published distortion, at both published levels") {
   MW_EXPECT(sixteen.thd() > ten.thd());
   // Second-harmonic dominant, from the single-ended 12AX7 that §6.3 names as
   // the unit's dominant tone-shaping nonlinearity.
-  MW_EXPECT(db(ten.ratio(2)) - db(ten.ratio(3)) >= 6.0);
+  MW_EXPECT_EXCEEDS_BY(db(ten.ratio(2)), db(ten.ratio(3)), 6.0, 1.0e-9);
 }
 
 MW_TEST("dyn-02 test 11: the noise floor is this unit's, not the Program EQ's") {

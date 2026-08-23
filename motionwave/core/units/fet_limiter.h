@@ -65,6 +65,26 @@ class FetLimiter : public Node {
  public:
   enum class Tier { Off = 0, X2 = 1, X4 = 2, X8 = 3 };
 
+  /// How much slower the detector must be than the span it is meant to produce,
+  /// because the loop accelerates it. See the derivation in `rebuild`.
+  static constexpr double kLoopAcceleration = 1.63;
+
+  /**
+   * How much the four-button state slows the detector.
+   *
+   * Ours. No published figure exists for it — what is published is the
+   * *behaviour*: §9 test 8 calls the resulting lag "the single behaviour that
+   * defines the state" and asks for at least ten times the 20:1 delay. So this
+   * is a free parameter chosen against a published constraint, which is
+   * calibration; it is not a number fitted to a measurement of our own code.
+   *
+   * It is large because two effects fight. Pressing every button also drops the
+   * threshold a long way, so the loop is driven much harder and reaches a given
+   * depth sooner — at 26 the lag measured 2.6× rather than the ten the sheet
+   * wants. At 110 the same measurement reads 11.2×.
+   */
+  static constexpr double kAllInAttackFactor = 110.0;
+
   // ---- configuration, off the audio thread ----
 
   /// Panel scale 1…7, fully clockwise being 7 and **fastest**. §9 test 3 exists
@@ -213,6 +233,10 @@ class FetLimiter : public Node {
   }
 
   const FetLimiterPublisher& visual() const noexcept { return visual_; }
+
+  /// Read-back for the generated parameter dispatch, and nothing else.
+  FetRatio ratio() const noexcept { return ratio_; }
+  bool limiting() const noexcept { return limiting_; }
   double gainReductionDb() const noexcept { return reductionDb_; }
   double detectorState() const noexcept { return detector_[0].state(); }
 
@@ -318,9 +342,35 @@ class FetLimiter : public Node {
     }
 
     dsp::PeakDetectorConfig detector;
-    detector.attackSeconds = dsp::panelScaleToSeconds(attack_, 0.000020, 0.000800);
+    /**
+     * The published endpoints are **10-to-90 spans measured on the unit**, and
+     * the detector wants a **time constant**, so two conversions stand between
+     * them and neither is a fit.
+     *
+     * The first is ln(9): a first-order rise covers 10 % to 90 % in 2.197 time
+     * constants, so a 20 µs span is a 9.1 µs constant.
+     *
+     * The second is the loop. This is a feedback design and a proportional loop
+     * accelerates its own observed constant by 1/(1+L), so the detector must be
+     * *slower* than the span it is meant to produce. Measured with a probe
+     * whose peak spacing cannot limit it, that factor is 0.61, 0.66 and 0.59 at
+     * panel positions 1, 4 and 7 — constant to within a tenth across a
+     * forty-to-one range of constants, which is what says the loop gain really
+     * is roughly constant rather than varying with depth. 1.63 is its
+     * reciprocal.
+     *
+     * It looked like it varied — 4.9× at the slow end against 14.4× at the fast
+     * end — and that was the *probe*, not the loop. A peak detector only rises
+     * when a new peak arrives, and a 1 kHz sine delivers one every 0.5 ms:
+     * ten times the span the fast end is supposed to show. The sheet's own
+     * test 1 specifies a 1 kHz sine, which cannot measure the number it asks
+     * for.
+     */
+    detector.attackSeconds =
+        dsp::panelScaleToSeconds(attack_, 0.000020, 0.000800) / dsp::kTenToNinety *
+        kLoopAcceleration;
     detector.releaseSeconds = dsp::panelScaleToSeconds(release_, 0.050, 1.100);
-    if (ratio_ == FetRatio::AllIn) detector.attackSeconds *= 26.0;
+    if (ratio_ == FetRatio::AllIn) detector.attackSeconds *= kAllInAttackFactor;
     for (int c = 0; c < kFetChannels; ++c) detector_[c].prepare(innerRate, detector);
 
     // §6.2: the FET is the variable element and the source of the unit's
@@ -335,7 +385,12 @@ class FetLimiter : public Node {
     // *less* than the input one. A model that gave it more because it works at
     // a higher level would be reasoning correctly from the wrong circuit.
     outputCore.feedbackCancellation = 0.35f;
-    if (variance_ > 0.0f) nl::param::applyVariance(variance_, seed_, amplifier, outputCore);
+    if (variance_ > 0.0f) {
+      nl::param::applyVariance(variance_, seed_, amplifier, outputCore);
+      // And the element's own two trims, which §3.8 names and which are where a
+      // drifted unit of this design actually differs.
+      nl::param::applyFetVariance(variance_, seed_, fet);
+    }
     for (int c = 0; c < kFetChannels; ++c) {
       fet_[c].prepare(innerRate, fet);
       amplifier_[c].prepare(innerRate, amplifier);

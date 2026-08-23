@@ -303,8 +303,11 @@ MW_TEST("dyn-02 tests 3 to 6: two release branches, and a cell that remembers") 
   std::printf("    test 5: stage two after 60 s of work, %.3f s — %.2fx the short history\n",
               longRun.second, ratio);
   // The memory test. A model whose release is identical after 200 ms and after
-  // 60 s has no history state, and this is the row that says so.
-  MW_EXPECT(ratio >= 2.0);
+  // 60 s has no history state, and this is the row that says so — guarded by
+  // the harness, because two releases that both failed to be measured would
+  // give a ratio of zero over zero and no assertion about it means anything.
+  // A millisecond is the floor: a release shorter than that was not a release.
+  MW_EXPECT_AT_LEAST_TIMES(longRun.second, shortRun.second, 2.0, 1.0e-3);
 
   // And the memory fades. A cell that has been resting recovers quickly again,
   // which is the other half of the claim and the half a one-way accumulator

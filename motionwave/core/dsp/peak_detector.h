@@ -77,6 +77,15 @@ class PeakDetector {
 };
 
 /**
+ * A first-order rise covers 10 % to 90 % in this many time constants.
+ *
+ * ln(9) — worth a name because published attack figures are nearly always a
+ * 10-to-90 span while a model's constant is a time constant, and confusing the
+ * two is a factor of 2.2 that looks like a calibration error.
+ */
+inline constexpr double kTenToNinety = 2.197224577;
+
+/**
  * The 1-to-7 panel scale mapped onto published endpoints, logarithmically.
  *
  * `dyn-03` §4 gives both endpoints and says neither taper is published, marking

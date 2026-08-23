@@ -133,7 +133,7 @@ MW_TEST("dyn-01 test 10: the published distortion, and the harmonic that leads")
   MW_EXPECT(h.thd() * 100.0 >= 0.0);
   // Second-harmonic dominant, which is the whole reason §6.3 chose a
   // single-ended profile over the push-pull one it could not resolve.
-  MW_EXPECT(db(h.ratio(2)) - db(h.ratio(3)) >= 6.0);
+  MW_EXPECT_EXCEEDS_BY(db(h.ratio(2)), db(h.ratio(3)), 6.0, 1.0e-9);
 
   // And it rises with level rather than being a constant the model applies.
   const Harmonics quiet = harmonicsOf(unit, 1000.0, kPlusTenDbm * 0.25);
@@ -154,8 +154,8 @@ MW_TEST("dyn-01 test 11: the transformers distort downward in frequency") {
   // Third-harmonic led at 30 Hz, because the B–H loop is symmetric about the
   // origin — the transformer has taken over from the valve, which is the whole
   // claim.
-  MW_EXPECT(db(low.ratio(3)) - db(low.ratio(2)) >= 6.0);
-  MW_EXPECT(db(low.thd()) - db(mid.thd()) >= 3.0);
+  MW_EXPECT_EXCEEDS_BY(db(low.ratio(3)), db(low.ratio(2)), 6.0, 1.0e-9);
+  MW_EXPECT_EXCEEDS_BY(db(low.thd()), db(mid.thd()), 3.0, 1.0e-9);
 }
 
 MW_TEST("dyn-01 test 2, the half the response suite cannot measure") {

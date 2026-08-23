@@ -17,6 +17,7 @@
 
 #include "../../param/param_set.h"
 #include "../../param/param_spec.h"
+#include "fet_divider.h"
 #include "magnetic_core.h"
 #include "triode_stage.h"
 
@@ -139,6 +140,40 @@ inline void applyVariance(float variance, std::uint32_t seed, TriodeStage::Confi
   stage.bias *= 1.0f + 0.25f * spread(2);
   core.saturationFlux *= 1.0f + 0.15f * spread(3);
   core.coercivity *= 1.0f + 0.30f * spread(4);
+}
+
+/**
+ * The same drift, applied to a variable-gain element's own trims.
+ *
+ * Separate from `applyVariance` because not every unit has one, and shares its
+ * hash so that a given seed drifts the *whole* unit together — which is the
+ * point of having one variance control rather than several.
+ *
+ * `dyn-03` §3.8 names these two by name: Q BIAS sets where the element sits at
+ * the edge of conduction and DIST TRIM the fraction of the drain swing returned
+ * to the gate. They are what a drifted unit of this design actually differs in,
+ * and leaving them out made its variance control measure −112 dBFS — a real
+ * change, to two nearly-linear stages, and nowhere near where the hardware
+ * varies.
+ */
+inline void applyFetVariance(float variance, std::uint32_t seed,
+                             FetDivider::Config& fet) noexcept {
+  if (variance <= 0.0f) return;
+  auto spread = [&](std::uint32_t salt) {
+    std::uint32_t h = seed * 2654435761u + salt * 2246822519u;
+    h ^= h >> 15;
+    h *= 2654435761u;
+    h ^= h >> 13;
+    return (static_cast<float>(h & 0xFFFFu) / 32768.0f - 1.0f) * variance;
+  };
+  // Q BIAS moves where the element rests, which moves the whole gain law with
+  // it; DIST TRIM moves how much of the drain swing returns to the gate, which
+  // is the element's own asymmetry. Both are bounded so a drifted unit is a
+  // drifted unit rather than a broken one.
+  fet.bias *= 1.0f + 0.06f * spread(5);
+  fet.feedbackFraction += 0.12f * spread(6);
+  if (fet.feedbackFraction < 0.0f) fet.feedbackFraction = 0.0f;
+  if (fet.feedbackFraction > 0.5f) fet.feedbackFraction = 0.5f;
 }
 
 }  // namespace mw::dsp::nl::param
