@@ -193,18 +193,22 @@ describe('latch, touch, write and trim are one mechanism', () => {
     const { set, player } = newPlayer();
     const recorder = new AutomationRecorder(player, set);
     recorder.mode = 'latch';
-    recorder.start(0);
-    recorder.touch(GAIN, 0);
     set.setNormalised(GAIN, 0.2, 'user');
-    for (let tick = 100; tick <= 500; tick += 100) recorder.advance(tick);
-    recorder.stop();
-
     recorder.start(0);
     recorder.touch(GAIN, 0);
+    for (let tick = 100; tick <= 500; tick += 100) recorder.advance(tick);
+    recorder.stop();
+    expect(player.lane(GAIN).points.every((point) => point.value === 0.2)).toBe(true);
+
     set.setNormalised(GAIN, 0.9, 'user');
+    recorder.start(0);
+    recorder.touch(GAIN, 0);
     for (let tick = 100; tick <= 500; tick += 100) recorder.advance(tick);
     recorder.stop();
 
+    // Nothing from the first pass survives inside the span the second covered.
+    // Without the range clear the two passes interleave and the lane plays a
+    // sawtooth between two takes.
     for (const point of player.lane(GAIN).points) {
       expect(point.value).toBeCloseTo(0.9, 9);
     }

@@ -1,31 +1,34 @@
 # Motion Wave — progress
 
 ```
-RESUME: Directive 03
-Current unit:  none — no unit may start until §2.3 and §2.4 exist
-               (rule 3: a unit is built or it is not started)
-Last PASS:     §2.1 GPL purge closed, licence-guard + ledger-guard gating the build
-Next action:   Write docs/reference/smp-01-slipstream-sampler.md (§2.2), to the
-               same structure as the other thirteen sheets. It is the only
-               missing sheet and it blocks the Slipstream Sampler. Then §2.3.
-Shared libs:   none yet. First to build, in order:
-               §2.3 motionwave/core buffers + Node + offline render harness
-                    + first golden-render regression
-               §2.4 plugin framework — one parameter system, one preset format,
-                    one automation path, one metering path, one design system.
-                    TYPE SCALE MUST BE rem-BASED FROM LINE ONE (RA-007).
+RESUME: Directive 04
+Current unit:  Motion Shaper, DSP measured, UI not started
+Last PASS:     V1 −200.0 dBFS · V2 <1e-7 dB · V3 0 clicks · V4 0 clicks ·
+               V6 −200.0 dBFS · V7 ≤1 sample · V8 0.666667 · V11 8.6% ·
+               cell 4 exact · cell 7 bit-identical
+Next action:   §4.6 topology crossfade — 4 ms equal-power between old and new
+               paths on slot enable, band count and slope change. That is V9,
+               and the sheet calls a pop there unacceptable at any setting.
+               Then §4.5 BLEP for V5. Then the UI, which gates on Stream C.
+Shared libraries built:
+               core/dsp/biquad.h        RBJ sections, double state, denormal flush
+               core/dsp/crossover.h     LR 6/12/24, three-band all-pass compensated
+               core/dsp/curve.h         analytic per-sample breakpoint curve
+               core/dsp/lfo_phase.h     transport-derived phase, swing, trigger
+               core/dsp/smoother.h      two cascaded one-poles, 0.05 ms floor
+               core/render/offline_render.h  deterministic render + analysis
+               Specs only: lib-nonlinear, lib-grain-engine, lib-voice-substrate
 Open deviations:
-  - Amp Sim declares no latency. Its shaper costs 192 samples but its cabinet
-    convolver adds ~205 more that move with the selected cab; 192 is measurably
-    false (renderer reads 397 at 96 kHz) and 397 would compensate the model.
-    Costs it up to ~4 ms of alignment. Fix needs an async build-time impulse
-    measurement the builder does not have.
-  - Offline insert automation matches playback up to ~33 minutes of continuous
-    render, then widens and says so in the diagnostics log. An
-    OfflineAudioContext schedules every suspension up front, so the ceiling is
-    memory, not time.
-  - e2e/automation.spec.ts:348 fails and is pre-existing — verified against the
-    previous commit. Possibly environmental. 249/250 e2e pass.
+             - Mix 0 on a multiband unit returns the all-pass of the input, not
+               the input. Magnitude-flat, phase-rotated. Bypass returns the
+               input exactly and is a separate control for that reason.
+             - Amp Sim (MotionLab) declares no latency; cabinet onset moves with
+               the cab. Carried from Directive 03.
+             - Offline insert automation (MotionLab) matches playback to ~33 min.
+Blocked cells awaiting hardware: 5 recorded in docs/HARDWARE_VERIFICATION.md
+               (V10 denormal stall, cell 21 fps, cell 22 responsive, CPU
+               budgets, thermal/battery). Most cells thought to need hardware
+               do not — what genuinely does is timing, display and heat.
 ```
 
 **Read this first:** the Definition of Done is **not reachable on this build
