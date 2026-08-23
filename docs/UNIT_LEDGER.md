@@ -208,7 +208,7 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | Program EQ          | `dyn-01` | DSP PARTIAL | PASS | —    | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
 | Optical Leveller    | `dyn-02` | DSP PARTIAL | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
 | FET Limiter         | `dyn-03` | DSP DONE    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
-| Variable-Mu Limiter | `dyn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Variable-Mu Limiter | `dyn-04` | DSP DONE    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
 | Console EQ          | `dyn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Granular Reverb     | `fx-02`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
@@ -411,7 +411,81 @@ whole frequency span, which is the element twice. The detector rectifies, so its
 ripple is at 2f and lands on the third harmonic; H2 is the element's signature
 and H3 is the detector's.
 
+### Variable-Mu Limiter
+
+All fifteen of `dyn-04` §9's rows measure, across four suites, plus `D1` across
+ten parameters — the sweep, the determinism check and the block-size check.
+U21 and X24 wait on the WASM bridge as the other units' do.
+
+**Every channel control exists twice, and that was a modelling requirement
+rather than a generalisation.** §3.5 and §3.7 say a user setting a different
+threshold and a different time constant for the lateral and the vertical path is
+the reason the unit is still on mix buses. The first draft had one set driving
+both channels; it reproduced the matrix exactly — 271 dB of separation, round
+trip within 0.002 dB — and still could not do what the matrix is for. Test 13
+was the row that caught it, and only after its own probe was fixed: it had fed a
+signal with large mono content and called it "vertical only", so it measured the
+signal's balance rather than the unit's independence.
+
+**Two time conversions are the law's, not a logarithm's.** The storage network
+decays exponentially in control volts; what a measurement reads is decibels of
+gain reduction, and `R = −20·p·log₁₀(1 − v/Vc)` sits between them. Recovering
+from 10 dB to 1 dB is a factor of 8.20 in volts rather than of ten, so it takes
+2.104 constants and not `ln(10)`'s 2.303 — and all four fixed positions came out
+8.6 % short, by the same 8.6 % each, which is what a conversion error looks like
+rather than a tuning one. With both conversions derived from the exponent the
+four positions measure 0.302, 0.802, 2.002 and 5.002 s against published 0.3,
+0.8, 2.0 and 5.0.
+
+**The loop gain has a closed form and it was checked before it was used.** A
+feedback compressor's local ratio is `1 + L`, and here
+`L = 20·p·k / (ln10 · (1 − v/Vc))`. Evaluated at the sidechain gains the model
+had, it predicted 1.570:1 and the render measured 1.57:1 — which is what made it
+safe to invert: §3.6 publishes the DC threshold trim as moving the ratio across
+roughly 2:1 to 30:1, and the same formula turns those into the two sidechain
+gains. The trim then measures 2.00:1 and 27.07:1 with nothing fitted. The same
+`L` sets how much the closed loop accelerates its own attack, evaluated at the
+trim rather than at a nominal setting, which is why the attack is right at every
+trim position rather than at one.
+
+**The sidechain has no compression of its own, and removing it was a fix.** A
+compressive term looked prudent and was wrong on this unit specifically: §5's
+defining property is that the ratio *rises* with reduction, and a sidechain
+whose gain falls as the control grows cancels exactly that. It measured 1.61:1
+at 3 dB of reduction and 1.55:1 at 20 — falling, where the sheet's whole §5 says
+it must rise.
+
+**The storage network is a chain of elements that each discharge to ground.**
+The first attempt had each discharge toward its own source, which deadlocks: the
+fast element decays toward the slow one while the slow one charges toward the
+fast one, they meet, and neither has anywhere left to go. Measured, the gain
+reduction settled at 5.58 dB of an initial 12.2 and stayed there past sixteen
+seconds, so every recovery row in positions 5 and 6 timed out rather than
+returning a wrong number — which is the failure mode that looks like a hang and
+is really a topology.
+
+**Its charge path scales to the fast branch, not to the storage element.** What
+decides how much charge a burst delivers is how the charge path compares with
+the rate the fast node is draining at, so a position whose fast branch dumps its
+charge in 0.14 s needs a proportionally quicker path than one that takes 0.95 s.
+Scaled the other way it served position 5 and left position 6's repeated-peaks
+recovery at about a second against a published ten.
+
+**Two probes here were the instrument again.** §9 test 1 specifies a 1 kHz sine
+and cannot measure a 0.2 ms attack with it — the sidechain rectifies, so it is
+handed a new peak every 0.5 ms, and the rise quantises to that spacing: positions
+1 and 2 read 0.188 ms and positions 3 and 4 read 0.625, a ratio of 3.33 between
+two settings that differ by exactly two. The same conflict as `dyn-03` §9 test 1
+and resolved the same way, with a rectified level. And test 8 compared 13.76 dB
+against exactly 0.00 dB, which the harness guard refused — correctly, because a
+comparison against zero says nothing about a control's direction.
+
 ### What the shared library learned from this unit
+
+These sections carry what each unit taught the shared code. The `dyn-03`
+entries are below; `dyn-04` added `applyPushPullVariance`, and
+`core/dsp/timing_network.h` — the chained storage network — which the Console EQ
+does not need but the remaining dynamics units will.
 
 **One oversampler per channel is a correctness requirement.** The wrapper was a
 single instance shared by both channels with the channel loop outside the sample

@@ -2,27 +2,27 @@
 
 ```
 RESUME: Directive 06
-Current unit:  Variable-Mu Limiter (dyn-04) — IN PROGRESS. The unit, the timing
-               network and the manifest exist; the M/S suite has 12 and 14
-               passing and 13 failing on a probe, and the timing suite is
-               written but not yet compiled.
-Last PASS:     dyn-03 DSP DONE — all sixteen §9 rows across four suites, D1
-               across nine parameters plus block-size independence, and
-               U19/U20/U22/U23. Full ctest 22/22.
-Next action:   dyn-04 test 13 fails because the test fed a signal with large
-               mono content and called it "vertical only". The unit now has
-               PER-CHANNEL threshold, time constant, DC threshold and input
-               attenuation (dyn-04 §3.5 and §3.7 require it and the first draft
-               had one set for both), so the row should set channel 1's
-               threshold low and channel 0's high rather than relying on the
-               signal. Then: compile variable_mu_tests (rows 1-5, 8), write the
-               curve suite (rows 6, 7, 9, 10, 11, 15), regenerate the manifest
-               for the per-channel setters, D1, face.
-               Then Console EQ, then the Program EQ WASM bridge, then R2.
+Current unit:  Console EQ (dyn-05) — STARTING. Two lineages, two filter
+               engines, nineteen QA rows. core/dsp/bridged_t.h and
+               core/dsp/inductor_section.h are written; the unit, the manifest,
+               the tests and the face are not.
+Last PASS:     dyn-04 DSP DONE — all fifteen §9 rows across four suites, D1
+               across ten parameters plus block-size independence, and
+               U19/U20/U22/U23.
+Next action:   Write core/units/console_eq.h with a lineage switch (§10 test 19
+               asserts the two engines produce measurably different curves, so
+               one shared engine fails by construction). British: inductor bell
+               with Q rising on frequency and on amount, LC shelves, third-order
+               HPF, and MagneticCore INSIDE the EQ section for test 7's core
+               saturation. American: bridged-T proportional Q, reciprocal cut,
+               NO EQ-section saturation (test 17 asserts its absence), separate
+               band-pass. Then manifest, tests, D1, face.
+               Then the Program EQ WASM bridge, then report R2.
 Units done:    Motion Shaper SHIPPING 24/24.
                Program EQ DSP DONE, 13/13 sheet rows, D1, four UI cells.
                Optical Leveller DSP DONE, 13/13 sheet rows, D1, four UI cells.
                FET Limiter DSP DONE, 16/16 sheet rows, D1, four UI cells.
+               Variable-Mu DSP DONE, 15/15 sheet rows, D1, four UI cells.
 Shared libraries built:
                core/dsp/biquad.h        RBJ sections, double state, denormal flush
                core/dsp/shelving.h      shelf + peaking + one-pole HP
@@ -35,6 +35,8 @@ Shared libraries built:
                core/dsp/optical_cell.h  two-branch release + exposure history
                core/dsp/peak_detector.h timing network, panel-scale mapping
                core/dsp/timing_network.h  chained storage elements; dyn-04 pos 5/6
+               core/dsp/bridged_t.h     proportional-Q RC bands + band-pass
+               core/dsp/inductor_section.h  LC bell/shelf, third-order high-pass
                core/dsp/nonlinear/      curve, stages, variable gain, FET, core,
                                         oversampler (exact integer latency), specs
                core/render/             deterministic render, analysis, reference graph
@@ -53,15 +55,18 @@ Standing rules earned the hard way:
                operator (0.0036 % predicted, 0.0032 % measured) after the
                Steinmetz taper moved it, and the law checked at a second flux
                before being used.
-             - PROBE FIRST. Ten measurements so far were the instrument, not the
-               unit. The last four: a transfer curve read from the fundamental
+             - PROBE FIRST. Twelve measurements so far were the instrument, not
+               the unit. The last four: a transfer curve read from the fundamental
                while the energy was in the harmonics; two rows timing "one
                sample after arrival" from a 1 kHz sine, so they carried a cycle
                of the stimulus; an aliasing probe at exactly Fs/4, where every
                alias folds onto the probe's own bin and the band reads -139 dBc
                whatever the unit does; and a drive-split row measured at 1 kHz,
                where a transformer's flux is 33x below its specified saturation
-               and the core has no answer to give at any level.
+               and the core has no answer to give at any level. Then dyn-04's
+               attack read through a 1 kHz sine, quantising to the rectifier's
+               peak spacing, and its threshold-sense row comparing 13.76 dB
+               against exactly 0.00 — which the guard refused.
              - NO VACUOUS ASSERTIONS. MW_EXPECT_AT_LEAST_TIMES and
                MW_EXPECT_EXCEEDS_BY refuse two zeros, two equal values, or
                anything under a floor the row declares. The predicate is
@@ -100,6 +105,17 @@ Open deviations:
                falls from 1 kHz to 40 Hz, and the timing control that does set
                the ripple separating by 21.7 dB. H3 rather than THD because the
                element's own distortion is H2-led and swamps total THD.
+             - dyn-04 §9 test 1 specifies a 1 kHz sine and cannot measure a
+               0.2 ms attack with it, for the same reason dyn-03's test 1 could
+               not measure 20 us: the sidechain rectifies, so a new peak arrives
+               every 0.5 ms. Rows use a rectified level.
+             - dyn-04 §9 tests 12 and 13 are measured through the decoded
+               outputs' sum and difference rather than through internal taps,
+               which is what a user can hear; the internal separation is exact.
+             - dyn-05 §6.2's "-3 dB bandwidth" is undefined below 3 dB of boost
+               and the published law quotes 3 octaves AT 2 dB. Rows measure the
+               half-gain bandwidth, which is also how the section is
+               parameterised.
              - dyn-03 §9 test 16 specifies a 12 kHz probe. At 48 kHz that is
                exactly Fs/4 and the row is vacuous; it runs at 44.1 kHz, where
                the same tone folds to 8.1 and 3.9 kHz inside the band, and which

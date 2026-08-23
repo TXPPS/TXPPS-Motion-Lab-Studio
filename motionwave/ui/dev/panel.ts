@@ -22,6 +22,8 @@ import { programEqSpecs } from '../units/program_eq/params.gen';
 import { opticalLevellerFace } from '../units/optical_leveller/face';
 import { opticalLevellerSpecs } from '../units/optical_leveller/params.gen';
 import { fetLimiterFace } from '../units/fet_limiter/face';
+import { variableMuFace } from '../units/variable_mu/face';
+import { variableMuSpecs } from '../units/variable_mu/params.gen';
 import { fetLimiterSpecs } from '../units/fet_limiter/params.gen';
 
 /** The channel each published double carries, in the bridge's packing order. */
@@ -83,6 +85,7 @@ const FACES = {
   'dyn-01': { face: programEqFace, specs: programEqSpecs, title: 'Program EQ' },
   'dyn-02': { face: opticalLevellerFace, specs: opticalLevellerSpecs, title: 'Optical Leveller' },
   'dyn-03': { face: fetLimiterFace, specs: fetLimiterSpecs, title: 'FET Limiter' },
+  'dyn-04': { face: variableMuFace, specs: variableMuSpecs, title: 'Variable-Mu Limiter' },
 } as const;
 
 const requested = new URLSearchParams(window.location.search).get('unit') ?? 'fx-01';
