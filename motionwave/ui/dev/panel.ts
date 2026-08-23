@@ -19,6 +19,8 @@ import { motionShaperSpecs } from '../units/motion_shaper/params.gen';
 import { MotionShaperParam } from '../units/motion_shaper/params.gen';
 import { programEqFace } from '../units/program_eq/face';
 import { programEqSpecs } from '../units/program_eq/params.gen';
+import { opticalLevellerFace } from '../units/optical_leveller/face';
+import { opticalLevellerSpecs } from '../units/optical_leveller/params.gen';
 
 /** The channel each published double carries, in the bridge's packing order. */
 const CHANNELS = [
@@ -74,7 +76,14 @@ const mount = document.getElementById('mount') as HTMLElement;
  * U21 is different and cannot be shortcut this way — it is a claim about two
  * clocks, so it needs that unit's engine actually running.
  */
+const FACES = {
+  'fx-01': { face: motionShaperFace, specs: motionShaperSpecs, title: 'Motion Shaper' },
+  'dyn-01': { face: programEqFace, specs: programEqSpecs, title: 'Program EQ' },
+  'dyn-02': { face: opticalLevellerFace, specs: opticalLevellerSpecs, title: 'Optical Leveller' },
+} as const;
+
 const requested = new URLSearchParams(window.location.search).get('unit') ?? 'fx-01';
+const selected = FACES[requested as keyof typeof FACES] ?? FACES['fx-01'];
 const isShaper = requested === 'fx-01';
 
 let node: AudioWorkletNode | null = null;
@@ -88,9 +97,9 @@ let context: AudioContext | null = null;
 
 const panel = renderFace({
   container: mount,
-  face: isShaper ? motionShaperFace : programEqFace,
-  specs: isShaper ? motionShaperSpecs : programEqSpecs,
-  title: isShaper ? 'Motion Shaper' : 'Program EQ',
+  face: selected.face,
+  specs: selected.specs,
+  title: selected.title,
   onParam(id, real) {
     node?.port.postMessage({ kind: 'param', id, value: real });
   },
@@ -203,8 +212,8 @@ async function start() {
   async stopEngine() {
     await context?.suspend();
   },
-  breakpointsEm: isShaper ? motionShaperFace.breakpointsEm : programEqFace.breakpointsEm,
-  minWidthRem: isShaper ? motionShaperFace.minWidthRem : programEqFace.minWidthRem,
+  breakpointsEm: selected.face.breakpointsEm,
+  minWidthRem: selected.face.minWidthRem,
   start,
   paints: () => paints,
   reads: () => reads,

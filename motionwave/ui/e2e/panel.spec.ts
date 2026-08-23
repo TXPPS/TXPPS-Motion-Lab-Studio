@@ -221,63 +221,65 @@ test.describe('U22 — the panel reflows where the face says, and stays touchabl
     }
   });
 
-  test('the second unit face is held to the same geometry', async ({ page }) => {
-    // The framework's real test: two faces, one standard. A renderer that had
-    // grown a special case for the face it was written against would pass for
-    // that one and fail here, which is why this runs the *same* assertions
-    // rather than a relaxed version of them.
-    await boot(page, 'dyn-01');
-    const { breakpoints, rootFontPx, minWidthRem } = await page.evaluate(() => ({
-      breakpoints: [...window.__mwPanel.breakpointsEm],
-      rootFontPx: parseFloat(getComputedStyle(document.documentElement).fontSize),
-      minWidthRem: window.__mwPanel.minWidthRem,
-    }));
-    expect(breakpoints.length).toBeGreaterThan(0);
-    const columnsAt: number[] = [];
-    const widths: number[] = [];
-    for (const em of breakpoints) {
-      widths.push(Math.round(em * rootFontPx) - 8, Math.round(em * rootFontPx) + 8);
-    }
-    for (const width of widths) {
-      await page.setViewportSize({ width, height: 900 });
-      columnsAt.push(
-        await page.evaluate(() => {
-          const grid = document.querySelector('.mw-panel-controls') as HTMLElement;
-          return getComputedStyle(grid).gridTemplateColumns.split(' ').length;
-        }),
-      );
-    }
-    console.log(`U22 dyn-01: columns at ${widths.join(', ')} px = ${columnsAt.join(', ')}`);
-    expect(columnsAt[0]).toBeLessThan(columnsAt[1]);
-    expect(columnsAt[2]).toBeLessThan(columnsAt[3]);
-
-    for (const width of [Math.ceil(minWidthRem * rootFontPx), 500, 1000, 1600]) {
-      await page.setViewportSize({ width, height: 900 });
-      const bad = await page.evaluate((limit) => {
-        const problems: string[] = [];
-        const targets = Array.from(
-          document.querySelectorAll<HTMLElement>('.mw-control-input, .mw-graph'),
-        );
-        for (const node of targets) {
-          const box = node.getBoundingClientRect();
-          const id =
-            node.dataset.mwElement ??
-            (node.parentElement as HTMLElement | null)?.dataset.mwElement ??
-            '?';
-          if (box.width < limit || box.height < limit) {
-            problems.push(`${id} is ${box.width.toFixed(1)}x${box.height.toFixed(1)}`);
-          }
-        }
-        return problems;
-      }, TOUCH_MIN);
-      expect(bad, `dyn-01 at ${width} px`).toEqual([]);
-      const overflow = await page.evaluate(() => ({
-        scroll: document.documentElement.scrollWidth,
-        client: document.documentElement.clientWidth,
+  // The framework's real test: every face, one standard. A renderer that had
+  // grown a special case for the face it was written against would pass for
+  // that one and fail on the next, which is why this runs the *same* assertions
+  // for each rather than a relaxed version of them.
+  for (const unit of ['dyn-01', 'dyn-02']) {
+    test(`the ${unit} face is held to the same geometry`, async ({ page }) => {
+      await boot(page, unit);
+      const { breakpoints, rootFontPx, minWidthRem } = await page.evaluate(() => ({
+        breakpoints: [...window.__mwPanel.breakpointsEm],
+        rootFontPx: parseFloat(getComputedStyle(document.documentElement).fontSize),
+        minWidthRem: window.__mwPanel.minWidthRem,
       }));
-      expect(overflow.scroll - overflow.client, `dyn-01 at ${width} px`).toBeLessThanOrEqual(1);
-    }
-  });
+      expect(breakpoints.length).toBeGreaterThan(0);
+      const columnsAt: number[] = [];
+      const widths: number[] = [];
+      for (const em of breakpoints) {
+        widths.push(Math.round(em * rootFontPx) - 8, Math.round(em * rootFontPx) + 8);
+      }
+      for (const width of widths) {
+        await page.setViewportSize({ width, height: 900 });
+        columnsAt.push(
+          await page.evaluate(() => {
+            const grid = document.querySelector('.mw-panel-controls') as HTMLElement;
+            return getComputedStyle(grid).gridTemplateColumns.split(' ').length;
+          }),
+        );
+      }
+      console.log(`U22 ${unit}: columns at ${widths.join(', ')} px = ${columnsAt.join(', ')}`);
+      expect(columnsAt[0]).toBeLessThan(columnsAt[1]);
+      expect(columnsAt[2]).toBeLessThan(columnsAt[3]);
+
+      for (const width of [Math.ceil(minWidthRem * rootFontPx), 500, 1000, 1600]) {
+        await page.setViewportSize({ width, height: 900 });
+        const bad = await page.evaluate((limit) => {
+          const problems: string[] = [];
+          const targets = Array.from(
+            document.querySelectorAll<HTMLElement>('.mw-control-input, .mw-graph'),
+          );
+          for (const node of targets) {
+            const box = node.getBoundingClientRect();
+            const id =
+              node.dataset.mwElement ??
+              (node.parentElement as HTMLElement | null)?.dataset.mwElement ??
+              '?';
+            if (box.width < limit || box.height < limit) {
+              problems.push(`${id} is ${box.width.toFixed(1)}x${box.height.toFixed(1)}`);
+            }
+          }
+          return problems;
+        }, TOUCH_MIN);
+        expect(bad, `${unit} at ${width} px`).toEqual([]);
+        const overflow = await page.evaluate(() => ({
+          scroll: document.documentElement.scrollWidth,
+          client: document.documentElement.clientWidth,
+        }));
+        expect(overflow.scroll - overflow.client, `${unit} at ${width} px`).toBeLessThanOrEqual(1);
+      }
+    });
+  }
 
   test('the panel never overflows its container sideways', async ({ page }) => {
     await boot(page);

@@ -206,7 +206,7 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | ------------------- | -------- | ----------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- |
 | Motion Shaper       | `fx-01`  | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Program EQ          | `dyn-01` | DSP PARTIAL | PASS | —    | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
-| Optical Leveller    | `dyn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Optical Leveller    | `dyn-02` | DSP PARTIAL | PASS | —    | PASS | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | —    | PASS | PASS | —    |
 | FET Limiter         | `dyn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Variable-Mu Limiter | `dyn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Console EQ          | `dyn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
@@ -271,6 +271,43 @@ rounds back and the filter stops converging, leaving 2.3e−4 of standing DC tha
 the noise-floor test read as a floor 30 dB above the manual's. Its state is a
 double now, and `nonlinear_tests.cpp` checks convergence at every rate a wrapper
 can present.
+
+### Optical Leveller, so far
+
+All thirteen of `dyn-02` §9's measurements pass. The cell is the whole dynamics
+engine, so most of them are about time: COMPRESS 3.79:1 and LIMIT 8.43:1 at
+10 dB of reduction, both reached at 0.40 on the control; attack 10.6 ms;
+release 53 ms then 0.72 s cold, 4.41 s after a minute's work — a memory ratio of
+6.2 against the required 2 — and back within 24 % after idling. Flat to 0.137 dB
+with the compression off, THD 0.159 % at +10 dBm and 0.335 % at +16 with the
+second harmonic 11.3 dB above the third, noise 75.0 dB below +10 dBm, and the
+meter reading 1.10 dB on a 20 ms burst whose steady value is ten.
+
+There is no threshold, no knee and no ratio anywhere in the unit, because §5
+says there is none in the hardware and that an implementation computing
+`if (level > threshold)` has already diverged. The mode laws are solved rather
+than fitted: closing the loop gives a local ratio of `1 + R'(c)·c·law·ln10/20`,
+which at 10 dB is `1 + 3.68·law`, so 3:1 wants 0.65 and the 8:1 floor wants 2.2.
+Pushing past 2.8 makes the loop bistable and no setting reaches 10 dB at all.
+
+Five model errors, each caught by a row rather than by review:
+
+- The detector updated once per block — 10.7 ms of delay inside a loop whose
+  attack is 10 ms. It overshot to 12 dB where the steady value was three.
+- The sidechain saw the rectified waveform rather than a level, so the drive
+  rippled at twice the tone and the equilibrium moved with history.
+- Both release branches attacked at the same rate, so the pair overshot from
+  cold and the excess left through the slow branch.
+- Exposure integrated the conductance instead of the light, so a 200 ms burst
+  accumulated nearly as much history as a minute of work.
+- The pre-emphasis filtered the _rectified_ signal instead of the sidechain's
+  audio, which removes the envelope's DC and deafens the detector at every
+  frequency at once. At full emphasis the unit compressed 0.1 dB whatever it was
+  fed.
+
+And one in shared code: the photoresistive attenuator reused its lit resistance
+as the series element, which caps the divider at exactly −6.02 dB in a unit
+specified to reach 40.
 
 ## What each column is
 

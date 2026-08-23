@@ -6,6 +6,10 @@
 // `motionwave/manifests/dyn-01-program-eq.json`, so a control naming a
 // parameter the processor does not have fails to compile.
 //
+// The sweep and the determinism check live in `delta_harness.h`, shared with
+// every other unit — three copies of one test is the drift the manifests exist
+// to prevent, one level up.
+//
 // This unit makes the measured half harder than the Motion Shaper did, in a way
 // worth stating. Three of its fourteen parameters are frequency *selectors*
 // that do nothing at all unless the leg they belong to is turned up — the sheet
@@ -14,7 +18,7 @@
 // engaged for exactly that reason.
 #include "../render/offline_render.h"
 #include "../units/generated/program_eq_params.gen.h"
-#include "harness.h"
+#include "delta_harness.h"
 
 #include <algorithm>
 #include <cmath>
@@ -110,68 +114,14 @@ std::vector<float> renderWith(int id, double value) {
   return captured;
 }
 
-/// RMS of the sample-by-sample difference, in dBFS.
-double differenceDb(const std::vector<float>& a, const std::vector<float>& b) {
-  double sum = 0.0;
-  const std::size_t count = std::min(a.size(), b.size());
-  for (std::size_t i = 0; i < count; ++i) {
-    const double d = static_cast<double>(a[i]) - static_cast<double>(b[i]);
-    sum += d * d;
-  }
-  if (count == 0) return -200.0;
-  const double rms = std::sqrt(sum / static_cast<double>(count));
-  return rms > 0.0 ? 20.0 * std::log10(rms) : -200.0;
-}
-
-double peakOf(const std::vector<float>& v) {
-  double top = 0.0;
-  for (float s : v) top = std::max(top, std::fabs(static_cast<double>(s)));
-  return top;
-}
-
 }  // namespace
 
 MW_TEST("D1: every Program EQ parameter's setter reaches the audio") {
-  for (int i = 0; i < kProgramEqParamCount; ++i) {
-    const ProgramEqParamRow& row = kProgramEqParams[i];
-    const std::vector<float> low = renderWith(row.id, row.deltaLow);
-    const std::vector<float> high = renderWith(row.id, row.deltaHigh);
-    // A pair of silent renders would "differ" by nothing and pass a
-    // badly-written version of this, so the signal is confirmed present before
-    // the difference is believed.
-    MW_EXPECT(peakOf(low) > 1.0e-3);
-    MW_EXPECT(peakOf(high) > 1.0e-3);
-    const double delta = differenceDb(low, high);
-    std::printf("  D1 %-14s %8.3g -> %-8.3g  difference %7.2f dBFS (gate %.0f)\n", row.symbol,
-                row.deltaLow, row.deltaHigh, delta, row.deltaFloorDb);
-    if (delta <= row.deltaFloorDb) {
-      std::printf("    ^ this parameter's setter does not reach the audio.\n");
-    }
-    // The gate is the manifest's, per parameter. One number for the unit cannot
-    // grade a control whose specification places it below that number — the
-    // noise floor is 92 dB below +10 dBm by the manual, so switching it differs
-    // by −104 dBFS, and a −70 dB gate would call the manual's own figure a dead
-    // setter.
-    MW_EXPECT(delta > row.deltaFloorDb);
-  }
+  test::expectEveryParameterReachesAudio(kProgramEqParams, kProgramEqParamCount, renderWith);
 }
 
 MW_TEST("D1: two renders of the same setting are identical") {
-  // Without this, a unit whose output depended on something other than its
-  // parameters — an uninitialised field, a clock, a random seed — would pass
-  // every delta above while proving nothing, because every pair would differ.
-  // It is the case that makes this unit's deterministic noise source a
-  // requirement rather than a nicety.
-  for (int i = 0; i < kProgramEqParamCount; ++i) {
-    const ProgramEqParamRow& row = kProgramEqParams[i];
-    const std::vector<float> a = renderWith(row.id, row.deltaHigh);
-    const std::vector<float> b = renderWith(row.id, row.deltaHigh);
-    double worst = 0.0;
-    for (std::size_t k = 0; k < a.size(); ++k) {
-      worst = std::max(worst, std::fabs(static_cast<double>(a[k] - b[k])));
-    }
-    MW_EXPECT_NEAR(worst, 0.0, 0.0);
-  }
+  test::expectRendersAreDeterministic(kProgramEqParams, kProgramEqParamCount, renderWith);
 }
 
 MW_TEST("D1: a selector moves the band it names and not another one") {
@@ -193,10 +143,10 @@ MW_TEST("D1: a selector moves the band it names and not another one") {
   low.setEq(flatHigh);
   const std::vector<float> a = renderWith(static_cast<int>(ProgramEqParam::LowFreq), 0.0);
   const std::vector<float> b = renderWith(static_cast<int>(ProgramEqParam::LowFreq), 3.0);
-  const double moved = differenceDb(a, b);
+  const double moved = test::differenceDb(a, b);
   const std::vector<float> c = renderWith(static_cast<int>(ProgramEqParam::HighFreq), 0.0);
   const std::vector<float> d = renderWith(static_cast<int>(ProgramEqParam::HighFreq), 6.0);
-  const double alsoMoved = differenceDb(c, d);
+  const double alsoMoved = test::differenceDb(c, d);
   std::printf("  D1 LowFreq moves the render by %.2f dBFS, HighFreq by %.2f dBFS\n", moved,
               alsoMoved);
   // Both are real controls and both must move something. What this adds over

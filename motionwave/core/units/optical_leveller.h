@@ -212,8 +212,15 @@ class OpticalLeveller : public Node {
         // across its range and asserts the reduction moves by under a decibel;
         // if it moves, this line is on the wrong side of the multiply.
         const double amp = static_cast<double>(amplified);
-        const double rectified = static_cast<double>(
-            emphasisState_[c].process(static_cast<float>(amp < 0.0 ? -amp : amp)));
+        // The pre-emphasis filters the sidechain's *audio*, before the
+        // rectifier — §3.5 calls it rolling the low frequencies out of the
+        // detector path, which is a filter on the signal the detector listens
+        // to. Filtering the rectified envelope instead removes its DC, which is
+        // the whole of what a detector reads: with the control at its extreme
+        // the unit compressed 0.1 dB at *every* frequency rather than becoming
+        // selective, and test 9 is what caught it.
+        const double emphasised = static_cast<double>(emphasisState_[c].process(amplified));
+        const double rectified = emphasised < 0.0 ? -emphasised : emphasised;
         // Smoothed before it reaches the panel, because the panel cannot follow
         // a waveform. Feeding the raw rectified sample in made the drive ripple
         // at twice the tone's frequency, and the cell's two branches tracked
