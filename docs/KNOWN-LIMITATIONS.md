@@ -77,11 +77,23 @@ where a capability is missing the UI says so.
   detectors is not what keying a multiband would mean. The key is tapped
   post-fader on the source, so a key track that is faded down — or muted —
   keys weakly or not at all.
-- **Automation is smoothed while monitoring and exact in the bounce.** Live,
-  every automated value approaches its target over a 15 ms time constant at
-  frame rate, so a 20 ms fader dip is heard as roughly 45 ms; the offline
-  render schedules the same lane as sample-accurate ramps and reproduces the
-  dip exactly. The bounce is the more faithful of the two.
+- **Automation is smoothed while monitoring and exact in the bounce — for
+  volume, pan and sends.** Live, every automated value approaches its target
+  over a 15 ms time constant at frame rate, so a 20 ms fader dip is heard as
+  roughly 45 ms; the offline render schedules those lanes as sample-accurate
+  ramps and reproduces the dip exactly. The bounce is the more faithful of the
+  two.
+
+  **Insert-parameter lanes are different**, and this used to say "exact" of them
+  too, which was wrong (PA-006). An insert's parameters are not all AudioParams —
+  several rebuild a waveshaper table or re-render an impulse — so they cannot be
+  scheduled ahead and are instead applied on a grid, by suspending and resuming
+  the render. That grid is one frame at 60 Hz, matching the rate the live
+  applier runs at, so the two agree. It has a ceiling: an `OfflineAudioContext`
+  schedules every suspension up front, so a render longer than about 33 minutes
+  widens the grid and the resolution drops. When that happens the diagnostics
+  log says so and by how much; it is no longer silent.
+
 - **All media decodes into memory** (~10 MB per stereo minute). There is
   no disk streaming; hour-long multitrack sessions of recorded audio will
   grow memory accordingly. Decode caches are evicted when you switch

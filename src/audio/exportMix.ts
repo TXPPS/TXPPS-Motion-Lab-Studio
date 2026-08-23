@@ -79,6 +79,25 @@ export const DEFAULT_PRE_ROLL_SECONDS = 2;
  * leaves 0.7% of the step, which at these levels is well under a tenth of a dB.
  */
 const SETTLE_TIME_CONSTANTS = 5;
+/**
+ * The grid insert automation is applied on, offline.
+ *
+ * One frame at 60 Hz, which is the rate the live applier runs at — the point
+ * being that a bounce and a monitor resolve the same lane at the same
+ * resolution rather than at two (PA-006).
+ */
+const LIVE_AUTOMATION_GRID_SEC = 1 / 60;
+
+/**
+ * How many suspensions a render may schedule before the grid has to widen.
+ *
+ * An `OfflineAudioContext` takes every suspension up front, so this is a memory
+ * bound rather than a time one. 120 000 at the grid above is 33 minutes at full
+ * resolution, which covers any song and most live sets; past it the grid widens
+ * and the diagnostics log says by how much.
+ */
+const MAX_SUSPENSIONS = 120000;
+
 
 export interface RenderRange {
   startBeat: number;
@@ -667,8 +686,20 @@ export async function renderProject(
   }
 
   // Insert-parameter automation: apply merged values at a control-rate grid
-  // via suspend/resume. 25ms grid, capped at 4800 suspensions for very long
-  // renders (the grid widens rather than the render failing).
+  // via suspend/resume.
+  //
+  // PA-006. This was a 25 ms grid capped at 4800 suspensions, which meant the
+  // grid *widened* on anything long: 62.5 ms at five minutes, 125 ms at ten,
+  // 375 ms at half an hour — while playback applies the same lanes at 60 to
+  // 100 Hz. A bounce and a monitor of the same bars were therefore two
+  // different renders of the insert automation, and `KNOWN-LIMITATIONS.md`
+  // called the bounce exact.
+  //
+  // The grid now starts at the live applier's own rate, so up to
+  // `MAX_SUSPENSIONS` the two agree. Past that it still has to widen — an
+  // `OfflineAudioContext` schedules every suspension up front, so the count is
+  // memory rather than time — but it says so in the diagnostics log instead of
+  // degrading in silence, which was the actual defect.
   //
   // The same grid carries tempo tracking, so a synced delay follows the map
   // through the bounce rather than holding the tempo it was built at. It is
@@ -677,9 +708,17 @@ export async function renderProject(
   const trackTempo = tempoVaries(project) && hasTempoSyncedInsert(project);
   let heldBpm = startBpm;
   if (fxAuto.length > 0 || trackTempo) {
-    let grid = 0.025;
+    let grid = LIVE_AUTOMATION_GRID_SEC;
     const usable = durationSec - 0.001;
-    if (usable / grid > 4800) grid = usable / 4800;
+    if (usable / grid > MAX_SUSPENSIONS) {
+      grid = usable / MAX_SUSPENSIONS;
+      diagLog(
+        'warn',
+        `Bounce is ${Math.round(usable)}s: insert automation resolution widened from ` +
+          `${Math.round(LIVE_AUTOMATION_GRID_SEC * 1000)}ms to ${Math.round(grid * 1000)}ms, ` +
+          `so insert lanes will not match playback exactly over this length.`,
+      );
+    }
     const beatAt = (sec: number) => projectSecToBeat(project, rangeStartSec + sec);
     for (let t = grid; t < usable; t += grid) {
       const at = t;
