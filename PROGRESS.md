@@ -2,12 +2,13 @@
 
 ```
 RESUME: Directive 06
-Current unit:  Grain engine — core done, 15 of 21 GE rows measuring.
-Last PASS:     GE-01,02,03,05 (engine), GE-08,09,10,12,14,15,16,19 (pool and
-               real-time), GE-13,17,18 (visualiser). Native 32/32.
-Next action:   GE-04, GE-11 and GE-21 alongside the reverb; GE-06 and GE-07 need
-               a unit around the engine and land with it. Then Granular Reverb,
-               Granular Delay, the voice substrate, and Slipstream.
+Current unit:  Granular Reverb (fx-02) — six of §9's thirteen rows measuring.
+Last PASS:     Grain engine GE-01,02,03,05,08,09,10,12,13,14,15,16,17,18,19.
+               Reverb V1,V5,V6,V9,V10,V11. Native 33/33.
+Next action:   Reverb V2,V3,V4,V7,V8,V12,V13 (V2/V3/V8 are GE-02/03/08 seen
+               through the unit; V7 needs an Abel-Huang echo-density measure;
+               V12 needs the pitch sets, which are not built yet). Then the
+               manifest, D1, face and X24 for the reverb, then Granular Delay.
 BUILD ORDER CORRECTED (user, before R3): the voice substrate is built DURING
                Slipstream and proven through it, the way the nonlinear library
                was built during Program EQ — not after Slipstream. Slipstream is
@@ -140,6 +141,37 @@ Open deviations:
                measured in two places: the maximum is read at the plateau and
                the overshoot against it. The high shelf's plateau is above the
                audio band at 48 kHz, so that row runs at 96.
+             - fx-02 §2.2's feedback formula is marked [I, derived by analogy]
+               and §9 V5 says to calibrate it against measured RT60 rather than
+               ship it. Uncalibrated it measured +37.8/+19.4/+12.0/-2.8 % at 1,
+               2, 4 and 8 s. Two mechanisms account for it and both were
+               measured before either was corrected: the cloud smears an impulse
+               before the loop does anything (0.144 s at a 0.2 s size, 0.199 at
+               0.8, 0.367 at 2.0, and it scales as 1/sqrt(overlap)), and a loop
+               whose per-pass gain is random decays faster than its mean gain
+               says — Jensen, measured at 0.988 of nominal at both 8 and 16 s,
+               agreeing to a tenth of a per cent. Calibrated, 1-8 s lands
+               within 8.3 %.
+             - fx-02 §9 V5's 0.5 s target is below the architecture's floor: at
+               the default size the cloud's own smear is 0.275 s with the loop
+               opened entirely. §6 says Size interacts with Decay's calibration
+               and this is that interaction. The floor is rendered and printed;
+               the criterion runs from 1 s.
+             - fx-02 §9 V6 sweeps 20 to 1500 g/s, and 20 is an overlap of 1.2 —
+               below the engine's own continuity threshold of four, where the
+               tail is a sequence of events rather than a decay. The sparse
+               point is printed; the 5 % criterion is applied from 100 g/s up,
+               where it measures 2.68 %.
+             - fx-02 §9 V9 names "the loop signal" and the wet output is not it:
+               the output is taken before the feedback chain, so its peak is a
+               level the Mix and Output controls set. Measured at the loop it is
+               -3.32 dBFS, which is the limiter's own threshold.
+             - fx-02 §9 V11's 0.1 dB is tighter than a frozen cloud's own window
+               variance — the buffer is held exactly but the grains still read
+               random offsets, and a one-second window read 0.38 dB of drift on
+               a buffer that had not changed. Averaged over five windows it
+               reads 0.017 dB, and the centroid, which separates write-head-stop
+               from fb = 1, reads 0.027 %.
              - dyn-05 §10 test 16's stop-band slopes run at 192 kHz. A 15 kHz
                corner has an octave and a half of band above it at 48, so the
                probes land past half of Nyquist where the bilinear transform
