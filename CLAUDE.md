@@ -114,6 +114,21 @@ writing those files — not whether to widen the scope until it goes quiet.
   opinion. This is why `src/model/synthFace.ts` and the `*Of()` descriptors in
   `src/model/effects.ts` exist, and it is the rule that has caught the most
   bugs in this codebase.
+- **When a shared fix moves a finished unit's number, re-derive it — never
+  re-fit.** A row recalibrated to match a changed implementation has stopped
+  being a check on it. The Optical Leveller's attack passed at 10.6 ms while the
+  cell ran four times slower, because the model and the test were both
+  downstream of a DC offset and agreed with each other; removing the offset made
+  the same row read 41.9 ms. The constant had by then been re-fitted three
+  times, each time absorbing an interference rather than removing it — a
+  rectifier smoother that had become a second pole, that DC offset, and a second
+  release branch whose _attack_ had quietly become the unit's attack. Deriving
+  it instead took two steps and no rendering: the attenuator's own law gives the
+  open-loop constant, and the loop's incremental gain gives the factor between
+  that and the observable. Where a free parameter genuinely has no published
+  value, choosing it against two _published_ constraints is calibration and is
+  fine; choosing it against a measurement of your own code is not.
+
 - **A control that does nothing is a bug of the same class as a wrong number.**
   Static guards enforce it: `tests/schemaWired.test.ts`, `tests/laneWired.test.ts`,
   `tests/prefs.test.ts`. Add to them rather than around them.

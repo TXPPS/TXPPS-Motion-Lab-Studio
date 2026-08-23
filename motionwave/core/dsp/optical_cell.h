@@ -55,16 +55,39 @@ struct OpticalCellConfig {
    * here are the ones that produce the published figures where the sheet
    * measures them, which is at the unit's output.
    *
-   * And they were recalibrated once more after a bug in a *different* file was
-   * fixed, which is worth recording. Every triode stage used to emit a decaying
-   * DC offset on reset, because its restoration filter started from zero rather
-   * than from the offset the stage actually sits at. That gave this unit's
-   * detector a head start, and the attack measured 10.6 ms when the cell was
-   * genuinely running at four times that. With the offset gone the same
-   * measurement read 41.9 ms — the model had been wrong and its test had been
-   * agreeing with it, because both were downstream of the same transient.
+   * **16.9 ms is derived in two steps, neither of them a fit.**
+   *
+   * First the attenuator. The published figure is a 10 %-to-90 % span of gain
+   * reduction in *decibels* and the cell runs in *conductance*, so the map
+   * between them is the attenuator's own law. Solving that law for the
+   * conductance rise whose dB span is 10 ms gives 2.809 time constants, hence
+   * 10 ms / 2.809 = 3.56 ms. No rendering, no loop, no unit — it falls out of
+   * the attenuator, and it is what the constant would be open-loop.
+   *
+   * Then the loop. This unit is a feedback design: as the cell closes, the
+   * detector's level falls and its target recedes, and linearising that gives a
+   * closed-loop rate of (1 − k)/τ where k is the loop's incremental gain. The
+   * factor is 4.74, evaluated once as the ratio between the open-loop span at a
+   * given τ and the closed-loop span at the same τ — a property of the sidechain
+   * design rather than of any test, and re-evaluated whenever that design
+   * changes. So the cell's own constant is 3.56 × 4.74 = 16.9 ms, and the unit
+   * measures 11.2 ms against the published 10.
+   *
+   * This constant was wrong three times and every time for the same reason: it
+   * was re-fitted to whatever the implementation happened to measure instead of
+   * being re-derived. It went to 6.75 ms to absorb a rectifier smoother that had
+   * become a second pole in series with it; to 1.61 ms when a DC-offset bug
+   * elsewhere stopped giving the detector a head start; and it would have gone
+   * somewhere else again to absorb a second release branch whose slow *attack*
+   * had quietly become the unit's attack. Each change made the row pass and none
+   * made the model right, because a row recalibrated to match a changed
+   * implementation has stopped being a check on it.
+   *
+   * All three interferences are now gone rather than absorbed: the rectifier is
+   * a tenth of this constant, the DC offset is primed away at reset, and both
+   * branches attack together as §4 says they do.
    */
-  double attackSeconds = 0.00161;
+  double attackSeconds = 0.0169;
   /// Release branch one, calibrated the same way and in the same loop, against
   /// the 60 ms every source agrees on.
   double releaseFastSeconds = 0.095;
@@ -109,16 +132,22 @@ struct OpticalCellConfig {
   /**
    * How much more slowly the second branch fills than the first.
    *
-   * Both branches attacked at the same rate to begin with, and the loop
-   * overshot badly from cold: the pair rose together, the loop's output dropped
-   * past its equilibrium, and the excess then had to leave through the *slow*
-   * release — so a 200 ms burst on a fresh unit settled at 13.8 dB where the
-   * same unit's equilibrium was 8.0 dB, and it took ten seconds to get there.
-   * Two trap populations with the same capture rate is also not what the
-   * physics describes; the deeper states fill more slowly, which is the same
-   * asymmetry that makes them empty more slowly.
+   * **One, which is to say: off.** §4 describes one attack and two releases —
+   * "a single first-order rise" — and this exists only because the loop once
+   * overshot badly from cold and slowing the second branch hid it.
+   *
+   * That overshoot was not the branches' fault. It was a DC offset every triode
+   * stage emitted on reset, giving the detector a head start; with that fixed
+   * the workaround stopped being needed and started doing harm, because a
+   * second branch attacking fourteen times slower *is* the unit's attack. The
+   * cell reached 0.48 of conductance in eight milliseconds and then crawled to
+   * 0.578 over the next sixty, and the published 10 ms measured as 30.
+   *
+   * Kept as a parameter rather than deleted because the asymmetry is real in
+   * the physics — deeper trap states do fill more slowly than shallow ones —
+   * and a future measurement may want it. At 1.0 it is the sheet's structure.
    */
-  double slowAttackScale = 14.0;
+  double slowAttackScale = 1.0;
 };
 
 /**

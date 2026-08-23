@@ -313,10 +313,18 @@ class OpticalLeveller : public Node {
 
   void rebuild() noexcept {
     nl::StageScratch slice{scratch_.data(), scratch_.size()};
-    // 3 ms. Fast enough that it is not a second attack — the cell's own is
-    // 10 ms and this must not compete with it — and slow enough to turn a
-    // rectified waveform into a level.
-    rectifierCoeff_ = std::exp(-1.0 / (0.003 * sampleRate_));
+    // 0.3 ms, and the order of magnitude is the whole point. This was 3 ms,
+    // which is not "fast enough not to compete with a 10 ms attack" — it is
+    // comparable to the cell's own 3.56 ms constant, so it became a second pole
+    // in series with it and the observed attack was the pair. The cell's
+    // constant then had to be tuned to whatever made the *cascade* read 10 ms,
+    // which is fitting a number to an implementation rather than deriving it
+    // from the specification.
+    //
+    // At a tenth of the cell's constant it removes the rectified waveform's
+    // ripple and contributes nothing measurable to the attack, which is what a
+    // sidechain rectifier is supposed to do.
+    rectifierCoeff_ = std::exp(-1.0 / (0.002 * sampleRate_));
     // Standard VU: about 300 ms to settle, which is 4.6 time constants, so 65
     // ms. The number is the movement's, not the cell's.
     vuCoeff_ = std::exp(-1.0 / (0.065 * sampleRate_));
