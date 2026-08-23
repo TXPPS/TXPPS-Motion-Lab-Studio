@@ -73,7 +73,7 @@ export function renderOffline(
   }
 
   const smoothers = prepareSmoothers(set, sampleRate, blockFrames);
-  renderer.prepare({ sampleRate, blockFrames });
+  renderer.prepare({ sampleRate, blockFrames, tempoBpm: options.tempoBpm ?? 120 });
   renderer.reset();
   renderer.setBypass?.(options.bypass ?? false);
 

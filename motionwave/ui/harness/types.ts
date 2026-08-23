@@ -31,6 +31,14 @@ export type CellStatus = 'PASS' | 'FAIL' | 'BLOCKED' | 'n/a';
 export interface RenderContext {
   readonly sampleRate: number;
   readonly blockFrames: number;
+  /**
+   * The tempo the render runs at. Passed in `prepare` rather than read from a
+   * global, because a unit with a tempo-synced control has to derive its real
+   * value from the same map the transport uses — a unit that kept its own idea
+   * of the tempo would drift against the grid it is supposed to be locked to,
+   * and D12 exists to catch exactly that.
+   */
+  readonly tempoBpm: number;
 }
 
 /**
