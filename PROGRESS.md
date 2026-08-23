@@ -1,39 +1,44 @@
 # Motion Wave — progress
 
 ```
-RESUME: Directive 05
-Current unit:  Motion Shaper — 10 of 24 cells PASS, D5 FAIL, UI cells not started
-Last PASS:     X24 WASM boundary, bit-for-bit against the native golden (0.000e+0)
-Next action:   Fix the polyBLEP so V3 stays at zero flagged samples with it ON.
-               It is implemented, two-sided, and currently DISABLED because
-               enabling it costs 476 flagged samples over the 0.1-200 Hz sweep.
-               Then build a V5 measurement that separates alias from sideband —
-               the sheet's own 90 Hz cannot, since 48 kHz/90 Hz share a large
-               factor and folded harmonics land on legitimate sideband bins.
-               Then UI cells U19-U23 against the Stream C framework.
+RESUME: Directive 06
+Current unit:  Motion Shaper — 13 of 24 PASS. Every DSP-owned cell is done
+               except D1, which needs the UI to exist.
+Last PASS:     D3, D9, D11. D5 at −87.0 dBFS (90 Hz) and −89.0 (97.3 Hz).
+Next action:   Build the Motion Shaper face against motionwave/ui — the
+               drawable multi-point LFO editor is the hero: live playhead on the
+               drawn shape, input waveform ghosted behind, per-band spectrum
+               shading, touch-editable nodes at >=44px. That closes D1 (every
+               control wired UI->param->DSP) and U19-U23 together.
+               Then ship, build the nonlinear library, start Program EQ.
 Shared libraries built:
-               core/dsp/biquad.h      RBJ sections, double state, denormal flush
-               core/dsp/crossover.h   LR 6/12/24, three-band all-pass compensated
-               core/dsp/curve.h       analytic per-sample breakpoint curve
-               core/dsp/lfo_phase.h   transport-derived phase, swing, trigger
-               core/dsp/smoother.h    two cascaded one-poles, 0.05 ms floor
-               core/dsp/blep.h        polyBLEP residual — built, NOT enabled
-               core/render/           deterministic render, analysis, reference graph
-               motionwave/ui/         framework: tokens, params, presets,
-                                      automation, metering, WetDryMixer, harness
+               core/dsp/biquad.h     RBJ sections, double state, denormal flush
+               core/dsp/crossover.h  LR 6/12/24, three-band all-pass compensated
+               core/dsp/curve.h      analytic per-sample breakpoint curve
+               core/dsp/lfo_phase.h  transport-derived phase, swing, trigger
+               core/dsp/smoother.h   two cascaded one-poles, 0.05 ms floor
+               core/dsp/decimate.h   8x oversampling + 4th-order Butterworth
+               core/dsp/fft.h        radix-2 FFT + Blackman-Harris window
+               core/render/          deterministic render, analysis, reference graph
+               core/test/spectrum.h  SpectrumPlan — proves its grids resolvable
+                                     before reporting any number (Directive 06 §1)
+               motionwave/ui/        tokens, params, presets, automation,
+                                     metering, WetDryMixer, 24-cell harness
                Specs only: lib-nonlinear, lib-grain-engine, lib-voice-substrate
 Open deviations:
-             - D5 alias floor UNMET. Correction implemented and disabled; V3
-               says it is harmful at high rates. Not shipped rather than shipped
-               unproven.
              - Mix 0 on a multiband unit returns the all-pass of the input, not
-               the input. Magnitude-flat, phase-rotated. Bypass returns it exactly.
+               the input. Magnitude-flat, phase-rotated. Bypass returns it
+               exactly, which is why it is a separate control.
+             - polyBLEP removed rather than left dormant. Directive 06 §0.2 is
+               right that it fixes value discontinuities and a tensioned node is
+               a slope discontinuity — but the oversampled path reaches the
+               target alone, and a second unused mechanism for one job is how
+               two of them drift apart.
              - Amp Sim (MotionLab) declares no latency; cabinet onset moves with
-               the cab. Carried from Directive 03.
+               the selected cab. Carried from Directive 03.
 Blocked cells awaiting hardware: 5 in docs/HARDWARE_VERIFICATION.md
                (V10 denormal stall, U21 fps, U22 responsive, CPU budgets,
                thermal). Most cells thought to need hardware do not.
-WASM boundary: VERIFIED — emsdk 4.0.7 pinned, bit-for-bit, in npm run build:wasm
 ```
 
 **Read this first:** the Definition of Done is **not reachable on this build
