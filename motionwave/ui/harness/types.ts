@@ -155,4 +155,14 @@ export interface UnitUnderTest {
   readonly oversampling?: { readonly factor: number; readonly maxAliasDbc: number };
   /** Parameters whose real value is derived from tempo, for D12. */
   readonly tempoSyncedParams?: readonly ParamId[];
+  /**
+   * The positions to hold the *other* parameters at while checking that a given
+   * one is wired (D1). Q means nothing at zero gain and a release time means
+   * nothing below the threshold, so a unit whose controls interact declares the
+   * context each one needs to be audible in. It is not an exemption — the check
+   * still renders and still has to hear a difference — it is the difference
+   * between a harness that finds real dead controls and one that a unit has to
+   * be built around.
+   */
+  readonly wiringContext?: (paramId: ParamId) => ReadonlyMap<ParamId, number>;
 }
