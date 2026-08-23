@@ -35,10 +35,10 @@ eight. Section 3 has the numbers.
 
 | id     | severity | what                                                         | cells   |
 | ------ | -------- | ------------------------------------------------------------ | ------- |
-| RA-001 | P0       | a landscape phone opens the arrangement on no whole track    | 3       |
-| RA-002 | P0       | the track header row clips 29 px of its own control strip    | 14      |
-| RA-003 | P0       | every plugin editor opens off the screen on a phone          | 9       |
-| RA-004 | P0       | the shortcuts sheet clips ~1400 px and cannot be scrolled    | 19      |
+| RA-001 | P0 ✅    | a landscape phone opens the arrangement on no whole track    | 3       |
+| RA-002 | P0 ✅    | the track header row clips 29 px of its own control strip    | 14      |
+| RA-003 | P0 ✅    | every plugin editor opens off the screen on a phone          | 9       |
+| RA-004 | P0 ✅    | the shortcuts sheet clips ~1400 px and cannot be scrolled    | 19      |
 | RA-005 | P1       | a plugin editor cannot be closed by touch                    | 14      |
 | RA-006 | P1       | the rack's `Insert` button does not answer a pointer press   | 19      |
 | RA-007 | P1       | nothing responds to a user's text-size setting               | 19      |
@@ -297,7 +297,30 @@ header is laid out at offset 82 in an 88 px viewport: six pixels of it are on sc
 - The lane height is a module constant: `const LANE_H = 64` in
   `src/components/arrangement/Arrangement.tsx:70`.
 
-**Fix direction.** A short viewport needs a different arrangement, not the same one with
+**Fixed** (`9b3a1c1`). Height is the scarce axis in landscape and width is not, so the fix
+spends width to buy height. Below 500 px of height — the threshold `useViewport` already
+uses to call a viewport a phone, so the CSS and the layout now agree about what a short
+screen is — every band shortens (topbar 42→36, transport 46→40, nav 54→44, ruler 42→28,
+global lanes 20→14), the overview is dropped, the toolbar stops wrapping and scrolls
+sideways with a trailing fade, and in landscape the bottom nav becomes a side rail. The
+rail is the single biggest win: it returns its whole 54 px rather than a fraction.
+
+| Cell | Whole rows before | After | Portrait | Guard needs |
+| --- | --- | --- | --- | --- |
+| 740×360 | 0 | **2** | 4 | 2 |
+| 844×390 | 0 | **3** | 7 | 3 |
+| 932×430 | 1 | **4** | 8 | 4 |
+
+That clears the comparison guard *exactly* rather than comfortably — 4 against
+`floor(8/2)` is the bar, not a margin over it. Anything that adds a band back to a short
+viewport will fail the guard, which is why the comparison is kept rather than replaced by
+the simpler floor.
+
+`GLOBAL_LANE_H` was a JS constant no other code read; the lanes now take their height from
+the same token every other band uses. They are shortened rather than dropped — losing the
+only route to tempo and markers is a worse trade than 6 px a lane.
+
+**Original fix direction.** A short viewport needs a different arrangement, not the same one with
 less room. The cheapest version that would clear this ticket: below ~500 px of height,
 collapse the transport into the top bar, drop `.arrangement-overview`, hold the ruler
 outside the scroller so it does not consume the first screenful, and let `LANE_H` come from
@@ -317,6 +340,17 @@ portrait and landscape.
 tall and starts at offset 45, so **25 of its 44 px are cut** — the mute, solo and arm
 buttons are more than half invisible.
 **Evidence:** `shots/RA-002-track-header-strip-clipped.png`.
+
+**Fixed** (`ea41f2d`). Two stacked 44 px rows need 88 px and the row is 64, so the two
+requirements cannot both hold with two rows of controls. Row 1 gives up its buttons:
+2 padding + 18 name + 44 strip = 64 exactly. The strip keeps mute, solo, monitor and arm —
+four at 44 with 4 px between them is 188 px against the 208 px column — and what row 1 held
+joins what the strip already sheds into the track menu, which a touch user reaches by
+long-pressing the header. Growing `LANE_H` was the other way out and is the wrong one: it
+buys a taller header by showing fewer tracks, on the devices that already show the fewest.
+
+Removing monitor from the strip to make room was tried first and broke BUG-002; a phone is
+exactly where "am I listening to this input" is hardest to answer from anything else.
 
 **Cause.** Directive 02 §1 grew the strip to the touch minimum but nothing grew the row it
 lives in.
@@ -392,8 +426,24 @@ against the window's measured size rather than a literal 220 — and on a phone-
 open the editor as a sheet rather than a floating window, because a draggable window on a
 touch screen with no title-bar affordance is the wrong object.
 
+**Fixed** (`ea41f2d`). `windowPlace.ts` measures the window against the viewport instead of
+opening it at a constant: the preferred offset is used when it fits, the window centres
+when it does not, and when the window is taller than the screen the header is pinned on
+screen — if something must be cut it has to be the bottom, because the top is what
+dismisses it. It re-places on `resize` and `orientationchange`, so a rotation cannot strand
+a window that was correct a moment before, and the drag clamp now uses the window's real
+width rather than the unrelated constant 220 it used to. Separately, `min-width: 320px`
+beat `max-width: calc(100vw - 24px)` below 344 px of viewport — CSS resolves `min-width`
+last — which put the window 24 px wider than a small phone however the maximum was written;
+the minimum now yields.
+
+The sheet-instead-of-window suggestion is **not** taken here. It is the better object on a
+phone and it is a different change: a new presentation with its own dismissal, focus and
+drag semantics, where this ticket is that the existing object opens somewhere unusable.
+Worth its own ticket rather than smuggling in behind a placement fix.
+
 **Guard:** `e2e/orientation.spec.ts` → _"the device window opens inside the viewport"_, four
-cells.
+cells, plus `tests/windowPlace.test.ts` for the arithmetic on eleven matrix cells.
 
 ---
 
@@ -437,11 +487,16 @@ scroll, and the sheet's own `overflow: hidden` cuts the rest off. Measured compu
 at 1280×800: `.sc-sheet` `display: block`, `flex: 0 0 auto`, `clientHeight` 638,
 `scrollHeight` 1429; `.sc-body` `clientHeight` 1399 = `scrollHeight`.
 
-**Fix direction.** Rename one of them — `.shortcut-sheet` and `.score-sheet` — rather than
-raising specificity, because the collision will recur the next time either file grows. Two
-unrelated components sharing a three-letter prefix is the actual defect. Add
-`min-height: 0` to `.sc-body` while there; it is what makes the scroll work once the flex
-context is restored, and it is missing.
+**Fixed** (`ea41f2d`), by the rename rather than by specificity, as directed. The shortcuts
+family is now `ks-`; the score keeps `sc-`, having fifty classes under it to this one's
+seven. `min-height: 0` was added to `.ks-body` as advised — a flex item's default
+`min-height: auto` is its content, so without it the body cannot shrink and hands the
+overflow straight back to the sheet, leaving a scroll that is declared and never happens.
+
+Repointing the guard was part of the fix, not a tidy-up after it: the test queried
+`.sc-sheet`, which after the rename finds the score's staff paper — a real element that
+answers none of the questions being asked, so the test would have gone green while
+measuring the wrong component.
 
 **Guard:** `e2e/orientation.spec.ts` → _"the keyboard shortcuts sheet can be read to its
 end"_.

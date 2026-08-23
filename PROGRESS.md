@@ -90,7 +90,7 @@ them.
 **MotionLab Studio** (the shipping web app) remains green: 1500 unit tests
 across 80 files, 222 e2e, typecheck, lint and build clean.
 
-## Directive 02 — §1, §2 and §3
+## Directive 02 — §1 to §4
 
 ### §1 P0 defects — all three closed, with regression tests
 
@@ -180,6 +180,67 @@ shaper curves were measured directly instead of the rendered aliasing
 Two hypotheses the audit formed and disproved before publishing are recorded in
 the report's Method section, which is the part of an audit that usually goes
 missing.
+
+### §4 responsive and orientation audit — complete, four P0s closed
+
+`docs/audit/RESPONSIVE_AUDIT.md`. 19 matrix cells × the full surface walk =
+**982 surface probes**, 570 of them plugin editors — all 30 devices in the
+picker inserted, opened and measured on every cell — plus split screen, both
+themes, two root font sizes, two UI scales and injected safe-area insets.
+**16 tickets: four P0, seven P1, five P2.** The four P0s are closed.
+
+| ID | Was | Is now |
+| --- | --- | --- |
+| RA-001 | A rotated phone opened the arrangement on **0, 0 and 1** whole track rows against 4, 7 and 8 upright. 272 px of 360 went on chrome, leaving an 88 px scroller of which 82 px was the ruler | **2, 3 and 4.** Below 500 px of height every band shortens, the overview goes, the toolbar scrolls sideways instead of wrapping, and in landscape the bottom nav becomes a side rail — the rail alone returns a whole 54 px |
+| RA-002 | The 64 px track header held **93 px** of controls; 25 of the strip's 44 px were cut, on all 14 touch cells. My own §1 regression | Row 1 is text only: 2 + 18 + 44 = **64 exactly**. The strip keeps mute, solo, monitor and arm at 188 px in a 208 px column |
+| RA-003 | Every plugin editor opened **96–199 px off-screen** on 9 of 19 cells, close button included | Placement measures the window against the viewport, centres when the offset will not fit, pins the header on screen when the window is taller than the screen, and re-places on rotation |
+| RA-004 | The shortcuts sheet clipped **~1400 px** with nothing to scroll, on **all 19 cells** including a 2560 px desktop | Two components were sharing the class `.sc-sheet`; the shortcuts family is now `ks-` and the score keeps `sc-` |
+
+**The one that was a genuine conflict, not a bug.** RA-002 is two of the
+directive's own requirements colliding: 44 px touch targets and a 64 px lane
+row cannot both hold with two rows of controls, because 44 × 2 = 88. Row 1 gave
+up its buttons rather than `LANE_H` growing — growing it buys a taller header
+by showing fewer tracks, on the devices that already show the fewest.
+
+**Two regressions I caused and caught**, by running the whole e2e suite rather
+than the specs I was working on. Removing monitor from the touch strip to make
+room broke BUG-002, and a phone is exactly where "am I listening to this input"
+is hardest to answer from anything else — the track menu it was competing with
+is already reachable by long-press. And the toolbar scrolling sideways put
+three zoom controls past the right edge, which the chrome-integrity guard
+called clipped. It was right to: viewport geometry alone cannot tell
+"unreachable" from "reachable by swiping". The guard was made *more* precise
+rather than looser — a control is excused only when an ancestor both permits
+horizontal scrolling and actually has overflow — and the affordance it was
+implicitly asking for was genuinely missing, so the bar now fades at its
+trailing edge.
+
+**Seven P1s and five P2s remain open**, listed in the report. The P1s worth
+naming: a plugin editor cannot be dismissed by touch at all (close 17×17,
+bypass 10×10); the rack's `Insert` button answers no first press on any cell,
+because selecting a strip reflows it out from under the pointer between press
+and release; text scaling is not implemented rather than imperfect — 130 % and
+200 % root font size produce byte-identical geometry, because the type scale is
+`px × --ui-scale` and there is no `rem` in the codebase; and the product's own
+140 % scale adds 73 defects.
+
+**What held.** Horizontal overflow is clean on 18 of 19 cells and the previous
+audit's ten fixes hold at sizes that audit never tested. Zero overlaps, zero
+un-ellipsised truncation, all 100 sheet and drawer probes fit and dismiss.
+Light and dark are **bit-identical** — 227 defects each, none unique to either.
+
+**Five cells are BLOCKED** headless and say so: real device insets, the
+home-indicator gesture, the software keyboard, rotation mid-gesture and
+momentum-scroll hand-off. Each names what would settle it.
+
+### A pre-existing test failure, not caused by this work
+
+`e2e/automation.spec.ts:348` — the touch fader ride writes one automation point
+where it wants more than one. Verified by stashing the §4 work and running it
+against the previous commit, where it fails identically. Its own comment already
+describes this container's audio stack suspending playback mid-test. Logged
+rather than fixed, because it is not this directive's and pretending the suite
+is fully green would be worse than saying so. **249 of 250 e2e pass.**
 
 Carried from MotionLab Studio, unrelated to Motion Wave:
 
