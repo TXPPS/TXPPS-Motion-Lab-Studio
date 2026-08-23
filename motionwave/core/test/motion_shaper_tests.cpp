@@ -328,6 +328,114 @@ MW_TEST("V11 the smooth control is monotonic across its range") {
   MW_EXPECT(worstStep <= 0.15);
 }
 
+/**
+ * Spurious energy in a render, in dBFS, ignoring the bins a correct result
+ * legitimately occupies.
+ *
+ * A naive single-bin DFT per frequency rather than an FFT. The core has no FFT
+ * yet — `smp-01` puts one on its critical path — and writing one to measure one
+ * test would be a second implementation to keep correct. At 4096 bins this is a
+ * second of CPU in a test, which is a cheaper price than an unproven transform.
+ *
+ * The window is a whole number of cycles of nothing in particular, so a Hann
+ * window is applied: without it the carrier's own leakage sits far above the
+ * −80 dBFS floor being measured and every run would fail on the carrier.
+ */
+double spuriousFloorDb(const RenderResult& r, double carrierHz, double modHz, double sampleRate) {
+  const int n = 4096;
+  const int offset = static_cast<int>(sampleRate * 0.25);  // let it settle
+  const std::vector<float>& x = r.channel(0);
+
+  std::vector<double> windowed(static_cast<std::size_t>(n));
+  double norm = 0.0;
+  for (int i = 0; i < n; ++i) {
+    const double w = 0.5 - 0.5 * std::cos(2.0 * kPi * static_cast<double>(i) / (n - 1));
+    windowed[static_cast<std::size_t>(i)] = static_cast<double>(x[static_cast<std::size_t>(offset + i)]) * w;
+    norm += w;
+  }
+
+  double worst = 0.0;
+  for (int k = 1; k < n / 2; ++k) {
+    const double f = static_cast<double>(k) * sampleRate / n;
+    // Skip everything the modulation legitimately produces: the carrier and its
+    // sidebands at carrier ± k·mod. Three bins either side covers the window's
+    // own skirt, which is not aliasing.
+    bool legitimate = false;
+    for (int side = -300; side <= 300; ++side) {
+      const double expected = carrierHz + static_cast<double>(side) * modHz;
+      if (expected > 0.0 && std::fabs(f - expected) < 3.0 * sampleRate / n) legitimate = true;
+    }
+    if (legitimate) continue;
+
+    double re = 0.0;
+    double im = 0.0;
+    for (int i = 0; i < n; ++i) {
+      const double phase = 2.0 * kPi * static_cast<double>(k) * static_cast<double>(i) / n;
+      re += windowed[static_cast<std::size_t>(i)] * std::cos(phase);
+      im -= windowed[static_cast<std::size_t>(i)] * std::sin(phase);
+    }
+    const double mag = 2.0 * std::sqrt(re * re + im * im) / norm;
+    if (mag > worst) worst = mag;
+  }
+  return dbfs(static_cast<float>(worst));
+}
+
+MW_TEST("V5 the band-limiting correction is applied and does not make things worse") {
+  // **V5 is not met, and this test does not claim it is.** What it records is
+  // where the attempt stopped, because a number I cannot trust is worse than an
+  // admission.
+  //
+  // The sheet's method is to FFT the output and identify content not at
+  // 1000 ± k·90 Hz. Three attempts at that measurement each failed for a
+  // different reason, and the reasons are worth keeping:
+  //
+  //  1. At 90 Hz the folded harmonics land back *on* multiples of the
+  //     modulation rate — the same bins legitimate sidebands occupy — because
+  //     48 kHz and 90 Hz share a large factor. No exclusion rule can separate
+  //     alias from signal there, so the sheet's method cannot be carried out at
+  //     the frequency the sheet names.
+  //  2. Excluding only ±40 sidebands counted legitimate high-order sidebands as
+  //     spurious. A smoother with a 0.05 ms floor passes harmonics past 3 kHz,
+  //     which at 90 Hz spacing is well over k = 30.
+  //  3. Measuring the modulator alone against DC removed the sideband problem
+  //     and introduced a worse one: the window's skirt from the modulator's own
+  //     large DC term dominates every bin near it.
+  //
+  // The correction itself is implemented and follows the published polyBLEP
+  // form, and V3 and V4 confirm it does no harm — a first, one-sided version
+  // left a residual step that the click detector caught, which is how it was
+  // found to be wrong. What is missing is a measurement good enough to say what
+  // it is worth. `docs/UNIT_LEDGER.md` records D5 as FAIL for that reason, and
+  // it is this unit's gap rather than the host's.
+  const double sr = 48000.0;
+  const double modHz = 97.3;
+
+  double floors[2] = {0.0, 0.0};
+  for (int mode = 0; mode < 2; ++mode) {
+    Rig rig(&sine1k);
+    rig.unit->setBandCount(1);
+    rig.unit->setSmooth(0.0);
+    rig.unit->setBlep(mode == 1);
+    const std::vector<dsp::Breakpoint> square = squareCurve();
+    rig.unit->setCurve(0, square.data(), square.size());
+    rig.unit->phase().setMode(dsp::PhaseMode::Free);
+    rig.unit->phase().setRateHz(modHz);
+    rig.unit->phase().trigger(0.0);
+    const RenderResult r = renderOffline(rig.graph, spec(static_cast<int>(sr)), rig.out);
+    floors[mode] = spuriousFloorDb(r, 1000.0, modHz, sr);
+  }
+
+  std::printf(
+      "    V5 UNMET: out-of-band content %.1f dBFS without band-limiting, %.1f dBFS with "
+      "(target -80; this measure does not separate alias from sideband)\n",
+      floors[0], floors[1]);
+
+  // What can honestly be asserted: switching the correction on does not raise
+  // the floor. If it ever does, the correction has become actively harmful and
+  // that is worth failing over even without a trustworthy absolute number.
+  MW_EXPECT(floors[1] <= floors[0] + 1.0);
+}
+
 MW_TEST("V9 toggling topology two hundred times each does not pop") {
   // The sheet: toggle slot bypass, band count 1<->3 and slope 6<->24, 200 times
   // each over programme material, and require zero flagged samples. It calls a

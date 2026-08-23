@@ -20,6 +20,7 @@
 #include <cmath>
 #include <cstddef>
 
+#include "../dsp/blep.h"
 #include "../dsp/crossover.h"
 #include "../dsp/curve.h"
 #include "../dsp/lfo_phase.h"
@@ -200,13 +201,22 @@ class MotionShaper : public Node {
     for (int i = 0; i < ctx.frames; ++i) {
       const double quarters = startQuarters + static_cast<double>(i) * quartersPerSample;
       const double phi = phase_.next(quarters, ctx.sampleRate);
+      // How far the phase moved this sample, which is the width the correction
+      // has to span. Derived from the observed phase rather than from the rate
+      // control, so swing and tempo changes are already in it.
+      double advance = phi - lastPhi_;
+      if (advance < 0.0) advance += 1.0;
+      phaseIncrement_ = advance;
+      lastPhi_ = phi;
 
       // One phase read per frame, shared by every band and both channels. Two
       // bands reading the phase separately would be two chances for them to
       // disagree about where the bar is.
       double gain[kMaxBands];
-      for (int b = 0; b < bandCount_; ++b) {
-        const double raw = bands_[b].enabled ? curves_[b].valueAt(phi) : 1.0;
+      for (int b = 0; b < kMaxBands; ++b) {
+        double raw = bands_[b].enabled ? curves_[b].valueAt(phi) : 1.0;
+        if (bands_[b].enabled && blepEnabled_) raw += blepCorrection(b, phi);
+        lastRaw_[b] = raw;
         gain[b] = smoothers_[b].process(raw);
       }
 
@@ -238,6 +248,10 @@ class MotionShaper : public Node {
 
   /// Tempo the unit resolves its length against. Set by the host per block.
   void setBpm(double bpm) noexcept { bpm_ = bpm > 1.0 ? bpm : 1.0; }
+
+  /// Switch the band-limiting correction, so its effect can be measured
+  /// against its absence rather than asserted.
+  void setBlep(bool on) noexcept { blepEnabled_ = on; }
 
   /// True while a topology change is being faded. Test and diagnostic probe.
   bool crossfading() const noexcept { return fadeRemaining_ > 0; }
@@ -274,6 +288,63 @@ class MotionShaper : public Node {
     if (cfg.bandCount == 2) return low * g0 + (mid + high) * g1;
     const double g2 = cfg.enabled[2] ? blend(2, gain[2]) : 1.0;
     return low * g0 + mid * g1 + high * g2;
+  }
+
+  /**
+   * Band-limit every discontinuity the curve is near, not just one it crossed.
+   *
+   * The first version of this fired only on the sample where the segment index
+   * changed, which applies *half* the correction — polyBLEP spans the sample
+   * before a step and the sample after it, and one of those two is always in
+   * the previous segment. Measured, that version moved the alias floor by
+   * 0.2 dB, from −53.5 to −53.3 dBFS. It was not a small improvement; it was
+   * no improvement, with a shape that also left a residual step the click
+   * detector saw.
+   *
+   * So this asks the question the correction actually needs answered: is *this
+   * sample* within one phase increment of a discontinuity, on either side. The
+   * scan is over the curve's own breakpoints, which is where a discontinuity
+   * can be, and is bounded by how many the user drew.
+   */
+  double blepCorrection(int band, double phi) noexcept {
+    const dsp::Curve& curve = curves_[band];
+    const double dt = phaseIncrement_;
+    if (dt <= 0.0) return 0.0;
+    // Below the gate the smoother dominates and the branch costs more than it
+    // buys. Skipped rather than scaled: a partially applied BLEP is a different
+    // filter, not a gentler one.
+    if (dt * sampleRate_ < dsp::kBlepMinRateHz) return 0.0;
+
+    const std::size_t count = curve.count();
+    if (count < 2) return 0.0;
+    const double x = phi - std::floor(phi);
+
+    double correction = 0.0;
+    for (std::size_t i = 0; i < count; ++i) {
+      // A `step` segment holds its start value and then jumps at its *end*, so
+      // that end is where the discontinuity is. Every other shape arrives at
+      // the next breakpoint continuously.
+      if (!curve.isStepBoundary(i)) continue;
+      const std::size_t j = (i + 1) % count;
+      const double boundary = (j == 0) ? 1.0 : curve.point(j).x;
+      const double height = curve.point(j).y - curve.point(i).y;
+      if (height == 0.0) continue;
+
+      // Distance from the boundary, wrapped so a step at the loop point is
+      // reachable from both ends of the cycle.
+      double d = x - boundary;
+      if (d > 0.5) d -= 1.0;
+      if (d < -0.5) d += 1.0;
+
+      if (d >= 0.0 && d < dt) {
+        const double t = d / dt;
+        correction -= height * (t + t - t * t - 1.0);
+      } else if (d < 0.0 && d > -dt) {
+        const double t = d / dt;
+        correction -= height * (t * t + t + t + 1.0);
+      }
+    }
+    return correction;
   }
 
   /// Copy the live settings into a path's own record of them.
@@ -345,6 +416,10 @@ class MotionShaper : public Node {
   dsp::ThreeBandSplit split_[2][kMaxChannels];
   PathConfig config_[2];
   dsp::Curve curves_[kMaxBands];
+  std::size_t prevSegment_[kMaxBands] = {0, 0, 0};
+  double lastRaw_[kMaxBands] = {1.0, 1.0, 1.0};
+  /// Phase advanced per sample, which is what sets the correction's width.
+  double phaseIncrement_ = 0.0;
   dsp::Smoother smoothers_[kMaxBands];
   dsp::LfoPhase phase_;
   BandSettings bands_[kMaxBands];
@@ -355,6 +430,7 @@ class MotionShaper : public Node {
   double smooth_ = 0.0;
   double mix_ = 1.0;
   double bpm_ = 120.0;
+  double lastPhi_ = 0.0;
   dsp::Slope slope_ = dsp::Slope::Db24;
   int bandCount_ = 3;
   int live_ = 0;
@@ -363,6 +439,22 @@ class MotionShaper : public Node {
   bool bypass_ = false;
   bool dirty_ = true;
   bool prepared_ = false;
+  /**
+   * **Off by default, and that is a deliberate refusal rather than an oversight.**
+   *
+   * `fx-01` §4.5 requires band-limiting and this implements the published
+   * polyBLEP form, but turning it on makes V3 fail with 476 flagged samples
+   * across the 0.1–200 Hz sweep. V3 is a detector I trust — it caught an
+   * earlier one-sided version of this same correction — so that is not a
+   * measurement artefact: at high modulation rates the residual this adds is
+   * itself a step.
+   *
+   * Shipping DSP that a trustworthy test says is harmful, on the grounds that a
+   * specification asks for it, would be the wrong way round. So it stays behind
+   * the switch until the correction is right, V5 is unmet, and the Ledger
+   * records D5 as FAIL — this unit's gap, not the host's.
+   */
+  bool blepEnabled_ = false;
 };
 
 }  // namespace mw::units

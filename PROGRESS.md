@@ -1,34 +1,39 @@
 # Motion Wave — progress
 
 ```
-RESUME: Directive 04
-Current unit:  Motion Shaper, DSP measured, UI not started
-Last PASS:     V1 −200.0 dBFS · V2 <1e-7 dB · V3 0 clicks · V4 0 clicks ·
-               V6 −200.0 dBFS · V7 ≤1 sample · V8 0.666667 · V11 8.6% ·
-               cell 4 exact · cell 7 bit-identical
-Next action:   §4.6 topology crossfade — 4 ms equal-power between old and new
-               paths on slot enable, band count and slope change. That is V9,
-               and the sheet calls a pop there unacceptable at any setting.
-               Then §4.5 BLEP for V5. Then the UI, which gates on Stream C.
+RESUME: Directive 05
+Current unit:  Motion Shaper — 10 of 24 cells PASS, D5 FAIL, UI cells not started
+Last PASS:     X24 WASM boundary, bit-for-bit against the native golden (0.000e+0)
+Next action:   Fix the polyBLEP so V3 stays at zero flagged samples with it ON.
+               It is implemented, two-sided, and currently DISABLED because
+               enabling it costs 476 flagged samples over the 0.1-200 Hz sweep.
+               Then build a V5 measurement that separates alias from sideband —
+               the sheet's own 90 Hz cannot, since 48 kHz/90 Hz share a large
+               factor and folded harmonics land on legitimate sideband bins.
+               Then UI cells U19-U23 against the Stream C framework.
 Shared libraries built:
-               core/dsp/biquad.h        RBJ sections, double state, denormal flush
-               core/dsp/crossover.h     LR 6/12/24, three-band all-pass compensated
-               core/dsp/curve.h         analytic per-sample breakpoint curve
-               core/dsp/lfo_phase.h     transport-derived phase, swing, trigger
-               core/dsp/smoother.h      two cascaded one-poles, 0.05 ms floor
-               core/render/offline_render.h  deterministic render + analysis
+               core/dsp/biquad.h      RBJ sections, double state, denormal flush
+               core/dsp/crossover.h   LR 6/12/24, three-band all-pass compensated
+               core/dsp/curve.h       analytic per-sample breakpoint curve
+               core/dsp/lfo_phase.h   transport-derived phase, swing, trigger
+               core/dsp/smoother.h    two cascaded one-poles, 0.05 ms floor
+               core/dsp/blep.h        polyBLEP residual — built, NOT enabled
+               core/render/           deterministic render, analysis, reference graph
+               motionwave/ui/         framework: tokens, params, presets,
+                                      automation, metering, WetDryMixer, harness
                Specs only: lib-nonlinear, lib-grain-engine, lib-voice-substrate
 Open deviations:
+             - D5 alias floor UNMET. Correction implemented and disabled; V3
+               says it is harmful at high rates. Not shipped rather than shipped
+               unproven.
              - Mix 0 on a multiband unit returns the all-pass of the input, not
-               the input. Magnitude-flat, phase-rotated. Bypass returns the
-               input exactly and is a separate control for that reason.
+               the input. Magnitude-flat, phase-rotated. Bypass returns it exactly.
              - Amp Sim (MotionLab) declares no latency; cabinet onset moves with
                the cab. Carried from Directive 03.
-             - Offline insert automation (MotionLab) matches playback to ~33 min.
-Blocked cells awaiting hardware: 5 recorded in docs/HARDWARE_VERIFICATION.md
-               (V10 denormal stall, cell 21 fps, cell 22 responsive, CPU
-               budgets, thermal/battery). Most cells thought to need hardware
-               do not — what genuinely does is timing, display and heat.
+Blocked cells awaiting hardware: 5 in docs/HARDWARE_VERIFICATION.md
+               (V10 denormal stall, U21 fps, U22 responsive, CPU budgets,
+               thermal). Most cells thought to need hardware do not.
+WASM boundary: VERIFIED — emsdk 4.0.7 pinned, bit-for-bit, in npm run build:wasm
 ```
 
 **Read this first:** the Definition of Done is **not reachable on this build

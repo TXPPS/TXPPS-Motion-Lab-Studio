@@ -150,6 +150,14 @@ class Curve {
     return segment < count_ && points_[segment].shape == SegmentShape::Step;
   }
 
+  /// Phase at which a segment begins. Where a discontinuity actually sits, and
+  /// therefore what the band-limiting correction has to be centred on — a
+  /// correction applied at the sample the jump was *noticed* rather than at the
+  /// sub-sample position it happened is itself a source of aliasing.
+  double segmentStart(std::size_t segment) const noexcept {
+    return segment < count_ ? points_[segment].x : 0.0;
+  }
+
   /// Which segment a phase falls in. Public so the caller can ask what changed.
   std::size_t segmentAt(double x) const noexcept {
     // Linear scan from the cached cursor, wrapping once. At most `count_`
