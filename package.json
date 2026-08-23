@@ -21,7 +21,8 @@
     "shot": "node scripts/screenshot.mjs",
     "licence-guard": "node scripts/licence-guard.mjs",
     "ledger-guard": "node scripts/ledger-guard.mjs",
-    "build:wasm": "bash motionwave/wasm/build.sh"
+    "build:wasm": "bash motionwave/wasm/build.sh",
+    "scope-guard": "node scripts/scope-guard.mjs"
   },
   "dependencies": {
     "@webaudiomodules/api": "2.0.0-alpha.6",

@@ -77,6 +77,31 @@ not a faster product; it is a different product.
   the two toolchains disagreeing. They did not. Put both sides into float32
   before comparing — it is the only precision the audio ever exists in.
 
+## Committing while sub-agents are running
+
+`git add -A` has swept another agent's in-flight work into a commit twice — the
+audit screenshots in Directive 02, and the framework files in Directive 04. Both
+were caught afterwards, which is the problem: a rule that depends on remembering
+had already failed twice while being believed.
+
+So declare the scope and let the guard check it:
+
+```bash
+MW_SCOPE='motionwave/core motionwave/wasm' npm run scope-guard && git commit ...
+```
+
+Anything staged outside those prefixes stops the commit and is listed. Scope is
+**declared, never inferred** — inferring it from what happens to be staged would
+accept exactly the sweep this exists to reject, because a sweep looks like a
+wide scope.
+
+A path that genuinely belongs but sits outside the scope needs naming and a
+reason: `MW_SCOPE_ALSO='package.json:the test script moved'`. The reason is never
+inspected; having to write one is the mechanism.
+
+When the guard fires, the first question is whether another agent is still
+writing those files — not whether to widen the scope until it goes quiet.
+
 ## Conventions, both products
 
 - **Comments explain why, in full sentences, and say what would go wrong
