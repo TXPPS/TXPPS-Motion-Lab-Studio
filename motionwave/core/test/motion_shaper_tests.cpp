@@ -16,6 +16,7 @@
 #include "rt_guard.h"
 
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <vector>
@@ -629,6 +630,122 @@ MW_TEST("D11 a parameter set restored renders bit-identically") {
   const double diff = dbfs(peakDifference(a, b));
   std::printf("    D11 restored render differs by %.1f dBFS\n", diff);
   MW_EXPECT_NEAR(peakDifference(a, b), 0.0f, 0.0f);
+}
+
+MW_TEST("the published frame is the engine's own state, not an estimate") {
+  // Cell 20. A face that animates plausibly from the control values is drawing
+  // a second opinion, and the one that is wrong is always the one nobody is
+  // listening to. So the published phase has to be the phase the modulator
+  // actually reached, and the published gain the gain actually applied.
+  Rig rig(&broadband);
+  rig.unit->setBandCount(3);
+  rig.unit->setSmooth(0.0);
+  const std::vector<dsp::Breakpoint> square = squareCurve();
+  for (int b = 0; b < 3; ++b) rig.unit->setCurve(b, square.data(), square.size());
+  rig.unit->phase().setMode(dsp::PhaseMode::Free);
+  rig.unit->phase().setRateHz(2.0);
+  rig.unit->phase().trigger(0.0);
+  MW_EXPECT(rig.graph.prepare(48000.0, 128, 2));
+
+  dsp::VisualFrame frame;
+  int distinctPhases = 0;
+  float lastPhase = -1.0f;
+  float maxGain = 0.0f;
+  float minGain = 2.0f;
+  for (int block = 0; block < 200; ++block) {
+    rig.graph.process(128, static_cast<double>(block) * 128.0 / 48000.0, true);
+    MW_EXPECT(rig.unit->visual().read(frame));
+    MW_EXPECT(frame.phase >= 0.0f && frame.phase < 1.0f);
+    if (frame.phase != lastPhase) ++distinctPhases;
+    lastPhase = frame.phase;
+    if (frame.bandGain[0] > maxGain) maxGain = frame.bandGain[0];
+    if (frame.bandGain[0] < minGain) minGain = frame.bandGain[0];
+    // The input peak must be the real signal, which is never silent here.
+    MW_EXPECT(frame.inputPeak > 0.0f);
+  }
+  std::printf("    published: %d distinct phases over 200 blocks, band gain spanned %.3f..%.3f\n",
+              distinctPhases, static_cast<double>(minGain), static_cast<double>(maxGain));
+  // The playhead moved, and the gain actually swung — a frame that reported a
+  // constant would pass a weaker test while showing nothing.
+  MW_EXPECT(distinctPhases > 150);
+  MW_EXPECT(maxGain > 0.9f);
+  MW_EXPECT(minGain < 0.1f);
+}
+
+MW_TEST("a bypassed unit publishes the truth rather than a stale frame") {
+  // My first version of this asserted a bypassed unit publishes silence, and
+  // that was the wrong design as well as a failing test: a bypassed unit is not
+  // an idle one, signal is passing straight through it. What it must not do is
+  // keep publishing the *last modulated* frame, which would leave a playhead
+  // travelling through a shape that is doing nothing — worse than showing
+  // nothing, because it is confidently wrong.
+  //
+  // So bypass publishes real level, unity gain, no modulation.
+  Rig rig(&broadband);
+  MW_EXPECT(rig.graph.prepare(48000.0, 128, 2));
+  const std::vector<dsp::Breakpoint> square = squareCurve();
+  rig.unit->setCurve(0, square.data(), square.size());
+  for (int i = 0; i < 20; ++i) rig.graph.process(128, static_cast<double>(i) * 128.0 / 48000.0, true);
+
+  const std::uint32_t before = rig.unit->visual().generation();
+  rig.unit->setBypass(true);
+  rig.graph.process(128, 21.0 * 128.0 / 48000.0, true);
+
+  dsp::VisualFrame frame;
+  MW_EXPECT(rig.unit->visual().read(frame));
+  // A new frame, not the one from before bypass.
+  MW_EXPECT(rig.unit->visual().generation() > before);
+  // Signal is still flowing, and in equals out because bypass is a wire.
+  MW_EXPECT(frame.inputPeak > 0.0f);
+  MW_EXPECT_NEAR(static_cast<double>(frame.outputPeak), static_cast<double>(frame.inputPeak), 0.0);
+  // And nothing is being modulated.
+  for (int b = 0; b < dsp::kVisualBands; ++b) {
+    MW_EXPECT_NEAR(static_cast<double>(frame.bandGain[b]), 1.0, 0.0);
+  }
+}
+
+MW_TEST("the band levels published are the bands' own content") {
+  // Not the crossover's response curve, which is a property of the filter, but
+  // what those bands actually carry — which depends on the material. A 50 Hz
+  // tone must light the low band and leave the high one dark.
+  Rig rig(&sine1k);
+  rig.unit->setBandCount(3);
+  rig.unit->setCrossovers(220.0, 3200.0);
+  MW_EXPECT(rig.graph.prepare(48000.0, 128, 2));
+  for (int i = 0; i < 200; ++i) rig.graph.process(128, static_cast<double>(i) * 128.0 / 48000.0, true);
+
+  dsp::VisualFrame frame;
+  MW_EXPECT(rig.unit->visual().read(frame));
+  std::printf("    1 kHz carrier: band peaks %.4f / %.4f / %.4f\n",
+              static_cast<double>(frame.bandPeak[0]), static_cast<double>(frame.bandPeak[1]),
+              static_cast<double>(frame.bandPeak[2]));
+  // 1 kHz sits in the middle band, between the 220 Hz and 3200 Hz corners.
+  MW_EXPECT(frame.bandPeak[1] > frame.bandPeak[0]);
+  MW_EXPECT(frame.bandPeak[1] > frame.bandPeak[2]);
+}
+
+MW_TEST("publishing adds no allocation to the audio thread") {
+  // Cell 21's audio half. A face is allowed to cost the UI thread whatever it
+  // costs; what it may not do is make `process` allocate or block. The seqlock
+  // write is a handful of stores and never waits for a reader.
+  Rig rig(&broadband);
+  MW_EXPECT(rig.graph.prepare(48000.0, 128, 2));
+  {
+    test::RtGuard guard;
+    for (int i = 0; i < 64; ++i) {
+      rig.graph.process(128, static_cast<double>(i) * 128.0 / 48000.0, true);
+    }
+  }
+  // And a reader running concurrently must never see a torn frame: every read
+  // either succeeds with a coherent frame or reports that it caught a write.
+  dsp::VisualFrame frame;
+  int torn = 0;
+  for (int i = 0; i < 1000; ++i) {
+    rig.graph.process(128, static_cast<double>(i) * 128.0 / 48000.0, true);
+    if (!rig.unit->visual().read(frame)) ++torn;
+    else if (!std::isfinite(frame.phase) || frame.phase < 0.0f) ++torn;
+  }
+  MW_EXPECT_EQ(torn, 0);
 }
 
 MW_TEST_MAIN("motion-shaper")

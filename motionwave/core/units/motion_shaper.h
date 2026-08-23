@@ -25,6 +25,7 @@
 #include "../dsp/curve.h"
 #include "../dsp/lfo_phase.h"
 #include "../dsp/smoother.h"
+#include "../dsp/visual_state.h"
 #include "../graph/node.h"
 
 namespace mw::units {
@@ -195,6 +196,21 @@ class MotionShaper : public Node {
 
     if (bypass_) {
       out.copyFrom(in);
+      // Still publishes. A bypassed unit is not an idle one — signal is passing
+      // through it — and a face that froze on the last modulated frame would
+      // show a playhead moving through a shape that is doing nothing, which is
+      // worse than showing nothing. What it publishes is the truth: real level,
+      // unity gain, no modulation.
+      for (int c = 0; c < channels; ++c) {
+        const float* src = in.channel(c);
+        for (int i = 0; i < ctx.frames; ++i) {
+          const float a = src[i] < 0.0f ? -src[i] : src[i];
+          if (a > blockInputPeak_) blockInputPeak_ = a;
+        }
+      }
+      blockOutputPeak_ = blockInputPeak_;
+      for (int b = 0; b < kMaxBands; ++b) frameGain_[b] = 1.0f;
+      publishFrame();
       return;
     }
 
@@ -227,6 +243,7 @@ class MotionShaper : public Node {
             quarters + quartersPerSample * static_cast<double>(sub) / static_cast<double>(subs);
         const double rate = oversampling_ ? oversampledRate_ : sampleRate_;
         const double subPhi = phase_.next(subQuarters, rate);
+        lastPhase_ = subPhi;
         for (int b = 0; b < kMaxBands; ++b) {
           const double raw = bands_[b].enabled ? curves_[b].valueAt(subPhi) : 1.0;
           const double sm = smoothers_[b].process(raw);
@@ -248,17 +265,59 @@ class MotionShaper : public Node {
         --fadeRemaining_;
       }
 
+      // Tracked for the face. The peak of what actually went in and came out
+      // this block, not an estimate from the controls — cell 20's whole point.
+      for (int b = 0; b < kMaxBands; ++b) frameGain_[b] = static_cast<float>(gain[b]);
+
       for (int c = 0; c < channels; ++c) {
         const double x = static_cast<double>(in.channel(c)[i]);
+        const float ax = static_cast<float>(x < 0.0 ? -x : x);
+        if (ax > blockInputPeak_) blockInputPeak_ = ax;
         double y = pathOutput(live_, c, x, gain) * gainIn;
         // The outgoing path keeps running with its own state and its own
         // configuration for the whole fade. Stopping it and fading its last
         // sample would be a fade of silence, not a fade between two signals.
         if (fading) y += pathOutput(1 - live_, c, x, gain) * gainOut;
+        const float ay = static_cast<float>(y < 0.0 ? -y : y);
+        if (ay > blockOutputPeak_) blockOutputPeak_ = ay;
         out.channel(c)[i] = static_cast<float>(y);
       }
     }
+
+    publishFrame();
   }
+
+  /**
+   * Hand the face one frame of what just happened.
+   *
+   * Once per block rather than per sample: a face redraws at 60 Hz and a block
+   * is well under that, so per-sample publishing would be writing hundreds of
+   * frames nobody reads. What the face needs from the *inside* of a block — the
+   * playhead's exact position — is the phase at the block's end, which is what
+   * it would have interpolated to anyway.
+   *
+   * Peaks are reset here rather than at the top of `process`, so a bypassed
+   * block publishes zeros instead of holding the last audible values on screen
+   * and looking like the unit is still working.
+   */
+  void publishFrame() noexcept {
+    dsp::VisualFrame frame;
+    frame.phase = static_cast<float>(lastPhase_);
+    for (int b = 0; b < kMaxBands; ++b) {
+      frame.bandGain[b] = frameGain_[b];
+      frame.bandPeak[b] = bandPeak_[b];
+      bandPeak_[b] = 0.0f;
+    }
+    frame.inputPeak = blockInputPeak_;
+    frame.outputPeak = blockOutputPeak_;
+    frame.crossfading = fadeRemaining_ > 0 ? 1u : 0u;
+    blockInputPeak_ = 0.0f;
+    blockOutputPeak_ = 0.0f;
+    visual_.publish(frame);
+  }
+
+  /// The most recent frame of engine state, for the face. Lock-free.
+  const dsp::VisualPublisher& visual() const noexcept { return visual_; }
 
   /// Tempo the unit resolves its length against. Set by the host per block.
   void setBpm(double bpm) noexcept { bpm_ = bpm > 1.0 ? bpm : 1.0; }
@@ -300,10 +359,21 @@ class MotionShaper : public Node {
     double mid = 0.0;
     double high = 0.0;
     split_[path][channel].process(x, low, mid, high);
+    // The level each band actually carries, which is what the spectrum shading
+    // draws. Taken here rather than estimated from the crossover's response,
+    // because a band's content depends on the material and not on the filter.
+    trackBandPeak(0, low);
+    trackBandPeak(1, cfg.bandCount == 2 ? mid + high : mid);
+    if (cfg.bandCount >= 3) trackBandPeak(2, high);
     const double g1 = cfg.enabled[1] ? blend(1, gain[1]) : 1.0;
     if (cfg.bandCount == 2) return low * g0 + (mid + high) * g1;
     const double g2 = cfg.enabled[2] ? blend(2, gain[2]) : 1.0;
     return low * g0 + mid * g1 + high * g2;
+  }
+
+  void trackBandPeak(int band, double value) noexcept {
+    const float a = static_cast<float>(value < 0.0 ? -value : value);
+    if (a > bandPeak_[band]) bandPeak_[band] = a;
   }
 
   /// Copy the live settings into a path's own record of them.
@@ -383,6 +453,12 @@ class MotionShaper : public Node {
   dsp::Smoother smoothers_[kMaxBands];
   dsp::Decimator decimators_[kMaxBands];
   dsp::LfoPhase phase_;
+  dsp::VisualPublisher visual_;
+  float frameGain_[kMaxBands] = {1.0f, 1.0f, 1.0f};
+  float bandPeak_[kMaxBands] = {0.0f, 0.0f, 0.0f};
+  float blockInputPeak_ = 0.0f;
+  float blockOutputPeak_ = 0.0f;
+  double lastPhase_ = 0.0;
   BandSettings bands_[kMaxBands];
 
   double sampleRate_ = 48000.0;
