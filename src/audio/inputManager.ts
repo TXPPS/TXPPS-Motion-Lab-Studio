@@ -22,10 +22,26 @@ export interface InputDevice {
   isDefault: boolean;
 }
 
+/**
+ * How many channels a track takes from its input.
+ *
+ * A track format, not a device property: the same interface feeds a mono
+ * vocal track and a stereo keyboard pair, and each has to be able to say which
+ * it is. One channel is recorded as one channel and centred by the track's pan
+ * law — not as a stereo file with silence down one side, which is what an
+ * unconstrained capture produces on a two-input interface and what makes a
+ * mono take pan half-way to the left when you touch the knob.
+ */
+export type InputFormat = 1 | 2;
+
 interface Lease {
   stream: MediaStream;
   source: MediaStreamAudioSourceNode;
   refs: Set<string>;
+  /** What was asked for. */
+  wanted: InputFormat;
+  /** What the device actually gave, which is not always what was asked. */
+  granted: number;
 }
 
 export const DEFAULT_INPUT = 'default';
@@ -35,8 +51,61 @@ const CONSTRAINTS: MediaTrackConstraints = {
   echoCancellation: false,
   noiseSuppression: false,
   autoGainControl: false,
-  channelCount: { ideal: 1 },
 };
+
+/**
+ * A lease is per device *and* per format.
+ *
+ * Keyed on the device alone, a mono vocal track and a stereo keyboard track on
+ * the same interface would share whichever stream happened to open first, and
+ * the second track would silently record in the other one's format.
+ */
+function leaseKey(deviceId: string, format: InputFormat): string {
+  return `${deviceId || DEFAULT_INPUT}|${format}`;
+}
+
+/**
+ * Open a stream at an exact channel count, falling back if the device refuses.
+ *
+ * `exact` first, because that is the only way to be sure what was captured: a
+ * hint is free to be ignored, and the old code hinted at one channel and then
+ * recorded whatever a two-input interface felt like giving — a "mono" take
+ * that was a stereo file with a dead side. A device that genuinely cannot
+ * satisfy the count throws `OverconstrainedError`, and the fallback takes what
+ * it can get so the take still happens; `grantedChannels` then says what it
+ * really was, and the caller reports the disagreement.
+ */
+async function openStream(deviceId: string, format: InputFormat): Promise<MediaStream> {
+  const base: MediaTrackConstraints = { ...CONSTRAINTS };
+  if (deviceId && deviceId !== DEFAULT_INPUT) base.deviceId = { exact: deviceId };
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: { ...base, channelCount: { exact: format } },
+    });
+  } catch (e) {
+    if ((e as DOMException)?.name !== 'OverconstrainedError') throw e;
+    diagLog(
+      'warn',
+      `Input "${deviceId || DEFAULT_INPUT}" cannot supply exactly ${format} channel(s) — asking for a best effort`,
+    );
+    return navigator.mediaDevices.getUserMedia({
+      audio: { ...base, channelCount: { ideal: format } },
+    });
+  }
+}
+
+/**
+ * What the stream actually carries.
+ *
+ * `getSettings().channelCount` is the authority, but it is optional in the spec
+ * and some engines omit it; where it is missing the request is the best guess
+ * available, and saying so is better than reporting a confident zero.
+ */
+function grantedChannels(stream: MediaStream, requested: InputFormat): number {
+  const track = stream.getAudioTracks()[0];
+  const n = track?.getSettings?.().channelCount;
+  return typeof n === 'number' && n > 0 ? n : requested;
+}
 
 class AudioInputManager {
   private leases = new Map<string, Lease>();
@@ -146,8 +215,12 @@ class AudioInputManager {
         // If a device that is currently held disappeared, release it cleanly.
         const ids = new Set(devices.map((d) => d.deviceId));
         for (const [key, lease] of this.leases) {
-          if (key !== DEFAULT_INPUT && !ids.has(key)) {
-            diagLog('warn', `Input device "${key}" disappeared — releasing its stream`);
+          // Lease keys carry the format, so the device is the part before the
+          // separator — comparing the whole key would match nothing and no
+          // unplugged device would ever be released.
+          const device = key.slice(0, key.lastIndexOf('|'));
+          if (device !== DEFAULT_INPUT && !ids.has(device)) {
+            diagLog('warn', `Input device "${device}" disappeared — releasing its stream`);
             this.hardRelease(key, lease);
           }
         }
@@ -164,9 +237,10 @@ class AudioInputManager {
     deviceId: string,
     owner: string,
     ctx: AudioContext,
+    format: InputFormat = 1,
   ): Promise<MediaStreamAudioSourceNode | null> {
     if (!this.supported) return null;
-    const key = deviceId || DEFAULT_INPUT;
+    const key = leaseKey(deviceId, format);
 
     const existing = this.leases.get(key);
     if (existing) {
@@ -185,11 +259,20 @@ class AudioInputManager {
 
     const task = (async (): Promise<Lease | null> => {
       try {
-        const audio: MediaTrackConstraints = { ...CONSTRAINTS };
-        if (key !== DEFAULT_INPUT) audio.deviceId = { exact: key };
-        const stream = await navigator.mediaDevices.getUserMedia({ audio });
+        const stream = await openStream(deviceId, format);
         const source = ctx.createMediaStreamSource(stream);
-        const lease: Lease = { stream, source, refs: new Set() };
+        const granted = grantedChannels(stream, format);
+        if (granted !== format) {
+          // Reported rather than silently accepted. A device that cannot give
+          // two channels is a fact about the hardware, and a user who chose
+          // Stereo and got mono must be told rather than left to discover it in
+          // the waveform.
+          diagLog(
+            'warn',
+            `Input "${deviceId || DEFAULT_INPUT}" was asked for ${format} channel(s) and gave ${granted}`,
+          );
+        }
+        const lease: Lease = { stream, source, refs: new Set(), wanted: format, granted };
         this.leases.set(key, lease);
         useInputStore.getState().set({ permission: 'granted', lastError: null });
         // A track ending (unplugged, taken by another app) must not linger.
@@ -200,7 +283,7 @@ class AudioInputManager {
           });
         }
         void this.refreshDevices();
-        diagLog('info', `Audio input opened (${key})`);
+        diagLog('info', `Audio input opened (${deviceId || DEFAULT_INPUT}, ${granted} ch)`);
         return lease;
       } catch (e) {
         const err = e as DOMException;
@@ -209,7 +292,10 @@ class AudioInputManager {
             err?.name === 'NotAllowedError' || err?.name === 'SecurityError' ? 'denied' : 'prompt',
           lastError: describeGumError(err),
         });
-        diagLog('error', `Could not open audio input "${key}": ${describeGumError(err)}`);
+        diagLog(
+          'error',
+          `Could not open audio input "${deviceId || DEFAULT_INPUT}": ${describeGumError(err)}`,
+        );
         return null;
       } finally {
         this.pending.delete(key);
@@ -225,8 +311,8 @@ class AudioInputManager {
   }
 
   /** Release one consumer's hold; the stream stops when the last one leaves. */
-  release(deviceId: string, owner: string): void {
-    const key = deviceId || DEFAULT_INPUT;
+  release(deviceId: string, owner: string, format: InputFormat = 1): void {
+    const key = leaseKey(deviceId, format);
     const lease = this.leases.get(key);
     if (!lease) return;
     lease.refs.delete(owner);
@@ -267,8 +353,19 @@ class AudioInputManager {
   }
 
   /** The raw stream for a held device (used by the recorder). */
-  streamFor(deviceId: string): MediaStream | null {
-    return this.leases.get(deviceId || DEFAULT_INPUT)?.stream ?? null;
+  streamFor(deviceId: string, format: InputFormat = 1): MediaStream | null {
+    return this.leases.get(leaseKey(deviceId, format))?.stream ?? null;
+  }
+
+  /**
+   * How many channels the device actually delivered, or 0 if it is not open.
+   *
+   * Asked separately from what was requested because the two disagree on real
+   * hardware: `exact: 2` on a single-input interface is refused, and the
+   * fallback below takes what it can get.
+   */
+  grantedFormat(deviceId: string, format: InputFormat): number {
+    return this.leases.get(leaseKey(deviceId, format))?.granted ?? 0;
   }
 
   private publishActive(): void {

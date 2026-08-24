@@ -28,6 +28,11 @@ function walk(dir: string, out: string[] = []): string[] {
 const CONSUMERS = walk(SRC)
   .filter((f) => !f.endsWith(join('state', 'prefsStore.ts')))
   .filter((f) => !f.endsWith(join('settings', 'SettingsSheet.tsx')))
+  // `AudioSetup` is part of the settings sheet, split out only because the
+  // sheet was getting long. Counting it as a consumer would let a preference
+  // pass this guard by rendering its own control and nothing else — which is
+  // exactly the defect the guard exists for.
+  .filter((f) => !f.endsWith(join('settings', 'AudioSetup.tsx')))
   .map((f) => readFileSync(f, 'utf8'));
 
 describe('every preference reaches something', () => {

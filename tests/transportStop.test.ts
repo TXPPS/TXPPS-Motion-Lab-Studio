@@ -548,7 +548,7 @@ describe('record, then press Stop', () => {
     // than beside it.
     expect(audioInput.release).not.toHaveBeenCalled();
     await untilIdle();
-    expect(audioInput.release).toHaveBeenCalledWith(expect.any(String), `record:${trackId}`);
+    expect(audioInput.release).toHaveBeenCalledWith(expect.any(String), `record:${trackId}`, 1);
   });
 
   it('does not start a take that a stop overtook during arming', async () => {

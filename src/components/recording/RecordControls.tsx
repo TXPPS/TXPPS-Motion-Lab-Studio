@@ -4,6 +4,12 @@ import { audioInput, DEFAULT_INPUT } from '../../audio/inputManager';
 import { recording } from '../../audio/recordingController';
 import { getCountInBars, recordTargetTrack, setCountInBars } from '../../audio/takePlan';
 import { recorderSupported } from '../../audio/recorder';
+import {
+  setArmed,
+  setTrackInputDevice,
+  setTrackInputFormat,
+  toggleMonitoring,
+} from '../../app/monitorActions';
 import { useInputStore, permissionLabel } from '../../state/inputStore';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
@@ -102,7 +108,6 @@ export function RecordButton({ compact, big }: { compact?: boolean; big?: boolea
  */
 export function TrackInputControls({ trackId }: { trackId: string }) {
   const track = useProjectStore((s) => s.project.tracks.find((t) => t.id === trackId));
-  const setTrack = useProjectStore((s) => s.setTrack);
   const permission = useInputStore((s) => s.permission);
   const devices = useInputStore((s) => s.devices);
   const lastError = useInputStore((s) => s.lastError);
@@ -117,8 +122,10 @@ export function TrackInputControls({ trackId }: { trackId: string }) {
   }
 
   const deviceId = track.inputDeviceId || DEFAULT_INPUT;
+  const format = track.inputChannels === 2 ? 2 : 1;
+  const granted = audioInput.grantedFormat(deviceId, format);
   const monitoring = engine.isMonitoring(trackId);
-  const granted = permission === 'granted';
+  const inputOpen = engine.isInputOpen(trackId);
   const busy = phase === 'recording' || phase === 'countIn';
 
   const requestAccess = async () => {
@@ -131,22 +138,7 @@ export function TrackInputControls({ trackId }: { trackId: string }) {
   };
 
   const toggleMonitor = async () => {
-    if (monitoring) {
-      engine.stopMonitoring(trackId);
-      setTrack(trackId, { monitoring: false });
-      return;
-    }
-    if (!granted && !(await audioInput.requestPermission())) {
-      useUiStore.getState().toast('error', 'Microphone access is required to monitor input.');
-      return;
-    }
-    const ok = await engine.startMonitoring(trackId, deviceId);
-    setTrack(trackId, { monitoring: ok });
-    if (!ok) {
-      useUiStore
-        .getState()
-        .toast('error', useInputStore.getState().lastError ?? 'Could not open the input.');
-    } else {
+    if (await toggleMonitoring(trackId)) {
       useUiStore
         .getState()
         .toast('info', 'Monitoring on — use headphones to avoid feedback into the microphone.');
@@ -185,12 +177,7 @@ export function TrackInputControls({ trackId }: { trackId: string }) {
           disabled={busy}
           aria-label="Audio input device"
           data-testid="input-device"
-          onChange={(e) => {
-            const next = e.target.value;
-            if (monitoring) engine.stopMonitoring(trackId);
-            setTrack(trackId, { inputDeviceId: next });
-            if (monitoring) void engine.startMonitoring(trackId, next);
-          }}
+          onChange={(e) => void setTrackInputDevice(trackId, e.target.value)}
         >
           <option value={DEFAULT_INPUT}>Default input</option>
           {devices
@@ -203,10 +190,33 @@ export function TrackInputControls({ trackId }: { trackId: string }) {
         </select>
       </label>
 
+      <label className="insp-row">
+        <span className="k">Format</span>
+        <select
+          value={format}
+          disabled={busy}
+          aria-label="Input channel format"
+          data-testid="input-format"
+          onChange={(e) => void setTrackInputFormat(trackId, e.target.value === '2' ? 2 : 1)}
+        >
+          <option value="1">Mono</option>
+          <option value="2">Stereo</option>
+        </select>
+      </label>
+      {/* Shown only when the device disagreed. Choosing Stereo on a
+          single-input interface is a fact about the hardware, and finding that
+          out from the waveform after the take is too late. */}
+      {inputOpen && granted > 0 && granted !== format && (
+        <div className="hint warn-text" data-testid="format-mismatch">
+          This input supplies {granted === 1 ? 'one channel' : `${granted} channels`} — recording in{' '}
+          {granted === 1 ? 'mono' : 'stereo'}.
+        </div>
+      )}
+
       <div className="rec-buttons">
         <button
           className={`btn${track.armed ? ' armed' : ''}`}
-          onClick={() => setTrack(trackId, { armed: !track.armed })}
+          onClick={() => void setArmed(trackId, !track.armed)}
           disabled={busy}
           aria-pressed={track.armed}
           title="Record arm"
@@ -227,7 +237,10 @@ export function TrackInputControls({ trackId }: { trackId: string }) {
         </button>
       </div>
 
-      <InputMeter trackId={monitoring ? trackId : null} />
+      {/* The meter follows the open input, not the monitor button. Gated on
+          monitoring it read zero for an armed track, which is what a broken
+          microphone also looks like. */}
+      <InputMeter trackId={inputOpen ? trackId : null} />
 
       <label className="insp-row">
         <span className="k">Count-in</span>

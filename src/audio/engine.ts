@@ -20,7 +20,7 @@ import { useProjectStore } from '../state/projectStore';
 import { useTransportStore } from '../state/transportStore';
 import { diagLog } from '../state/diagnostics';
 import { evict, getBufferSync, loadBuffer } from './mediaLibrary';
-import { audioInput } from './inputManager';
+import { audioInput, type InputFormat } from './inputManager';
 import { announceTransportStop, type TransportStopReason } from './transportStop';
 import { useInputStore, type RecordPhase } from '../state/inputStore';
 import { usePrefsStore } from '../state/prefsStore';
@@ -171,12 +171,30 @@ interface Channel {
   sends: Map<string, GainNode>;
 }
 
-/** Live input monitoring for one track. */
-interface Monitor {
+/**
+ * One track's live input, open on the device.
+ *
+ * Opening the input and *hearing* it are two different things, and conflating
+ * them is why the app looked as though the microphone did not work: the meter
+ * read `0` for any track that was not monitoring, so arming a track produced no
+ * sound, no meter, and no evidence that anything had happened. Every DAW moves
+ * the meter on arm.
+ *
+ * So the analyser sits ahead of the monitor gain — `source → analyser → gain →
+ * channel input` — and the gain is what silences the monitor. The meter
+ * therefore reads the device whenever the input is open, whether or not the
+ * player wants to hear it, and it is still pre-trim, pre-insert, pre-fader and
+ * pre-pan: a true input meter.
+ */
+interface InputTap {
   deviceId: string;
+  /** Kept so the release uses the same lease key the acquire did. */
+  format: InputFormat;
   source: MediaStreamAudioSourceNode;
+  /** Monitor level. Zero means open and metered but silent. */
   gain: GainNode;
   analyser: AnalyserNode;
+  audible: boolean;
 }
 
 const FALLBACK_SYNTH: SynthParams = {
@@ -212,7 +230,7 @@ class AudioEngine {
   private freezeMediaIds = new Set<string>();
   /** cue mix being monitored on the main output, or null for the main mix */
   private monitorCueId: string | null = null;
-  private monitors = new Map<string, Monitor>();
+  private inputs = new Map<string, InputTap>();
   private instruments = new Map<string, Instrument>();
   private activeSources = new Set<ActiveHandle>();
   private scheduler: Scheduler;
@@ -301,7 +319,26 @@ class AudioEngine {
     try {
       if (!this.ctx) {
         t.set({ audioState: 'starting', audioError: null });
-        const ctx = new AudioContext({ latencyHint: 'interactive' });
+        // The preferences are a *request*: the browser owns the device and is
+        // free to hand back a different rate, which is why the settings sheet
+        // reports what the context actually reports rather than echoing the
+        // choice back. A rate the device refuses throws here, so it is offered
+        // as an option and dropped on failure rather than leaving the app with
+        // no engine at all.
+        const prefs = usePrefsStore.getState();
+        const options: AudioContextOptions = { latencyHint: prefs.latencyHint };
+        if (prefs.sampleRate > 0) options.sampleRate = prefs.sampleRate;
+        let ctx: AudioContext;
+        try {
+          ctx = new AudioContext(options);
+        } catch {
+          diagLog(
+            'warn',
+            `The device refused ${prefs.sampleRate} Hz — the engine started at its own rate instead`,
+          );
+          ctx = new AudioContext({ latencyHint: prefs.latencyHint });
+        }
+        void this.applyOutputDevice(ctx, prefs.outputDeviceId);
         this.ctx = ctx;
         this.buildMasterChain(ctx);
         ctx.onstatechange = () => this.reflectContextState();
@@ -413,6 +450,79 @@ class AudioEngine {
     this.metroGain = ctx.createGain();
     this.metroGain.gain.value = clickGain(p);
     this.metroGain.connect(ctx.destination);
+  }
+
+  /**
+   * Send the mix to a chosen output, where the browser allows it.
+   *
+   * `AudioContext.setSinkId` is Chromium-only at the time of writing, and
+   * everywhere else the operating system owns the choice. Absence is reported
+   * once and then left alone: a preference that silently does nothing is worse
+   * than one that says it cannot.
+   */
+  private async applyOutputDevice(ctx: AudioContext, deviceId: string): Promise<void> {
+    if (!deviceId) return;
+    const setSinkId = (ctx as AudioContext & { setSinkId?: (id: string) => Promise<void> })
+      .setSinkId;
+    if (typeof setSinkId !== 'function') {
+      diagLog('warn', 'This browser cannot choose an audio output — using the system default');
+      return;
+    }
+    try {
+      await setSinkId.call(ctx, deviceId);
+      diagLog('info', `Audio output set to ${deviceId}`);
+    } catch (e) {
+      diagLog('warn', `Could not use the chosen audio output: ${String(e)}`);
+    }
+  }
+
+  /** Whether this browser lets a page choose its audio output at all. */
+  canChooseOutput(): boolean {
+    return (
+      typeof AudioContext !== 'undefined' &&
+      typeof (AudioContext.prototype as { setSinkId?: unknown }).setSinkId === 'function'
+    );
+  }
+
+  /**
+   * Round-trip latency, in seconds, as far as the platform will say.
+   *
+   * `baseLatency` is the graph's own buffering; `outputLatency` is what the
+   * device adds after it and is not implemented everywhere. Reported rather
+   * than computed because a number the app invented would be worse than a
+   * number it does not have — and until now the app displayed neither, so a
+   * user could not tell what they were tracking at.
+   */
+  latency(): { base: number; output: number; total: number } | null {
+    const ctx = this.ctx;
+    if (!ctx) return null;
+    const base = ctx.baseLatency ?? 0;
+    const output = (ctx as AudioContext & { outputLatency?: number }).outputLatency ?? 0;
+    return { base, output, total: base + output };
+  }
+
+  /**
+   * Tear the engine down and build it again.
+   *
+   * Sample rate and latency hint can only be chosen when an AudioContext is
+   * constructed, so changing either means a new one. Everything downstream —
+   * the graph, the plugins, the Motion Wave core — is rebuilt from the project
+   * by `start()`, so this is a restart rather than a reconfiguration.
+   */
+  async restart(): Promise<boolean> {
+    // A start already in flight owns the context this is about to discard, so
+    // it is allowed to finish first. Tearing down underneath it would leave
+    // `startPromise` resolving with a context nothing points at any more.
+    if (this.startPromise) await this.startPromise.catch(() => false);
+    this.stop('project');
+    this.closeAllInputs();
+    this.stopAllSources(true);
+    const old = this.ctx;
+    this.ctx = null;
+    this.channels.clear();
+    if (old) await old.close().catch(() => undefined);
+    useTransportStore.getState().set({ audioState: 'uninitialized', sampleRate: null });
+    return this.start();
   }
 
   private reflectContextState(): void {
@@ -648,7 +758,7 @@ class AudioEngine {
     for (const [id, ch] of this.channels) {
       if (!liveIds.has(id)) {
         this.stopSourcesWhere((h) => h.trackId === id, true);
-        this.stopMonitoring(id);
+        this.closeInput(id);
         this.instruments.get(id)?.dispose();
         this.instruments.delete(id);
         for (const node of ch.sends.values()) {
@@ -989,68 +1099,122 @@ class AudioEngine {
     };
   }
 
-  // ---------- input monitoring ----------
+  // ---------- input taps and monitoring ----------
 
   /**
-   * Route a track's selected input into its own channel, so monitored audio is
-   * shaped by that track's volume, pan, mute/solo and bus routing exactly like
-   * recorded material will be.
+   * Open a track's selected input on its own channel.
+   *
+   * `audible` decides whether it is heard, not whether it is open. An inaudible
+   * tap still moves the input meter, which is what makes arming a track show
+   * signal — the thing whose absence read as "the microphone does not work".
+   *
+   * Monitored audio joins at the channel input, so it is shaped by that track's
+   * trim, inserts, volume, pan, mute/solo and bus routing exactly like the
+   * material about to be recorded onto it.
    */
-  async startMonitoring(trackId: string, deviceId: string): Promise<boolean> {
+  async openInput(
+    trackId: string,
+    deviceId: string,
+    audible: boolean,
+    format: InputFormat = 1,
+  ): Promise<boolean> {
     const ok = await this.start();
     const ctx = this.ctx;
     if (!ok || !ctx) return false;
     const ch = this.channels.get(trackId);
     if (!ch) return false;
-    // Toggling repeatedly must not stack nodes: always tear down first.
-    if (this.monitors.has(trackId)) this.stopMonitoring(trackId);
 
-    const source = await audioInput.acquire(deviceId, `monitor:${trackId}`, ctx);
+    const open = this.inputs.get(trackId);
+    if (open && open.deviceId === deviceId && open.format === format) {
+      // Already on the right device — this is an audibility change, and
+      // reopening the stream to make one would drop the meter for a frame and
+      // re-trigger the browser's capture indicator.
+      this.setInputAudible(trackId, audible);
+      return true;
+    }
+    // Toggling repeatedly must not stack nodes: always tear down first.
+    if (open) this.closeInput(trackId);
+
+    const source = await audioInput.acquire(deviceId, `monitor:${trackId}`, ctx, format);
     if (!source) return false;
-    const gain = ctx.createGain();
-    gain.gain.value = 1;
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 1024;
-    source.connect(gain);
-    gain.connect(analyser);
-    analyser.connect(ch.input);
-    this.monitors.set(trackId, { deviceId, source, gain, analyser });
+    const gain = ctx.createGain();
+    gain.gain.value = audible ? 1 : 0;
+    source.connect(analyser);
+    analyser.connect(gain);
+    gain.connect(ch.input);
+    this.inputs.set(trackId, { deviceId, format, source, gain, analyser, audible });
     useInputStore.getState().set({ activeStreams: audioInput.activeStreamCount() });
-    diagLog('info', `Monitoring started on track ${trackId} (${deviceId})`);
+    diagLog(
+      'info',
+      `Input opened on track ${trackId} (${deviceId}, ${format === 2 ? 'stereo' : 'mono'}, ${
+        audible ? 'monitored' : 'metered only'
+      })`,
+    );
     return true;
   }
 
-  stopMonitoring(trackId: string): void {
-    const m = this.monitors.get(trackId);
-    if (!m) return;
+  /** Hear an already-open input, or stop hearing it without closing it. */
+  setInputAudible(trackId: string, audible: boolean): void {
+    const tap = this.inputs.get(trackId);
+    if (!tap || tap.audible === audible) return;
+    tap.audible = audible;
+    // Ramped rather than stepped: a monitor button is pressed while a musician
+    // is in front of a live microphone, and a step to unity is a click through
+    // headphones they are wearing.
+    const t = this.ctx?.currentTime ?? 0;
+    tap.gain.gain.cancelScheduledValues(t);
+    tap.gain.gain.setTargetAtTime(audible ? 1 : 0, t, 0.008);
+    diagLog('info', `Monitoring ${audible ? 'on' : 'off'} for track ${trackId}`);
+  }
+
+  /** Close the input entirely: no meter, and the device is released. */
+  closeInput(trackId: string): void {
+    const tap = this.inputs.get(trackId);
+    if (!tap) return;
     try {
-      m.source.disconnect(m.gain);
-      m.gain.disconnect();
-      m.analyser.disconnect();
+      tap.source.disconnect(tap.analyser);
+      tap.analyser.disconnect();
+      tap.gain.disconnect();
     } catch {
       /* already torn down */
     }
-    this.monitors.delete(trackId);
-    audioInput.release(m.deviceId, `monitor:${trackId}`);
+    this.inputs.delete(trackId);
+    audioInput.release(tap.deviceId, `monitor:${trackId}`, tap.format);
     useInputStore.getState().set({ activeStreams: audioInput.activeStreamCount() });
-    diagLog('info', `Monitoring stopped on track ${trackId}`);
+    diagLog('info', `Input closed on track ${trackId}`);
   }
 
+  /** The device is open, whether or not it is being heard. */
+  isInputOpen(trackId: string): boolean {
+    return this.inputs.has(trackId);
+  }
+
+  /** Open AND audible. This is what a lit monitor button means. */
   isMonitoring(trackId: string): boolean {
-    return this.monitors.has(trackId);
+    return this.inputs.get(trackId)?.audible === true;
   }
 
   monitoringCount(): number {
-    return this.monitors.size;
+    let n = 0;
+    for (const tap of this.inputs.values()) if (tap.audible) n += 1;
+    return n;
   }
 
-  /** Peak level of a monitored input, 0..1, for the input meter. */
+  /**
+   * Peak level of a track's input, 0..1, for the input meter.
+   *
+   * Reads whenever the input is open. It used to return 0 unless the track was
+   * monitoring, so an armed track showed a dead meter and the user had no way
+   * to tell a silent microphone from a broken one.
+   */
   inputLevel(trackId: string): number {
-    const m = this.monitors.get(trackId);
-    if (!m) return 0;
-    const n = m.analyser.fftSize;
+    const tap = this.inputs.get(trackId);
+    if (!tap) return 0;
+    const n = tap.analyser.fftSize;
     const buf = this.scratch.subarray(0, n);
-    m.analyser.getFloatTimeDomainData(buf);
+    tap.analyser.getFloatTimeDomainData(buf);
     let peak = 0;
     for (let i = 0; i < n; i++) {
       const v = Math.abs(buf[i]);
@@ -1059,8 +1223,8 @@ class AudioEngine {
     return peak;
   }
 
-  stopAllMonitoring(): void {
-    for (const id of [...this.monitors.keys()]) this.stopMonitoring(id);
+  closeAllInputs(): void {
+    for (const id of [...this.inputs.keys()]) this.closeInput(id);
   }
 
   // ---------- automation ----------
@@ -1915,7 +2079,7 @@ class AudioEngine {
     this.stopAllSources(true);
     this.stopAudition();
     this.stopPreview();
-    this.stopAllMonitoring();
+    this.closeAllInputs();
     audioInput.stopAll();
     useTransportStore.getState().set({ playState: 'stopped' });
     useInputStore.getState().set({ activeStreams: 0, activeTracks: 0, inputLevel: 0 });

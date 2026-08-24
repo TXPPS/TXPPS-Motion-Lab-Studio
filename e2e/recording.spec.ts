@@ -184,8 +184,12 @@ test.describe('recording pipeline', () => {
     await page.waitForTimeout(3500);
     await page.click('[data-testid="btn-record"]');
     await page.waitForTimeout(2500);
+    // The track is still armed, and an armed track keeps its input open so the
+    // meter reads — that is the point of §2.2. Disarming is what should close
+    // the device, and it has to close the take's hold on it as well as its own.
+    await page.click('[data-testid="arm-track"]');
+    await page.waitForTimeout(800);
 
-    // Monitoring is off, so nothing should still be holding the device open.
     const live = await page.evaluate(() => {
       const w = window as unknown as { __streams: MediaStream[] };
       return w.__streams.flatMap((s) => s.getAudioTracks()).filter((t) => t.readyState === 'live')
@@ -364,11 +368,12 @@ test.describe('stop ends the take', () => {
 
     await page.click('[data-testid="btn-stop"]');
     await page.waitForTimeout(2500);
-
-    // The microphone is the honest witness. Against the old code the transport
-    // reported itself stopped while this stayed at one — the take was still
-    // running behind a stopped playhead.
-    expect(await liveTracks(page), 'the input was still open after Stop').toBe(0);
+    // Disarm before counting: an armed track deliberately keeps its input open
+    // so the meter reads, so the device alone can no longer say whether the
+    // *take* ended. What it can still say is whether the take let go of it.
+    await page.click('[data-testid="arm-track"]');
+    await page.waitForTimeout(800);
+    expect(await liveTracks(page), 'the take was still holding the input').toBe(0);
 
     const review = await page.evaluate(
       () => document.querySelector('[data-testid="take-review"]')?.textContent ?? '(no review)',
@@ -396,8 +401,9 @@ test.describe('stop ends the take', () => {
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.keyboard.press('Space');
     await page.waitForTimeout(2500);
-
-    expect(await liveTracks(page), 'the input was still open after Space').toBe(0);
+    await page.click('[data-testid="arm-track"]');
+    await page.waitForTimeout(800);
+    expect(await liveTracks(page), 'the take was still holding the input').toBe(0);
     await page.click('[data-testid="nav-arrange"]');
     await page.waitForTimeout(600);
     const after = await page.evaluate(
@@ -419,5 +425,137 @@ test.describe('stop ends the take', () => {
       () => document.querySelector('[data-testid="pos-display"]')?.textContent ?? '',
     );
     expect(pos.trim()).toBe('1.1.000');
+  });
+});
+
+/**
+ * Directive 09 §2.2 — arming a track has to show that the microphone works.
+ *
+ * The report was "no input from a mic". Arming wrote one field: no device was
+ * opened, the input meter read zero for any track that was not monitoring, and
+ * an armed track with a dead meter is what a broken microphone also looks like.
+ */
+test.describe('arming opens the input', () => {
+  test.skip(engine === 'webkit', 'WebKit has no fake capture device');
+
+  async function openRecordWorkspace(page: Page) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await boot(page);
+    await page.click('[data-testid="nav-record"]');
+    await page.waitForSelector('[data-testid="record-workspace"]');
+    const enable = page.locator('[data-testid="request-mic"]');
+    if (await enable.count()) {
+      await enable.click();
+      await page.waitForTimeout(900);
+    }
+  }
+
+  /** The meter's widest reading over two seconds, as a 0..1 scale factor. */
+  async function peakOverASecond(page: Page): Promise<number> {
+    let peak = 0;
+    for (let i = 0; i < 40; i += 1) {
+      const v = await page.evaluate(() => {
+        const el = document.querySelector<HTMLElement>('[data-testid="input-meter"] .im-fill');
+        const m = /scaleX\(([\d.]+)\)/.exec(el?.style.transform ?? '');
+        return m ? Number(m[1]) : 0;
+      });
+      peak = Math.max(peak, v);
+      await page.waitForTimeout(50);
+    }
+    return peak;
+  }
+
+  test('the meter reads the device as soon as the track is armed', async ({ page }) => {
+    await instrumentGum(page);
+    await openRecordWorkspace(page);
+    expect(await peakOverASecond(page), 'the meter moved before anything was armed').toBe(0);
+
+    await page.click('[data-testid="arm-track"]');
+    await page.waitForTimeout(1500);
+
+    expect(await gumCalls(page), 'arming did not open a device').toBeGreaterThan(0);
+    // The fake capture device emits a continuous tone, so a live meter must
+    // move. Against the old code this stayed at zero and the microphone looked
+    // broken.
+    expect(await peakOverASecond(page), 'the meter stayed dead on an armed track').toBeGreaterThan(
+      0,
+    );
+  });
+
+  test('disarming closes the device again', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { __streams: MediaStream[] };
+      w.__streams = [];
+      const md = navigator.mediaDevices;
+      if (!md?.getUserMedia) return;
+      const original = md.getUserMedia.bind(md);
+      md.getUserMedia = async (c?: MediaStreamConstraints) => {
+        const s = await original(c);
+        w.__streams.push(s);
+        return s;
+      };
+    });
+    await openRecordWorkspace(page);
+    await page.click('[data-testid="arm-track"]');
+    await page.waitForTimeout(700);
+    await page.click('[data-testid="arm-track"]');
+    await page.waitForTimeout(700);
+    const live = await page.evaluate(
+      () =>
+        (window as unknown as { __streams: MediaStream[] }).__streams
+          .flatMap((s) => s.getAudioTracks())
+          .filter((t) => t.readyState === 'live').length,
+    );
+    // An input left open after disarming keeps the browser's capture indicator
+    // lit, which is a privacy claim the app has no business making.
+    expect(live, 'a microphone track was left open after disarming').toBe(0);
+  });
+
+  test('a mono track asks the device for exactly one channel', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { __constraints: unknown[] };
+      w.__constraints = [];
+      const md = navigator.mediaDevices;
+      if (!md?.getUserMedia) return;
+      const original = md.getUserMedia.bind(md);
+      md.getUserMedia = (c?: MediaStreamConstraints) => {
+        w.__constraints.push(c?.audio);
+        return original(c);
+      };
+    });
+    await openRecordWorkspace(page);
+    await page.selectOption('[data-testid="input-format"]', '1');
+    await page.click('[data-testid="arm-track"]');
+    await page.waitForTimeout(700);
+
+    const asked = await page.evaluate(
+      () => (window as unknown as { __constraints: { channelCount?: unknown }[] }).__constraints,
+    );
+    // `exact`, not `ideal`. A hint is free to be ignored, and being ignored is
+    // what turned a mono take into a stereo file with a dead side.
+    expect(asked.some((c) => JSON.stringify(c?.channelCount) === '{"exact":1}')).toBe(true);
+  });
+
+  test('a stereo track asks for two', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { __constraints: unknown[] };
+      w.__constraints = [];
+      const md = navigator.mediaDevices;
+      if (!md?.getUserMedia) return;
+      const original = md.getUserMedia.bind(md);
+      md.getUserMedia = (c?: MediaStreamConstraints) => {
+        w.__constraints.push(c?.audio);
+        return original(c);
+      };
+    });
+    await openRecordWorkspace(page);
+    await page.selectOption('[data-testid="input-format"]', '2');
+    await page.click('[data-testid="arm-track"]');
+    await page.waitForTimeout(1200);
+
+    const asked = await page.evaluate(
+      () => (window as unknown as { __constraints: { channelCount?: unknown }[] }).__constraints,
+    );
+    expect(asked.some((c) => JSON.stringify(c?.channelCount) === '{"exact":2}')).toBe(true);
   });
 });

@@ -19,7 +19,7 @@ import { useProjectStore } from '../state/projectStore';
 import { useUiStore } from '../state/uiStore';
 import { engine } from './engine';
 import { livePeakTap } from './peakTap';
-import { audioInput, DEFAULT_INPUT } from './inputManager';
+import { audioInput, DEFAULT_INPUT, type InputFormat } from './inputManager';
 import type { FinishedTake } from './recorder';
 import { recorderSupported, stashRecovery, TakeRecorder } from './recorder';
 import { commitOrRecover, type TakeMeta } from './takeCommit';
@@ -50,6 +50,8 @@ class RecordingController {
   private trackId: string | null = null;
   private trackName = '';
   private deviceId = DEFAULT_INPUT;
+  /** The format the current take's lease was taken at, so the release matches. */
+  private deviceFormat: InputFormat = 1;
   /** True while this take is MIDI rather than audio. */
   private midi = false;
   /** The window the clip should cover, when punch is on. */
@@ -125,12 +127,16 @@ class RecordingController {
     // in the unwind would then release nothing and leave the microphone open.
     const gen = ++this.startGeneration;
     const deviceId = track.inputDeviceId || DEFAULT_INPUT;
+    // The take is captured in the track's own format, so a mono track produces
+    // one channel rather than a stereo file with a dead side.
+    const format: InputFormat = track.inputChannels === 2 ? 2 : 1;
     const owner = `record:${track.id}`;
 
     this.cancelled = false;
     this.trackId = track.id;
     this.trackName = track.name;
     this.deviceId = deviceId;
+    this.deviceFormat = format;
     store.set({
       phase: 'arming',
       lastRecordError: null,
@@ -139,7 +145,7 @@ class RecordingController {
     });
 
     const audioOk = await engine.start();
-    if (this.startGeneration !== gen) return this.abandonStart(deviceId, owner);
+    if (this.startGeneration !== gen) return this.abandonStart(deviceId, owner, format);
     if (!audioOk) {
       store.set({ phase: 'error', lastRecordError: 'Audio engine could not start.' });
       return false;
@@ -152,8 +158,8 @@ class RecordingController {
 
     // Acquire the stream up front so permission problems surface before the
     // count-in rather than after it.
-    const source = await audioInput.acquire(deviceId, owner, ctx);
-    if (this.startGeneration !== gen) return this.abandonStart(deviceId, owner);
+    const source = await audioInput.acquire(deviceId, owner, ctx, format);
+    if (this.startGeneration !== gen) return this.abandonStart(deviceId, owner, format);
     if (!source) {
       store.set({
         phase: 'error',
@@ -161,10 +167,10 @@ class RecordingController {
       });
       return false;
     }
-    const stream = audioInput.streamFor(deviceId);
+    const stream = audioInput.streamFor(deviceId, format);
     if (!stream) {
       store.set({ phase: 'error', lastRecordError: 'Input stream unavailable.' });
-      audioInput.release(deviceId, owner);
+      audioInput.release(deviceId, owner, format);
       return false;
     }
 
@@ -183,15 +189,15 @@ class RecordingController {
 
     if (getCountInBars() > 0) {
       const ok = await this.runCountIn(plan.rollBeat);
-      if (this.startGeneration !== gen) return this.abandonStart(deviceId, owner);
-      if (!ok) return this.abandonStart(deviceId, owner);
+      if (this.startGeneration !== gen) return this.abandonStart(deviceId, owner, format);
+      if (!ok) return this.abandonStart(deviceId, owner, format);
     }
 
     if (!engine.isPlaying()) await engine.play(plan.rollBeat);
     // `engine.play` is async, and a stop pressed across that await retires this
     // start. Without the check the encoder would begin a moment after the
     // transport stopped — the reported bug arriving by a different door.
-    if (this.startGeneration !== gen) return this.abandonStart(deviceId, owner);
+    if (this.startGeneration !== gen) return this.abandonStart(deviceId, owner, format);
     this.armPunchOut();
 
     // The live waveform taps the same source the take is captured from, so the
@@ -204,7 +210,7 @@ class RecordingController {
     const started = this.recorder.start(stream);
     if (!started) {
       store.set({ phase: 'error', lastRecordError: 'The recorder failed to start.' });
-      return this.abandonStart(deviceId, owner);
+      return this.abandonStart(deviceId, owner, format);
     }
 
     useInputStore.getState().set({
@@ -227,8 +233,8 @@ class RecordingController {
    * captured. It deliberately does not touch the phase: a newer take may
    * already own it, and the stop that retired this one has set it already.
    */
-  private abandonStart(deviceId: string, owner: string): false {
-    audioInput.release(deviceId, owner);
+  private abandonStart(deviceId: string, owner: string, format: InputFormat): false {
+    audioInput.release(deviceId, owner, format);
     livePeakTap.detach();
     this.removeUnloadGuard();
     return false;
@@ -535,7 +541,8 @@ class RecordingController {
     // keep appending to an envelope nothing is drawing, which is a leak whose
     // symptom is memory rather than sound.
     livePeakTap.detach();
-    if (this.trackId) audioInput.release(this.deviceId, `record:${this.trackId}`);
+    if (this.trackId)
+      audioInput.release(this.deviceId, `record:${this.trackId}`, this.deviceFormat);
   }
 
   /**

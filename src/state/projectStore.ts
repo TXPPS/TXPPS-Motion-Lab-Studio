@@ -20,6 +20,7 @@ import { defaultParams, effectSpec, MAX_INSERTS } from '../model/effects';
 import type { MediaRef } from '../model/media';
 import { createDemoProject } from '../model/demoProject';
 import { staleFreezeTrackIds } from '../model/freeze';
+import { usePrefsStore } from './prefsStore';
 import { useUiStore } from './uiStore';
 import { laneValueAt, makePoint, normalizeLanePoints } from '../model/automation';
 import type {
@@ -646,6 +647,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
           mute: false,
           solo: false,
           armed: type === 'instrument' || type === 'drum',
+          // A studio has one interface, so making every new track find it again
+          // is a chore the preference exists to remove.
+          ...(type === 'audio' && usePrefsStore.getState().defaultInputDeviceId
+            ? { inputDeviceId: usePrefsStore.getState().defaultInputDeviceId }
+            : {}),
           collapsed: false,
           output: 'master',
           ...(type === 'instrument' ? { synth: getPreset(SYNTH_PRESETS[0].presetName) } : {}),

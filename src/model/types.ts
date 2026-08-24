@@ -179,6 +179,15 @@ export interface Track {
   synth?: SynthParams;
   /** audio tracks: selected input device id, or 'default' */
   inputDeviceId?: string;
+  /**
+   * audio tracks: how many channels this track takes from its input.
+   *
+   * A track format rather than a device property — the same interface feeds a
+   * mono vocal and a stereo keyboard pair. 1 records one channel, centred by
+   * the track's pan law; 2 records an input pair. Absent means mono, which is
+   * what every existing project was recording in practice.
+   */
+  inputChannels?: 1 | 2;
   /** audio tracks: monitor the live input through this channel */
   monitoring?: boolean;
   /** effect-bus sends */

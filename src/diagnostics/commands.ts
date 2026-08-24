@@ -82,10 +82,13 @@ export async function runInputMonitorSmokeTest(): Promise<CommandResult> {
     };
   }
 
-  const wasMonitoring = engine.isMonitoring(track.id);
+  // The tap, not the monitor: the smoke test wants to know whether the device
+  // is delivering signal, and making it audible would put a live microphone
+  // into the speakers of whoever ran a diagnostic.
+  const wasOpen = engine.isInputOpen(track.id);
   try {
-    if (!wasMonitoring) {
-      const ok = await engine.startMonitoring(track.id, track.inputDeviceId ?? 'default');
+    if (!wasOpen) {
+      const ok = await engine.openInput(track.id, track.inputDeviceId ?? 'default', false);
       if (!ok) {
         return {
           ok: false,
@@ -110,7 +113,7 @@ export async function runInputMonitorSmokeTest(): Promise<CommandResult> {
           : 'Stream opened but no signal was detected — check the input device and its level.',
     };
   } finally {
-    if (!wasMonitoring) engine.stopMonitoring(track.id);
+    if (!wasOpen) engine.closeInput(track.id);
   }
 }
 
@@ -267,7 +270,7 @@ export function checkMissingMedia(): CommandResult {
 /** Release every input stream without touching playback. */
 export function stopAllMediaStreams(): CommandResult {
   const before = audioInput.activeTrackStates().length;
-  engine.stopAllMonitoring();
+  engine.closeAllInputs();
   audioInput.stopAll();
   const after = audioInput.activeTrackStates().length;
   diagLog('info', `Diagnostics: stopped media streams (${before} → ${after})`);

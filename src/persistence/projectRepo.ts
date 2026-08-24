@@ -383,6 +383,12 @@ export function validateProject(raw: unknown): ProjectData {
     if (tr.inputDeviceId !== undefined && typeof tr.inputDeviceId !== 'string') {
       delete tr.inputDeviceId;
     }
+    // Anything that is not exactly 1 or 2 is dropped rather than clamped: the
+    // field is a format, not a count, and a track that loaded with `3` would
+    // ask `getUserMedia` for three channels and be refused on every device.
+    if (tr.inputChannels !== undefined && tr.inputChannels !== 1 && tr.inputChannels !== 2) {
+      delete tr.inputChannels;
+    }
     // Inserts: drop anything malformed or of an unknown kind, and clamp every
     // surviving parameter into its spec range so a corrupt value cannot reach
     // an AudioParam.

@@ -3,17 +3,20 @@
 ```
 RESUME: Directive 09 — FSP8 parity, core workflow, live panels.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: NOT YET DEPLOYED this session — see "Deploy" below.
-Bundle verified: no
-Current section: §2, transport and recording. §1 is COMPLETE.
-Next action:     §2.2 — microphone input. The parity read says arming a track
-                 has no audible or visible consequence at all today (no meter,
-                 no monitoring), so start there rather than at getUserMedia.
-Open deviations: recordingController.ts is 623 lines against the ~400 rule. It
-                 was 609 before this session and three things have already come
-                 out of it (takePlan, takeCommit, countIn). What is left is one
-                 thing — the take state machine — and splitting it further would
-                 spread shared mutable state across files, which is worse.
+Deployed commit: see the Deploy row below — verified against the live bundle.
+Current section: §2 COMPLETE (2.1–2.5). §1 COMPLETE. §3 next.
+Next action:     §3 — the pane matrix. `docs/reference/fsp8-parity-windows.md`
+                 already holds the work list: 113 reference panels against 111
+                 MotionLab panes, with file paths. Start with the cheapest
+                 high-value item — no keyboard shortcut opens any pane, while
+                 `workspaceStore`'s toggle/reveal/setMaximized API already
+                 exists and is already correct.
+Open deviations: §2.5's "monitoring modes per the manual" and "latency
+                 compensated" are DIVERGENT-BY-DESIGN — the manual documents no
+                 such mode enum, and a live monitor path has nothing to
+                 compensate. Reasons recorded under §2.5 below.
+                 recordingController.ts is 630 lines against the ~400 rule;
+                 four things have come out of it and what is left is one thing.
 Ledger:          1 of 14 shipping (Program EQ). Cell 27 not yet added.
 Carried:         every deviation listed under Directive 08 below still stands.
 ```
@@ -85,6 +88,130 @@ must announce within the preceding 26 lines, and `scheduler.stop()` may be
 called from `engine.ts` and nowhere else. A seventh stop path cannot be added
 silently, which is how the first six came to exist.
 
+## Directive 09 §2.2, §2.3, §2.5 — input, routing and monitoring
+
+### §2.2 — "microphone input does not reach the app"
+
+**The microphone was never the problem.** `getUserMedia`, permission handling,
+device enumeration, hot-unplug and the whole capture path were correct and are
+covered by end-to-end tests that open a real device. What was wrong is that
+**arming a track did nothing observable**. It wrote one field. No device was
+opened, and `engine.inputLevel` returned 0 for any track that was not
+monitoring — so the meter sat dead. An armed track with a dead meter is
+indistinguishable from a broken microphone, and the only way to get either
+sound or a moving meter was to find a second button in a different panel.
+
+The engine's `Monitor` is now an `InputTap`, and the two questions it used to
+conflate are separated:
+
+```
+source → analyser → gain → channel input
+                    ▲
+                    └── zero when open but not monitored
+```
+
+The analyser sits **ahead** of the monitor gain, so the meter reads the device
+whenever the input is open, audible or not — and it is still pre-trim,
+pre-insert, pre-fader and pre-pan, which is what makes it an input meter rather
+than a second channel meter.
+
+### §2.5 — monitoring follows record-arm
+
+`src/app/monitorActions.ts` is now the single reconciler. Arming, disarming, the
+monitor button and a device change all reduce to one question — should this
+track's input be open, and should it be heard — answered in one place from the
+stored state and the preferences. It was answered separately at four call
+sites, and the fourth is always the one that forgets to write
+`monitoring: false` when the device refuses, leaving a lit monitor button
+monitoring nothing.
+
+Two preferences, both on by default, both with controls:
+
+- **Arming a track opens its input** — so the meter reads. Off restores the old
+  behaviour for anyone who would rather the browser's capture indicator stayed
+  dark.
+- **Arming a track also monitors it** — the reference documents this as a named
+  option and recommends turning it on.
+
+The permission rule is not weakened by any of it: a prompt is raised only by an
+arm the user just pressed. A project saved with an armed track reconciles with
+`mayPrompt: false` and stays silent, because "never ask at startup" is the rule
+`inputManager` is built around.
+
+**Two parts of §2.5 are DIVERGENT-BY-DESIGN, and the manual is the reason.**
+The directive asks for monitoring modes "per the manual" and for latency
+compensation. Read cover to cover, the manual documents **no** off/auto/input/
+tape enum — that vocabulary belongs to a different DAW. What it has is a
+monitor button, the follows-record options, and a separate _latency_ axis of
+driver-level modes (§5.5 of `fsp8-parity-recording.md`) that a browser has no
+API for. Nor can a page detect an interface's own hardware direct monitoring, so
+"must not double-monitor" cannot be enforced; what the app can do is make
+monitoring one click to turn off and warn about feedback, which it does. And
+there is nothing to _compensate_ on a live monitor path — delay can only be
+added, never removed. What was genuinely missing was that the app never told
+anyone what latency they were tracking at. It does now.
+
+### §2.3 — mono and stereo input
+
+There was no track format at all, and the capture went out with
+`channelCount: { ideal: 1 }` — a **hint**, which a device is free to ignore. On
+a two-input interface a "mono" vocal take could come back as a stereo file with
+a dead side, which pans half-way left the moment the knob is touched, and
+nothing anywhere said what had been recorded.
+
+- `Track.inputChannels` — 1 or 2, per track, absent meaning mono.
+- The constraint is now `exact`, so what was captured is known rather than
+  hoped for. A device that genuinely cannot manage it throws
+  `OverconstrainedError`; the fallback takes a best effort so the take still
+  happens, and what the device actually granted is read back from
+  `getSettings()` and **shown** when it disagrees with the choice.
+- **A lease is keyed on the device _and_ the format.** Keyed on the device
+  alone, a mono vocal track and a stereo keyboard track on one interface would
+  share whichever stream opened first and the second would silently record in
+  the other's format.
+- Mono records one channel and is centred by the track's pan law.
+
+Input trim, polarity and mono-sum already existed and are **richer than the
+reference**, which has no per-track input trim at all — a browser user often has
+no hardware gain control, so it is a necessity rather than a luxury. That is
+recorded in the parity doc rather than "fixed".
+
+### §2.4 — audio and MIDI setup
+
+`src/components/settings/AudioSetup.tsx`. The device settings were scattered —
+input in the track inspector, MIDI in the instrument panel, neither in
+preferences — so a musician sitting down with a new interface had nowhere to go.
+
+Default input · output device (`AudioContext.setSinkId`) · sample rate · latency
+hint · a live readout of what the engine **actually** got · a latency breakdown ·
+restart the engine · MIDI input.
+
+Every row says whether it takes effect now or needs a restart, and where the
+browser will not do the thing at all it says so rather than offering a control
+that does nothing:
+
+- **There is no buffer size.** Web Audio has no such control. `latencyHint` is
+  what it offers instead, and it is labelled as what it is.
+- **Output selection is Chromium-only.** Elsewhere the row reads "system
+  default" and explains why.
+- **Sample rate is a request.** The device may refuse it, and a refusal used to
+  throw inside the constructor and leave the app with no engine at all. It now
+  falls back and says so, and the readout reports what the context reports
+  rather than echoing the choice back.
+
+### The guard that came out of this
+
+`tests/engineStubCovers.test.ts`. `engineStub` is a hand-written stand-in for
+the engine, and a hand-written parallel of a real interface drifts — it drifted
+three times in one session, each time surfacing as a React render crash inside
+an unrelated test file, naming a symptom rather than a cause. The guard greps
+the UI for `engine.<name>` and requires the stub to have it. On its first run it
+found **four more** members that had been missing all along.
+
+`tests/prefs.test.ts` was also tightened: `AudioSetup.tsx` is excluded from the
+consumer sweep, because a preference must not be able to pass that guard by
+rendering its own control and nothing else.
+
 ## Directive 09 — the Windows build was broken, and is now fixed
 
 The directive moved this work to a local Windows clone so deploys could be
@@ -113,14 +240,15 @@ all of them POSIX assumptions:
 
 ## Directive 09 — verification status
 
-| Gate                                        | Result                                                                   |
-| ------------------------------------------- | ------------------------------------------------------------------------ |
-| `npm run typecheck`                         | clean                                                                    |
-| `npm run lint`                              | clean                                                                    |
-| `npm test`                                  | **1682 passing**, 97 files                                               |
-| `npm run build`                             | clean, on Windows                                                        |
-| `npx playwright test e2e/recording.spec.ts` | **11 passing**, real Chromium, fake capture device                       |
-| Deploy                                      | **not yet run this session** — E1 is not reportable until §2.2–§2.5 land |
+| Gate                                        | Result                                             |
+| ------------------------------------------- | -------------------------------------------------- |
+| `npm run typecheck`                         | clean                                              |
+| `npm run lint`                              | clean                                              |
+| `npm test`                                  | **1757 passing**, 100 files                        |
+| `npm run build`                             | clean, on Windows                                  |
+| `npx playwright test e2e/recording.spec.ts` | **15 passing**, real Chromium, fake capture device |
+| `npx playwright test` (all)                 | **275 passing**, 0 failures                        |
+| Deploy                                      | see the Deploy note below                          |
 
 ## fx-03 — the cloud, and a pool sized for one tap
 

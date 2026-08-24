@@ -16,6 +16,7 @@
  */
 import { memo } from 'react';
 import { formatDb, linToDb } from '../../model/music';
+import { setArmed } from '../../app/monitorActions';
 import { resolveChannels } from '../../model/mixerGraph';
 import type { Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
@@ -285,7 +286,7 @@ export const ChannelStrip = memo(function ChannelStrip({
             aria-pressed={track.armed}
             aria-label={`Record arm ${track.name}`}
             title="Record arm"
-            onClick={() => store.getState().setTrack(track.id, { armed: !track.armed })}
+            onClick={() => void setArmed(track.id, !track.armed)}
           >
             <Icon name="record" size={9} />
           </button>

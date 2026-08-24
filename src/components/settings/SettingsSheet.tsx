@@ -7,12 +7,12 @@
  * This is where they live.
  */
 import { useEffect, useRef } from 'react';
-import { engine } from '../../audio/engine';
 import { DEFAULT_PREFS, usePrefsStore, type ThemeChoice } from '../../state/prefsStore';
 import { useUiStore } from '../../state/uiStore';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import { Icon, type IconName } from '../common/Icon';
+import { AudioSetup } from './AudioSetup';
 import { ControlLinks } from './ControlLinks';
 import { KeyCommands } from './KeyCommands';
 
@@ -267,14 +267,36 @@ export function SettingsSheet() {
           </section>
 
           <section>
-            <h3 className="t-label">Audio</h3>
-            <Row label="Engine" hint="Sample rate is chosen by the browser">
-              <span className="t-num">
-                {engine.context
-                  ? `${(engine.context.sampleRate / 1000).toFixed(1)} kHz`
-                  : 'not started'}
-              </span>
+            <h3 className="t-label">Recording</h3>
+            <Row
+              label="Arming a track opens its input"
+              hint="So the meter reads the device — a dead meter looks like a dead microphone"
+            >
+              <Toggle
+                on={prefs.openInputOnArm}
+                onChange={(v) =>
+                  set({ openInputOnArm: v, monitorFollowsArm: v && prefs.monitorFollowsArm })
+                }
+                label="Open the input on arm"
+              />
             </Row>
+            <Row
+              label="Arming a track also monitors it"
+              hint="Use headphones — an open monitor feeds the microphone"
+            >
+              <Toggle
+                on={prefs.monitorFollowsArm}
+                onChange={(v) =>
+                  set({ monitorFollowsArm: v, openInputOnArm: v || prefs.openInputOnArm })
+                }
+                label="Monitoring follows record arm"
+              />
+            </Row>
+          </section>
+
+          <section>
+            <h3 className="t-label">Audio and MIDI setup</h3>
+            <AudioSetup />
             <Row label="Workspace">
               <button className="btn" onClick={() => useWorkspaceStore.getState().reset()}>
                 Reset panel layout

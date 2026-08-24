@@ -17,7 +17,7 @@ import { Icon, type IconName } from '../common/Icon';
 import { PanKnob } from '../common/widgets';
 import { captureParamChange, captureParamRelease } from '../../app/automationActions';
 import { usePrefsStore } from '../../state/prefsStore';
-import { isMonitoring, toggleMonitoring } from '../../app/monitorActions';
+import { isMonitoring, setArmed, toggleMonitoring } from '../../app/monitorActions';
 import { useTransportStore } from '../../state/transportStore';
 
 const TYPE_ICON: Record<Track['type'], IconName> = {
@@ -388,7 +388,7 @@ export const TrackHeader = memo(function TrackHeader({
               aria-label={`Record arm ${track.name}`}
               aria-pressed={track.armed}
               data-testid={`arm-${track.name}`}
-              onClick={() => store.getState().setTrack(track.id, { armed: !track.armed })}
+              onClick={() => void setArmed(track.id, !track.armed)}
             >
               ●
             </button>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatDb } from '../../model/music';
+import { setArmed } from '../../app/monitorActions';
 import { TRACK_COLORS } from '../../model/types';
 import type { AudioClip, Effect, FadeShape, ProjectData, Track } from '../../model/types';
 import { freezeRefusal, isFrozen } from '../../model/freeze';
@@ -477,7 +478,7 @@ export function Inspector() {
                 aria-label={`Record arm ${track.name}`}
                 aria-pressed={track.armed}
                 title="Record arm"
-                onClick={() => store.setTrack(track.id, { armed: !track.armed })}
+                onClick={() => void setArmed(track.id, !track.armed)}
               >
                 ●
               </button>

@@ -36,6 +36,52 @@ export interface Prefs {
   confirmDestructive: boolean;
   /** Reduce motion beyond the OS setting. */
   reduceMotion: boolean;
+  /**
+   * Arming an audio track opens its input, so the meter reads the device.
+   *
+   * On by default because an armed track with a dead meter cannot be told apart
+   * from a broken microphone, which is how the app was reported. Off restores
+   * the older behaviour for anyone who would rather the browser's capture
+   * indicator stayed dark until they press the monitor button.
+   */
+  openInputOnArm: boolean;
+  /**
+   * Arming an audio track also monitors it.
+   *
+   * The reference has this as a named option and recommends turning it on;
+   * MotionLab has it on out of the box. Implies `openInputOnArm`.
+   */
+  monitorFollowsArm: boolean;
+  /**
+   * The input a newly created audio track starts on. Empty means the system
+   * default; each track can still choose its own afterwards.
+   */
+  defaultInputDeviceId: string;
+  /**
+   * Where the mix is played, when the browser lets a page choose.
+   *
+   * `AudioContext.setSinkId` is Chromium-only at the time of writing. Empty
+   * means the system default, which is the only behaviour anywhere else.
+   */
+  outputDeviceId: string;
+  /**
+   * Sample rate the audio engine is created at, or 0 for the browser's own.
+   *
+   * The browser owns the device, so this is a request rather than a setting,
+   * and it can only be made when the context is created — which is why the
+   * preferences say so and offer to restart the engine rather than pretending
+   * it took effect.
+   */
+  sampleRate: number;
+  /**
+   * The nearest thing a browser has to a buffer size.
+   *
+   * Web Audio has no buffer-size control. `latencyHint` is what it offers
+   * instead: 'interactive' asks for the smallest buffer the device can hold,
+   * 'playback' for the largest and most robust. Naming it "buffer size" would
+   * be a lie about what the platform does.
+   */
+  latencyHint: 'interactive' | 'balanced' | 'playback';
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -47,9 +93,18 @@ export const DEFAULT_PREFS: Prefs = {
   primaryTimeDisplay: 'bbt',
   confirmDestructive: true,
   reduceMotion: false,
+  openInputOnArm: true,
+  monitorFollowsArm: true,
+  defaultInputDeviceId: '',
+  outputDeviceId: '',
+  sampleRate: 0,
+  latencyHint: 'interactive',
 };
 
 const KEY = 'motionlab.prefs.v1';
+
+/** Rates worth offering. 0 means "whatever the browser and device agree on". */
+export const RATES = [0, 44100, 48000, 88200, 96000];
 
 function readStored(): Prefs {
   try {
@@ -63,6 +118,15 @@ function readStored(): Prefs {
       // A project saved while the third option existed must not load with a
       // meter mode nothing implements.
       meterScale: parsed.meterScale === 'rms' ? 'rms' : 'peak',
+      // A stored rate the browser will refuse throws inside the AudioContext
+      // constructor, which would leave the app with no engine at all rather
+      // than a wrong one.
+      sampleRate: RATES.includes(parsed.sampleRate as number) ? (parsed.sampleRate as number) : 0,
+      latencyHint: (['interactive', 'balanced', 'playback'] as const).includes(
+        parsed.latencyHint as Prefs['latencyHint'],
+      )
+        ? (parsed.latencyHint as Prefs['latencyHint'])
+        : 'interactive',
       theme: (['system', 'dark', 'light', 'contrast'] as const).includes(
         parsed.theme as ThemeChoice,
       )
