@@ -31,6 +31,13 @@ export default tseslint.config(
       'motionwave/ui/dev/public/unit_worklet.js',
       'public/worklets/motionwave.worklet.js',
       'public/worklets/unit_worklet.js',
+      // Emscripten's own output, tracked so the app builds without a C++
+      // toolchain. It is one line of minified glue declaring several hundred
+      // wasm exports, and linting it reports every one of them as an unused
+      // variable — 114 errors that say nothing about any code anybody wrote.
+      // It arrived untracked by this list in a98dd5e and has been failing
+      // `npm run lint` ever since.
+      'motionwave/wasm/prebuilt/**',
     ],
   },
   js.configs.recommended,

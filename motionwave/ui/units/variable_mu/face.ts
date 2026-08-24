@@ -34,7 +34,8 @@
  * behaviour the switch selects.
  */
 import type { FaceElement, UnitFace } from '../../harness/types';
-import { variableMuControls } from './params.gen';
+import { variableMuControls, variableMuSpecs } from './params.gen';
+import { controlElements } from '../../render/faceControls';
 
 export { VariableMuParam } from './params.gen';
 
@@ -47,31 +48,6 @@ export const VariableMuMeter = {
   StorageA: 'storage-a',
   StorageB: 'storage-b',
 } as const;
-
-function knob(id: string, paramId: number, name: string): FaceElement {
-  return {
-    id,
-    role: 'knob',
-    paramId,
-    accessibleName: name,
-    keyboardFocusable: true,
-    colours: [
-      { foreground: '--mw-accent', background: '--mw-bg-raised' },
-      { foreground: '--mw-fg-muted', background: '--mw-bg-raised' },
-    ],
-  };
-}
-
-function selector(id: string, paramId: number, name: string): FaceElement {
-  return {
-    id,
-    role: 'switch',
-    paramId,
-    accessibleName: name,
-    keyboardFocusable: true,
-    colours: [{ foreground: '--mw-fg', background: '--mw-bg-raised' }],
-  };
-}
 
 function meter(id: string, channel: string, name: string): FaceElement {
   return {
@@ -97,7 +73,7 @@ function meter(id: string, channel: string, name: string): FaceElement {
 function movement(id: string, channel: string, name: string): FaceElement {
   return {
     id,
-    role: 'graph',
+    role: 'meter',
     paramId: null,
     meterChannel: channel,
     accessibleName: name,
@@ -132,11 +108,9 @@ export const variableMuFace: UnitFace = {
 
     // Every control, from the generated table — the set is the manifest's and
     // cannot be written here.
-    ...variableMuControls.map((c) =>
-      c.role === 'switch'
-        ? selector(c.id, c.paramId, c.accessibleName)
-        : knob(c.id, c.paramId, c.accessibleName),
-    ),
+    ...controlElements(variableMuControls, variableMuSpecs, {
+      colours: [{ foreground: '--mw-panel-ink', background: '--mw-fascia' }],
+    }),
   ],
 
   artwork: [

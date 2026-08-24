@@ -96,16 +96,60 @@ export interface VoiceControl {
   setTuningTable?(centsPerPitchClass: readonly number[]): void;
 }
 
+/**
+ * The control primitives, which are what cell 26 is about.
+ *
+ * Six of these were one primitive until Directive 09: `render/facePanel.ts`
+ * built an `<input type="range">` for every role, through a ternary whose two
+ * branches both returned `'range'`. A stepped selector, a latching button and a
+ * continuous dial were the same widget with different labels, and no cell could
+ * see it — `U22` asks whether a control is 44 px, never whether the 44 px is a
+ * knob or a slider.
+ *
+ * The set is deliberately small and each member is a distinct *gesture*, not a
+ * distinct drawing: a selector snaps and a knob does not, a toggle flips on a
+ * tap and a knob does not. That is what makes "the correct primitive" a
+ * behavioural claim a test can settle rather than a matter of taste.
+ */
+export type ControlPrimitive = 'knob' | 'fader' | 'selector' | 'toggle' | 'rocker' | 'button';
+
+/** Primitives that draw engine state rather than take input. */
+export type ReadoutPrimitive = 'meter' | 'vu' | 'lamp' | 'display';
+
+/**
+ * Primitives that are both — a surface the user edits *and* a picture of state.
+ * The Motion Shaper's curve is the whole unit, and it had no surface at all.
+ */
+export type EditorPrimitive = 'curve';
+
+export type FaceRole = ControlPrimitive | ReadoutPrimitive | EditorPrimitive;
+
 /** What a face element is, in the terms the UI cells can check. */
 export interface FaceElement {
   readonly id: string;
-  readonly role: 'knob' | 'fader' | 'switch' | 'button' | 'meter' | 'display' | 'graph';
+  readonly role: FaceRole;
   /** The parameter it reads and writes. Null only for a pure readout. */
   readonly paramId: ParamId | null;
   /** The meter channel it draws, for a meter or a graph. */
   readonly meterChannel?: string;
   readonly accessibleName: string;
   readonly keyboardFocusable: boolean;
+  /**
+   * Which of the unit's shapes a `curve` edits.
+   *
+   * Declared rather than inferred from position, because a unit with three
+   * curves and one editor is a legitimate face and inferring the index from
+   * element order would silently bind it to the wrong band.
+   */
+  readonly shapeIndex?: number;
+  /**
+   * What a bar meter is showing. Gain reduction is an amount taken *away*, so
+   * it is drawn from the other end; a reduction meter that filled like a level
+   * meter would read as more signal at the moment there is less.
+   */
+  readonly meterScale?: 'level' | 'reduction';
+  /** Where a lamp lights, on its channel's own scale. */
+  readonly lampThreshold?: number;
   /** Token pairs this element puts together, checked for contrast by U23. */
   readonly colours?: readonly { readonly foreground: string; readonly background: string }[];
 }
@@ -118,9 +162,63 @@ export interface ArtworkAsset {
   readonly attribution: string;
 }
 
+/**
+ * How one unit's panel differs from every other unit's, declared as data.
+ *
+ * Cell 26 requires that a panel be distinguishable from the other thirteen at a
+ * glance, and the reason seven panels were identical is worth stating plainly:
+ * every face declared its *controls* and none declared its *appearance*, so the
+ * shared renderer had nothing to render differently and drew the only panel it
+ * knew. Adding per-unit drawing code to the renderer would have fixed the
+ * symptom and destroyed the property that makes fourteen faces affordable —
+ * `render/facePanel.ts` may not know what a Motion Shaper is.
+ *
+ * So appearance becomes declaration, like everything else here. The renderer
+ * interprets these fields generically; a face that wants a different panel says
+ * so in this object rather than in a special case somewhere else.
+ *
+ * Every field is era *language*, never a particular unit: control taxonomy,
+ * panel proportion, surface treatment and colour temperature of the period.
+ * Nothing here names, traces or matches any manufacturer's product — see
+ * `LEGAL_NOTES.md`, which is a commercial-safety requirement rather than a
+ * stylistic one.
+ */
+export interface PanelSkin {
+  /** The era and class this panel speaks, in prose. Evidence for `U19`. */
+  readonly era: string;
+  /** Fascia treatment. Each is drawn in code from tokens; none is traced. */
+  readonly surface:
+    | 'painted-steel'
+    | 'brushed-alloy'
+    | 'wrinkle-enamel'
+    | 'anodised'
+    | 'moulded'
+    | 'glass';
+  /** Fascia hue in degrees, and how far from neutral the surface sits. */
+  readonly hueDeg: number;
+  readonly chroma: 'neutral' | 'muted' | 'saturated';
+  /** Fascia lightness. A 1950s rack panel is light; a 1970s one is black. */
+  readonly value: 'light' | 'mid' | 'dark';
+  /** The knob body of this class and period. */
+  readonly knob: 'pointer-skirt' | 'chicken-head' | 'fluted' | 'bar' | 'collet' | 'flat-cap';
+  /** How the panel arranges what it carries. */
+  readonly arrangement: 'wide-banded' | 'centre-stage' | 'strip' | 'console' | 'field';
+  /** How legends are set on the fascia. */
+  readonly lettering: 'engraved' | 'silkscreen' | 'legend-plate';
+  /** Panel furniture, which is most of what a panel reads as from across a room. */
+  readonly furniture: 'rack-ears' | 'bezel' | 'none';
+  /** Token used for lamps and pointer indicators on this panel. */
+  readonly lampToken: string;
+}
+
 export interface UnitFace {
   readonly elements: readonly FaceElement[];
   readonly artwork: readonly ArtworkAsset[];
+  /**
+   * Absent only for a face written before cell 26. A face with no skin renders
+   * as the framework's default panel, which is the appearance cell 26 fails.
+   */
+  readonly skin?: PanelSkin;
   /**
    * Layout breakpoints in `em`, never `px`. A px media query is measured
    * against the viewport alone and ignores the root font size entirely, so a

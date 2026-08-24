@@ -2,7 +2,7 @@
   "name": "txpps-motionlab-studio",
   "private": true,
   "version": "0.1.0",
-  "description": "TXPPS MotionLab Studio \u2014 Professional Music Production. Anywhere.",
+  "description": "TXPPS MotionLab Studio — Professional Music Production. Anywhere.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -32,7 +32,9 @@
     "windows:check": "node scripts/generate-window-tables.mjs --check",
     "build:wasm": "bash motionwave/wasm/build.sh",
     "wasm:check": "node scripts/check-wasm-current.mjs",
-    "scope-guard": "node scripts/scope-guard.mjs"
+    "scope-guard": "node scripts/scope-guard.mjs",
+    "curve:golden": "node scripts/generate-curve-golden.mjs",
+    "curve:check": "node scripts/generate-curve-golden.mjs --check"
   },
   "dependencies": {
     "@webaudiomodules/api": "2.0.0-alpha.6",

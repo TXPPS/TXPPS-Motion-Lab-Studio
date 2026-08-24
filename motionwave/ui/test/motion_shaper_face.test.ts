@@ -43,7 +43,7 @@ import {
   removeNode,
   type CurveNode,
   type EditorGeometry,
-} from '../units/motion_shaper/curve_editor';
+} from '../render/controls/curve_model';
 
 const geometry: EditorGeometry = { width: 480, height: 200, inset: 12 };
 
@@ -67,7 +67,7 @@ describe('the face declares what the harness requires', () => {
   it('binds every readout to a channel the unit publishes', () => {
     const published = new Set<string>(Object.values(MotionShaperMeter));
     for (const element of motionShaperFace.elements) {
-      if (element.role !== 'meter' && element.role !== 'graph') continue;
+      if (element.role !== 'meter' && element.role !== 'curve') continue;
       expect(element.meterChannel, `${element.id} reads no channel`).toBeDefined();
       expect(
         published.has(element.meterChannel!),

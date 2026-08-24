@@ -27,7 +27,8 @@
  * exactly like the truth until the engine stalls.
  */
 import type { FaceElement, UnitFace } from '../../harness/types';
-import { motionShaperControls } from './params.gen';
+import { motionShaperControls, motionShaperSpecs } from './params.gen';
+import { controlElements } from '../../render/faceControls';
 
 // Re-exported because the face is where a panel's readers look for it, and a
 // second import path for the same table is how two of them end up disagreeing
@@ -47,33 +48,6 @@ export const MotionShaperMeter = {
   OutputPeak: 'output-peak',
 } as const;
 
-function knob(id: string, paramId: number, name: string): FaceElement {
-  return {
-    id,
-    role: 'knob',
-    paramId,
-    accessibleName: name,
-    keyboardFocusable: true,
-    // The pairs a knob actually puts together: its value arc on the panel, and
-    // its label on the same panel. U23 contrast-checks both in both themes.
-    colours: [
-      { foreground: '--mw-accent', background: '--mw-bg-raised' },
-      { foreground: '--mw-fg-muted', background: '--mw-bg-raised' },
-    ],
-  };
-}
-
-function switchControl(id: string, paramId: number, name: string): FaceElement {
-  return {
-    id,
-    role: 'switch',
-    paramId,
-    accessibleName: name,
-    keyboardFocusable: true,
-    colours: [{ foreground: '--mw-fg', background: '--mw-bg-raised' }],
-  };
-}
-
 function meter(id: string, channel: string, name: string): FaceElement {
   return {
     id,
@@ -87,7 +61,7 @@ function meter(id: string, channel: string, name: string): FaceElement {
 }
 
 /**
- * The curve editor, declared as a `graph` so the harness holds it to the same
+ * The curve editor, declared as a `curve` so the harness holds it to the same
  * standard as a meter: it must name a channel the unit publishes.
  *
  * It names the phase channel because the playhead is the part that must be
@@ -97,16 +71,23 @@ function meter(id: string, channel: string, name: string): FaceElement {
  */
 const curveEditor: FaceElement = {
   id: 'curve-editor',
-  role: 'graph',
+  role: 'curve',
+  shapeIndex: 0,
   paramId: null,
   meterChannel: MotionShaperMeter.Phase,
   accessibleName:
     'Modulation shape editor. Drag a node to move it, double-tap to add or remove one, ' +
     'drag between nodes to bend the segment.',
   keyboardFocusable: true,
+  // The tokens the editor is actually painted in, which are not the ones this
+  // declared until cell 26: it named the accent on the sunken background while
+  // `controlCss.ts` drew the curve in the modulation colour on the meter field.
+  // A declaration that disagrees with the drawing means `U23` was measuring a
+  // pair nobody could see — the contrast check was correct about the wrong two
+  // colours.
   colours: [
-    { foreground: '--mw-accent', background: '--mw-bg-sunken' },
-    { foreground: '--mw-fg-muted', background: '--mw-bg-sunken' },
+    { foreground: '--mw-modulation', background: '--mw-meter-bg' },
+    { foreground: '--mw-automation', background: '--mw-meter-bg' },
   ],
 };
 
@@ -147,11 +128,9 @@ export const motionShaperFace: UnitFace = {
     // later. What stays here is what is genuinely the face's — which control
     // shape a parameter gets, and the token pairs it puts together — because
     // those are design decisions and the manifest has no opinion about them.
-    ...motionShaperControls.map((c) =>
-      c.role === 'switch'
-        ? switchControl(c.id, c.paramId, c.accessibleName)
-        : knob(c.id, c.paramId, c.accessibleName),
-    ),
+    ...controlElements(motionShaperControls, motionShaperSpecs, {
+      colours: [{ foreground: '--mw-panel-ink', background: '--mw-fascia' }],
+    }),
   ],
 
   /**

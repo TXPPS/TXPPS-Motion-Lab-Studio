@@ -36,7 +36,8 @@
  * with what is heard.
  */
 import type { FaceElement, UnitFace } from '../../harness/types';
-import { consoleEqControls } from './params.gen';
+import { consoleEqControls, consoleEqSpecs } from './params.gen';
+import { controlElements } from '../../render/faceControls';
 
 export { ConsoleEqParam } from './params.gen';
 
@@ -49,31 +50,6 @@ export const ConsoleEqMeter = {
   BandTwoWidth: 'band-two-width',
   BandThreeWidth: 'band-three-width',
 } as const;
-
-function knob(id: string, paramId: number, name: string): FaceElement {
-  return {
-    id,
-    role: 'knob',
-    paramId,
-    accessibleName: name,
-    keyboardFocusable: true,
-    colours: [
-      { foreground: '--mw-accent', background: '--mw-bg-raised' },
-      { foreground: '--mw-fg-muted', background: '--mw-bg-raised' },
-    ],
-  };
-}
-
-function selector(id: string, paramId: number, name: string): FaceElement {
-  return {
-    id,
-    role: 'switch',
-    paramId,
-    accessibleName: name,
-    keyboardFocusable: true,
-    colours: [{ foreground: '--mw-fg', background: '--mw-bg-raised' }],
-  };
-}
 
 function meter(id: string, channel: string, name: string): FaceElement {
   return {
@@ -99,7 +75,7 @@ function meter(id: string, channel: string, name: string): FaceElement {
  */
 const curve: FaceElement = {
   id: 'eq-curve',
-  role: 'graph',
+  role: 'meter',
   paramId: null,
   meterChannel: ConsoleEqMeter.MidQ,
   accessibleName: 'Equaliser response, drawn from the coefficients in circuit.',
@@ -124,11 +100,9 @@ export const consoleEqFace: UnitFace = {
 
     // Every control, from the generated table — the set is the manifest's and
     // cannot be written here.
-    ...consoleEqControls.map((c) =>
-      c.role === 'switch'
-        ? selector(c.id, c.paramId, c.accessibleName)
-        : knob(c.id, c.paramId, c.accessibleName),
-    ),
+    ...controlElements(consoleEqControls, consoleEqSpecs, {
+      colours: [{ foreground: '--mw-panel-ink', background: '--mw-fascia' }],
+    }),
   ],
 
   artwork: [

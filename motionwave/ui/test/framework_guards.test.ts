@@ -117,10 +117,25 @@ describe('one mechanism, not several', () => {
     // The specific failure ADR-0004 names: a display that computes a real value
     // one way and a processor that computes it another. The law is arithmetic,
     // and arithmetic is easy to write out again by accident.
+    //
+    // The test detects a *logarithm*, which is a proxy for the law rather than
+    // the law itself, so a file with an unrelated logarithm in it has to be
+    // named and given a reason. Named rather than pattern-matched away for the
+    // same reason `MW_SCOPE_ALSO` takes a reason it never inspects: having to
+    // write one is the mechanism. A rule that quietly stopped covering new
+    // files would be a rule nobody noticed had lapsed.
+    const ELSEWHERE = new Map([
+      [
+        'render/controls/ballistics.ts',
+        'a VU movement, solved from ANSI C16.5-1942 — no parameter is involved',
+      ],
+    ]);
     const withLaw = FILES.filter((path) => {
       if (!path.endsWith('.ts')) return false;
       return /Math\.log\(|Math\.pow\(max/.test(readFileSync(path, 'utf8'));
-    }).map(relative);
+    })
+      .map(relative)
+      .filter((path) => !ELSEWHERE.has(path));
     expect(withLaw).toEqual(['param/units.ts']);
   });
 });

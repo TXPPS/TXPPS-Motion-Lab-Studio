@@ -25,7 +25,8 @@
  * of the two was changed.
  */
 import type { FaceElement, UnitFace } from '../../harness/types';
-import { programEqControls } from './params.gen';
+import { programEqControls, programEqSpecs } from './params.gen';
+import { controlElements } from '../../render/faceControls';
 
 export { ProgramEqParam } from './params.gen';
 
@@ -38,31 +39,6 @@ export const ProgramEqMeter = {
   InputCoreDrive: 'input-core-drive',
   OutputCoreDrive: 'output-core-drive',
 } as const;
-
-function knob(id: string, paramId: number, name: string): FaceElement {
-  return {
-    id,
-    role: 'knob',
-    paramId,
-    accessibleName: name,
-    keyboardFocusable: true,
-    colours: [
-      { foreground: '--mw-accent', background: '--mw-bg-raised' },
-      { foreground: '--mw-fg-muted', background: '--mw-bg-raised' },
-    ],
-  };
-}
-
-function selector(id: string, paramId: number, name: string): FaceElement {
-  return {
-    id,
-    role: 'switch',
-    paramId,
-    accessibleName: name,
-    keyboardFocusable: true,
-    colours: [{ foreground: '--mw-fg', background: '--mw-bg-raised' }],
-  };
-}
 
 function meter(id: string, channel: string, name: string): FaceElement {
   return {
@@ -88,7 +64,7 @@ function meter(id: string, channel: string, name: string): FaceElement {
  */
 const harmonicDisplay: FaceElement = {
   id: 'harmonic-display',
-  role: 'graph',
+  role: 'meter',
   paramId: null,
   meterChannel: ProgramEqMeter.HarmonicSecond,
   accessibleName:
@@ -121,11 +97,9 @@ export const programEqFace: UnitFace = {
     // so a control naming a parameter the DSP does not have fails to compile.
     // What stays here is the face's own — which control shape a parameter gets
     // and the token pairs it puts together.
-    ...programEqControls.map((c) =>
-      c.role === 'switch'
-        ? selector(c.id, c.paramId, c.accessibleName)
-        : knob(c.id, c.paramId, c.accessibleName),
-    ),
+    ...controlElements(programEqControls, programEqSpecs, {
+      colours: [{ foreground: '--mw-panel-ink', background: '--mw-fascia' }],
+    }),
   ],
 
   /**

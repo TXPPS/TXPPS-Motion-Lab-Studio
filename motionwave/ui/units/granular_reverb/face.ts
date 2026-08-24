@@ -39,7 +39,8 @@
  * in code from design tokens.
  */
 import type { FaceElement, UnitFace } from '../../harness/types';
-import { granularReverbControls } from './params.gen';
+import { granularReverbControls, granularReverbSpecs } from './params.gen';
+import { controlElements } from '../../render/faceControls';
 
 export { GranularReverbParam } from './params.gen';
 
@@ -59,31 +60,6 @@ export const GranularReverbMeter = {
   LiveGrains: 'live-grains',
 } as const;
 
-function knob(id: string, paramId: number, name: string): FaceElement {
-  return {
-    id,
-    role: 'knob',
-    paramId,
-    accessibleName: name,
-    keyboardFocusable: true,
-    colours: [
-      { foreground: '--mw-accent', background: '--mw-bg-raised' },
-      { foreground: '--mw-fg-muted', background: '--mw-bg-raised' },
-    ],
-  };
-}
-
-function selector(id: string, paramId: number, name: string): FaceElement {
-  return {
-    id,
-    role: 'switch',
-    paramId,
-    accessibleName: name,
-    keyboardFocusable: true,
-    colours: [{ foreground: '--mw-fg', background: '--mw-bg-raised' }],
-  };
-}
-
 /**
  * Freeze and Bypass, as latching buttons.
  *
@@ -93,16 +69,6 @@ function selector(id: string, paramId: number, name: string): FaceElement {
  * latching element the vocabulary already has, and the manifest's kind is what
  * says the latch holds rather than springs back.
  */
-function toggle(id: string, paramId: number, name: string): FaceElement {
-  return {
-    id,
-    role: 'button',
-    paramId,
-    accessibleName: name,
-    keyboardFocusable: true,
-    colours: [{ foreground: '--mw-accent', background: '--mw-bg-raised' }],
-  };
-}
 
 function meter(id: string, channel: string, name: string): FaceElement {
   return {
@@ -127,7 +93,7 @@ function meter(id: string, channel: string, name: string): FaceElement {
  */
 const cloud: FaceElement = {
   id: 'grain-cloud',
-  role: 'graph',
+  role: 'meter',
   paramId: null,
   meterChannel: GranularReverbMeter.LiveGrains,
   accessibleName:
@@ -160,11 +126,8 @@ export const granularReverbFace: UnitFace = {
 
     // Every control, from the generated table — the set is the manifest's and
     // cannot be written here.
-    ...granularReverbControls.map((c) => {
-      if (c.role === 'toggle') return toggle(c.id, c.paramId, c.accessibleName);
-      return c.role === 'switch'
-        ? selector(c.id, c.paramId, c.accessibleName)
-        : knob(c.id, c.paramId, c.accessibleName);
+    ...controlElements(granularReverbControls, granularReverbSpecs, {
+      colours: [{ foreground: '--mw-panel-ink', background: '--mw-fascia' }],
     }),
   ],
 

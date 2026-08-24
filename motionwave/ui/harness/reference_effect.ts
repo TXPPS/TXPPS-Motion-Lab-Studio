@@ -285,7 +285,7 @@ function referenceFace(): UnitUnderTest['face'] {
       control('tone', TONE, 'Tone'),
       {
         id: 'shape',
-        role: 'switch',
+        role: 'selector',
         paramId: SHAPE,
         accessibleName: 'Shape',
         keyboardFocusable: true,
@@ -296,7 +296,7 @@ function referenceFace(): UnitUnderTest['face'] {
       control('depth', DEPTH, 'Depth'),
       {
         id: 'rate',
-        role: 'switch',
+        role: 'selector',
         paramId: RATE,
         accessibleName: 'Rate',
         keyboardFocusable: true,

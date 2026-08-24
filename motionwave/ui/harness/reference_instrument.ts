@@ -265,7 +265,7 @@ export function makeReferenceInstrument(): UnitUnderTest {
         },
         {
           id: 'wave',
-          role: 'switch',
+          role: 'selector',
           paramId: WAVE,
           accessibleName: 'Wave',
           keyboardFocusable: true,

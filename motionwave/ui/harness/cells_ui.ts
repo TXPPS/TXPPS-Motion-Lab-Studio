@@ -16,12 +16,83 @@ import { PALETTE_TOKENS } from '../design/tokens';
 import { paletteSelectorFor } from '../design/theme';
 import { type CellOutcome, fail, pass } from './cells';
 import type { FaceElement, UnitFace, UnitUnderTest } from './types';
+import { skinColours } from '../render/skin';
+import { DEFAULT_SKIN } from '../render/facePanel';
 
 /** Roles that are controls: they move a parameter or they are a defect. */
-const CONTROL_ROLES: readonly FaceElement['role'][] = ['knob', 'fader', 'switch', 'button'];
+const CONTROL_ROLES: readonly FaceElement['role'][] = [
+  'knob',
+  'fader',
+  'selector',
+  'toggle',
+  'rocker',
+  'button',
+];
 
 /** Roles that read the engine rather than write it. */
-const READOUT_ROLES: readonly FaceElement['role'][] = ['meter', 'graph'];
+const READOUT_ROLES: readonly FaceElement['role'][] = ['meter', 'vu', 'lamp', 'display'];
+
+/**
+ * Roles whose declared colours are graphical rather than textual.
+ *
+ * WCAG holds text and images of text to 4.5:1 (1.4.3) and graphical objects and
+ * the visual boundaries of interactive components to 3:1 (1.4.11). A meter's
+ * fill, a lamp's glass and the stroke of a drawn curve are the second kind, and
+ * applying the text figure to them is not caution — it is measuring the wrong
+ * clause, which sooner or later gets answered by darkening a colour that was
+ * never illegible.
+ *
+ * `display` is deliberately absent: it draws a number, and a number is text.
+ * `curve` is present even though it is interactive, because 1.4.11 is the
+ * clause that covers interactive components too.
+ */
+const GRAPHIC_ROLES: readonly FaceElement['role'][] = ['meter', 'vu', 'lamp', 'curve'];
+
+/**
+ * The contrast of a pair drawn from the panel's own skin, or null if the pair
+ * is an ordinary palette pair.
+ *
+ * A panel's fascia is generated from the hue, chroma and lightness its face
+ * declares, so it is deliberately not a palette token — if it were, every panel
+ * would be the same colour, which is the failure cell 26 exists for. That makes
+ * the token lookup the wrong instrument for these two, and returning "does not
+ * resolve to a colour" would be true and useless.
+ *
+ * What is checked instead is the ratio that will actually be rendered, computed
+ * from the same function the renderer computes it with. That is a stronger
+ * check than the token one, not a waiver: `skinColours` solves for an ink
+ * lightness that clears 7:1, so a skin whose declared surface cannot carry
+ * legible text fails here rather than on a phone in sunlight.
+ *
+ * Neither theme changes it. A panel's surface is the unit's identity and does
+ * not follow the application's theme — a 1950s light fascia stays light in the
+ * dark theme, the way the object it speaks for does.
+ */
+function skinPair(
+  face: UnitFace,
+  pair: { readonly foreground: string; readonly background: string },
+): number | null {
+  const skinTokens = new Set([
+    '--mw-fascia',
+    '--mw-fascia-high',
+    '--mw-fascia-low',
+    '--mw-panel-ink',
+    '--mw-panel-ink-muted',
+  ]);
+  if (!skinTokens.has(pair.foreground) || !skinTokens.has(pair.background)) return null;
+  const colours = skinColours(face.skin ?? DEFAULT_SKIN);
+  const resolve = (token: string): string =>
+    token === '--mw-fascia'
+      ? colours.fascia
+      : token === '--mw-fascia-high'
+        ? colours.fasciaHigh
+        : token === '--mw-fascia-low'
+          ? colours.fasciaLow
+          : token === '--mw-panel-ink'
+            ? colours.ink
+            : colours.inkMuted;
+  return tokenContrast(resolve(pair.foreground), resolve(pair.background));
+}
 
 export interface UiCellOptions {
   /** The text of `design/tokens.css`, so contrast is checked against real values. */
@@ -191,12 +262,11 @@ export function cellThemesAndAccessibility(
       if (!palette.has(token)) problems.push(`${theme} theme does not declare ${token}`);
     }
     for (const element of face.elements) {
-      const minimum = READOUT_ROLES.includes(element.role) ? 3 : 4.5;
+      const minimum = GRAPHIC_ROLES.includes(element.role) ? 3 : 4.5;
       for (const pair of element.colours ?? []) {
-        const ratio = tokenContrast(
-          palette.get(pair.foreground) ?? '',
-          palette.get(pair.background) ?? '',
-        );
+        const ratio =
+          skinPair(face, pair) ??
+          tokenContrast(palette.get(pair.foreground) ?? '', palette.get(pair.background) ?? '');
         if (ratio === null) {
           problems.push(`${theme}: "${element.id}" uses tokens that do not resolve to colours`);
         } else if (ratio < minimum) {

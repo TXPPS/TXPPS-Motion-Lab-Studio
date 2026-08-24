@@ -222,3 +222,68 @@ function segmentTensionAt(nodes: readonly CurveNode[], x: number): number {
   const i = segmentIndexAt(nodes, x);
   return i >= 0 ? nodes[i].tension : 0;
 }
+
+/**
+ * The segment law, mirrored from `motionwave/core/dsp/curve.h`.
+ *
+ * A mirror is the thing CLAUDE.md's rule about second opinions is aimed at, so
+ * it needs saying why this one is allowed to exist and what keeps it honest.
+ * The curve is evaluated per sample on the audio thread, inside the WebAssembly
+ * core, in a worklet. Drawing the same curve on the main thread at 60 Hz cannot
+ * go through that boundary — every pixel of the path would be a message and a
+ * round trip — so the picture has to be computed here.
+ *
+ * What stops it becoming a second opinion is `test/curve_mirror.test.ts`, which
+ * compares this function against a golden table emitted by the C++ itself at
+ * 4644 points across every shape and tension. If the two ever disagree the test
+ * fails by name, which is the same arrangement `ParamSpec` already lives under.
+ * A drawn curve that disagreed with the audible one is precisely the failure the
+ * rule exists to prevent, and the rule's answer is a test, not an intuition.
+ */
+export function shapeSegment(u: number, shape: CurveNode['shape'], tension: number): number {
+  if (u <= 0) return 0;
+  if (u >= 1) return shape === 'step' ? 0 : 1;
+  switch (shape) {
+    case 'step':
+      return 0;
+    case 'line':
+      return u;
+    case 'arc':
+      return Math.pow(u, Math.pow(2, 3 * tension));
+    case 'scurve': {
+      const p = Math.pow(2, 3 * tension);
+      return u < 0.5 ? 0.5 * Math.pow(2 * u, p) : 1 - 0.5 * Math.pow(2 * (1 - u), p);
+    }
+  }
+}
+
+/**
+ * Value at a phase, wrapping — the mirror of `Curve::valueAt`.
+ *
+ * The wrap matters to the drawing as much as to the audio: the last node's
+ * segment runs to x = 1 rather than back to the first node's x, so a curve
+ * whose last node sits at 0.6 has a segment from 0.6 to 1 and the editor has to
+ * draw it. Drawing to the first node instead would show a shape nobody would
+ * hear.
+ */
+export function curveValueAt(nodes: readonly CurveNode[], phase: number): number {
+  if (nodes.length === 0) return 0;
+  if (nodes.length === 1) return nodes[0].y;
+  const x = phase - Math.floor(phase);
+
+  let index = nodes.length - 1;
+  for (let i = 0; i < nodes.length; i++) {
+    const end = i + 1 < nodes.length ? nodes[i + 1].x : 1;
+    if (x >= nodes[i].x && x < end) {
+      index = i;
+      break;
+    }
+  }
+  const a = nodes[index];
+  const next = (index + 1) % nodes.length;
+  const b = nodes[next];
+  const endX = next === 0 ? 1 : b.x;
+  const span = endX - a.x;
+  if (span <= 0) return a.y;
+  return a.y + (b.y - a.y) * shapeSegment((x - a.x) / span, a.shape, a.tension);
+}

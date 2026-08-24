@@ -38,6 +38,13 @@ export function parseColour(value: string): Rgb | null {
       b: Number.parseInt(wide.slice(4, 6), 16) / 255,
     };
   }
+  // The panel skins generate their fascia and ink as `hsl()`, because a
+  // per-unit surface cannot come from a palette token — see `render/skin.ts`.
+  // Parsed here rather than converted at the call site so that every caller
+  // measuring contrast measures it the same way.
+  const hsl = /^hsl\(\s*(-?[\d.]+)\s+([\d.]+)%\s+([\d.]+)%\s*\)$/i.exec(text);
+  if (hsl !== null) return hslToRgb(Number(hsl[1]), Number(hsl[2]), Number(hsl[3]));
+
   const triple = /^(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})$/.exec(text);
   if (triple !== null) {
     return {
@@ -47,6 +54,29 @@ export function parseColour(value: string): Rgb | null {
     };
   }
   return null;
+}
+
+/** HSL to sRGB, channels in 0…1. The standard piecewise construction. */
+export function hslToRgb(h: number, s: number, l: number): Rgb {
+  const sat = s / 100;
+  const lum = l / 100;
+  const c = (1 - Math.abs(2 * lum - 1)) * sat;
+  const hp = (((h % 360) + 360) % 360) / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  const [r1, g1, b1] =
+    hp < 1
+      ? [c, x, 0]
+      : hp < 2
+        ? [x, c, 0]
+        : hp < 3
+          ? [0, c, x]
+          : hp < 4
+            ? [0, x, c]
+            : hp < 5
+              ? [x, 0, c]
+              : [c, 0, x];
+  const m = lum - c / 2;
+  return { r: r1 + m, g: g1 + m, b: b1 + m };
 }
 
 /** The sRGB transfer function, per WCAG 2.x's definition of relative luminance. */

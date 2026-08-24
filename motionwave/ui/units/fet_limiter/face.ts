@@ -31,7 +31,8 @@
  * faithful, and would disagree with the hardware exactly where users notice.
  */
 import type { FaceElement, UnitFace } from '../../harness/types';
-import { fetLimiterControls } from './params.gen';
+import { fetLimiterControls, fetLimiterSpecs } from './params.gen';
+import { controlElements } from '../../render/faceControls';
 
 export { FetLimiterParam } from './params.gen';
 
@@ -42,31 +43,6 @@ export const FetLimiterMeter = {
   GainReduction: 'gain-reduction',
   Detector: 'detector',
 } as const;
-
-function knob(id: string, paramId: number, name: string): FaceElement {
-  return {
-    id,
-    role: 'knob',
-    paramId,
-    accessibleName: name,
-    keyboardFocusable: true,
-    colours: [
-      { foreground: '--mw-accent', background: '--mw-bg-raised' },
-      { foreground: '--mw-fg-muted', background: '--mw-bg-raised' },
-    ],
-  };
-}
-
-function selector(id: string, paramId: number, name: string): FaceElement {
-  return {
-    id,
-    role: 'switch',
-    paramId,
-    accessibleName: name,
-    keyboardFocusable: true,
-    colours: [{ foreground: '--mw-fg', background: '--mw-bg-raised' }],
-  };
-}
 
 function meter(id: string, channel: string, name: string): FaceElement {
   return {
@@ -89,7 +65,7 @@ function meter(id: string, channel: string, name: string): FaceElement {
  */
 const movement: FaceElement = {
   id: 'vu-movement',
-  role: 'graph',
+  role: 'meter',
   paramId: null,
   meterChannel: FetLimiterMeter.GainReduction,
   accessibleName: "Gain reduction meter, in decibels below the element's resting gain.",
@@ -114,11 +90,9 @@ export const fetLimiterFace: UnitFace = {
 
     // Every control, from the generated table — the set is the manifest's and
     // cannot be written here.
-    ...fetLimiterControls.map((c) =>
-      c.role === 'switch'
-        ? selector(c.id, c.paramId, c.accessibleName)
-        : knob(c.id, c.paramId, c.accessibleName),
-    ),
+    ...controlElements(fetLimiterControls, fetLimiterSpecs, {
+      colours: [{ foreground: '--mw-panel-ink', background: '--mw-fascia' }],
+    }),
   ],
 
   artwork: [
