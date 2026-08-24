@@ -23,7 +23,9 @@ import { opticalLevellerFace } from '../units/optical_leveller/face';
 import { opticalLevellerSpecs } from '../units/optical_leveller/params.gen';
 import { fetLimiterFace } from '../units/fet_limiter/face';
 import { consoleEqFace } from '../units/console_eq/face';
+import { granularReverbFace } from '../units/granular_reverb/face';
 import { consoleEqSpecs } from '../units/console_eq/params.gen';
+import { granularReverbSpecs } from '../units/granular_reverb/params.gen';
 import { variableMuFace } from '../units/variable_mu/face';
 import { variableMuSpecs } from '../units/variable_mu/params.gen';
 import { fetLimiterSpecs } from '../units/fet_limiter/params.gen';
@@ -89,6 +91,7 @@ const FACES = {
   'dyn-03': { face: fetLimiterFace, specs: fetLimiterSpecs, title: 'FET Limiter' },
   'dyn-04': { face: variableMuFace, specs: variableMuSpecs, title: 'Variable-Mu Limiter' },
   'dyn-05': { face: consoleEqFace, specs: consoleEqSpecs, title: 'Console EQ' },
+  'fx-02': { face: granularReverbFace, specs: granularReverbSpecs, title: 'Granular Reverb' },
 } as const;
 
 const requested = new URLSearchParams(window.location.search).get('unit') ?? 'fx-01';

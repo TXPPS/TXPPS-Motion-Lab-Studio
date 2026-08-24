@@ -102,8 +102,45 @@ GE ROWS CLOSED: GE-04, GE-11, GE-21 done; lib-grain-engine.md §11 complete.
                at 67 grains/s is an audible buzz), recorded with the lever named.
                GE-21 nulls to -240 dBFS and carries a divergence guard so the null
                cannot come free.
-Next action:   The manifest, D1, face and X24 for fx-02, then Granular Delay
-               reusing decay_harness.h for its feedback rows.
+MANIFEST + D1:  fx-02's 22 controls declared in motionwave/manifests, C++ dispatch
+               and TS control table generated. D1 green: every control reaches
+               the audio by >=19 dB against a -70 dB gate, renders are
+               bit-identical, block size does not change the audio.
+               D1 found THREE measurement artefacts, all in the test's base and
+               none in the unit — recorded in the ledger:
+                 - Size reads a 4 s window; a 2 s render had nothing there, so
+                   the sweep's signal-present precondition tripped. 4.5 s of
+                   priming now precedes capture.
+                 - That priming then broke the block-size row by 0.31, because
+                   stepping from -216000 by the block size only lands on zero
+                   when the block size divides it (64 does, 97 does not) — the
+                   capture began at a different sample per block size. Priming
+                   and capture are separate segments now. Found by checking each
+                   setting alone first: five exact zeros beside one large number
+                   is not an intermittently wrong unit.
+                 - Pre-delay measured -75 dBFS and read as DEAD. The source's
+                   partials (110/430/1470/3900/9100 Hz, gated at 2 Hz) all
+                   complete a whole number of cycles in 500 ms, which is exactly
+                   the top of Pre-delay's range. Delaying a signal by its own
+                   period reproduces it. Now 113/437/1471/3907/9103 at 1.7 Hz.
+FACE + X24:    fx-02's face, U19-U23 and X24 all PASS; 12/12 browser cells green
+               including fx-02's own geometry. The face is the first whose
+               display is a picture of internal state rather than a level: the
+               particle field reads the engine's grain frame, and four readouts
+               carry quantities no control states (overlap, tier-clamped density,
+               8 kHz RT60, loop gain).
+               X24's delivered-overlap row CORRECTED ITSELF: it asserted 800 g/s
+               x 50 ms reads 40, and it reads 32 at the Studio default because
+               §7.4's cap is 32. The expectation was wrong and the readout right —
+               a panel showing 40 while 32 sound is the exact failure a
+               delivered-value readout prevents.
+CELLS DONE:    D1, D3 (§9's rows), D7, U19, U20, U21, U22, U23, X24.
+CELLS OPEN:    D2 ranges/tapers, D4 bypass null -120, D5 oversampling/alias,
+               D6 rates 44.1-192, D8 latency=PDC (declared 0), D9 param fuzz,
+               D10 automation no zipper, D11 preset round-trip, D12 tempo map
+               (pre-delay sync). fx-02 is UI DONE, not SHIPPING.
+Next action:   The remaining D cells for fx-02, then Granular Delay reusing
+               decay_harness.h for its feedback rows.
 BUILD ORDER CORRECTED (user, before R3): the voice substrate is built DURING
                Slipstream and proven through it, the way the nonlinear library
                was built during Program EQ — not after Slipstream. Slipstream is

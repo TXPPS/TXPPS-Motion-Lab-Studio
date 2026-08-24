@@ -1,0 +1,473 @@
+{
+  "$comment": [
+    "The Granular Reverb's parameters, declared once.",
+    "",
+    "Both the C++ dispatch and the TypeScript control table are generated from",
+    "this file, for the reason fx-01's manifest gives: a parity check between two",
+    "hand-maintained tables is a test that passes for a long time and then fails",
+    "once, after the drift has shipped.",
+    "",
+    "Every `apply` body here is a single setter, which is unusual among these",
+    "manifests and is worth saying why. The reverb's interactions are enforced",
+    "inside the unit rather than at the dispatch — the pitch set clamps the",
+    "damping corner, the minimum offset is clamped against the grain length, the",
+    "decay is inverted through a measured table. §3.3 asks for an unstable",
+    "shimmer to be unreachable rather than warned about, and a clamp that lives in",
+    "the setter is unreachable from every caller, including a preset load and an",
+    "automation lane. A dispatch that reproduced those rules would be a second",
+    "opinion about the unit's state."
+  ],
+  "unit": "fx-02",
+  "className": "GranularReverb",
+  "header": "../granular_reverb.h",
+  "namespace": "mw::units",
+  "tsPrefix": "granular_reverb",
+  "tsTarget": "motionwave/ui/units/granular_reverb/params.gen.ts",
+  "params": [
+    {
+      "id": 1,
+      "symbol": "Mix",
+      "name": "Mix",
+      "control": "knob",
+      "accessibleName": "Wet/dry mix",
+      "unit": "Percent",
+      "min": 0,
+      "max": 100,
+      "def": 35,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "Zero must null exactly, which §9 V1 measures at −360 dBFS — an equal-power law that only approached zero would not.",
+      "apply": "u.setMix(v * 0.01);",
+      "delta": [
+        0,
+        100
+      ]
+    },
+    {
+      "id": 2,
+      "symbol": "PreDelay",
+      "name": "Pre-delay",
+      "control": "knob",
+      "accessibleName": "Pre-delay",
+      "unit": "Milliseconds",
+      "min": 0,
+      "max": 500,
+      "def": 20,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "Ahead of the buffer, so it delays what the cloud reads rather than what the cloud produces.",
+      "apply": "u.setPreDelaySeconds(v * 0.001);",
+      "delta": [
+        0,
+        500
+      ]
+    },
+    {
+      "id": 3,
+      "symbol": "Size",
+      "name": "Size",
+      "control": "knob",
+      "accessibleName": "Read window size",
+      "unit": "Milliseconds",
+      "min": 20,
+      "max": 4000,
+      "def": 800,
+      "taper": "Logarithmic",
+      "smoothingMs": 20,
+      "note": "Sets the mean read offset with Min offset, and the decay calibration is indexed by that mean — which is why reverb_decay.h takes it as an argument rather than assuming a size.",
+      "apply": "u.setSizeSeconds(v * 0.001);",
+      "delta": [
+        50,
+        4000
+      ]
+    },
+    {
+      "id": 4,
+      "symbol": "MinOffset",
+      "name": "Min offset",
+      "control": "knob",
+      "accessibleName": "Minimum read offset",
+      "unit": "Milliseconds",
+      "min": 5,
+      "max": 500,
+      "def": 20,
+      "taper": "Logarithmic",
+      "smoothingMs": 20,
+      "note": "Clamped hard: below a grain length the grains read the write head and the loop self-oscillates. §6 says clamp rather than warn, and an unreachable state is better than a documented one.",
+      "apply": "u.setMinOffsetSeconds(v * 0.001);",
+      "delta": [
+        5,
+        500
+      ]
+    },
+    {
+      "id": 5,
+      "symbol": "Decay",
+      "name": "Decay",
+      "control": "knob",
+      "accessibleName": "Decay time",
+      "unit": "Seconds",
+      "min": 0.1,
+      "max": 60,
+      "def": 3.0,
+      "taper": "Logarithmic",
+      "smoothingMs": 20,
+      "note": "Inverted through reverb_decay.h's measured table rather than §2.2's formula, which is inference. §9 V5 grades the result over an ensemble of seeds.",
+      "apply": "u.setDecaySeconds(v);",
+      "delta": [
+        0.5,
+        60
+      ]
+    },
+    {
+      "id": 6,
+      "symbol": "Freeze",
+      "name": "Freeze",
+      "control": "toggle",
+      "accessibleName": "Freeze",
+      "unit": "Choice",
+      "min": 0,
+      "max": 1,
+      "def": 0,
+      "taper": "Stepped",
+      "steps": 2,
+      "choices": [
+        "Off",
+        "On"
+      ],
+      "smoothingMs": 0,
+      "note": "Stops the write head. §2.4 rules out setting the feedback to one, and §9 V11 is the row that tells the two apart.",
+      "apply": "u.setFreeze(v > 0.5);",
+      "delta": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": 7,
+      "symbol": "GrainSize",
+      "name": "Grain size",
+      "control": "knob",
+      "accessibleName": "Grain size",
+      "unit": "Milliseconds",
+      "min": 5,
+      "max": 500,
+      "def": 60,
+      "taper": "Logarithmic",
+      "smoothingMs": 20,
+      "note": "Below 15 ms the window itself colours the sound; the face marks that point rather than preventing it.",
+      "apply": "u.setGrainSeconds(v * 0.001);",
+      "delta": [
+        5,
+        500
+      ]
+    },
+    {
+      "id": 8,
+      "symbol": "Density",
+      "name": "Density",
+      "control": "knob",
+      "accessibleName": "Grain density",
+      "unit": "Hertz",
+      "min": 1,
+      "max": 2000,
+      "def": 350,
+      "taper": "Logarithmic",
+      "smoothingMs": 20,
+      "note": "With grain size this sets the overlap, which predicts both the sound and the CPU. §9 V13 measures that the cost really is linear in it.",
+      "apply": "u.setDensity(v);",
+      "delta": [
+        1,
+        2000
+      ]
+    },
+    {
+      "id": 9,
+      "symbol": "Spray",
+      "name": "Spray",
+      "control": "knob",
+      "accessibleName": "Position spray",
+      "unit": "Percent",
+      "min": 0,
+      "max": 100,
+      "def": 70,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "Randomises where in the size window each grain reads.",
+      "apply": "u.setSpray(v * 0.01);",
+      "delta": [
+        0,
+        100
+      ]
+    },
+    {
+      "id": 10,
+      "symbol": "OnsetJitter",
+      "name": "Onset jitter",
+      "control": "knob",
+      "accessibleName": "Onset jitter",
+      "unit": "Percent",
+      "min": 0,
+      "max": 100,
+      "def": 60,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "Zero makes the grain rate audible as a tone; the default trades that for the occasional gap at low overlap, which is what GE-04 records.",
+      "apply": "u.setOnsetJitter(v * 0.01);",
+      "delta": [
+        0,
+        100
+      ]
+    },
+    {
+      "id": 11,
+      "symbol": "LengthJitter",
+      "name": "Length jitter",
+      "control": "knob",
+      "accessibleName": "Length jitter",
+      "unit": "Percent",
+      "min": 0,
+      "max": 100,
+      "def": 25,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "Widens the distribution of live grains, which is what the pool's 256 slots are sized against.",
+      "apply": "u.setLengthJitter(v * 0.01);",
+      "delta": [
+        0,
+        100
+      ]
+    },
+    {
+      "id": 12,
+      "symbol": "AmpJitter",
+      "name": "Amp jitter",
+      "control": "knob",
+      "accessibleName": "Amplitude jitter",
+      "unit": "Percent",
+      "min": 0,
+      "max": 100,
+      "def": 15,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "Per-grain gain variation. It does not change the cloud's mean level, because the normalisation is applied at spawn.",
+      "apply": "u.setAmpJitter(v * 0.01);",
+      "delta": [
+        0,
+        100
+      ]
+    },
+    {
+      "id": 13,
+      "symbol": "WindowShape",
+      "name": "Window shape",
+      "control": "knob",
+      "accessibleName": "Grain window shape",
+      "unit": "Percent",
+      "min": 0,
+      "max": 100,
+      "def": 0,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "Hann at zero, and the Tukey table is a phase remap of the Hann one so that end is bit-exact rather than merely close.",
+      "apply": "u.setWindowShape(v * 0.01);",
+      "delta": [
+        0,
+        100
+      ]
+    },
+    {
+      "id": 14,
+      "symbol": "PitchSet",
+      "name": "Pitch set",
+      "control": "switch",
+      "accessibleName": "Shimmer pitch set",
+      "unit": "Choice",
+      "min": 0,
+      "max": 7,
+      "def": 0,
+      "taper": "Stepped",
+      "steps": 8,
+      "choices": [
+        "Unison",
+        "Octave up",
+        "Octave down",
+        "Fifth",
+        "Major",
+        "Minor",
+        "Sus",
+        "Wide"
+      ],
+      "smoothingMs": 0,
+      "note": "A non-unison set clamps the damping corner and the blocker, so an unstable shimmer is unreachable rather than warned about (§3.3).",
+      "apply": "u.setPitchSet(static_cast<shimmer::Set>(static_cast<int>(v + 0.5)));",
+      "delta": [
+        0,
+        7
+      ]
+    },
+    {
+      "id": 15,
+      "symbol": "PitchSpread",
+      "name": "Pitch spread",
+      "control": "knob",
+      "accessibleName": "Pitch spread",
+      "unit": "Cents",
+      "min": 0,
+      "max": 100,
+      "def": 0,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "Per-grain detune on top of the set.",
+      "apply": "u.setPitchSpreadCents(v);",
+      "delta": [
+        0,
+        100
+      ]
+    },
+    {
+      "id": 16,
+      "symbol": "Diffusion",
+      "name": "Diffusion",
+      "control": "knob",
+      "accessibleName": "Diffusion",
+      "unit": "Percent",
+      "min": 0,
+      "max": 100,
+      "def": 60,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "Drives the loop's allpass chain. It does not move §9 V7's echo density, because that row measures the first arrivals and the chain is inside the loop — the ledger records why it stays there.",
+      "apply": "u.setDiffusion(v * 0.01);",
+      "delta": [
+        0,
+        100
+      ]
+    },
+    {
+      "id": 17,
+      "symbol": "Damping",
+      "name": "Damping",
+      "control": "knob",
+      "accessibleName": "High-frequency damping",
+      "unit": "Percent",
+      "min": 0,
+      "max": 100,
+      "def": 45,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "Lower-bounded by the pitch set, so a shimmer cannot be undamped into a runaway.",
+      "apply": "u.setDamping(v * 0.01);",
+      "delta": [
+        0,
+        100
+      ]
+    },
+    {
+      "id": 18,
+      "symbol": "Tilt",
+      "name": "Tilt",
+      "control": "knob",
+      "accessibleName": "Feedback tilt",
+      "unit": "Decibels",
+      "min": -12,
+      "max": 12,
+      "def": 0,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "Compounds per pass, so a small setting is a large tail.",
+      "apply": "u.setTiltDb(v);",
+      "delta": [
+        -12,
+        12
+      ]
+    },
+    {
+      "id": 19,
+      "symbol": "Width",
+      "name": "Width",
+      "control": "knob",
+      "accessibleName": "Stereo width",
+      "unit": "Percent",
+      "min": 0,
+      "max": 200,
+      "def": 100,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "Mid/side on the wet bus only, so a mono dry stays mono.",
+      "apply": "u.setWidth(v * 0.01);",
+      "delta": [
+        0,
+        200
+      ]
+    },
+    {
+      "id": 20,
+      "symbol": "OutputTrim",
+      "name": "Output trim",
+      "control": "knob",
+      "accessibleName": "Output trim",
+      "unit": "Decibels",
+      "min": -24,
+      "max": 24,
+      "def": 0,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "After the wet/dry mix, so it trims the whole unit rather than the tail.",
+      "apply": "u.setOutputTrimDb(v);",
+      "delta": [
+        -24,
+        24
+      ]
+    },
+    {
+      "id": 21,
+      "symbol": "Quality",
+      "name": "Quality",
+      "control": "switch",
+      "accessibleName": "Quality tier",
+      "unit": "Choice",
+      "min": 0,
+      "max": 2,
+      "def": 1,
+      "taper": "Stepped",
+      "steps": 3,
+      "choices": [
+        "Eco",
+        "Studio",
+        "Max"
+      ],
+      "smoothingMs": 0,
+      "note": "Caps the overlap and selects the interpolation. GE-11 publishes what Eco costs in alias floor rather than hiding it.",
+      "apply": "u.setTier(static_cast<grain::Tier>(static_cast<int>(v + 0.5)));",
+      "delta": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": 22,
+      "symbol": "Bypass",
+      "name": "Bypass",
+      "control": "toggle",
+      "accessibleName": "Bypass",
+      "unit": "Choice",
+      "min": 0,
+      "max": 1,
+      "def": 0,
+      "taper": "Stepped",
+      "steps": 2,
+      "choices": [
+        "Off",
+        "On"
+      ],
+      "smoothingMs": 0,
+      "note": "A bypassed unit is still in circuit and still meters, which is what X24 found four units getting wrong.",
+      "apply": "u.setBypass(v > 0.5);",
+      "delta": [
+        0,
+        1
+      ]
+    }
+  ]
+}

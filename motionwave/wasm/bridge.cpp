@@ -22,11 +22,13 @@
 #include "../core/render/offline_render.h"
 #include "../core/render/reference_graph.h"
 #include "../core/units/generated/console_eq_params.gen.h"
+#include "../core/units/generated/granular_reverb_params.gen.h"
 #include "../core/units/generated/fet_limiter_params.gen.h"
 #include "../core/units/generated/motion_shaper_params.gen.h"
 #include "../core/units/generated/optical_leveller_params.gen.h"
 #include "../core/units/generated/program_eq_params.gen.h"
 #include "../core/units/generated/variable_mu_params.gen.h"
+#include "../core/units/granular_reverb.h"
 #include "unit_bridge.h"
 
 #ifdef __EMSCRIPTEN__
@@ -81,6 +83,7 @@ mw::wasm::UnitBridge<mw::units::OpticalLeveller> g_opticalLeveller;
 mw::wasm::UnitBridge<mw::units::FetLimiter> g_fetLimiter;
 mw::wasm::UnitBridge<mw::units::VariableMu> g_variableMu;
 mw::wasm::UnitBridge<mw::units::ConsoleEq> g_consoleEq;
+mw::wasm::UnitBridge<mw::units::GranularReverb> g_granularReverb;
 
 }  // namespace
 
@@ -361,6 +364,34 @@ const double* mw_console_eq_visual() {
   for (int b = 0; b < 3; ++b) {
     out[static_cast<std::size_t>(4 + b)] = static_cast<double>(frame.bandwidthOctaves[b]);
   }
+  return out.data();
+}
+
+MW_UNIT_EXPORTS(mw_granular_reverb, g_granularReverb, mw::units::applyGranularReverbParam)
+
+/**
+ * Seven doubles: the two peaks, then five numbers no control states.
+ *
+ * The overlap is `R·L` and predicts both the sound and the CPU; the clamped
+ * density is what the quality tier left of what was asked for; the 8 kHz RT60
+ * is what the Damping percentage actually does; the feedback is what the Decay
+ * control actually sets, through a measured table rather than a formula. The
+ * live grain count is last and is the *true* count — the particle frame caps
+ * its published set at sixty-four, and a panel that had only the capped number
+ * would show the density control appearing to stop working.
+ */
+EMSCRIPTEN_KEEPALIVE
+const double* mw_granular_reverb_visual() {
+  mw::units::GranularReverbFrame frame;
+  g_granularReverb.unit().visual().read(frame);
+  std::vector<double>& out = g_granularReverb.visualScratch(7);
+  out[0] = static_cast<double>(frame.inputPeak);
+  out[1] = static_cast<double>(frame.outputPeak);
+  out[2] = static_cast<double>(frame.overlap);
+  out[3] = static_cast<double>(frame.clampedDensity);
+  out[4] = static_cast<double>(frame.rt60At8k);
+  out[5] = static_cast<double>(frame.feedback);
+  out[6] = static_cast<double>(frame.liveGrains);
   return out.data();
 }
 

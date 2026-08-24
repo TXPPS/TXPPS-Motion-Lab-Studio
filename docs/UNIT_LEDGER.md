@@ -210,7 +210,7 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | FET Limiter         | `dyn-03` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Variable-Mu Limiter | `dyn-04` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Console EQ          | `dyn-05` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| Granular Reverb     | `fx-02`  | DSP MEASURED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Granular Reverb     | `fx-02`  | UI DONE     | PASS | —    | PASS | —    | —    | —    | PASS | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
 | DCO Poly            | `syn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
@@ -748,6 +748,81 @@ also renders both over an *asymmetric* source and requires them to diverge — t
 differ by 0.72. It also compares sample against sample rather than against the
 time-reversed buffer, which would null just as well while surviving the
 off-by-one at the span's end that the row exists to find.
+
+### D1 on the reverb: three artefacts, and what a base has to be
+
+`fx-02`'s manifest declares twenty-two controls, so the parity half of D1 is
+generated and cannot be got wrong. The measured half found three problems in a
+row, none of them in the unit, and they are worth recording together because
+they are the same mistake in three forms: **the base was not a state in which
+the control had anything to act on.**
+
+**Size read a buffer that had not been written.** The read window runs out to
+four seconds and the render was two, so at the wide settings most grains read
+silence and the render tripped the sweep's own precondition that a render
+contain signal before its difference is believed. That precondition is right;
+the base was wrong. Four and a half seconds of priming now precede the capture.
+
+**The priming then broke the block-size row, by 0.31 on a unit that is
+block-size independent under every setting tried individually.** Stepping one
+loop from −216000 by the block size only lands on zero when the block size
+divides it — at 64 it does, at 97 it does not — so the capture began at a
+different sample for each block size and the row compared two different stretches
+of audio. Priming and capture are separate segments now, each clamping to its own
+end. What made this findable rather than a shrug was checking the settings one at
+a time first: pre-delay, onset jitter, pitch set, tilt and spray each measured
+*exactly zero* difference across block sizes, and five zeros next to one large
+number is not a unit that is intermittently wrong.
+
+**Pre-delay measured its full travel at −75 dBFS and was reported dead.** The
+source's partials were at 110, 430, 1470, 3900 and 9100 Hz, gated at 2 Hz — every
+one of which completes a whole number of cycles in 500 ms, which is exactly the
+top of Pre-delay's range. Delaying a signal by its own period reproduces it. The
+frequencies are now 113, 437, 1471, 3907 and 9103 Hz at a 1.7 Hz gate, which
+share no such relationship with any setting this unit has. This has to be
+arranged deliberately, because the round numbers that read well in a source
+function are exactly the ones that divide into the round numbers a control's
+range ends at.
+
+With the base right, all twenty-two controls reach the audio by at least 19 dB
+against a −70 dB gate, two renders of the same setting are bit-identical, and the
+block size does not change the audio.
+
+### The reverb's face, and the readout that corrected a test
+
+`fx-02`'s face is the first whose display is a picture of internal state rather
+than of a level. U20's rule — a picture is drawn from the same evaluation the
+audio uses — has more to bind here than on any unit so far: the particle field
+reads the grain frame the engine publishes from the pool the audio renders from,
+so a point's position is a position a read came from and its brightness is the
+windowed amplitude that sample was multiplied by. A field animated from Density
+and Size would look almost identical, and would keep looking right at exactly the
+moment the pool started dropping grains.
+
+Four numbers sit beside the controls because no control states them. §6 asks for
+the overlap by name — "not a control: display `O = R·L` live" — because it
+predicts both the sound and the CPU and neither control that sets it predicts it
+alone. §2.5 asks for the 8 kHz decay beside Damping, which turns a percentage
+into the thing the percentage does. The other two are the density the quality
+tier actually allowed and the loop gain the Decay control actually set, the
+latter through a measured table with no closed form a face could reproduce.
+
+**The delivered-overlap readout then corrected the test written to check it.**
+X24 asserted that 800 grains a second at 50 ms grains reads 40. It reads 32 at
+the Studio default, because §7.4's tier cap is 32 and the engine delivered what
+it capped to. The expectation was wrong and the readout was right: a panel
+showing 40 while 32 were sounding is the precise failure a delivered-value
+readout exists to prevent. The row now checks the uncapped arithmetic on the tier
+that permits it and checks the cap as a cap — and checks that the live grain
+count follows it, which is what says the cap reached the scheduler rather than
+only the display.
+
+U19 passes with four original assets and provenance declared; the era language is
+the one granular processors have shared since they became controllable in real
+time — a wide dark field of point sources over a time axis, small detented
+rotaries beneath, a latching hold switch set apart — which is general and
+nobody's property. Nothing specific is taken from any product, and the forbidden
+name scan runs over this face like every other.
 
 ### What X24 found once every unit had one
 
