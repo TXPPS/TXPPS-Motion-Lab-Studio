@@ -140,6 +140,64 @@ inline double spuriousFloorDb(const std::vector<float>& samples, const SpectrumP
 }
 
 /**
+ * Largest spurious component against an explicit list of legitimate lines.
+ *
+ * `spuriousFloorDb` above models the legitimate set as a carrier with evenly
+ * spaced sidebands, which is what a modulator produces. A pitch shifter does
+ * not: its outputs sit at `f·2^(s/12)` for the semitone offsets in the set, a
+ * geometric grid no spacing parameter can describe. Passing that grid in
+ * explicitly is the difference between measuring the shifter's aliasing and
+ * measuring its output.
+ *
+ * Returns `+1.0` — an impossible dBFS value, which no assertion will accept —
+ * when two legitimate lines sit closer together than the window can separate,
+ * or when a legitimate line's own image would be indistinguishable from it. The
+ * refusal is the point: a spectral measurement never looks broken, so it has to
+ * say so itself.
+ */
+inline double spuriousFloorAgainst(const std::vector<float>& samples, double sampleRate,
+                                   std::size_t length, const std::vector<double>& legitimateHz,
+                                   int offset) {
+  const double bin = sampleRate / static_cast<double>(length);
+  const double skirt = 4.0 * bin;
+  if (samples.size() < static_cast<std::size_t>(offset) + length) return 1.0;
+  // Two legitimate lines closer than two skirts share a peak, and a set that
+  // cannot be resolved cannot have anything excluded from it.
+  for (std::size_t i = 0; i < legitimateHz.size(); ++i) {
+    for (std::size_t j = i + 1; j < legitimateHz.size(); ++j) {
+      if (std::fabs(legitimateHz[i] - legitimateHz[j]) < 2.0 * skirt) return 1.0;
+    }
+  }
+
+  std::vector<double> window(length);
+  const double coherentGain = mw::dsp::blackmanHarrisWindow(window);
+  std::vector<double> re(length);
+  std::vector<double> im(length, 0.0);
+  for (std::size_t i = 0; i < length; ++i) {
+    re[i] = static_cast<double>(samples[static_cast<std::size_t>(offset) + i]) * window[i];
+  }
+  mw::dsp::fft(re, im);
+
+  double worst = 0.0;
+  for (std::size_t k = 1; k < length / 2; ++k) {
+    const double f = static_cast<double>(k) * bin;
+    // DC's own skirt is excluded for the same reason it is above: a DC term
+    // dominates the bins next to it and has nothing to do with aliasing.
+    bool legitimate = f < skirt;
+    for (double line : legitimateHz) {
+      if (std::fabs(f - line) < skirt) {
+        legitimate = true;
+        break;
+      }
+    }
+    if (legitimate) continue;
+    const double mag = 2.0 * std::sqrt(re[k] * re[k] + im[k] * im[k]) / coherentGain;
+    if (mag > worst) worst = mag;
+  }
+  return worst <= 1.0e-10 ? -200.0 : 20.0 * std::log10(worst);
+}
+
+/**
  * Render a test signal and measure it, for validating the instrument itself.
  *
  * Four separate errors were made in this measurement before it was trusted —

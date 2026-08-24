@@ -116,6 +116,17 @@ inline void spawnGrain(Grain* grain, const GrainSpec& spec, const GrainSource& s
   grain->gainR = right * spec.amplitude;
 }
 
+/*
+ * The most taps one grain may spend on its interpolation.
+ *
+ * Sixty-four covers the whole kernel out to a ratio of four — two octaves up,
+ * which is past the largest interval any shipped set asks for — so the bound
+ * costs nothing at the ratios that occur and still exists for a set that has
+ * not been written yet. It is a ceiling on cost per sample, so it belongs with
+ * the render rather than with the pitch set.
+ */
+inline constexpr int kMaxSincTaps = 64;
+
 /// One sample from one grain, accumulated into a stereo pair. Returns false
 /// when the grain has finished and its slot may be retired.
 template <bool kCubic>
@@ -123,7 +134,15 @@ inline bool renderGrainSample(Grain* grain, const GrainSource& source, float* le
                               float* right) noexcept {
   if (grain->remaining <= 0) return false;
   const float window = windowAt(grain->shape, grain->windowPhase, grain->tukeyAlpha);
-  const float sample = kCubic ? readCubic(source, grain->readPos) : readLinear(source, grain->readPos);
+  /*
+   * Above unity the kernel has to scale with the read increment, because at
+   * that point the read is a resampling and its images fold. `readScaled`
+   * falls back to Catmull-Rom at or below unity itself, so the branch here is
+   * only about not paying for the wider kernel on the Eco tier — which is
+   * linear precisely because it is not trying to meet an alias figure.
+   */
+  const float sample = kCubic ? readScaled(source, grain->readPos, grain->readInc, kMaxSincTaps)
+                              : readLinear(source, grain->readPos);
   const float value = sample * window;
   *left += value * grain->gainL;
   *right += value * grain->gainR;

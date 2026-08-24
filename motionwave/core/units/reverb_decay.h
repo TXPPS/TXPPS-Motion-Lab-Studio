@@ -39,37 +39,101 @@ inline double rt60For(double meanOffsetSeconds, double feedback) noexcept {
 }
 
 /**
- * **There is no calibration here yet, and that is a status rather than an
- * omission.**
+ * The calibration §9 V5 requires, as the table the sheet names — built on a
+ * measurement that was validated before it was trusted.
  *
- * §9 V5 requires the shipped Decay control to be calibrated against *measured*
- * RT60 and forbids shipping the uncalibrated relation above. An attempt was
- * made and withdrawn, and what it established is worth keeping because it
- * constrains how the real one has to be built:
+ * **The first two attempts at this were withdrawn, and why matters.** The first
+ * was fitted to impulse responses, whose variance is a property of the *probe*:
+ * whether a grain happens to catch the impulse decides how much energy enters
+ * the loop at all, and eight renders at one setting ranged from 0.0997 s to
+ * 0.4027 s. It broke when an unrelated change moved the spawn RNG stream. The
+ * second was a rate-squared law fitted to a sound measurement over too narrow a
+ * range: it delivered 2 to 16 seconds within 3.5 % and inverted catastrophically
+ * at one second, where the loop is short enough that the grains' own length
+ * truncates the tail and the law's sign is wrong.
  *
- *  - Two mechanisms are real and identified. The cloud smears an impulse before
- *    the loop does anything, which lengthens short decays; and a loop whose
- *    per-pass gain is random decays faster than its mean gain says, because the
- *    decay follows the mean of the log rather than the log of the mean.
+ * So this is a measured mapping rather than a law. Behind it:
  *
- *  - **Neither can be measured from single impulse responses.** Which grains
- *    happen to catch the impulse decides how much energy enters the loop at
- *    all. Measured eight times at one size, the cloud's own decay ranged from
- *    0.0997 s to 0.4027 s — a factor of four. A three-point fit to numbers like
- *    that is fitting noise, and it proved it: adding the pitch sets shifted the
- *    spawn RNG stream and every coefficient moved by about two to one.
+ *  - ISO 3382's interrupted-noise excitation, Schroeder backward integration,
+ *    T30 from −5 to −35 dB extrapolated — `decay_harness.h`.
+ *  - An ensemble of sixteen independent *engine seeds* per point, reported with
+ *    a 95 % interval. Starting phases are not independent samples.
+ *  - The instrument checked first against a plain feedback delay line whose
+ *    RT60 follows analytically from its gain: it recovers that to −0.15 %,
+ *    −0.03 % and +0.01 % across a 58:1 range of decay times.
  *
- *  - Averaging over starting phases does not fix it either. Walking the engine
- *    by a different number of frames before the impulse changes the *state* the
- *    impulse lands in rather than resampling one quantity, and going from eight
- *    phases to sixteen moved the two-second error from +10.6 % to +12.4 %
- *    instead of converging it.
+ * **The floor is real and is the reason the short end cannot simply be fitted.**
+ * Four settings spanning feedback gains from zero to 0.00025 all deliver between
+ * 0.465 and 0.553 s: below about half a second the decay is the cloud's own and
+ * no feedback setting reaches it. §6 says Size interacts with Decay's
+ * calibration, and this is the interaction, measured.
  *
- * So a sound calibration needs a designed excitation — an averaged energy decay
- * over many independent seeds, or a swept-sine measurement that does not depend
- * on a single impulse finding grains — and that is the outstanding work. Until
- * then the relation below is §2.2's own, unmodified, and the ledger says V5 is
- * not met rather than showing a number that came from noise.
+ * **The table is the default cloud's.** It was measured at an 800 ms size, 60 ms
+ * grains and 350 grains a second, which is what §9 V5 specifies. Moving those
+ * moves the cloud's contribution and therefore the short end of this curve; the
+ * long end, where the loop dominates, is §2.2's relation and is
+ * setting-independent.
  */
+struct DecayPoint {
+  double delivered;
+  double feedback;
+};
+
+/**
+ * Measured, mean of sixteen seeds per point. Monotone in both columns.
+ *
+ * Dense between 0.6 and 1.8 seconds on purpose: that is where the cloud's own
+ * decay and the loop's are comparable and the mapping turns sharply — a gain of
+ * 0.023 delivers 0.66 s and one of 0.036 delivers 0.97. Sampled coarsely there,
+ * interpolation put the one-second setting 30 % long, which is the whole reason
+ * this is a table rather than a curve.
+ */
+inline constexpr DecayPoint kDecayTable[] = {
+    {0.634, 0.017237},  {0.658, 0.022757},  {0.967, 0.035522},  {1.116, 0.046687},
+    {1.260, 0.056609},  {1.369, 0.065537},  {1.432, 0.077448},  {1.498, 0.087955},
+    {1.584, 0.103105},  {1.767, 0.157169},  {2.200, 0.229724},  {3.180, 0.377855},
+    {5.010, 0.545485},  {7.839, 0.689072},  {12.705, 0.797088}, {21.536, 0.875359},
+    {39.609, 0.929689}, {60.658, 0.952638},
+};
+
+inline constexpr int kDecayPoints = 18;
+
+/// The shortest decay any feedback setting delivers at the default cloud.
+inline constexpr double kDecayFloorSeconds = 0.49;
+
+/**
+ * The feedback gain that delivers `target`, by interpolating the measurement.
+ *
+ * Interpolated in log-decay against gain, because the decay spans two decades
+ * and a linear interpolation across that puts most of its error in the octave
+ * users spend the most time in.
+ */
+inline double calibratedFeedback(double meanOffsetSeconds, double rt60Target) noexcept {
+  (void)meanOffsetSeconds;  // the table already carries it, at the default cloud
+  if (rt60Target <= kDecayTable[0].delivered) return kDecayTable[0].feedback;
+  if (rt60Target >= kDecayTable[kDecayPoints - 1].delivered) {
+    // §2.2 caps the gain at 0.98 internally; Freeze does not use it at all.
+    return kDecayTable[kDecayPoints - 1].feedback > 0.98
+               ? 0.98
+               : kDecayTable[kDecayPoints - 1].feedback;
+  }
+  for (int i = 1; i < kDecayPoints; ++i) {
+    if (rt60Target > kDecayTable[i].delivered) continue;
+    const double lowLog = std::log(kDecayTable[i - 1].delivered);
+    const double highLog = std::log(kDecayTable[i].delivered);
+    const double t = (std::log(rt60Target) - lowLog) / (highLog - lowLog);
+    const double gain = kDecayTable[i - 1].feedback +
+                        t * (kDecayTable[i].feedback - kDecayTable[i - 1].feedback);
+    return gain > 0.98 ? 0.98 : gain;
+  }
+  return kDecayTable[kDecayPoints - 1].feedback;
+}
+
+/// What the panel should show: the decay the loop will actually deliver, which
+/// below the floor is the floor rather than what was asked for.
+inline double deliveredRt60(double meanOffsetSeconds, double feedback) noexcept {
+  const double loop = rt60For(meanOffsetSeconds, feedback);
+  return loop < kDecayFloorSeconds ? kDecayFloorSeconds : loop;
+}
 
 }  // namespace mw::units::decay

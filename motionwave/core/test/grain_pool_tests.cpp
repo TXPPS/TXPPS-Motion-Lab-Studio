@@ -7,6 +7,7 @@
 // is 256. That is why `dropped == 0` is a design guarantee rather than a hope —
 // and GE-09 exists because a drop counter nobody has exercised proves nothing.
 #include "../dsp/grain/engine.h"
+#include "decay_harness.h"
 #include "harness.h"
 #include "rt_guard.h"
 
@@ -80,6 +81,54 @@ SpawnParams reverbSpawn() {
 }  // namespace
 
 MW_TEST("GE-08: the scheduler spawns what it was asked for and the pool loses nothing") {
+  /*
+   * **The tolerance's own model is checked before it is used.**
+   *
+   * This row grades a count, whose distribution is known rather than estimated:
+   * the onsets are a renewal process and the count's standard deviation is the
+   * jitter times the square root of the count. That is what lets a single
+   * sixty-second render be graded at all — unlike a level or a decay, which are
+   * statistics of a stochastic cloud and need an ensemble. But "known" is worth
+   * one measurement: if the observed spread across independent seeds does not
+   * match the model, the tolerance below is a guess wearing a formula.
+   */
+  {
+    constexpr int kSeeds = 12;
+    std::vector<double> counts;
+    counts.reserve(kSeeds);
+    for (int k = 0; k < kSeeds; ++k) {
+      EngineConfig config;
+      config.poolSlots = 256;
+      config.tier = Tier::Max;
+      config.seed = test::seedAt(k);
+      std::vector<float> storage = arena(config);
+      GrainEngine engine;
+      engine.prepare(kRate, 512, config, storage.data(), storage.size() * sizeof(float));
+      ScheduleConfig schedule;
+      schedule.grainsPerSecond = 350.0f;
+      engine.setSpawn(0, reverbSpawn());
+      engine.setSchedule(0, schedule);
+      Bed bed;
+      bed.fillNoise(0x321u);
+      drive(engine, bed, 10.0, 256);
+      counts.push_back(static_cast<double>(engine.spawned()));
+    }
+    double sum = 0.0;
+    for (double c : counts) sum += c;
+    const double mean = sum / kSeeds;
+    double variance = 0.0;
+    for (double c : counts) variance += (c - mean) * (c - mean);
+    const double observed = std::sqrt(variance / (kSeeds - 1));
+    // The model: jitter times the square root of the count.
+    const double predicted = 0.6 * std::sqrt(mean);
+    std::printf("    GE-08: count spread over %d seeds — observed %.1f, model %.1f (ratio %.2f)\n",
+                kSeeds, observed, predicted, observed / predicted);
+    // Within a factor of two either way, which is as tight as a twelve-sample
+    // variance estimate can be held; a model that was simply wrong misses by
+    // far more than that.
+    MW_EXPECT(observed < predicted * 2.0 && observed > predicted * 0.5);
+  }
+
   const float densities[5] = {10.0f, 100.0f, 350.0f, 1000.0f, 2000.0f};
   for (int d = 0; d < 5; ++d) {
     EngineConfig config;
@@ -367,10 +416,12 @@ MW_TEST("GE-19: a tier change reduces density and never cuts a sounding grain") 
    * grades the normalisation on the interpolator's behaviour, and white noise
    * is where that penalty is at its very worst.
    */
-  auto rmsOf = [](Tier tier, float density, int* liveOut, std::uint64_t* droppedOut) {
+  auto rmsOf = [](Tier tier, float density, int* liveOut, std::uint64_t* droppedOut,
+                  std::uint64_t seed) {
     EngineConfig config;
     config.poolSlots = 256;
     config.tier = tier;
+    config.seed = seed;
     std::vector<float> storage = arena(config);
     GrainEngine engine;
     engine.prepare(kRate, 512, config, storage.data(), storage.size() * sizeof(float));
@@ -391,29 +442,55 @@ MW_TEST("GE-19: a tier change reduces density and never cuts a sounding grain") 
     }
     return std::sqrt(sum / static_cast<double>(out.size() - out.size() / 2));
   };
+  /*
+   * **An ensemble over independent engine seeds, not one render.**
+   *
+   * The level change across a density step is a statistic of a stochastic
+   * cloud, and a single render only samples it: measured across thirty-two
+   * seeds the same comparison ranges from −0.68 dB to +0.71 dB while its mean
+   * sits at −0.08. The first version of this row reported 0.010 dB, which was
+   * a lucky draw rather than a measurement — the row would have passed on
+   * almost any seed and the *number* it printed meant nothing.
+   */
+  constexpr int kSeeds = 32;
+  std::vector<double> byDensity;
+  byDensity.reserve(kSeeds);
   int liveHigh = 0;
   int liveLow = 0;
   std::uint64_t droppedHigh = 0;
   std::uint64_t droppedLow = 0;
-  const double loud = rmsOf(Tier::Max, 1600.0f, &liveHigh, &droppedHigh);
-  const double sparse = rmsOf(Tier::Max, 200.0f, &liveLow, &droppedLow);
-  const double eco = rmsOf(Tier::Eco, 1600.0f, nullptr, nullptr);
-  const double byDensity = 20.0 * std::log10(sparse / loud);
-  const double byInterpolator = 20.0 * std::log10(eco / sparse);
-  std::printf("    GE-19: %d live at 1600 g/s, %d at 200; density alone moves %.3f dB,"
-              " the interpolator %.3f dB\n",
-              liveHigh, liveLow, byDensity, byInterpolator);
+  double ecoSum = 0.0;
+  double loudSum = 0.0;
+  for (int k = 0; k < kSeeds; ++k) {
+    const std::uint64_t seed = test::seedAt(k);
+    const double loud = rmsOf(Tier::Max, 1600.0f, &liveHigh, &droppedHigh, seed);
+    const double sparse = rmsOf(Tier::Max, 200.0f, &liveLow, &droppedLow, seed);
+    const double eco = rmsOf(Tier::Eco, 1600.0f, nullptr, nullptr, seed);
+    byDensity.push_back(20.0 * std::log10(sparse / loud));
+    ecoSum += eco;
+    loudSum += loud;
+  }
+  double sum = 0.0;
+  for (double v : byDensity) sum += v;
+  const double mean = sum / kSeeds;
+  double variance = 0.0;
+  for (double v : byDensity) variance += (v - mean) * (v - mean);
+  const double sd = std::sqrt(variance / (kSeeds - 1));
+  const double confidence = 1.96 * sd / std::sqrt(static_cast<double>(kSeeds));
+  std::printf("    GE-19: %d live at 1600 g/s, %d at 200; density alone moves %+.4f dB"
+              " over %d seeds, 95 %% CI [%+.4f, %+.4f]\n",
+              liveHigh, liveLow, mean, kSeeds, mean - confidence, mean + confidence);
   MW_EXPECT(liveHigh > 40);
   MW_EXPECT(liveLow < liveHigh);
-  // The normalisation holds the level across an eight-fold density change.
-  MW_EXPECT(std::fabs(byDensity) <= 1.0);
+  // The whole interval inside the tolerance, not the mean alone.
+  MW_EXPECT(std::fabs(mean) + confidence <= 1.0);
   // And nothing was cut on the way: the drop counter is the only path by which
   // a grain can end before its window does, at either density.
   MW_EXPECT_EQ(static_cast<long long>(droppedHigh), 0LL);
   MW_EXPECT_EQ(static_cast<long long>(droppedLow), 0LL);
 
   // The transition a user actually hears, recorded rather than folded in.
-  const double whole = 20.0 * std::log10(eco / loud);
+  const double whole = 20.0 * std::log10((ecoSum / kSeeds) / (loudSum / kSeeds));
   std::printf("    GE-19: the whole Max-to-Eco transition moves %.3f dB on white noise\n", whole);
   MW_EXPECT(std::fabs(whole) <= 2.0);
 }

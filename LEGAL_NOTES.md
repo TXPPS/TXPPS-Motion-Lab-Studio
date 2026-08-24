@@ -171,6 +171,35 @@ Therefore:
    research is vendored, linked, or committed. Copyleft clones are removed once
    their sheet is written, so nobody reads them casually later.
 
+## A quarantined value that was rejected on its own arithmetic
+
+`fx-02` §3.1 ends with a remedy for the aliasing an upward grain shift folds
+back: "apply a one-pole lowpass at `0.45·fs/r` before the read". It is marked
+`[I]`, so under the rule above it could not be copied — it had to be re-derived
+or replaced with our own choice. Re-deriving it is worth recording, because the
+derivation did not merely produce a different constant. It showed the shape was
+wrong.
+
+Reading a buffer at increment `r` moves source content at `f` to `f·r`, so
+everything above `fs/(2r)` folds back into the band. For the Wide shimmer set's
++19 semitones that corner is 8008 Hz, and §9 V12 excites it with a 10 kHz tone —
+0.32 octaves above the corner — while asking for alias products at or below
+−70 dBFS. A one-pole falls at 6 dB per octave, so at that frequency it delivers
+about 2 dB of the 52 dB needed. **The sheet's own `[I]` remedy cannot meet the
+sheet's own tolerance.** Measured on our implementation before the fix, the fold
+sat at −17.6 dBFS.
+
+What replaced it is ours: the interpolation kernel is scaled by the read rate
+instead, so its cutoff is `fs/(2r)` by construction and the anti-imaging filter
+costs no separate pass over the data. `scripts/generate-sinc-table.mjs` emits
+the prototype and carries the derivation in its header.
+
+This is the clearest case so far of why the quarantine is not bureaucratic. An
+`[I]` value is somebody's design decision, and a design decision can be wrong
+for reasons that only surface when you work out what it has to achieve. Copying
+it would have shipped both the constant and the mistake, and the row that
+catches it is one the same sheet specifies.
+
 ## Numbers that are ours, and where they are
 
 Every unit reaches a point where a sheet says a mechanism exists and publishes

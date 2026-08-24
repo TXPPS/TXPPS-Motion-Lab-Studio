@@ -118,4 +118,51 @@ MW_TEST("the transform inverts what it is given") {
   MW_EXPECT_NEAR(peak, static_cast<double>(n) / 2.0, 1.0e-6);
 }
 
+MW_TEST("the geometric-grid floor is calibrated against known answers too") {
+  /*
+   * `spuriousFloorAgainst` gets the same treatment its evenly-spaced sibling
+   * gets, and for the same reason: a spectral measurement that is subtly wrong
+   * returns a plausible number rather than an error. Three signals whose answer
+   * is known settle whether this one measures what it claims — a clean shifter
+   * output must read essentially silent, a deliberate intruder must be found at
+   * its own level, and an unresolvable grid must be refused rather than graded.
+   */
+  constexpr double kRate = 48000.0;
+  constexpr std::size_t kLength = 32768;
+  const double bin = kRate / static_cast<double>(kLength);
+  // A pitch set's outputs: unison, a fourth and an octave above 4 kHz.
+  const std::vector<double> lines = {4000.0, 4000.0 * std::pow(2.0, 5.0 / 12.0), 8000.0};
+
+  std::vector<float> clean(kLength * 2, 0.0f);
+  for (std::size_t i = 0; i < clean.size(); ++i) {
+    double v = 0.0;
+    for (double f : lines) {
+      v += 0.3 * std::sin(2.0 * 3.14159265358979323846 * f * static_cast<double>(i) / kRate);
+    }
+    clean[i] = static_cast<float>(v);
+  }
+  const double silent = mw::test::spuriousFloorAgainst(clean, kRate, kLength, lines, 1024);
+  std::printf("    grid instrument: a clean three-line output reads %.1f dBFS\n", silent);
+  // Twenty dB of headroom below the −70 dBFS this helper is used to grade, which
+  // is what "essentially silent" has to mean for it to be usable there. The
+  // residual is the window's own far leakage and not a defect: asserting a
+  // number closer to it would be asserting the window's datasheet.
+  MW_EXPECT(silent < -90.0);
+
+  // The same signal with one intruder at −60 dBFS, at a frequency on no grid.
+  std::vector<float> dirty = clean;
+  for (std::size_t i = 0; i < dirty.size(); ++i) {
+    dirty[i] += static_cast<float>(
+        0.001 * std::sin(2.0 * 3.14159265358979323846 * 6500.0 * static_cast<double>(i) / kRate));
+  }
+  const double found = mw::test::spuriousFloorAgainst(dirty, kRate, kLength, lines, 1024);
+  std::printf("    grid instrument: a −60.0 dBFS intruder reads %.2f dBFS\n", found);
+  MW_EXPECT_NEAR(found, -60.0, 0.5);
+
+  // Two lines a single bin apart cannot be told from one another, and the
+  // helper must say so rather than return a number for a grid it cannot use.
+  const std::vector<double> tooClose = {4000.0, 4000.0 + bin};
+  MW_EXPECT(mw::test::spuriousFloorAgainst(clean, kRate, kLength, tooClose, 1024) == 1.0);
+}
+
 MW_TEST_MAIN("spectrum")

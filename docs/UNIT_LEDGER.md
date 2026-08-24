@@ -210,7 +210,7 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | FET Limiter         | `dyn-03` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Variable-Mu Limiter | `dyn-04` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Console EQ          | `dyn-05` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| Granular Reverb     | `fx-02`  | DSP PARTIAL | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
+| Granular Reverb     | `fx-02`  | DSP MEASURED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
 | DCO Poly            | `syn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
@@ -523,46 +523,186 @@ exists for one product over, and it is worth recording that a manifest-generated
 dispatch does not protect against it: the parameter reached the setter, and the
 setter was the thing that was wrong.
 
-### Granular Reverb, so far — and one calibration withdrawn
+### Granular Reverb — a calibration withdrawn, then a measurement designed
 
-Four of `fx-02` §9's rows measure: V1 nulls at −360 dBFS, V6 holds the decay to
+Seven of `fx-02` §9's rows measure. V1 nulls at −360 dBFS, V6 holds the decay to
 3.51 % across a 15:1 density sweep, V9 keeps the loop signal at −3.44 dBFS with
-no growth after the input stops, and V10 keeps the output DC at −136 dBFS.
+no growth after the input stops, and V10 keeps the output DC at −136 dBFS. V5
+and V11 took three attempts and are the reason this section is long.
 
-**V5 and V11 are not met, and the attempt to meet V5 is worth recording because
-it was wrong in an instructive way.** §2.2's feedback relation is marked
-inference and §9 V5 says to calibrate it against measured RT60 rather than ship
-it. Two real mechanisms were identified — the cloud smears an impulse before the
-loop does anything, and a loop whose per-pass gain is random decays faster than
-its mean gain says — and coefficients were fitted to them from three
-measurements. The fit looked good: it took the errors from +37.8 % to under 8 %.
+**The first attempt fitted noise, and is recorded because it was wrong in an
+instructive way.** §2.2's feedback relation is marked inference and §9 V5 says
+to calibrate it against measured RT60 rather than ship it. Two real mechanisms
+were identified — the cloud smears an impulse before the loop does anything, and
+a loop whose per-pass gain is random decays faster than its mean gain says — and
+coefficients were fitted to them from three measurements. The fit looked good:
+it took the errors from +37.8 % to under 8 %.
 
-It was fitting noise. The cloud's own decay is not a stable quantity measured
-from a single impulse: which grains happen to catch the impulse decides how much
-energy enters the loop at all, and eight renders at one setting ranged from
-0.0997 s to 0.4027 s. The fit proved it by breaking — adding the pitch sets
-moved the spawn RNG stream and every coefficient shifted by about two to one.
-Averaging over starting phases does not repair it, because walking the engine to
-a different phase changes the state the impulse lands in rather than resampling
-one quantity; going from eight phases to sixteen moved the two-second error from
-+10.6 % to +12.4 % rather than converging it.
+It was fitting noise. The cloud's decay is not a stable quantity when measured
+from one impulse: **which grains happen to catch the impulse decides how much
+energy enters the loop at all**, and eight renders at one setting ranged from
+0.0997 s to 0.4027 s. The fit proved it by breaking — adding the pitch sets moved
+the spawn RNG stream and every coefficient shifted by about two to one. Averaging
+over starting phases did not repair it, because walking the engine to a different
+phase changes the state the impulse lands in rather than resampling one quantity;
+eight phases to sixteen moved the two-second error from +10.6 % to +12.4 %.
 
-So the calibration is withdrawn, the unit ships §2.2's relation unmodified, and
-these two rows are open. What they need is a designed excitation — an averaged
-energy decay over many independent seeds, or a swept sine that does not depend
-on one impulse finding grains. The lesson generalises past this unit: **a
-stochastic engine needs its measurement designed before its numbers are
-trusted**, and the fact that a fit improves the residual is not evidence that
-the fit is real.
+So it was withdrawn in `024adbf` — V5 and V11 removed rather than softened, the
+unit shipping §2.2's relation unmodified and the row marked open. The variance
+was in the probe, and the probe had to be replaced before any number was worth
+defending.
 
-Three genuine defects were found on the way and are fixed. The feedback tap
-folds the stereo cloud to mono for a mono buffer, and that fold costs 0.6397 by
-the pan law, so the loop ran at 64 % of the gain the decay control asked for.
-Freeze wrote faded samples while advancing the head, which erases the buffer a
-lap at a time rather than holding it. And a grain cloud's gain for coherent
-content is 0.816·sqrt(O), so a +0.5 DC offset left the wet output at 1.18 with
-nothing having accumulated — there is now a blocker on the way into the buffer
-as well as in the loop.
+**The replacement is `core/test/decay_harness.h`, and it is built once for both
+granular units.** Interrupted noise (ISO 3382): steady broadband excitation until
+the loop settles, then a hard cut, so at the cut every grain slot is populated
+with equal expected energy and the lottery never happens. Schroeder backward
+integration of the squared decay rather than an envelope fit. T30 over −5 to
+−35 dB extrapolated ×2, because a full 60 dB is noise-limited even in a
+deterministic system. Thirty-two independent **engine seeds** — not starting
+phases, which is precisely why sixteen had been worse than eight. Mean with a
+95 % interval, and **the row passes only if the whole interval is inside
+tolerance, not the mean alone.**
+
+**The instrument is calibrated before it measures anything unknown.** V0 runs the
+same method against a plain feedback delay line with the cloud bypassed, where
+RT60 follows analytically as `−3t/log10(g)`: it reads −0.15 % at 50 ms/0.70,
+−0.03 % at 120 ms/0.90 and +0.01 % at 250 ms/0.97 — a 58:1 range of decay. Had
+that row disagreed, no reverb number after it would have been trustworthy, and
+the point of running it first is that this is not discoverable afterwards.
+
+With a trustworthy instrument the second fit also failed, and failed differently.
+A rate-squared law held 2–16 s to within 3.5 % and then inverted at 1 s by
+−39 %, because the loop is short enough there that **grain length truncates the
+tail** — a mechanism no smooth law in the feedback coefficient can express. What
+ships instead is `units/reverb_decay.h`: eighteen measured points of delivered
+RT60 against feedback, interpolated in log-decay. It is calibration against the
+unit's own behaviour, declared as such, with `kDecayFloorSeconds = 0.49` naming
+the shortest decay the cloud can deliver at all rather than pretending the
+control is linear below it. V5 now reads 1.013 s, 1.962 s, 3.986 s and 7.978 s
+for 1/2/4/8 s asked, every interval inside ±5 %.
+
+**V11's apparent drift was a beat.** Ten minutes of held tone showed the level
+wandering across 1.73 dB, which reads as accumulation until you notice the 1 kHz
+tone's 48-sample period against the 137-sample grain hop. The row now fits a
+least-squares slope *with its own uncertainty* and passes on the interval
+containing zero — −0.109 dB total drift, 95 % CI [−0.632, +0.415] — rather than
+on any single-sample statistic that a beat can move.
+
+**The same standard was then turned back on the grain engine's own rows.** GE-19
+graded a density-step level change on one render and reported 0.010 dB; across
+thirty-two seeds that comparison ranges −0.675 to +0.714 dB about a mean of
+−0.084. The row would have passed on almost any seed and the number it printed
+meant nothing, so it now runs the ensemble and grades the interval. GE-08 was
+re-examined and stands: it grades a *count*, whose standard deviation is known
+analytically rather than estimated, which is what lets one render decide it — and
+that model is now itself checked against the observed spread over twelve seeds
+(43.0 against 35.6 predicted, a ratio of 1.21) so the tolerance is measured
+rather than asserted.
+
+Three genuine defects were found on the way and are fixed. The feedback tap folds
+the stereo cloud to mono for a mono buffer, and that fold costs 0.6397 by the pan
+law, so the loop ran at 64 % of the gain the decay control asked for. Freeze wrote
+faded samples while advancing the head, which erases the buffer a lap at a time
+rather than holding it. And a grain cloud's gain for coherent content is
+0.816·sqrt(O), so a +0.5 DC offset left the wet output at 1.18 with nothing having
+accumulated — there is now a blocker on the way into the buffer as well as in the
+loop.
+
+The lesson generalises past this unit, and it is the reason the harness is shared:
+**a stochastic engine needs its measurement designed before its numbers are
+trusted**, a fit improving the residual is not evidence the fit is real, and the
+instrument is validated against something analytic before it is pointed at
+anything unknown.
+
+### Two defects the remaining reverb rows found, and one row that cannot be run
+
+Finishing `fx-02` §9 turned up two real faults. Both were invisible to every row
+that existed before, and both were found by a row doing what its sheet said
+rather than by review.
+
+**§2.3's prose said to move the diffuser and the measurement said not to.** The
+sheet describes the allpass chain as building echo density "immediately after
+each grain onset", which reads as an instruction to put it on the wet bus so
+every grain's first arrival is diffused; ours sat in the feedback path. Moving it
+was tried in two forms and **both are worse on the row that grades exactly
+this**. Against the loop-only placement's 125 ms, the full-length chain on the wet
+bus read 398 ms and a short chain at a fifth of the lengths read 313 ms. The
+reason is in the measure: normalised echo density counts what fraction of a
+window exceeds that window's own standard deviation, and a handful of widely
+spaced allpass echoes makes a signal *more* impulsive, which puts less of its
+energy above that line rather than more. §2.3's premise holds for a reverb whose
+early field is sparse; here the grain cloud is already the density builder.
+
+What made that decidable was calibrating the measure before believing it —
+Gaussian noise reads 0.995 on it, a sparse impulse train 0.000, a decaying
+Gaussian tail 1.011 crossing 0.9 at 10 ms. Without that, "the number got worse"
+is equally consistent with the instrument being wrong, and the sheet would have
+won on authority. The chain is back in the loop, and **V7 is NOT MET at 125 ms
+against §9's 80 ms**, recorded rather than softened, with §2.3's own escalation —
+"if the series chain measures poorly on echo density (V7), switch to the tank" —
+as the scoped remedy. That is a change to the loop's architecture and not
+something to attempt as a side effect of finishing rows: it would invalidate the
+decay calibration and several rows downstream of it.
+
+One thing the detour did establish: the diffusion control is not dead. It reads
+identically at every setting on V7 because the row measures a part of the signal
+the control does not reach, but rendering at 0.0 and 1.0 differs by 3 % of peak.
+The first thing checked was the setter, because this codebase has had exactly
+that bug before — a live control in the wrong place looks the same from the row.
+
+**A shifted 10 kHz tone folded back at −17.6 dBFS**, where §9 V12 asks for −70.
+Reading a buffer at increment `r` moves content at `f` to `f·r`, so everything
+above `fs/(2r)` folds; the Wide set's +19 semitones puts that corner at 8008 Hz
+and V12 excites it at 10 kHz. §3.1's stated remedy is a one-pole at `0.45·fs/r`
+and is marked `[I]`, so it could not be copied — and re-deriving it showed the
+*shape* was wrong, not just the constant: 10 kHz is 0.32 octaves above the
+corner, where a one-pole delivers about 2 dB of the 52 dB required. The sheet's
+own remedy cannot meet the sheet's own tolerance. What ships instead is ours: the
+interpolation kernel is scaled by the read rate, so its cutoff is `fs/(2r)` by
+construction and the anti-imaging filter costs no separate pass over the buffer.
+`LEGAL_NOTES.md` records it as the clearest case yet of why an `[I]` value is
+quarantined — copying it would have shipped the mistake along with the number.
+
+**V3's DC half cannot be run on this unit, and that is a consequence rather than
+a gap.** §9 V3 feeds DC and looks for a line at `fs/blockSize`. The loop carries
+a DC blocker — V10 *requires* the output DC below −80 dBFS from a +0.5 input — so
+a DC excitation is removed before it reaches the buffer and the row would be
+measuring silence. Where that behaviour can be observed is on the engine with no
+loop around it, and it is: GE-02 grades constant overlap-add on DC and GE-03
+grades the block-rate line on DC. What the unit-level row asserts instead is the
+stronger statement the engine's version implies — the audio is bit-identical
+across every block size a host might use, and a line at `fs/blockSize` cannot
+exist in a signal that does not change when `blockSize` does. The same mapping
+covers V2 (GE-02) and V8 (GE-08).
+
+**V4 measured the test signal twice before it measured the cloud, and then found
+its tolerance to be unreachable.** Read as written — envelope modulation from
+white noise through a half-millisecond window — it reported 1.64 dB against a
+1.5 dB tolerance at an overlap of thirty-two, and essentially none of that came
+from the cloud: a half-millisecond window holds 24 samples, in which white noise's
+own RMS fluctuates by about 1.3 dB before anything granulates it. Switching to a
+steady tone was worse and instructively so: it read 5.5 dB at *every* overlap from
+4 to 32, flat where incoherent summing should fall as one over the square root of
+the overlap. That flatness is the diagnosis — grains read at randomised offsets
+carry random phase, so a coherent input summed over any number of them is Rayleigh
+distributed, and a Rayleigh amplitude's relative spread does not depend on how
+many terms went into it. 5.5 dB is that distribution's own width.
+
+What the row measures now is white noise through a ten-millisecond window, where
+the signal's own fluctuation is about 0.2 dB, with that residue removed in
+quadrature by running the same statistic through the same unit at Mix zero. The
+modulation then falls the way it should: 4.31, 2.58, 1.44 and 1.04 dB at overlaps
+of 4, 8, 16 and 32.
+
+**And §9's 1.5 dB is unreachable at an overlap of four for any random-onset
+cloud.** The output power in a short window is a sum of `O` independent
+contributions, whose relative standard deviation is `1/sqrt(O)` whatever the
+contributions are — `4.34/sqrt(O)` in decibels, so 2.17 dB at O = 4 and 1.53 dB at
+O = 8, both above the tolerance before any defect is considered. The row therefore
+grades §9's number from O = 16 up, where the floor permits it and the unit meets
+it, and below that grades that the modulation is falling — which is what
+distinguishes incoherent summing from some other mechanism that happens to be
+large. Every point prints its own floor beside it.
 
 ### What X24 found once every unit had one
 

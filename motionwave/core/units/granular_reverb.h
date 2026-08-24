@@ -131,6 +131,24 @@ class GranularReverb : public Node {
   }
   void setBypass(bool bypass) noexcept { bypass_ = bypass; }
 
+  /**
+   * The grain engine's seed.
+   *
+   * Exposed because an ensemble measurement needs independent draws of the
+   * *engine*, not of the excitation: varying the noise or the starting phase
+   * resamples the stimulus while leaving the scheduler and the spawn RNG on the
+   * same stream, so the runs stay correlated and averaging them converges on
+   * the wrong number. Changing the seed is what makes two runs independent.
+   *
+   * It is part of the configuration rather than drawn from a clock, so a render
+   * stays a pure function of (graph, spec) and a golden file remains checkable.
+   */
+  void setSeed(std::uint64_t seed) noexcept {
+    seed_ = seed;
+    reseed_ = true;
+    dirty_ = true;
+  }
+
   // ---- Node ----
 
   void prepare(double sampleRate, int blockSize) override {
@@ -152,6 +170,7 @@ class GranularReverb : public Node {
     wetR_.assign(static_cast<std::size_t>(blockSize_), 0.0f);
 
     grain::EngineConfig config;
+    config.seed = seed_;
     config.tapCount = 1;
     config.poolSlots = 256;
     config.maxGrainSamples = static_cast<int>(sampleRate_ * 0.5) + 1;
@@ -160,7 +179,7 @@ class GranularReverb : public Node {
     engine_.prepare(sampleRate_, blockSize_, config, arena_.data(),
                     arena_.size() * sizeof(float));
 
-    diffuser_.prepare(sampleRate_);
+    loopDiffuser_.prepare(sampleRate_);
     chain_.prepare(sampleRate_);
     /*
      * A second high-pass, on the way *into* the buffer.
@@ -187,7 +206,7 @@ class GranularReverb : public Node {
     loopPeak_ = 0.0f;
     freezeGain_ = 1.0f;
     engine_.reset();
-    diffuser_.reset();
+    loopDiffuser_.reset();
     chain_.reset();
   }
 
@@ -246,11 +265,40 @@ class GranularReverb : public Node {
        * measured RT60 comes out a third to a half short of the setting —
        * which reads as the §2.2 formula being wrong when it is the fold.
        */
+      /*
+       * **The diffusion stays inside the loop, and §2.3's prose says it should
+       * not — the measurement disagreed with the sheet and the measurement
+       * wins.**
+       *
+       * §2.3 describes the allpass chain as building echo density "immediately
+       * after each grain onset", which reads as an instruction to put it on the
+       * wet bus so every grain's first arrival is diffused. That was tried, in
+       * two forms, and both are worse on the row that grades exactly this:
+       * §9 V7 asks for a normalised echo density of 0.9 within 80 ms, and
+       * against the loop-only placement's 125 ms the full-length chain on the
+       * wet bus read 398 ms and a short chain at a fifth of the lengths read
+       * 313 ms. The reason is that the measure counts what fraction of a window
+       * exceeds that window's own standard deviation: a handful of widely
+       * spaced allpass echoes makes a signal *more* impulsive, and an impulsive
+       * signal has less of its energy above that line, not more. §2.3's premise
+       * holds for a reverb whose early field is sparse; here the grain cloud is
+       * already the density builder and the chain only adds structure to it.
+       *
+       * The measurement was calibrated before it was believed, which is why it
+       * is trusted over the prose: Gaussian noise reads 0.995 on it, a sparse
+       * impulse train reads 0.000, and a decaying Gaussian tail reads 1.011 and
+       * crosses 0.9 at 10 ms.
+       *
+       * V7 is therefore not met at 125 ms and is recorded as not met, with
+       * §2.3's own escalation — the Dattorro tank — as the scoped remedy. It is
+       * an architecture change to the loop rather than a placement change, so
+       * it is not something to attempt as a side effect of finishing the rows.
+       */
       const float wet = kMonoFoldCompensation *
                         0.5f *
                         (wetL_[static_cast<std::size_t>(i)] +
                          wetR_[static_cast<std::size_t>(i)]);
-      const float diffused = diffuser_.process(wet);
+      const float diffused = loopDiffuser_.process(wet);
       const float returned = chain_.process(diffused, static_cast<float>(feedback_));
       // The loop signal, which is what §9 V9 grades: the thing that recirculates
       // and therefore the thing that can run away. The wet *output* is taken
@@ -342,6 +390,20 @@ class GranularReverb : public Node {
   }
 
   void rebuild() noexcept {
+    if (reseed_) {
+      // A seed change has to reach the engine, and the engine takes its seed at
+      // prepare. Re-preparing into the arena the unit already owns allocates
+      // nothing.
+      grain::EngineConfig config;
+      config.seed = seed_;
+      config.tapCount = 1;
+      config.poolSlots = 256;
+      config.maxGrainSamples = static_cast<int>(sampleRate_ * 0.5) + 1;
+      config.tier = tier_;
+      engine_.prepare(sampleRate_, blockSize_, config, arena_.data(),
+                      arena_.size() * sizeof(float));
+      reseed_ = false;
+    }
     preDelaySamples_ = static_cast<int>(preDelaySeconds_ * sampleRate_ + 0.5);
 
     /*
@@ -385,14 +447,12 @@ class GranularReverb : public Node {
     // The engine is configured first, so `overlap()` is the capped number
     // actually in force rather than the one the panel asked for.
     configureEngine();
-    // §2.2's relation, uncalibrated. §9 V5 requires a calibration against
-    // measured RT60 and `reverb_decay.h` records why the first attempt was
-    // withdrawn and what a sound one needs; until then the unit ships the
-    // relation the sheet gives and the ledger says V5 is not met.
-    feedback_ = decay::feedbackFor(meanOffsetSeconds_, decaySeconds_);
-    if (feedback_ > 0.98) feedback_ = 0.98;
+    // §2.2's relation, calibrated against an interrupted-noise ensemble whose
+    // instrument was validated against an analytic reference first.
+    // `reverb_decay.h` carries the measurement, the fit and its status.
+    feedback_ = decay::calibratedFeedback(meanOffsetSeconds_, decaySeconds_);
 
-    diffuser_.setAmount(static_cast<float>(diffusion_));
+    loopDiffuser_.setAmount(static_cast<float>(diffusion_));
     chain_.setDamping(static_cast<float>(damping_));
     chain_.setTilt(static_cast<float>(tiltDb_));
     // Ten milliseconds, §2.4.
@@ -438,7 +498,7 @@ class GranularReverb : public Node {
     // The loop applies `fb · |H_damp(ω)|` per pass, so the decay at 8 kHz is
     // §2.2's relation evaluated with that product rather than with `fb` alone.
     const double perPass = feedback_ * chain_.dampingMagnitudeAt(8000.0);
-    frame.rt60At8k = static_cast<float>(decay::rt60For(meanOffsetSeconds_, perPass));
+    frame.rt60At8k = static_cast<float>(decay::deliveredRt60(meanOffsetSeconds_, perPass));
     visual_.publish(frame);
   }
 
@@ -449,7 +509,7 @@ class GranularReverb : public Node {
 
   grain::GrainEngine engine_;
   dsp::Biquad inputBlocker_;
-  dsp::Diffuser diffuser_;
+  dsp::Diffuser loopDiffuser_;
   dsp::FeedbackChain chain_;
   GranularReverbPublisher visual_;
   std::vector<float> buffer_;
@@ -495,6 +555,8 @@ class GranularReverb : public Node {
   int pitchCount_ = 1;
   shimmer::Set pitchSet_ = shimmer::Set::Unison;
   grain::Tier tier_ = grain::Tier::Studio;
+  std::uint64_t seed_ = 0x9E3779B97F4A7C15ull;
+  bool reseed_ = false;
   bool bypass_ = false;
   bool dirty_ = true;
 };

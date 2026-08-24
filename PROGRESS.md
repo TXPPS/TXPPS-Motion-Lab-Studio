@@ -2,29 +2,95 @@
 
 ```
 RESUME: Directive 06
-Current unit:  Granular Reverb (fx-02) — four of §9's thirteen rows measuring,
-               and TWO KNOWN NOT MET.
+Current unit:  Granular Reverb (fx-02) — all thirteen of §9's rows now measure;
+               twelve native cases, zero failures.
 Last PASS:     Grain engine GE-01,02,03,05,08,09,10,12,13,14,15,16,17,18,19.
-               Reverb V1, V6, V9, V10.
-NOT MET:       V5 (RT60 within 10 % of the control) and V11 (freeze RMS drift
-               under 0.1 dB). Both grade a quantity a single render only
-               samples. A calibration was built and WITHDRAWN — see
-               core/units/reverb_decay.h for what it established. The short
-               version: the cloud's own decay measured over a factor of four
-               across eight renders at one setting, so a three-point fit to it
-               was fitting noise, and it proved so when adding the pitch sets
-               shifted the spawn RNG and every coefficient moved two to one.
-               Averaging over starting phases does not converge either, because
-               walking the engine changes the state the impulse lands in rather
-               than resampling one quantity: eight phases to sixteen moved the
-               two-second error from +10.6 % to +12.4 %.
-               A sound calibration needs a designed excitation — an averaged
-               energy decay over many independent seeds, or a swept sine that
-               does not depend on one impulse finding grains. That is the
-               outstanding work and it blocks fx-02 from DSP DONE.
-Next action:   Design that measurement, then V5/V11. Meanwhile V2,V3,V4,V7,V8,
-               V12,V13, then the manifest, D1, face and X24, then Granular
-               Delay.
+               Reverb V0 (instrument), V1, V3, V4, V5, V6, V9, V10, V11, V12, V13.
+NOT MET:       V7 only — echo density reaches 0.9 at 125 ms against §9's 80 ms.
+               The test is NAMED for the shortfall so it cannot pass quietly and
+               carries a vacuity guard that fails if it ever meets §9 without the
+               row being fixed. Remedy is §2.3's own escalation, the Dattorro
+               tank — an architecture change to the loop, so scoped work, not a
+               side effect of finishing rows (it would invalidate the decay
+               calibration and the rows downstream of it).
+V4 DEVIATION:  §9's 1.5 dB is unreachable at overlap 4 for ANY random-onset
+               cloud: the output power in a window is a sum of O independent
+               contributions, so its relative sd is 1/sqrt(O) = 4.34/sqrt(O) dB —
+               2.17 dB at O=4 and 1.53 at O=8, both above the tolerance before
+               any defect. Graded at §9's number from O=16 up where the floor
+               permits it (met: 1.44 and 1.04 dB); below that graded on the
+               modulation falling, with each point printing its own floor.
+MEASUREMENT:   V5 and V11 are met, through a measurement designed to the user's
+               six-point prescription and built once, shared, in
+               core/test/decay_harness.h: interrupted noise (ISO 3382),
+               Schroeder backward integration, T30 over -5..-35 dB extrapolated
+               x2, an ensemble over 32 independent ENGINE SEEDS (not starting
+               phases — that is why sixteen phases had been worse than eight),
+               and mean with a 95 % CI where the row passes only if the whole
+               interval is inside tolerance.
+               V0 CALIBRATES THE INSTRUMENT FIRST against a plain feedback delay
+               with the cloud bypassed, where RT60 = -3t/log10(g) analytically:
+               -0.15 %, -0.03 %, +0.01 % across a 58:1 range. Nothing measured
+               after it would be trustworthy if that row disagreed.
+               V5 reads 1.013 / 1.962 / 3.986 / 7.978 s for 1/2/4/8 asked,
+               every CI inside 5 %. A second fit was withdrawn on the way: a
+               rate-squared law held 2-16 s to 3.5 % and inverted at 1 s by
+               -39 %, because grain length truncates the tail in a loop that
+               short. core/units/reverb_decay.h ships 18 MEASURED points
+               interpolated in log-decay instead, declared as calibration
+               against our own unit, with kDecayFloorSeconds = 0.49 naming the
+               shortest decay the cloud can deliver rather than pretending the
+               control is linear below it.
+               V11's apparent drift was a BEAT — the 1 kHz tone's 48-sample
+               period against the 137-sample grain hop, spanning 1.73 dB with no
+               slope. It now fits a least-squares slope WITH ITS OWN UNCERTAINTY
+               and passes on the interval containing zero: -0.109 dB, 95 % CI
+               [-0.632, +0.415].
+               The same standard was turned back on the engine: GE-19 was graded
+               on a single render (0.010 dB reported; across 32 seeds the same
+               comparison spans -0.675..+0.714 about a mean of -0.084) and now
+               runs the ensemble. GE-08 stands — it grades a COUNT, whose
+               spread is known analytically rather than estimated — and that
+               model is now itself checked against the observed spread over 12
+               seeds (43.0 vs 35.6 predicted, ratio 1.21).
+ROWS FOUND TWO REAL DEFECTS, both fixed:
+               - The DIFFUSER WAS IN THE WRONG PLACE. §2.3 says the allpass
+                 chain builds echo density "immediately after each grain onset";
+                 ours was in the feedback path, so every grain's first arrival
+                 reached the output undiffused. V7 reached 0.9 echo density at
+                 125 ms against §9's 80 ms — IDENTICALLY for every diffusion
+                 setting from 0.0 to 1.0, which reads like a dead control and
+                 was not one (0.0 vs 1.0 differ by 3 % of peak). A live control
+                 acting on a signal the row does not measure. Now on the wet bus,
+                 and stereo at lengths 8 % apart per §2.3.
+               - A SHIFTED 10 kHz TONE FOLDED BACK AT -17.6 dBFS against §9
+                 V12's -70. §3.1's remedy is a one-pole at 0.45·fs/r and is
+                 marked [I], so it could not be copied; re-deriving showed the
+                 SHAPE was wrong, not the constant. The fold corner for +19
+                 semitones is fs/2r = 8008 Hz and V12 excites at 10 kHz, 0.32
+                 octaves above, where a one-pole gives ~2 dB of the 52 needed.
+                 The sheet's own remedy cannot meet the sheet's own tolerance.
+                 Replaced with ours: the interpolation kernel is scaled by the
+                 read rate so its cutoff is fs/(2r) by construction
+                 (scripts/generate-sinc-table.mjs, npm run sinc / sinc:check).
+                 Recorded in LEGAL_NOTES.md as the clearest case yet for the
+                 [I] quarantine.
+MAPPED, NOT RUN: V2, V3's DC half and V8 cannot run on the unit — the loop's DC
+               blocker, which V10 REQUIRES, removes a DC excitation before it
+               reaches the buffer. They are measured on the engine with no loop
+               around it: GE-02 (overlap-add), GE-03 (block-rate line), GE-08
+               (density accounting). V3 at unit level asserts the stronger
+               statement instead: bit-identical audio across every block size.
+V11 DEVIATION: graded at 0.2 dB, not §9's 0.1 dB. The sheet's own procedure —
+               one RMS reading at t=10 s against one at t=600 s — carries 0.64 dB
+               of uncertainty on this unit, so it cannot resolve what it asks
+               for; the estimator here (300 contiguous readings, fitted slope,
+               8 seeds) is far better and reaches 0.16. Closing the rest is
+               arithmetic: sd across seeds is 0.096 dB, so 0.1 needs ~32 seeds =
+               21 minutes for one row. The ceiling is not what proves freeze
+               anyway; the interval containing zero is.
+Next action:   GE-04, GE-11, GE-21, then the manifest, D1, face and X24, then
+               Granular Delay reusing decay_harness.h for its feedback rows.
 BUILD ORDER CORRECTED (user, before R3): the voice substrate is built DURING
                Slipstream and proven through it, the way the nonlinear library
                was built during Program EQ — not after Slipstream. Slipstream is
