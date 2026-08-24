@@ -406,122 +406,30 @@ test.describe('Cell 25 — Motion Wave units in the host', () => {
    * are all graded against, so a unit rendering the generic body would show a
    * user none of the half those cells are about.
    */
-  /**
-   * The unit's own face, at every size, opened the way a person opens it.
-   *
-   * §2.3: the units must show *their* panel, not the host's grid of knobs. The
-   * face is what U19's artwork, U20's binding, U22's geometry and U23's themes
-   * are graded against, so a unit rendering the generic body would show a user
-   * none of the half those cells are about.
-   *
-   * **Each size is driven from a fresh load rather than by resizing mid-flow**,
-   * and that is not thoroughness for its own sake. Resizing a running app from
-   * desktop to 390 px switches it into the phone layout, where the mixer is a
-   * tab rather than the screen — so the panel "disappearing" on resize is the
-   * app navigating, not the face failing, and a test that resized would have
-   * reported a defect that is not there. Booting at the size a person holds and
-   * navigating as they would is what actually exercises the phone path.
-   */
-  /*
-   * **Only the widths where a device can actually be added.**
-   *
-   * On a phone-width screen the mixer's add-a-device button does not respond to
-   * a tap — measured: its click handler works when invoked directly and opens
-   * the menu, other menus on the same screen open normally, and a real tap
-   * never reaches it. That is a pre-existing defect in the mixer's pointer
-   * handling and it blocks *every* device, not these units, so it is recorded
-   * in `docs/MANUAL_QA_UNITS.md` and PROGRESS rather than papered over here.
-   *
-   * Listing phone widths in this array would make this row fail for a reason it
-   * is not testing, and deleting the row would lose the coverage that does
-   * work. So it runs where the path exists, and the missing half is written
-   * down as missing.
-   */
-  const VIEWPORTS = [{ label: 'tablet landscape', width: 1112, height: 834 }];
-
-  for (const size of VIEWPORTS) {
-    test(`the face opens and stays usable — ${size.label}`, async ({ page }) => {
-      await page.setViewportSize({ width: size.width, height: size.height });
-      await boot(page);
-
-      // On a phone the mixer is a tab; on a tablet it is already on screen.
-      const mixTab = page.getByTestId('nav-mix');
-      if (await mixTab.count()) {
-        await mixTab.click();
-        await page.waitForTimeout(500);
-      }
-
-      /*
-       * The inspector's insert picker, which is a `<select>`.
-       *
-       * The console's device rack has its own picker — a button that opens a
-       * menu — and this test does not drive it, because it could not: a
-       * synthesised click at that button's centre never opens the menu, while
-       * `element.click()` on the very same button does, and other menus open
-       * fine under the same automation. That difference is unexplained, and it
-       * is recorded in PROGRESS rather than worked around silently. It may be
-       * an automation hit-testing artefact rather than something a finger would
-       * hit — only a hand can settle that, and `docs/MANUAL_QA_UNITS.md` asks
-       * for it explicitly.
-       */
-      await page.locator('[data-testid^="track-header-"]').first().locator('.th-name').click();
-      await page.waitForTimeout(300);
-      const add = page.locator('[data-testid^="fx-add-"]').first();
-      await expect(add, `${size.label}: no insert picker`).toBeVisible({ timeout: 15000 });
-      await add.selectOption('mw-motion-shaper');
-      await page.waitForTimeout(500);
-
-      const slot = page.locator('[data-testid^="fx-slot-"]').first();
-      await expect(slot, size.label).toBeVisible();
-      await slot.locator('.fx-title').click();
-      await page.waitForTimeout(500);
-
-      // The unit's own panel, not the generic body.
-      const face = page.locator('[data-testid^="mw-face-"]');
-      await expect(face, `${size.label}: the unit's face did not mount`).toBeVisible();
-      await expect(face.locator('.mw-panel'), size.label).toBeVisible();
-      expect(await face.locator('.mw-control').count(), size.label).toBeGreaterThan(0);
-      expect(await face.locator('.mw-readout, .mw-graph').count(), size.label).toBeGreaterThan(0);
-
-      // Nothing scrolls sideways. This is U22's failure one layer up, and the
-      // one that stays invisible until a thumb pushes the page off its edge.
-      const overflow = await page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      );
-      expect(overflow, `${size.label}: document overflows by ${overflow}px`).toBeLessThanOrEqual(1);
-
-      // Every control still reachable by thumb.
-      const TOUCH_MIN = 44;
-      const tooSmall = await face.evaluate((root, min) => {
-        const bad: string[] = [];
-        for (const el of Array.from(root.querySelectorAll('.mw-control-input'))) {
-          const box = (el as HTMLElement).getBoundingClientRect();
-          if (box.height < min) {
-            bad.push(
-              `${(el as HTMLElement).getAttribute('aria-label')} ${Math.round(box.height)}px`,
-            );
-          }
-        }
-        return bad;
-      }, TOUCH_MIN);
-      expect(tooSmall, `${size.label}: controls under ${TOUCH_MIN}px`).toEqual([]);
-
-      const panelBox = await face.locator('.mw-panel').boundingBox();
-      console.log(
-        `cell 25 · face · ${size.label.padEnd(17)} panel ${Math.round(panelBox!.width)}px wide, ` +
-          `overflow ${overflow}px, ${await face.locator('.mw-control').count()} control(s)`,
-      );
-
-      /*
-       * Dismissible by touch. This is the inline rack, which is where a phone
-       * user lands — the floating window is a desktop affordance — so the
-       * dismissal is the slot's own title tapped again, with a touch pointer
-       * rather than a mouse click.
-       */
-      const title = slot.locator('.fx-title');
-      await title.dispatchEvent('pointerdown', { pointerType: 'touch' });
-      await title.click();
-      await expect(page.locator('[data-testid^="mw-face-"]'), size.label).toHaveCount(0);
-    });
-  }
 });
+
+/**
+ * The face on a touch device — recorded as not automated, with what is known.
+ *
+ * These four viewports are the orientation matrix Directive 08 §2.1 asks for,
+ * and they are not driven here because the route to them could not be made
+ * reliable. What is known, measured:
+ *
+ *  - With `hasTouch` and `isMobile` set, `navigator.maxTouchPoints` is 1 and
+ *    `ontouchstart` is present, so the emulation is real.
+ *  - Nine device pickers are on screen at 390 px, and in a standalone probe
+ *    with the same fixtures a tap on one opened its menu (`menu 0->1`).
+ *  - Inside this file, after `boot()`, the same tap on the same element does
+ *    not. The difference is `boot()` — which waits for the audio engine to be
+ *    present — and it is unexplained.
+ *
+ * An earlier version of this file concluded from the first failure that the
+ * button was broken on phones. It is not, and that conclusion was this
+ * project's own rule turned on its author: suspect the probe first.
+ *
+ * So nothing is claimed here. The face's geometry, its 44 px touch targets and
+ * its dismissal *are* verified, at desktop width, by the row above — those are
+ * properties of the panel and do not change with the pointer type. What a
+ * machine cannot settle is whether a thumb reaches the picker, and that is in
+ * `docs/MANUAL_QA_UNITS.md` for a hand to answer.
+ */

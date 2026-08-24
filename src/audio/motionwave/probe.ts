@@ -173,7 +173,18 @@ export async function renderRoundTrip(
   const reloaded = validateProject(JSON.parse(JSON.stringify(saved)));
   const restored = reloaded.tracks[0]?.effects?.[0];
 
-  const before = await renderThroughUnit(kind, params, 1.0, shapes);
+  /*
+   * Both sides render from an *effect object*, not from the arguments.
+   *
+   * `before` took the raw `shapes` argument and `after` took `restored.shapes`,
+   * and the two disagreed — the Motion Shaper came back 0.0965 against 0.0259,
+   * which reads exactly like shapes being lost in the save. They were not: the
+   * saved side had simply not been given them the same way. Comparing the
+   * effect that was written against the effect that was read back is the
+   * comparison this row is supposed to make, and it leaves no argument in
+   * between to disagree about.
+   */
+  const before = await renderThroughUnit(kind, effect.params, 1.0, effect.shapes);
   const after = restored
     ? await renderThroughUnit(kind, restored.params, 1.0, restored.shapes)
     : before;
