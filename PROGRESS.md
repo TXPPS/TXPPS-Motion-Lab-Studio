@@ -258,8 +258,26 @@ V2 PASSES:     -153.5 dBFS against a plain interpolated delay written in the
                comparing signals one sample apart — which reads as a granular
                path colouring the delay rather than as an off-by-one in the
                comparison.
-Next action:   the grain cloud per tap (§4's Smear driving the grain engine),
-               then V6 and V14, reusing decay_harness.h for the decay rows.
+OPEN DESIGN Q (decide before wiring the cloud, do not guess):
+               The GrainEngine reads ONE GrainSource, and it already anticipates
+               this unit — engine.h says "1 for the reverb, 1..8 for the delay".
+               But fx-02's buffer is MONO and fx-03's is stereo (§1.2), and a
+               grain reads one position in one buffer. Three options:
+                 A. One engine over the mono sum, per-grain pan. Cheapest, and
+                    it DESTROYS the buffer's stereo — a ping-pong repeat would
+                    come back centred, which V13 grades.
+                 B. Two engines, one per channel, summed through the tap's pan.
+                    Keeps the stereo, doubles the grain cost.
+                 C. Use the engine's 8 tap slots as 2 per delay tap. Keeps the
+                    pool shared but caps the unit at 4 delay taps, against §1.2's
+                    N and the manifest's 8.
+               Leaning B, but it must be MEASURED not asserted: run V13 through a
+               smeared tap under A and under B and see whether the alternation
+               survives. A costs half of B, and if the alternation survives A the
+               cheaper one is right — the whole point of measuring is that the
+               obvious answer here is not obviously right.
+Next action:   settle that with a measurement, then wire the cloud, then V6 and
+               V14, reusing decay_harness.h for the decay rows.
 BUILD ORDER CORRECTED (user, before R3): the voice substrate is built DURING
                Slipstream and proven through it, the way the nonlinear library
                was built during Program EQ — not after Slipstream. Slipstream is
