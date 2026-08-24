@@ -18,20 +18,43 @@ import type { ReadoutHandle } from './vu';
  */
 const PEAK_HOLD_MS = 1400;
 
+/**
+ * The first few words of a readout's name, for the caption under its bar.
+ *
+ * Captioned at all because five unlabelled bars stacked in a column is five
+ * identical slabs: the accessible name says what each one is and a sighted user
+ * cannot hear it. Truncated because these names are written as sentences for a
+ * screen reader — "Harmonic profile of the make-up amplifier. Shows the second
+ * and third…" — and a panel is not where that belongs.
+ */
+function caption(accessibleName: string): string {
+  const first = accessibleName.split(/[.,—]/)[0].trim();
+  const words = first.split(/\s+/);
+  return words.length <= 4 ? first : `${words.slice(0, 4).join(' ')}…`;
+}
+
 /** Bar meter with a peak line, for level and for gain reduction alike. */
 export function buildBar(doc: Document, accessibleName: string, reduction: boolean): ReadoutHandle {
   const node = doc.createElement('div');
-  node.className = reduction ? 'mw-bar mw-bar-reduction' : 'mw-bar';
+  node.className = reduction ? 'mw-readout mw-readout-reduction' : 'mw-readout';
   node.dataset.mwPrimitive = 'meter';
   node.setAttribute('role', 'img');
   node.setAttribute('aria-label', accessibleName);
 
+  const bar = doc.createElement('span');
+  bar.className = 'mw-bar';
   const fill = doc.createElement('span');
   fill.className = 'mw-bar-fill';
   const peak = doc.createElement('span');
   peak.className = 'mw-bar-peak';
-  node.appendChild(fill);
-  node.appendChild(peak);
+  bar.appendChild(fill);
+  bar.appendChild(peak);
+  node.appendChild(bar);
+
+  const name = doc.createElement('span');
+  name.className = 'mw-readout-label';
+  name.textContent = caption(accessibleName);
+  node.appendChild(name);
 
   let held = 0;
   let heldUntil = -Infinity;

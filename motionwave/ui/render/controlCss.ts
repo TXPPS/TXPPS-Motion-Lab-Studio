@@ -73,21 +73,33 @@ const ROTARY = `
 .mw-knob-track { fill: none; stroke: var(--mw-fascia-low); stroke-width: 5; stroke-linecap: round; }
 .mw-knob-value { fill: none; stroke: var(--mw-panel-lamp); stroke-width: 5; stroke-linecap: round; }
 .mw-knob-tick { stroke: var(--mw-panel-ink-muted); stroke-width: 1.4; }
-.mw-knob-skirt { fill: var(--mw-fascia-low); stroke: var(--mw-fascia-high); stroke-width: 1; }
+/* A knob is two pieces of material with light falling across them, and the
+   first version drew both in adjacent tones so it read as a flat disc. The
+   skirt takes the panel's own shadow tone and the cap a gradient across it,
+   because that difference is what makes a dial look grippable rather than
+   printed. */
+.mw-knob-skirt {
+  fill: var(--mw-fascia-low);
+  stroke: color-mix(in srgb, var(--mw-panel-ink) 22%, transparent);
+  stroke-width: 1;
+}
 .mw-knob-cap {
   fill: var(--mw-fascia-high);
-  stroke: var(--mw-fascia-low);
+  stroke: color-mix(in srgb, var(--mw-panel-ink) 34%, transparent);
   stroke-width: 1.5;
 }
 .mw-knob-hub { fill: var(--mw-fascia-low); }
 .mw-knob-pointer { stroke: var(--mw-panel-ink); stroke-width: 3.4; stroke-linecap: round; }
 .mw-knob-flute { stroke: var(--mw-fascia-low); stroke-width: 1.6; }
 .mw-knob-notch { fill: var(--mw-panel-ink); }
+/* In viewBox units, so it scales with the dial rather than staying 9 real
+   pixels on a phone — where the whole rotary is about 90 px across and a legend
+   set in absolute pixels comes out at six. */
 .mw-selector-name {
   fill: var(--mw-panel-ink-muted);
   font-family: var(--mw-font-ui);
-  font-size: 9px;
-  letter-spacing: 0.03em;
+  font-size: 11px;
+  letter-spacing: 0.02em;
 }
 /* The rotor turns instantly under a finger and eases when a value arrives from
    elsewhere — a preset load, an automation lane. Both are the same property, so
@@ -138,10 +150,22 @@ const READOUTS = `
 .mw-vu-lamp { fill: var(--mw-meter-bg); stroke: var(--mw-fg-muted); stroke-width: 0.8; }
 .mw-vu-lamp[data-mw-on='true'] { fill: var(--mw-meter-over); }
 
+.mw-readout {
+  display: flex;
+  flex: 0 1 8rem;
+  min-width: 5rem;
+  flex-direction: column;
+  gap: var(--mw-space-1);
+}
+.mw-readout-label {
+  font-size: var(--mw-text-3xs);
+  line-height: var(--mw-leading-tight);
+  color: var(--mw-panel-ink-muted);
+}
 .mw-bar {
   position: relative;
-  flex: 1 1 6rem;
-  min-width: 4rem;
+  display: block;
+  width: 100%;
   height: var(--mw-space-4);
   border-radius: var(--mw-radius-pill);
   background: var(--mw-meter-bg);
@@ -153,7 +177,7 @@ const READOUTS = `
   width: var(--mw-bar-extent, 0%);
   background: linear-gradient(90deg, var(--mw-meter-low), var(--mw-meter-mid) 62%, var(--mw-meter-high) 84%, var(--mw-meter-over));
 }
-.mw-bar-reduction .mw-bar-fill { background: var(--mw-meter-reduction); }
+.mw-readout-reduction .mw-bar-fill { background: var(--mw-meter-reduction); }
 .mw-bar-peak {
   position: absolute;
   top: 0;

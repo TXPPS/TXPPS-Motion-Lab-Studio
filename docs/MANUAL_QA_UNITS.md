@@ -4,9 +4,32 @@
 
 **https://txpps-motionlab-studio.roan-crest.workers.dev**
 
-Deployed commit: `6cb507e`. Open it in Safari or Chrome on the phone — nothing to
-install, no terminal, no build step. This line is updated on every deploy, so it
-is always what is live.
+Deployed commit: `5ea35a9`. Open it in Safari or Chrome on the phone —
+nothing to install, no terminal, no build step. This line is updated on every
+deploy, so it is always what is live.
+
+### What to look at first, this deploy
+
+**Insert the Program EQ** (step 6 below, then **Program EQ** instead of Motion
+Shaper). It is the first panel built on the new control primitives and the only
+one of the seven that is `SHIPPING` again — the other six still render the
+framework's default panel and their ledger rows say so.
+
+What to judge, with a thumb:
+
+- **The dials turn.** Drag one up and down. Drag sideways *while* holding it —
+  the same drag gets about ten times finer without the value jumping. Take a
+  finger well outside the dial and circle it; it tracks the angle from there.
+- **The frequency selectors click.** They only stop on their marked positions,
+  and a *tap* advances one position — which is the fastest way to work them
+  one-handed.
+- **EQ In is a lever.** One tap throws it. Watch the two low legs: boost and
+  cut at once is the point of the unit, not a mistake.
+- **The VU has weight.** It is a specified instrument, not a bar with a filter
+  on it: 300 ms to 99 % of a step, overshooting about 1.2 %, and it should look
+  like a needle rather than like a number.
+- **The panel is a panel.** Warm light fascia, engraved legends, rack ears with
+  screws. Compare it against any of the other six — those are still the default.
 
 ### Inserting a Motion Wave unit on a phone, tap by tap
 

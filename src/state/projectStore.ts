@@ -172,6 +172,20 @@ export interface ProjectStore {
   addEffect: (trackId: string, kind: EffectKind) => string | null;
   removeEffect: (trackId: string, effectId: string) => void;
   setEffectParam: (trackId: string, effectId: string, key: string, value: number) => void;
+  /**
+   * Replace one drawn shape on an insert.
+   *
+   * Separate from `setEffectParam` because a curve is not a parameter — it has
+   * no range to clamp to and no taper — and folding it in would mean either a
+   * parameter that skips validation or a curve that gets clamped against a
+   * range it does not have.
+   */
+  setEffectShape: (
+    trackId: string,
+    effectId: string,
+    index: number,
+    nodes: readonly (readonly number[])[],
+  ) => void;
   setEffectBypass: (trackId: string, effectId: string, bypass: boolean) => void;
   /** Reorder within the chain; delta is -1 (earlier) or +1 (later). */
   moveEffect: (trackId: string, effectId: string, delta: number) => void;
@@ -1095,6 +1109,29 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         },
         // Continuous control, same as synth params: dragging must not fill the
         // undo stack with one entry per pixel.
+        { undoable: false },
+      ),
+
+    setEffectShape: (trackId, effectId, index, nodes) =>
+      update(
+        (d) => {
+          const fx = trackById(d, trackId)?.effects?.find((e) => e.id === effectId);
+          if (!fx || index < 0) return;
+          // Every node is four finite numbers or the shape is not written. A
+          // NaN here reaches the audio thread through the curve message and
+          // stays there for the session, and the project file would carry it
+          // into the next one.
+          const clean = nodes
+            .filter((n) => n.length === 4 && n.every((v) => Number.isFinite(v)))
+            .map((n) => [...n]);
+          if (clean.length !== nodes.length) return;
+          const shapes = fx.shapes ? fx.shapes.map((s) => s.map((n) => [...n])) : [];
+          while (shapes.length <= index) shapes.push([]);
+          shapes[index] = clean;
+          fx.shapes = shapes;
+        },
+        // Dragging a node is continuous, the same as dragging a knob: one undo
+        // entry per pixel is one undo stack nobody can use.
         { undoable: false },
       ),
 

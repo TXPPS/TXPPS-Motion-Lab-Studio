@@ -24,11 +24,12 @@
  * A harmonic profile drawn from a formula would agree with the sound until one
  * of the two was changed.
  */
-import type { FaceElement, UnitFace } from '../../harness/types';
+import type { FaceElement, PanelSkin, UnitFace } from '../../harness/types';
 import { programEqControls, programEqSpecs } from './params.gen';
 import { controlElements } from '../../render/faceControls';
 
 export { ProgramEqParam } from './params.gen';
+import { ProgramEqParam as ProgramEqParamIds } from './params.gen';
 
 /** Meter channels the unit publishes, matching `ProgramEqFrame` field for field. */
 export const ProgramEqMeter = {
@@ -48,12 +49,80 @@ function meter(id: string, channel: string, name: string): FaceElement {
     meterChannel: channel,
     accessibleName: name,
     keyboardFocusable: false,
-    colours: [{ foreground: '--mw-meter-mid', background: '--mw-bg-sunken' }],
+    colours: [{ foreground: '--mw-meter-mid', background: '--mw-meter-bg' }],
   };
 }
 
 /**
- * The harmonic display, declared as a `graph` so the harness holds it to a
+ * The panel, as an object rather than as a stylesheet.
+ *
+ * A passive programme equaliser of this period is a wide, shallow rack panel in
+ * a light warm-grey paint, with big pointer-and-skirt dials, stepped selectors
+ * beside them, legends cut into the paint, and rack ears with screws through
+ * them. Every one of those is a *class* of thing rather than a particular
+ * product: the taxonomy and the proportions are what the era is, and they
+ * belong to nobody. Nothing here is traced, photographed, matched to a
+ * manufacturer's colour, or named after one — see `LEGAL_NOTES.md`, which makes
+ * this a commercial-safety requirement and not a preference.
+ *
+ * The amber lamp token is the only concession to warmth in the interactive
+ * parts, and it is the era's: a pilot lamp of the period is a filament behind
+ * amber glass, not an LED.
+ */
+const skin: PanelSkin = {
+  era: '1950s passive programme equaliser — wide shallow rack panel, engraved legends, pointer dials',
+  surface: 'painted-steel',
+  hueDeg: 36,
+  chroma: 'muted',
+  value: 'light',
+  knob: 'pointer-skirt',
+  arrangement: 'wide-banded',
+  lettering: 'engraved',
+  furniture: 'rack-ears',
+  lampToken: '--mw-warn',
+};
+
+/**
+ * The output meter, and the one place this panel spends its vertical room.
+ *
+ * A VU rather than a bar, because this unit has no gain control that a peak
+ * reading would help with — what a user is watching is programme level through
+ * a passive network and a make-up amplifier, which is the quantity a VU was
+ * specified to show. Its ballistics are solved from the standard rather than
+ * chosen; see `render/controls/ballistics.ts`.
+ */
+const outputVu: FaceElement = {
+  id: 'output-vu',
+  role: 'vu',
+  paramId: null,
+  meterChannel: ProgramEqMeter.OutputPeak,
+  accessibleName: 'Output level, VU',
+  keyboardFocusable: false,
+  colours: [{ foreground: '--mw-fg', background: '--mw-meter-bg' }],
+};
+
+/**
+ * The transformer lamp.
+ *
+ * §7 records that the thickening under sustained bass energy is a property
+ * users notice and attribute to the equaliser section rather than to the iron
+ * that is causing it. A bar for the same channel is easy to miss on a wide
+ * panel; a lamp that lights when the core is being driven is not, which is the
+ * whole reason a panel carries lamps as well as meters.
+ */
+const coreLamp: FaceElement = {
+  id: 'core-lamp',
+  role: 'lamp',
+  paramId: null,
+  meterChannel: ProgramEqMeter.InputCoreDrive,
+  lampThreshold: 0.5,
+  accessibleName: 'Input transformer working — the core is being driven',
+  keyboardFocusable: false,
+  colours: [{ foreground: '--mw-warn', background: '--mw-meter-bg' }],
+};
+
+/**
+ * The harmonic display, declared as a `meter` so the harness holds it to a
  * meter's standard: it must name a channel the unit publishes.
  *
  * It names the second-harmonic coefficient because that is the number the
@@ -70,15 +139,19 @@ const harmonicDisplay: FaceElement = {
   accessibleName:
     'Harmonic profile of the make-up amplifier. Shows the second and third harmonic ' +
     'coefficients the audio path is currently running at.',
-  keyboardFocusable: true,
+  keyboardFocusable: false,
   colours: [
-    { foreground: '--mw-accent', background: '--mw-bg-sunken' },
-    { foreground: '--mw-fg-muted', background: '--mw-bg-sunken' },
+    { foreground: '--mw-meter-mid', background: '--mw-meter-bg' },
+    { foreground: '--mw-meter-high', background: '--mw-meter-bg' },
   ],
 };
 
 export const programEqFace: UnitFace = {
+  skin,
+
   elements: [
+    outputVu,
+    coreLamp,
     harmonicDisplay,
 
     // The transformers, which are the unit's low-frequency character and are in
@@ -97,7 +170,18 @@ export const programEqFace: UnitFace = {
     // so a control naming a parameter the DSP does not have fails to compile.
     // What stays here is the face's own — which control shape a parameter gets
     // and the token pairs it puts together.
+    // Every control, from the generated table. The set is not written here and
+    // cannot be: it comes from the manifest the C++ dispatch is generated from,
+    // so a control naming a parameter the DSP does not have fails to compile.
+    //
+    // What *is* written here is the panel's control vocabulary. The equaliser
+    // in/out is a bat lever, because that is what a period unit's bypass is and
+    // because a lever reads as a state from across a room in a way a knob at
+    // one end of its travel does not. Everything else takes the default the
+    // parameter implies — a four-, seven- or three-position wafer becomes a
+    // detented selector, and the continuous legs become dials.
     ...controlElements(programEqControls, programEqSpecs, {
+      choose: (spec) => (spec.id === ProgramEqParamIds.EqIn ? 'toggle' : undefined),
       colours: [{ foreground: '--mw-panel-ink', background: '--mw-fascia' }],
     }),
   ],

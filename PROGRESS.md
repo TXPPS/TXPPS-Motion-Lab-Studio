@@ -1,27 +1,32 @@
 # Motion Wave — progress
 
 ```
-RESUME: Directive 08 §3 SUSPENDED — Directive 09, faces.
+RESUME: Directive 09 — faces. Directive 08 §3 (fx-03) is STOPPED.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: dac8bc4 — cell 25 green for all seven, faces mounted.
-Current work:    Cell 26 usability. All seven units are NOT SHIPPING: every
-                 control in the product is `<input type="range">` and the seven
-                 panels are one panel. fx-03 is STOPPED mid-build at the user's
-                 instruction — its nine green rows are committed and stay green.
-Last PASS:       X25 for all seven, backed by e2e/motionwave.spec.ts.
-Next action:     Control primitives in the shared framework (knob, stepped
-                 selector, toggle/rocker, latching button, VU with ballistics,
-                 lamp, curve editor), then Program EQ's panel end to end, then
-                 deploy for judgement before the other six.
+Deployed commit: 5ea35a9 — Program EQ's panel on the new primitives.
+Current work:    Cell 26 usability. Program EQ is SHIPPING again; the other six
+                 render the framework default and are NOT SHIPPING, honestly.
+Last PASS:       X26 for Program EQ, backed by e2e/motionwave-face.spec.ts.
+Next action:     The other six panels, one at a time, each judged before the
+                 next: Optical Leveller (1960s optical, wrinkle enamel, bar
+                 knobs, VU), FET Limiter (1970s, anodised, collet, meter select
+                 buttons), Variable-Mu (valve, painted steel, chicken-head),
+                 Console EQ (console strip, moulded, fluted, rockers, faders),
+                 Granular Reverb (modern, glass, flat-cap), Motion Shaper (its
+                 curve editor mounted — the primitive exists, the panel does
+                 not).
 Shared libraries built: decay_harness.h, tank.h (built, measured, NOT adopted —
                  see the V7 note), delay_routing/sync/smear/feedback/line,
-                 nonlinear library, grain engine with a stereo source.
+                 nonlinear library, grain engine with a stereo source, and now
+                 render/controls/ — gesture, knob, selector, switches, fader,
+                 vu + ballistics, readouts, curve, curve_model.
 Open deviations: V7 echo density 125 ms vs 80 ms (both granular units ship with
                  it; the row's excitation is the defect, not the diffusion);
                  V11 graded at 0.2 dB not 0.1; V4 graded from O=16 where the
                  incoherent floor permits it; fx-02 D5 n/a on the oversampling
                  half only; §2.3's "not identical to bypass" replaced by
-                 "reachable" for two units whose neutral default is correct.
+                 "reachable" for two units whose neutral default is correct;
+                 the VU scale is linear in dB where a printed face is not.
 WHEN fx-03 RESUMES: §6 tape and BBD character, which V8, V9, V10, V11 and V12
                  all need. Measure the BBD companding artefacts with the
                  ensemble discipline the decay rows use — they are

@@ -68,11 +68,20 @@ const SURFACES = `
  * bezel is two borders of different lightness, which is what a moulded lip is.
  */
 const FURNITURE = `
+/* The ears are inset shadows and inset pseudo-elements, never borders with
+   pseudo-elements hung outside them. The first version did exactly that — a
+   1.5rem border each side with the screw plates at left: -1.5rem and
+   right: -1.5rem — and an absolutely positioned box is placed against the
+   *padding* box, so the right-hand plate stood 24 px past it. That is real
+   overflow: scrollWidth minus clientWidth read 24 on a 390 px phone, which is a
+   panel that scrolls sideways for furniture nobody can interact with. */
 .mw-panel[data-mw-furniture='rack-ears'] {
-  border-left: 1.5rem solid var(--mw-fascia-low);
-  border-right: 1.5rem solid var(--mw-fascia-low);
-  background-clip: padding-box;
   position: relative;
+  padding-left: calc(var(--mw-space-6) + 1.75rem);
+  padding-right: calc(var(--mw-space-6) + 1.75rem);
+  box-shadow:
+    inset 1.5rem 0 0 var(--mw-fascia-low),
+    inset -1.5rem 0 0 var(--mw-fascia-low);
 }
 .mw-panel[data-mw-furniture='rack-ears']::before,
 .mw-panel[data-mw-furniture='rack-ears']::after {
@@ -86,8 +95,8 @@ const FURNITURE = `
     radial-gradient(circle at 50% calc(100% - var(--mw-space-7)), var(--mw-fascia-low) 0 0.19rem, var(--mw-fascia-high) 0.19rem 0.25rem, transparent 0.25rem);
   pointer-events: none;
 }
-.mw-panel[data-mw-furniture='rack-ears']::before { left: -1.5rem; }
-.mw-panel[data-mw-furniture='rack-ears']::after { right: -1.5rem; }
+.mw-panel[data-mw-furniture='rack-ears']::before { left: 0; }
+.mw-panel[data-mw-furniture='rack-ears']::after { right: 0; }
 .mw-panel[data-mw-furniture='bezel'] {
   border: 0.375rem solid var(--mw-fascia-low);
   box-shadow: inset 0 0 0 var(--mw-hairline-strong) var(--mw-fascia-high);

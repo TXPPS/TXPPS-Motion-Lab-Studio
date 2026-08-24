@@ -20,11 +20,13 @@ sessions. **Read this first**, then the resume block at the top of
 
 ## Status
 
-**0 of 14 shipping.** Seven units are complete through cell 25 — their DSP is
-measured, their audio reaches a track and their state persists. All seven fail
-cell 26: every control in the product is a slider, and the seven panels are one
-panel. They are held at `NOT SHIPPING` until each has real control primitives
-and its own visual identity. See "Cell 26 — usability" below.
+**1 of 14 shipping.** Seven units are complete through cell 25 — their DSP is
+measured, their audio reaches a track and their state persists. Cell 26 dropped
+all seven: every control in the product was a slider and the seven panels were
+one panel. The control primitives now exist in the shared framework, and
+**Program EQ** is the first panel built end to end on them and the first back to
+`SHIPPING`. The other six are held at `NOT SHIPPING` until each has its own
+panel. See "Cell 26 — usability" below.
 
 ### How a sheet's V-numbers relate to the Ledger's cells
 
@@ -207,7 +209,7 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | Unit                | Sheet    | Status       | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  | X25  | X26  |
 | ------------------- | -------- | ------------ | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
 | Motion Shaper       | `fx-01`  | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
-| Program EQ          | `dyn-01` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
+| Program EQ          | `dyn-01` | SHIPPING     | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | Optical Leveller    | `dyn-02` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
 | FET Limiter         | `dyn-03` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
 | Variable-Mu Limiter | `dyn-04` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
@@ -257,10 +259,44 @@ A unit passes only when all four hold:
 3. The panel is visually distinct from every other unit's, at a glance.
 4. The unit's defining control is present and operable.
 
-**All seven FAIL it today**, and their status column says `NOT SHIPPING` rather
-than carrying a footnote under `SHIPPING`. That is the point of applying a cell
-retroactively: a unit that fails a cell is not shipping, and the ledger is the
-place that has to say so first.
+**All seven failed it when it was written**, and their status column said
+`NOT SHIPPING` rather than carrying a footnote under `SHIPPING`. That is the
+point of applying a cell retroactively: a unit that fails a cell is not
+shipping, and the ledger is the place that has to say so first.
+
+**Program EQ passes it now** — the first panel built end to end on the new
+primitives. The other six still fail, and their rows say so; each returns as its
+own panel is built.
+
+Every row is backed by a named case in `e2e/motionwave-face.spec.ts`, run
+against the built app in Chromium through the app's own stores — the panel under
+test is the one a user opens.
+
+| Requirement        | How it is settled                                                  | Program EQ                                              |
+| ------------------ | ------------------------------------------------------------------ | ------------------------------------------------------- |
+| correct primitive  | behaviour, not appearance — a range input passes none of the three | vu, lamp, meter, selector, knob, toggle; no range input |
+| — a knob           | a vertical drag moves it; a horizontal drag alone does not         | 0.0000 → 0.3200 on 70 px up; 0.0000 on 90 px sideways   |
+| — a selector       | a tap advances one detent, and every resting value is on the grid  | 0.6667 → 1.0000, detent 0.3333                          |
+| — a switch         | a tap flips it, and flips it back                                  | 1 → 0 → 1                                               |
+| operable by thumb  | every control ≥ 44 px in both axes at 390 × 844 with touch         | 14 controls, smallest 90 px                             |
+| no sideways scroll | `scrollWidth − clientWidth` on the panel itself                    | 0 px                                                    |
+| visually distinct  | screenshots compared pairwise, against the framework default too   | differs from the default panel                          |
+| defining control   | present and operable                                               | the two boost/atten legs and their frequency selectors  |
+
+The touch row found a real defect while it was being written: the panel's rack
+ears were a 1.5 rem border each side with the screw plates hung outside it at
+`left: -1.5rem` and `right: -1.5rem`. An absolutely positioned box is placed
+against the _padding_ box, so the right-hand plate stood 24 px past it — a panel
+that scrolled sideways on a phone for furniture nobody can touch. The ears are
+now inset shadows.
+
+**The VU meter's scale is a stated deviation.** A standard VU face is not linear
+in decibels: the marks crowd below −7 and open out above it, and their exact
+fractional positions belong to the printed face rather than to the electrical
+specification. This draws the scale linear in dB from −20 to +3 VU — correct at
+the top where the meter is read, progressively optimistic at the bottom where it
+is not. The _ballistics_ are not a deviation: they are solved from the standard's
+two published numbers and land on 0.990000000 at 300 ms.
 
 ### Cell 25 — the host, and the three defects it found
 
