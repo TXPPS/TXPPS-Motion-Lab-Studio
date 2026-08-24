@@ -2124,6 +2124,19 @@ class AudioEngine {
     return chain?.gainReductionOf(effectId) ?? 0;
   }
 
+  /**
+   * The most recent frame a Motion Wave insert published, or null.
+   *
+   * Read by that unit's face on the display's clock. Null when the insert is
+   * not a Motion Wave unit, when its chain has not been built, or before the
+   * first frame arrives — all three are the same thing to a panel, which draws
+   * nothing rather than guessing.
+   */
+  motionWaveFrameOf(trackId: string, effectId: string): Float64Array | null {
+    const chain = trackId === MASTER_ID ? this.masterInserts : this.channels.get(trackId)?.inserts;
+    return chain?.motionWaveFrameOf(effectId) ?? null;
+  }
+
   /** Measurement tap of one insert, for spectrum, scope and tuner faces. */
   effectTap(trackId: string, effectId: string): AnalyserNode | undefined {
     const chain = trackId === MASTER_ID ? this.masterInserts : this.channels.get(trackId)?.inserts;

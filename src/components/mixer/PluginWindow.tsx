@@ -20,6 +20,8 @@ import { useUiStore } from '../../state/uiStore';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
 import { Icon } from '../common/Icon';
 import { EffectVisual, FxKnob } from './PluginFace';
+import { MotionWaveFace } from './MotionWaveFace';
+import { isMotionWaveKind } from '../../audio/motionwave/registry';
 import { clampToViewport, placeWindow } from './windowPlace';
 import type { Rect } from './windowPlace';
 
@@ -44,6 +46,22 @@ const SWIPE_CLOSE_PX = 120;
 type Snapshot = Record<string, number>;
 
 function EffectBody({ track, effect }: { track: Track; effect: Effect }) {
+  /*
+   * A Motion Wave unit brings its own panel.
+   *
+   * The generic body below is a grid of knobs built from a spec, which is the
+   * right thing for a device whose only declaration is its parameters. These
+   * units declare a *face* — artwork, meters and a visualiser, graded by U19,
+   * U20, U22 and U23 — and rendering knobs instead would show the user none of
+   * the half those cells are about.
+   */
+  if (isMotionWaveKind(effect.kind)) {
+    return (
+      <div className="pw-body pw-body-mw">
+        <MotionWaveFace trackId={track.id} effect={effect} />
+      </div>
+    );
+  }
   const spec = effectSpec(effect.kind);
   const store = useProjectStore;
   const params = spec?.params ?? [];

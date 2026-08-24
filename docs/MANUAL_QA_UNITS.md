@@ -7,7 +7,34 @@
 Deployed commit: `a98dd5e`. Open it in Safari or Chrome on the phone — nothing to
 install, no terminal, no build step.
 
-### Inserting a Motion Wave unit on a phone, tap by tap
+### One thing to check first, because I could not
+
+**The mixer's "+" (add a device) button did not open its menu under automation,
+at any width.** What I measured: invoking that button's click handler directly
+_does_ open the menu, other menus on the same screen open normally under the
+same automation, and a synthesised tap at the button's centre opens nothing. I
+cannot tell from here whether a real finger hits it or not — a browser
+automation's hit-testing is not a thumb, and that difference is a real
+alternative explanation.
+
+So this is the one thing worth trying first, because it decides your whole
+route:
+
+- **Tap the `+` on a track's strip in the mixer.** If a menu opens listing
+  Dynamics, Tone, … Motion Wave, everything below works as written and you can
+  ignore this section.
+- **If nothing happens**, use the inspector's insert picker instead — select a
+  track by its name in the track list, and use the **"Add insert…"** dropdown
+  there. That is a plain dropdown, it is the path the automated test drives, and
+  it is known to work.
+
+Please tell me which of the two it was. If the `+` does nothing under a real
+finger it is a defect that blocks adding _any_ device, not just these units, and
+it goes to the top of the list.
+
+### Inserting a Motion Wave unit, tap by tap
+
+Either route works; see the note above on which to try first.
 
 1. Open the URL. Wait for the arrangement to appear.
 2. **Tap once anywhere** before expecting sound. Browsers will not start audio
@@ -16,17 +43,19 @@ install, no terminal, no build step.
 3. You need audio on a track to hear anything through an insert. Either:
    - tap **Browse** in the bottom bar, pick a loop, and drag it onto a track; or
    - tap **Record**, arm a track, and record a few seconds of anything.
-4. Tap **Mix** in the bottom bar. This is the console — one strip per track.
-5. Find the track's strip and its **inserts** area — the column of slots under
+4. Go to the **mixer** — one strip per track. On a narrow layout it is the
+   **Mix** tab in the bottom bar; on a wide one it is already on screen.
+5. Find the track's strip and its **device rack** — the column of slots under
    the fader.
-6. Tap the **"Add insert…"** control on that strip. A grouped menu opens:
-   Dynamics, Tone, Modulation, Time, Stereo, Utility, and — at the bottom —
-   **Motion Wave**.
-7. Under **Motion Wave**, choose **Motion Shaper**. The slot fills with its name.
+6. Tap **+** (_Add a device_) on that strip. A grouped menu opens: Dynamics,
+   Tone, Modulation, Time, Stereo, Utility, and — at the bottom — **Motion
+   Wave**.
+7. Under **Motion Wave**, choose **Motion Shaper**. It is added and its editor
+   opens straight away.
 8. Play the track. The Motion Shaper starts as a **wire** — it should sound
    exactly like the track without it. That is deliberate: an undrawn shaper does
    nothing until you give it a shape.
-9. **Tap the slot** to open the editor.
+9. If the editor is not already open, **tap the device** in the rack.
 10. Move **Depth** up, and **Mix** to 100%. With the default flat shape you will
     still hear no change — the shape is what depth modulates, and a flat shape
     has nothing to modulate. Move **Rate** and the **crossovers** to hear the
@@ -34,15 +63,17 @@ install, no terminal, no build step.
 11. To close the editor: tap the **×** at its top right, or **swipe the header
     downward**. Both work with a thumb.
 
+The unit shows **its own panel** — its controls, meters and visualiser — not a
+generic grid of knobs.
+
 If you hear nothing at all at step 8 — not even the dry track — that is a fault
 worth reporting; see the bottom of this document for what to include.
 
 ### What is not there yet
 
-The units currently open the app's **generic control body** — a grid of labelled
-knobs — rather than their own designed panels. Their meters and visualisers are
-therefore not moving yet. The controls are real and reach the DSP; the artwork
-and the live displays are the next piece of work.
+Only the open question above: whether the mixer's `+` responds to a real finger.
+Everything else in this document is expected to work, and where it does not, that
+is a defect worth reporting.
 
 ---
 

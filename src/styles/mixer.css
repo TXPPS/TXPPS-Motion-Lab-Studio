@@ -2184,3 +2184,53 @@
     display: block;
   }
 }
+
+/*
+ * Where a Motion Wave unit's own panel is mounted.
+ *
+ * The panel is self-styling — it emits a stylesheet built from its face's
+ * declared breakpoints, because those breakpoints are the face's data and a
+ * second copy here would be a second opinion about where the layout changes.
+ * So this rule gives it room and gets out of the way; it must not set a width,
+ * a column count or a control size, all of which the face decides.
+ *
+ * The vertical scroll is the one thing the host owns. A phone in landscape is
+ * about 380 px tall, and a panel with nine controls and five readouts is taller
+ * than that whatever its breakpoints say — so the window scrolls rather than
+ * growing past the viewport and taking its own close button with it.
+ */
+.pw-body-mw {
+  display: block;
+  padding: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Room for the window's header and footer, which are outside this box. */
+  max-height: min(70vh, 34rem);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mw-face-host {
+  display: block;
+  width: 100%;
+}
+
+/* The panel's own minimum is in `rem` and can exceed a small phone's width.
+   Letting it set the window's width would push the close button off-screen,
+   which is the defect this project has shipped once already. */
+.pw-body-mw .mw-panel {
+  min-width: 0;
+  width: 100%;
+}
+
+/* The same host rules for the inline rack, which is where a phone user lands.
+   See `.pw-body-mw` above for why the host owns only the scroll. */
+.fx-body-mw {
+  display: block;
+  padding: 0;
+  overflow-x: hidden;
+}
+.fx-body-mw .mw-panel {
+  min-width: 0;
+  width: 100%;
+}

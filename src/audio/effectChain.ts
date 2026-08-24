@@ -2661,6 +2661,21 @@ export class InsertChain {
   }
 
   /**
+   * The most recent frame a Motion Wave insert published, or null.
+   *
+   * The same shape as `tapOf` and `gainReductionOf`: an editor asks the chain
+   * for one insert's state by id, and gets whatever is current. It is a *pull*
+   * for the same reason those are — the panel repaints on the display's clock
+   * and the engine publishes on the audio's, and the two must not wait for each
+   * other. A push would put a repaint on the path between two audio blocks.
+   */
+  motionWaveFrameOf(effectId: string): Float64Array | null {
+    const node = this.nodes.find((n) => n.id === effectId);
+    const frameOf = (node as { frame?: () => Float64Array | null } | undefined)?.frame;
+    return frameOf ? (frameOf.call(node) ?? null) : null;
+  }
+
+  /**
    * Every key input in this chain, so the engine can feed them from another
    * channel — and switch each detector over — in one pass.
    */

@@ -6,6 +6,19 @@ import './styles/base.css';
 import './styles/shell.css';
 import './styles/arrangement.css';
 import './styles/mixer.css';
+/*
+ * The Motion Wave design tokens.
+ *
+ * The units' panels style themselves from `--mw-*`, and without these they
+ * mount unstyled — the face renders, the controls work, and it looks like
+ * nothing. Imported here rather than copied into `src/styles/` because a copy
+ * would be a second palette: U23 grades these tokens for completeness and
+ * contrast in both themes, and it grades the file, not a duplicate of it.
+ *
+ * The prefix is what keeps the two systems apart. Nothing in MotionLab reads a
+ * `--mw-` variable and nothing in a unit reads MotionLab's.
+ */
+import '../motionwave/ui/design/tokens.css';
 import './styles/pianoroll.css';
 import './styles/synth.css';
 import './styles/panels.css';

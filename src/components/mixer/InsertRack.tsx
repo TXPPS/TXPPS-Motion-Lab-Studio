@@ -19,6 +19,8 @@ import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
 import { EffectVisual, FxKnob, faceKindOf } from './PluginFace';
+import { MotionWaveFace } from './MotionWaveFace';
+import { isMotionWaveKind } from '../../audio/motionwave/registry';
 import { SHELF, addShelfPlugin } from '../../audio/wam/shelf';
 
 /** Marks a picker option as a shelf plugin rather than a built-in effect kind. */
@@ -81,7 +83,22 @@ function InsertSlot({
         </button>
       </div>
 
-      {open && (
+      {open && isMotionWaveKind(effect.kind) && (
+        /*
+         * A Motion Wave unit brings its own panel here too.
+         *
+         * This inline rack is where a phone user actually lands — the floating
+         * window is a desktop affordance — so mounting the face only there
+         * would mean the designed panel existed on the one device least likely
+         * to be used. The knob grid below is right for a device whose only
+         * declaration is its parameters; these units declare a face.
+         */
+        <div className="fx-body fx-body-mw">
+          <MotionWaveFace trackId={chain.id} effect={effect} />
+        </div>
+      )}
+
+      {open && !isMotionWaveKind(effect.kind) && (
         <div className="fx-body">
           {faceKindOf(effect.kind) && (
             <div className="fx-visual">

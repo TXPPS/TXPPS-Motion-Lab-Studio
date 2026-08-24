@@ -1,6 +1,57 @@
 # Motion Wave — progress
 
 ```
+RESUME: Directive 07 — deployed; face mounted; one open question
+DEPLOYED:      https://txpps-motionlab-studio.roan-crest.workers.dev
+               Worker `txpps-motionlab-studio` in the Roan Crest Cloudflare
+               account (f28564ec53838541afae4ab618bb0977). It builds from the
+               repo's DEFAULT branch, which was `claude/motionlab-studio-poc-3l1gwa`
+               — the frozen Directive 03 branch. That is why nothing the user saw
+               had the units in it.
+BRANCHES:      `main` created from the units branch and pushed. All three refs
+               (main, claude/professional-daw-development-gunhc0, and the poc
+               branch) now point at the same commit, so there is no longer a
+               question of which is real. The poc branch was a STRICT ANCESTOR,
+               so fast-forwarding it lost nothing.
+               STILL NEEDS A HAND: setting `main` as the repo default and
+               deleting the poc branch. The agent proxy refuses repository
+               SETTINGS writes ("Repository settings writes are not permitted
+               through this proxy"), so it cannot be done from here.
+BUILD:         npm run build no longer needs emsdk. motionwave/wasm/prebuilt/ is
+               tracked, the build uses a fresh core when a toolchain exists and
+               the tracked one otherwise, and `npm run wasm:check` rebuilds and
+               compares byte for byte (CI has the toolchain and runs it; where
+               there is none it prints SKIPPED and says that is not a pass).
+               Verified under the Cloudflare condition: EMSDK_DIR pointed at
+               nothing, dist removed, build completes and the artefact assertion
+               still passes.
+FACE MOUNTED:  UnitFace is mounted in both editors — the floating PluginWindow
+               and the inline device rack (which is where a phone user lands) —
+               via motionwave/ui/render/facePanel's own renderer rather than a
+               React reimplementation, so U19/U20/U22/U23 grade the thing that
+               ships. Frames are pulled on the display clock from
+               engine.motionWaveFrameOf() and named by the unit's own `meters`
+               list, with a length check that refuses to paint if the bridge and
+               the declaration disagree rather than mislabelling every readout.
+               motionwave/ui/design/tokens.css is imported by the app — without
+               it the panel mounts unstyled.
+DEFAULT-STATE CHECK ADDED (user's standing rule): insert the unit, touch
+               nothing, require audio. Measured against dry: Motion Shaper 100%,
+               Program EQ 99.4%, Optical Leveller 98.4%, FET Limiter 22.1%,
+               Variable-Mu 99.3%, Console EQ 99.4%, Granular Reverb 66.4%.
+OPEN QUESTION (needs a human finger, cannot be settled here):
+               The mixer's "+" add-a-device button does not open its menu under
+               automation AT ANY WIDTH. Measured: invoking the button's own click
+               handler directly DOES open it; other menus on the same screen open
+               normally under the same automation; a synthesised tap at its
+               centre opens nothing. That may be an automation hit-testing
+               artefact rather than a real defect — a thumb is not a synthesised
+               pointer — so it is NOT claimed as a bug. docs/MANUAL_QA_UNITS.md
+               asks the user which it is, and gives the inspector's "Add insert…"
+               dropdown as the route that is known to work.
+               The cell-25 face row drives the inspector path for that reason,
+               and says so where a reader will find it.
+
 RESUME: Directive 07 — HOST INTEGRATION, step 2 reported
 STEP 1 DONE:   npm run build compiles the WASM core, syncs it and the processor
                into the bundle, and ASSERTS THE ARTEFACT (not the build log —
