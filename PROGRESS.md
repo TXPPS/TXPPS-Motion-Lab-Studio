@@ -251,8 +251,15 @@ UNIT BUILT:    granular_delay.h — one buffer, up to 8 taps, §2's per-tap orde
                skirt: a per-tap filter reaches the loop, and a constant-skirt
                form's gain rises with Q, which would move stability with a
                control the user turns for tone.
-Next action:   V2 (smear-zero null against a plain delay) and V6, then the
-               grain cloud per tap, reusing decay_harness.h for the decay rows.
+V2 PASSES:     -153.5 dBFS against a plain interpolated delay written in the
+               test (not borrowed from the unit, which would null against its
+               own mistakes). First version read -11.4 dBFS: the reference wrote
+               before reading and the unit reads before writing, so it was
+               comparing signals one sample apart — which reads as a granular
+               path colouring the delay rather than as an off-by-one in the
+               comparison.
+Next action:   the grain cloud per tap (§4's Smear driving the grain engine),
+               then V6 and V14, reusing decay_harness.h for the decay rows.
 BUILD ORDER CORRECTED (user, before R3): the voice substrate is built DURING
                Slipstream and proven through it, the way the nonlinear library
                was built during Program EQ — not after Slipstream. Slipstream is

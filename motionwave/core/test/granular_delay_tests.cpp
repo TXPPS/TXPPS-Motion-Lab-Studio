@@ -123,6 +123,94 @@ MW_TEST("V1: at Mix zero the unit is a wire") {
   MW_EXPECT(peak > 0.1);
 }
 
+MW_TEST("V2: at Smear zero the tap is a plain interpolated delay, exactly") {
+  /*
+   * §9 V2 nulls the whole path against a reference plain delay at −140 dBFS,
+   * and §4 says why it is worth a row of its own: it is "the cheapest possible
+   * guarantee that the granular machinery has not quietly coloured the plain
+   * delay". A granular engine that added a window, or a normalisation, or a
+   * half-sample of read offset at its bypass setting would be inaudible on its
+   * own and wrong in every preset built on top of it.
+   *
+   * The reference is written here rather than taken from the unit, because a
+   * reference that shared the unit's read would null against its own mistakes.
+   * What it shares is `readCubic`, which is the interpolation both are supposed
+   * to be doing — the row is about the machinery around the read, not about the
+   * interpolator, which GE-11 grades.
+   */
+  constexpr int kDelaySamples = 24000;  // 500 ms, as §9 V2 specifies.
+  GranularDelay unit;
+  configure(unit);
+  unit.setSmear(0.0);
+  // §9 V2: feedback zero, so what is compared is one pass of the tap.
+  unit.setFeedback(0.0);
+  TapSettings tap;
+  tap.delaySeconds = static_cast<double>(kDelaySamples) / kRate;
+  tap.level = 1.0;
+  tap.pan = 0.0;
+  unit.setTap(0, tap);
+  unit.reset();
+
+  const int frames = static_cast<int>(kRate) * 5;
+  std::uint32_t state = 0x2468ACEu;
+  std::vector<float> input;
+  input.reserve(static_cast<std::size_t>(frames));
+  const Rendered out = render(unit, frames, [&state, &input](int i) {
+    const std::pair<float, float> v = noiseAt(i, &state);
+    input.push_back(v.first);
+    return v;
+  });
+
+  /*
+   * The reference: the same DC-blocked input into a plain circular buffer, read
+   * at the same offset with the same interpolator, through the same equal-power
+   * pan and the same mix. Every stage the unit applies outside the granular
+   * path is applied here too, so what is left in the residual is only the
+   * granular path itself.
+   */
+  delay::DelayBuffer reference;
+  reference.prepare(kRate, 8.0);
+  reference.reset();
+  dsp::Biquad blocker;
+  blocker.setCoeffs(dsp::onePoleHighpassCoeffs(20.0, kRate));
+  blocker.reset();
+  dsp::Biquad filter;
+  filter.setCoeffs(dsp::lowpassCoeffs(18000.0, 0.707, kRate));
+  filter.reset();
+  const double angle = 0.5 * kPi * 0.5;
+  const double gainL = std::cos(angle);
+  const double equalPower = 0.70710678118654752;
+
+  double worst = 0.0;
+  double peak = 0.0;
+  for (int i = 0; i < frames; ++i) {
+    /*
+     * Read *before* write, which is the unit's own order and not an arbitrary
+     * choice here. A reference that wrote first would read one sample later
+     * than the unit and null at −11 dBFS on noise — which is what the first
+     * version of this row measured, and which reads as a granular path
+     * colouring the delay rather than as an off-by-one in the comparison.
+     */
+    const double rawL = static_cast<double>(reference.read(0, kDelaySamples));
+    const double rawR = static_cast<double>(reference.read(1, kDelaySamples));
+    const double blocked = blocker.process(static_cast<double>(input[static_cast<std::size_t>(i)]));
+    reference.write(static_cast<float>(blocked * equalPower),
+                    static_cast<float>(blocked * equalPower));
+    const double filtered = filter.process(0.5 * (rawL + rawR));
+    const double side = 0.5 * (rawL - rawR);
+    const double wet = filtered * gainL + side;
+    peak = std::max(peak, std::fabs(wet));
+    worst = std::max(worst, std::fabs(static_cast<double>(out.left[static_cast<std::size_t>(i)]) -
+                                      wet));
+  }
+  std::printf("    V2: residual against a plain interpolated delay %.1f dBFS, wet peak %.3f\n",
+              dbOf(worst), peak);
+  MW_EXPECT(dbOf(worst) <= -140.0);
+  // A null against two silences is not a null: the reference must have produced
+  // a delayed signal for the comparison to have meant anything.
+  MW_EXPECT(peak > 0.05);
+}
+
 MW_TEST("V5: DC does not accumulate around a loop at 95 % feedback") {
   /*
    * §9 V5: +0.5 DC in, feedback 95 %, two minutes, output DC at or below
