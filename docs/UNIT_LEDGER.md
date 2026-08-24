@@ -210,7 +210,7 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | FET Limiter         | `dyn-03` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Variable-Mu Limiter | `dyn-04` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Console EQ          | `dyn-05` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| Granular Reverb     | `fx-02`  | UI DONE     | PASS | —    | PASS | —    | —    | —    | PASS | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
+| Granular Reverb     | `fx-02`  | SHIPPING    | PASS | PASS | PASS | PASS | n/a  | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
 | Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
 | Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
 | DCO Poly            | `syn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
@@ -823,6 +823,59 @@ time — a wide dark field of point sources over a time axis, small detented
 rotaries beneath, a latching hold switch set apart — which is general and
 nobody's property. Nothing specific is taken from any product, and the forbidden
 name scan runs over this face like every other.
+
+### fx-02's remaining DSP cells, and the two that are not closed
+
+D4, D6, D8, D9 and D10 are measured in `granular_reverb_cell_tests`. D4 nulls at
+−240 dBFS, which is exact rather than merely inside the ledger's −120: bypass
+here is not a crossfade to a parallel path, the wet bus is simply not summed. The
+row carries a guard against the way a bypass null goes wrong — X24 found four
+units publishing zeros from their meters while bypassed, and a bypass that nulled
+by going silent would pass a carelessly written version of this and be badly
+wrong, so the row also requires the dry signal to have been there.
+
+D6 is the one worth a note. What can fail at a sample rate is not that the unit
+refuses it; it is that something inside is written in samples where it should be
+in seconds, which shows as a decay half as long at twice the rate. So the row
+measures the *time* to fall 20 dB at each of 44.1, 48, 88.2, 96 and 192 kHz —
+1.050, 1.100, 1.100, 1.100 and 1.100 seconds, a spread of 4.8 % across a 4.35:1
+range of rates. The failure it exists for is a factor, not a margin; what is left
+is the cloud's own spread, because the grain series is not the same series at two
+rates.
+
+D9's exhaustiveness comes from the manifest rather than from a maintained list: it
+fuzzes every row of the generated table, so a control added to the manifest is
+fuzzed without anyone remembering to add it. Forty-eight random settings of
+twenty-two parameters, 576 000 samples, all finite.
+
+**Two cells are not closed and are recorded rather than claimed.**
+
+`D5` is oversampling and alias dBc, and this unit has no oversampler — §3.1's
+point is that a granular shifter needs no rate change, and the anti-imaging lives
+in the interpolation kernel instead. The alias requirement itself is met and
+measured: V12 puts the Wide set's fold at −115 dBFS against a −70 threshold, and
+GE-11 publishes the figure per tier. The cell is therefore n/a *on the
+oversampling half only*, which is worth stating explicitly because "no
+oversampler" and "no alias measurement" would be very different claims.
+
+`D12` was genuinely open — §6 lists a sync-to-tempo option for Pre-delay and the
+unit had no tempo input at all — and is now built. The tempo comes from the host
+per block, exactly as the Motion Shaper takes it, rather than from the tempo map
+directly: `node.h` says in as many words that a processor wanting bars asks
+rather than remembers, and a unit reading the map itself would keep a second
+opinion about where the song is. The division is stepped rather than free,
+because a synced delay that is *nearly* a sixteenth is worse than an unsynced
+one — it beats against the material instead of sitting outside it.
+
+**Wiring it exposed a clamp that would have made the control look wired and do
+nothing.** The pre-delay line was sized for half a second, which is §6's range
+for the *millisecond* control, and the resolved delay was clamped into it. A
+musical value legitimately exceeds that: four quarters at 60 bpm is four
+seconds. So a quarter note arrived at the same instant at 120 bpm and at 80 —
+both resolved past the cap and both stopped there. The row caught it because it
+measures the delay at two tempos rather than checking one number at 120, which is
+the version that would have passed. The line is now sized for the synced maximum
+and the millisecond control keeps its own 0–500 ms range.
 
 ### What X24 found once every unit had one
 

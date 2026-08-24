@@ -40,6 +40,7 @@ enum class GranularReverbParam : int {
   OutputTrim = 20,
   Quality = 21,
   Bypass = 22,
+  PreDelaySync = 23,
 };
 
 /// One row of the parameter table, for tests that sweep every parameter.
@@ -74,7 +75,7 @@ struct GranularReverbParamRow {
   double deltaFloorDb;
 };
 
-inline constexpr int kGranularReverbParamCount = 22;
+inline constexpr int kGranularReverbParamCount = 23;
 
 inline constexpr GranularReverbParamRow kGranularReverbParams[kGranularReverbParamCount] = {
     {1, "Mix", "Mix", 0.0, 100.0, 35.0, 0.0, 100.0, -70.0},
@@ -99,6 +100,7 @@ inline constexpr GranularReverbParamRow kGranularReverbParams[kGranularReverbPar
     {20, "OutputTrim", "Output trim", -24.0, 24.0, 0.0, -24.0, 24.0, -70.0},
     {21, "Quality", "Quality", 0.0, 2.0, 1.0, 0.0, 2.0, -70.0},
     {22, "Bypass", "Bypass", 0.0, 1.0, 0.0, 0.0, 1.0, -70.0},
+    {23, "PreDelaySync", "Pre-delay sync", 0.0, 4.0, 0.0, 0.0, 4.0, -70.0},
 };
 
 /**
@@ -235,6 +237,13 @@ inline void applyGranularReverbParam(GranularReverb& u, int id, double v) noexce
       // A bypassed unit is still in circuit and still meters, which is what X24 found four units
       // getting wrong.
       u.setBypass(v > 0.5);
+      break;
+    }
+    case GranularReverbParam::PreDelaySync: {
+      // Quarter notes; zero leaves Pre-delay in milliseconds, which is what every row written
+      // before this one used. §6 lists the option and the tempo comes from the host per block
+      // rather than from the map, so the unit keeps no second opinion about where the song is.
+      u.setPreDelayQuarters(v);
       break;
     }
   }

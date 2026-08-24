@@ -134,13 +134,41 @@ FACE + X24:    fx-02's face, U19-U23 and X24 all PASS; 12/12 browser cells green
                §7.4's cap is 32. The expectation was wrong and the readout right —
                a panel showing 40 while 32 sound is the exact failure a
                delivered-value readout prevents.
-CELLS DONE:    D1, D3 (§9's rows), D7, U19, U20, U21, U22, U23, X24.
-CELLS OPEN:    D2 ranges/tapers, D4 bypass null -120, D5 oversampling/alias,
-               D6 rates 44.1-192, D8 latency=PDC (declared 0), D9 param fuzz,
-               D10 automation no zipper, D11 preset round-trip, D12 tempo map
-               (pre-delay sync). fx-02 is UI DONE, not SHIPPING.
-Next action:   The remaining D cells for fx-02, then Granular Delay reusing
-               decay_harness.h for its feedback rows.
+CELLS DONE:    D1, D2, D3, D4, D6, D7, D8, D9, D10, D11, U19-U23, X24.
+               D4 nulls at -240 dBFS (exact — bypass does not sum the wet bus,
+               it is not a crossfade), with a guard requiring the dry signal to
+               have been present, because a bypass that nulled by going SILENT
+               is the failure X24 caught on four other units.
+               D6 measures the 20 dB decay TIME at 44.1/48/88.2/96/192 kHz —
+               1.050/1.100/1.100/1.100/1.100 s, 4.8 % across a 4.35:1 range. A
+               loop written in samples instead of seconds fails this by a
+               factor, not a margin.
+               D9's exhaustiveness comes from the manifest: it fuzzes every row
+               of the generated table, so a control added later is fuzzed
+               without anyone remembering. 576k samples finite.
+D5 n/a:        No oversampler — §3.1's point is that a granular shifter needs no
+               rate change, and the anti-imaging is in the interpolation kernel.
+               The ALIAS half is met and measured: V12 puts the Wide fold at
+               -115 dBFS against -70, GE-11 publishes it per tier. n/a on the
+               oversampling half only; "no oversampler" and "no alias
+               measurement" would be very different claims.
+D12 DONE:      Pre-delay tempo sync built. Tempo comes from the host per block
+               (as the Motion Shaper takes it), not from the tempo map — node.h
+               says a processor wanting bars ASKS rather than remembers, and
+               reading the map would be a second opinion about song position.
+               Stepped divisions, because a synced delay that is NEARLY a
+               sixteenth is worse than an unsynced one.
+               Wiring it exposed a clamp that would have made the control look
+               wired and do nothing: the pre-delay line was sized for 0.5 s (§6's
+               range for the MILLISECOND control) and the resolved value clamped
+               into it, so a quarter note arrived at the same instant at 120 bpm
+               and at 80. Caught because the row measures at TWO tempos rather
+               than checking one number at 120 — the version that would have
+               passed. Line now sized for the synced maximum (4 quarters at 60
+               bpm = 4 s); the millisecond control keeps its own 0-500 ms range.
+fx-02:         SHIPPING. 23 controls, every ledger cell PASS or justified n/a.
+Next action:   Granular Delay (fx-03), reusing decay_harness.h for its feedback
+               rows, then the voice substrate through Slipstream.
 BUILD ORDER CORRECTED (user, before R3): the voice substrate is built DURING
                Slipstream and proven through it, the way the nonlinear library
                was built during Program EQ — not after Slipstream. Slipstream is

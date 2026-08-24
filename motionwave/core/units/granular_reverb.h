@@ -62,6 +62,35 @@ class GranularReverb : public Node {
     preDelaySeconds_ = seconds < 0.0 ? 0.0 : (seconds > 0.5 ? 0.5 : seconds);
     dirty_ = true;
   }
+
+  /**
+   * §6's sync-to-tempo option for the pre-delay.
+   *
+   * The division is in quarter notes — 1.0 is a quarter, 0.5 an eighth — and
+   * zero means the control is in milliseconds, which is the default and what
+   * every row written before this used. A synced pre-delay is the one place in
+   * this unit where a musical value beats a time: a pre-delay is heard against
+   * the material, and the material has a tempo.
+   *
+   * The tempo comes from the host per block, exactly as the Motion Shaper takes
+   * it, rather than from the tempo map directly. A unit that read the map itself
+   * would be keeping a second opinion about where the song is, and `node.h` says
+   * in as many words that a processor wanting bars asks rather than remembers.
+   */
+  void setPreDelayQuarters(double quarters) noexcept {
+    preDelayQuarters_ = quarters < 0.0 ? 0.0 : (quarters > 4.0 ? 4.0 : quarters);
+    dirty_ = true;
+  }
+
+  /// Tempo the synced pre-delay resolves against. Set by the host per block.
+  void setBpm(double bpm) noexcept {
+    const double clamped = bpm > 1.0 ? bpm : 1.0;
+    if (clamped == bpm_) return;
+    bpm_ = clamped;
+    // Only a synced pre-delay depends on it, so an unsynced unit does not
+    // rebuild its whole coefficient set every time the host reports a tempo.
+    if (preDelayQuarters_ > 0.0) dirty_ = true;
+  }
   void setSizeSeconds(double seconds) noexcept {
     sizeSeconds_ = clampRange(seconds, 0.020, 4.000);
     dirty_ = true;
@@ -165,7 +194,17 @@ class GranularReverb : public Node {
     capacity_ = capacity;
     mask_ = capacity - 1;
 
-    preDelay_.assign(static_cast<std::size_t>(sampleRate_ * 0.5) + 4, 0.0f);
+    /*
+     * Sized for the *synced* maximum, not the millisecond control's range.
+     *
+     * §6 gives Pre-delay 0–500 ms, and a musical value legitimately exceeds
+     * that: four quarters at 60 bpm is four seconds. Sizing this line at half a
+     * second and clamping the resolved delay into it made a quarter note arrive
+     * at the same instant at 120 bpm and at 80, because both resolved past the
+     * cap and both stopped there — a tempo control that looked wired and was
+     * being clamped away downstream.
+     */
+    preDelay_.assign(static_cast<std::size_t>(sampleRate_ * kMaxPreDelaySeconds) + 4, 0.0f);
     wetL_.assign(static_cast<std::size_t>(blockSize_), 0.0f);
     wetR_.assign(static_cast<std::size_t>(blockSize_), 0.0f);
 
@@ -404,7 +443,16 @@ class GranularReverb : public Node {
                       arena_.size() * sizeof(float));
       reseed_ = false;
     }
-    preDelaySamples_ = static_cast<int>(preDelaySeconds_ * sampleRate_ + 0.5);
+    /*
+     * Rounded, not truncated. `0.010 × 48000` is 479.99998 in float and
+     * truncating it gives 479 samples — a 0.33 % error that showed up once as
+     * ripple at the hop period, which is the kind of defect that reads as a DSP
+     * problem and is an arithmetic one.
+     */
+    const double preDelay =
+        preDelayQuarters_ > 0.0 ? preDelayQuarters_ * 60.0 / bpm_ : preDelaySeconds_;
+    preDelaySamples_ =
+        static_cast<int>(std::min(preDelay, kMaxPreDelaySeconds) * sampleRate_ + 0.5);
 
     /*
      * §2.2's relation, inverted. A granular loop has no single delay time — it
@@ -506,6 +554,9 @@ class GranularReverb : public Node {
   static constexpr float kMonoFoldCompensation = 1.5632f;
   /// Below this the freeze fade is finished and the head stops.
   static constexpr float kFrozenThreshold = 1.0e-4f;
+  /// Four quarter notes at 60 bpm, which is the longest §6's sync list can ask
+  /// for. The millisecond control's own range stays 0–500 ms.
+  static constexpr double kMaxPreDelaySeconds = 4.0;
 
   grain::GrainEngine engine_;
   dsp::Biquad inputBlocker_;
@@ -528,6 +579,9 @@ class GranularReverb : public Node {
 
   double mix_ = 0.35;
   double preDelaySeconds_ = 0.020;
+  /// Quarter notes; zero means the pre-delay is in milliseconds.
+  double preDelayQuarters_ = 0.0;
+  double bpm_ = 120.0;
   double sizeSeconds_ = 0.800;
   double minOffsetSeconds_ = 0.020;
   double decaySeconds_ = 3.0;

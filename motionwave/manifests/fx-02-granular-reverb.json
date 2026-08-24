@@ -15,7 +15,13 @@
     "shimmer to be unreachable rather than warned about, and a clamp that lives in",
     "the setter is unreachable from every caller, including a preset load and an",
     "automation lane. A dispatch that reproduced those rules would be a second",
-    "opinion about the unit's state."
+    "opinion about the unit's state.",
+    "",
+    "Pre-delay sync is stepped in quarter notes rather than free, because the",
+    "values that are musically useful are a short list and a continuous control",
+    "would let a user land between two of them — a synced delay that is nearly a",
+    "sixteenth is worse than an unsynced one, since it beats against the material",
+    "instead of sitting outside it."
   ],
   "unit": "fx-02",
   "className": "GranularReverb",
@@ -467,6 +473,37 @@
       "delta": [
         0,
         1
+      ]
+    },
+    {
+      "id": 23,
+      "symbol": "PreDelaySync",
+      "name": "Pre-delay sync",
+      "control": "knob",
+      "accessibleName": "Pre-delay tempo sync",
+      "unit": "Choice",
+      "min": 0,
+      "max": 4,
+      "def": 0,
+      "taper": "Stepped",
+      "steps": 9,
+      "choices": [
+        "Off",
+        "1/32",
+        "1/16",
+        "1/8 T",
+        "1/8",
+        "1/4 T",
+        "1/4",
+        "1/2",
+        "1 bar"
+      ],
+      "smoothingMs": 0,
+      "note": "Quarter notes; zero leaves Pre-delay in milliseconds, which is what every row written before this one used. §6 lists the option and the tempo comes from the host per block rather than from the map, so the unit keeps no second opinion about where the song is.",
+      "apply": "u.setPreDelayQuarters(v);",
+      "delta": [
+        0,
+        4
       ]
     }
   ]

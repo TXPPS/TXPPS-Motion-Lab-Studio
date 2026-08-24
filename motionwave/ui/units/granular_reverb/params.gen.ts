@@ -32,6 +32,7 @@ export const GranularReverbParam = {
   OutputTrim: 20,
   Quality: 21,
   Bypass: 22,
+  PreDelaySync: 23,
 } as const;
 
 export type GranularReverbParamId = (typeof GranularReverbParam)[keyof typeof GranularReverbParam];
@@ -270,6 +271,18 @@ export const granularReverbSpecs: readonly ParamSpec[] = [
     choices: ['Off', 'On'],
     smoothingMs: 0,
   }),
+  defineParam({
+    id: GranularReverbParam.PreDelaySync,
+    name: 'Pre-delay sync',
+    unit: Unit.Choice,
+    min: 0,
+    max: 4,
+    def: 0,
+    taper: Taper.Stepped,
+    steps: 9,
+    choices: ['Off', '1/32', '1/16', '1/8 T', '1/8', '1/4 T', '1/4', '1/2', '1 bar'],
+    smoothingMs: 0,
+  }),
 ];
 
 /**
@@ -412,5 +425,11 @@ export const granularReverbControls = [
     role: 'toggle',
     paramId: GranularReverbParam.Bypass,
     accessibleName: 'Bypass',
+  },
+  {
+    id: 'pre-delay-sync',
+    role: 'knob',
+    paramId: GranularReverbParam.PreDelaySync,
+    accessibleName: 'Pre-delay tempo sync',
   },
 ] as const;
