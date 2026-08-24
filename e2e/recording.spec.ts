@@ -4,6 +4,13 @@ import { existsSync } from 'node:fs';
 const preinstalledChromium = '/opt/pw-browsers/chromium';
 
 /**
+ * The switch is `--use-fake-device-for-media-stream`. It was
+ * `--use-fake-device-for-media-capture` here, which is not a Chromium switch at
+ * all: Chromium ignores an unknown switch, so the auto-accepted prompt opened
+ * whatever real device the host had. On a machine with one these tests passed
+ * while proving something other than what they claim; on a machine without one
+ * they failed for a reason that looked like a product bug.
+ *
  * Fake capture devices produce a deterministic tone, so the whole recording
  * path — permission, arming, count-in, MediaRecorder, decode, peaks,
  * IndexedDB, clip creation — runs for real without any hardware attached.
@@ -25,7 +32,7 @@ test.use(
           args: [
             '--autoplay-policy=no-user-gesture-required',
             '--use-fake-ui-for-media-stream',
-            '--use-fake-device-for-media-capture',
+            '--use-fake-device-for-media-stream',
           ],
         },
         permissions: ['microphone'],
@@ -289,5 +296,128 @@ test.describe('audio import affordances', () => {
     await page.waitForTimeout(500);
     expect(page.url()).toBe(before);
     await expect(page.locator('[data-testid="app-root"]')).toBeVisible();
+  });
+});
+
+/**
+ * Directive 09 §2.1 — stop, from the gestures a musician actually uses.
+ *
+ * Every recording case above ends its take by pressing the record button a
+ * second time, and that route always worked. The Stop button and the space bar
+ * did not: they halted the clock and left MediaRecorder capturing. Two hundred
+ * and twenty-two end-to-end tests passed over that for as long as none of them
+ * pressed Stop.
+ */
+test.describe('stop ends the take', () => {
+  test.skip(engine === 'webkit', 'WebKit has no fake capture device');
+
+  /** Keep every stream so its tracks can be inspected after the take. */
+  async function trackStreams(page: Page) {
+    await page.addInitScript(() => {
+      const w = window as unknown as { __streams: MediaStream[] };
+      w.__streams = [];
+      const md = navigator.mediaDevices;
+      if (!md?.getUserMedia) return;
+      const original = md.getUserMedia.bind(md);
+      md.getUserMedia = async (c?: MediaStreamConstraints) => {
+        const s = await original(c);
+        w.__streams.push(s);
+        return s;
+      };
+    });
+  }
+
+  const liveTracks = (page: Page) =>
+    page.evaluate(
+      () =>
+        (window as unknown as { __streams: MediaStream[] }).__streams
+          .flatMap((s) => s.getAudioTracks())
+          .filter((t) => t.readyState === 'live').length,
+    );
+
+  /** Boot into the record workspace with a track armed and capture running. */
+  async function startTake(page: Page) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await boot(page);
+    await page.click('[data-testid="nav-record"]');
+    await page.waitForSelector('[data-testid="record-workspace"]');
+
+    const enable = page.locator('[data-testid="request-mic"]');
+    if (await enable.count()) {
+      await enable.click();
+      await page.waitForTimeout(900);
+    }
+    await page.click('[data-testid="arm-track"]');
+    await page.waitForTimeout(300);
+    await page.click('[data-testid="btn-record"]');
+    // Count-in, then a couple of seconds of the fake device's tone.
+    await page.waitForTimeout(4500);
+    expect(await liveTracks(page), 'recording never opened an input').toBeGreaterThan(0);
+  }
+
+  test('the Stop button stops the recording, not only the playhead', async ({ page }) => {
+    await trackStreams(page);
+    const before = await page.evaluate(
+      () => document.querySelectorAll('[data-testid^="clip-"]').length,
+    );
+    await startTake(page);
+
+    await page.click('[data-testid="btn-stop"]');
+    await page.waitForTimeout(2500);
+
+    // The microphone is the honest witness. Against the old code the transport
+    // reported itself stopped while this stayed at one — the take was still
+    // running behind a stopped playhead.
+    expect(await liveTracks(page), 'the input was still open after Stop').toBe(0);
+
+    const review = await page.evaluate(
+      () => document.querySelector('[data-testid="take-review"]')?.textContent ?? '(no review)',
+    );
+    await page.click('[data-testid="nav-arrange"]');
+    await page.waitForTimeout(600);
+    const after = await page.evaluate(
+      () => document.querySelectorAll('[data-testid^="clip-"]').length,
+    );
+    expect(after, `Stop did not finalise the take (review said: ${review})`).toBeGreaterThan(
+      before,
+    );
+  });
+
+  test('the space bar stops the recording', async ({ page }) => {
+    await trackStreams(page);
+    const before = await page.evaluate(
+      () => document.querySelectorAll('[data-testid^="clip-"]').length,
+    );
+    await startTake(page);
+
+    // Space is deliberately ignored while a button has focus, so that a
+    // keyboard user pressing it on Mute gets a mute. The record button has
+    // focus from the click above; a musician's hands are on the keyboard.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(2500);
+
+    expect(await liveTracks(page), 'the input was still open after Space').toBe(0);
+    await page.click('[data-testid="nav-arrange"]');
+    await page.waitForTimeout(600);
+    const after = await page.evaluate(
+      () => document.querySelectorAll('[data-testid^="clip-"]').length,
+    );
+    expect(after, 'Space did not finalise the take').toBeGreaterThan(before);
+  });
+
+  test('a second Stop press returns to the start rather than being swallowed', async ({ page }) => {
+    await trackStreams(page);
+    await startTake(page);
+    await page.click('[data-testid="btn-stop"]');
+    await page.waitForTimeout(2500);
+    await page.click('[data-testid="btn-stop"]');
+    await page.waitForTimeout(400);
+    // The first press ended the take; only the second is the return-to-start
+    // press, and it must still work.
+    const pos = await page.evaluate(
+      () => document.querySelector('[data-testid="pos-display"]')?.textContent ?? '',
+    );
+    expect(pos.trim()).toBe('1.1.000');
   });
 });

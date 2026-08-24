@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { captureWindow } from '../src/audio/recordingController';
+import { captureWindow } from '../src/audio/takePlan';
 import { midiRecorder } from '../src/audio/midiRecorder';
 import { createEmptyProject } from '../src/model/demoProject';
 import { useProjectStore } from '../src/state/projectStore';

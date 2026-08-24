@@ -1,12 +1,8 @@
 import { useEffect } from 'react';
 import { engine } from '../../audio/engine';
 import { audioInput, DEFAULT_INPUT } from '../../audio/inputManager';
-import {
-  getCountInBars,
-  recording,
-  recordTargetTrack,
-  setCountInBars,
-} from '../../audio/recordingController';
+import { recording } from '../../audio/recordingController';
+import { getCountInBars, recordTargetTrack, setCountInBars } from '../../audio/takePlan';
 import { recorderSupported } from '../../audio/recorder';
 import { useInputStore, permissionLabel } from '../../state/inputStore';
 import { useProjectStore } from '../../state/projectStore';

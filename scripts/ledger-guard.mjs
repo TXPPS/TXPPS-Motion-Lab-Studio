@@ -14,8 +14,11 @@
  * not having it.
  */
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const LEDGER = new URL('../docs/UNIT_LEDGER.md', import.meta.url).pathname;
+// See scripts/licence-guard.mjs: `.pathname` is not a filesystem path on
+// Windows.
+const LEDGER = fileURLToPath(new URL('../docs/UNIT_LEDGER.md', import.meta.url));
 
 /** Values a cell is allowed to hold. Anything else is a typo or prose. */
 const CELL = /^(PASS|FAIL|n\/a|—|BLOCKED \(.+\))$/;

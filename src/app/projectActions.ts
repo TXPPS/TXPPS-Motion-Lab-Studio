@@ -151,7 +151,10 @@ export async function openProject(id: string): Promise<boolean> {
   // Claim the project before loading it, so a second tab knows it is a reader
   // before its first autosave timer can fire.
   await claimProject(id);
-  engine.stop();
+  // 'project', not a plain stop: an in-flight take would otherwise be committed
+  // to a track in the project that is about to be replaced. It is stashed for
+  // recovery instead, so the performance survives the load.
+  engine.stop('project');
   try {
     const p = await loadProject(id);
     if (!p) {
@@ -191,7 +194,7 @@ export async function openProject(id: string): Promise<boolean> {
 }
 
 export async function newProject(name: string, opts?: { demo?: boolean }): Promise<void> {
-  engine.stop();
+  engine.stop('project');
   const p = opts?.demo ? createDemoProject() : createEmptyProject(name);
   if (!opts?.demo) p.name = name;
   useProjectStore.getState().setProject(p, { markClean: false });

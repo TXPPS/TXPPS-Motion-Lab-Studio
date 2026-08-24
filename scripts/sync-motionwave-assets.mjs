@@ -13,7 +13,7 @@
 // differently from a file, and the difference shows up only in the deployed
 // build.
 import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 
 const root = process.cwd();
 /*
@@ -35,10 +35,7 @@ const prebuiltCore = join(root, 'motionwave/wasm/prebuilt/motionwave.worklet.js'
 const core = existsSync(freshCore) ? freshCore : prebuiltCore;
 const processor = join(root, 'motionwave/ui/worklet/unit_worklet.js');
 
-const targets = [
-  join(root, 'public/worklets'),
-  join(root, 'motionwave/ui/dev/public'),
-];
+const targets = [join(root, 'public/worklets'), join(root, 'motionwave/ui/dev/public')];
 
 if (!existsSync(core)) {
   console.error('motionwave: no core to ship.');
@@ -71,7 +68,10 @@ if (coreBytes < 100_000) {
 for (const target of targets) {
   mkdirSync(target, { recursive: true });
   for (const file of [core, processor]) {
-    const to = join(target, file.split('/').pop());
+    // `basename`, not `split('/')`: `join` above produced backslashes on
+    // Windows, so splitting on a forward slash returned the whole absolute
+    // path and the copy tried to create a directory inside itself.
+    const to = join(target, basename(file));
     mkdirSync(dirname(to), { recursive: true });
     copyFileSync(file, to);
   }

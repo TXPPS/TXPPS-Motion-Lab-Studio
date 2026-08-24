@@ -21,6 +21,7 @@ import { useTransportStore } from '../state/transportStore';
 import { diagLog } from '../state/diagnostics';
 import { evict, getBufferSync, loadBuffer } from './mediaLibrary';
 import { audioInput } from './inputManager';
+import { announceTransportStop, type TransportStopReason } from './transportStop';
 import { useInputStore, type RecordPhase } from '../state/inputStore';
 import { usePrefsStore } from '../state/prefsStore';
 import { DrumKit, PolySynth, type ActiveHandle, type Instrument } from './synth';
@@ -85,6 +86,19 @@ export function clickGain(p: Pick<ProjectData, 'clickLevel'>): number {
 export function clickSounds(p: Pick<ProjectData, 'clickRecordOnly'>, phase: RecordPhase): boolean {
   if (p.clickRecordOnly !== true) return true;
   return phase === 'recording' || phase === 'countIn';
+}
+
+/**
+ * Phases in which a take exists, so the space bar means stop rather than play.
+ *
+ * A count-in is the case that matters: the transport is not rolling yet, so
+ * `togglePlay` read it as stopped and started playback. The count-in then
+ * finished, found the transport already playing, skipped its own
+ * `play(rollBeat)`, and the take recorded from wherever playback had begun
+ * instead of from the punch point.
+ */
+export function takeInFlight(phase: RecordPhase): boolean {
+  return phase === 'arming' || phase === 'countIn' || phase === 'recording';
 }
 
 /** One live-applied automation binding, resolved once per project change. */
@@ -1837,11 +1851,22 @@ class AudioEngine {
     diagLog('info', `Transport play from beat ${startBeat.toFixed(2)}`);
   }
 
-  stop(): void {
+  stop(reason: TransportStopReason = 'user'): void {
+    // Announced first, and synchronously, so the encoder is told to stop while
+    // the scheduler still knows where the transport is. Every route to a
+    // stopped transport comes through here, which is what makes this the only
+    // place a take has to be ended; when the ending lived at the call sites,
+    // only the record button had it and the other six did not.
+    const hadWork = announceTransportStop(reason);
     if (!this.playing) {
-      // second stop press: return to start (common DAW convention)
-      this.pausedAtBeat = 0;
-      useTransportStore.getState().set({ positionBeats: 0 });
+      // Pressing stop a second time returns to start, which is the convention
+      // everywhere. A press that just ended a count-in is not a second press,
+      // though — it is the first — and zeroing the playhead there would move
+      // the take the user had lined up.
+      if (!hadWork) {
+        this.pausedAtBeat = 0;
+        useTransportStore.getState().set({ positionBeats: 0 });
+      }
       return;
     }
     this.pausedAtBeat = this.scheduler.positionBeats();
@@ -1853,7 +1878,7 @@ class AudioEngine {
   }
 
   togglePlay(): void {
-    if (this.playing) this.stop();
+    if (this.playing || takeInFlight(useInputStore.getState().phase)) this.stop();
     else void this.play();
   }
 
@@ -1879,6 +1904,10 @@ class AudioEngine {
   /** Stop-everything escape hatch: transport, sources, voices. */
   panic(): void {
     const wasPlaying = this.playing;
+    // Panic pulls the input streams out from under the encoder a few lines
+    // below, so the take has to be told before that happens rather than
+    // discovering it as a dead stream.
+    announceTransportStop('panic');
     if (this.playing) {
       this.scheduler.stop();
       this.playing = false;

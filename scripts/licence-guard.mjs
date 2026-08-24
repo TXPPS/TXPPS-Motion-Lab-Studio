@@ -19,8 +19,13 @@
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+// `fileURLToPath`, not `.pathname`: on Windows the latter yields
+// `/C:/…/APP%20Builds/…`, which `join` then turns into `C:\C:\…` with the space
+// still percent-encoded, and the build died in a directory scan of a path that
+// never existed. The conversion is the platform's job, not a string's.
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 /** Directories never scanned: build output, dependencies, and the git store. */
 const SKIP_DIRS = new Set([

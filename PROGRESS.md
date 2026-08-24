@@ -1,52 +1,126 @@
 # Motion Wave — progress
 
 ```
-RESUME: Directive 09 — faces. Directive 08 §3 (fx-03) is STOPPED.
+RESUME: Directive 09 — FSP8 parity, core workflow, live panels.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: 0ae5b4e and its successor — Program EQ on the new primitives.
-Current work:    Cell 26 usability. Program EQ is SHIPPING again; the other six
-                 render the framework default and are NOT SHIPPING, honestly.
-Last PASS:       X26 for Program EQ, backed by e2e/motionwave-face.spec.ts.
-Next action:     The other six panels, one at a time, each judged before the
-                 next: Optical Leveller (1960s optical, wrinkle enamel, bar
-                 knobs, VU), FET Limiter (1970s, anodised, collet, meter select
-                 buttons), Variable-Mu (valve, painted steel, chicken-head),
-                 Console EQ (console strip, moulded, fluted, rockers, faders),
-                 Granular Reverb (modern, glass, flat-cap), Motion Shaper (its
-                 curve editor mounted — the primitive exists, the panel does
-                 not).
-Shared libraries built: decay_harness.h, tank.h (built, measured, NOT adopted —
-                 see the V7 note), delay_routing/sync/smear/feedback/line,
-                 nonlinear library, grain engine with a stereo source, and now
-                 render/controls/ — gesture, knob, selector, switches, fader,
-                 vu + ballistics, readouts, curve, curve_model.
-Open deviations: V7 echo density 125 ms vs 80 ms (both granular units ship with
-                 it; the row's excitation is the defect, not the diffusion);
-                 V11 graded at 0.2 dB not 0.1; V4 graded from O=16 where the
-                 incoherent floor permits it; fx-02 D5 n/a on the oversampling
-                 half only; §2.3's "not identical to bypass" replaced by
-                 "reachable" for two units whose neutral default is correct;
-                 the VU scale is linear in dB where a printed face is not.
-WHEN fx-03 RESUMES: §6 tape and BBD character, which V8, V9, V10, V11 and V12
-                 all need. Measure the BBD companding artefacts with the
-                 ensemble discipline the decay rows use — they are
-                 program-dependent, so a single render is a single sample of a
-                 distribution — and calibrate the instrument against a known
-                 compander before believing any number it reports.
-Blocked cells awaiting hardware: V7 listening check (docs/HARDWARE_VERIFICATION.md).
-
-BRANCHES — NEEDS A HUMAN, cannot be done from here:
-  The repo default is still `claude/motionlab-studio-poc-3l1gwa` and the
-  Cloudflare Worker builds from the default. Setting the default to `main` needs
-  a repository SETTINGS write, which this environment's proxy refuses outright
-  ("Repository settings writes are not permitted through this proxy"), and the
-  Cloudflare build configuration is not reachable from here either.
-  WORKAROUND IN FORCE: `scripts/push-deploy.sh` pushes every commit to all three
-  branches, so they are always identical and the deploy is the current code
-  whichever branch is watched. The stale branch is therefore NOT deleted — with
-  the default still pointing at it, deleting it would break the only deploy the
-  user has. It goes the moment the default moves.
+Deployed commit: NOT YET DEPLOYED this session — see "Deploy" below.
+Bundle verified: no
+Current section: §2, transport and recording. §1 is COMPLETE.
+Next action:     §2.2 — microphone input. The parity read says arming a track
+                 has no audible or visible consequence at all today (no meter,
+                 no monitoring), so start there rather than at getUserMedia.
+Open deviations: recordingController.ts is 623 lines against the ~400 rule. It
+                 was 609 before this session and three things have already come
+                 out of it (takePlan, takeCommit, countIn). What is left is one
+                 thing — the take state machine — and splitting it further would
+                 spread shared mutable state across files, which is worse.
+Ledger:          1 of 14 shipping (Program EQ). Cell 27 not yet added.
+Carried:         every deviation listed under Directive 08 below still stands.
 ```
+
+## Directive 09 §1 — the manual has been read
+
+`docs/reference/fsp8-parity-spec.md` and its seven chapter documents. 687 pages,
+cover to cover, ~10,800 lines of parity analysis, every behaviour in
+**FSP8 does / MotionLab does / `PARITY`|`PARTIAL`|`MISSING`|`DIVERGENT-BY-DESIGN`**
+form with the manual line number it came from.
+
+This replaces web research as the reference. It also corrects
+`docs/REFERENCE-FSP8.md`, which was assembled from search-engine extracts
+because the manual was not fetchable from the previous environment: six of its
+claims are wrong, listed in `fsp8-parity-mixing.md` §14.1. The one that has
+already reached the product is the channel strip's I/O selectors, which the
+manual puts at the **top** and which MotionLab currently draws at the bottom.
+
+The manual PDF is **not tracked** — `.gitignore`. It is a vendor document this
+repository may not redistribute; the parity spec is the tracked record of it.
+
+## Directive 09 §2.1 — transport stop does not stop. Closed.
+
+**It was not the Stop button.** MotionLab had two transport owners with a
+one-way dependency: `recording.stop()` called `engine.stop()`, and nothing
+called back. So the six routes that reached `engine.stop()` directly — the Stop
+button, the space bar, the Show page's play/stop toggle, Control Link's MMC
+stop, loading a project, the diagnostics self-test — halted the clock and left
+`MediaRecorder` capturing. The playhead froze, the take timer kept climbing, the
+microphone stayed open, and the take was never committed.
+
+Of the directive's four hypotheses, **the third was right** and the second was a
+symptom of it (the tick interval was only ever cleared on the record-button
+path). The first and fourth were not: the flag was read correctly wherever it
+was read, and the finaliser did not race the stop — nothing told it to start.
+
+**The fix is structural, not a call-site patch.** `src/audio/transportStop.ts` is
+a dependency-free announcement channel; the engine announces, the recording
+controller listens. The import cycle between them is why the callback had never
+been added, so removing the cycle is the fix rather than a place to hang one
+more call. Listeners run **synchronously and before the clock is parked**: the
+first so no audio exists after the stop instant, the second so the finaliser can
+still ask the scheduler where the transport was.
+
+Six further defects surfaced while proving it, every one of them real:
+
+| #   | Defect                                                                      | Why it mattered                                                                                                                                                                                                                                                                                                                                         |
+| --- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `TakeRecorder.stop()` assigned `stopPromise` **after** calling `rec.stop()` | `onstop` is not required to be asynchronous; with nothing left to flush, Firefox and Safari fire it inside the call. The handler nulled the field and the assignment put a settled promise back, so **every later stop short-circuited and never reached `rec.stop()`**. A second independent cause of the same reported symptom, on those two engines. |
+| 2   | Space bar during a count-in started playback                                | `togglePlay` read "not rolling" as "stopped". The count-in then finished, found the transport playing, skipped its own `play(rollBeat)`, and the take recorded from wherever playback had begun.                                                                                                                                                        |
+| 3   | Stop during a count-in zeroed the playhead                                  | The `!playing` branch read it as the second of two presses and moved the take the user had lined up.                                                                                                                                                                                                                                                    |
+| 4   | Stop during `arming` was swallowed                                          | The guard read `phase !== 'recording'`, so a stop pressed at the permission prompt did nothing and the take began a moment later — the record button appearing to ignore the user.                                                                                                                                                                      |
+| 5   | `start()` could be outrun by its own stop                                   | A boolean `cancelled` flag was cleared by the _next_ `start()`, so an older start resuming after an await read itself as live and trampled the take that had replaced it. Replaced by a generation counter; the unwind releases the device and owner it captured as locals, because the fields on `this` are cleared the moment the stop lands.         |
+| 6   | The count-in counted at bar 1's tempo and signature                         | `project.bpm` / `project.timeSig` rather than the tempo map at the roll point. Punch in at bar 40 of a song that slows to 90 in 3/4 there, and it counted you in at 120 in 4/4 — a count-in to a pulse the take was not going to be recorded at.                                                                                                        |
+
+**Tests.** `tests/transportStop.test.ts` (28) and `tests/countIn.test.ts` (11),
+plus three real-browser cells in `e2e/recording.spec.ts`. Every one of them was
+mutation-tested: reverting the announce fails 7 unit cells and 2 e2e cells by
+name; reverting the recorder ordering fails 3; reverting the generation counter
+fails 1; reverting either count-in fix fails 2 each.
+
+**Why 222 e2e tests missed it.** Every recording spec ended its take by pressing
+the record button a second time — the one route that always worked. The new
+cells press Stop and the space bar.
+
+`tests/transportStop.test.ts` also carries a **static guard**, in the manner of
+`schemaWired.test.ts`: every line in `engine.ts` that clears the playing flag
+must announce within the preceding 26 lines, and `scheduler.stop()` may be
+called from `engine.ts` and nowhere else. A seventh stop path cannot be added
+silently, which is how the first six came to exist.
+
+## Directive 09 — the Windows build was broken, and is now fixed
+
+The directive moved this work to a local Windows clone so deploys could be
+verified again. `npm run build` did not run there at all. Four separate causes,
+all of them POSIX assumptions:
+
+- `licence-guard.mjs`, `ledger-guard.mjs` and `generate-curve-golden.mjs` used
+  `new URL(...).pathname`, which on Windows yields `/C:/…/APP%20Builds/…`;
+  `join` then produced `C:\C:\…` with the space still percent-encoded. Now
+  `fileURLToPath`.
+- `sync-motionwave-assets.mjs` took a basename with `split('/').pop()`, and
+  `join` had produced backslashes, so it tried to create a directory inside
+  itself. Now `basename`.
+- `core.autocrlf=true` checks out CRLF while `generate-params.mjs` writes LF, so
+  **all fourteen generated parameter files read as stale** and the build
+  refused. `.gitattributes` now pins `eol=lf` for the working tree on every
+  platform. The regeneration that followed changed **zero bytes of content** —
+  `git diff --numstat` over `motionwave/` is empty.
+- `e2e/recording.spec.ts` passed Chromium `--use-fake-device-for-media-capture`,
+  which is **not a Chromium switch**. Chromium ignores an unknown switch, so the
+  auto-accepted prompt opened whatever real device the host had: on a machine
+  with a microphone the specs passed while proving something other than what
+  their own comment claims, and on a machine without one they failed for a
+  reason that looked like a product bug. Now
+  `--use-fake-device-for-media-stream`.
+
+## Directive 09 — verification status
+
+| Gate                                        | Result                                                                   |
+| ------------------------------------------- | ------------------------------------------------------------------------ |
+| `npm run typecheck`                         | clean                                                                    |
+| `npm run lint`                              | clean                                                                    |
+| `npm test`                                  | **1682 passing**, 97 files                                               |
+| `npm run build`                             | clean, on Windows                                                        |
+| `npx playwright test e2e/recording.spec.ts` | **11 passing**, real Chromium, fake capture device                       |
+| Deploy                                      | **not yet run this session** — E1 is not reportable until §2.2–§2.5 land |
 
 ## fx-03 — the cloud, and a pool sized for one tap
 
@@ -57,7 +131,7 @@ is the carried decision and the right one — eight engines would split every
 guarantee the pool makes eight ways.
 
 **The ceiling was still wrong, and V14 found it.** `fx-02`'s 256 slots are 1.56x
-the 99.99th percentile of *one* tap at an overlap of 96. This unit runs eight
+the 99.99th percentile of _one_ tap at an overlap of 96. This unit runs eight
 taps, and §4's table asks for 32 streams each at full Smear — 256 grains in
 flight against a 256-slot pool. Measured: **3527 grains dropped in four seconds
 and the spawn rate 13.35 % under**. The same arithmetic with this unit's own
@@ -81,8 +155,6 @@ stereo pair, so a host cannot apply a tap's level and position afterwards
 without unmixing what it just mixed; they belong where the grain is built and
 the tap it came from is still known. Both default to unity and centre, so
 `fx-02` is unchanged by their existence.
-
-
 
 **Read this first:** the Definition of Done is **not reachable on this build
 host**, and no amount of work here will change that. Four of the five shipping

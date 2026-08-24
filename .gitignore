@@ -60,3 +60,8 @@ public/worklets/motionwave.worklet.js
 public/worklets/unit_worklet.js
 motionwave/ui/dev/public/motionwave.worklet.js
 motionwave/ui/dev/public/unit_worklet.js
+
+# The vendor manual is a reference the team reads, not a file this commercial
+# repository may redistribute. Drop it in docs/ locally; the parity spec in
+# docs/reference/ is the tracked record of what it says, with attribution.
+docs/*User Manual*.pdf

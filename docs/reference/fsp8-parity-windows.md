@@ -1,0 +1,624 @@
+# Directive 09 §1 — Windows and Panes
+
+Research analyst deliverable. Cross-cutting sweep of the FSP8 manual for every
+panel, pane, tab, window and dialog; how each opens, resizes, docks, floats,
+collapses and expands; and what is modal.
+
+**IP boundary.** FSP8 (Fender Studio Pro 8) is a *reference document only*.
+Quotations below are attributed and are used only where the exact wording is
+load-bearing. **No trademarked name from FSP8 may be used for a MotionLab UI
+label, component name, type, filename or preset name.** Where this document
+needs to name a MotionLab-side concept it uses generic vocabulary (pane, drawer,
+sheet, detach, dock, splitter). Section C names only real MotionLab identifiers.
+
+Sources read in full: **The Browser** (fsp8.txt lines 8905–10293) and
+**Arranging** (10294–11914), plus a whole-file sweep and its follow-through into:
+View Options / View menu (2555–2700), Pages (2700–3060), Track and Event
+Inspectors (5885–5925), Edit View (6160–6200), Macro Toolbar (7905–7935), Score
+Detach and Pin (8370–8400), The Console (11870–12420), Channel Overview
+(12845–12880), Marker Track Inspector (13570–13600), Show page Setlist/Players
+(14650–14760), Performance View (15296–15345), Mackie function keys
+(16295–16310).
+
+---
+
+## Executive summary
+
+| | FSP8 | MotionLab |
+|---|---|---|
+| Distinct panels / panes / tabs / windows / dialogs catalogued | **113** | **111** |
+| Surfaces detachable to a free-floating OS window | **13** | **0** |
+| Surfaces documented as usable on a second monitor | **8** | **0** |
+| Surfaces with a drag-to-resize divider | ~20 | **5** (4 panel splitters + 1 automation-lane height handle) |
+| Keyboard shortcuts that open or close a panel | **17** | **3** (`?` shortcuts sheet, `Mod+,` preferences, `Mod+Shift+E` export) — and **0** for any workspace pane |
+| Window-position persistence + a Reset Window Positions command | yes | partial — pane sizes persist; `workspaceStore.reset()` exists but is buried in the overflow menu and in Preferences → Audio |
+| Separate undo stack for visibility changes | yes (10 steps) | **no** |
+| Genuinely modal surfaces (focus-trapped) | ~28 | **5** (`DialogHost`, `ShortcutsSheet`, `WelcomeSheet`, `SettingsSheet`, `ExportSheet`) |
+
+The counts are close, but they are not the same kind of thing. FSP8's 113 is
+weighted toward *windows* — thirteen of them detachable, most of them
+keyboard-addressable. MotionLab's 111 is weighted toward inline strips,
+disclosures and popovers inside four fixed panes. The parity gap is structural,
+not numerical.
+
+The single largest structural gap is **detachment**. FSP8 treats "detach to a
+free window, move it to the other monitor, pin it there" as a first-class,
+repeated pattern across thirteen surfaces, and gives it four dedicated View-menu
+commands. MotionLab has no detach mechanism of any kind:
+`grep -rniE "window\.open|documentPictureInPicture|popout|detach"` over `src/`
+returns only audio-buffer detach and a file-input helper — nothing
+window-related.
+
+The second largest is **keyboard access to panes**. FSP8 gives every major pane a
+function key. MotionLab's shortcut registry (`src/app/shortcuts.ts`, 62 entries)
+has a `View` category containing only tools, keyboard octave and help. No
+shortcut toggles the browser, the inspector, the bottom editor, or maximize.
+
+---
+
+# (A) FSP8 panel / pane / tab / window / dialog inventory
+
+Legend — **Rz** resizable · **Dt** detachable / floatable / dockable ·
+**Cl** collapsible / expandable · **Md** modal (M) or modeless (m) ·
+**St** retains state. "—" = the manual does not state it; "n/a" = does not apply.
+
+## A.1 Documents and pages (5)
+
+| # | Name | Where it lives | How it opens | Rz | Dt | Cl | Md | St |
+|---|---|---|---|---|---|---|---|---|
+| 1 | Start page | Top-level page | Launch; Home icon; `Ctrl+Tab` Quick Switch | window | no | n/a | m | yes — Recent/Pinned lists, tab selection |
+| 2 | Session page | Top-level page | New/Open a Session | window | no | n/a | m | yes — with the Session file |
+| 3 | Mastering page | Top-level page | New/Open a Mastering Project | window | no | n/a | m | yes |
+| 4 | Show page (edit view) | Top-level page | New/Open a Show | window | no | n/a | m | yes |
+| 5 | Performance View | Show page | `Perform` button; `Show/Perform`; `Ctrl/Cmd+Enter`. **Alt+click Perform opens it as a separate resizable window** | yes | **yes** — own window, second monitor | n/a | m | **yes** — "When this window is closed, its size and position will be recalled ... the next time you open it" |
+
+## A.2 Session-page primary panes (13)
+
+| # | Name | Where it lives | How it opens | Rz | Dt | Cl | Md | St |
+|---|---|---|---|---|---|---|---|---|
+| 6 | Session Toolbar | Top of Session page | always present | no | no | no | m | — |
+| 7 | Transport Bar | Bottom of Session page | always present | no | no | no | m | — |
+| 8 | Arranger / Arrange view | Centre | always present | yes, by its neighbours | no | no | m | zoom + scroll per Session |
+| 9 | Track Column (track controls) | Left of Arranger | always present | **yes** — "clicking and dragging the dividing line between them and the Arrangement" | no | per-track expand | m | yes |
+| 10 | Editor / Edit view | Below Arranger | Editor button; **F2**; double-click any Event; `View/Editor` | yes | **yes** — Detach button upper right, then **Pin** | yes | m | yes; Pin keeps it open against F2 |
+| 11 | Console | Below Arranger | Console icon; **F3** | yes | **yes** — Detach button at the top of the Console Navigation column; Attach re-docks | Small/Large (**Shift+F3**), Narrow/Normal, per-channel Expand | m | yes |
+| 12 | Browser | Right of Arranger | Folder icon; **F5** | **yes** — widening reveals extra loop columns | **yes** — Detach button at the top of the Navigation column; Attach re-docks | yes | m | yes — user tabs persist across all documents |
+| 13 | Inspector (Track + Event) | Left, below Arranger | `[i]` button above the Track Column; **F4** | yes | no | **yes** — Show Event Inspector and Show Channel Fader sub-toggles | m | yes |
+| 14 | Channel Overview | Below Arranger | Fader icon on the Transport Bar; double-click the right edge of a track | yes | **yes** — detach button at the top left of the window | toggles against the Console | m | — |
+| 15 | Track List | Left of Arranger | Track List icon, upper left of the Session page | yes | no | per-track disclosure arrows | m | **yes** — its own 10-step visibility Undo/Redo |
+| 16 | Arrangement Overview (mini-map) | Strip above Arranger | Overview button on the toolbar | **yes** — "drag the handles of the white box horizontally or vertically" | no | yes | m | — |
+| 17 | Launcher | Beside or instead of the Timeline | Launcher button; **B** | **yes** — "clicking and dragging the dividing bar between the arrangement and Launcher horizontally" | no | Side-by-Side / Exclusive modes | m | yes, with the Session |
+| 18 | Scratch Pad | Right of the Arrange view | Scratch Pad button; triangle menu adds / deletes / switches | yes | no | show/hide | m | **yes** — "Scratch Pads and the content placed within them are stored with the current Session" |
+
+Mutual exclusion worth recording: *"You can't use the Launcher and Scratch Pads
+at the same time. Likewise, you cannot view the Timeline, Launcher and Scratch
+Pads at the same time."* (FSP8, The Launcher)
+
+## A.3 Toolbar panels — the docked/detachable family (6)
+
+| # | Name | Where it lives | How it opens | Dt | Cl | Md | St |
+|---|---|---|---|---|---|---|---|
+| 19 | Macro Toolbar | **docked to the top panel by default**; independent instances for Arrangement, Note Editor and Audio Editor | Macros button; `View/Additional Views/Macros` | **yes** — "it can be detached like the other panels by clicking on the detach button to the far right of the panel"; when detached, right-click switches **vertical or horizontal orientation** | expand/collapse | m | yes |
+| 20 | Quantize panel | docked, top toolbar | Quantize Panel button; `View/Additional Views/Quantize` | **yes** — "can be detached and freely placed on the screen" | yes | m | — |
+| 21 | Audio Bend panel | docked, top toolbar | Audio Bend button; `View/Additional Views/Audio Bend` | **yes** — "can also be detached and freely placed onscreen" | yes | m | — |
+| 22 | Strip Silence panel | docked, top toolbar | `View/Additional Views/Strip Silence` | same family | yes | m | — |
+| 23 | Info View | bar at the top of the window | `View/Additional Views/Info View`; `?` icon on the Mastering toolbar | no | yes | m | — |
+| 24 | Record Panel | Transport area | `View/Record Panel` | no | yes | m | yes |
+
+## A.4 Floating utility views (8)
+
+All open from the **View** menu and are explicitly described as floating.
+
+| # | Name | How it opens | Rz | Dt | Md | Notes |
+|---|---|---|---|---|---|---|
+| 25 | Time Display View | `View/Time Display` | **yes** | **floating** | m | "The floating, resizable Time Display View..." |
+| 26 | Remaining Record Time View | `View/Remaining Record Time` | **yes** | **floating** | m | same phrasing |
+| 27 | Chord Display View | `View/Chord Display`; right-click the Chord Track | **yes** | **floating** | m | three sources: Chord Track · Input Chord · Editor |
+| 28 | Lyrics Display | `View/Lyrics Display`; icon in the Lyrics Track header | **yes** | **floating — "can even be displayed on a second monitor"** | m | Edit Mode (pencil), Show Ruler, Grid Options, Setup (wrench) |
+| 29 | MIDI Monitor | `View/MIDI Monitor` | yes | floating | m | filterable |
+| 30 | Performance Monitor | `View/Performance Monitor` | yes | floating | m | CPU/disk, per-plug-in, Plug-in Nap tickboxes, Dropout Protection |
+| 31 | Note Repeat | `View/Note Repeat` | yes | floating | m | |
+| 32 | Video Player | `View/Video Player` | yes | floating | m | |
+
+## A.5 Global Tracks (10)
+
+Opened from the Global Track buttons above the track controls; each spans the
+whole arrangement.
+
+| # | Name | How it opens | Cl | Notes |
+|---|---|---|---|---|
+| 33 | Global Track Visibility button | appears **when the track-control area is narrowed** — the buttons "collapse into a single Global Track Visibility button" | this *is* the collapse mechanism | a vertical list; check marks show which are open |
+| 34 | Ruler Track (secondary ruler) | Global Track button | show/hide | Seconds · Samples · Bars · Frames |
+| 35 | Marker Track | Global Track button | show/hide | +/− buttons; has its own Inspector |
+| 36 | Arranger Track | Open Arranger Track button | show/hide | Timebase button (musical note ↔ clock) |
+| 37 | Chord Track | Chord Track button | show/hide | `Follow: On/Off`; Instrument Input; Audition Chords |
+| 38 | Lyrics Track | `[L]` icon in the Global Track List | show/hide | source drop-down: Global Track vs a track's Lyrics Lane |
+| 39 | Video Track | Global Track button | show/hide | |
+| 40 | Signature Track | Signature Track icon | show/hide | time + key signature markers |
+| 41 | Tempo Track | Tempo Track button | show/hide | max/min range fields — **"Changes to these settings are saved with the current Session"** |
+| 42 | Global Tracks inside the Editors | Global Track Visibility button in the Editor; or right-click the time ruler | show/hide | only 4 of 8 (Marker, Arranger, Chords, Signature) and **read-only** — "the Global Tracks can't be changed inside the Editor windows" |
+
+## A.6 Browser sub-surfaces (16)
+
+| # | Name | How it opens | Rz | Cl | Md | Notes |
+|---|---|---|---|---|---|---|
+| 43 | Home tab | Browser tab bar | — | — | m | searches across all tabs; hosts Re-Index Presets + Plug-In Manager |
+| 44 | Instruments tab | tab; **F6** | — | folder tree | m | Sort by Flat / Folder / Vendor / Type |
+| 45 | Effects tab | tab; **F7** | — | folder tree | m | same sorts, plus FX Chains |
+| 46 | Loops tab | tab; **F8** | widening reveals waveform, Tempo, Length, Format, Sample Rate, Bit Depth columns | three-tier sort | m | |
+| 47 | Splice tab | tab | — | — | m | Installation dialog on first click |
+| 48 | Files tab | tab; **F9** | — | **`Alt+Up` collapse all; `Alt+Left` collapse current top-level directory** | m | Desktop · Documents · app data · Sound Sets · Volumes |
+| 49 | Cloud tab | tab | — | — | m | Exchange · cloud storage · SoundCloud |
+| 50 | Pool tab | tab; **F10** | Data Zoom on the waveforms | attachment disclosure triangles | m | |
+| 51 | User-created file tabs / Root tabs | drag a folder onto the tab bar; right-click → New Tab From Here / New Root Tab | — | overflow drop-down when out of space | m | **yes** — "Tabs you create ... appear for all Sessions, Mastering Projects and Shows" |
+| 52 | Search field | magnifier icon, top right of the Browser | — | toggles open/closed | m | shows the location being searched |
+| 53 | Tag view | Tags icon beside the search bar | — | toggle | m | selecting tags narrows the remaining tags |
+| 54 | Thumbnail View | Show Thumbnails button, upper right | — | toggle | m | not available on Loops, Files or Pool |
+| 55 | Gallery View | Toggle Tree Mode → Show Gallery | — | toggle | m | the Navigation bar is not available in Gallery view |
+| 56 | Navigation Bar (breadcrumbs + separator menus) | appears below Sort By in Thumbnail view | — | — | m | every tab except Home |
+| 57 | Manage Plug-ins view | wrench button, upper right of the Browser | — | toggle | m | **Revert state "saved each time you exit Manage Plug-ins mode, and when quitting"** |
+| 58 | Preview Player | appears in the bottom of the Browser when an audio file is selected | — | appears / disappears | m | own transport, own position cursor, own volume fader, Play at Session Tempo, Loop |
+
+## A.7 Console sub-panels (11)
+
+All open from the Console Navigation column at the far left.
+
+| # | Name | How it opens | Default | Cl | Notes |
+|---|---|---|---|---|---|
+| 59 | Console Navigation column | present with the Console | open | — | the panel switcher itself |
+| 60 | Inputs panel | Inputs button | **closed** | open/close | Input Gain + Polarity per channel |
+| 61 | Outputs panel | Outputs button | **closed** | open/close | |
+| 62 | External Devices panel | External button | **closed** | open/close; per-device **Expand/Collapse** | double-click a device opens its Edit dialog |
+| 63 | Instrument Rack panel | Show Instrument Rack button | **open** | open/close; per-slot **Expand/Collapse**; **Compact vs Extended** slot density | |
+| 64 | Show Scenes panel | Show Scenes button; `Ctrl+Alt+S` opens a **dialog** to type a name or number | closed | open/close | **yes** — any number of Scenes saved per Session |
+| 65 | Show Groups panel | Show Groups button | closed | open/close | |
+| 66 | Channel List panel | Channel List button | closed | open/close | Filter field; type icons; **Link Visibility of Track List and Console** |
+| 67 | Remote Bank | Remote button — appears only while the Channel List is open | closed | toggle | a special Scene for the control surface |
+| 68 | Insert Device Rack | per channel | — | per-channel Expand | hidden in Small mode; replaced by meters in Large + Narrow |
+| 69 | Send Device Rack | per channel | — | per-channel Expand | |
+
+## A.8 Editors and plug-in windows (9)
+
+| # | Name | How it opens | Rz | Dt | Md | Notes |
+|---|---|---|---|---|---|---|
+| 70 | Audio Editor | **F2**; double-click an Audio Event | yes | **yes** — Editor Detach + Pin | m | independent Snap and Timebase from the Arrange view |
+| 71 | Note Editor (Piano view) | **F2**; double-click an Instrument Part | yes | **yes** | m | |
+| 72 | Drum view | Note Editor view switch | yes | yes | m | |
+| 73 | Score view / Score Editor | Note Editor view switch | yes | **yes** — "detach the Score view window and place it in another area of the screen, or even move it to a different monitor"; then **Pin**: "click the Pin icon to lock its status and position ... keep it from closing when [F2] is used"; **Close** = X or F2 | m | "can be detached, so you can look at it side-by-side with the same note data in Piano view or Drum view" |
+| 74 | Note Editor Inspector (Score view) | left side of the Score window | — | with its parent | m | **three selectable lower panels: Symbols · Track · Layout**, plus a Track List with a **Lock Track List** icon |
+| 75 | Melodyne / ARA view | `Ctrl+M`; double-click an Event with active Event FX | yes | **"can be maximized and detached in the same way as the Audio and Note Editors"** | m | |
+| 76 | Pattern Editor | **F2** on a pattern | yes | yes | m | |
+| 77 | Instrument Editor window | click an Instrument Slot; **F11**, **Shift+F11**; keyboard icon in the Show Players column | yes | **floating** | m | tabs across the top switch between loaded instruments |
+| 78 | Plug-in / effect editor window | click an Insert; **F11** for the selected channel | yes | **floating — `View/Toggle Floating Windows` hides and shows them all at once; Mackie F8 = Toggle Floating Window** | m | inserts on one channel appear as tabs at the top of the plug-in header |
+
+## A.9 In-place sub-panels and lanes (7)
+
+| # | Name | How it opens | Cl | Notes |
+|---|---|---|---|---|
+| 79 | Automation Lanes | Show/Hide Automation Lanes icon in the Note Editor; `Add/Remove` | expand/collapse | at least one curve is always visible |
+| 80 | Lyrics Lane | Show/Hide Automation Lanes → Lyrics tab | expand/collapse | per Instrument Track, independent of the Global Lyrics Track |
+| 81 | Track Layers | Inspector → Layers; Layers menu | expand/collapse | expand/collapse counts toward the visibility Undo history |
+| 82 | Folder Track | Pack Folder; Add Tracks dialog | **Folder icon shows/hides contained tracks. Collapsed, it shows one consolidated Event with a lane per contained track that can be sized, moved, cut, copied and duplicated directly** | "Link expansion and visibility of Folder Tracks" mirrors it in the Console |
+| 83 | Chord bar in the Editor | "Chords" button along the bottom edge of the Editor | show/hide | where mis-detected chords are corrected |
+| 84 | Micro Edit Controls | Instrument Slot menu → Show Micro Edit Controls | show/hide | appear beneath the slot |
+| 85 | Event FX Device Rack | Inspector → Event Inspector | show/hide | per-Event, not per-Track |
+
+## A.10 Show page surfaces (5)
+
+| # | Name | How it opens | Cl | Md | Notes |
+|---|---|---|---|---|---|
+| 86 | Setlist | Show page, left | **view size Small or Normal** | m | Artist / Venue / logo header |
+| 87 | Setlist Inspector | bottom of the Setlist window | — | m | Colour · Name · Playback Mode · Start · Length · Tempo · Pause · Time Sig · Key Sig |
+| 88 | Players column | Show page | — | m | Add Player; per-player Instrument Editor, Mute/Solo, Patch Automation |
+| 89 | Show Overview (Player lanes × Setlist columns) | Show page | — | m | each intersection is a "slot" holding one Patch |
+| 90 | Performance View sub-views: Controls · Patches · Sections | inside Performance View | switch | m | text and controls scale to the available screen |
+
+## A.11 Modal dialogs and windows (23)
+
+Everything here is described with "dialog", or "window ... click OK", or an
+explicit confirm/cancel pair. These block until dismissed.
+
+| # | Name | How it opens |
+|---|---|---|
+| 91 | Options / Preferences — tabs General, Locations, Audio Setup, External Devices, Advanced | `Studio Pro/Options` |
+| 92 | Keyboard Shortcuts panel | inside Options → General |
+| 93 | Safety / Recovery Options | after a crash, or hold `Shift` at startup |
+| 94 | New Document — Smart Templates, Drop Zone, DDP import | `New...`, `Ctrl+N` |
+| 95 | Add Tracks | `Track/Add Tracks`; **T** |
+| 96 | Session Setup | `Session/Session Setup` |
+| 97 | Automation dialog | `Add/Remove` on an automation lane; Note Editor automation tab → `Add...` |
+| 98 | Plug-In Manager — Plug-in tab · Statistics tab · Blocklist · Filter · Priority Settings | Browser Home → Plug-In Manager; `View/Plug-in Manager` |
+| 99 | Macro Organizer | gear icon beside the Page name; `Studio Pro/Macro Organizer` |
+| 100 | Sound Set Properties | right-click a folder → Mount Folder as Sound Set / Pack Sound Set from Folder |
+| 101 | Store Preset / Store Chord Preset | context menu → Store Chord Preset |
+| 102 | Insert Chord Preset browser | context menu → Insert Chord Preset |
+| 103 | Export Mixdown | Song menu |
+| 104 | Export Stems — Sources: Tracks / Channels tabs | Song menu |
+| 105 | Stem Separation | Trigger Stem Separation — **"The last used settings in the dialog are stored for the next time"** |
+| 106 | Burn Audio CD | `[Burn]` on the Mastering page |
+| 107 | Digital Release | `[Digital Release]` |
+| 108 | SoundCloud Client | `Studio Pro/SoundCloud Client` |
+| 109 | Transfers | Transfers icon, Start page or Session toolbar |
+| 110 | Speaker Mapping | Spatial Audio setup |
+| 111 | Audio I/O Setup — Inputs/Outputs tabs, cue mixes | `Options/Audio Setup` |
+| 112 | External Devices control mapping | created by an external-instrument drag; double-click a device in the External panel |
+| 113 | Find-by-name dialogs — Track `Ctrl+Alt+T` · Channel `Ctrl+Alt+C` · Scene `Ctrl+Alt+S` · Marker `Ctrl+Alt+M` | keyboard only; each works "whether the list is open or not" |
+
+**Non-modal transients** (not counted in the 113, but they exist and matter for
+parity): the Chord Selector window, the Icon navigator, the Key Signature pop-up
+selector, the Quick Switch `Ctrl+Tab` list, the Notification Center, the Tag
+Palette, the Global Track Visibility list, the Track Visibility `(...)` menu, the
+Arranger Options wrench menu, and the pervasive right-click context menus.
+
+## A.12 The window-management commands themselves
+
+From `View/Windows` — this whole sub-menu has no MotionLab counterpart:
+
+- **Toggle Floating Windows** — "toggle visibility of floating windows like your plug-ins"
+- **Toggle Optional Views** — "toggle optional views like the Browser, Console, or Edit Windows on and off"
+- **Toggle Detached Console**
+- **Toggle Detached Editor**
+- **Fullscreen** `Shift+F`
+- **Reset Window Positions** — "reset all windows to their default positions. Useful for when complex projects get a little too busy, or when a document was saved on a different computer with a larger monitor setup and windows are positioned outside of the visible range."
+
+And from `View/Visibility`: **Undo Visibility Change / Redo Visibility Change** —
+a *separate* undo stack, because "visibility changes are not tracked by ...
+normal Undo/Redo functionality". The Track List keeps up to 10 such steps,
+including "Layers that are expanded or collapsed".
+
+## A.13 The complete panel keyboard map
+
+| Key | Opens |
+|---|---|
+| `F2` | Editor (Audio / Note / Score / Melodyne) |
+| `F3` | Console — `Shift+F3` Small ↔ Large |
+| `F4` | Inspector (Track + Event; also the Marker Track Inspector) |
+| `F5` | Browser |
+| `F6` | Browser → Instruments tab |
+| `F7` | Browser → Effects tab |
+| `F8` | Browser → Loops tab |
+| `F9` | Browser → Files tab |
+| `F10` | Browser → Pool tab |
+| `F11` | Instrument/FX editor for the selected channel — `Shift+F11` Instrument window |
+| `Shift+F` | Fullscreen |
+| `B` | Launcher |
+| `T` | Add Tracks dialog |
+| `Ctrl+Alt+T / C / S / M` | find-by-name dialogs for Track / Channel / Scene / Marker |
+| `Ctrl+Tab` (held) | Quick Switch between open documents |
+| `Ctrl/Cmd+Enter` | Performance View — `Alt`+click Perform = separate window |
+| `Alt+Up` / `Alt+Left` | collapse all / collapse current directory (Files tab) |
+
+---
+
+# (B) Chapter parity
+
+Verdicts: `PARITY` · `PARTIAL` · `MISSING` · `DIVERGENT-BY-DESIGN` (with reason).
+
+## B.1 The Browser
+
+| Feature | FSP8 does | MotionLab does | Gap |
+|---|---|---|---|
+| **Browser as a pane** | Docked right of the Arranger, opened with F5 or the folder icon, resizable, detachable | `BrowserPanel` in a left `Panel` of `DesktopLayout`; toggled by an icon button in `TopBar` and by a `TopBar` menu item; resizable via `Separator`; min 180px, max 34%; width persisted as `browserSize` | **PARTIAL** — no keyboard shortcut, no detach, and it sits on the **left** not the right |
+| **Tab set** | Home · Instruments · Effects · Loops · Splice · Files · Cloud · Pool = 8 | Instruments · Effects · Loops · Samples · Pool · Projects = 6 (`BROWSER_TABS` in `BrowserPanel.tsx`) | **PARTIAL** — no Home (cross-tab search), no Cloud, no third-party marketplace tab. `Samples` and `Projects` are MotionLab's own; `Files` has no web analogue |
+| **Per-tab function keys** | F6 Instruments · F7 Effects · F8 Loops · F9 Files · F10 Pool | none | **MISSING** |
+| **Search** | A search icon reveals a field; shows the location being searched; searches within any tab and any location; right-click a hit → *Show in Context* | One always-visible `<input type="search">` at the top of the panel (`browser-search`), filtered per-tab through `matches()` in `browserShared.tsx` | **PARTIAL** — no cross-tab (Home) search, no "show in context", no location indicator |
+| **Tag view / tag filtering** | Tags icon beside the search bar; selecting tags narrows the remaining tags; a bidirectional Tag Palette for authoring | none | **MISSING** |
+| **Detach the Browser** | *"The Browser can be detached from the main window and placed independently so that it can be located freely onscreen or on a second monitor. All of the features described above are available when the Browser is detached."* Detach button at the top of the Navigation column; resize or maximize; Attach button re-docks | none — no `window.open`, no Document Picture-in-Picture, nothing | **MISSING** — the flagship gap. See §D-1 |
+| **Resizing reveals more data** | *"When you expand the width of the Browser, detached or not, additional columns appear"* — waveform, Tempo, Length, Speaker Format, Sample Rate, Bit Depth | The panel resizes but the content does not become denser at width | **MISSING** — container-query behaviour; cheap to add given the existing `@container` idiom in `src/styles/mixer.css` |
+| **Thumbnail View** | Show Thumbnails button toggles miniature plug-in UIs / cover art; not on Loops, Files, Pool | none | **MISSING** |
+| **Gallery View / Toggle Tree Mode** | Toggle Tree Mode → Show Gallery for an icon-driven browse; the Navigation bar is unavailable there | none | **MISSING** |
+| **Navigation Bar** (breadcrumbs + separator menus) | Below Sort By on every tab except Home; click a folder name to jump; click a separator arrow for a menu of that level's folders | none — the tabs are flat lists, not a tree | **MISSING** (arguably **DIVERGENT-BY-DESIGN**: with no filesystem there is no deep hierarchy to navigate, so the *need* is smaller. But the Pool and Samples tabs will grow folders.) |
+| **Sort By (Flat / Folder / Vendor / Type)** | Three or four sort modes per tab; a three-tier sort on Loops | none | **MISSING** |
+| **Favourites and Recents** | Right-click → Favorite; nested Favorites sub-folders; a 10-item Recent list auto-populated at the top | none | **MISSING** |
+| **Hide plug-ins / Manage Plug-ins view** | Wrench button toggles a manage mode inside the Browser; Reset / Revert / Refresh; a whole Plug-In Manager window besides | none | **MISSING** — MotionLab ships a fixed effect set, so a hide/blocklist manager has less to do. **DIVERGENT-BY-DESIGN** is defensible for the blocklist half; Favourites is not |
+| **Preview Player** | *"the bottom window of the Browser becomes the Preview Player"* — its own transport, its own playhead you can scrub, its own volume fader, Loop, and **Play at Session Tempo** with on-the-fly timestretch, independent of Session playback | `AuditionButton` in `browserShared.tsx` — a play/stop toggle per row | **PARTIAL** — audition exists; there is no preview *pane*, no scrub, no level, no loop, no tempo-sync |
+| **Drag from Browser into the arrangement** | Drag an instrument to blank space → new track; onto an existing instrument track → a Replace / Combine / Keep pop-up; effects onto a track, a channel, or a specific insert slot; `Alt` = load as Event FX instead of insert | Drag-and-drop import exists (`importActions.ts`, lane drop targets; `App.tsx` swallows stray file drops) | **PARTIAL** — verify the instrument-onto-occupied-track disambiguation menu and the Alt-modifier drop target change |
+| **Pool** | A tab showing every clip the Session references, sorted Flat / Track / Type / Location / Record Take, with Data Zoom on the waveforms, attachment disclosure triangles, and a large right-click file-management menu (Locate, Remove from Pool, Delete Permanently, Convert, Remove Unused, Locate Missing) | `PoolTab.tsx` — "Everything this project owns" | **PARTIAL** — inventory the actual command set against the FSP8 list |
+| **Files tab / OS filesystem** | Full filesystem browse with Set as Root, New Folder, Rename, Delete, Show in Explorer | none | **DIVERGENT-BY-DESIGN** — a browser sandbox has no filesystem tree. The File System Access API could give a partial equivalent, but this is correctly out of scope |
+| **Cloud tab** | Marketplace, cloud storage, SoundCloud | none | **DIVERGENT-BY-DESIGN** — no such services exist for this product |
+| **Sound Set Builder** | An entire authoring pipeline: mount folder as a set, metadata window, tag palette, chord/tempo embedding, pack to a `.soundset` | none | **DIVERGENT-BY-DESIGN** — content-vendor tooling, not a DAW-user surface |
+| **Collapse-all keyboard commands** | `Alt+Up` collapse all directories, `Alt+Left` collapse the current top-level directory | none | **MISSING** — cheap, and it generalises to any tree MotionLab grows |
+
+## B.2 Arranging
+
+| Feature | FSP8 does | MotionLab does | Gap |
+|---|---|---|---|
+| **Arranger Options (wrench) menu** | ~14 options in four groups — Selection (Solo follows Section, Instrument/Audio Input follows Selection), Editing (crosshair cursor, Locate on empty click, Cursor follows Edit Position, Automation follows events, No overlap when editing events), Visibility (Colorize track controls, Show channel numbers, Show event names, Show instrument part envelopes, Show track notes, Show track icons, Show chords on events), Audio (Ignore Plug-In Latency, Monitoring follows record, Tape-style monitoring) | Preferences live in `prefsStore.ts` and the `SettingsSheet`; there is no arranger-local options menu | **PARTIAL** — audit which of the 14 exist at all; the *placement* (a wrench on the arranger, not a global sheet) is itself part of the workflow |
+| **Global Tracks — count** | 8 lanes: Ruler (secondary) · Marker · Arranger · Chord · Lyrics · Video · Signature · Tempo | 4 lanes in `GlobalTracks.tsx`: `showMarkers` · `showSections` · `showChords` · `showTempoLane` | **PARTIAL** — missing secondary Ruler, Lyrics, Video, Signature |
+| **Global Track Visibility collapse** | When the track-control column is narrowed by dragging the divider, *"the Global Track buttons collapse into a single Global Track Visibility button"* — a responsive, space-driven collapse to a menu | The four lane toggles are always rendered as buttons (`GLOBAL_LANES` in `GlobalTracks.tsx`) | **MISSING** — a genuine responsive-collapse pattern, and MotionLab already has the narrow-viewport machinery (`--global-lane-h`, RA-001) to hang it on |
+| **Track-control column resize** | Drag the dividing line between the track controls and the arrangement | Track *height* is adjustable (`laneScale`, the zoom tool, `TrackHeader` collapse at ≤32px) but the header **column width** is not draggable | **MISSING** |
+| **Global tracks inside the editors** | A Global Track Visibility button in the Audio and Note Editors exposing 4 of the 8 lanes, **read-only**; also reachable by right-clicking the Editor's time ruler | none — global lanes exist only in the arrangement | **MISSING** |
+| **Arranger Track (sections)** | A lane of named, coloured sections; paint to create; move / insert / replace / partially replace (Shift) / copy / cut / paste / Alt-drag copy; Delete Range; Select Events in Section; double-click to zoom to it; Create Markers from Arranger Sections and the reverse; a Timebase button (musical ↔ absolute) | `SectionLane` in `GlobalTracks.tsx`; `ArrangerSection` in `src/model/arrangement.ts` | **PARTIAL** — enumerate the eight section verbs against what `SectionLane` implements; the section↔marker conversions and the per-lane Timebase toggle need checking |
+| **Arranger Track Inspector list + manual section triggering** | The Inspector lists every section including those in Scratch Pads; double-click a section to **jump playback to it**, quantised by a Sync Mode of Off / 1 bar / 2 bars / 4 bars / End | none found | **MISSING** — this is a live-arrangement feature and pairs with the Launcher |
+| **Chord Track** | A global lane, plus a Chord Selector window, a Chords Inspector, chord recommendations (Chord Assistant), Follow Chords modes per track (Off/Parallel/Narrow/Bass/Scale/Universal), Tune Modes, extract-from-part/audio/MIDI, chord presets (`.chords`), a floating Chord Display | `ChordLane` in `GlobalTracks.tsx`; `ChordAssistant.tsx` as a bottom-editor tab; chord model in `src/model/chords.ts` | **PARTIAL** — the lane and an assistant exist. The *window* surfaces (Chord Selector as a window, Chords Inspector section, floating Chord Display) do not |
+| **Chord Display (floating window)** | Floating, resizable; three sources (Chord Track / Input Chord / Editor); explicitly for a second monitor; display Modes (Regular / Number / Roman) and Styles (Default / Small Caps / Minimal / Symbol) | none | **MISSING** |
+| **Signature Track** | A lane holding time-signature and key-signature markers; insert / edit / remove via context menu; markers draggable to bar lines; detect key from a part or an event | Time and key signature exist in the model (`src/model/music.ts`, `notation.ts`, used by `ScoreView`) but there is **no signature lane** in `GlobalTracks.tsx` | **MISSING** (the lane; the data model is partly there) |
+| **Tempo Track** | A lane with draggable points, curve handles, right-click to type a value, Beat-Linear vs Time-Linear timebase, a **max/min range** pair saved with the Session, and a Time Scale Tool (`Ctrl`-drag) for tempo mapping | `TempoLane` in `GlobalTracks.tsx`; tempo map in `src/model/tempo.ts` | **PARTIAL** — check curve handles, the settable display range, Beat-/Time-Linear, and the Time Scale Tool |
+| **Lyrics Track / Lyrics Display / Lyrics Lanes** | Three distinct surfaces: a global lane, a floating second-monitor display with its own Edit Mode and caret editing, and per-track lanes inside the Note Editor | none (`grep -rli lyric src/` hits only a type name and an unrelated comment) | **MISSING** — three surfaces |
+| **Scratch Pad** | Shown to the right of the Arrange view; multiple pads per Session; a triangle menu to add / delete / switch; **clicking the ruler above a pad moves transport focus into it**, even during playback; each pad has its own loop range; content stored with the Session | `ScratchPads.tsx` — a *swap* model: `swapScratchPad` puts a pad's clips on the timeline and stashes what was there, symmetric and lossless. Reached through a menu, not a pane | **DIVERGENT-BY-DESIGN** (partly) — the swap is a defensible, arguably better model for a single-timeline web app, and its file comment argues the case. But FSP8's **side-by-side pad with independent transport focus and its own loop range** is a different capability, and drag-between-pad-and-timeline is not available in a swap model. Record the divergence explicitly; do not silently call it parity |
+| **Duplicate (`D`) and Duplicate Shared** | `D` duplicates at the next logical snap position; repeatable; multi-selection; `Duplicate Shared` makes linked copies that track the original | `Ctrl/Cmd+D` duplicate exists in `shortcuts.ts` (Editing) | **PARTIAL** — bare `D` vs `Mod+D`; snap-aware placement; and **shared/linked duplicates appear absent** |
+| **Duplicate Track / Duplicate (complete)** | Track menu and context menu; `Ctrl`-drag in the track column duplicates, `Ctrl+Alt` duplicates with events; a blue insertion line marks the difference from reorder | check `projectActions.ts` | **PARTIAL** — needs a direct check |
+| **Folder Tracks** | Pack Folder; nest folders; a Folder icon shows/hides contained tracks; **collapsed, the folder shows one consolidated Event with a lane per contained track that can be sized, moved, cut, copied and duplicated directly**; a Group icon; a Bus selection box that reroutes every contained track; folder Mute/Solo/Record/Monitor act on all contents | Folder tracks exist: `track.type === 'folder'`, `track.folded`, `folderId`, `folderDescendants()` / `visibleTracks()` in `src/model/mixerGraph.ts`, "Group into a new folder" in the `TrackHeader` menu | **PARTIAL** — folding and hierarchy exist. The **consolidated collapsed event** (edit the whole folder as one clip) and the **folder→bus routing box** are the two substantive gaps |
+| **Track List panel** | A dedicated panel: level meters, drag to reorder, a Group column, per-track show/hide dots with drag-through, a comma-separated Filter field, per-type icon toggles, a Track Visibility `(...)` menu of eight presets, **its own 10-step visibility Undo/Redo**, Scenes, and sync with the Console Channel List | **No track list panel exists** (`grep -rniE "TrackList" src/components` → nothing). Track visibility today is only folder folding | **MISSING** — this is a whole pane, and Directive 09 §3 should treat it as one work item, not a checkbox |
+| **Scenes** | Named, recallable show/hide + settings snapshots; any number per Session; reachable from the Track List, the Console nav column, or `Ctrl+Alt+S` | none | **MISSING** |
+| **Find-by-name dialogs** | `Ctrl+Alt+T` track, `Ctrl+Alt+C` channel, `Ctrl+Alt+S` scene, `Ctrl+Alt+M` marker — each works whether the corresponding list is open or not | none | **MISSING** — a command-palette-shaped gap |
+| **Track and Channel Icons** | Enabled from the arranger and console wrench menus; an Icon navigator categorised by instrument type; applies to any track or channel type; Reset clears | none found | **MISSING** |
+| **Bouncing** | `Ctrl+B` Bounce Selection (instrument part → audio, mutes and greys the source); `Ctrl+Alt+B` Bounce to New Track (with inserts); `G` Merge Events / create Audio Parts; Dissolve Audio Part; Mixdown Selection across tracks; every bounce lands in the Pool | `src/app/exportActions.ts`, `src/audio/exportMix.ts`; `Mod+E` in `shortcuts.ts` | **PARTIAL** — check each of the five verbs separately; note `exportMix.ts` is on the do-not-refactor list, so bounce work must go through `InsertChain` like the realtime path |
+| **Add / Delete Time** | `Ctrl+Alt+I` insert silence over a Range selection (splits and shifts events, moves automation, moves global markers/tempo/signature when the range spans all tracks, leaves hidden tracks alone); `Ctrl+Alt+D` delete time; **with no range selected, both open a dialog to type start/end** | `rangeInsertSilence(range)` and `rangeDelete(range, ripple)` in `src/app/rangeActions.ts` | **PARTIAL** — the range path exists. The **no-selection dialog** does not; and the hidden-track rule and the global-lane follow rule need verifying |
+| **The Launcher** | A full clip-launch grid: Cells / Scenes / Playlists; side-by-side with or exclusive of the Timeline with a **draggable dividing bar**; per-track and global Play Focus; record into cells; per-cell Play Mode / Launch Mode / Quantize / Tempo; Scene Playlist panel; drag both ways between grid and timeline; export a playlist directly | **nothing** — `grep -rli "launcher\|clip launch\|scene" src/components` → no hits | **MISSING** — the largest single missing pane in the chapter, and it is a pane *and* a resize behaviour *and* a mutual-exclusion rule |
+| **Arrangement Overview / mini-map** | Overview button on the toolbar; a Current View box you drag to scroll; **drag the box handles horizontally or vertically to resize the view**; click empty space to jump; `Shift`/`Cmd`+wheel scroll and zoom | `Overview.tsx` — a canvas strip; toggled by an icon button in `Arrangement.tsx` (`showOverview`, persisted) | **PARITY** (near) — verify the resize-by-handle behaviour and the modifier-wheel bindings |
+| **Global controls row** | Global Mute, Global Solo, Activate All Inserts at the bottom-left of the arrange view | check `Arrangement.tsx` | **PARTIAL** — needs a direct check |
+| **Track size menu + vertical zoom slider** | A context menu of preset track sizes plus a drag slider; waveforms consolidate to mono below a height threshold | `laneScale` in `uiStore`, the zoom tool (`9`), `TrackHeader` collapse at ≤32px | **PARTIAL** — no preset-size menu; confirm the waveform-consolidation threshold behaviour |
+
+---
+
+# (C) MotionLab pane / tab / drawer / sheet / disclosure inventory
+
+Every surface found in the code, with its component path. This is the Directive
+09 §3 work list. Paths are relative to
+`C:\Users\txpps\OneDrive\Documents\PluginProjectsResources\APP Builds\TXPPS-Motion-Lab-Studio\`.
+
+**Structural facts established by grep, all negative:**
+
+- **No detach, float-out, or pop-out anywhere.** `window.open`,
+  `documentPictureInPicture`, `requestPictureInPicture`, `popout`, `undock`,
+  `createPortal` — zero hits across `src/`, `tests/`, `e2e/`. The only `detach`
+  hits are `AudioBuffer` detachment and `peakTap.detach()`.
+- **No `<details>`, no `<dialog>`, no `showModal()`.** Every disclosure is a
+  hand-rolled conditional render; every modal is a div with `role="dialog"` +
+  `aria-modal` + `useFocusTrap`.
+- **No shared `Panel`, `Sheet`, `Drawer`, `Accordion` or `Disclosure`
+  primitive.** Five sheets re-implement scrim + focus trap + Escape by hand,
+  across three different scrim class families (`.modal-overlay`,
+  `.sheet-overlay`, `.sheet-scrim`, `.drawer-overlay`).
+- **`PluginWindow` is the only thing called a window** and it is a
+  `position: fixed` in-page div — drag-moved, viewport-clamped, not resizable,
+  not dockable, position not persisted.
+
+## C.1 Reusable primitives that do exist
+
+| Primitive | Path |
+|---|---|
+| `useFocusTrap` — *the* modal primitive (traps Tab, restores focus; deliberately does not handle Escape) | `src\hooks\useFocusTrap.ts` |
+| `DialogHost` — the only generic prompt/confirm modal | `src\components\common\overlays.tsx:12-74` |
+| `ContextMenuHost` — the only popover primitive; `role="menu"`, viewport-clamped, arrow-key nav | `src\components\common\overlays.tsx:76-199` |
+| `ToastHost` | `src\components\common\overlays.tsx:216-249` |
+| `MaximizeButton` — shared full-screen toggle for all four maximizable panes | `src\components\shell\MaximizeButton.tsx` |
+| `InstrumentFrame` — shared instrument face frame (reuses `PluginWindow`'s `pw-*` classes) | `src\components\instrument\InstrumentFrame.tsx` |
+| `InsertRack` / `SendRack` / `ChainHost` — reusable rack with per-slot `aria-expanded` | `src\components\mixer\InsertRack.tsx` |
+| `windowPlace.ts` — `clampToViewport()` / `placeWindow()`, tested | `src\components\mixer\windowPlace.ts`, `tests\windowPlace.test.ts` |
+| `ErrorBoundary` | `src\components\common\ErrorBoundary.tsx` |
+
+## C.2 Global overlays — 10 (all mounted unconditionally in `src\App.tsx:128-137`)
+
+| # | Name | Path | Opens via | Rz | Dt | Cl | Modal | Persists |
+|---|---|---|---|---|---|---|---|---|
+| C-A1 | Diagnostics sheet | `src\components\diagnostics\DiagnosticsSheet.tsx` | TopBar wrench; overflow menu; route `#/diagnostics` | no | no | open/closed | **semi-modal — scrim + backdrop click, but `role="complementary"`, no `aria-modal`, no focus trap, no Escape** | no |
+| C-A2 | Keyboard shortcuts sheet | `src\components\common\ShortcutsSheet.tsx` | **`?`** (`shortcuts.ts:253-259`); overflow; Welcome button | no | no | no | yes — `aria-modal` + trap + capture Escape | no |
+| C-A3 | Welcome sheet | `src\components\common\WelcomeSheet.tsx` | first run via `maybeShowWelcome()`; overflow | no | no | no | yes | dismissal only — `localStorage['txpps-motionlab-welcome-v1']` |
+| C-A4 | Preferences sheet (6 sections) | `src\components\settings\SettingsSheet.tsx` | TopBar gear; overflow; StartPage footer; **`Mod+,`** | no | no | **no — 6 static sections, none collapsible** | yes | no (contents persist to `motionlab.prefs.v1`) |
+| C-A5 | Export sheet | `src\components\common\ExportSheet.tsx` | overflow; **`Mod+Shift+E`** | no | no | no | yes — backdrop and close disabled while rendering | no; resets to `DEFAULT_EXPORT` each open |
+| C-A6 | **Plugin window** (floating device editor) | `src\components\mixer\PluginWindow.tsx` | double-click a device in `DeviceRack`; device menu "Open"; after adding a device | **no** — CSS min/max only, no handle | **floats and drags within the page only**; `position: fixed`, header is the drag handle, swipe-down-120px dismiss on touch, viewport-clamped and re-placed on resize/orientationchange | no | **modeless** — `role="dialog"` but no `aria-modal`, no trap, no backdrop; captures Escape | **no** — position resets on every open (`placed.current=false`, lines 194-196); one device at a time by design |
+| C-A7 | Dialog host (prompt / confirm) | `src\components\common\overlays.tsx:12-74` | `showDialog()` from ~20 call sites | no | no | no | yes | no |
+| C-A8 | Context menu | `src\components\common\overlays.tsx:76-199` | right-click / long-press on clips, headers, devices, lanes; TopBar `⋯`; mixer `+`; browser row `⋯` | no | no | no | modeless, focus-capturing | no |
+| C-A9 | Toasts | `src\components\common\overlays.tsx:216-249` | `uiStore.toast()`; auto-dismiss 3.2s / 6s | no | no | no | modeless | no |
+| C-A10 | Layout debug HUD (QA) | `src\components\diagnostics\LayoutDebugHud.tsx` | `#/qa*`, `#/debug`, `?debug` | no | no | no | modeless, `pointer-events: none` | URL-derived |
+
+## C.3 Shell chrome — 4
+
+| # | Name | Path | Notes |
+|---|---|---|---|
+| C-B1 | TopBar (project bar) | `src\components\shell\TopBar.tsx` | hosts the three pane toggles (lines 183-208) and the overflow menu (lines 47-58); adapts by `layout` |
+| C-B2 | StatusBar | `src\components\shell\StatusBar.tsx` | grid row 3 on desktop/tablet |
+| C-B3 | PhoneNav (6-mode bottom bar) | `src\components\shell\PhoneLayout.tsx:56-74` | phone + song page only |
+| C-B4 | RecordingBanner | `src\components\recording\RecordControls.tsx:254+` | auto-appears; error variant is dismissible |
+
+## C.4 Desktop workspace panes — 7 (the only true splitters)
+
+| # | Name | Path | Rz | Persists |
+|---|---|---|---|---|
+| C-C1 | **Browser pane** (left) | `src\components\browser\BrowserPanel.tsx`, hosted `src\components\shell\DesktopLayout.tsx:68-89` | **yes** — `Separator` line 87; default `browserSize`%, min 180px, max 34% | `showBrowser` + `browserSize` |
+| C-C2 | Center pane | `DesktopLayout.tsx:91-116` | min 320px, no own size | — |
+| C-C3 | **Arrangement pane** | `src\components\arrangement\Arrangement.tsx`, hosted `DesktopLayout.tsx:97-99` | min 180px; resized by the editor splitter | `maximized` |
+| C-C4 | **Bottom editor pane** | `src\components\shell\BottomEditor.tsx`, hosted `DesktopLayout.tsx:100-114` | **yes** — `Separator` line 102; default `editorSize`%, min 150px, max 68% | `showEditor` + `editorSize` |
+| C-C5 | **Inspector pane** (right) | `src\components\inspector\Inspector.tsx`, hosted `DesktopLayout.tsx:118-143` | **yes** — `Separator` line 120; default `inspectorSize`%, min 190px, max 34% | `showInspector` + `inspectorSize` |
+| C-C6 | **Full-screen (maximize)** for arrange / editor / browser / inspector | `src\state\workspaceStore.ts:243-249`; `src\components\shell\MaximizeButton.tsx`; render branch `DesktopLayout.tsx:29-61` | docked sizes untouched while maximized; scroll captured and restored across the remount (`workspaceStore.ts:126-176`) | `maximized`, **survives reload** — asserted by `e2e\workspace.spec.ts:99-105` |
+| C-C7 | "Reset layout" | `TopBar.tsx:58` → `workspaceStore.reset()`; also `SettingsSheet.tsx:278-282` | — | writes `DEFAULT_LAYOUT` |
+
+## C.5 Tablet layout — 4
+
+| # | Name | Path | Notes |
+|---|---|---|---|
+| C-D1 | **Browser drawer** (left overlay) | `src\components\shell\TabletLayout.tsx:117-135`; styles `src\styles\shell.css:661-681` | fixed `min(320px, 84vw)`, **not resizable**; scrim + click-outside, but **no `role="dialog"`, no `aria-modal`, no focus trap, no Escape**; local `useState`, **not persisted** |
+| C-D2 | **Inspector drawer** (right overlay) | `TabletLayout.tsx:117-135` | same; **only one drawer at a time** |
+| C-D3 | Combo bar (Mixer / Piano Roll / Instrument) | `TabletLayout.tsx:62-74` | local `useState` |
+| C-D4 | **Tablet bottom panel** | `TabletLayout.tsx:105-113` | **resizable** (`Separator` line 104; 32% or 40% by height, min 140px, max 62%) but **size NOT persisted — no `onResize` handler**, unlike desktop |
+
+## C.6 Phone layout — 3
+
+| # | Name | Path | Notes |
+|---|---|---|---|
+| C-E1 | 6 exclusive modes: Arrange / Record / Perform / Edit / Mix / Browse | `src\components\shell\PhoneLayout.tsx:12-19, 26-53` | one pane fills the viewport; `openEditorFor(clip, phone=true)` forces `edit` |
+| C-E2 | Combined Browse page (Browser + Inspector stacked) | `PhoneLayout.tsx:42-49` | — |
+| C-E3 | Forced phone layout (QA) | `src\hooks\useViewport.ts`, `uiStore.forcedLayout`, `#/phone` | — |
+
+## C.7 Bottom-editor tabs — 10
+
+Registry: `src\app\editors.ts`. Host: `src\components\shell\BottomEditor.tsx`.
+Proper `role="tablist"` / `role="tab"` / `role="tabpanel"`, `aria-controls="editor-panel"`. All lazy. Inapplicable tabs are dimmed, not hidden.
+
+| # | Tab | Path | Gate |
+|---|---|---|---|
+| C-F1 | Mixer | `src\components\mixer\Mixer.tsx` | always |
+| C-F2 | Piano Roll | `src\components\pianoroll\PianoRoll.tsx` | MIDI clip open |
+| C-F3 | Drums | `src\components\drumeditor\DrumEditor.tsx` | MIDI clip open |
+| C-F4 | Score | `src\components\score\ScoreView.tsx` | MIDI clip open |
+| C-F5 | Audio | `src\components\audioeditor\AudioEditor.tsx` | audio clip selected |
+| C-F6 | Chords | `src\components\chords\ChordAssistant.tsx` | always |
+| C-F7 | Instrument | `src\components\synth\SynthPanel.tsx` (→ `src\components\sampler\SamplerPanel.tsx`) | always |
+| C-F8 | Diagnostics | `src\components\diagnostics\DiagnosticsPanel.tsx` | always |
+| C-F9 | "Hide editor panel" chevron | `BottomEditor.tsx:55-62` | — |
+| C-F10 | Editor maximize button | `BottomEditor.tsx:54` | — |
+
+**`editorTab` is not persisted** — reopening always lands on Mixer.
+
+## C.8 Browser tabs — 7
+
+Host: `src\components\browser\BrowserPanel.tsx:333-410`. `role="tablist"` + `aria-controls="browser-panel"`.
+
+| # | Tab | Path |
+|---|---|---|
+| C-G1 | Instruments | `src\components\browser\InstrumentsTab.tsx` (3 `browser-group` headings) |
+| C-G2 | Effects | `src\components\browser\InstrumentsTab.tsx` (`EffectsTab`, grouped by `EFFECT_GROUPS`) |
+| C-G3 | Loops | `BrowserPanel.tsx:203-286` (`LoopsTab`) |
+| C-G4 | Samples | `src\components\browser\SamplesTab.tsx` — 6 filter chips; **favourites + recents persist** to `txpps-motionlab-sample-favs-v1` / `-recent-v1` (max 60 ids each) |
+| C-G5 | Pool | `src\components\browser\PoolTab.tsx` — sort by name/size/uses, local state |
+| C-G6 | Projects | `BrowserPanel.tsx:36-201` — per-row `⋯` menu |
+| C-G7 | Search box | `BrowserPanel.tsx:370-385` — local `useState`, **not persisted** |
+
+**`browserTab` is not persisted** — reopening always lands on Projects.
+
+## C.9 Arrangement in-pane surfaces — 12
+
+| # | Name | Path | Rz | Cl | Persists |
+|---|---|---|---|---|---|
+| C-H1 | Arrangement toolbar | `src\components\arrangement\Arrangement.tsx:906-1014` | no | no | tool not persisted |
+| C-H2 | **Overview strip** (bird's-eye navigator) | `src\components\arrangement\Overview.tsx` (`OVERVIEW_H = 46`) | fixed 46px | **yes** — toolbar `layers` button, testid `toggle-overview` | **yes** — `showOverview` |
+| C-H3 | **Global lanes ×4** — Markers / Arranger / Chords / Tempo | `src\components\arrangement\GlobalTracks.tsx` (`LANE_META` 501-511, `globalTrackMenuItems()` 555-561, per-lane `gt-hide` × at 527-531) | section blocks have a `gt-section-edge` content drag, not a lane resize | **yes, individually** | **yes** — `showMarkers`, `showSections`, `showChords`, `showTempoLane` |
+| C-H4 | **Per-track automation lanes** | `src\components\arrangement\AutomationLanes.tsx` | **yes — per-lane height handle `.alh-resize` (lines 491-495, 526), clamped 26–120px** | **yes** — `A` button on the track header, testid `auto-toggle-{name}`; also the track context menu | **yes, in the project** — `track.automationOpen`, `automationLane.height` |
+| C-H5 | Per-clip take lanes (comping) | `src\components\arrangement\TakeLanes.tsx` (`TAKE_LANE_H = 36`) | fixed 36px | **yes** — clip menu, clip gesture at `ClipView.tsx:650`, `Inspector.tsx:148-153` | **yes, in the project** — `clip.takesOpen` |
+| C-H6 | Track collapse (short lane) | `src\components\arrangement\TrackHeader.tsx:312-320` | 64px → 30px | **yes** | **yes, in the project** — `track.collapsed` |
+| C-H7 | Folder track fold | `TrackHeader.tsx:254-267`, `aria-expanded={!track.folded}`, testid `fold-{name}` | n/a | **yes** | **yes, in the project** — `track.folded` |
+| C-H8 | Vertical lane zoom (all lanes) | `uiStore.laneScale`, zoom tool, `src\model\arrangeTools.ts` | continuous | n/a | **no** |
+| C-H9 | Live take lane (while recording) | `src\components\arrangement\LiveTake.tsx` | no | auto | no |
+| C-H10 | Scratch pads menu | `src\components\arrangement\ScratchPads.tsx` (`ScratchPadButton` 92-118, `scratchPadMenuItems()` 14) | n/a | popover | pads + `activePadId` **in the project** |
+| C-H11 | Add-track / clip / track context menus | `Arrangement.tsx:907-913`; `TrackHeader.tsx:246-250`; `src\components\arrangement\ClipView.tsx` | n/a | popover | no |
+| C-H12 | Range / marquee overlays | `Arrangement.tsx`; `AutomationLanes.tsx:458-464` | n/a | n/a | no |
+
+## C.10 Mixer in-pane surfaces — 10
+
+| # | Name | Path | Cl | Persists |
+|---|---|---|---|---|
+| C-I1 | Cue bar | `src\components\mixer\CueBar.tsx` (rendered `Mixer.tsx:96`) | auto-collapses to an "Add a cue" empty state | cue mixes in the project; `monitorCueId` not persisted |
+| C-I2 | **Channel Overview strip** | `src\components\mixer\ChannelOverview.tsx` (`ChannelOverviewHost` 233-242), gated at `Mixer.tsx:43, 97` | auto only | **`uiStore.channelOverview` is written NOWHERE — the strip has no toggle in the product.** See §D-13 |
+| C-I3 | Channel / Master / VCA strips | `src\components\mixer\ChannelStrip.tsx`, `src\components\mixer\VcaStrip.tsx` | no | n/a |
+| C-I4 | Device rack + per-device micro-controls disclosure | `src\components\mixer\DeviceRack.tsx:320-349`, `aria-expanded={micro}` | **yes** | **no** — local `useState` |
+| C-I5 | Device context menu | `DeviceRack.tsx:305-308, 332-342` | popover | no |
+| C-I6 | Add-device picker | `DeviceRack.tsx:361+` (`AddDevice`) + `src\state\chainStore.ts` | popover | saved chains → `motionlab.chains.v1` |
+| C-I7 | **Insert rack slot disclosure** (per effect) | `src\components\mixer\InsertRack.tsx:42-130`, `aria-expanded={open}` line 68 | **yes** | **no** — local `useState(false)` per slot, resets on remount |
+| C-I8 | EQ8 band tabs (inside an open slot) | `InsertRack.tsx:37-40, 114-128` | n/a | **no** — local `useState('b1')` |
+| C-I9 | Mixer add menu (Bus / FX / VCA) | `Mixer.tsx:118-142` | popover | no |
+| C-I10 | MotionWave face / Plugin face | `src\components\mixer\MotionWaveFace.tsx`, `src\components\mixer\PluginFace.tsx` | no | no |
+
+## C.11 Inspector sections — 13
+
+Host: `src\components\inspector\Inspector.tsx`. **All are static `.panel-section` blocks — none are collapsible.** They swap wholesale between clip-selected / track-selected / nothing-selected.
+
+| # | Section | Path | Shown when |
+|---|---|---|---|
+| C-J1 | Clip | `Inspector.tsx:255-319` | clip selected |
+| C-J2 | Audio clip tools (fades, normalize, polarity, mono, lock, analysis) | `Inspector.tsx:33-158` | audio clip |
+| C-J3 | Time & pitch | `src\components\inspector\TimePitchPanel.tsx` | audio clip |
+| C-J4 | Groove | `src\components\inspector\GroovePanel.tsx` | MIDI clip |
+| C-J5 | Event FX rack | `Inspector.tsx:167-180, 322-326` (`eventChainHost` → `InsertRack`) | audio clip |
+| C-J6 | Track | `Inspector.tsx:364-490` | track selected |
+| C-J7 | Track input controls | `src\components\recording\RecordControls.tsx` (`TrackInputControls`) | audio track |
+| C-J8 | Note FX rack | `src\components\inspector\NoteFxRack.tsx` | instrument / drum track |
+| C-J9 | Freeze panel | `Inspector.tsx:189-235` | instrument / drum track |
+| C-J10 | **Macro panel** + per-macro ranges disclosure | `src\components\inspector\MacroPanel.tsx:130-199`, `aria-expanded` line 166 | track selected — **the only accordion in the app** (one open at a time via `openId`); open state **not persisted** |
+| C-J11 | Insert rack | `InsertRack.tsx:277+` | track selected |
+| C-J12 | Send rack | `InsertRack.tsx:385+` | track selected |
+| C-J13 | Project summary + notes textarea | `Inspector.tsx:517-559` | nothing selected |
+
+## C.12 Preferences sections — 6
+
+`src\components\settings\SettingsSheet.tsx`, six static sections, none collapsible: Appearance (theme `role="radiogroup"`, UI scale, reduce motion) · Metering & time · Editing · **Key commands** (`src\components\settings\KeyCommands.tsx`, backed by `src\state\keymapStore.ts`) · **Control Link** (`src\components\settings\ControlLinks.tsx`, MIDI learn) · Audio (engine readout + "Reset panel layout").
+
+## C.13 Other pages — 11
+
+| # | Surface | Path |
+|---|---|---|
+| C-L1 | Hero + Continue | `src\pages\StartPage.tsx:108-118` |
+| C-L2 | Recent projects list + per-row `⋯` menu | `StartPage.tsx:121-190` |
+| C-L3 | Templates grid | `StartPage.tsx:192-199` |
+| C-L4 | What's new | `StartPage.tsx:202-217` |
+| C-L5 | Footer status chips + Mastering / Live / Preferences | `StartPage.tsx:219-245` |
+| C-L6 | Mastering page head | `src\pages\MasteringPage.tsx:220-233` |
+| C-L7 | Running-order list (`<ol aria-label="Running order">`) | `MasteringPage.tsx:236-366` — **fixed 2-column CSS, no splitter** |
+| C-L8 | Mastering aside: Delivery target / Measured / Release chain | `MasteringPage.tsx:368-452` — not collapsible; hosts `InsertRack` |
+| C-L9 | Show page head + **Stage mode toggle** | `src\pages\ShowPage.tsx:77-97` — **persists in the project** (`project.show.stageMode`) |
+| C-L10 | Setlist `<ol>` | `ShowPage.tsx:100-192` |
+| C-L11 | Stage aside: Now / Readout / Transport / Next / Jump | `ShowPage.tsx:194-265` — **no splitter, not collapsible** |
+
+`src\pages\SongPage.tsx` is a thin dispatcher: `RecordingBanner` + one of the three layouts.
+
+## C.14 Editor-internal surfaces — 14
+
+| # | Name | Path | Persisted? |
+|---|---|---|---|
+| C-M1 | Piano roll toolbar / quantize / key / scale / lock | `src\components\pianoroll\PianoRoll.tsx:~1000-1130` (local `useState` at 656-658) | **no** — `prKey`/`prScale`/`prScaleLock`/`prSnap`/`prPxPerBeat` are in `uiStore`, unpersisted |
+| C-M2 | Piano roll velocity lane | `PianoRoll.tsx` (`pr-vel-lane`, `VEL_H`); `src\styles\pianoroll.css:245-256` | always present; per-bar `ns-resize` drag |
+| C-M3 | Key column + note grid | `PianoRoll.tsx:1198+, 1258+` | — |
+| C-M4 | **Audio editor 4-way tool switch** (Bend/Warp · Audio→Notes · Vocal Tune · Stems) + per-tool body | `src\components\audioeditor\AudioEditor.tsx:379-395`, `441-520+` | **no** — local `useState` |
+| C-M5 | Warp lane + Warp panel | `src\components\audioeditor\WarpTool.tsx`; `src\styles\audioeditor.css:148-157` | — |
+| C-M6 | Drum editor: map select, "used only" filter, step size | `src\components\drumeditor\DrumEditor.tsx:377-440`, `src\components\drumeditor\DrumGrid.tsx` | local |
+| C-M7 | Score view | `src\components\score\ScoreView.tsx`, `src\components\score\Glyphs.tsx` | — |
+| C-M8 | Chord assistant | `src\components\chords\ChordAssistant.tsx` | — |
+| C-M9 | Synth panel (in `InstrumentFrame`) + on-screen keys | `src\components\synth\SynthPanel.tsx:291+`, `src\components\synth\Keyboard.tsx` | A/B group; static sections |
+| C-M10 | **Sampler workstation** (Quick / Drum / Multi views + Voice + Rack) | `src\components\sampler\SamplerPanel.tsx:1665-1705`, `src\components\sampler\ZoneMap.tsx` | `params.view` **persists in the project** (`track.sampler.view`); pad selection local |
+| C-M11 | Diagnostics panel | `src\components\diagnostics\DiagnosticsPanel.tsx`, `src\components\diagnostics\DiagnosticCommands.tsx` | two non-collapsible blocks |
+| C-M12 | Record workspace (phone Record mode) | `src\components\recording\RecordWorkspace.tsx` | — |
+| C-M13 | Recovery panel (unfinished recordings) | `src\components\recording\RecoveryPanel.tsx` | appears when `inputStore.pendingRecoveries` is non-empty |
+| C-M14 | Transport bar (+ compact phone variant) | `src\components\transport\TransportBar.tsx:235+`, `AudioStatusChip` 14-63 | — |
+
+## C.15 What layout state is persisted today — exact keys
+
+**`localStorage['txpps-motionlab-workspace-v1']`** — `src\state\workspaceStore.ts:12, 180-220`. The only layout persistence. Debounced 400ms, validated and clamped on load by `normalizeLayout()` (lines 57-80).
+
+```
+browserSize    number  10–40   default 16     (% of pane-main)
+inspectorSize  number  10–40   default 17     (%)
+editorSize     number  12–70   default 38     (%)
+showBrowser    boolean         default true
+showInspector  boolean         default true
+showEditor     boolean         default true
+maximized      null | 'arrange' | 'editor' | 'browser' | 'inspector'  default null
+showMarkers    boolean         default true
+showSections   boolean         default true
+showChords     boolean         default false
+showTempoLane  boolean         default false
+showOverview   boolean         default true
+```
+
+Other keys: `motionlab.prefs.v1` (`src\state\prefsStore.ts:52, 104-123`, read pre-React by `src\main.tsx` via `applyAppearance()` to avoid a flash) · `motionlab.keymap.v1` (`src\state\keymapStore.ts:17`, overrides only) · `txpps-motionlab-welcome-v1` · `motionlab.chains.v1` (`src\state\chainStore.ts:26`) · `txpps-motionlab-sample-favs-v1` / `-recent-v1` · `motionlab.pluginParity.v1` (not layout).
+
+**Persisted in the project document** (IndexedDB, `src\persistence\projectRepo.ts`) — travels with the song: `track.collapsed` · `track.folded` · `track.automationOpen` · `track.automation[].height` · `clip.takesOpen` · `track.sampler.view` · `project.show.stageMode` · `project.show.cued` · `project.activePadId` / `project.scratchPads` · `project.notes` · `project.mastering.*` · cue mixes · macros.
+
+**NOT persisted** (in-memory `uiStore` only, resets every reload): `editorTab` · `browserTab` · `phoneMode` · all five sheet-open booleans · `channelOverview` · `monitorCueId` · `openDevice` (plugin-window target *and* position) · `tool` · all selections · `pxPerBeat` · `laneScale` · `snap` · `snapMode` · `prPxPerBeat` · `prSnap` · `prKey` · `prScale` · `prScaleLock` · `keyboardOctave`. Also unpersisted: tablet drawer state, tablet bottom-panel size, every `InsertRack` slot disclosure, `DeviceRack` micro-params, `MacroPanel` range disclosure, audio-editor tool, piano-roll quantize settings, browser search query.
+
+---
+
+# (D) The 15 most important missing or broken window behaviours
+
+Ranked by how much workflow each one blocks, not by implementation cost.
+
+| # | Behaviour | Evidence | Why it matters |
+|---|---|---|---|
+| **1** | **No detach / float / second-monitor for anything.** FSP8 detaches thirteen surfaces and gives the pattern four dedicated menu commands. | zero hits for `window.open` / `documentPictureInPicture` / `popout` across `src/` | A DAW on a two-monitor desk is the normal case. Document Picture-in-Picture is the web primitive that could carry the Browser, the Mixer and a chord/lyrics display; without it the product is single-window forever. |
+| **2** | **No keyboard shortcut opens any workspace pane.** FSP8: F2 Editor, F3 Console, F4 Inspector, F5 Browser, F6–F10 browser tabs, F11 device editor, Shift+F3 console density. | `src\app\shortcuts.ts` `View` category = tools, octave, `?` only; pane toggles exist only as `TopBar` buttons (lines 183-208) | This is the cheapest high-value fix in the whole audit. The store API (`toggle`, `reveal`, `setMaximized`) already exists and is already correct. |
+| **3** | **No Track List pane** — no per-track show/hide, no filter field, no visibility presets, no visibility undo. | `grep -rniE "TrackList" src\components` → nothing; visibility today is only folder folding (`visibleTracks()` in `src\model\mixerGraph.ts`) | On a 40-track session, "show me only the drums" is a routine move. It is currently impossible. |
+| **4** | **No Launcher / clip-launch grid.** | `grep -rli "launcher\|clip launch\|scene" src\components` → nothing | An entire production paradigm, plus a resizable side-by-side divider and a mutual-exclusion rule with scratch pads. |
+| **5** | **No separate undo stack for visibility changes.** FSP8 keeps 10 steps and states explicitly that visibility "is not tracked by normal Undo/Redo". | not present | Once #3 lands, an accidental hide-all is unrecoverable without it. |
+| **6** | **`uiStore.channelOverview` has no control** — the Channel Overview strip is dead code reachable only by its `true` default. | written nowhere; read once at `src\components\mixer\Mixer.tsx:43` | This is exactly the class CLAUDE.md calls out: *"A control that does nothing is a bug of the same class as a wrong number."* Inverted here — a surface with no control. It should be caught by a static guard alongside `tests\schemaWired.test.ts`. |
+| **7** | **Tablet drawers are not accessible modals** — scrim and click-outside, but no `role="dialog"`, no `aria-modal`, no focus trap, no Escape. | `src\components\shell\TabletLayout.tsx:117-135` | A keyboard or screen-reader user can tab into the page behind a visually-blocking drawer. |
+| **8** | **`DiagnosticsSheet` is the only overlay with a scrim but none of the three modal affordances** — `role="complementary"`, no `aria-modal`, no trap, no Escape. | `src\components\diagnostics\DiagnosticsSheet.tsx` | Same bug class as #7, and it is inconsistent with its four sibling sheets. |
+| **9** | **`editorTab` and `browserTab` do not survive a reload**, while the panes that host them do. | `src\state\uiStore.ts` — in-memory | You come back to your session and every editor has forgotten which tool you were using. The pane remembers; its contents do not. |
+| **10** | **No responsive collapse of the global-lane controls.** FSP8 collapses eight buttons into one Global Track Visibility menu when the track column is narrowed. | `GLOBAL_LANES` in `src\components\arrangement\GlobalTracks.tsx` always renders four buttons | MotionLab already has the narrow-viewport machinery (`--global-lane-h`, RA-001) this would hang on, and `globalTrackMenuItems()` already builds the menu. |
+| **11** | **The track-header column width is not resizable.** FSP8 drags the divider between track controls and the arrangement. | no splitter between header and lanes in `src\components\arrangement\Arrangement.tsx` | Long track names are unreadable and there is no way to trade name space for timeline space. |
+| **12** | **Four of eight global lanes are missing**: secondary Ruler, Signature, Lyrics, Video. | `LANE_META` in `GlobalTracks.tsx` has markers / sections / chords / tempo only | Signature is the sharpest of the four — the *data* exists in `src\model\music.ts` and `notation.ts` and is used by `ScoreView`, so there is a model without a lane. |
+| **13** | **No `Reset Window Positions` equivalent in a discoverable place.** `workspaceStore.reset()` exists but is buried in the overflow menu and under Preferences → Audio. | `src\components\shell\TopBar.tsx:58`; `src\components\settings\SettingsSheet.tsx:278-282` | FSP8 documents the exact failure this rescues: a layout saved on a bigger monitor. `normalizeLayout()` already clamps, so MotionLab is protected — but the user still needs the escape hatch where they can find it. |
+| **14** | **`PluginWindow` position is never remembered, and only one device can be open.** | `placed.current = false` on device change (`src\components\mixer\PluginWindow.tsx:194-196`); `uiStore.openDevice` is a single slot by design (`uiStore.ts:87-93`) | The single-slot choice is defensible and documented. Forgetting the position on every open is not — it fights the user on every A/B between two plug-ins. |
+| **15** | **No shared `Sheet` primitive** — five near-duplicate scrim + focus-trap + Escape implementations across three scrim class families. | `ShortcutsSheet`, `WelcomeSheet`, `SettingsSheet`, `ExportSheet`, `DiagnosticsSheet`; classes `.modal-overlay`, `.sheet-overlay`, `.sheet-scrim`, `.drawer-overlay` | This duplication is *why* #7 and #8 exist: each new sheet re-derives the contract and one of them gets it wrong. Extracting the primitive fixes those two and prevents the sixth. |
+
+**Runners-up** (real, but below the line): no Favourites/Recents in the browser · no tag filtering · no browser Sort By · no Preview Player pane (only per-row audition) · no width-responsive browser columns · no Thumbnail/Gallery view · no consolidated collapsed-folder event · no folder→bus routing box · no find-by-name dialogs (`Ctrl+Alt+T/C/S/M`) · no Scenes · no track/channel icons · no Chord Display or Lyrics Display floating windows · no Add/Delete-Time dialog when nothing is selected · tablet bottom-panel size unpersisted (`onResize` simply not wired, unlike desktop).
+

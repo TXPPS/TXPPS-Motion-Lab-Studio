@@ -1,0 +1,31 @@
+# Line endings are LF in the working tree on every platform, not only in the
+# index.
+#
+# Git's `core.autocrlf=true` — the Windows default — stores LF and checks out
+# CRLF. `scripts/generate-params.mjs` writes LF, so on a Windows clone all
+# fourteen generated parameter files differed from their own generator by
+# nothing but their line endings, `npm run params:check` called every one of
+# them stale, and `npm run build` refused to run. A guarantee that a generated
+# file matches its manifest cannot depend on which operating system checked it
+# out.
+* text=auto eol=lf
+
+# Binary, so never converted either way.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text eol=lf
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.mp3 binary
+*.wav binary
+*.ogg binary
+*.webm binary
+*.pdf binary
+*.wasm binary
+*.zip binary

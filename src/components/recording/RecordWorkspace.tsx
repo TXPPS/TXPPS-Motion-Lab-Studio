@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { audioInput } from '../../audio/inputManager';
-import { recordTargetTrack } from '../../audio/recordingController';
+import { recordTargetTrack } from '../../audio/takePlan';
 import { useInputStore } from '../../state/inputStore';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';

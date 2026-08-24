@@ -108,26 +108,40 @@ export class TakeRecorder {
     const rec = this.rec;
     if (!rec || rec.state === 'inactive') return Promise.resolve(null);
 
-    this.stopPromise = new Promise<FinishedTake | null>((resolve) => {
-      const durationSec = this.elapsedSec;
-      rec.onstop = () => {
-        const mimeType = rec.mimeType || 'audio/webm';
-        const blob = new Blob(this.chunks, { type: mimeType });
-        this.chunks = [];
-        this.rec = null;
-        this.startedAt = 0;
-        this.stopPromise = null;
-        resolve(blob.size > 0 ? { blob, mimeType, durationSec } : null);
-      };
-      try {
-        rec.stop();
-      } catch {
-        this.rec = null;
-        this.stopPromise = null;
-        resolve(null);
-      }
+    const durationSec = this.elapsedSec;
+    let settle: (t: FinishedTake | null) => void = () => {};
+    const promise = new Promise<FinishedTake | null>((resolve) => {
+      settle = resolve;
     });
-    return this.stopPromise;
+    // Stored BEFORE the encoder is told to stop, and that order is the whole
+    // point. `onstop` is not guaranteed to be asynchronous: with nothing left
+    // to flush, Firefox and Safari can fire it inside the `stop()` call. The
+    // previous shape assigned this field with the result of `new Promise(...)`,
+    // so the handler's `this.stopPromise = null` ran first and was immediately
+    // overwritten by a promise that had already settled. From then on every
+    // `stop()` returned that stale promise and short-circuited before reaching
+    // `rec.stop()` — the next take's encoder was never told to stop, capture
+    // carried on behind a stopped transport, and the take after that refused to
+    // begin with "the recorder failed to start".
+    this.stopPromise = promise;
+
+    rec.onstop = () => {
+      const mimeType = rec.mimeType || 'audio/webm';
+      const blob = new Blob(this.chunks, { type: mimeType });
+      this.chunks = [];
+      this.rec = null;
+      this.startedAt = 0;
+      this.stopPromise = null;
+      settle(blob.size > 0 ? { blob, mimeType, durationSec } : null);
+    };
+    try {
+      rec.stop();
+    } catch {
+      this.rec = null;
+      this.stopPromise = null;
+      settle(null);
+    }
+    return promise;
   }
 
   /** Best-effort snapshot of what has been captured so far, for recovery. */

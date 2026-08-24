@@ -10,15 +10,9 @@
  * encoded streams to one timeline is not, so the app records one armed track at
  * a time and says so.
  */
-import {
-  beatsPerBar,
-  projectBeatRangeSec,
-  projectBeatsForSeconds,
-  tempoMapOf,
-} from '../model/music';
-import { beatsPerBarAt } from '../model/tempo';
+import { projectBeatRangeSec, projectBeatsForSeconds } from '../model/music';
 import { midiRecorder } from './midiRecorder';
-import type { ProjectData, Track } from '../model/types';
+import type { Track } from '../model/types';
 import { diagLog } from '../state/diagnostics';
 import { useInputStore } from '../state/inputStore';
 import { useProjectStore } from '../state/projectStore';
@@ -26,86 +20,31 @@ import { useUiStore } from '../state/uiStore';
 import { engine } from './engine';
 import { livePeakTap } from './peakTap';
 import { audioInput, DEFAULT_INPUT } from './inputManager';
-import { commitTake, recorderSupported, stashRecovery, TakeRecorder } from './recorder';
-
-/**
- * The count-in is the project's, not this module's.
- *
- * It was both: a field the transport wrote and a module-level number the
- * recorder read, so changing the count-in from the transport changed nothing
- * about a recording. One of them had to go, and the one that survives a save
- * is the project's.
- */
-export function setCountInBars(bars: number): void {
-  const next = Math.max(0, Math.min(8, Math.round(bars)));
-  useProjectStore.getState().update((d) => {
-    d.countIn = next;
-  });
-}
-
-export function getCountInBars(): number {
-  return Math.max(0, Math.min(8, Math.round(useProjectStore.getState().project.countIn ?? 1)));
-}
-
-/** The track a take will be captured on: armed audio track, else selected. */
-export function recordTargetTrack(): Track | null {
-  const p = useProjectStore.getState().project;
-  const sel = useUiStore.getState().selectedTrackId;
-  const audio = p.tracks.filter((t) => t.type === 'audio');
-  return audio.find((t) => t.armed) ?? audio.find((t) => t.id === sel) ?? null;
-}
-
-/**
- * The instrument track a MIDI take would land on.
- *
- * An armed instrument track wins over an armed audio track: pressing record
- * with a keyboard part armed should record the keyboard, and the audio path
- * needs a microphone permission it should not be asking for in that case.
- */
-export function midiRecordTargetTrack(): Track | null {
-  const p = useProjectStore.getState().project;
-  const sel = useUiStore.getState().selectedTrackId;
-  const playable = p.tracks.filter((t) => t.type === 'instrument' || t.type === 'drum');
-  return playable.find((t) => t.armed) ?? playable.find((t) => t.id === sel) ?? null;
-}
-
-/**
- * Where a take rolls in and where it starts counting.
- *
- * Punch and pre-roll were both stored on the project and read by nobody: the
- * transport's punch button toggled a flag that changed nothing about a
- * recording. They are the same question — from what point does the transport
- * roll, and from what point does the clip begin — so they are answered once,
- * here, and the answer is data the caller can test.
- */
-export function captureWindow(
-  project: ProjectData,
-  playheadBeat: number,
-): {
-  rollBeat: number;
-  window: { startBeat: number; endBeat: number } | null;
-} {
-  const punch = project.punch;
-  const map = tempoMapOf(project);
-  const startBeat = punch?.enabled && punch.end > punch.start ? punch.start : playheadBeat;
-  const preRollBars = Math.max(0, Math.min(8, project.preRoll ?? 0));
-  const preRollBeats = preRollBars * beatsPerBarAt(map, Math.max(0, startBeat - 1e-6));
-  return {
-    rollBeat: Math.max(0, startBeat - preRollBeats),
-    // Only punch fixes an end. A pre-roll moves the start of the roll, not the
-    // start of the clip, so it needs no window of its own.
-    window:
-      punch?.enabled && punch.end > punch.start
-        ? { startBeat: punch.start, endBeat: punch.end }
-        : preRollBeats > 0
-          ? { startBeat, endBeat: Number.POSITIVE_INFINITY }
-          : null,
-  };
-}
+import type { FinishedTake } from './recorder';
+import { recorderSupported, stashRecovery, TakeRecorder } from './recorder';
+import { commitOrRecover, type TakeMeta } from './takeCommit';
+import { onTransportStop, type TransportStopReason } from './transportStop';
+import { CountIn } from './countIn';
+import {
+  captureWindow,
+  getCountInBars,
+  midiRecordTargetTrack,
+  recordTargetTrack,
+} from './takePlan';
 
 class RecordingController {
   private recorder = new TakeRecorder();
-  private countInTimer: ReturnType<typeof setInterval> | null = null;
+  private countIn = new CountIn();
+  /**
+   * Which `start()` is the live one.
+   *
+   * `start()` awaits the audio engine, a microphone permission and a count-in,
+   * and a stop can land across any of those. A boolean flag was not enough:
+   * the next `start()` cleared it, so an older start resuming afterwards read
+   * itself as live and trampled the take that had replaced it. A start that
+   * finds the counter moved on releases what it holds and returns.
+   */
+  private startGeneration = 0;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
   private captureStartBeat = 0;
   private trackId: string | null = null;
@@ -119,6 +58,18 @@ class RecordingController {
   private punchTimer: ReturnType<typeof setTimeout> | null = null;
   private cancelled = false;
   private unloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
+  /**
+   * The commit a transport stop kicked off, so `stop()` has something to wait
+   * for. It is null whenever nothing is in flight.
+   */
+  private finalising: Promise<void> | null = null;
+
+  constructor() {
+    // Registered for the life of the module. The controller is a singleton and
+    // there is no point in the app's life at which a transport stop should be
+    // allowed to leave a take running.
+    onTransportStop((reason) => this.handleTransportStop(reason));
+  }
 
   get isRecording(): boolean {
     return useInputStore.getState().phase === 'recording';
@@ -168,10 +119,18 @@ class RecordingController {
       return false;
     }
 
+    // Captured as locals, not read back off `this`. A stop that lands mid-start
+    // clears those fields immediately so the UI can go idle at once, and the
+    // acquire it interrupted may not resolve until afterwards — reading `this`
+    // in the unwind would then release nothing and leave the microphone open.
+    const gen = ++this.startGeneration;
+    const deviceId = track.inputDeviceId || DEFAULT_INPUT;
+    const owner = `record:${track.id}`;
+
     this.cancelled = false;
     this.trackId = track.id;
     this.trackName = track.name;
-    this.deviceId = track.inputDeviceId || DEFAULT_INPUT;
+    this.deviceId = deviceId;
     store.set({
       phase: 'arming',
       lastRecordError: null,
@@ -180,6 +139,7 @@ class RecordingController {
     });
 
     const audioOk = await engine.start();
+    if (this.startGeneration !== gen) return this.abandonStart(deviceId, owner);
     if (!audioOk) {
       store.set({ phase: 'error', lastRecordError: 'Audio engine could not start.' });
       return false;
@@ -192,43 +152,46 @@ class RecordingController {
 
     // Acquire the stream up front so permission problems surface before the
     // count-in rather than after it.
-    const source = await audioInput.acquire(this.deviceId, `record:${track.id}`, ctx);
-    if (!source || this.cancelled) {
-      if (!this.cancelled) {
-        store.set({
-          phase: 'error',
-          lastRecordError: useInputStore.getState().lastError ?? 'Could not open the audio input.',
-        });
-      } else {
-        this.reset();
-      }
+    const source = await audioInput.acquire(deviceId, owner, ctx);
+    if (this.startGeneration !== gen) return this.abandonStart(deviceId, owner);
+    if (!source) {
+      store.set({
+        phase: 'error',
+        lastRecordError: useInputStore.getState().lastError ?? 'Could not open the audio input.',
+      });
       return false;
     }
-    const stream = audioInput.streamFor(this.deviceId);
+    const stream = audioInput.streamFor(deviceId);
     if (!stream) {
       store.set({ phase: 'error', lastRecordError: 'Input stream unavailable.' });
-      audioInput.release(this.deviceId, `record:${track.id}`);
+      audioInput.release(deviceId, owner);
       return false;
     }
 
     this.installUnloadGuard();
 
-    if (getCountInBars() > 0) {
-      const ok = await this.runCountIn();
-      if (!ok || this.cancelled) {
-        this.cleanupInput();
-        this.reset();
-        return false;
-      }
-    }
-
+    // The plan is settled before the count-in, not after it, because the
+    // count-in has to click at the tempo of the beat the take rolls in from —
+    // which is the punch point when there is one, not the playhead.
+    //
     // Capture begins where the roll begins — earlier than the clip when there
     // is a pre-roll or a punch point — and the transport starts in the same
     // tick, so audio and timeline share an origin.
     const plan = captureWindow(useProjectStore.getState().project, engine.getPositionBeats());
     this.captureStartBeat = plan.rollBeat;
     this.window = plan.window;
+
+    if (getCountInBars() > 0) {
+      const ok = await this.runCountIn(plan.rollBeat);
+      if (this.startGeneration !== gen) return this.abandonStart(deviceId, owner);
+      if (!ok) return this.abandonStart(deviceId, owner);
+    }
+
     if (!engine.isPlaying()) await engine.play(plan.rollBeat);
+    // `engine.play` is async, and a stop pressed across that await retires this
+    // start. Without the check the encoder would begin a moment after the
+    // transport stopped — the reported bug arriving by a different door.
+    if (this.startGeneration !== gen) return this.abandonStart(deviceId, owner);
     this.armPunchOut();
 
     // The live waveform taps the same source the take is captured from, so the
@@ -241,9 +204,7 @@ class RecordingController {
     const started = this.recorder.start(stream);
     if (!started) {
       store.set({ phase: 'error', lastRecordError: 'The recorder failed to start.' });
-      this.cleanupInput();
-      this.reset();
-      return false;
+      return this.abandonStart(deviceId, owner);
     }
 
     useInputStore.getState().set({
@@ -259,44 +220,34 @@ class RecordingController {
     return true;
   }
 
-  /** Count-in: metronome for N bars at the current tempo, before capture. */
-  private runCountIn(): Promise<boolean> {
-    const p = useProjectStore.getState().project;
-    const bpb = beatsPerBar(p.timeSig);
-    const totalBeats = Math.round(bpb * getCountInBars());
-    const beatMs = (60 / p.bpm) * 1000;
-    let left = totalBeats;
-    useInputStore.getState().set({ phase: 'countIn', countInBeatsLeft: left });
+  /**
+   * Unwind a start that was retired before it could begin capturing.
+   *
+   * Takes the device and owner as arguments for the reason given where they are
+   * captured. It deliberately does not touch the phase: a newer take may
+   * already own it, and the stop that retired this one has set it already.
+   */
+  private abandonStart(deviceId: string, owner: string): false {
+    audioInput.release(deviceId, owner);
+    livePeakTap.detach();
+    this.removeUnloadGuard();
+    return false;
+  }
 
-    return new Promise<boolean>((resolve) => {
-      const tick = () => {
-        if (this.cancelled) {
-          this.clearCountIn();
-          resolve(false);
-          return;
-        }
-        engine.playMetronomeClick(left % bpb === 0);
-        left -= 1;
-        useInputStore.getState().set({ countInBeatsLeft: Math.max(0, left) });
-        if (left <= 0) {
-          this.clearCountIn();
-          resolve(true);
-        }
-      };
-      tick(); // first click immediately
-      this.countInTimer = setInterval(tick, beatMs);
+  /**
+   * Count in, at the tempo of the beat the take will roll in from.
+   *
+   * Returns false when a transport stop landed during it, in which case
+   * `start()` unwinds without capturing anything.
+   */
+  private runCountIn(atBeat: number): Promise<boolean> {
+    useInputStore.getState().set({ phase: 'countIn' });
+    return this.countIn.run(useProjectStore.getState().project, getCountInBars(), atBeat, {
+      click: (accent) => engine.playMetronomeClick(accent),
+      onBeat: (left) => useInputStore.getState().set({ countInBeatsLeft: left }),
     });
   }
 
-  private clearCountIn(): void {
-    if (this.countInTimer !== null) {
-      clearInterval(this.countInTimer);
-      this.countInTimer = null;
-    }
-    useInputStore.getState().set({ countInBeatsLeft: 0 });
-  }
-
-  /** Stop capturing and turn the take into a clip. */
   /**
    * Record MIDI rather than audio. There is no input device, no permission and
    * no encoder — only a count-in, the transport, and what is played.
@@ -323,8 +274,14 @@ class RecordingController {
 
     this.installUnloadGuard();
 
+    // Settled before the count-in, for the reason given in `start()`.
+    const plan = captureWindow(useProjectStore.getState().project, engine.getPositionBeats());
+    const startBeat = plan.rollBeat;
+    this.captureStartBeat = startBeat;
+    this.window = plan.window;
+
     if (getCountInBars() > 0) {
-      const counted = await this.runCountIn();
+      const counted = await this.runCountIn(startBeat);
       if (!counted || this.cancelled) {
         this.midi = false;
         this.reset();
@@ -334,10 +291,6 @@ class RecordingController {
 
     // Capture begins where the roll begins, and the transport starts in the
     // same tick, so notes and timeline share an origin.
-    const plan = captureWindow(useProjectStore.getState().project, engine.getPositionBeats());
-    const startBeat = plan.rollBeat;
-    this.captureStartBeat = startBeat;
-    this.window = plan.window;
     midiRecorder.start(track.id, startBeat, 0, plan.window ?? undefined);
     if (!engine.isPlaying()) await engine.play(startBeat);
     this.armPunchOut();
@@ -356,144 +309,145 @@ class RecordingController {
     return true;
   }
 
+  /**
+   * Ask for the current take to end, and wait for it to become a clip.
+   *
+   * The controller no longer stops the transport and then finalises. The
+   * transport stop *is* the signal: this asks the engine to stop and awaits the
+   * commit that its announcement started. That is what gives the Stop button,
+   * the spacebar, the Show page, Control Link and a punch-out one order of
+   * events — before, only this method had it, and the other five stopped the
+   * clock while MediaRecorder went on capturing.
+   */
   async stop(): Promise<void> {
-    if (this.midi) {
-      this.midi = false;
-      this.clearTick();
-      const endBeat = engine.getPositionBeats();
-      engine.stop();
-      const clipId = midiRecorder.stop(Math.min(endBeat, this.window?.endBeat ?? endBeat));
-      useInputStore.getState().set({
-        phase: 'idle',
-        recordingActive: false,
-        ...(clipId ? {} : { lastRecordError: 'Nothing was played.' }),
-      });
-      this.reset();
-      return;
-    }
-    const store = useInputStore.getState();
-    if (store.phase === 'countIn') {
-      this.cancel();
-      return;
-    }
-    if (store.phase !== 'recording') return;
-
-    this.clearTick();
-    store.set({ phase: 'finalizing' });
-    const take = await this.recorder.stop();
-    const trackId = this.trackId;
-    const trackName = this.trackName;
-    const startBeat = this.captureStartBeat;
-    const window = this.window ?? undefined;
-    this.cleanupInput();
-    engine.stop();
-
-    if (!take || !trackId) {
-      useInputStore.getState().set({
-        phase: 'idle',
-        recordingActive: false,
-        lastRecordError: 'The recording produced no audio.',
-      });
-      diagLog('warn', 'Recording stopped but no audio was captured');
-      this.reset();
-      return;
-    }
-
-    const ctx = engine.context;
-    if (!ctx) {
-      // Keep the bytes rather than losing the performance.
-      await stashRecovery(take.blob, take.mimeType, {
-        trackId,
-        trackName,
-        startBeat,
-        durationSec: take.durationSec,
-      });
-      useInputStore.getState().set({
-        phase: 'idle',
-        recordingActive: false,
-        lastRecordError: 'Audio context lost — the take was saved for recovery.',
-      });
-      this.reset();
-      return;
-    }
-
-    try {
-      const result = await commitTake({ take, trackId, trackName, startBeat, window, ctx });
-      if (!result) {
-        await stashRecovery(take.blob, take.mimeType, {
-          trackId,
-          trackName,
-          startBeat,
-          durationSec: take.durationSec,
-        });
-        useInputStore.getState().set({
-          phase: 'idle',
-          recordingActive: false,
-          lastRecordError:
-            'The take could not be decoded and was saved for recovery instead of being discarded.',
-        });
-      } else {
-        useInputStore.getState().set({
-          phase: 'idle',
-          recordingActive: false,
-          lastRecordError: result.silent
-            ? 'Recorded, but the take is silent — check the input level.'
-            : null,
-          lastTake: {
-            mediaId: result.mediaRef.id,
-            clipId: result.clipId,
-            trackId,
-            name: result.mediaRef.name,
-            durationSec: result.durationSec,
-            bytes: result.mediaRef.byteSize,
-            mimeType: result.mediaRef.mimeType ?? 'unknown',
-            silent: result.silent,
-          },
-        });
-        useUiStore.getState().selectClip(result.clipId, trackId);
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      await stashRecovery(take.blob, take.mimeType, {
-        trackId,
-        trackName,
-        startBeat,
-        durationSec: take.durationSec,
-      }).catch(() => null);
-      useInputStore.getState().set({
-        phase: 'idle',
-        recordingActive: false,
-        lastRecordError: `Could not save the take (${msg}). It was kept for recovery.`,
-      });
-    }
-    this.reset();
+    engine.stop('user');
+    await this.finalising;
   }
 
-  /** Abandon the current take without creating a clip. */
-  cancel(): void {
+  /**
+   * A transport stop arrived. This is the ONLY place a take ends, which is what
+   * makes every route to a stopped transport behave the same way.
+   *
+   * Everything here is synchronous. `MediaRecorder.stop()` is issued inside
+   * this call, so the last chunk boundary is the stop instant and no audio
+   * exists after it; a version that deferred the call to a microtask would let
+   * one more chunk through. The decode and commit that follow cannot be
+   * synchronous, so they run detached and `stop()` awaits them.
+   *
+   * Returns true when there was something to end, which is how the engine tells
+   * a first stop press from a second one.
+   */
+  private handleTransportStop(reason: TransportStopReason): boolean {
     const phase = useInputStore.getState().phase;
-    if (phase === 'idle') return;
-    this.cancelled = true;
-    this.clearCountIn();
-    this.clearTick();
-    this.clearPunchOut();
 
-    if (this.midi) {
-      this.midi = false;
-      midiRecorder.cancel();
-      engine.stop();
+    if (phase === 'arming') {
+      // The stream is still opening. `start()` re-checks `cancelled` after
+      // every await, so setting it here is what makes a stop pressed during the
+      // permission prompt actually stop. Before, that stop was swallowed — the
+      // guard read `phase !== 'recording'` — and the take began anyway a moment
+      // later, which reads to the user as the record button ignoring them.
+      this.cancelled = true;
+      // Retire the start that is in flight. It re-checks the counter after
+      // every await and releases the input it may by then have acquired.
+      this.startGeneration += 1;
+      this.cleanupInput();
       useInputStore.getState().set({
         phase: 'idle',
         recordingActive: false,
         countInBeatsLeft: 0,
         recordSeconds: 0,
       });
-      diagLog('info', 'MIDI recording cancelled');
       this.reset();
-      return;
+      return true;
     }
 
-    // If audio was already captured, keep it recoverable rather than dropping it.
+    if (phase === 'countIn') {
+      // Nothing has been captured yet, so there is nothing to keep. The machine
+      // is put back to idle here rather than left for `start()` to unwind,
+      // because `start()` unwinds one await later and until then the count-in
+      // is still on screen and `isBusy` still refuses a new take.
+      this.cancelled = true;
+      this.startGeneration += 1;
+      this.countIn.abort();
+      this.cleanupInput();
+      useInputStore.getState().set({
+        phase: 'idle',
+        recordingActive: false,
+        countInBeatsLeft: 0,
+        recordSeconds: 0,
+      });
+      this.reset();
+      return true;
+    }
+
+    if (phase !== 'recording') return false;
+
+    this.clearTick();
+    this.clearPunchOut();
+
+    // Read while the scheduler is still running. `engine.stop()` announces
+    // before it parks the clock for exactly this reason: asked afterwards the
+    // position would be the paused one, and the clip would end in the wrong
+    // place.
+    const endBeat = engine.getPositionBeats();
+
+    if (this.midi) return this.endMidiTake(reason, endBeat);
+    if (reason === 'user') return this.endAudioTake();
+    return this.dropAudioTake(reason);
+  }
+
+  /** End a MIDI take: commit it on a plain stop, drop it otherwise. */
+  private endMidiTake(reason: TransportStopReason, endBeat: number): boolean {
+    this.midi = false;
+    if (reason === 'user') {
+      const clipId = midiRecorder.stop(Math.min(endBeat, this.window?.endBeat ?? endBeat));
+      useInputStore.getState().set({
+        phase: 'idle',
+        recordingActive: false,
+        ...(clipId ? {} : { lastRecordError: 'Nothing was played.' }),
+      });
+    } else {
+      midiRecorder.cancel();
+      useInputStore.getState().set({
+        phase: 'idle',
+        recordingActive: false,
+        countInBeatsLeft: 0,
+        recordSeconds: 0,
+      });
+      diagLog('info', `MIDI recording ended without a clip (${reason})`);
+    }
+    this.reset();
+    return true;
+  }
+
+  /**
+   * End an audio take and commit it. The encoder is stopped synchronously here;
+   * only the blob it produces is awaited.
+   */
+  private endAudioTake(): boolean {
+    useInputStore.getState().set({ phase: 'finalizing' });
+    const pending = this.recorder.stop();
+    const trackId = this.trackId;
+    const trackName = this.trackName;
+    const startBeat = this.captureStartBeat;
+    const window = this.window ?? undefined;
+    this.finalising = this.commitPendingTake(pending, {
+      trackId,
+      trackName,
+      startBeat,
+      window,
+    }).finally(() => {
+      this.finalising = null;
+    });
+    return true;
+  }
+
+  /**
+   * End an audio take without making a clip of it — Escape, a panic, or the
+   * project going away under it. The bytes are stashed rather than dropped: a
+   * performance is worth more than the tidiness of discarding it.
+   */
+  private dropAudioTake(reason: TransportStopReason): boolean {
     const snapshot = this.recorder.snapshot();
     if (snapshot && snapshot.size > 0 && this.trackId) {
       void stashRecovery(snapshot, this.recorder.mimeType ?? 'audio/webm', {
@@ -505,15 +459,75 @@ class RecordingController {
     }
     this.recorder.abort();
     this.cleanupInput();
-    engine.stop();
     useInputStore.getState().set({
       phase: 'idle',
       recordingActive: false,
       countInBeatsLeft: 0,
       recordSeconds: 0,
     });
-    diagLog('info', 'Recording cancelled');
+    diagLog('info', `Recording ended without a clip (${reason})`);
     this.reset();
+    return true;
+  }
+
+  /** Turn the finished blob into a clip, or keep it recoverable if it cannot be. */
+  private async commitPendingTake(
+    pending: Promise<FinishedTake | null>,
+    meta: TakeMeta,
+  ): Promise<void> {
+    const outcome = await commitOrRecover(pending, meta, engine.context, () => this.cleanupInput());
+    const store = useInputStore.getState();
+    switch (outcome.kind) {
+      case 'empty':
+        store.set({
+          phase: 'idle',
+          recordingActive: false,
+          lastRecordError: 'The recording produced no audio.',
+        });
+        break;
+      case 'recovered':
+        store.set({ phase: 'idle', recordingActive: false, lastRecordError: outcome.message });
+        break;
+      case 'committed':
+        store.set({
+          phase: 'idle',
+          recordingActive: false,
+          lastRecordError: outcome.silent
+            ? 'Recorded, but the take is silent — check the input level.'
+            : null,
+          lastTake: {
+            mediaId: outcome.mediaId,
+            clipId: outcome.clipId,
+            trackId: outcome.trackId,
+            name: outcome.name,
+            durationSec: outcome.durationSec,
+            bytes: outcome.bytes,
+            mimeType: outcome.mimeType,
+            silent: outcome.silent,
+          },
+        });
+        useUiStore.getState().selectClip(outcome.clipId, outcome.trackId);
+        break;
+    }
+    this.reset();
+  }
+
+  /**
+   * Abandon the current take without creating a clip.
+   *
+   * Routed through the engine rather than torn down here, so abandoning and
+   * stopping share one path and cannot drift apart. That drift is what the
+   * transport bug was.
+   */
+  cancel(): void {
+    const phase = useInputStore.getState().phase;
+    if (phase === 'idle') return;
+    if (phase === 'error') {
+      // Nothing is running; Escape is dismissing the message.
+      useInputStore.getState().set({ phase: 'idle', lastRecordError: null });
+      return;
+    }
+    engine.stop('abandon');
   }
 
   private cleanupInput(): void {
@@ -563,7 +577,7 @@ class RecordingController {
   }
 
   private reset(): void {
-    this.clearCountIn();
+    this.countIn.abort();
     this.clearTick();
     this.clearPunchOut();
     this.window = null;

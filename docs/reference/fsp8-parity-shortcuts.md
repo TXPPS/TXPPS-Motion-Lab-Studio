@@ -1,0 +1,433 @@
+# Directive 09 §1 — Keyboard Shortcut Parity
+
+**Reference:** FSP8 user manual, extracted text (`fsp8.txt`, 26,895 lines).
+Line numbers below are lines in that extract.
+
+**IP boundary.** This is a reference/analysis document. The reference product's
+trademarked names, unit names and preset names appear here only as citations of
+its own documentation. Nothing in this file proposes a name for MotionLab UI,
+code or filenames.
+
+---
+
+## Part 1 — How the reference's key command system works
+
+Source: the **Key Commands** section, lines 2223–2290.
+
+### Notation convention (lines 2225–2236)
+
+> "In this manual, key commands with modifier keys are shown with the Windows
+> modifier key first, as follows: `[Win modifier key]/[Mac modifier key]+[key]`.
+> For example: `[Ctrl]/[Cmd]+[C]` means 'press [Ctrl]+C in Windows, or press
+> [Cmd]+C in macOS.'" (l. 2228–2229)
+
+> "Where there is no difference between the Windows and Mac version of a key
+> command, only one key command is displayed. Example: `[F3]`." (l. 2231–2232)
+
+This is exactly the convention MotionLab's registry already encodes as the `mod`
+token in `src/app/shortcuts.ts` (`comboOf` folds `ctrlKey || metaKey` into one
+`mod` part). **PARITY on the notation model.**
+
+### System properties
+
+| Property | FSP8 | Manual line | MotionLab today |
+| --- | --- | --- | --- |
+| Modifier folding Ctrl↔Cmd | Yes, one command, two platform spellings | 2228 | Yes — `mod` token, `comboOf()`, `comboLabel()` renders ⌘/⌥ on Mac | 
+| Categories | Grouped in the Keyboard Shortcuts panel; per-function search | 2273 | Yes — 7 categories: Transport, Editing, Selection, View, Project, Piano roll, Automation (`shortcuts.ts:19`, mirrored in `KeyCommands.tsx:16`) |
+| View the full list | `Help/Keyboard Shortcuts` renders an **HTML document and opens it in your browser** | 2244, 2289 | In-app modal sheet (`src/components/common/ShortcutsSheet.tsx`), opened with `?` or the overflow menu. No printable/exportable document. |
+| Edit a binding | Search → select function → click **Enter Key** field → press combo → click **Assign** | 2271–2276 | Search → click the combo chip → next keypress is captured and assigned (`KeyCommands.tsx:78–94`). No separate Assign step — one fewer click. |
+| Conflict handling | If the combo is already used, the current use is shown below the field with a **Show** link that jumps to it | 2277–2278 | Combo is **taken** from the previous owner automatically (`keymapStore.ts:56–60`), plus a running conflict banner (`bindingConflicts()`). No "Show" jump link. |
+| Add a binding to a command that has none | Supported | 2268 | Not applicable — every registry entry ships with a default combo; there is no unbound-command list. |
+| Reset one binding | Implied | — | Yes — per-row reset button (`KeyCommands.tsx:57–65`) |
+| Reset all | Implied | — | Yes — "Reset all" button (`KeyCommands.tsx:111–117`) |
+| **Import a key map** | `Keyboard Mapping Scheme → Import` | 2280 | **MISSING** |
+| **Export a key map** | `Keyboard Mapping Scheme → Export` | 2281 | **MISSING** |
+| **Export as text** | "so that you can create a reference guide to your custom mappings" | 2282–2284 | **MISSING** |
+| **Migration key maps from other DAWs** | "select from keyboard maps for several DAWs; select a map, and [it] recognizes and applies common key commands from that DAW" | 2254–2259 | **MISSING** |
+| **Find Command palette** | `[Ctrl]+[K]`, type a command name or a keyword like Track, Event | 2249–2250 | **MISSING** — the search box in `KeyCommands.tsx` searches *bindings*, not commands, and does not execute anything |
+| Type-ahead locate dialogs | `[Ctrl]+[Alt]/[Option]+[C/T/S]` open a name/number search box; up/down arrows scroll the results | 2237–2242 | **MISSING** |
+| Persistence | Saved with the mapping scheme | 2280 | `localStorage` key `motionlab.keymap.v1`, overrides only — defaults that move in a later release move for everyone who never touched it (`keymapStore.ts:4–15`) |
+
+**Notable MotionLab design decision that is stronger than the reference:**
+`keymapStore.ts:82–101` tracks *orphaned* defaults — when an action is rebound
+away from its default combo and nothing claims that combo, the old key is made
+inert. The comment names the reason: "a key that still fires the action it was
+rebound away from is the one outcome a rebinding must never have." The manual
+does not say the reference does this.
+
+**Notable MotionLab design decision that is weaker:** the manual's assign flow
+shows the conflicting command *before* committing; MotionLab commits and then
+warns. Same information, later.
+
+---
+
+## Part 2 — The complete harvested shortcut table
+
+Harvested from the whole 26,895-line extract, not only the assigned chapters.
+`—` in the Mac column means the manual gives one spelling for both platforms.
+
+### Legend for the Gap column
+- `PARITY` — MotionLab binds the same key to the same function.
+- `PARTIAL` — MotionLab has the function but on a different key, or has part of it.
+- `MISSING` — MotionLab has no binding and (usually) no feature.
+- `N/A` — the function belongs to a subsystem MotionLab does not have (hardware
+  control, CD burning, ARA, video, scoring engraving, licensing).
+
+### 2.1 Transport
+
+| Keys (Win) | Keys (Mac) | Function | Manual line | MotionLab binding today | Gap |
+| --- | --- | --- | --- | --- | --- |
+| Spacebar | — | Play from cursor; pressed again, Stop | 2216–2218 | `Space` → `engine.togglePlay()` (`useKeyboard.ts:224`), suppressed when focus is a button/link/checkbox etc. so a focused control keeps Space | **PARITY** |
+| `0` (numeric keypad) | — | Stop | 2216 | Unbound | MISSING |
+| `*` (numeric keypad) | — | Record | 2220, 3471, 3525 | `R` → `recording.toggle()` (`useKeyboard.ts:364`) | PARTIAL — function present, different key |
+| `/` (numeric keypad) | — | Toggle Loop | 2221, 3692, 8086, 13645 | Unbound; loop is a transport button and an overflow-menu item | MISSING |
+| `,` | — | Return to Zero (RTZ) | 2215 | `Enter` → `engine.returnToStart()` (`useKeyboard.ts:370`). Note: the RTZ button's tooltip says "(Home)" — `TransportBar.tsx:352` — but **no Home handler exists**. Tooltip is wrong. | PARTIAL + **BUG** |
+| NumPad Enter | — | Play (preview player) | 26383 | Unbound | MISSING |
+| NumPad `0` | — | Stop (preview player) | 26383 | Unbound | MISSING |
+| `I` (letter i) | — | Auto Punch on/off | 3552 | Unbound; punch is a transport button + overflow item (`TransportBar.tsx:416`) | PARTIAL |
+| `C` | — | Metronome global on/off | 3596 | Unbound; metronome is a transport button + overflow item | PARTIAL |
+| `Shift`+`C` | — | Engage Precount | 3523 | Unbound; count-in cycles 0–4 bars via right-click on the metronome button | PARTIAL |
+| `O` | — | Engage Preroll | 3523 | Unbound; pre-roll cycles 0–4 bars in the overflow menu | PARTIAL |
+| `F` | — | Autoscroll (view follows playback cursor) | 5059, 16441 | Feature exists as the `followPlayhead` **preference** (`prefsStore.ts:32`, toggled in `SettingsSheet.tsx:238`, honoured at `Arrangement.tsx:310`), default on. No key binding and no per-view toggle. | PARTIAL |
+| `Ctrl`+`Space` | `Cmd`+`Space` | Locate playback position to the mouse-cursor position | 5042 | Unbound | MISSING |
+| `Alt`+`P` | `Option`+`P` | Enable Play Start Marker | 5032 | Unbound | MISSING |
+| `Alt`+`Ctrl`+`P` | `Option`+`Cmd`+`P` | Follow Selection | 5022 | Unbound | MISSING |
+| `Alt`+NumPad `0` | `Option`+NumPad `0` | Return to Start on Stop | 5039 | Unbound — MotionLab's Stop tooltip says "press twice to return to start" (`TransportBar.tsx:397`), a different idiom for the same want | DIVERGENT-BY-DESIGN |
+| `Shift`+`B` | — | Go to previous Marker | 13596 | Unbound; right-click the Rewind button (`TransportBar.tsx:361`) | PARTIAL |
+| `Shift`+`N` | — | Go to next Marker | 13596 | Unbound; right-click the Forward button (`TransportBar.tsx:372`) | PARTIAL |
+| `Y` | — | Add Marker at the cursor | 13569 | Unbound | MISSING |
+| `Shift`+`Y` | — | Insert **named** Marker (opens a name box) | 13570 | Unbound | MISSING |
+| `Ctrl`+`Alt`+`M` | `Ctrl`+`Option`+`M` | Recall Marker by number | 13600 | Unbound | MISSING |
+| `P` | — | Set Left/Right Locators around the selection | 13643 | Unbound | MISSING |
+| `Shift`+`P` | — | Set Locators around selection **ignoring Snap** / loop a precise range | 8085, 13644 | Unbound; "Set the punch range from the loop" exists as an overflow item | PARTIAL |
+| `Tab` | — | Tab to next transient (moves the playback cursor) | 5623 | Unbound | MISSING |
+| `Ctrl`+`Backspace` | `Cmd`+`Backspace` | Move cursor to previous transient | 5627 | Unbound | MISSING |
+| `Shift`+`Tab` | — | Create/expand a range selection between transients | 5628 | Unbound | MISSING |
+| `Shift`+`Ctrl`+`Backspace` | `Shift`+`Cmd`+`Backspace` | Shorten the transient range selection | 5629 | Unbound | MISSING |
+| `Shift`+NumPad `*` | — | **Recall Retrospective Recording** to the selected Track | 2057, 2087 | **No feature** | MISSING |
+
+### 2.2 Documents, pages and navigation
+
+| Keys (Win) | Keys (Mac) | Function | Manual line | MotionLab binding today | Gap |
+| --- | --- | --- | --- | --- | --- |
+| `Ctrl`+`N` | `Cmd`+`N` | New Document (opens the New Document dialog) | 1392, 2147, 14561, 16355 | Unbound | MISSING |
+| `Ctrl`+`.` | `Cmd`+`.` | Session Setup / Meta Information | 2488, 4249, 8762 | Unbound | MISSING |
+| `Ctrl`+`Tab` (hold `Ctrl`, tap `Tab`) | — | **Quick Switch** — pop-up list of all open documents; cycle with Tab, release Ctrl to land | 3083–3086 | Unbound; no multi-document model | MISSING |
+| `Ctrl`+`K` | — | **Find Command** — search any command by name and see its shortcut | 2249–2250 | Unbound | MISSING |
+| `Ctrl`+`Alt`+`C` | `Ctrl`+`Option`+`C` | Locate a Console Channel by name/number | 2240, 12014 | Unbound | MISSING |
+| `Ctrl`+`Alt`+`T` | `Ctrl`+`Option`+`T` | Locate a Track by name/number | 2241, 11588 | Unbound | MISSING |
+| `Ctrl`+`Alt`+`S` | `Ctrl`+`Option`+`S` | Recall a Scene by name/number | 2242, 11636, 12361, 13260 | Unbound | MISSING |
+| `Ctrl`+`Z` | `Cmd`+`Z` | Undo | 5124, 8346 | `mod+z` → `useProjectStore.undo()` (`useKeyboard.ts:229`) | **PARITY** |
+| `Ctrl`+`E` | `Cmd`+`E` | Export Mixdown | 13678 | `mod+shift+e` opens the export dialog; **bare `mod+e` is Split at playhead** in MotionLab (`useKeyboard.ts:254`) — a direct collision with the reference's Export | PARTIAL / collision |
+| `F1` | — | Reference manual; context-sensitive from a plug-in or Info View | 2296, 2306, 26317 | Unbound | MISSING |
+| `Shift`+`F` | — | Fullscreen | 2319, 2685 | Unbound | MISSING |
+| `Esc` | — | Cancel an in-progress drag | 2199 | Escape is an **escalating** handler (see 2.9) but does not cancel a pointer drag | PARTIAL |
+| `Esc` | — | Exit a Tutorial | 2445 | No tutorials; there is a Welcome tour sheet | N/A |
+| `Esc` | — | Exit Performance View / Show Edit View / fullscreen | 15452, 15509, 25784 | Escape closes dialogs and menus | PARTIAL |
+| `Shift` held at app startup | — | Force the Safety Options dialog | 1743 | No equivalent | MISSING |
+| `Ctrl`+`Enter` | `Cmd`+`Enter` | Enter Performance View (Show page); Enter = extended-keyboard Enter | 14993, 15311 | Unbound | MISSING |
+| `Alt`+click the Perform button | `Option`+click | Performance View in a separate resizable window | 15313 | No equivalent | MISSING |
+
+### 2.3 Views and panels (function keys)
+
+| Keys (Win) | Keys (Mac) | Function | Manual line | MotionLab binding today | Gap |
+| --- | --- | --- | --- | --- | --- |
+| `F2` | — | Editor (Note / Audio / Pattern editor) below the arranger | 3018, 6173, 7524, 7771, 8387 | Unbound | MISSING |
+| `F3` | — | Console (mixer) | 3026, 3157, 3372, 3437, 11876, 14744, 15942 | Unbound | MISSING |
+| `Shift`+`F3` | — | Console Navigation column (Scenes) | 12208 | Unbound | MISSING |
+| `F4` | — | Inspector | 3166, 3328, 3886, 3917, 4855, 5377, 5893, 6085, 6274, 13540, 13577 | Unbound | MISSING |
+| `F5` | — | Browser | 3030, 9367, 16459 | Unbound | MISSING |
+| `F6` | — | Browser → Instruments tab | 9047 | Unbound | MISSING |
+| `F7` | — | Browser → Effects tab | 9101 | Unbound | MISSING |
+| `F8` | — | Browser → Loops tab | 9317 | Unbound | MISSING |
+| `F9` | — | Browser → Files tab | 9369 | Unbound | MISSING |
+| `F10` | — | Browser → Pool tab | 9682 | Unbound | MISSING |
+| `F11` | — | FX / effect editor for the selected Channel | 3333, 12459, 12585 | Unbound | MISSING |
+| `Shift`+`F11` | — | Instrument window for the selected Channel | 12585 | Unbound | MISSING |
+| `Shift`+`Alt`+`R` | `Shift`+`Option`+`R` | Record Panel | 3697, 3735, 5430, 6293 | Unbound; no Record Panel | MISSING |
+| `A` | — | Show / hide Automation lanes | 15572, 15603, 15633, 16171, 16820 | Unbound — but `A` is the virtual keyboard's C natural in MotionLab (`KEY_TO_SEMITONE`, `useKeyboard.ts:76`), so this specific key is claimed | DIVERGENT-BY-DESIGN |
+| `T` | — | Add Tracks dialog | 3103, 3281, 15622 | Unbound — `T` is the virtual keyboard's F♯ | DIVERGENT-BY-DESIGN |
+| `Shift`+`T` | — | Remove the selected Instrument Track | 3136 | Unbound | MISSING |
+| `Ctrl`+`Page Up` / `Page Down` | `Cmd`+`Page Up` / `Page Down` | Step through effect editors on the selected track | 12459 | Unbound | MISSING |
+| — | — | Performance Monitor (View menu / Transport button; no default key) | 903, 13507 | Frame-load meter is **always visible** in the desktop transport (`TransportBar.tsx:155–192`) | PARTIAL |
+
+### 2.4 Zoom and the arrangement overview
+
+| Keys (Win) | Keys (Mac) | Function | Manual line | MotionLab binding today | Gap |
+| --- | --- | --- | --- | --- | --- |
+| `E` | — | Zoom In (horizontal) | 7851 | Unbound — `E` is the virtual keyboard's D♯ | DIVERGENT-BY-DESIGN |
+| `W` | — | Zoom Out (horizontal) | 7852 | Unbound — `W` is the virtual keyboard's C♯ | DIVERGENT-BY-DESIGN |
+| `Shift`+`E` | — | Zoom In (vertical) | 7854 | Unbound | MISSING |
+| `Shift`+`W` | — | Zoom Out (vertical) | 7855 | Unbound | MISSING |
+| `Ctrl`+scrollwheel | — | Zoom in/out **vertically** | 7856 | `Ctrl`/`Cmd`+wheel zooms **horizontally**, anchored at the cursor X (`Arrangement.tsx:483–488`). Same modifier, opposite axis. | **INVERTED** — flag it |
+| `Shift`+`L` | — | Zoom to Loop | 7858 | Unbound | MISSING |
+| `Shift`+`S` | — | Zoom to Selection toggle (H+V) | 7859 | Unbound | MISSING |
+| `Alt`+`S` | — | Zoom to Selection toggle (horizontal only) | 7860 | Unbound | MISSING |
+| `Alt`+`Shift`+drag | — | Zoom by Selecting — draw a range to zoom fully into it; `Alt`+`Shift`+click to return | 7861–7863 | Zoom tool on `9` does "drag across to zoom" (`shortcuts.ts:284`) | PARTIAL |
+| `Alt`+`Z` | — | Zoom Full (fit horizontally) | 7864 | Unbound | MISSING |
+| `Alt`+`W` | — | **Undo Zoom** | 7872 | Unbound; no zoom history | MISSING |
+| `Alt`+`E` | — | **Redo Zoom** | 7872 | Unbound; no zoom history | MISSING |
+| `Z` | — | **Toggle Zoom** — swap current zoom with the stored state | 7876 | `Z` = keyboard octave **down** (`useKeyboard.ts:407`) | DIVERGENT-BY-DESIGN (key claimed) |
+| `Shift`+`Z` | — | **Store Zoom State** | 7880 | Unbound | MISSING |
+| `Shift`+scrollwheel | — | Overview: horizontal scrolling | 2951 | `Shift`+wheel scrolls the arrangement horizontally (`Arrangement.tsx:489–492`) — same gesture, on the arrangement rather than the overview | **PARITY** |
+| `Ctrl`+scrollwheel | `Cmd`+scrollwheel | Overview: vertical zoom | 2952 | Bound to horizontal zoom instead — see the row above | INVERTED |
+| `Ctrl`+`Shift`+scrollwheel | `Cmd`+`Shift`+scrollwheel | Overview: horizontal zoom | 2953 | Unbound | MISSING |
+| `Ctrl`+hover in Overview | `Cmd`+hover | Show a timestamp of the hovered position | 2949 | No overview strip | MISSING |
+
+### 2.5 Tools
+
+| Keys (Win) | Keys (Mac) | Function | Manual line | MotionLab binding today | Gap |
+| --- | --- | --- | --- | --- | --- |
+| `1` | — | Arrow / Pointer tool | 4335, 6357 | `1` → Pointer (`ARRANGE_TOOLS[0]`, `useKeyboard.ts:375`) | **PARITY** |
+| `2` | — | Range tool | 4441 | `2` → Range | **PARITY** |
+| `3` | — | Split tool | 4476 | `3` → Split | **PARITY** |
+| `4` | — | Eraser tool | 4506 | `4` → Erase | **PARITY** |
+| `5` | — | Paint tool | 4517 | `5` → **Mute** — MotionLab's order is Pointer·Range·Split·Erase·Mute·Slip·Paint·Listen·Zoom, so 5 and 6 are swapped relative to the reference | PARTIAL / off-by-one |
+| `6` | — | Mute tool | 4546 | `6` → **Slip** | PARTIAL / off-by-one |
+| — | — | (no reference equivalents) | — | `7` Paint, `8` Listen, `9` Zoom | MotionLab-only |
+| `Ctrl` held | `Cmd` held | **Alternative Tool** — temporarily switch the Arrow to a chosen alternate (Range, Split, Eraser, Paint, Mute, Bend, Listen) | 4428, 4434–4435, 4457 | No modifier-held alternate tool | MISSING |
+| `Ctrl`+`Alt` held over an Event | `Cmd`+`Alt` held | Slip Editing | 4429, 4838 | Slip is a tool on `6`, not a hold | DIVERGENT-BY-DESIGN |
+| `Ctrl`+`Alt` held over an Event edge | `Cmd`+`Option` held | Define Tempo tool | 4430, 5342 | No feature | MISSING |
+| `Alt` held | — | Temporarily switch back to Arrow from Range / Split / Eraser / Mute / Paint | 4472, 4490, 4512, 4553, 4693 | No hold-to-revert; `Esc` returns to Pointer | PARTIAL |
+| `Alt` held | `Option` held | Timestretch tool (from an Event's right edge) | 4362, 5305 | No feature | MISSING |
+| `N` | — | Toggle Snap (Show page) | 14982 | Unbound | MISSING |
+| `Shift` held while dragging | — | Temporarily defeat Snap to Grid | 4105, 4466, 5665 | `shift+drag` → "Temporarily ignore snapping" (`shortcuts.ts:166`) | **PARITY** |
+
+### 2.6 Editing
+
+| Keys (Win) | Keys (Mac) | Function | Manual line | MotionLab binding today | Gap |
+| --- | --- | --- | --- | --- | --- |
+| `Ctrl`+`X` | `Cmd`+`X` | Cut | 4820, 10528 | `mod+x` → `cutSelection()` | **PARITY** |
+| `Ctrl`+`C` | `Cmd`+`C` | Copy | 4821, 10527 | `mod+c` → automation points if selected, else clips | **PARITY** |
+| `Ctrl`+`V` | `Cmd`+`V` | Paste | 10529, 11183, 13616 | `mod+v` → automation into the active lane, else clips at the playhead | **PARITY** |
+| `Ctrl`+`P` | `Cmd`+`P` | Paste (as stated at l. 4822 — almost certainly a manual typo for `+V`; l. 10529 gives `+V` for the same action) | 4822 | n/a | *(manual inconsistency, recorded for completeness)* |
+| `Ctrl`+`Shift`+`V` | `Cmd`+`Shift`+`V` | **Paste at Original Position** | 4829, 13625 | Unbound | MISSING |
+| `D` | — | Duplicate the selection (repeatable) | 4892, 4897, 5145, 10335, 10341, 15776 | `mod+d` → duplicate (`useKeyboard.ts:294`) — bare `D` is the virtual keyboard's E natural | PARTIAL (different key, by design) |
+| `Alt`+`D` | — | Duplicate **and Insert** | 4901 | Unbound | MISSING |
+| `Shift`+`D` | — | **Duplicate Shared** (ghost/linked copy) | 4294, 4907 | Unbound; no shared-copy model | MISSING |
+| `G` | — | Merge Events / create an Audio Part / consolidate | 4287, 4980, 5591, 11429 | Unbound — `G` is the virtual keyboard's G natural | MISSING |
+| `X` | — | Crossfade selected overlapping Events | 5002, 5003, 16578 | Right-click on two selected audio clips (`shortcuts.ts:299`) | PARTIAL |
+| `Alt`+`X` | — | Split at the timeline cursor without the Split tool | 4487, 16587 | `mod+e` → split selected clip at the playhead | PARTIAL (different key) |
+| `Alt`+`C` | — | Separate Shared Copies | 4627 | No feature | MISSING |
+| `Ctrl`+`Alt`+`X` | `Cmd`+`Alt`+`X` | Split Range (splits at both selection edges) | 4469 | Unbound | MISSING |
+| `Q` | — | Quantize the selected Events | 5725, 6299 | Unbound | MISSING |
+| `Alt`+`Q` | `Option`+`Q` | Quantize at 50% strength | 5729 | Unbound | MISSING |
+| `Shift`+`Q` | — | Restore original timing (undo quantize) | 5730, 6310 | Unbound | MISSING |
+| `Alt`+`N` | `Cmd`+`N` | Normalize an Event *(as stated — note it collides with New Document on Mac)* | 6025 | Unbound | MISSING |
+| `Ctrl`+`B` | `Cmd`+`B` | Bounce selection to a new audio Event | 5587, 11417, 11438, 14032 | Overflow menu has "Quick bounce: mix as WAV" / "loop as WAV" (`TopBar.tsx`); no per-selection bounce key | PARTIAL |
+| `Ctrl`+`Alt`+`B` | `Option`+`Cmd`+`B` | Bounce to **New Track** | 11463 | Unbound | MISSING |
+| `Ctrl`+`Alt`+`I` | `Cmd`+`Alt`+`I` | Insert Silence over the selected range | 11481, 11491 | Unbound | MISSING |
+| `Ctrl`+`Alt`+`D` | `Cmd`+`Alt`+`D` | Delete Time | 11498 | Unbound | MISSING |
+| `Ctrl`+`M` | `Cmd`+`M` | Open the ARA pitch editor on the selected Event | 7762, 7811 | N/A — no ARA | N/A |
+| `Ctrl`+`Shift`+`P` | `Cmd`+`Shift`+`P` | Insert Pattern on the selected Instrument Track | 7454 | Unbound | MISSING |
+| `Delete` / `Backspace` | — | Delete the selection | 4559, 10491, 10701, 11045, 11078, 15695 | Both bound; narrowest selection wins — automation points → notes → clips (`useKeyboard.ts:425–447`) | **PARITY (stronger)** |
+| `Alt`+`Right Arrow` | — | Nudge forward by the current snap | 4880 | Bare `←`/`→` nudge the clip selection by the grid; `Shift` = fine (`useKeyboard.ts:349`) | PARTIAL (different key) |
+| `Alt`+`Left Arrow` | — | Nudge backward | 4883 | as above | PARTIAL |
+| `Ctrl`+`Alt`+`Right Arrow` | `Cmd`+`Alt`+`Right Arrow` | Nudge forward by one **bar** | 4884 | Unbound | MISSING |
+| `Ctrl`+`Alt`+`Left Arrow` | `Cmd`+`Alt`+`Left Arrow` | Nudge back by one bar | 4885 | Unbound | MISSING |
+| `Alt`+`T` | — | Create an automation transformation from a Range selection | 15754 | Unbound | MISSING |
+| `Alt`+`Return` | `Option`+`Return` | Align the selected Lyric Event with the play cursor | 11180 | N/A — no lyrics track | N/A |
+| `Shift`+`Enter` after renaming a Track | — | Rename every Event on that Track to match | 4090 | Unbound | MISSING |
+| `Enter` | — | Lock in a typed numeric value | 2512, 2517, 5349, 12738, 13571 | Standard in inputs; position field commits on `Enter` (`TransportBar.tsx:119`) | **PARITY** |
+
+### 2.7 Selection
+
+| Keys (Win) | Keys (Mac) | Function | Manual line | MotionLab binding today | Gap |
+| --- | --- | --- | --- | --- | --- |
+| `Shift`+click | — | Add Events to the selection | 4397 | `shift+click` on a clip adds or removes it (`shortcuts.ts:99`) | **PARITY** |
+| `Ctrl`+`A` | `Cmd`+`A` | Select all notes in the focused Part / all measures in the staff | 6214, 6336, 8261, 8691, 8751 | `mod+a` → all notes in the open clip when the piano roll is active, otherwise all clips (`useKeyboard.ts:261–275`) | **PARITY** |
+| `Ctrl`+`Shift`+`A` | `Cmd`+`Shift`+`A` | Select all notes in **all Parts on the Track** | 6215, 6337 | Unbound | MISSING |
+| `Alt`+`Shift`+`Home` | `Option`+`Shift`+`Home` | Select from Start to Event | 4400 | Unbound | MISSING |
+| `Shift`+`Home` | — | Select to the start | 4404 | Unbound | MISSING |
+| `Alt`+`Shift`+`End` | `Option`+`Shift`+`End` | Select from Event to End | 4406 | Unbound | MISSING |
+| `Shift`+`End` | — | Select to the end | 4410 | Unbound | MISSING |
+| `Shift`+double-click a Track timeline | — | Select every Event on that Track | 4412 | Unbound | MISSING |
+| `Shift`+`Left`/`Right Arrow` | — | Extend the Range selection | 5545 | Unbound (arrows nudge instead) | MISSING |
+| `Shift`+`Up`/`Down Arrow` | — | Select adjacent Tracks | 10360 | Unbound | MISSING |
+| `Alt` held | — | Adjust one Event without losing the selection | 4415 | Unbound | MISSING |
+| `Shift` or `Option` held | — | Multi-select gain-curve / automation points | 4654, 15701 | `drag` marquee with `Shift` to add (`shortcuts.ts:333`) | PARTIAL |
+| `Alt`+click in empty space or on a point | `Option`+click | Select all points on the curve **from that time forward** | 15702 | Unbound | MISSING |
+| Menu key / `Shift`+`F10` | — | *(not in the manual)* | — | MotionLab-only: opens the focused object's context menu by replaying a real `contextmenu` event at its own box (`useKeyboard.ts:216`) | MotionLab-only (accessibility win) |
+
+### 2.8 Mixer, channels, groups and scenes
+
+| Keys (Win) | Keys (Mac) | Function | Manual line | MotionLab binding today | Gap |
+| --- | --- | --- | --- | --- | --- |
+| `M` | — | Mute the selected Channels / Events | 4263, 11957 | `M` mutes selected **notes** in the piano roll only (`useKeyboard.ts:342`) | PARTIAL |
+| `S` | — | Solo the selected Channels / a comp layer | 5494, 11957 | Unbound — `S` is the virtual keyboard's D natural | DIVERGENT-BY-DESIGN |
+| `Shift`+`M` | — | Unmute Events / toggle mute on a Part | 4263, 11423 | Unbound | MISSING |
+| `Ctrl`+click a Solo button | — | **Global Solo Off**; click again to recall the previous solo set | 11965–11966 | No global solo/mute anywhere — grep for `globalSolo` / `clearSolo` / `soloAll` finds only the sampler's per-zone `anySolo` | MISSING |
+| `Shift`+click a Solo button | — | Solo Safe | 11972 | Unbound | MISSING |
+| `Ctrl`+`C` then `Ctrl`+`V` on channels | `Cmd`+`C`/`V` | Copy and paste **channel settings** | 11999–12001 | Copy/paste act on clips and automation, not channel strips | MISSING |
+| `Ctrl`+`G` | `Cmd`+`G` | Group the selected Tracks/Channels | 5240, 5755, 11527, 11622, 13152 | Unbound | MISSING |
+| `Ctrl`+`Shift`+`G` | `Cmd`+`Shift`+`G` | Dissolve the Group | 13156 | Unbound | MISSING |
+| `Ctrl`+`Alt`+`G` | `Cmd`+`Option`+`G` | Suspend / reactivate **all** Groups | 13188 | Unbound | MISSING |
+| `Shift`+`G` then type a name/number | — | Suspend a specific Group | 5279, 13184 | Unbound | MISSING |
+| `Alt`+ a digit 1–9 | `Option`+ digit | Suspend Group by number | 13185 | Unbound — digits are the tool row in MotionLab | DIVERGENT-BY-DESIGN |
+| `Alt` held while moving a control | `Option` held | Suspend the Group for that one gesture | 13165, 13178–13179 | Unbound | MISSING |
+| `Ctrl`+click a meter | — | Metering Mode menu | 13447 | Unbound | MISSING |
+| `Alt`+click a second channel | `Option`+click | Expand a second channel without collapsing the first | 1951, 12131 | Unbound | MISSING |
+
+### 2.9 Automation
+
+| Keys (Win) | Keys (Mac) | Function | Manual line | MotionLab binding today | Gap |
+| --- | --- | --- | --- | --- | --- |
+| `A` | — | Show / hide automation curves | 15572, 15603, 15633, 16171, 16820 | Unbound (`A` is a virtual-keyboard note) | DIVERGENT-BY-DESIGN |
+| `J` | — | Switch selected Tracks to **Read** automation mode | 15813 | Unbound | MISSING |
+| `K` | — | Switch selected Tracks to **Touch** mode | 15822 | Unbound — `K` is the virtual keyboard's C an octave up | DIVERGENT-BY-DESIGN |
+| `D` | — | Duplicate a range of automation | 15776 | `mod+d` duplicates the selected points (`useKeyboard.ts:294`) | PARTIAL |
+| `Alt`+`Left`/`Right Arrow` | `Option`+arrows | Nudge automation points along the timeline | 15664 | Bare arrows on a focused point move by the snap; `Shift` = fine (`shortcuts.ts:466`) | PARTIAL |
+| `Shift` held while dragging a point | — | Fine / slow point movement | 15668, 4671 | `shift+drag` → fine values (`shortcuts.ts:341`) | **PARITY** |
+| `Alt`+scrollwheel over a point | `Option`+scrollwheel | Raise/lower the point's value | 4669, 15665 | Unbound | MISSING |
+| `Ctrl` held while dragging a point | `Cmd` held | Constrain the drag | 15660 | Unbound | MISSING |
+| `Delete` | — | Delete the selected automation point(s) | 15695 | `Delete` deletes selected points first (`useKeyboard.ts:428`) | **PARITY** |
+| `Alt` held with the Paint tool | `Option` held | Alternate automation-draw behaviour | 15884 | `alt` bypasses snap when adding a point (`shortcuts.ts:317`) | PARTIAL |
+| `Alt`+`M` | `Option`+`M` | Control Link **Assign** | 16015 | N/A — no MIDI-learn mapping panel of this kind | N/A |
+
+### 2.10 Piano roll / Note editor
+
+| Keys (Win) | Keys (Mac) | Function | Manual line | MotionLab binding today | Gap |
+| --- | --- | --- | --- | --- | --- |
+| `Alt`+click the **upper** part of a note | `Option`+click | Mute that note | 6367 | `alt+click` toggles mute on one note (`shortcuts.ts:208`) | **PARITY** |
+| `Alt`+click the **lower** part of a note stack | `Option`+click | "Cut Deep" — split every stacked note at that point | 6371 | No feature | MISSING |
+| `Alt` held while resizing | `Option` held | Resize Adjacent Notes mode | 6398 | `alt`+`←`/`→` shortens/lengthens the focused note by the snap (`shortcuts.ts:434`) — a different meaning for the same modifier | DIVERGENT-BY-DESIGN |
+| `Ctrl`+drag | `Cmd`+drag | Snap every selected note's length to the clicked note's | 6404 | Unbound | MISSING |
+| `Alt`+drag | — | Stretch the notes across the time grid | 6405 | Unbound | MISSING |
+| `Alt`+`Ctrl`+drag a right/left edge | `Alt`+`Cmd`+drag | Make all notes end / start at the same time | 6409 | Unbound | MISSING |
+| `Alt`+drag a selection | `Option`+drag | Duplicate the notes | 6414 | `alt+drag` on a **clip** drags a copy (`shortcuts.ts:174`); not documented for notes | PARTIAL |
+| `Ctrl` held with the Arrow tool | `Cmd` held | Temporary Eraser | 6419 | Unbound | MISSING |
+| `Ctrl`+`Shift` held | `Cmd`+`Shift` held | Temporary Split | 6421 | Unbound | MISSING |
+| `Ctrl` held with Split / Paint / Eraser | `Cmd` held | Temporary Arrow | 6440, 6454, 6508 | Unbound | MISSING |
+| `Alt`+drag with the Paint tool | — | Line Drawing mode — draw a line of notes at the quantize value | 6473, 6485 | Unbound | MISSING |
+| `Alt`+`Ctrl`+drag up/down | `Cmd`+`Option`+drag | Edit an existing note's velocity in Piano view | 6477 | `↑`/`↓` on a focused velocity bar; `Shift` = ±10 (`shortcuts.ts:458`) | PARTIAL (keyboard instead of pointer) |
+| `Alt`+double-click a Part | `Option`+double-click | Open the Part showing all its notes | 6726 | Unbound | MISSING |
+| `Ctrl`+`Up`/`Down Arrow` | `Cmd`+arrows | Shift notes chromatically *(Score view)* | 8229 | Bare `↑`/`↓` transpose ±1 semitone (`useKeyboard.ts:329`) | PARTIAL |
+| `Shift`+`Up`/`Down Arrow` | — | Shift notes by octaves *(Score view)* | 8230 | `Shift`+`↑`/`↓` → ±1 octave (`useKeyboard.ts:333`) | **PARITY** |
+| — | — | Scale lock: `↑`/`↓` steps within the active scale | — | MotionLab-only (`stepPitch`, `useKeyboard.ts:50`) | MotionLab-only |
+| — | — | Step sequencer: `Ctrl`/`Cmd` toggles accent, `Shift`+drag ties notes | 7490, 7494 | Unbound | MISSING |
+
+### 2.11 Browser, presets and drag-and-drop modifiers
+
+| Keys (Win) | Keys (Mac) | Function | Manual line | MotionLab binding today | Gap |
+| --- | --- | --- | --- | --- | --- |
+| `Esc` mid-drag | — | Cancel the drag | 2199 | Unbound | MISSING |
+| `Return` | — | Load the selected preset / FX Chain and close the list | 9096, 9158, 12699 | Unbound | MISSING |
+| `Space` | — | Audition the selected preset in the list | 12699 | Unbound | MISSING |
+| `Alt`+`Up Arrow` | `Option`+`Up Arrow` | Collapse all directories in the Files browser | 9421 | Unbound | MISSING |
+| `Alt`+`Left Arrow` | `Option`+`Left Arrow` | Collapse the current directory | 9421 | Unbound | MISSING |
+| `Ctrl`+click presets | `Cmd`+click | Multi-select presets to drag together | 6152 | Unbound | MISSING |
+| `Alt` while dragging an effect from the Browser | `Option` | Load as **Event** FX rather than a Track insert | 9137, 6124 | No Event FX model | MISSING |
+| `Ctrl` while dragging a file in the Browser | `Cmd` | Copy rather than move | 9419 | Unbound | MISSING |
+| `Alt` while dropping a clip on an Event | `Option` | Replace that Event's audio | 9459, 16688 | Unbound | MISSING |
+| `Ctrl` while dragging clips to empty space | `Cmd` | Preserve their relative timeline positions | 9465 | Unbound | MISSING |
+| `Alt` when dragging out of the Browser | `Option` | Choose render-with / render-without Insert FX; or Musicloop vs. MIDI file | 9570, 9575, 7744, 5205 | Unbound | MISSING |
+| `Cmd`/`Ctrl` drag a file in | — | Add the file to an **existing** track | 16686 | Unbound | MISSING |
+| `Alt`+`Shift` drag a file onto an Event | `Option`+`Shift` | Replace the Event **and** constrain to its length | 16690 | Unbound | MISSING |
+| `Alt` when dragging an instrument/preset | `Option` | Load/Replace instead of Insert | 14881 | Unbound | MISSING |
+| `Alt`+`Shift` drag into the Arrangement | `Opt`+`Shift` | Apply a Spot command on import | 4151 | Unbound | MISSING |
+| `Ctrl` drag a Track in the Track Column | — | Duplicate the Track | 10366 | Unbound | MISSING |
+| `Ctrl`+`Alt` drag a Track | — | Duplicate the Track **with its Events** | 10367 | Unbound | MISSING |
+
+### 2.12 Value entry and fine control
+
+| Keys (Win) | Keys (Mac) | Function | Manual line | MotionLab binding today | Gap |
+| --- | --- | --- | --- | --- | --- |
+| Scrollwheel over a control | — | Adjust variable controls; scroll option lists | 2506–2508 | **No wheel handling on any control.** Grep for `onWheel` / `'wheel'` across `src/components/` returns exactly two files — `Arrangement.tsx` (zoom/scroll) and `Mixer.tsx` — neither of which adjusts a parameter. | MISSING |
+| Click and drag a numeric display | — | Adjust the value up/down | 2510–2511 | `usePointerDrag` hook exists; not registry-documented | PARTIAL |
+| Double-click a value and type | — | Enter a precise value; `Enter` commits | 2512 | Position readout does exactly this (`TransportBar.tsx:104–125`); BPM is a number input | **PARITY** |
+| Right-click a control and type | `Ctrl`-click | Open the Automation/Macro window and type a value there | 2514–2517 | Right-click menus exist per object; no value-typing panel | PARTIAL |
+| `Ctrl`+`Shift`+drag | `Cmd`+`Shift`+drag | Fine-tune a value | 18972 | Unbound | MISSING |
+| `Ctrl`+click a value | `Cmd`+click | Reset the value to its default | 17652, 19923 | Unbound | MISSING |
+
+---
+
+## Part 3 — What MotionLab binds that the harvest does not cover
+
+These are MotionLab bindings with no counterpart in the harvested reference set.
+They are not gaps; they are the surface the reference does not have.
+
+| Combo | Function | Source |
+| --- | --- | --- |
+| `Esc` (escalating) | Cancel take → close dialog → close menu → back to Pointer → clear selection → audio panic | `useKeyboard.ts:381–405` |
+| `?` (`Shift`+`/`) | Open the shortcut sheet | `useKeyboard.ts:457` |
+| `Ctrl`/`Cmd`+`,` | Preferences | `useKeyboard.ts:248` |
+| `Ctrl`/`Cmd`+`S` | Save — deliberately still fires while a text field has focus, so the browser's own save dialog cannot steal it mid-edit | `useKeyboard.ts:207–212` |
+| `Ctrl`/`Cmd`+`Shift`+`E` | Export dialog | `useKeyboard.ts:242` |
+| `Ctrl`/`Cmd`+`Y` | Redo (alternative to `Ctrl`+`Shift`+`Z`) | `useKeyboard.ts:234` |
+| `Z` / `X` | Virtual-keyboard octave down / up | `useKeyboard.ts:407–418` |
+| `A W S E D F T G Y H U J K O L` | Two-row virtual musical keyboard | `KEY_TO_SEMITONE`, `useKeyboard.ts:76–92` |
+| `[` / `]` on a focused clip | Trim the start edge by the grid (`Shift` = end edge) | `shortcuts.ts:394–408` |
+| `,` / `.` on a focused clip | Shorten / lengthen the fade in (`Shift` = fade out) | `shortcuts.ts:410–424` |
+| `Enter` on a focused clip / note / automation point | Select it (`Shift` adds to the selection) | `shortcuts.ts:386, 426, 474` |
+| Arrows on a focused note grid | Move the note cursor by the snap and by a semitone; `Enter` adds or removes a note there | `shortcuts.ts:442–456` |
+| Menu key / `Shift`+`F10` | Open the focused object's context menu | `useKeyboard.ts:216–221` |
+
+---
+
+## Part 4 — Counts
+
+| | Count |
+| --- | --- |
+| Distinct shortcuts harvested from the manual | **204** |
+| …that MotionLab binds to the same key for the same function (`PARITY`) | **21** |
+| …that MotionLab has as a function on a different key or a different gesture (`PARTIAL` / `DIVERGENT-BY-DESIGN`) | **44** |
+| …that MotionLab does not bind at all (`MISSING`) | **131** |
+| …belonging to subsystems MotionLab does not have (`N/A`) | **8** |
+| MotionLab bindings with no reference counterpart | **13** |
+| Entries in MotionLab's registry (`SHORTCUTS`) | **59** |
+
+The registry is 59 entries against the reference's 204 documented shortcuts, but
+that ratio overstates the gap: a large fraction of the 131 missing are function
+keys for panels MotionLab does not have (Pool, Scenes, Record Panel, Score,
+ARA), or modifier-held drag variants inside features MotionLab has not built.
+
+---
+
+## Part 5 — The recommendations that matter most
+
+Ordered by how much workflow they unlock per unit of work.
+
+1. **The function-key panel row (`F2`–`F11`) is the single biggest cluster.**
+   Eleven shortcuts, all of the same shape: toggle a panel. MotionLab already
+   has panel visibility in `workspaceStore` with a `toggle()` action and a
+   "Reset layout" menu item. Wiring `F2`/`F3`/`F4`/`F5` to editor / mixer /
+   inspector / browser is four registry entries and four branches.
+
+2. **Numeric-keypad transport.** `*` record, `/` loop, `0` stop, `,` return to
+   zero. Four entries, and they are the bindings a musician arriving from any
+   other DAW reaches for first. `,` is currently free; `/` and `*` are free;
+   `0` is not (the tool row is `1`–`9`, so `0` is available).
+
+3. **Fix the RTZ tooltip.** `TransportBar.tsx:352` says "Return to start
+   (Home)". The handler binds `Enter` (`useKeyboard.ts:370`). No `Home`
+   branch exists anywhere in `useKeyboard.ts`. Either bind `Home` or fix the
+   string — a tooltip that names a key that does nothing is exactly the
+   "control that does nothing" class of bug CLAUDE.md calls out.
+
+4. **`Ctrl`/`Cmd`+`E` is a live collision.** MotionLab uses it for Split at
+   playhead; the reference uses it for Export Mixdown, and MotionLab's own
+   export is on `Ctrl`+`Shift`+`E`. A user with the reference's muscle memory
+   pressing `Ctrl`+`E` to export will split a clip instead. The comment at
+   `useKeyboard.ts:253` explains why split avoided bare `S` — but it landed on
+   a combo the reference had already spent.
+
+5. **Marker keys.** `Y` add marker, `Shift`+`Y` named marker, `Shift`+`B`/`N`
+   previous/next. MotionLab has markers and `prevMarker`/`nextMarker`
+   (`model/arrangement`), reachable today only by right-clicking the rewind and
+   forward buttons — a gesture nothing in the UI advertises.
+
+6. **Key map import / export / export-as-text.** Three of the four missing
+   system-level features, and `keymapStore` already holds the whole map as one
+   serialisable `Record<string, string>`. Export-as-text is close to free and
+   answers the manual's stated purpose: "so that you can create a reference
+   guide to your custom mappings" (l. 2282–2284).
+
+7. **`Ctrl`+`K` Find Command.** The reference's own framing (l. 2249) is that it
+   is how you *learn* a shortcut, not only how you run one. MotionLab's
+   `SHORTCUTS` registry already carries `description` for every entry, which is
+   the index such a palette would search.
+
+8. **Tool digits 5 and 6 are swapped** relative to the reference (Paint/Mute vs.
+   Mute/Slip). Worth a deliberate decision rather than an accident: MotionLab's
+   row has nine tools to the reference's six, so the orders were never going to
+   align past 4. Record the choice.
