@@ -14,6 +14,7 @@
  */
 import { InsertChain } from '../effectChain';
 import { defaultParams } from '../../model/effects';
+import { validateProject } from '../../persistence/projectRepo';
 import type { Effect, EffectKind } from '../../model/types';
 import { ensureMotionWaveRuntime, motionWaveNodesReady } from './runtime';
 import { MOTIONWAVE_UNITS, motionWaveUnitFor } from './registry';
@@ -43,6 +44,7 @@ export async function renderThroughUnit(
   params: Record<string, number> = {},
   seconds = 1.0,
   shapes?: number[][][],
+  bypass = false,
 ): Promise<RenderReport> {
   const sampleRate = 48000;
   const frames = Math.round(sampleRate * seconds);
@@ -52,7 +54,7 @@ export async function renderThroughUnit(
   const effect: Effect = {
     id: 'probe',
     kind,
-    bypass: false,
+    bypass,
     params: { ...defaultParams(kind), ...params },
     ...(shapes ? { shapes } : {}),
   };
@@ -107,6 +109,93 @@ export async function renderThroughUnit(
   };
 }
 
+/**
+ * Render a unit, save the project the way the app saves it, load it back, and
+ * render again.
+ *
+ * §2.2: a project that reloads to a different sound is a project that lost
+ * something, and the thing most likely to be lost is whatever is not a scalar.
+ * A curve is not a parameter — no range, no taper, no single value — so
+ * `Effect.params` cannot hold it, and before `Effect.shapes` existed a saved
+ * Motion Shaper reloaded as a wire: the device still in the rack, still named,
+ * doing nothing.
+ *
+ * The round trip goes through `validateProject`, which is the real load path
+ * rather than a `structuredClone` standing in for it. That matters because the
+ * defect this guards against is *validation dropping a field it does not
+ * recognise*, and a clone would carry the field happily and prove nothing.
+ */
+export async function renderRoundTrip(
+  kind: EffectKind,
+  params: Record<string, number> = {},
+  shapes?: number[][][],
+): Promise<{
+  before: RenderReport;
+  after: RenderReport;
+  restored: boolean;
+  shapesKept: number;
+  identical: boolean;
+}> {
+  const effect: Effect = {
+    id: 'probe',
+    kind,
+    bypass: false,
+    params: { ...defaultParams(kind), ...params },
+    ...(shapes ? { shapes } : {}),
+  };
+
+  /*
+   * A hand-written project object, which is what a saved file is.
+   *
+   * `validateProject` takes `unknown` and normalises whatever it is given, so
+   * this is the load path exactly as it runs on storage's output — closer to
+   * the defect than cloning a live project would be, because what is being
+   * guarded against is the validator dropping a field it does not recognise.
+   */
+  const saved = {
+    schemaVersion: 1,
+    id: 'probe-project',
+    name: 'probe',
+    /*
+     * `type` is not optional: `validateProject` drops any track without one,
+     * because a track whose kind is unknown cannot be routed. The first version
+     * of this probe omitted it, so the whole track was discarded and the
+     * round-trip compared the *same* render against itself — reporting the
+     * numbers as equal while proving nothing at all. `restored` exists so that
+     * failure cannot hide again.
+     */
+    tracks: [{ id: 'probe-track', name: 'Probe', type: 'audio', effects: [effect] }],
+    // `validateProject` requires both arrays before it will look at anything —
+    // a file without them is not a project, and it says so rather than
+    // guessing.
+    clips: [],
+  };
+  const reloaded = validateProject(JSON.parse(JSON.stringify(saved)));
+  const restored = reloaded.tracks[0]?.effects?.[0];
+
+  const before = await renderThroughUnit(kind, params, 1.0, shapes);
+  const after = restored
+    ? await renderThroughUnit(kind, restored.params, 1.0, restored.shapes)
+    : before;
+
+  return {
+    before,
+    after,
+    /*
+     * Bit-identical, not close: both renders are deterministic and seeded, so
+     * anything other than equality means state was lost or changed.
+     *
+     * `restored` is reported separately because its absence and a changed
+     * render are different failures — one is the validator dropping the insert
+     * altogether, the other is it keeping the insert and losing part of its
+     * state — and a single boolean would make them look the same.
+     */
+    restored: restored !== undefined,
+    shapesKept: Array.isArray(restored?.shapes) ? restored.shapes.length : 0,
+    identical: restored !== undefined && before.rms === after.rms && before.peak === after.peak,
+  };
+}
+
 /** Which units the host knows about, for a test that should not hard-code them. */
 export function registeredUnits(): { kind: string; label: string; unitId: string }[] {
   return MOTIONWAVE_UNITS.map((entry) => ({
@@ -117,7 +206,9 @@ export function registeredUnits(): { kind: string; label: string; unitId: string
 }
 
 /** A unit's parameter ids and defaults, for a test that wants to move one. */
-export function unitParams(kind: string): { id: number; name: string; min: number; max: number; def: number }[] {
+export function unitParams(
+  kind: string,
+): { id: number; name: string; min: number; max: number; def: number }[] {
   const entry = motionWaveUnitFor(kind);
   if (!entry) return [];
   return entry.unit.specs.map((spec) => ({

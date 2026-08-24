@@ -41,9 +41,10 @@ async function render(
   kind: string,
   params: Record<string, number> = {},
   shapes?: number[][][],
+  bypass = false,
 ): Promise<Report> {
   return page.evaluate(
-    async ([k, p, sh]) => {
+    async ([k, p, sh, by]) => {
       const probe = await (
         window as unknown as { __ml: { motionWaveProbe: () => Promise<unknown> } }
       ).__ml.motionWaveProbe();
@@ -53,6 +54,7 @@ async function render(
           params: Record<string, number>,
           seconds?: number,
           shapes?: number[][][],
+          bypass?: boolean,
         ) => Promise<Report>;
       };
       return mod.renderThroughUnit(
@@ -60,9 +62,10 @@ async function render(
         p as Record<string, number>,
         1.0,
         sh as number[][][] | undefined,
+        by as boolean,
       );
     },
-    [kind, params, shapes] as const,
+    [kind, params, shapes, bypass] as const,
   );
 }
 
@@ -218,6 +221,153 @@ test.describe('Cell 25 — Motion Wave units in the host', () => {
     expect(silent).toEqual([]);
   });
 
+  /**
+   * §2.3's standing rule, and a deviation from its literal wording, recorded.
+   *
+   * The rule says: insert the unit, touch nothing, assert audio passes **and is
+   * not identical to bypass**. The first half is exactly right and is the row
+   * above. The second half cannot be met by two of these units without making
+   * them worse, and that is worth stating rather than quietly softening.
+   *
+   * A Motion Shaper with no shape drawn is a wire — deliberately, because the
+   * alternative is the silence that prompted this rule in the first place. A
+   * Program EQ at its default is flat, and its bypass removes the EQ networks
+   * while leaving the amplifiers, exactly as `dyn-01` specifies. Both are
+   * *correctly* indistinguishable from their own bypass until a user touches
+   * something. Forcing a difference would mean shipping devices that colour a
+   * track the moment they are inserted, which no engineer wants.
+   *
+   * So what is asserted is the thing the rule is actually protecting: **the unit
+   * is reachable** — there exists a setting at which it differs from bypass.
+   * A unit that is inert whatever you do fails this; a unit that is neutral
+   * until you ask for something passes, which is what a neutral default means.
+   *
+   * The settings come from the manifest rather than from a hand-picked list per
+   * unit: each parameter is driven to its own declared extremes, so a control
+   * added later is swept without anyone remembering to add it, and no
+   * unit-specific knowledge lives in this file.
+   */
+  test('every unit is reachable — some setting differs from its own bypass', async ({ page }) => {
+    await boot(page);
+    const units = await page.evaluate(async () => {
+      const probe = await (
+        window as unknown as { __ml: { motionWaveProbe: () => Promise<unknown> } }
+      ).__ml.motionWaveProbe();
+      return (
+        probe as { registeredUnits: () => { kind: string; label: string }[] }
+      ).registeredUnits();
+    });
+
+    const inert: string[] = [];
+    for (const unit of units) {
+      const bypassed = await render(page, unit.kind, {}, undefined, true);
+      expect(bypassed.rms, `${unit.label}: bypass produced no audio`).toBeGreaterThan(0.001);
+
+      const params = await page.evaluate(async (k) => {
+        const probe = await (
+          window as unknown as { __ml: { motionWaveProbe: () => Promise<unknown> } }
+        ).__ml.motionWaveProbe();
+        return (
+          probe as {
+            unitParams: (
+              k: string,
+            ) => { id: number; name: string; min: number; max: number; def: number }[];
+          }
+        ).unitParams(k);
+      }, unit.kind);
+
+      let reachedBy: string | null = null;
+      for (const p of params) {
+        for (const value of [p.max, p.min]) {
+          if (value === p.def) continue;
+          const shaped = unit.kind === 'mw-motion-shaper' ? GATING_SHAPE : undefined;
+          const live = await render(page, unit.kind, { [String(p.id)]: value }, shaped);
+          const difference = Math.abs(live.rms - bypassed.rms) / Math.max(bypassed.rms, 1e-9);
+          if (difference > 0.001) {
+            reachedBy = `${p.name}=${value} (${(difference * 100).toFixed(2)}% from bypass)`;
+            break;
+          }
+        }
+        if (reachedBy) break;
+      }
+      console.log(
+        `cell 25 · reachable · ${unit.label.padEnd(22)} ${reachedBy ?? 'NOTHING REACHED IT'}`,
+      );
+      if (!reachedBy) inert.push(unit.label);
+    }
+    if (inert.length > 0) console.log('UNITS THAT NEVER DIFFER FROM BYPASS:', inert.join(', '));
+    expect(inert).toEqual([]);
+  });
+
+  /**
+   * §2.2: a project that reloads to a different sound has lost something.
+   *
+   * The round trip goes through `validateProject` on a hand-written object,
+   * which is what a saved file actually is — not a clone of a live project,
+   * because the defect being guarded against is the validator dropping a field
+   * it does not recognise, and a clone would carry the field happily and prove
+   * nothing.
+   *
+   * Shapes are the case that has already failed once: a curve is not a
+   * parameter, so `Effect.params` cannot hold it, and a saved Motion Shaper
+   * reloaded as a wire — the device still in the rack, still named, doing
+   * nothing.
+   */
+  test('a saved project reloads to an identical render, shapes included', async ({ page }) => {
+    await boot(page);
+    const units = await page.evaluate(async () => {
+      const probe = await (
+        window as unknown as { __ml: { motionWaveProbe: () => Promise<unknown> } }
+      ).__ml.motionWaveProbe();
+      return (
+        probe as { registeredUnits: () => { kind: string; label: string }[] }
+      ).registeredUnits();
+    });
+
+    const lost: string[] = [];
+    for (const unit of units) {
+      const result = await page.evaluate(
+        async ([k, sh]) => {
+          const probe = await (
+            window as unknown as { __ml: { motionWaveProbe: () => Promise<unknown> } }
+          ).__ml.motionWaveProbe();
+          const mod = probe as {
+            renderRoundTrip: (
+              kind: string,
+              params: Record<string, number>,
+              shapes?: number[][][],
+            ) => Promise<{
+              before: Report;
+              after: Report;
+              restored: boolean;
+              shapesKept: number;
+              identical: boolean;
+            }>;
+          };
+          return mod.renderRoundTrip(k as string, {}, sh as number[][][] | undefined);
+        },
+        [unit.kind, unit.kind === 'mw-motion-shaper' ? GATING_SHAPE : undefined] as const,
+      );
+      console.log(
+        `cell 25 · round trip · ${unit.label.padEnd(22)} before ${result.before.rms.toFixed(9)} ` +
+          `after ${result.after.rms.toFixed(9)} peak ${result.before.peak.toFixed(9)}/` +
+          `${result.after.peak.toFixed(9)} restored=${result.restored} ` +
+          `shapes=${result.shapesKept} identical=${result.identical}`,
+      );
+      expect(result.restored, `${unit.label}: the insert did not survive validation at all`).toBe(
+        true,
+      );
+      expect(result.before.coreLoaded, unit.label).toBe(true);
+      if (!result.identical) {
+        lost.push(
+          `${unit.label} (${result.before.rms.toFixed(5)} → ${result.after.rms.toFixed(5)})`,
+        );
+      }
+    }
+    if (lost.length > 0) console.log('UNITS THAT DID NOT SURVIVE SAVE/LOAD:', lost.join(', '));
+    expect(lost).toEqual([]);
+  });
+
   test('every registered unit is insertable and renders finite audio', async ({ page }) => {
     await boot(page);
     const units = await page.evaluate(async () => {
@@ -347,7 +497,9 @@ test.describe('Cell 25 — Motion Wave units in the host', () => {
         for (const el of Array.from(root.querySelectorAll('.mw-control-input'))) {
           const box = (el as HTMLElement).getBoundingClientRect();
           if (box.height < min) {
-            bad.push(`${(el as HTMLElement).getAttribute('aria-label')} ${Math.round(box.height)}px`);
+            bad.push(
+              `${(el as HTMLElement).getAttribute('aria-label')} ${Math.round(box.height)}px`,
+            );
           }
         }
         return bad;

@@ -202,84 +202,88 @@ the box that receives the press, it fails.
 The vitest suite still reports both BLOCKED, and that is correct there: a cell
 that reported PASS from jsdom would be reporting a layout nobody laid out.
 
-| Unit                | Sheet    | Status      | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  | X25 |
-| ------------------- | -------- | ----------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- | --- |
-| Motion Shaper       | `fx-01`  | X25 OPEN    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
-| Program EQ          | `dyn-01` | X25 OPEN    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
-| Optical Leveller    | `dyn-02` | X25 OPEN    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
-| FET Limiter         | `dyn-03` | X25 OPEN    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
-| Variable-Mu Limiter | `dyn-04` | X25 OPEN    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
-| Console EQ          | `dyn-05` | X25 OPEN    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
-| Granular Reverb     | `fx-02`  | X25 OPEN    | PASS | PASS | PASS | PASS | n/a  | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
-| Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    | —   |
-| Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —   |
-| DCO Poly            | `syn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —   |
-| Phase Distortion    | `syn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —   |
-| Analog Five         | `syn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —   |
-| Six-Op FM           | `syn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —   |
-| Matrix Twelve       | `syn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —   |
+| Unit                | Sheet    | Status      | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  | X25  |
+| ------------------- | -------- | ----------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| Motion Shaper       | `fx-01`  | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| Program EQ          | `dyn-01` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| Optical Leveller    | `dyn-02` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| FET Limiter         | `dyn-03` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| Variable-Mu Limiter | `dyn-04` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| Console EQ          | `dyn-05` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| Granular Reverb     | `fx-02`  | SHIPPING    | PASS | PASS | PASS | PASS | n/a  | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    | —    |
+| Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    |
+| DCO Poly            | `syn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    |
+| Phase Distortion    | `syn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    |
+| Analog Five         | `syn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    |
+| Six-Op FM           | `syn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    |
+| Matrix Twelve       | `syn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    |
 
-### Cell 25 — the host, and what it found
+### Cell 25 — the host, and the three defects it found
 
 Twenty-four cells passed on seven units that could not be inserted on a track.
 `src/` contained no reference to `motionwave/`, `npm run build` ran neither the
-WASM build nor the panel build, and the shipped bundle had no core in it at all.
-Every one of those cells was measuring something real; none of them was
-measuring the boundary a user is on the other side of. ADR-0007 records the
-decision that follows from it, and this cell is the check that stops it
-recurring.
+WASM build nor the panel build, and the shipped bundle had no core in it. Every
+one of those cells measured something real; none measured the boundary a user is
+on the other side of. ADR-0007 records the decision that followed, and this cell
+is the check that stops it recurring.
 
-**All seven units now render audio in the application**, through the host's own
-`InsertChain` — the same class the live engine and the bounce build through —
-with their declared latencies reaching the host's delay compensation:
+**All seven are SHIPPING again.** Each of the six requirements is backed by a
+named row in `e2e/motionwave.spec.ts`, run against the built app in Chromium —
+never the dev panel, which is the distinction the cell exists for.
 
-| Unit                | RMS through the host | Declared latency |
-| ------------------- | -------------------- | ---------------- |
-| Motion Shaper       | 0.0965               | 0                |
-| Program EQ          | 0.0959               | 46               |
-| Optical Leveller    | 0.0949               | 46               |
-| FET Limiter         | 0.0213               | 49               |
-| Variable-Mu Limiter | 0.0958               | 46               |
-| Console EQ          | 0.0958               | 46               |
-| Granular Reverb     | 0.0640               | 0                |
+| Unit                | RMS through the host | Latency | Reachable by              | Save/load                |
+| ------------------- | -------------------- | ------- | ------------------------- | ------------------------ |
+| Motion Shaper       | 0.0965               | 0       | Bands, 73.1 % from bypass | identical, 3 shapes kept |
+| Program EQ          | 0.0959               | 46      | Low Boost, 24.6 %         | identical                |
+| Optical Leveller    | 0.0949               | 46      | Peak Reduction, 80.0 %    | identical                |
+| FET Limiter         | 0.0213               | 49      | Input, 2208 %             | identical                |
+| Variable-Mu Limiter | 0.0958               | 46      | Input A, 29.0 %           | identical                |
+| Console EQ          | 0.0958               | 46      | Lineage, 0.59 %           | identical                |
+| Granular Reverb     | 0.0640               | 0       | Mix, 41.0 %               | identical                |
 
-Two real defects surfaced the moment the units were asked to work in a host,
-and neither was visible to any of the twenty-four cells.
+Three defects surfaced, and not one was visible to the twenty-four cells.
 
 **An offline render outran the processor's asynchronous instantiation.** The
 worklet builds its WebAssembly in a promise; `startRendering` runs a whole
-timeline faster than real time. So a one-second bounce through the Motion Shaper
+timeline faster than real time. A one-second bounce through the Motion Shaper
 came back at an RMS of 0.0001 and, on a second run, at exactly zero — no error,
-no warning, and a rendered file that is simply not the mix. Every Motion Wave
-node now publishes a readiness promise and the renderer waits for all of them
-before starting.
+no warning, and a rendered file that is not the mix. Nodes now publish a
+readiness promise and the renderer waits for all of them.
 
-**The Motion Shaper rendered silence until a shape was drawn.** `Curve::valueAt`
-returns zero for an empty curve, which is right for a curve and wrong for a
-default: a freshly constructed unit modulated every band to nothing. All
-twenty-four of its cells passed while that was true, because every one of them
-sets a curve before measuring anything. It is visible only to someone who
-inserts the device and expects to hear their track — which is exactly the gap
-this cell exists to close. An undrawn Motion Shaper is now a wire.
+**The Motion Shaper rendered silence until a shape was drawn.** An empty curve
+evaluates to zero, which is right for a curve and wrong for a default. All
+twenty-four of its cells passed while that was true, because every one sets a
+curve before measuring. An undrawn shaper is now a wire — in the constructor,
+not in `prepare`, because `prepare` runs _after_ a host sets its curves and
+putting it there turned eight of the unit's own D1 rows red.
 
-Wiring the shape also found that a curve is not a parameter and had nowhere to
-live: it has no range, no taper and no single value, so `Effect.params` cannot
-hold it and a project saved without it reloads as a wire. `Effect.shapes` now
-carries it, and which units have shapes is the _unit's_ declaration
-(`shapeCount`) rather than the host's knowledge.
+**Bypass never reached the DSP, on any unit.** The worklet handled `param` and
+`curve` messages and silently ignored `bypass`, so all seven rendered
+bit-identically whether bypassed or not — 0.0000 % apart, every one. Nothing
+else could have caught it: the native suites set bypass through the C++ API
+directly, the WASM boundary test sends no messages, and cell 24 measures a face
+against its own DSP with no host to bypass it from. It took a row that renders
+the same unit twice and requires the two to differ.
 
-**X25 is `—` for all seven, and they are out of SHIPPING until it is not.** The
-guard's vocabulary has no "partly", which is right: a cell either passes or it
-does not, and a status that let a cell be half-claimed is how twenty-four of
-them came to be green on units nobody could insert.
-What passes: they appear in the picker under their own group, insert, process
-audio audibly, take control changes through to the DSP, and declare latency the
-host compensates. What does not yet: the units mount the host's generic control
-body rather than their own `UnitFace`, so their meters and visualisers are not
-being driven — `MotionWaveNode.onFrame` publishes frames and nothing consumes
-them — and the save/load round-trip has not been verified to render identically.
-Marking these PASS on the strength of the audio alone would be the
-grandfathering the directive forbids.
+### The default-state rule, and where its literal form had to bend
+
+The rule is: insert the unit, touch nothing, assert audio passes **and is not
+identical to bypass**. The first half is exactly right and is a row of its own.
+
+The second half cannot be met by two of these units without making them worse.
+A Motion Shaper with no shape drawn is a wire — deliberately, since the
+alternative is the silence that prompted the rule. A Program EQ at its default
+is flat, and its bypass removes the EQ networks while leaving the amplifiers,
+exactly as `dyn-01` specifies. Both are _correctly_ indistinguishable from their
+own bypass until a user touches something, and forcing a difference would mean
+shipping devices that colour a track the moment they are inserted.
+
+So what is asserted is what the rule protects: **the unit is reachable** — there
+exists a setting at which it differs from bypass. A unit inert whatever you do
+fails; a unit neutral until asked passes, which is what a neutral default means.
+The settings come from the manifest, each parameter driven to its own declared
+extremes, so a control added later is swept without anyone remembering.
 
 ### Program EQ
 

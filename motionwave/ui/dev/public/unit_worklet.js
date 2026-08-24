@@ -101,6 +101,7 @@ class UnitProcessor extends AudioWorkletProcessor {
       this.outputPtr = core[`_${p}_output`];
       this.processCall = core[`_${p}_process`];
       this.visualPtr = core[`_${p}_visual`];
+      this.setBypassCall = core[`_${p}_set_bypass`];
       this.prepare(sampleRate, 128, 2);
       if (this.spec.bpm) core._mw_shaper_set_bpm(120);
       this.port.onmessage = (event) => this.onCommand(event.data);
@@ -112,6 +113,24 @@ class UnitProcessor extends AudioWorkletProcessor {
   onCommand(message) {
     if (message.kind === 'param') {
       this.setParam(message.id, message.value);
+    } else if (message.kind === 'bypass') {
+      /*
+       * **The unit's own bypass, not a host-side detour around the node.**
+       *
+       * Every unit implements bypass as "still in circuit, still metering, wet
+       * bus not summed" — X24 found four of them publishing zeros here and it
+       * is a graded cell. Routing around the node instead would give the host's
+       * answer to a question the unit already answers, and would lose the
+       * metering that makes a bypassed insert legible.
+       *
+       * This case was missing, and every unit therefore rendered identically
+       * whether bypassed or not — bit-identical, on all seven. Nothing else
+       * caught it: the native suites set bypass through the C++ API directly,
+       * the WASM boundary test never sends a message, and cell 24 measures a
+       * face against its own DSP without a host to bypass it from. It took a
+       * row that renders the same unit twice and requires the two to differ.
+       */
+      if (this.setBypassCall) this.setBypassCall(message.on ? 1 : 0);
     } else if (message.kind === 'curve' && this.spec.curve) {
       const bytes = message.nodes.length * 4 * 8;
       const ptr = this.core._malloc(bytes);
