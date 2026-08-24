@@ -60,7 +60,8 @@ export default tseslint.config(
   {
     // QA/audit scripts are Node programs that also contain browser code inside
     // page.evaluate() callbacks, so they legitimately reference both.
-    files: ['scripts/audit-*.mjs', 'scripts/*-audit.mjs'],
+    // Stress is named here too: it is the same shape of program.
+    files: ['scripts/audit-*.mjs', 'scripts/*-audit.mjs', 'scripts/stress.mjs'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {

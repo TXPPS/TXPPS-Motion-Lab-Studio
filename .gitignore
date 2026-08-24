@@ -69,3 +69,8 @@ docs/*User Manual*.pdf
 # Vite writes this beside vite.config.ts while loading it, and deletes it again.
 # A build that races a `git status` would otherwise see a dirty tree.
 vite.config.ts.timestamp-*.mjs
+
+# The stress harness writes this on every run. The numbers that matter are
+# transcribed into PROGRESS.md by hand, where they can be compared; a tracked
+# copy would just be the last run anyone happened to do.
+stress-out.json

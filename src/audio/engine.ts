@@ -1491,6 +1491,21 @@ class AudioEngine {
     }
   }
 
+  /**
+   * What the still-running sources are, by kind.
+   *
+   * `activeSourceCount` alone says a number and nothing else, and a number on
+   * its own cannot be acted on: the stress sweep reported "76 sources still
+   * running" after a transport fuzz and there was no way to tell a stranded
+   * metronome click from a clip that never stopped. Read-only, and built only
+   * when something asks.
+   */
+  activeSourceBreakdown(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const h of this.activeSources) out[h.kind] = (out[h.kind] ?? 0) + 1;
+    return out;
+  }
+
   activeSourceCount(): number {
     return this.activeSources.size;
   }
@@ -2144,6 +2159,29 @@ class AudioEngine {
     for (const inst of this.instruments.values()) inst.allNotesOff();
   }
 
+  /**
+   * Voices still being held, per instrument track. A stuck note lives here.
+   *
+   * `sustainingVoices` and not `activeVoices`, because a voice in its release
+   * tail is still audible and still counted as active — so an `activeVoices`
+   * assertion after a note-off fails on correct behaviour and would be
+   * calibrated away. A held voice is the one that is wrong.
+   *
+   * This exists because nothing outside the engine could observe a stuck note
+   * at all: `instruments` is private and `activeSourceCount` counts clip
+   * playback, not voices. The stuck-note fuzz (`scripts/stress.mjs`) had no
+   * assertion to make without it, and a fuzz that cannot fail is a fuzz that
+   * certifies nothing.
+   */
+  sustainingVoices(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const [trackId, inst] of this.instruments) {
+      const probe = inst as Instrument & { sustainingVoices?: () => number };
+      if (typeof probe.sustainingVoices === 'function') out[trackId] = probe.sustainingVoices();
+    }
+    return out;
+  }
+
   // ---------- frame loop (meters + UI callbacks) ----------
 
   private startFrameLoop(): void {
@@ -2355,8 +2393,13 @@ if (typeof window !== 'undefined') {
   (window as unknown as { __ml?: unknown }).__ml = {
     getMeter: (id: string) => engine.getMeter(id),
     activeSources: () => engine.activeSourceCount(),
+    activeSourceBreakdown: () => engine.activeSourceBreakdown(),
     position: () => engine.getPositionBeats(),
     isPlaying: () => engine.isPlaying(),
+    // Held voices per track. The stuck-note fuzz asserts on this; see
+    // `Engine.sustainingVoices` for why it is the held count and not the
+    // active one.
+    sustainingVoices: () => engine.sustainingVoices(),
     isRunning: () => engine.isRunning(),
     automationValueAt: (trackId: string, paramId: string) =>
       engine.automationValueAt(trackId, paramId),

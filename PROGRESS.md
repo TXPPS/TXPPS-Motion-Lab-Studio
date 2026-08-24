@@ -3,14 +3,14 @@
 ```
 RESUME: Directive 10 — Emscripten, plugin windows, latency, V27.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: e1c48871b8
-Bundle verified: YES — live index-Cb2qn4Aa.js matches a clean-tree build of
-                 that commit, byte for byte. This is the first deploy where
-                 that comparison proved anything: builds only became
-                 reproducible one commit earlier.
-Current section: §0, §2 and §3.1 COMPLETE. App-side contrast guard COMPLETE.
-Next action:     The stress harness (Directive 10 §5), then the WASM backlog
-                 and Program EQ's V27.
+Deployed commit: 1e532e4a62
+Bundle verified: YES — live index-CGx0C4q-.js matches a clean-tree build of
+                 that commit, byte for byte.
+Current section: §0, §2, §3.1 COMPLETE. Contrast guard and the §5 stress
+                 harness COMPLETE, with the first row of measured numbers
+                 recorded below.
+Next action:     The WASM backlog, then Program EQ's V27, then deploy and
+                 report E3.
 Open deviations: F11 is left to the browser's fullscreen — the one place the
                  reference's panel map is not matched.
                  §2.5's monitoring modes and latency compensation are
@@ -171,16 +171,59 @@ different claims and the second is not implied by the first.
 
 ## Stress-test log
 
-Directive 10 §5. Measured numbers per run, so drift is visible. A regression
-against the previous row is a P1.
+Directive 10 §5. `npm run stress`, against a preview build. Measured numbers per
+run so drift is visible; a regression against the previous row is a P1.
 
-| Run | Commit | Scaling ceiling | Transport fuzz | Stuck-note fuzz | Long take   | Project scale | Undo depth  | Interruptions |
-| --- | ------ | --------------- | -------------- | --------------- | ----------- | ------------- | ----------- | ------------- |
-| —   | —      | not yet run     | not yet run    | not yet run     | not yet run | not yet run   | not yet run | not yet run   |
+| Commit       | p90 @100 / @200 tk | Ceiling          | Transport fuzz            | Stuck-note fuzz     | Sustained run       | Retained heap | Tab switch | Undo/redo | Backgrounding |
+| ------------ | ------------------ | ---------------- | ------------------------- | ------------------- | ------------------- | ------------- | ---------- | --------- | ------------- |
+| `1e532e4a62` | 17.7 / 18.3 ms     | >408 tk /1200 fx | 196 ops, quiet in 1425 ms | 3240 notes, 0 stuck | 28.9 ms, drift −0.1 | +5 KB         | 97.5 ms    | 60/60 ok  | ok            |
 
-The harness is built at the next section boundary. Rows are only added from a
-run that actually happened: an empty cell is the honest state and a number
-nobody measured is worse than a blank.
+Read the first column and not the second. The ceiling is a threshold crossing,
+and a threshold crossing read off a noisy signal is bimodal — three runs of the
+first version reported **276, 408, 276** on one machine against one build,
+flipping either side of the budget. The fixed-load p90s are the comparable
+numbers and a P1 should be judged on those; the ceiling is kept because §5 asks
+for it and because a _large_ move in it still means something. It now takes two
+consecutive over-budget samples to count, and with that it reports the same
+figure run to run.
+
+`>408` is the honest reading: frame p90 never left one frame all the way to the
+sweep's own bound of 400 added tracks, so the ceiling on this host is above
+that, not at it.
+
+Three cells report `BLOCKED` rather than a number, and that distinction is the
+point — `BLOCKED` and `0` look identical in a table and mean opposite things:
+
+| Not measured here     | Why                                                             |
+| --------------------- | --------------------------------------------------------------- |
+| Audio dropout ceiling | No audio device; xruns are not observable in headless Chromium. |
+| Per-device tiers      | No phone or tablet silicon. A desktop ceiling is not a tier.    |
+| Force-quit mid-record | Needs a real OS kill, not a dispatched event.                   |
+
+### Two of the first run's numbers were the probe, not the product
+
+Worth recording because both looked exactly like findings.
+
+**"284,000 transport operations per second."** The fuzz fired unawaited promises
+in a tight loop, so what it measured was how fast a `for` loop can discard them.
+Awaited, one per frame — the fastest a keyboard repeat can actually produce
+them — it is **33/s, worst op 1.1 ms**.
+
+**"75 sources still running after a stop."** Read as a leak, and it is not one.
+A voice already scheduled ahead has its stop clamped to its own start time
+(`Math.max(at, when)`, `samplerInstrument.ts`), so a transport stop cannot
+retire it earlier than the moment it was going to begin; under a loaded frame
+loop the lookahead reaches further ahead and those retirements land past the
+half-second the probe was sleeping for. It always reaches zero. The row now
+waits for quiescence and _times_ it — **1425 ms** — and fails only if it never
+arrives. The wrong diagnosis was ruled out by experiment rather than by
+argument: a source stopped before its start time does fire `onended` in
+Chromium, tested three ways, so nothing was being stranded.
+
+A third number needed no correction and is the one worth watching: **retained
+heap growth of +5 KB across a 15-second run at 408 tracks**, sampled after a
+forced collection on both sides so it is what the app is holding rather than
+what it has not got round to freeing.
 
 ## Verification status
 
@@ -188,7 +231,7 @@ nobody measured is worse than a blank.
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run typecheck` | clean                                                                                                                                          |
 | `npm run lint`      | clean                                                                                                                                          |
-| `npm test`          | **1921 passing**, 102 files                                                                                                                    |
+| `npm test`          | **1964 passing**, 104 files                                                                                                                    |
 | `npm run build`     | clean, and now runs the licence, ledger, params, accent, contrast, icon and WASM guards                                                        |
 | `npm run test:mw`   | 311 of 312; the one failure is a pre-existing framework guard about `e2e/panel.spec.ts` importing `@playwright/test`, unrelated to any of this |
 | WASM boundary       | **0.000e+0** worst difference against the native golden                                                                                        |
