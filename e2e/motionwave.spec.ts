@@ -162,6 +162,62 @@ test.describe('Cell 25 — Motion Wave units in the host', () => {
     expect(Math.abs(deep.rms - flat.rms) / flat.rms).toBeGreaterThan(0.05);
   });
 
+  /**
+   * **Insert it, touch nothing, and it must pass audio.**
+   *
+   * A standing rule, added after the third instance of one blind spot: every
+   * test sets a valid state before it measures, so no test measured the state a
+   * user actually gets. The Motion Shaper rendered *silence* when freshly
+   * inserted and all twenty-four of its cells were green, because each of them
+   * draws a curve first. `fx-02`'s D1 base and the FET Limiter's D1 base were
+   * the same shape of mistake one layer down — a base that was not a state in
+   * which the control had anything to act on.
+   *
+   * So this row is deliberately the least sophisticated in the file. It builds
+   * the unit exactly as the picker does, changes nothing, and requires audio
+   * out. Anything it fails on is something a user would meet in the first ten
+   * seconds.
+   */
+  test('a freshly inserted unit passes audio with nothing touched', async ({ page }) => {
+    await boot(page);
+    const units = await page.evaluate(async () => {
+      const probe = await (
+        window as unknown as { __ml: { motionWaveProbe: () => Promise<unknown> } }
+      ).__ml.motionWaveProbe();
+      return (
+        probe as { registeredUnits: () => { kind: string; label: string }[] }
+      ).registeredUnits();
+    });
+    expect(units.length).toBeGreaterThan(0);
+
+    // The dry signal's own level, for comparison. A unit is allowed to be
+    // quieter than the source — a limiter is — but not silent.
+    const bare = await render(page, 'trim');
+    const silent: string[] = [];
+    for (const unit of units) {
+      // No params, no shapes: the constructed default and nothing else.
+      const report = await render(page, unit.kind);
+      const relative = report.rms / bare.rms;
+      console.log(
+        `cell 25 · default state · ${unit.label.padEnd(22)} rms ${report.rms.toFixed(5)} ` +
+          `(${(relative * 100).toFixed(1)}% of dry)`,
+      );
+      expect(report.coreLoaded, unit.label).toBe(true);
+      expect(report.nonFinite, unit.label).toBe(false);
+      /*
+       * A fortieth of the dry level. Generous on purpose: this is not a check
+       * that the unit is transparent, it is a check that it is not *off*. A
+       * limiter at its default may pull a noisy source down hard and still be
+       * working; a unit that renders nothing is broken however it got there.
+       */
+      if (relative < 0.025) silent.push(`${unit.label} (${(relative * 100).toFixed(2)}% of dry)`);
+    }
+    if (silent.length > 0) {
+      console.log('UNITS SILENT IN THEIR DEFAULT STATE:', silent.join(', '));
+    }
+    expect(silent).toEqual([]);
+  });
+
   test('every registered unit is insertable and renders finite audio', async ({ page }) => {
     await boot(page);
     const units = await page.evaluate(async () => {

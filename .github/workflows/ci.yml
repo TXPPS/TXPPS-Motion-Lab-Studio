@@ -50,6 +50,12 @@ jobs:
           ~/emsdk/emsdk activate 4.0.7
       - name: Point the build at emsdk
         run: echo "EMSDK_DIR=$HOME/emsdk" >> "$GITHUB_ENV"
+      # The tracked core is a build artefact in git, because the production
+      # build must run where there is no C++ toolchain — Cloudflare's builder
+      # does not have one. Its failure mode is going stale silently, so it is
+      # verified here, where the toolchain does exist.
+      - name: The tracked WebAssembly core matches its source
+        run: npm run wasm:check
       - name: Production build
         run: npm run build
       - name: Bundle budget

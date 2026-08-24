@@ -16,7 +16,23 @@ import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 const root = process.cwd();
-const core = join(root, 'motionwave/wasm/dist/motionwave.worklet.js');
+/*
+ * A freshly built core if there is one, otherwise the tracked copy.
+ *
+ * `motionwave/wasm/dist/` only exists on a machine with Emscripten. The app's
+ * production build runs everywhere — Cloudflare's builder, a contributor's
+ * laptop, a CI runner that only cares about the web app — and requiring a C++
+ * toolchain to build a TypeScript app would mean the deployed site could only
+ * ever be built from a machine set up for the native work.
+ *
+ * `prebuilt/` is tracked in git for exactly that reason, and it is checked
+ * rather than trusted: `npm run wasm:check` rebuilds and compares byte for
+ * byte, and CI has the toolchain and runs it, so a stale copy fails there
+ * instead of shipping.
+ */
+const freshCore = join(root, 'motionwave/wasm/dist/motionwave.worklet.js');
+const prebuiltCore = join(root, 'motionwave/wasm/prebuilt/motionwave.worklet.js');
+const core = existsSync(freshCore) ? freshCore : prebuiltCore;
 const processor = join(root, 'motionwave/ui/worklet/unit_worklet.js');
 
 const targets = [
@@ -25,8 +41,11 @@ const targets = [
 ];
 
 if (!existsSync(core)) {
-  console.error(`motionwave: no core at ${core}`);
-  console.error('Run `npm run build:wasm` first — it needs emsdk, see CLAUDE.md.');
+  console.error('motionwave: no core to ship.');
+  console.error(`  looked for a fresh build at ${freshCore}`);
+  console.error(`  and the tracked copy at   ${prebuiltCore}`);
+  console.error('Run `npm run build:wasm` (needs emsdk, see CLAUDE.md), or restore the');
+  console.error('tracked copy — the app cannot ship without one of them.');
   process.exit(1);
 }
 if (!existsSync(processor)) {
@@ -59,5 +78,7 @@ for (const target of targets) {
 }
 
 console.log(
-  `motionwave: core (${Math.round(coreBytes / 1024)} KB) and processor synced to ${targets.length} target(s)`,
+  `motionwave: core (${Math.round(coreBytes / 1024)} KB, ${
+    core === freshCore ? 'freshly built' : 'tracked prebuilt'
+  }) and processor synced to ${targets.length} target(s)`,
 );

@@ -111,4 +111,19 @@ echo "globalThis.createMotionWaveCore = createMotionWaveCore;" >> "$OUT/motionwa
 # second product.
 cp "$OUT/motionwave.worklet.js" "$ROOT/ui/dev/public/motionwave.worklet.js"
 
+# And into `prebuilt/`, which is tracked in git.
+#
+# The app's production build needs this file, and the environments that run that
+# build do not all have Emscripten: Cloudflare's builder does not, and neither
+# does anyone cloning the repo to look at the web app. Requiring a C++
+# toolchain to build a TypeScript app would mean the deployed site could only
+# ever be built from a machine set up for the native work.
+#
+# The risk of a tracked build artefact is that it goes stale, so it is checked
+# rather than trusted: `npm run wasm:check` rebuilds and compares byte for byte,
+# and CI has Emscripten and runs it. A stale copy fails there rather than
+# shipping.
+mkdir -p "$ROOT/wasm/prebuilt"
+cp "$OUT/motionwave.worklet.js" "$ROOT/wasm/prebuilt/motionwave.worklet.js"
+
 echo "worklet: $(du -h "$OUT/motionwave.worklet.js" | cut -f1) at $OUT/motionwave.worklet.js"

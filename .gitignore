@@ -47,6 +47,11 @@ motionwave/build/
 motionwave/ui/dev/dist/
 motionwave/ui/dev/public/motionwave.worklet.js
 
+# `motionwave/wasm/prebuilt/` is deliberately NOT ignored: it is the core the
+# app's production build ships, and that build has to run where there is no C++
+# toolchain. `npm run wasm:check` proves it still matches its source, and CI has
+# the toolchain and runs it.
+#
 # Copies of the Motion Wave runtime, dropped by
 # `scripts/sync-motionwave-assets.mjs` from `motionwave/wasm/dist/` and
 # `motionwave/ui/worklet/`. The sources are tracked; these are build output, and
