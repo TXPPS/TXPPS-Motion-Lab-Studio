@@ -3,12 +3,15 @@
 // These three pieces are testable before the unit exists around them, and two of
 // them carry a rule the sheet says must be asserted in code rather than reviewed.
 #include "../units/delay_feedback.h"
+#include "../units/delay_line.h"
 #include "../units/delay_routing.h"
 #include "../units/delay_smear.h"
 #include "../units/delay_sync.h"
 #include "harness.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 #include <vector>
 
@@ -309,6 +312,100 @@ MW_TEST("fx-03 §3.2: a saturating loop above unity converges instead of divergi
   gentle.setFeedback(0.9);
   gentle.setDrive(1.0);
   MW_EXPECT_NEAR(gentle.driveNow(), 1.0, 0.0);
+}
+
+MW_TEST("fx-03 V3: a tap arrives at the sample the division asks for") {
+  /*
+   * §9 V3 grades this at **zero samples** of error, with ±1 allowed only for
+   * where a fractional interpolation puts the peak. So the row measures the
+   * sample index of an impulse's peak, at every division and modifier, at the
+   * three tempos the sheet names.
+   *
+   * A whole-note-based division table and a beat-based formula differ by four,
+   * and this is where that shows: an error of four is not something a listener
+   * would call slightly off, it is a different delay.
+   */
+  constexpr double kRate = 48000.0;
+  const double bpms[3] = {60.0, 120.0, 174.0};
+  const Division divisions[10] = {Division::SixtyFourth, Division::ThirtySecond,
+                                  Division::Sixteenth,   Division::Eighth,
+                                  Division::Quarter,     Division::Half,
+                                  Division::Whole,       Division::TwoBars,
+                                  Division::FourBars,    Division::EightBars};
+  const Modifier modifiers[3] = {Modifier::Straight, Modifier::Dotted, Modifier::Triplet};
+
+  DelayBuffer buffer;
+  buffer.prepare(kRate, 40.0);
+  int worst = 0;
+  int checked = 0;
+  for (double bpm : bpms) {
+    for (Division division : divisions) {
+      for (Modifier modifier : modifiers) {
+        const double seconds = delaySecondsFor(division, modifier, bpm);
+        if (seconds > buffer.maxDelaySeconds()) continue;
+        const double wanted = seconds * kRate;
+        buffer.reset();
+        // An impulse in, then silence, reading the tap each sample.
+        const int span = static_cast<int>(wanted) + 64;
+        int peakAt = -1;
+        double peak = 0.0;
+        for (int i = 0; i < span; ++i) {
+          buffer.write(i == 0 ? 1.0f : 0.0f, 0.0f);
+          const double v = std::fabs(static_cast<double>(buffer.read(0, wanted)));
+          if (v > peak) {
+            peak = v;
+            peakAt = i;
+          }
+        }
+        // The read is taken after the write, so the impulse written at sample 0
+        // appears when the head has advanced `wanted` past it.
+        const int expected = static_cast<int>(wanted + 0.5);
+        worst = std::max(worst, std::abs(peakAt - expected));
+        ++checked;
+      }
+    }
+  }
+  std::printf("    V3: %d division/modifier/tempo combinations, worst peak error %d sample(s)\n",
+              checked, worst);
+  MW_EXPECT(checked >= 60);
+  MW_EXPECT(worst <= 1);
+}
+
+MW_TEST("fx-03 §2: a pitched tap's reach is clamped, because past the buffer is not audio") {
+  /*
+   * §2: a pitched tap consumes source at rate `r`, so a grain of length `L`
+   * covers `r·L` seconds of buffer, and a tap whose reach runs past the buffer
+   * reads uninitialised memory. The sheet says clamp.
+   *
+   * Worth a row rather than a line of code because the failure is invisible at
+   * unity and at short grains — every setting anyone tries first is safe, and
+   * the one that is not produces noise that reads as a bug in the grain engine.
+   */
+  DelayBuffer buffer;
+  buffer.prepare(48000.0, 1.0);
+  const double capacity = buffer.maxDelaySeconds();
+  std::printf("    §2: a %.3f s buffer holds %.3f s of delay before any reach\n",
+              static_cast<double>(buffer.capacity()) / 48000.0, capacity);
+
+  // At unity with a short grain the clamp is barely felt.
+  MW_EXPECT_NEAR(clampDelaySeconds(0.3, buffer, 1.0, 0.030), 0.3, 1.0e-12);
+  // Two octaves up over a 120 ms grain reaches back 480 ms, and a tap asked for
+  // the buffer's whole length must come back shorter by exactly that.
+  const double reach = reachSeconds(4.0, 0.120);
+  MW_EXPECT_NEAR(reach, 0.480, 1.0e-12);
+  const double clamped = clampDelaySeconds(capacity, buffer, 4.0, 0.120);
+  std::printf("    §2: +24 semitones over a 120 ms grain reaches %.3f s back; a tap asked for"
+              " %.3f s is clamped to %.3f\n",
+              reach, capacity, clamped);
+  MW_EXPECT_NEAR(clamped, capacity - reach, 1.0e-12);
+  // Downward pitch consumes *less* source, so it must not shorten the tap: a
+  // clamp written on |r| alone would penalise the octave-down tap for nothing.
+  MW_EXPECT_NEAR(clampDelaySeconds(0.3, buffer, 0.5, 0.120), 0.3, 1.0e-12);
+  // And reverse is a negative increment at the same speed, so it clamps like
+  // its forward twin rather than like unity.
+  MW_EXPECT_NEAR(reachSeconds(-4.0, 0.120), reach, 1.0e-12);
+  // Never negative, however extreme the request.
+  MW_EXPECT(clampDelaySeconds(10.0, buffer, 16.0, 0.500) > 0.0);
 }
 
 MW_TEST_MAIN("delay-foundations")

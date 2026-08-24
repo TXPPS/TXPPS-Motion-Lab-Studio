@@ -212,8 +212,23 @@ FX-03 STARTED: three foundations built and tested before the unit around them �
                so a constant is exactly the input the loop is built to destroy.
                The memoryless algebra describes the ENVELOPE of something
                circulating, which is what V4 grades and what the row now feeds.
-Next action:   fx-03's buffer and taps (§2's fixed order: grain read -> filter
-               -> level -> pan), then V1, V2, V3, V5 and V13.
+               delay_line.h added: one buffer, power-of-two capacity so the
+               wrap is a mask — the read is the innermost loop this unit has and
+               a division there costs instances on a phone.
+               V3 MEASURES: 89 division/modifier/tempo combinations, worst peak
+               error 1 sample against §9's zero (+/-1 allowed for fractional
+               interpolation peak location).
+               §2's REACH CLAMP is a row, not a line: a pitched tap consumes
+               source at rate r, so a grain of length L covers r*L of buffer and
+               a tap past it reads uninitialised memory. Invisible at unity and
+               at short grains — every setting anyone tries first is safe, and
+               the one that is not produces noise that reads as a grain-engine
+               bug. +24 semitones over a 120 ms grain reaches 480 ms back.
+               Downward pitch consumes LESS source and must not shorten the tap;
+               reverse is a negative increment at the same speed and clamps like
+               its forward twin.
+Next action:   the unit itself — §2's per-tap order (grain read -> filter ->
+               level -> pan), then V1, V2, V5, V6 and V13.
 BUILD ORDER CORRECTED (user, before R3): the voice substrate is built DURING
                Slipstream and proven through it, the way the nonlinear library
                was built during Program EQ — not after Slipstream. Slipstream is
