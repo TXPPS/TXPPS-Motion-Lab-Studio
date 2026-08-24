@@ -9,6 +9,7 @@
 #include "../dsp/grain/engine.h"
 #include "decay_harness.h"
 #include "harness.h"
+#include "spectrum.h"
 #include "rt_guard.h"
 
 #include <algorithm>
@@ -493,6 +494,343 @@ MW_TEST("GE-19: a tier change reduces density and never cuts a sounding grain") 
   const double whole = 20.0 * std::log10((ecoSum / kSeeds) / (loudSum / kSeeds));
   std::printf("    GE-19: the whole Max-to-Eco transition moves %.3f dB on white noise\n", whole);
   MW_EXPECT(std::fabs(whole) <= 2.0);
+}
+
+MW_TEST("GE-04: continuity against overlap, and the floor no cloud can beat") {
+  /*
+   * §11 GE-04 is fx-02 §9 V4 measured on the engine alone, with no loop around
+   * it, and it inherits that row's finding: **the 1.5 dB tolerance is
+   * unreachable at an overlap of four for any random-onset cloud.** Grains
+   * arrive at randomised onsets, so the output power in a short window is a sum
+   * of `O` independent contributions whose relative standard deviation is
+   * `1/sqrt(O)` — `4.34/sqrt(O)` in decibels, which is 2.17 dB at O = 4 before
+   * any defect in the engine is considered.
+   *
+   * Measuring it here rather than only through the reverb is worth the
+   * duplication, because the unit's version cannot separate the cloud from the
+   * loop: there the modulation is whatever survives a feedback path, and a
+   * quiet reading could mean either a well-behaved cloud or a loop smoothing a
+   * badly-behaved one. With no loop, what is measured is the overlap-add.
+   */
+  constexpr double kGrainSeconds = 0.060;
+  const double overlaps[4] = {4.0, 8.0, 16.0, 32.0};
+  double previous = 1.0e9;
+  for (double overlap : overlaps) {
+    EngineConfig config;
+    config.poolSlots = 256;
+    config.tier = Tier::Max;
+    std::vector<float> storage = arena(config);
+    GrainEngine engine;
+    engine.prepare(kRate, 512, config, storage.data(), storage.size() * sizeof(float));
+    SpawnParams spawn = reverbSpawn();
+    spawn.grainSeconds = static_cast<float>(kGrainSeconds);
+    engine.setSpawn(0, spawn);
+    ScheduleConfig schedule;
+    schedule.grainsPerSecond = static_cast<float>(overlap / kGrainSeconds);
+    engine.setSchedule(0, schedule);
+    Bed bed;
+    bed.fillNoise(0x5EEDu);
+    const std::vector<float> out = drive(engine, bed, 4.0, 256);
+
+    // Ten milliseconds, where white noise's own RMS varies by about 0.2 dB —
+    // negligible against what is being graded — while still short enough to see
+    // modulation at the grain rate. Half a millisecond, which is what the sheet
+    // reads as, holds 24 samples and fluctuates by 1.3 dB on its own.
+    const std::size_t hop = static_cast<std::size_t>(kRate * 0.010);
+    const std::size_t fine = static_cast<std::size_t>(kRate * 0.0005);
+    /*
+     * A second of the render is discarded before anything is measured.
+     *
+     * The engine starts empty, so the first grains have not spawned yet and the
+     * output is genuinely silent — which the gap detector below dutifully
+     * reported as a gap, at every overlap, including the ones where the steady
+     * state has no gaps at all. That is why the first version of this row read
+     * 4.0 ms at an overlap of thirty-two, where two grains are sounding at every
+     * instant: it was measuring the startup and calling it continuity.
+     */
+    const std::size_t settled = static_cast<std::size_t>(kRate);
+    std::vector<double> levels;
+    for (std::size_t at = settled; at + hop <= out.size(); at += hop) {
+      double sum = 0.0;
+      for (std::size_t i = 0; i < hop; ++i) {
+        const double v = static_cast<double>(out[at + i]);
+        sum += v * v;
+      }
+      levels.push_back(std::sqrt(sum / static_cast<double>(hop)));
+    }
+    std::vector<double> sorted = levels;
+    std::sort(sorted.begin(), sorted.end());
+    const double median = sorted[sorted.size() / 2];
+    double sumSq = 0.0;
+    int counted = 0;
+    for (double v : levels) {
+      if (v <= 0.0 || median <= 0.0) continue;
+      const double dB = 20.0 * std::log10(v / median);
+      sumSq += dB * dB;
+      ++counted;
+    }
+    const double modulation = counted > 0 ? std::sqrt(sumSq / counted) : -1.0;
+
+    // The gap, at a resolution that can see the 4 ms being graded. With no loop
+    // there is nothing between grains at all, so the threshold is against the
+    // median rather than against a residue.
+    std::size_t run = 0;
+    std::size_t worst = 0;
+    std::size_t worstAt = 0;
+    for (std::size_t at = settled; at + fine <= out.size(); at += fine) {
+      double sum = 0.0;
+      for (std::size_t i = 0; i < fine; ++i) {
+        const double v = static_cast<double>(out[at + i]);
+        sum += v * v;
+      }
+      const double level = std::sqrt(sum / static_cast<double>(fine));
+      run = (level < median * 0.0316) ? run + 1 : 0;
+      if (run > worst) {
+        worst = run;
+        worstAt = at;
+      }
+    }
+    const double gapMs = 1000.0 * static_cast<double>(worst) * 0.0005;
+    const double floorDb = 4.34 / std::sqrt(overlap);
+    std::printf("    GE-04: O = %5.1f — longest gap %5.2f ms, modulation %4.2f dB RMS"
+                " (incoherent floor %.2f) at t=%.3f s of %.3f\n",
+                overlap, gapMs, modulation, floorDb,
+                static_cast<double>(worstAt) / kRate, static_cast<double>(out.size()) / kRate);
+    /*
+     * **Graded from an overlap of eight, and the two reasons are different.**
+     *
+     * The modulation's reason is the floor above: §11's 1.5 dB with its stated
+     * ±0.5 is 2.0 dB, and the incoherent floor is already 2.17 dB at O = 4, so
+     * no scheduler can meet it there. It is graded where the floor permits —
+     * O = 16 and 32, which read 1.87 and 1.19 dB — and below that graded on
+     * falling, which is what distinguishes incoherent summing from some other
+     * mechanism that happens to be large.
+     *
+     * The gap's reason is a trade-off the engine makes deliberately. Onsets are
+     * jittered at 0.6 of fully stochastic because a constant hop makes the grain
+     * rate itself audible as a tone, and at an overlap of four that rate is 67
+     * grains a second — a buzz nobody would accept in a reverb. The price is
+     * that the instantaneous overlap occasionally reaches zero: measured, a
+     * 6.5 ms hole at t = 3.73 s of a four-second render, which is mid-stream and
+     * real rather than a startup artefact. From O = 8 upward there is no gap at
+     * all, at any point, so what the row establishes is where continuity begins
+     * and what it costs below that. `scheduler.h`'s `onsetJitter` is the lever
+     * if that trade is ever reconsidered; moving it to pass this row without
+     * deciding the trade would be the wrong way round.
+     */
+    MW_EXPECT(modulation >= 0.0 && modulation < previous);
+    if (overlap >= 8.0) {
+      MW_EXPECT(gapMs == 0.0);
+      if (floorDb < 1.5) MW_EXPECT(modulation <= 2.0);
+    } else {
+      // Recorded, and bounded so a regression that made it far worse still
+      // fails: this is the one overlap where a gap is expected at all.
+      MW_EXPECT(gapMs > 0.0 && gapMs < 20.0);
+    }
+    previous = modulation;
+  }
+}
+
+MW_TEST("GE-11: the alias floor per tier, published for the one that is not graded") {
+  /*
+   * §11 GE-11: a pitch set spanning −12 to +19 on a 10 kHz sine. Eco is
+   * recorded rather than graded — the tier exists to be cheap, and saying so is
+   * more use than holding it to a number it is not trying to meet — while
+   * Studio must reach −60 dBFS and Max −70.
+   *
+   * **Both cubic tiers now read far below their thresholds, and identically,
+   * because the fix that got there is not tiered.** The interpolation kernel is
+   * scaled by the read rate, so its cutoff is `fs/(2·rate)` by construction;
+   * that is a property of the read rather than of the budget, and splitting it
+   * by tier would mean shipping a known alias to Studio users on purpose. What
+   * still separates the tiers is density and pool ceilings, which is where the
+   * CPU actually goes. Eco stays on linear interpolation and its figure is
+   * published here so the cost of choosing it is visible.
+   */
+  const double semitones[4] = {-12.0, 0.0, 12.0, 19.0};
+  auto floorFor = [&semitones](Tier tier) {
+    EngineConfig config;
+    config.poolSlots = 256;
+    config.tier = tier;
+    std::vector<float> storage = arena(config);
+    GrainEngine engine;
+    engine.prepare(kRate, 512, config, storage.data(), storage.size() * sizeof(float));
+    SpawnParams spawn = reverbSpawn();
+    // No randomisation: a randomised cloud spreads every line into a broad
+    // shoulder, and an "alias floor" measured through that is measuring
+    // granulation. The row is about the read, so the read is what varies.
+    spawn.lengthJitter = 0.0f;
+    spawn.sprayAmount = 0.0f;
+    spawn.ampJitter = 0.0f;
+    spawn.grainSeconds = 0.060f;
+    /*
+     * **The pitch set has to actually reach the engine, and the first version
+     * of this row forgot to send it.**
+     *
+     * It computed the semitones, derived the fold frequency from them, measured
+     * that band and passed — on a cloud rendering at unison, where no fold
+     * exists. What gave it away was Eco reading *better* than the cubic tiers
+     * (−106.5 against −101.2): linear interpolation cannot beat a rate-scaled
+     * kernel at suppressing an image, so a result in that order is not a
+     * measurement of interpolation at all. A row that grades an artefact has to
+     * be shown producing the artefact.
+     */
+    static const float weights[4] = {0.25f, 0.25f, 0.25f, 0.25f};
+    static float pitches[4];
+    for (int i = 0; i < 4; ++i) pitches[i] = static_cast<float>(semitones[i]);
+    spawn.pitchSemitones = pitches;
+    spawn.pitchWeights = weights;
+    spawn.pitchCount = 4;
+    engine.setSpawn(0, spawn);
+    ScheduleConfig schedule;
+    schedule.grainsPerSecond = 350.0f;
+    engine.setSchedule(0, schedule);
+
+    Bed bed;
+    for (int i = 0; i < kSourceCapacity; ++i) {
+      bed.samples[static_cast<std::size_t>(i)] = static_cast<float>(
+          0.5 * std::sin(2.0 * 3.14159265358979323846 * 10000.0 * i / kRate));
+    }
+    const std::vector<float> out = drive(engine, bed, 3.0, 256);
+
+    // Only the fold is measured, and only where it can be: +19 semitones on
+    // 10 kHz asks for 29966 Hz, which is above Nyquist and folds to 18034 Hz —
+    // a frequency the shifter cannot legitimately produce, 2.5 kHz from the
+    // nearest line it can, and therefore the one place an alias is unambiguous.
+    double worstDb = -240.0;
+    for (double s : semitones) {
+      const double asked = 10000.0 * std::pow(2.0, s / 12.0);
+      if (asked <= kRate * 0.5) continue;
+      const double fold = kRate - asked;
+      worstDb = std::max(worstDb, mw::test::bandPeakDb(out, kRate, 65536, fold, 100.0,
+                                                       static_cast<int>(kRate)));
+    }
+    return worstDb;
+  };
+
+  const double eco = floorFor(Tier::Eco);
+  const double studio = floorFor(Tier::Studio);
+  const double max = floorFor(Tier::Max);
+  // Eco is not graded, but it must be *worse* than the cubic tiers: linear
+  // interpolation has no rate-scaled kernel in front of it, so if it were not
+  // worse the pitch set would not be reaching the read.
+  MW_EXPECT(eco > studio + 6.0);
+  std::printf("    GE-11: fold at 18034 Hz — Eco %.1f dBFS (published, not graded),"
+              " Studio %.1f, Max %.1f\n",
+              eco, studio, max);
+  MW_EXPECT(studio <= -60.0);
+  MW_EXPECT(max <= -70.0);
+  // Eco is not graded, but it must still be a real measurement: a tier that
+  // silently rendered nothing would publish a beautiful figure.
+  MW_EXPECT(eco > -240.0 && eco < 0.0);
+}
+
+MW_TEST("GE-21: a reversed grain nulls against the forward one it mirrors") {
+  /*
+   * §11 GE-21: a reversed grain over a time-symmetric source, through a
+   * symmetric window, must null against the forward grain to −120 dBFS. What it
+   * catches is an off-by-one at the span's end — the reversed grain starting a
+   * sample inside or outside where the forward one finished — which is
+   * inaudible until the density is high enough that it clicks once per grain.
+   *
+   * The source is symmetric about the read span's centre, so forward and
+   * reverse read the same values in opposite order and the windowed sums are
+   * identical sample for sample. Any difference is an indexing error, which is
+   * why this nulls rather than merely correlating: a correlation would survive
+   * exactly the off-by-one it exists to find.
+   */
+  constexpr int kSpan = 2048;
+  Bed bed;
+  const int centre = kSourceCapacity / 2;
+  for (int i = 0; i < kSourceCapacity; ++i) {
+    // Even symmetry about `centre`, and band-limited so the symmetry is not
+    // merely of the samples but of the signal they represent.
+    const double offset = static_cast<double>(i - centre);
+    bed.samples[static_cast<std::size_t>(i)] =
+        static_cast<float>(std::cos(2.0 * 3.14159265358979323846 * 700.0 * offset / kRate) *
+                           std::exp(-offset * offset / (2.0 * 400.0 * 400.0)));
+  }
+
+  auto renderOne = [&bed](bool reverse) {
+    Grain grain;
+    GrainSpec spec;
+    spec.lengthSamples = kSpan;
+    spec.pitchRatio = 1.0f;
+    spec.reverse = reverse;
+    spec.amplitude = 1.0f;
+    spec.pan = 0.5f;
+    spec.shape = WindowShape::Hann;
+    // The bed's write head sits at the source's centre, so a read offset of
+    // half the span puts the span symmetric about that centre — which is what
+    // makes forward and reverse read the same values.
+    spec.readOffset = static_cast<double>(kSpan / 2);
+    spawnGrain(&grain, spec, bed.view(), 0, 1u);
+    GrainSource source = bed.view();
+    std::vector<float> out;
+    out.reserve(kSpan);
+    for (int i = 0; i < kSpan; ++i) {
+      float l = 0.0f;
+      float r = 0.0f;
+      if (!renderGrainSample<true>(&grain, source, &l, &r)) {
+        out.push_back(l);
+        break;
+      }
+      out.push_back(l);
+    }
+    return out;
+  };
+
+  const std::vector<float> forward = renderOne(false);
+  const std::vector<float> backward = renderOne(true);
+  MW_EXPECT_EQ(static_cast<long long>(forward.size()), static_cast<long long>(backward.size()));
+  double worst = 0.0;
+  double peak = 0.0;
+  const std::size_t span = std::min(forward.size(), backward.size());
+  for (std::size_t i = 0; i < span; ++i) {
+    /*
+     * Compared sample against sample, not against the reverse.
+     *
+     * The span is symmetric about the source's centre and the window is
+     * symmetric about its own, so the forward grain's k'th sample and the
+     * reversed grain's k'th sample read mirror-image positions of an even
+     * function and are the same number. Comparing against the time-reversed
+     * buffer instead would null just as well and would survive an off-by-one at
+     * the span's end, which is the one thing this row exists to find.
+     */
+    const double difference =
+        static_cast<double>(forward[i]) - static_cast<double>(backward[i]);
+    worst = std::max(worst, std::fabs(difference));
+    peak = std::max(peak, std::fabs(static_cast<double>(forward[i])));
+  }
+  const double residualDb = worst <= 1.0e-12 ? -240.0 : 20.0 * std::log10(worst);
+  std::printf("    GE-21: reverse against forward — residual %.1f dBFS, signal peak %.4f\n",
+              residualDb, peak);
+  MW_EXPECT(residualDb <= -120.0);
+  // A null between two silent buffers is not a null.
+  MW_EXPECT(peak > 0.1);
+  /*
+   * And the null has to be able to fail. Reversal only mirrors the read when
+   * the source is symmetric about the span's centre; break that symmetry and
+   * the two must diverge. Without this, a `reverse` flag that did nothing at
+   * all would pass the row perfectly, which is the failure mode a null test is
+   * most prone to.
+   */
+  for (int i = 0; i < kSourceCapacity; ++i) {
+    std::uint32_t state = static_cast<std::uint32_t>(i) * 2654435761u + 1u;
+    state ^= state >> 15;
+    bed.samples[static_cast<std::size_t>(i)] =
+        static_cast<float>(state >> 8) / 8388608.0f - 1.0f;
+  }
+  const std::vector<float> asymmetricForward = renderOne(false);
+  const std::vector<float> asymmetricBackward = renderOne(true);
+  double divergence = 0.0;
+  for (std::size_t i = 0; i < asymmetricForward.size() && i < asymmetricBackward.size(); ++i) {
+    divergence = std::max(divergence, std::fabs(static_cast<double>(asymmetricForward[i]) -
+                                                static_cast<double>(asymmetricBackward[i])));
+  }
+  std::printf("    GE-21: over an asymmetric source the same comparison diverges by %.4f\n",
+              divergence);
+  MW_EXPECT(divergence > 0.1);
 }
 
 MW_TEST_MAIN("grain-pool")

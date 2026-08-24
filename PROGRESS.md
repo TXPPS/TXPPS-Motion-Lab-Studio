@@ -89,8 +89,21 @@ V11 DEVIATION: graded at 0.2 dB, not §9's 0.1 dB. The sheet's own procedure —
                arithmetic: sd across seeds is 0.096 dB, so 0.1 needs ~32 seeds =
                21 minutes for one row. The ceiling is not what proves freeze
                anyway; the interval containing zero is.
-Next action:   GE-04, GE-11, GE-21, then the manifest, D1, face and X24, then
-               Granular Delay reusing decay_harness.h for its feedback rows.
+GE ROWS CLOSED: GE-04, GE-11, GE-21 done; lib-grain-engine.md §11 complete.
+               GE-11 HAD BEEN VACUOUS — it derived the fold frequency from a
+               pitch set it never handed to the engine, and passed on a cloud
+               rendering at unison. Exposed by Eco reading BETTER than the cubic
+               tiers, which is impossible if the read is what is being measured.
+               Wired properly: Eco -20.9 dBFS, Studio/Max -84.3 (thresholds -60
+               and -70). The row now asserts that ordering too.
+               GE-04 was measuring the engine's startup silence as a gap at every
+               overlap. First second discarded; gaps then occur only at O=4, and
+               that is a stated trade-off (onsetJitter 0.6, because a constant hop
+               at 67 grains/s is an audible buzz), recorded with the lever named.
+               GE-21 nulls to -240 dBFS and carries a divergence guard so the null
+               cannot come free.
+Next action:   The manifest, D1, face and X24 for fx-02, then Granular Delay
+               reusing decay_harness.h for its feedback rows.
 BUILD ORDER CORRECTED (user, before R3): the voice substrate is built DURING
                Slipstream and proven through it, the way the nonlinear library
                was built during Program EQ — not after Slipstream. Slipstream is

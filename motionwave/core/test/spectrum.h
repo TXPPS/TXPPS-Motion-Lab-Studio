@@ -140,6 +140,41 @@ inline double spuriousFloorDb(const std::vector<float>& samples, const SpectrumP
 }
 
 /**
+ * Peak level in a narrow band, in dBFS.
+ *
+ * The whole-spectrum floors above need a legitimate set to exclude, and there
+ * are measurements where that set cannot be written down usefully: a grain is a
+ * windowed excerpt, so every line it produces is a band roughly `2/L` wide, and
+ * with the cloud randomised those shoulders are noise-like. An "alias floor"
+ * measured against a line list in that situation is measuring granulation.
+ *
+ * Where a *specific* artefact has a known frequency — an image folding back
+ * from a known ratio, say — measuring only there is measuring where the
+ * quantity is defined. That is what this is for.
+ */
+inline double bandPeakDb(const std::vector<float>& samples, double sampleRate, std::size_t length,
+                         double centreHz, double halfWidthHz, int offset) {
+  if (samples.size() < static_cast<std::size_t>(offset) + length) return 1.0;
+  std::vector<double> window(length);
+  const double coherentGain = mw::dsp::blackmanHarrisWindow(window);
+  std::vector<double> re(length);
+  std::vector<double> im(length, 0.0);
+  for (std::size_t i = 0; i < length; ++i) {
+    re[i] = static_cast<double>(samples[static_cast<std::size_t>(offset) + i]) * window[i];
+  }
+  mw::dsp::fft(re, im);
+  const double bin = sampleRate / static_cast<double>(length);
+  double worst = 0.0;
+  for (std::size_t k = 1; k < length / 2; ++k) {
+    const double f = static_cast<double>(k) * bin;
+    if (std::fabs(f - centreHz) > halfWidthHz) continue;
+    const double mag = 2.0 * std::sqrt(re[k] * re[k] + im[k] * im[k]) / coherentGain;
+    worst = std::max(worst, mag);
+  }
+  return worst <= 1.0e-12 ? -240.0 : 20.0 * std::log10(worst);
+}
+
+/**
  * Largest spurious component against an explicit list of legitimate lines.
  *
  * `spuriousFloorDb` above models the legitimate set as a carrier with evenly

@@ -704,6 +704,51 @@ it, and below that grades that the modulation is falling — which is what
 distinguishes incoherent summing from some other mechanism that happens to be
 large. Every point prints its own floor beside it.
 
+### The grain engine's last three rows, and a row that graded nothing
+
+GE-04, GE-11 and GE-21 close `lib-grain-engine.md` §11. Two of them needed the
+same correction twice over, which is worth writing down once.
+
+**GE-11 passed while measuring a cloud at unison.** It derives the fold
+frequency from a pitch set spanning −12 to +19 — the +19 asks for 29966 Hz on a
+10 kHz input, above Nyquist, folding to 18034 Hz — and measured that band. What
+it never did was hand the pitch set to the engine. The row passed, comfortably,
+on a rendering in which the artefact it grades could not exist. **What exposed it
+was Eco reading better than the cubic tiers**, −106.5 dBFS against −101.2: linear
+interpolation cannot beat a rate-scaled kernel at suppressing an image, so a
+result in that order is not a measurement of interpolation at all. With the set
+actually wired the figures separate the way the tiers are meant to — Eco −20.9
+dBFS, Studio and Max −84.3 — and the row now asserts that ordering as well as the
+thresholds, so the same mistake cannot pass twice. A row that grades an artefact
+has to be shown producing the artefact.
+
+**GE-04 was measuring the engine's startup.** It reported a 4.0 ms gap at an
+overlap of thirty-two, where two grains are sounding at every instant and a gap
+is impossible. The engine starts empty, so the first grains have not spawned yet
+and the output is genuinely silent; the detector reported that as a gap, at every
+overlap, which is why the number did not fall as the overlap rose. A discarded
+first second removes it, and the gaps that remain are at O = 4 only.
+
+That one is real and is a trade-off rather than a defect. Onsets are jittered at
+0.6 of fully stochastic because a constant hop makes the grain rate audible as a
+tone, and at an overlap of four that rate is 67 grains a second. The price is
+that the instantaneous overlap occasionally reaches zero — a 6.5 ms hole at
+t = 3.73 s of a four-second render, mid-stream. From O = 8 upward there is no gap
+at any point. The row grades §11's criterion there and records the cost below it,
+naming `scheduler.h`'s `onsetJitter` as the lever; moving that lever to pass a
+row without deciding the trade would be the wrong way round. The modulation half
+carries fx-02 V4's finding unchanged: the incoherent floor `4.34/sqrt(O)` is
+2.17 dB at O = 4, already past §11's 1.5 dB even with its stated ±0.5.
+
+**GE-21 nulls exactly, and now cannot do so vacuously.** A reversed grain over a
+source symmetric about the span's centre reads the same values as the forward
+one, and the residual is zero to the last bit. The risk in any null row is that
+the feature under test does nothing at all and the null comes free, so the row
+also renders both over an *asymmetric* source and requires them to diverge — they
+differ by 0.72. It also compares sample against sample rather than against the
+time-reversed buffer, which would null just as well while surviving the
+off-by-one at the span's end that the row exists to find.
+
 ### What X24 found once every unit had one
 
 The Motion Shaper had an integration test and the other four did not, and the

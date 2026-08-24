@@ -81,10 +81,19 @@ inline float readCubic(const GrainSource& source, double position) noexcept {
  */
 inline float readScaled(const GrainSource& source, double position, double rate,
                         int maxTaps) noexcept {
+  /*
+   * The *magnitude* of the increment decides the kernel, because a reversed
+   * grain reads backwards — its increment is negative — and reads backwards at
+   * the same speed. Branching on the signed value would have sent every
+   * reversed grain to Catmull-Rom however far up it was pitched, which is
+   * exactly the case that needs the wider kernel most; the kernel is symmetric,
+   * so the sign matters nowhere else.
+   */
+  const double speed = rate < 0.0 ? -rate : rate;
   // At or below unity there is no imaging to suppress — the kernel would be
   // narrower than the source's own sample spacing — so Catmull-Rom is both
   // cheaper and correct.
-  if (rate <= 1.0) return readCubic(source, position);
+  if (speed <= 1.0) return readCubic(source, position);
 
   /*
    * The kernel's cutoff goes *below* `fs/(2·rate)`, not at it.
@@ -100,7 +109,7 @@ inline float readScaled(const GrainSource& source, double position, double rate,
    * an upward shift, was going to be discarded by the fold anyway.
    */
   constexpr double kCutoffMargin = 0.85;
-  const double widened = rate / kCutoffMargin;
+  const double widened = speed / kCutoffMargin;
   const double span = static_cast<double>(kSincHalfWidth) * widened;
   int half = static_cast<int>(std::ceil(span));
   // Bounded so a large shift cannot make one grain cost unboundedly more than
