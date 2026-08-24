@@ -227,8 +227,32 @@ FX-03 STARTED: three foundations built and tested before the unit around them �
                Downward pitch consumes LESS source and must not shorten the tap;
                reverse is a negative increment at the same speed and clamps like
                its forward twin.
-Next action:   the unit itself — §2's per-tap order (grain read -> filter ->
-               level -> pan), then V1, V2, V5, V6 and V13.
+UNIT BUILT:    granular_delay.h — one buffer, up to 8 taps, §2's per-tap order,
+               and §3.2(c)'s DEDICATED feedback read (not the sum of the output
+               taps, so "how many taps you hear" and "how long it rings" are
+               independent; four taps at unity with fb 0.4 is already at the
+               edge if they all feed the loop).
+               V1 -240 dBFS, V5 -240 dBFS, V13 six alternations — all PASS.
+               TWO REAL FINDINGS from those rows:
+                 - V5 read -9.0 dBFS against its -80 with NOTHING recirculating.
+                   §3.1's blocker is in the FEEDBACK path, so it stops DC
+                   ACCUMULATING; a single delayed copy of a DC input is still DC
+                   and V5 grades the output. The delay was faithfully
+                   reproducing the offset it was given. fx-02 needed the same
+                   input-side blocker for the same row.
+                 - V13 showed five repeats with L and R matching to four decimal
+                   places and ZERO alternations. The matrix alone cannot make
+                   ping-pong from a mono source: [[0,1],[1,0]] swaps two
+                   identical channels into two identical channels. Added an
+                   INPUT ROUTING VECTOR set by the same mode selector (not a
+                   branch in the signal path, which §1.2 forbids) — ping-pong
+                   feeds one line, equal power for the symmetric modes.
+               Also added dsp::bandpassCoeffs, constant PEAK gain not constant
+               skirt: a per-tap filter reaches the loop, and a constant-skirt
+               form's gain rises with Q, which would move stability with a
+               control the user turns for tone.
+Next action:   V2 (smear-zero null against a plain delay) and V6, then the
+               grain cloud per tap, reusing decay_harness.h for the decay rows.
 BUILD ORDER CORRECTED (user, before R3): the voice substrate is built DURING
                Slipstream and proven through it, the way the nonlinear library
                was built during Program EQ — not after Slipstream. Slipstream is

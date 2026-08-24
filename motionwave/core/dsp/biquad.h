@@ -106,6 +106,33 @@ inline BiquadCoeffs highpassCoeffs(double frequency, double q, double sampleRate
  * loudspeaker literature's naming suggests and which would double the rotation
  * and break the very sum it was added to fix.
  */
+/**
+ * Constant-peak-gain bandpass, which is the form a per-tap filter wants.
+ *
+ * The other common normalisation is constant *skirt* gain, whose peak rises
+ * with Q — fine for an analysis filter and wrong here, because `fx-03` §2 puts
+ * this filter inside a path that reaches the feedback loop. A filter whose
+ * gain rose with its resonance control would move the loop's stability with a
+ * control the user is turning for tone, which is the failure §3.2(a) describes
+ * one stage further in.
+ */
+inline BiquadCoeffs bandpassCoeffs(double frequency, double q, double sampleRate) noexcept {
+  const double nyquist = sampleRate * 0.5;
+  const double f =
+      frequency < 1.0 ? 1.0 : (frequency > nyquist * 0.999 ? nyquist * 0.999 : frequency);
+  const double w0 = 2.0 * 3.14159265358979323846 * f / sampleRate;
+  const double cosw = std::cos(w0);
+  const double alpha = std::sin(w0) / (2.0 * (q < 1.0e-4 ? 1.0e-4 : q));
+  const double a0 = 1.0 + alpha;
+  BiquadCoeffs c;
+  c.b0 = alpha / a0;
+  c.b1 = 0.0;
+  c.b2 = -alpha / a0;
+  c.a1 = (-2.0 * cosw) / a0;
+  c.a2 = (1.0 - alpha) / a0;
+  return c;
+}
+
 inline BiquadCoeffs allpassCoeffs(double frequency, double q, double sampleRate) noexcept {
   const double nyquist = sampleRate * 0.5;
   const double f = frequency < 1.0 ? 1.0 : (frequency > nyquist * 0.999 ? nyquist * 0.999 : frequency);

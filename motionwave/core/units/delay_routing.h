@@ -80,6 +80,36 @@ inline Routing routingFor(Topology topology, double cross) noexcept {
 }
 
 /**
+ * Where the dry input enters the two lines, which the mode selector also sets.
+ *
+ * §1.2 says not to implement ping-pong as a special case in the signal path,
+ * and this is not one: it is a second routing vector chosen by the same
+ * selector as the matrix. But it has to exist, because the matrix alone cannot
+ * produce ping-pong from a mono source. `[[0,1],[1,0]]` swaps two identical
+ * channels into two identical channels, so a mono input fed equally to both
+ * lines stays centred for ever — which is exactly what V13 measured before this
+ * vector existed: five repeats with L and R matching to four decimal places and
+ * not one alternation.
+ *
+ * Feeding one line only is what makes the first repeat land on one side, and
+ * the matrix is then what walks it across on every pass. Equal power for the
+ * symmetric modes, so switching topology does not change the wet level.
+ */
+struct InputRouting {
+  double left = 0.70710678118654752;
+  double right = 0.70710678118654752;
+};
+
+inline InputRouting inputRoutingFor(Topology topology) noexcept {
+  InputRouting out;
+  if (topology == Topology::PingPong) {
+    out.left = 1.0;
+    out.right = 0.0;
+  }
+  return out;
+}
+
+/**
  * Whether a linear loop at this feedback and routing decays.
  *
  * Deliberately *not* what the unit uses to decide whether to allow a setting:
