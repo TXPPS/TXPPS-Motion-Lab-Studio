@@ -2,6 +2,7 @@
 //
 // These three pieces are testable before the unit exists around them, and two of
 // them carry a rule the sheet says must be asserted in code rather than reviewed.
+#include "../units/delay_feedback.h"
 #include "../units/delay_routing.h"
 #include "../units/delay_smear.h"
 #include "../units/delay_sync.h"
@@ -9,6 +10,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <vector>
 
 using namespace mw::units::delay;
 
@@ -190,6 +192,123 @@ MW_TEST("fx-03 §4: the overlap a tap runs at is the number the normalisation ne
   // it is asked about — the normalisation must not scale a plain delay.
   MW_EXPECT_NEAR(overlapFor(smearAt(0.0), 0.010), 1.0, 0.0);
   MW_EXPECT_NEAR(overlapFor(smearAt(0.0), 0.500), 1.0, 0.0);
+}
+
+MW_TEST("fx-03 §3.2: a saturating loop above unity converges instead of diverging") {
+  /*
+   * The property that makes exposing feedback above 100 % defensible rather
+   * than reckless: a linear loop at `fb > 1` diverges without bound, and a loop
+   * of the form `x ← fb·tanh(x)` converges to the non-zero fixed point of
+   * `a = fb·tanh(a)` — the dub runaway that sits at a level instead of
+   * destroying the mix.
+   *
+   * **Measured on a circulating signal, not on a constant, and the first
+   * version of this row used a constant.** It iterated the loop with a fixed
+   * value looking for the algebraic fixed point, and read 0.223 where the
+   * algebra says 0.195. Nothing was wrong with the loop: §3.1 puts a DC blocker
+   * first, mandatory, so a constant is precisely the one input whose fixed point
+   * the loop is built to destroy. The memoryless algebra describes the
+   * *envelope* of something circulating, which is what §9's V4 grades and what
+   * this now feeds it.
+   */
+  constexpr double kRate = 48000.0;
+  constexpr int kDelaySamples = 4800;  // 100 ms, so the loop turns over ten times a second.
+
+  auto runLoop = [](double feedback, Topology topology, double inputSeconds, double totalSeconds) {
+    DelayFeedback loop;
+    loop.prepare(kRate);
+    loop.setRouting(routingFor(topology, 0.0));
+    loop.setFeedback(feedback);
+    loop.setLoopLowpass(18000.0);
+    loop.setLoopHighpass(20.0);
+    loop.reset();
+
+    std::vector<double> lineL(kDelaySamples, 0.0);
+    std::vector<double> lineR(kDelaySamples, 0.0);
+    int at = 0;
+    const int frames = static_cast<int>(kRate * totalSeconds);
+    const int inputFrames = static_cast<int>(kRate * inputSeconds);
+    // Peak per 100 ms, so the trace is one number per turn of the loop.
+    std::vector<double> envelope;
+    double windowPeak = 0.0;
+    double worstPeak = 0.0;
+    bool finite = true;
+    for (int i = 0; i < frames; ++i) {
+      const double drive =
+          i < inputFrames
+              ? 0.3 * std::sin(2.0 * 3.14159265358979323846 * 700.0 * i / kRate)
+              : 0.0;
+      const double wetL = lineL[static_cast<std::size_t>(at)] + drive;
+      const double wetR = lineR[static_cast<std::size_t>(at)] + drive;
+      double backL = 0.0;
+      double backR = 0.0;
+      loop.process(wetL, wetR, &backL, &backR);
+      if (!std::isfinite(backL) || !std::isfinite(backR)) finite = false;
+      lineL[static_cast<std::size_t>(at)] = backL;
+      lineR[static_cast<std::size_t>(at)] = backR;
+      if (++at >= kDelaySamples) at = 0;
+      windowPeak = std::max(windowPeak, std::fabs(wetL));
+      worstPeak = std::max(worstPeak, std::fabs(wetL));
+      if ((i + 1) % kDelaySamples == 0) {
+        envelope.push_back(windowPeak);
+        windowPeak = 0.0;
+      }
+    }
+    struct Result {
+      std::vector<double> envelope;
+      double worstPeak;
+      bool finite;
+    };
+    return Result{envelope, worstPeak, finite};
+  };
+
+  // Above unity: bounded, converging, and never past −0.1 dBFS.
+  const double runaway[3] = {1.05, 1.15, 1.30};
+  for (double fb : runaway) {
+    const auto result = runLoop(fb, Topology::Dual, 0.5, 40.0);
+    const std::size_t n = result.envelope.size();
+    const double settled = result.envelope[n - 1];
+    const double earlier = result.envelope[n - 21];
+    std::printf("    §3.2: fb %.2f — envelope %.4f at 38 s against %.4f two seconds earlier,"
+                " peak %.4f\n",
+                fb, settled, earlier, result.worstPeak);
+    MW_EXPECT(result.finite);
+    // Converged: twenty turns of the loop apart and no longer moving.
+    MW_EXPECT(std::fabs(settled - earlier) <= 0.005);
+    // Self-oscillating rather than dead, which is what "runaway" means.
+    MW_EXPECT(settled > 0.01);
+    // §9 V4's ceiling.
+    MW_EXPECT(result.worstPeak <= std::pow(10.0, -0.1 / 20.0));
+  }
+
+  /*
+   * Below unity the same loop must decay after the input stops — including
+   * through full cross, which is the routing that carries the whole signal from
+   * one channel to the other every pass and is where §3.2(b)'s bug lives. A
+   * saturator that pinned the level regardless of feedback would pass every
+   * assertion above and be useless as a delay.
+   */
+  const Topology modes[2] = {Topology::Dual, Topology::PingPong};
+  for (Topology mode : modes) {
+    const auto result = runLoop(0.7, mode, 0.5, 20.0);
+    const std::size_t n = result.envelope.size();
+    std::printf("    §3.2: fb 0.70 %s — envelope %.3e at 2 s falls to %.3e by 20 s\n",
+                mode == Topology::Dual ? "dual     " : "ping-pong", result.envelope[20],
+                result.envelope[n - 1]);
+    MW_EXPECT(result.finite);
+    MW_EXPECT(result.envelope[n - 1] < result.envelope[20] * 1.0e-3);
+  }
+
+  // The drive floor is in force above unity and not below it, which is the half
+  // §3.2 says must not be defeatable and the half it says is the user's.
+  DelayFeedback hot;
+  hot.setFeedback(1.2);
+  hot.setDrive(1.0);
+  MW_EXPECT(hot.driveNow() >= 2.0);
+  DelayFeedback gentle;
+  gentle.setFeedback(0.9);
+  gentle.setDrive(1.0);
+  MW_EXPECT_NEAR(gentle.driveNow(), 1.0, 0.0);
 }
 
 MW_TEST_MAIN("delay-foundations")

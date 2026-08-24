@@ -188,8 +188,32 @@ FX-03 STARTED: three foundations built and tested before the unit around them �
                independent STREAMS, each contributing L/hop. Reading it as
                grains-in-flight and dividing the hop by N too counts the streams
                twice and gives N^2 (1024 instead of 32).
-Next action:   fx-03's buffer, taps and feedback chain, then V1-V5 and V13,
-               reusing decay_harness.h for the decay rows.
+               delay_feedback.h added: §3.1's chain in order (blocker FIRST so
+               the saturator is not biased by accumulated DC; saturator LAST
+               before the matrix so what reaches it is bounded). Separate from
+               fx-02's FeedbackChain rather than shared — merging would make a
+               class with two disjoint halves, and the reverb's loop is asserted
+               bit-exact by rows that must not move when a delay changes.
+               The loop filter is a one-pole cascade, not a resonant SVF, BY
+               §3.2(a): a resonant filter's peak gain moves with its own
+               resonance control, so the safe feedback range would move with a
+               control the user does not associate with stability.
+               The saturator drive FLOOR is a function of feedback, not a
+               default: §3.2 allows fb to 130 % only on condition the saturator
+               cannot be defeated there. Floor value (2.0) is ours — §3.2 marks
+               its own figure [I].
+               MEASURED: fb 1.05/1.15/1.30 converge to 0.226/0.386/0.527 with
+               peaks under -0.1 dBFS and no NaN; fb 0.70 decays to 7e-31 through
+               full cross.
+               ONE MORE MEASURE-WHERE-IT-IS-DEFINED: the first version of that
+               row iterated the loop with a CONSTANT looking for the algebraic
+               fixed point and read 0.223 where the algebra says 0.195. Nothing
+               was wrong with the loop — §3.1 puts a mandatory DC blocker first,
+               so a constant is exactly the input the loop is built to destroy.
+               The memoryless algebra describes the ENVELOPE of something
+               circulating, which is what V4 grades and what the row now feeds.
+Next action:   fx-03's buffer and taps (§2's fixed order: grain read -> filter
+               -> level -> pan), then V1, V2, V3, V5 and V13.
 BUILD ORDER CORRECTED (user, before R3): the voice substrate is built DURING
                Slipstream and proven through it, the way the nonlinear library
                was built during Program EQ — not after Slipstream. Slipstream is
