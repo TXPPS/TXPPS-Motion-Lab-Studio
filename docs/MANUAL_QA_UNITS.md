@@ -4,9 +4,10 @@
 
 **https://txpps-motionlab-studio.roan-crest.workers.dev**
 
-Deployed commit: `5ea35a9`. Open it in Safari or Chrome on the phone —
-nothing to install, no terminal, no build step. This line is updated on every
-deploy, so it is always what is live.
+Built from `5ea35a9`, deployed as its immediate successor — updating this line
+is itself a commit, so it names the code one commit behind the tip and the
+difference is only this paragraph. Open it in Safari or Chrome on the phone:
+nothing to install, no terminal, no build step.
 
 ### What to look at first, this deploy
 
