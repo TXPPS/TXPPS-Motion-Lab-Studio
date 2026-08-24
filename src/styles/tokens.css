@@ -249,7 +249,11 @@
                                         anything raised. 2.36:1 vs edge-lo */
   --border-soft: #12100e; /* alias of --edge-lo, kept for existing CSS    */
   --border: #403d3a; /* L* 26.0 — a real, visible line               */
-  --border-strong: #615e59; /* L* 40.0                                      */
+  /* 3.07:1 on --bg-panel. It was #615e59 at 2.52, which is under the 3:1
+     WCAG 1.4.11 asks of a control's own boundary — and this token is the
+     scrollbar thumb as well as a border, so it is a component rather than
+     decoration. Found by tests/contrast.test.ts on its first run. */
+  --border-strong: #6f6b65; /* L* 44.5                                      */
   --border-focus: #edeae6; /* NEUTRAL. Reserved. Nothing else uses it.     */
 
   /* -- text ------------------------------------------------------------- */
@@ -440,7 +444,7 @@
     --mute-hi: #004f8c;
     --mute-lamp: #c47d1e;
     --monitor: #2f7ec4;
-    --monitor-lamp: #2f7ec4;
+    --monitor-lamp: #4885b8; /* --lamp-ink on it is 4.63; #2f7ec4 was 4.26 */
     --monitor-line: rgba(47, 126, 196, 0.5);
     --mute-bg: rgba(14, 96, 164, 0.13);
     --mute-line: rgba(14, 96, 164, 0.42);
@@ -588,7 +592,7 @@
   --mute-hi: #004f8c;
   --mute-lamp: #c47d1e;
   --monitor: #2f7ec4;
-  --monitor-lamp: #2f7ec4;
+  --monitor-lamp: #4885b8; /* --lamp-ink on it is 4.63; #2f7ec4 was 4.26 */
   --monitor-line: rgba(47, 126, 196, 0.5);
   --mute-bg: rgba(14, 96, 164, 0.13);
   --mute-line: rgba(14, 96, 164, 0.42);

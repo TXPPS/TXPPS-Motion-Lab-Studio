@@ -1,28 +1,167 @@
 # Motion Wave — progress
 
 ```
-RESUME: Directive 09 — FSP8 parity, core workflow, live panels.
+RESUME: Directive 10 — Emscripten, plugin windows, latency, V27.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: see the Deploy note below.
-Current section: §1, §2 and the first pass of §3 are COMPLETE.
-Next action:     §4.3 — Program EQ's cell 27 animation, then deploy so the
-                 standard is visible before the other six panels are built to
-                 it. Cell 27 must first be added to docs/UNIT_LEDGER.md and to
-                 scripts/ledger-guard.mjs (it checks 26 cells today).
+Deployed commit: e1c48871b8
+Bundle verified: YES — live index-Cb2qn4Aa.js matches a clean-tree build of
+                 that commit, byte for byte. This is the first deploy where
+                 that comparison proved anything: builds only became
+                 reproducible one commit earlier.
+Current section: §0 and §2 COMPLETE. App-side contrast guard COMPLETE.
+Next action:     §3.1 — record latency compensation. Read `baseLatency` and
+                 `outputLatency`, add a user offset in preferences, shift the
+                 take on commit, and verify by loopback: record a click through
+                 the interface and assert the transient lands on the grid
+                 within one sample.
 Open deviations: F11 is left to the browser's fullscreen — the one place the
-                 reference's panel map is not matched, and a platform
-                 constraint rather than a preference.
+                 reference's panel map is not matched.
                  §2.5's monitoring modes and latency compensation are
-                 DIVERGENT-BY-DESIGN; reasons under §2.5 below.
+                 DIVERGENT-BY-DESIGN; §3.1 reopens the take-alignment half,
+                 which is a different problem and is not divergent.
                  recordingController.ts is 630 lines against the ~400 rule.
-                 §3 is a first pass: what it did not close is listed under it.
-Ledger:          0 of 14 shipping. Cell 27 (V27, live visual) is now in the
-                 Ledger and its guard, applied retroactively as the directive
-                 asks, so Program EQ has dropped out of SHIPPING — nothing on
-                 its panel moves with the music yet. It was the only unit
-                 shipping; it is now honest instead.
-Carried:         every deviation listed under Directive 08 below still stands.
+Ledger:          0 of 14 shipping. V27 (live visual) is in the Ledger and its
+                 guard; no unit has it yet.
 ```
+
+## Directive 10 §0 — Emscripten, and a check that could not fail
+
+The SDK is installed and pinned at 4.0.7. The freshly built core matches the
+native golden **bit-for-bit**: `WASM vs native golden: worst difference
+0.000e+0`. `motionwave/wasm/dist/motionwave.mjs` is what the boundary test
+loads, so that is a statement about the artefact and not about a cached one.
+
+Three things had to be fixed first, and each reported something other than what
+was wrong.
+
+`build.sh` looked for the SDK at one hard-coded path and sourced `emsdk_env.sh`
+to configure it. That script calls bare `python`, which on Windows is an App
+Execution Alias that prints "Python was not found" and exits — so sourcing it
+silently left `emcc` off the PATH and the build failed a line later complaining
+about something else. Every value it would have set is already written into
+`.emscripten` by `emsdk activate`, so they are read from there.
+
+`check-wasm-current.mjs` had the same hard-coded path and reported **SKIPPED**,
+which is the one outcome that looks like success in a log while proving nothing.
+
+And once it ran, **it could not fail**. `build.sh` copies its output over
+`prebuilt/` as its last step; the check compared the two afterwards — a file
+against the copy of itself that had just been written. It matched every time, on
+every input, while standing guard over exactly the failure it could not see: a
+tracked core that has quietly stopped being what the source builds, deployed to
+everyone, findable in no commit. Reading the tracked bytes _before_ the rebuild
+is the whole fix, and with it the check failed immediately — **307467 bytes
+tracked against 306640 freshly built**, first differing inside the embedded
+module's global section. It is now the verified build.
+
+`wasm:check` runs in `npm run build`. It cannot be a hard requirement, because
+the production build runs on Cloudflare where there is no toolchain — but its
+honest skip is the right shape for that, and CI installs the SDK and runs it for
+real.
+
+### Builds are reproducible now, which is what makes a deploy verifiable
+
+`__BUILD_TIME__` compiled `new Date()` into every bundle, so two builds of one
+commit produced different asset hashes and the deployed hash could never be
+compared against anything. It takes the commit's own date now. Two things had to
+change for that to work: Vite writes a `vite.config.ts.timestamp-*.mjs` beside
+its config while loading it, and three generated worklet copies were **tracked**
+while `.gitignore` said in its own words that a tracked copy "would be a second
+version of a file that must have one". Both made the tree dirty at the moment
+the config was evaluated, so the commit-date path never ran.
+
+## Directive 10 §2 — the three device-window defects
+
+**The window could not be dragged, on any pointer type.** `onMove` read
+`return`, newline, comment, `setPos(...)` — automatic semicolon insertion ended
+the statement at the newline and everything below was dead. `git log -L` puts it
+at `9a020d6`, the commit that added swipe-to-dismiss: the handler had been a
+concise arrow whose body _was_ that call, and turning it into a block to add one
+line above kept the `return`.
+
+Nothing caught it. TypeScript greys unreachable code rather than failing a
+build, and typescript-eslint defers `no-unreachable` to the compiler on the
+reasonable assumption that the compiler is being asked. **`allowUnreachableCode:
+false` is now set in all four tsconfigs**, and it flagged this exact line the
+moment it was turned on. The window also forgot its position on every open; it
+reopens where it was left.
+
+**A device on the master channel had no editor.** `PluginWindow` resolved its
+channel with `project.tracks.find(...)`, and the master is not a member of that
+array — it is `project.master`. The lookup returned `undefined` and the
+component returned `null`, silently, for every device ever put there. Both the
+window and the racks go through one `channelRack(project, channelId)` now.
+
+**The options menu depended on which surface a device was opened from.** The
+console's `DeviceRack` had a caret menu; the inspector's `InsertRack` — a second
+component for the same job — had move and remove as inline buttons behind a
+disclosure. Both offer the same menu now.
+
+`e2e/devicewindow.spec.ts` enumerates its axes from the app rather than from
+memory, and caught its own version of the same mistake twice: a hard-coded track
+name the demo project does not have, and a slot index that assumes an empty rack.
+
+## The app had no contrast guard. It does now.
+
+`tests/contrast.test.ts`, running in `npm run build`. Motion Wave has had one
+since it was written; the app has not, and the accent shipped at **4.12:1 dark
+and 3.80:1 light** — both under the 4.5:1 the same product enforces one
+directory over — with nothing looking.
+
+It imports the maths and the CSS parsing from `motionwave/ui/design/` rather
+than reimplementing them. A second implementation of a check is not a second
+proof; it is a second thing that can be wrong. This is a test importing pure
+functions — the rule that `src/` may not depend on `motionwave/` is about the
+shipped product and is untouched.
+
+**The palettes are discovered, not listed.** A block declaring `--accent` is a
+palette. Listing them by selector was wrong twice: the dark palette is declared
+under `:root, :root[data-theme='dark']`, a two-selector rule whose text contains
+the file's own line ending — so a literal match passes on one operating system
+and not the other — and a listed set silently stops covering a palette somebody
+adds later. Five blocks are checked, 137 pairs.
+
+**It found three pre-existing failures on its first run**, and one of them was
+in the guard itself:
+
+| Found                                                                                                          | Was                    | Now                                                  |
+| -------------------------------------------------------------------------------------------------------------- | ---------------------- | ---------------------------------------------------- |
+| The dark palette was not being checked at all — `:root` matched the metrics block, which declares no colours   | 0 of 27 pairs resolved | discovery by `--accent`                              |
+| `--border-strong` on `--bg-panel`, dark. It is the scrollbar thumb as well as a border, so WCAG 1.4.11 applies | 2.52:1                 | **3.07:1** (`#6f6b65`)                               |
+| `--lamp-ink` on `--monitor-lamp`, both light palettes — a lit lamp carrying a glyph                            | 4.26:1                 | **4.63:1** (`#4885b8`, still blue by `stateColours`) |
+
+The self-check that caught the first one is deliberate: the failure it guards is
+a rename that turns every case into the early return for an unresolved token —
+all green, nothing checked.
+
+Mutation-tested both ways. Planting the old `#67c290` fails
+`--accent on --bg-active` by name; dimming `--text-dim` one shade in the light
+palette fails two label pairs by name.
+
+## Stress-test log
+
+Directive 10 §5. Measured numbers per run, so drift is visible. A regression
+against the previous row is a P1.
+
+| Run | Commit | Scaling ceiling | Transport fuzz | Stuck-note fuzz | Long take   | Project scale | Undo depth  | Interruptions |
+| --- | ------ | --------------- | -------------- | --------------- | ----------- | ------------- | ----------- | ------------- |
+| —   | —      | not yet run     | not yet run    | not yet run     | not yet run | not yet run   | not yet run | not yet run   |
+
+The harness is built at the next section boundary. Rows are only added from a
+run that actually happened: an empty cell is the honest state and a number
+nobody measured is worse than a blank.
+
+## Verification status
+
+| Gate                | Result                                                                                                                                         |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck` | clean                                                                                                                                          |
+| `npm run lint`      | clean                                                                                                                                          |
+| `npm test`          | **1921 passing**, 102 files                                                                                                                    |
+| `npm run build`     | clean, and now runs the licence, ledger, params, accent, contrast, icon and WASM guards                                                        |
+| `npm run test:mw`   | 311 of 312; the one failure is a pre-existing framework guard about `e2e/panel.spec.ts` importing `@playwright/test`, unrelated to any of this |
+| WASM boundary       | **0.000e+0** worst difference against the native golden                                                                                        |
+| Deploy              | verified — see the resume block                                                                                                                |
 
 ## Directive 09 §1 — the manual has been read
 
