@@ -14,6 +14,24 @@ namespace mw::dsp::grain {
 
 struct GrainSource {
   const float* data = nullptr;
+  /**
+   * The second channel, or null for a mono source.
+   *
+   * **One source with two channels rather than two engines, and the reason is
+   * the pool.** `fx-03`'s buffer is stereo where `fx-02`'s is mono, and the
+   * obvious answer — an engine per channel — splits every guarantee the pool
+   * makes. GE-08's drop accounting, GE-15's zero-allocation proof and the
+   * 256-slot sizing at 1.56× the 99.99th percentile all assume one allocation
+   * domain: two instances halve the ceiling each, so a burst that fits one
+   * shared pool drops in two halved ones, and the drop would appear only under
+   * exactly the load the sizing was computed to survive.
+   *
+   * So the source carries the second channel and `fx-02` is the degenerate
+   * instance with `right` null. A null right is not a special case in the
+   * render either — it is one branch per block, not per sample, so the mono
+   * unit pays nothing for the delay's stereo.
+   */
+  const float* right = nullptr;
   /// Power of two, so the wrap is a mask. A modulo per interpolated read per
   /// grain is a division in the innermost loop this engine has.
   int capacity = 0;
@@ -33,6 +51,9 @@ struct GrainSource {
     return data != nullptr && capacity > 0 && (capacity & (capacity - 1)) == 0 &&
            mask == capacity - 1;
   }
+
+  /// True when the two channels are genuinely different buffers.
+  bool stereo() const noexcept { return right != nullptr && right != data; }
 };
 
 /**
@@ -46,19 +67,27 @@ struct GrainSource {
  *
  * `position` is an absolute index into the circular buffer, fractional.
  */
-inline float readCubic(const GrainSource& source, double position) noexcept {
+/// The channel a read should come from: `data` for 0, `right` (or `data`) for 1.
+inline const float* channelOf(const GrainSource& source, int channel) noexcept {
+  return (channel == 1 && source.right != nullptr) ? source.right : source.data;
+}
+
+inline float readCubicFrom(const float* data, int mask, double position) noexcept {
   const double floored = std::floor(position);
   const float fraction = static_cast<float>(position - floored);
-  const int index = static_cast<int>(static_cast<long long>(floored) & source.mask);
-  const int mask = source.mask;
-  const float y0 = source.data[(index - 1) & mask];
-  const float y1 = source.data[index];
-  const float y2 = source.data[(index + 1) & mask];
-  const float y3 = source.data[(index + 2) & mask];
+  const int index = static_cast<int>(static_cast<long long>(floored) & mask);
+  const float y0 = data[(index - 1) & mask];
+  const float y1 = data[index];
+  const float y2 = data[(index + 1) & mask];
+  const float y3 = data[(index + 2) & mask];
   const float a = 0.5f * (-y0 + 3.0f * y1 - 3.0f * y2 + y3);
   const float b = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
   const float c = 0.5f * (-y0 + y2);
   return ((a * fraction + b) * fraction + c) * fraction + y1;
+}
+
+inline float readCubic(const GrainSource& source, double position) noexcept {
+  return readCubicFrom(source.data, source.mask, position);
 }
 
 /**
@@ -79,8 +108,8 @@ inline float readCubic(const GrainSource& source, double position) noexcept {
  * pass over the buffer. The support grows with the rate, so the tap count does
  * too; that is the honest cost of shifting up, and it is bounded below.
  */
-inline float readScaled(const GrainSource& source, double position, double rate,
-                        int maxTaps) noexcept {
+inline float readScaledFrom(const float* data, int mask, double position, double rate,
+                            int maxTaps) noexcept {
   /*
    * The *magnitude* of the increment decides the kernel, because a reversed
    * grain reads backwards — its increment is negative — and reads backwards at
@@ -93,7 +122,7 @@ inline float readScaled(const GrainSource& source, double position, double rate,
   // At or below unity there is no imaging to suppress — the kernel would be
   // narrower than the source's own sample spacing — so Catmull-Rom is both
   // cheaper and correct.
-  if (speed <= 1.0) return readCubic(source, position);
+  if (speed <= 1.0) return readCubicFrom(data, mask, position);
 
   /*
    * The kernel's cutoff goes *below* `fs/(2·rate)`, not at it.
@@ -119,9 +148,8 @@ inline float readScaled(const GrainSource& source, double position, double rate,
   if (half > maxTaps / 2) half = maxTaps / 2;
 
   const double floored = std::floor(position);
-  const int base = static_cast<int>(static_cast<long long>(floored) & source.mask);
+  const int base = static_cast<int>(static_cast<long long>(floored) & mask);
   const double fraction = position - floored;
-  const int mask = source.mask;
   const double perStep = static_cast<double>(kSincStepsPerUnit) / widened;
 
   double sum = 0.0;
@@ -136,7 +164,7 @@ inline float readScaled(const GrainSource& source, double position, double rate,
     const double blend = at - static_cast<double>(index);
     const double h = static_cast<double>(kSincPrototype[index]) * (1.0 - blend) +
                      static_cast<double>(kSincPrototype[index + 1]) * blend;
-    sum += h * static_cast<double>(source.data[(base + tap) & mask]);
+    sum += h * static_cast<double>(data[(base + tap) & mask]);
     weight += h;
   }
   /*
@@ -151,16 +179,25 @@ inline float readScaled(const GrainSource& source, double position, double rate,
   return weight > 1.0e-9 ? static_cast<float>(sum / weight) : 0.0f;
 }
 
+inline float readScaled(const GrainSource& source, double position, double rate,
+                        int maxTaps) noexcept {
+  return readScaledFrom(source.data, source.mask, position, rate, maxTaps);
+}
+
 /// Linear, for the Eco tier. GE-11 publishes its alias figure untiered rather
 /// than grading it, because the tier exists to be cheap and saying so is more
 /// use than holding it to a number it is not trying to meet.
-inline float readLinear(const GrainSource& source, double position) noexcept {
+inline float readLinearFrom(const float* data, int mask, double position) noexcept {
   const double floored = std::floor(position);
   const float fraction = static_cast<float>(position - floored);
-  const int index = static_cast<int>(static_cast<long long>(floored) & source.mask);
-  const float y1 = source.data[index];
-  const float y2 = source.data[(index + 1) & source.mask];
+  const int index = static_cast<int>(static_cast<long long>(floored) & mask);
+  const float y1 = data[index];
+  const float y2 = data[(index + 1) & mask];
   return y1 + (y2 - y1) * fraction;
+}
+
+inline float readLinear(const GrainSource& source, double position) noexcept {
+  return readLinearFrom(source.data, source.mask, position);
 }
 
 }  // namespace mw::dsp::grain

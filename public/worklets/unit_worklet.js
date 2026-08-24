@@ -20,6 +20,22 @@
  *    whether anyone is reading. A lock here would be an audio thread blocked by
  *    a repaint.
  *
+ * **There are two frame transports, and which one is in use is decided by the
+ * host rather than by preference.** The shared-memory path above needs
+ * `SharedArrayBuffer`, which browsers hide unless the page is cross-origin
+ * isolated — and MotionLab Studio is deliberately *not* isolated: `public/_headers`
+ * and `src/audio/wam/wamHost.ts` both record that COOP and COEP would break
+ * cross-origin assets, complicate the service worker's precache, and make
+ * hosting third-party WAM plugins harder. So when no shared buffer is handed in,
+ * the frame goes over the port instead, throttled to about 60 Hz.
+ *
+ * That is not the compromise it looks like. The seqlock exists to stop a reader
+ * seeing half of a frame while it is being written; a structured clone cannot
+ * tear, so the port path needs no lock at all. What it costs is one small
+ * message every sixteen milliseconds instead of a store every block — which is
+ * *fewer* allocations than the per-block posting this file's first rule
+ * forbids, not more.
+ *
  * Loaded after `motionwave.worklet.js`, which puts `createMotionWaveCore` in
  * this scope. A worklet global is not a module scope — no `import`, no
  * `import.meta`, no `fetch` — which is why that build is SINGLE_FILE and
@@ -58,11 +74,19 @@ class UnitProcessor extends AudioWorkletProcessor {
     super();
     const shared = options.processorOptions.shared;
     this.spec = UNITS[options.processorOptions.unit] ?? UNITS['fx-01'];
-    // Two views over one buffer. The sequence is an Int32Array because
-    // `Atomics` works on integers, and the frame is doubles because that is
-    // what the bridge hands back.
-    this.sequence = new Int32Array(shared, 0, 1);
-    this.frame = new Float64Array(shared, 8, MAX_FRAME_DOUBLES);
+    if (shared) {
+      // Two views over one buffer. The sequence is an Int32Array because
+      // `Atomics` works on integers, and the frame is doubles because that is
+      // what the bridge hands back.
+      this.sequence = new Int32Array(shared, 0, 1);
+      this.frame = new Float64Array(shared, 8, MAX_FRAME_DOUBLES);
+    } else {
+      // The port path. The array is allocated once here and reused, so the
+      // per-frame cost is the clone and nothing else.
+      this.sequence = null;
+      this.frame = new Float64Array(MAX_FRAME_DOUBLES);
+      this.framesUntilPublish = 0;
+    }
     this.ready = false;
     this.blocks = 0;
     this.sampleRateUsed = sampleRate;
@@ -127,15 +151,37 @@ class UnitProcessor extends AudioWorkletProcessor {
       for (let i = 0; i < frames; i++) channel[i] = heapOut[outBase + i * 2 + (c < 2 ? c : 1)];
     }
 
-    // Publish. Odd, write, even — and the fences are `Atomics.store` with its
-    // sequential-consistency ordering, which is what JavaScript has in place of
-    // the release fences the C++ side uses.
-    const seq = Atomics.load(this.sequence, 0);
-    Atomics.store(this.sequence, 0, seq + 1);
     const visualBase = this.visualPtr() / 8;
-    for (let i = 0; i < this.spec.frame; i++) this.frame[i] = core.HEAPF64[visualBase + i];
-    for (let i = this.spec.frame; i < MAX_FRAME_DOUBLES; i++) this.frame[i] = 0;
-    Atomics.store(this.sequence, 0, seq + 2);
+    if (this.sequence) {
+      // Publish. Odd, write, even — and the fences are `Atomics.store` with its
+      // sequential-consistency ordering, which is what JavaScript has in place
+      // of the release fences the C++ side uses.
+      const seq = Atomics.load(this.sequence, 0);
+      Atomics.store(this.sequence, 0, seq + 1);
+      for (let i = 0; i < this.spec.frame; i++) this.frame[i] = core.HEAPF64[visualBase + i];
+      for (let i = this.spec.frame; i < MAX_FRAME_DOUBLES; i++) this.frame[i] = 0;
+      Atomics.store(this.sequence, 0, seq + 2);
+    } else {
+      /*
+       * The port path, throttled in *samples* rather than in blocks.
+       *
+       * Counting blocks would make the publish rate depend on the host's buffer
+       * size — 60 Hz at 128 frames and 15 Hz at 512 — which is the defect
+       * GE-18 measures one layer down, where the engine's own publish interval
+       * had to be counted in samples for the same reason. A face that got
+       * slower on a host with a larger buffer would look like a performance
+       * problem and be an arithmetic one.
+       */
+      this.framesUntilPublish -= frames;
+      if (this.framesUntilPublish <= 0) {
+        this.framesUntilPublish += Math.max(1, Math.round(this.sampleRateUsed / 60));
+        for (let i = 0; i < this.spec.frame; i++) this.frame[i] = core.HEAPF64[visualBase + i];
+        for (let i = this.spec.frame; i < MAX_FRAME_DOUBLES; i++) this.frame[i] = 0;
+        // A copy, because the array is reused: posting the view itself would
+        // let the next block overwrite a frame already in flight.
+        this.port.postMessage({ kind: 'frame', frame: this.frame.slice(0, this.spec.frame) });
+      }
+    }
 
     this.blocks++;
     return true;

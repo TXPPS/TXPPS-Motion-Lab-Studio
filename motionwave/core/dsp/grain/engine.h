@@ -210,14 +210,20 @@ class GrainEngine {
     GrainSource moving = source;
     Grain* grains = pool_.active();
     const bool cubic = config_.tier != Tier::Eco;
+    // Decided once per span, never per sample: a stereo source costs a second
+    // read per grain and a mono one must not pay for the branch that offers it.
+    const bool stereo = source.stereo();
     for (int i = 0; i < span; ++i) {
       moving.writeIndex = source.writeIndex + frameOffset + i;
       float l = 0.0f;
       float r = 0.0f;
       int index = 0;
       while (index < pool_.activeCount()) {
-        const bool alive = cubic ? renderGrainSample<true>(&grains[index], moving, &l, &r)
-                                 : renderGrainSample<false>(&grains[index], moving, &l, &r);
+        const bool alive =
+            stereo ? (cubic ? renderGrainSample<true, true>(&grains[index], moving, &l, &r)
+                            : renderGrainSample<false, true>(&grains[index], moving, &l, &r))
+                   : (cubic ? renderGrainSample<true, false>(&grains[index], moving, &l, &r)
+                            : renderGrainSample<false, false>(&grains[index], moving, &l, &r));
         if (alive) {
           ++index;
         } else {

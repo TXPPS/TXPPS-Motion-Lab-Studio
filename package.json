@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/licence-guard.mjs && node scripts/ledger-guard.mjs && node scripts/generate-params.mjs --check && tsc -b && vite build",
+    "build": "node scripts/licence-guard.mjs && node scripts/ledger-guard.mjs && node scripts/generate-params.mjs --check && npm run build:wasm && node scripts/sync-motionwave-assets.mjs && tsc -b && vite build && node scripts/check-core-in-bundle.mjs",
     "preview": "vite preview --port 4173 --strictPort",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -25,6 +25,7 @@
     "ledger-guard": "node scripts/ledger-guard.mjs",
     "params": "node scripts/generate-params.mjs",
     "params:check": "node scripts/generate-params.mjs --check",
+    "motionwave:assets": "node scripts/sync-motionwave-assets.mjs",
     "sinc": "node scripts/generate-sinc-table.mjs",
     "sinc:check": "node scripts/generate-sinc-table.mjs --check",
     "windows": "node scripts/generate-window-tables.mjs",

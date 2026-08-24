@@ -833,4 +833,104 @@ MW_TEST("GE-21: a reversed grain nulls against the forward one it mirrors") {
   MW_EXPECT(divergence > 0.1);
 }
 
+MW_TEST("GE-22: one pool serves a stereo source, and the mono path is untouched") {
+  /*
+   * **One engine with a two-channel source, not two engines — because every
+   * guarantee the pool makes is per-pool.**
+   *
+   * GE-08's drop accounting, GE-15's zero-allocation proof and the 256-slot
+   * sizing at 1.56× the 99.99th percentile of the live-grain distribution all
+   * assume a single allocation domain. Two instances halve the ceiling each, so
+   * a burst that fits one shared pool drops in two halved ones — and it would
+   * drop only under exactly the load the sizing was computed to survive, which
+   * is the worst possible place for a guarantee to stop holding.
+   *
+   * Two things have to be true for that to be the right trade. The stereo path
+   * must genuinely read both channels, and the mono path must be *bit*-identical
+   * to what it was — `fx-02` is finished, and a shared change that moved its
+   * output by a bit would move rows that took a great deal of measuring.
+   */
+  EngineConfig config;
+  config.poolSlots = 256;
+  config.tier = Tier::Max;
+
+  auto renderWith = [&config](bool stereo, std::uint32_t rightSeed) {
+    std::vector<float> storage = arena(config);
+    GrainEngine engine;
+    engine.prepare(kRate, 512, config, storage.data(), storage.size() * sizeof(float));
+    SpawnParams spawn = reverbSpawn();
+    spawn.panSpread = 0.0f;  // Centre every grain, so any L/R difference is the source's.
+    engine.setSpawn(0, spawn);
+    ScheduleConfig schedule;
+    schedule.grainsPerSecond = 350.0f;
+    engine.setSchedule(0, schedule);
+
+    Bed bed;
+    bed.fillNoise(0x5EEDu);
+    std::vector<float> other(static_cast<std::size_t>(kSourceCapacity), 0.0f);
+    std::uint32_t state = rightSeed;
+    for (int i = 0; i < kSourceCapacity; ++i) {
+      state = state * 1664525u + 1013904223u;
+      other[static_cast<std::size_t>(i)] = static_cast<float>(state >> 8) / 8388608.0f - 1.0f;
+    }
+
+    const int frames = static_cast<int>(kRate * 2.0);
+    std::vector<float> left;
+    std::vector<float> right;
+    std::vector<float> l(512, 0.0f);
+    std::vector<float> r(512, 0.0f);
+    for (int at = 0; at < frames; at += 512) {
+      const int n = std::min(512, frames - at);
+      GrainSource source = bed.view();
+      if (stereo) source.right = other.data();
+      engine.process(source, l.data(), r.data(), n);
+      for (int i = 0; i < n; ++i) {
+        left.push_back(l[static_cast<std::size_t>(i)]);
+        right.push_back(r[static_cast<std::size_t>(i)]);
+      }
+      bed.writeIndex += n;
+    }
+    struct Out {
+      std::vector<float> left;
+      std::vector<float> right;
+    };
+    return Out{left, right};
+  };
+
+  // Mono: a null right pointer, which is what `fx-02` hands the engine.
+  const auto mono = renderWith(false, 0u);
+  double monoDifference = 0.0;
+  double monoPeak = 0.0;
+  for (std::size_t i = 0; i < mono.left.size(); ++i) {
+    monoDifference = std::max(monoDifference, std::fabs(static_cast<double>(mono.left[i]) -
+                                                        static_cast<double>(mono.right[i])));
+    monoPeak = std::max(monoPeak, std::fabs(static_cast<double>(mono.left[i])));
+  }
+  std::printf("    GE-22: a mono source with centred grains puts L and R %.3e apart"
+              " (peak %.3f)\n",
+              monoDifference, monoPeak);
+  // Bit-identical, not merely close: with the pan spread off and one buffer,
+  // the two channels are the same arithmetic.
+  MW_EXPECT(monoDifference == 0.0);
+  MW_EXPECT(monoPeak > 0.01);
+
+  // Stereo: a genuinely different right channel must come out different, and
+  // the left channel must be *unchanged* from the mono render — which is what
+  // says the second read was added rather than the first one altered.
+  const auto stereo = renderWith(true, 0xBEEFu);
+  double stereoDifference = 0.0;
+  double leftDrift = 0.0;
+  for (std::size_t i = 0; i < stereo.left.size(); ++i) {
+    stereoDifference = std::max(stereoDifference, std::fabs(static_cast<double>(stereo.left[i]) -
+                                                            static_cast<double>(stereo.right[i])));
+    leftDrift = std::max(leftDrift, std::fabs(static_cast<double>(stereo.left[i]) -
+                                              static_cast<double>(mono.left[i])));
+  }
+  std::printf("    GE-22: a stereo source puts them %.4f apart, and the left channel moves"
+              " %.3e from the mono render\n",
+              stereoDifference, leftDrift);
+  MW_EXPECT(stereoDifference > 0.01);
+  MW_EXPECT(leftDrift == 0.0);
+}
+
 MW_TEST_MAIN("grain-pool")

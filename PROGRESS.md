@@ -1,6 +1,15 @@
 # Motion Wave — progress
 
 ```
+RESUME: Directive 07 — HOST INTEGRATION (interrupts Directive 06)
+DIRECTIVE 06 IS PAUSED at commit "fx-03: the tank decided, and a stereo source
+               that keeps one pool". fx-03 is clean and green at that point:
+               routing, sync, smear, feedback path, buffer, taps and the unit,
+               with V1, V2, V3, V5 and V13 measuring. Resume at "wire the grain
+               cloud into the taps" — the stereo GrainSource is already built and
+               GE-22 proves the mono path is bit-identical, so the cloud has one
+               pool to spawn into as required.
+
 RESUME: Directive 06
 Current unit:  Granular Reverb (fx-02) — all thirteen of §9's rows now measure;
                twelve native cases, zero failures.
@@ -258,7 +267,26 @@ V2 PASSES:     -153.5 dBFS against a plain interpolated delay written in the
                comparing signals one sample apart — which reads as a granular
                path colouring the delay rather than as an off-by-one in the
                comparison.
-OPEN DESIGN Q (decide before wiring the cloud, do not guess):
+SETTLED (user, Directive 07 preamble): the stereo grain source keeps ONE POOL.
+               GrainSource now carries a second channel and fx-02 is the
+               degenerate instance with `right` null. Two engines would have
+               split every guarantee the pool makes — GE-08's drop accounting,
+               GE-15's zero-allocation proof and the 256-slot sizing at 1.56x the
+               99.99th percentile all assume one allocation domain, so two halved
+               ceilings would drop a burst that one shared pool survives, under
+               exactly the load the sizing was computed for. GE-22 asserts the
+               stereo path reads both channels AND that the mono render is
+               bit-identical (0.000e+00, not "close").
+V7 SETTLED (user, Directive 07 preamble): both units ship with the deviation.
+               dsp/tank.h is built, tested and shared — 0.9 echo density at 65 ms
+               where the series chain never gets there — and it does NOT fix V7 in
+               ANY of three placements (wet output 247 ms, input diffusion 205 ms,
+               against a 125 ms baseline). The reason is the row's excitation, not
+               diffusion: the granular IR is SILENT for 80 ms and then bounces
+               0.18-1.02 between adjacent windows. Same defect as V5's impulse
+               probe. fx-03 has no echo-density row at all (§9.4 is V1-V16).
+               docs/HARDWARE_VERIFICATION.md now carries V7 as a listening check.
+OLD OPEN DESIGN Q (now settled above, kept for the reasoning):
                The GrainEngine reads ONE GrainSource, and it already anticipates
                this unit — engine.h says "1 for the reverb, 1..8 for the delay".
                But fx-02's buffer is MONO and fx-03's is stereo (§1.2), and a

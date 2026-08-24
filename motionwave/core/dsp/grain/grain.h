@@ -129,7 +129,7 @@ inline constexpr int kMaxSincTaps = 64;
 
 /// One sample from one grain, accumulated into a stereo pair. Returns false
 /// when the grain has finished and its slot may be retired.
-template <bool kCubic>
+template <bool kCubic, bool kStereo = false>
 inline bool renderGrainSample(Grain* grain, const GrainSource& source, float* left,
                               float* right) noexcept {
   if (grain->remaining <= 0) return false;
@@ -141,11 +141,30 @@ inline bool renderGrainSample(Grain* grain, const GrainSource& source, float* le
    * only about not paying for the wider kernel on the Eco tier — which is
    * linear precisely because it is not trying to meet an alias figure.
    */
-  const float sample = kCubic ? readScaled(source, grain->readPos, grain->readInc, kMaxSincTaps)
-                              : readLinear(source, grain->readPos);
-  const float value = sample * window;
-  *left += value * grain->gainL;
-  *right += value * grain->gainR;
+  const float sample =
+      kCubic ? readScaledFrom(source.data, source.mask, grain->readPos, grain->readInc,
+                              kMaxSincTaps)
+             : readLinearFrom(source.data, source.mask, grain->readPos);
+  /*
+   * **The second read happens only for a genuinely stereo source**, and the
+   * decision is a template parameter rather than a test, so the mono unit's
+   * inner loop is the one it has always been. `fx-02`'s buffer is mono and
+   * `fx-03`'s is not; one engine serves both because splitting into two would
+   * split the pool, and the pool's ceiling is sized once against a distribution
+   * that assumes it is not split.
+   */
+  if (kStereo) {
+    const float other =
+        kCubic ? readScaledFrom(source.right, source.mask, grain->readPos, grain->readInc,
+                                kMaxSincTaps)
+               : readLinearFrom(source.right, source.mask, grain->readPos);
+    *left += sample * window * grain->gainL;
+    *right += other * window * grain->gainR;
+  } else {
+    const float value = sample * window;
+    *left += value * grain->gainL;
+    *right += value * grain->gainR;
+  }
   grain->lastWindow = window;
   grain->readPos += grain->readInc;
   grain->windowPhase += grain->windowInc;

@@ -305,33 +305,33 @@ class GranularReverb : public Node {
        * which reads as the §2.2 formula being wrong when it is the fold.
        */
       /*
-       * **The diffusion stays inside the loop, and §2.3's prose says it should
-       * not — the measurement disagreed with the sheet and the measurement
-       * wins.**
+       * **The diffusion stays inside the loop, and three other placements were
+       * measured before that was settled.**
        *
-       * §2.3 describes the allpass chain as building echo density "immediately
-       * after each grain onset", which reads as an instruction to put it on the
-       * wet bus so every grain's first arrival is diffused. That was tried, in
-       * two forms, and both are worse on the row that grades exactly this:
-       * §9 V7 asks for a normalised echo density of 0.9 within 80 ms, and
-       * against the loop-only placement's 125 ms the full-length chain on the
-       * wet bus read 398 ms and a short chain at a fifth of the lengths read
-       * 313 ms. The reason is that the measure counts what fraction of a window
-       * exceeds that window's own standard deviation: a handful of widely
-       * spaced allpass echoes makes a signal *more* impulsive, and an impulsive
-       * signal has less of its energy above that line, not more. §2.3's premise
-       * holds for a reverb whose early field is sparse; here the grain cloud is
-       * already the density builder and the chain only adds structure to it.
+       * §2.3 reads as an instruction to put the chain on the wet bus so every
+       * grain's first arrival is diffused. Measured against the loop-only
+       * placement's 125 ms on §9 V7, the full-length chain there read 398 ms and
+       * a short one 313 ms. `dsp::DiffusionTank` — a recirculating figure-eight
+       * that reaches 0.9 echo density in 65 ms *on its own*, where a series
+       * chain never reaches it at all — read 247 ms on the wet output and
+       * 205 ms diffusing the input to the buffer. Every placement is worse than
+       * none, and the tank is the best diffuser of the three by a wide margin.
        *
-       * The measurement was calibrated before it was believed, which is why it
-       * is trusted over the prose: Gaussian noise reads 0.995 on it, a sparse
-       * impulse train reads 0.000, and a decaying Gaussian tail reads 1.011 and
-       * crosses 0.9 at 10 ms.
+       * That is not four failures of placement; it is the row's excitation. The
+       * impulse response of a grain cloud reading a buffer that holds one
+       * impulse is a sparse train of single windowed samples at grain-read
+       * times: measured directly it is *silent for eighty milliseconds*, and
+       * then the density bounces between 0.18 and 1.02 from one 20 ms window to
+       * the next while the RMS swings two orders of magnitude. Nothing
+       * downstream can put back arrivals that were never generated, and nothing
+       * upstream helps either, because the sparseness is in which grains happen
+       * to catch the impulse — the same property of the probe that made V5's
+       * impulse measurement worthless one row over.
        *
-       * V7 is therefore not met at 125 ms and is recorded as not met, with
-       * §2.3's own escalation — the Dattorro tank — as the scoped remedy. It is
-       * an architecture change to the loop rather than a placement change, so
-       * it is not something to attempt as a side effect of finishing the rows.
+       * So the loop keeps the chain it was calibrated with, V7 is recorded as
+       * not met for the reason above rather than for a diffusion deficiency, and
+       * the question that remains — whether it flutters on a transient — is in
+       * `docs/HARDWARE_VERIFICATION.md`, where the ear is the instrument.
        */
       const float wet = kMonoFoldCompensation *
                         0.5f *

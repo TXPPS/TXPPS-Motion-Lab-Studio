@@ -99,6 +99,55 @@ that the top and bottom of the value range become the same touch target.
 
 ---
 
+## Granular Reverb (`fx-02`) and Granular Delay (`fx-03`)
+
+### V7 — echo density, where the ear is the final instrument
+
+Normalised echo density (Abel and Huang) is measured offline and the number is
+trustworthy: the measure is calibrated against signals whose answer is known —
+Gaussian noise reads 0.995, a sparse impulse train 0.000, a decaying Gaussian
+tail 1.011 crossing 0.9 at 10 ms. What the number cannot settle is the thing the
+row is actually about.
+
+**A tail that is not dense enough does not sound quiet or thin. It sounds like
+flutter on transients** — a fast, grainy stutter on the attack of a snare or a
+close-miked acoustic guitar, most obvious on dry percussive material and almost
+inaudible on sustained pads. That is a judgement about audibility, and 0.9 at
+80 ms is the literature's threshold rather than a measurement of *our* tail; a
+reverb can be at 70 ms and still flutter on the wrong source, or at 95 ms and be
+clean on every source anyone plays through it.
+
+So this row's offline number is a gate, not a verdict, and the listening check is
+what closes it.
+
+**Procedure.** On a device, through monitors and again through headphones:
+
+1. A dry snare hit, single, at 90 bpm with eight bars of silence after it. Decay
+   at 2 s, Mix at 100 %, Damping at 0. Listen to the first 200 ms of the tail
+   for a stutter or a pitched buzz at the grain rate. Repeat at Density 100, 350
+   and 1500 g/s — the artefact, if present, moves with density and is worst at
+   the sparse end.
+2. The same, with a close-miked acoustic guitar chord, which is the hardest
+   case: broadband, transient, and with enough sustain that a fluttering tail
+   beats against the source.
+3. On `fx-03`, the same two sources at Smear 25 % and 50 %, where the grains are
+   long enough to be heard as separate events if the diffusion is not carrying
+   them.
+4. A/B against the diffusion disabled, which is the control. If the fluttering
+   version cannot be told from the diffuse one, the offline number is measuring
+   something inaudible and the tolerance is too tight rather than the unit too
+   sparse — record that, do not tighten the unit.
+
+**Pass.** No audible flutter or stutter on the first 200 ms of any of the above,
+on either transducer, at any density.
+
+**Why it cannot run here.** No transducer of any kind, and the artefact is
+defined by audibility rather than by a threshold. Both units' offline rows are
+green at the architecture level (the shared `DiffusionTank` reaches 0.9 at 65 ms
+on its own), so what is left is exactly the part the ear decides.
+
+---
+
 ## All units — the checks that need a device by their nature
 
 | Cell                      | Why it cannot run here                                                                                                                                                                                                                       | Procedure                                                                          |

@@ -877,6 +877,65 @@ measures the delay at two tempos rather than checking one number at 120, which i
 the version that would have passed. The line is now sized for the synced maximum
 and the millisecond control keeps its own 0–500 ms range.
 
+### V7 decided once, for both granular units
+
+The instruction was to settle this before `fx-03`'s diffusion was built rather
+than discover it a second time, and the answer is not the one the sheet
+predicts. It is recorded here in full because "we shipped with the deviation" is
+worth nothing without the four measurements behind it.
+
+**The tank exists, is shared, and is decisively the better diffuser.**
+`dsp::DiffusionTank` is a recirculating figure-eight — every lap re-diffuses what
+is already circulating, so arrivals grow exponentially where a series chain adds
+them linearly. Measured on its own against a calibrated instrument it reaches
+0.9 normalised echo density at **65 ms**, where `fx-02`'s series chain never
+reaches it at all. Its settling time is derived from the lap time rather than
+chosen, so it smears an arrival instead of adding a second reverb behind it: 40,
+80 and 200 ms asked read 60, 90 and 210 measured.
+
+Building it corrected two of my own errors, both structural rather than
+numerical. The first lengths were tens of milliseconds, which put one lap at
+54 ms — so an 80 ms settling time allowed one and a half laps, and the decay
+gain that achieves that is 0.009, which is a tank that does not recirculate. It
+measured 753 ms, *worse* than the chain it replaced. The second was a settling
+law that counted only the two delay lines: measured settling came out 2.10 times
+the asked value at every setting, and a constant factor is the signature of a
+term omitted from a derivation rather than a wrong law. The allpasses sit in the
+lap path and their lengths sum to exactly that factor.
+
+**And it does not fix V7, in any of three placements.** Against the loop-only
+baseline's 125 ms: the full-length series chain on the wet bus reads 398 ms, a
+short series chain 313 ms, the tank on the wet output 247 ms, and the tank
+diffusing the input to the buffer 205 ms. Four placements, all worse than none,
+with the best diffuser of them among the worst results.
+
+**The reason is the row's excitation, and it is the same defect as V5's.**
+Measured directly, the granular reverb's impulse response is *silent for eighty
+milliseconds*, and then the density bounces between 0.18 and 1.02 from one 20 ms
+window to the next while the RMS swings two orders of magnitude. A grain cloud
+reading a buffer that holds one impulse emits one windowed sample per grain that
+happens to catch it: the early IR is a sparse train of isolated events, and
+whether a grain catches the impulse is a property of the probe rather than of the
+reverb. Nothing downstream can put back arrivals that were never generated, and
+diffusing the input does not generate them either. That is precisely why V5's
+impulse measurement had to be replaced with interrupted noise one row over.
+
+**So both units ship with the deviation, explicitly.** `fx-02`'s V7 is NOT MET at
+125 ms against 80 ms; the row is named for its own shortfall and carries a
+vacuity guard. `fx-03` has no echo-density row at all — §9.4 runs V1 to V16 and
+none of them is one — so there is nothing there to fail, which is worth stating
+so nobody goes looking. The tank stays built, tested and shared: if the listening
+check below finds flutter, it is the component to reach for and its numbers are
+already known.
+
+**What actually closes this is the ear**, and it is now written down as such.
+`docs/HARDWARE_VERIFICATION.md` carries V7 as a listening check with a procedure —
+a dry snare and a close-miked acoustic guitar, at three densities, on both
+transducers, A/B against diffusion disabled. The threshold 0.9-at-80-ms is the
+literature's, not a measurement of our tail; a reverb can sit at 70 ms and
+flutter on the wrong source or at 95 ms and be clean on everything anyone plays.
+The offline number is a gate, not a verdict.
+
 ### What X24 found once every unit had one
 
 The Motion Shaper had an integration test and the other four did not, and the
