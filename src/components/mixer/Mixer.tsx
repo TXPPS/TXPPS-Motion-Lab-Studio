@@ -14,6 +14,7 @@ import { resolveChannels } from '../../model/mixerGraph';
 import type { Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
+import { useWorkspaceStore } from '../../state/workspaceStore';
 import { Icon } from '../common/Icon';
 import { ChannelStrip, MasterStrip } from './ChannelStrip';
 import { ChannelOverviewHost } from './ChannelOverview';
@@ -40,7 +41,7 @@ export function Mixer({ touch }: { touch?: boolean }) {
 
   const monitorCueId = useUiStore((s) => s.monitorCueId);
   const states = useMemo(() => resolveChannels(project, monitorCueId), [project, monitorCueId]);
-  const showOverview = useUiStore((s) => s.channelOverview);
+  const showOverview = useWorkspaceStore((w) => w.showChannelOverview);
 
   const buses = tracks.filter((t) => t.type === 'bus');
   const fxChannels = tracks.filter((t) => t.type === 'fx');

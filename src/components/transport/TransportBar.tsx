@@ -347,7 +347,7 @@ export function TransportBar({ compact }: { compact?: boolean }) {
         <button
           className="t-btn"
           onClick={() => engine.returnToStart()}
-          title="Return to start (Home)"
+          title="Return to start (Home or Enter)"
           aria-label="Return to start"
           data-testid="btn-rts"
         >

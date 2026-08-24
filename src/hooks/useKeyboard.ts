@@ -24,6 +24,10 @@ import { inScale } from '../model/scales';
 import { repeatNotes } from '../model/midiTools';
 import type { MidiClip } from '../model/types';
 import { heldNotes } from '../audio/heldNotes';
+import { useRouteStore } from '../state/routeStore';
+import { useWorkspaceStore } from '../state/workspaceStore';
+import type { PageId } from '../app/router';
+import type { BrowserTab } from '../state/uiStore';
 
 /**
  * Scopes the computer keyboard's holders in the held-note registry.
@@ -194,6 +198,41 @@ function eventForCombo(combo: string, real: KeyboardEvent): KeyboardEvent {
   } as unknown as KeyboardEvent;
 }
 
+/** The page tabs, in the order the top bar shows them, for Ctrl/Cmd+1..4. */
+const PAGE_ORDER: PageId[] = ['start', 'song', 'mastering', 'show'];
+
+/** Show the browser pane and put a given tab in front of it. */
+function revealBrowserTab(tab: BrowserTab): void {
+  useWorkspaceStore.getState().reveal('browser');
+  useUiStore.getState().set({ browserTab: tab });
+}
+
+/**
+ * Which key opens which panel.
+ *
+ * A table rather than a chain of `if`s because the same map has to be checked
+ * against the shortcut registry — a panel key the help sheet advertises and
+ * nothing binds is a shortcut list that lies, which is how the transport's
+ * "Home" tooltip came to describe a key that did nothing.
+ */
+const PANEL_KEYS = new Map<string, () => void>([
+  ['f2', () => useWorkspaceStore.getState().toggle('showEditor')],
+  [
+    'f3',
+    () => {
+      useWorkspaceStore.getState().reveal('editor');
+      useUiStore.getState().set({ editorTab: 'mixer' });
+    },
+  ],
+  ['f4', () => useWorkspaceStore.getState().toggle('showInspector')],
+  ['f5', () => useWorkspaceStore.getState().toggle('showBrowser')],
+  ['f6', () => revealBrowserTab('instruments')],
+  ['f7', () => revealBrowserTab('effects')],
+  ['f8', () => revealBrowserTab('loops')],
+  ['f9', () => revealBrowserTab('samples')],
+  ['f10', () => revealBrowserTab('pool')],
+]);
+
 export function useGlobalKeyboard(): void {
   useEffect(() => {
     const down = (rawEvent: KeyboardEvent) => {
@@ -218,6 +257,56 @@ export function useGlobalKeyboard(): void {
       // the only way to reach one was a right-click.
       if (k === 'contextmenu' || (e.shiftKey && k === 'f10')) {
         if (openMenuForFocus()) e.preventDefault();
+        return;
+      }
+
+      /*
+       * Panel keys.
+       *
+       * The reference puts the panels on F2–F11 and a professional user's hands
+       * already know that map, so it is matched rather than reinvented — with
+       * two deliberate differences, both forced by the platform rather than
+       * chosen:
+       *
+       *   F11 is the browser's own fullscreen and is left alone. Taking it
+       *   would break a key every web user relies on to escape a full-screen
+       *   page, which is a worse trade than the parity is worth.
+       *
+       *   F5 is the browser's reload, and it *is* claimed here. Ctrl/Cmd+R
+       *   remains the reload — it is the commoner gesture and is untouched —
+       *   and a DAW that swallows an accidental F5 in the middle of a take is
+       *   protecting work rather than stealing a key.
+       */
+      if (PANEL_KEYS.has(k)) {
+        e.preventDefault();
+        PANEL_KEYS.get(k)?.();
+        return;
+      }
+
+      // Home returns to start, which is the convention everywhere and which the
+      // transport's own tooltip has been advertising while nothing bound it.
+      if (k === 'home') {
+        e.preventDefault();
+        engine.returnToStart();
+        return;
+      }
+
+      // The four pages. Plain digits are the arrangement tool row, so these are
+      // modified.
+      if ((e.ctrlKey || e.metaKey) && k >= '1' && k <= '4') {
+        const page = PAGE_ORDER[Number(k) - 1];
+        if (page) {
+          e.preventDefault();
+          useRouteStore.getState().go(page);
+        }
+        return;
+      }
+
+      // Maximise the arrangement, and restore it on a second press.
+      if (e.shiftKey && k === 'f') {
+        e.preventDefault();
+        const ws = useWorkspaceStore.getState();
+        ws.setMaximized(ws.maximized === 'arrange' ? null : 'arrange');
         return;
       }
 

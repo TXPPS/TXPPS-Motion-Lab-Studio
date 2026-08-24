@@ -206,22 +206,22 @@ the box that receives the press, it fails.
 The vitest suite still reports both BLOCKED, and that is correct there: a cell
 that reported PASS from jsdom would be reporting a layout nobody laid out.
 
-| Unit                | Sheet    | Status       | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  | X25  | X26  |
-| ------------------- | -------- | ------------ | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
-| Motion Shaper       | `fx-01`  | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
-| Program EQ          | `dyn-01` | SHIPPING     | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| Optical Leveller    | `dyn-02` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
-| FET Limiter         | `dyn-03` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
-| Variable-Mu Limiter | `dyn-04` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
-| Console EQ          | `dyn-05` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
-| Granular Reverb     | `fx-02`  | NOT SHIPPING | PASS | PASS | PASS | PASS | n/a  | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
-| Granular Delay      | `fx-03`  | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    | —    | —    |
-| Slipstream Sampler  | `smp-01` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    |
-| DCO Poly            | `syn-01` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    |
-| Phase Distortion    | `syn-02` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    |
-| Analog Five         | `syn-03` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    |
-| Six-Op FM           | `syn-04` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    |
-| Matrix Twelve       | `syn-05` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    |
+| Unit                | Sheet    | Status       | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  | X25  | X26 | V27  |
+| ------------------- | -------- | ------------ | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| Motion Shaper       | `fx-01`  | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
+| Program EQ          | `dyn-01` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
+| Optical Leveller    | `dyn-02` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
+| FET Limiter         | `dyn-03` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
+| Variable-Mu Limiter | `dyn-04` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
+| Console EQ          | `dyn-05` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
+| Granular Reverb     | `fx-02`  | NOT SHIPPING | PASS | PASS | PASS | PASS | n/a  | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
+| Granular Delay      | `fx-03`  | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    | —    | — | —    |
+| Slipstream Sampler  | `smp-01` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | — | —    |
+| DCO Poly            | `syn-01` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | — | —    |
+| Phase Distortion    | `syn-02` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | — | —    |
+| Analog Five         | `syn-03` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | — | —    |
+| Six-Op FM           | `syn-04` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | — | —    |
+| Matrix Twelve       | `syn-05` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | — | —    |
 
 ### Cell 26 — usability, and why all seven dropped out again
 
@@ -1202,6 +1202,35 @@ control exists for.
 | `X24` | Integration | The unit's real DSP, compiled to WASM, driven by its real UI, produces correct audio and correct visualiser state                                                                                                  |
 | `X25` | Host        | The unit is insertable, audible, editable, compensated and persistable **in the application** — not in the dev panel                                                                                               |
 | `X26` | Usability   | Every control is the correct primitive for what it represents, operable by touch in portrait on a phone; the panel is visually distinct from every other unit; the unit's defining control is present and operable |
+| `V27` | Live visual | The panel shows, in motion, what the unit is doing right now — see below                                                                                                                                          |
+
+### `V27` — live visual feedback
+
+Directive 09 §4.2. A unit passes `V27` when it has at least one continuously
+animated element that:
+
+1. Is driven by **published engine state**, never re-derived host-side and never
+   faked from a timer.
+2. **Stops when the audio stops.** This is the discriminator, and it is the only
+   one of the four that cannot be satisfied by a plausible-looking animation:
+   `U21` was mutation-tested by fabricating the phase from `performance.now()`,
+   which passed every other check and failed this one. A face animating on a
+   clock is indistinguishable from a face reading the engine right up until the
+   engine stops.
+3. Communicates the unit's actual mechanism, rather than decorating it.
+4. Sustains 60 fps with no work added to the audio thread, degrading gracefully
+   on a phone.
+
+`V27` is **not** `U20`. `U20` asks whether a visualiser reads real engine state;
+`V27` asks whether there is something *moving* that a user can watch a mechanism
+in. Program EQ satisfies `U20` today — its harmonic display reads the
+amplifier's own `curvature()` — and does not satisfy `V27`, because nothing on
+its panel moves with the music. This is the distinction Directive 09 §9 names:
+a cell tests what it says, not what its title implies.
+
+Every unit with a face is therefore `FAIL` at `V27` until its animation is
+built, and **Program EQ has dropped out of SHIPPING** on the strength of it. It
+had been the only unit shipping; it is now honest instead.
 
 ## Who owns which cell, and where it runs
 

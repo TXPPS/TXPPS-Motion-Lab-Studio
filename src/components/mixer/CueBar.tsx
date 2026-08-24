@@ -9,7 +9,32 @@ import { cueTouchedCount, findCue, MAX_CUE_MIXES } from '../../model/cueMix';
 import { engine } from '../../audio/engine';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
+import { useWorkspaceStore } from '../../state/workspaceStore';
 import { Icon } from '../common/Icon';
+
+/**
+ * Show or hide the channel overview strip.
+ *
+ * It lives on the console's own header row because that is the row that is
+ * always above the console, in both of `CueBar`'s branches. Until now the strip
+ * had no control at all: the flag was read by the mixer and written by nothing,
+ * so a user could neither hide it nor get it back.
+ */
+function OverviewToggle() {
+  const on = useWorkspaceStore((w) => w.showChannelOverview);
+  return (
+    <button
+      className={`icon-btn${on ? ' on' : ''}`}
+      onClick={() => useWorkspaceStore.getState().toggle('showChannelOverview')}
+      title="Show or hide the channel overview"
+      aria-label="Show or hide the channel overview"
+      aria-pressed={on}
+      data-testid="toggle-channel-overview"
+    >
+      <Icon name="layers" size={14} />
+    </button>
+  );
+}
 
 export function CueBar() {
   const cues = useProjectStore((s) => s.project.cueMixes);
@@ -33,6 +58,7 @@ export function CueBar() {
         <span className="t-label">Cue mixes</span>
         <span className="hint">A separate headphone balance, off the same channels.</span>
         <span className="grow" />
+        <OverviewToggle />
         <button className="btn" onClick={addCue} data-testid="cue-add">
           <Icon name="headphones" size={13} /> Add a cue
         </button>
@@ -129,17 +155,20 @@ export function CueBar() {
           </button>
         </>
       ) : (
-        <>
-          <span className="grow" />
-          <button
-            className="btn"
-            onClick={addCue}
-            disabled={list.length >= MAX_CUE_MIXES}
-            data-testid="cue-add"
-          >
-            <Icon name="plus" size={13} /> Cue
-          </button>
-        </>
+        <span className="grow" />
+      )}
+      {/* Outside the branch: the strip is above the console whether or not a
+          cue is being monitored, so its control has to be reachable in both. */}
+      <OverviewToggle />
+      {!active && (
+        <button
+          className="btn"
+          onClick={addCue}
+          disabled={list.length >= MAX_CUE_MIXES}
+          data-testid="cue-add"
+        >
+          <Icon name="plus" size={13} /> Cue
+        </button>
       )}
     </div>
   );

@@ -42,6 +42,13 @@ export const SHORTCUTS: Shortcut[] = [
     category: 'Transport',
   },
   {
+    id: 'return-home',
+    combo: 'home',
+    display: 'Home',
+    description: 'Return to start',
+    category: 'Transport',
+  },
+  {
     id: 'record',
     combo: 'r',
     display: 'R',
@@ -248,6 +255,87 @@ export const SHORTCUTS: Shortcut[] = [
     combo: 'x',
     display: 'X',
     description: 'Keyboard octave up',
+    category: 'View',
+  },
+  // Panels. The reference's F2-F10 map, matched because a professional user's
+  // hands already know it. F11 is deliberately absent: it is the browser's own
+  // fullscreen, and taking it would break the key a web user relies on to get
+  // back out of a full-screen page.
+  {
+    id: 'panel-editor',
+    combo: 'f2',
+    display: 'F2',
+    description: 'Show or hide the editor',
+    category: 'View',
+  },
+  {
+    id: 'panel-mixer',
+    combo: 'f3',
+    display: 'F3',
+    description: 'Open the mixer',
+    category: 'View',
+  },
+  {
+    id: 'panel-inspector',
+    combo: 'f4',
+    display: 'F4',
+    description: 'Show or hide the inspector',
+    category: 'View',
+  },
+  {
+    id: 'panel-browser',
+    combo: 'f5',
+    display: 'F5',
+    description: 'Show or hide the browser — Ctrl/Cmd+R still reloads',
+    category: 'View',
+  },
+  {
+    id: 'panel-instruments',
+    combo: 'f6',
+    display: 'F6',
+    description: 'Browser: instruments',
+    category: 'View',
+  },
+  {
+    id: 'panel-effects',
+    combo: 'f7',
+    display: 'F7',
+    description: 'Browser: effects',
+    category: 'View',
+  },
+  {
+    id: 'panel-loops',
+    combo: 'f8',
+    display: 'F8',
+    description: 'Browser: loops',
+    category: 'View',
+  },
+  {
+    id: 'panel-samples',
+    combo: 'f9',
+    display: 'F9',
+    description: 'Browser: samples',
+    category: 'View',
+  },
+  {
+    id: 'panel-pool',
+    combo: 'f10',
+    display: 'F10',
+    description: 'Browser: everything this project uses',
+    category: 'View',
+  },
+  {
+    id: 'maximize-arrange',
+    combo: 'shift+f',
+    display: 'Shift F',
+    description: 'Full-screen the arrangement, and back again',
+    category: 'View',
+  },
+  {
+    id: 'pages',
+    combo: 'mod+1-4',
+    display: `${MOD} 1–4`,
+    description: 'Start · Song · Release · Live',
     category: 'View',
   },
   {

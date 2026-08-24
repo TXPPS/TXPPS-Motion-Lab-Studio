@@ -3,21 +3,24 @@
 ```
 RESUME: Directive 09 — FSP8 parity, core workflow, live panels.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: see the Deploy row below — verified against the live bundle.
-Current section: §2 COMPLETE (2.1–2.5). §1 COMPLETE. §3 next.
-Next action:     §3 — the pane matrix. `docs/reference/fsp8-parity-windows.md`
-                 already holds the work list: 113 reference panels against 111
-                 MotionLab panes, with file paths. Start with the cheapest
-                 high-value item — no keyboard shortcut opens any pane, while
-                 `workspaceStore`'s toggle/reveal/setMaximized API already
-                 exists and is already correct.
-Open deviations: §2.5's "monitoring modes per the manual" and "latency
-                 compensated" are DIVERGENT-BY-DESIGN — the manual documents no
-                 such mode enum, and a live monitor path has nothing to
-                 compensate. Reasons recorded under §2.5 below.
-                 recordingController.ts is 630 lines against the ~400 rule;
-                 four things have come out of it and what is left is one thing.
-Ledger:          1 of 14 shipping (Program EQ). Cell 27 not yet added.
+Deployed commit: see the Deploy note below.
+Current section: §1, §2 and the first pass of §3 are COMPLETE.
+Next action:     §4.3 — Program EQ's cell 27 animation, then deploy so the
+                 standard is visible before the other six panels are built to
+                 it. Cell 27 must first be added to docs/UNIT_LEDGER.md and to
+                 scripts/ledger-guard.mjs (it checks 26 cells today).
+Open deviations: F11 is left to the browser's fullscreen — the one place the
+                 reference's panel map is not matched, and a platform
+                 constraint rather than a preference.
+                 §2.5's monitoring modes and latency compensation are
+                 DIVERGENT-BY-DESIGN; reasons under §2.5 below.
+                 recordingController.ts is 630 lines against the ~400 rule.
+                 §3 is a first pass: what it did not close is listed under it.
+Ledger:          0 of 14 shipping. Cell 27 (V27, live visual) is now in the
+                 Ledger and its guard, applied retroactively as the directive
+                 asks, so Program EQ has dropped out of SHIPPING — nothing on
+                 its panel moves with the music yet. It was the only unit
+                 shipping; it is now honest instead.
 Carried:         every deviation listed under Directive 08 below still stands.
 ```
 
@@ -212,6 +215,149 @@ found **four more** members that had been missing all along.
 consumer sweep, because a preference must not be able to pass that guard by
 rendering its own control and nothing else.
 
+## Directive 09 §3 — panes, windows and the keyboard
+
+`docs/reference/fsp8-parity-windows.md` enumerates **113 reference panels against
+111 MotionLab panes**, with a file path for every one of ours. The near-equality
+is the most misleading number in the audit and the document says so: the
+reference's are weighted toward _windows_ — 13 detachable, 8 documented for a
+second monitor, 17 keyboard-addressable — and MotionLab's toward inline strips
+and disclosures inside four fixed panes. The gap is structural, not numerical.
+
+### The pane matrix is automated
+
+`e2e/panematrix.spec.ts`, in the shape of the responsive matrix: a table, not a
+file of hand-written cases. Every pane, drawer and sheet is asked the same four
+questions — does it open, does it close, does it close the way a keyboard user
+expects, and does it remember what it was told. **32 cases**, all passing.
+
+A table because the failure being looked for is the **odd one out**: the fifth
+sheet, written after the other four, that quietly left out a focus trap; the one
+layout whose divider is forgotten while the three beside it are kept. A
+hand-written suite tests the panes somebody thought of, and the ones nobody
+thought of are the ones that are broken.
+
+### The panels answer the keyboard
+
+`workspaceStore` has had `toggle`, `reveal` and `setMaximized` since it was
+written, all three correct, and **no key reached any of them** — every pane could
+only be opened by finding its button. The reference's F2–F10 map is matched,
+because a professional user's hands already know it:
+
+`F2` editor · `F3` mixer · `F4` inspector · `F5` browser · `F6`–`F10` the browser's
+five tabs · `Shift+F` full-screen the arrangement · `Ctrl/Cmd+1–4` the four pages ·
+`Home` return to start.
+
+**`F11` is deliberately not bound.** It is the browser's own fullscreen, and
+taking it would break the key a web user relies on to get back out of a
+full-screen page — a worse trade than the parity is worth. `F5` _is_ claimed:
+`Ctrl/Cmd+R` remains the reload, and a DAW that swallows an accidental F5 in the
+middle of a take is protecting work rather than stealing a key.
+
+### Seven defects, every one of them real
+
+| #   | What was wrong                                                                                                                     | Why it mattered                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **`uiStore.channelOverview` was a surface with no control** — declared, defaulted true, read once by the mixer, written by nothing | The inverse of the bug class `CLAUDE.md` names, and just as invisible: the console's overview strip could be neither hidden nor brought back. Moved to `workspaceStore` beside the other view options, given a toggle on the console's own header row, and it now survives a reload                                                                                                                                                           |
+| 2   | **The tablet drawers were not modals**                                                                                             | A scrim and a click-outside, then `role="complementary"`, no `aria-modal`, no focus trap and **no Escape**. They cover the workspace and take the pointer, so they are modal to the person using them; a keyboard user tabbed straight through into an arrangement they could not see, and had no key that would close it. On a tablet that is a pane that will not go away — which is how it was reported                                    |
+| 3   | **`DiagnosticsSheet` was the odd one out**                                                                                         | Its own comment called it modal. Scrim, no dialog role, no trap, no Escape — alone among five sibling sheets, and the odd one out is always the one written last                                                                                                                                                                                                                                                                              |
+| 4   | **The tablet bottom panel forgot its divider**                                                                                     | The one layout with no `onResize`, while the three desktop panes beside it all persisted theirs                                                                                                                                                                                                                                                                                                                                               |
+| 5   | **Every layout write was lost if the page went away first**                                                                        | The write is debounced 400 ms, which is right for a divider being dragged and wrong for a tab that is closing. The timer does not survive an unload. Now flushed on `pagehide` and on `visibilitychange` — `pagehide` rather than `beforeunload` because it fires on the back/forward cache path and on mobile app switches, which is exactly where a phone user was losing a layout                                                          |
+| 6   | **A size dragged to its own stop was discarded on the next load**                                                                  | The layout reader _rejected_ an out-of-range number instead of clamping it, and a divider taken all the way to its maximum comes back from the panel library a hair over — 62.007 where the maximum is 62. It fell back to the default, which was then written back over the stored value, so the preference could never be made to stick at either end of its range. A number outside a range is a boundary; only a non-number is corruption |
+| 7   | **The transport advertised a key nothing bound**                                                                                   | "Return to start (Home)" sat in the tooltip while the only binding was Enter. Home is now bound, and `tests/components/panelKeys.test.tsx` carries the guard for the class: a key the registry advertises must do something                                                                                                                                                                                                                   |
+
+Defects 5 and 6 were not on the audit's list. They came out of writing the
+matrix, which is the argument for the matrix.
+
+### Two tickets the repository had already written down
+
+`e2e/orientation.spec.ts` carries known defects as `test.fail()` tests naming a
+ticket in `docs/audit/RESPONSIVE_AUDIT.md`. Playwright fails a `test.fail()`
+test that _passes_, so the day a fix lands the suite says so by name. Both open
+ones are now closed, and both were the user's own report written down and
+measured before they made it.
+
+**RA-016 — the Diagnostics sheet does not close on Escape.** Closed by defect 3
+above. The suite reported it as `Expected to fail, but passed`.
+
+**RA-005 — a plugin editor cannot be closed by touch.** Measured at close 17×17
+and bypass lamp 10×10 against 44 pt, with the observation that on a phone the
+window covers the console it was opened from and there is no Escape key. The
+close button and A/B slots had since been fixed; the bypass lamp and the preset
+picker had not. Measured here: `pw-power: 10x10`, `pw-preset: 95x22`.
+
+The picker is now 44 pt — it is a `<select>` with no glyph to protect. The lamp
+cannot be and must not be: a 44 pt bypass lamp is not a lamp. It keeps the
+`::after` hit area the codebase already uses for `.resize-handle` and
+`.dev-power`, but **the insets are now derived from 44** rather than chosen to
+look generous — `.pw-power` was 32 pt and `.dev-power` 29 pt, both under the
+rule they exist to satisfy.
+
+Nobody had noticed because **the test measured the element's border box, which
+an `::after` does not change** — so the codebase's own documented fix for a lamp
+could never have satisfied its own cell. The test now measures the hit area, and
+gained the check the box measurement was really standing in for: no expanded
+area may overlap its neighbour's by more than a quarter of a target. An `::after`
+that grows past its neighbour hands the press to the wrong control, which is
+worse than a small target because it is silent. That is Directive 09 §9's rule
+applied to a cell that already existed.
+
+One smaller thing: the spec's header said "Six of these describe defects that
+are open" long after four had been fixed and their annotations removed. The
+count is gone; `grep -c 'test.fail()'` is the count and cannot go stale.
+
+### What §3 has not closed
+
+Named rather than left to be discovered:
+
+- **No detach, float or second monitor for anything.** The reference detaches 13
+  surfaces and has four menu commands for it. `PluginWindow` floats within the
+  page and is the only thing here called a window.
+- **`PluginWindow` forgets its position on every open** (`placed.current = false`
+  on each device change). One device at a time is a defensible decision and its
+  comment argues it; forgetting where the window was is not.
+- **`editorTab` and `browserTab` do not survive a reload** while the panes
+  hosting them do.
+- **No Track List pane** — no per-track show/hide, no filter, no visibility
+  presets. "Show me only the drums" is not currently possible.
+- **No Launcher**, and **four of eight global lanes missing** (Ruler, Signature,
+  Lyrics, Video). Signature is the sharpest: the model exists in `music.ts` and
+  `notation.ts` and is already used by the score view, so there is data with no
+  lane.
+- **131 of the 204 harvested shortcuts are still unbound**, and 44 more sit on a
+  different key — usually because the virtual musical keyboard claims
+  `A W S E D F T G Y H U J K O L`, which is exactly where the reference put Zoom,
+  Automation, Add Track, Solo and Duplicate. Convergence there needs a decision
+  about which of the two is the more important muscle memory, not a patch.
+
+## Directive 09 §4.2 — cell 27 is in the Ledger
+
+`V27` is defined in `docs/UNIT_LEDGER.md` and enforced by
+`scripts/ledger-guard.mjs`, which now reads 27 cells and 0 shipping.
+
+**`V27` is not `U20`, and the difference is the point.** `U20` asks whether a
+visualiser reads real engine state. `V27` asks whether there is something
+_moving_ that a user can watch a mechanism in. Program EQ satisfies `U20` today —
+its harmonic display reads the amplifier's own `curvature()` — and fails `V27`,
+because nothing on its panel moves with the music. That is Directive 09 §9's new
+standing rule applied to the cell being added: a cell tests what it says, not
+what its title implies.
+
+The discriminator is the one `U21` already uses: **it must stop when the audio
+stops.** It is the only one of the four criteria a plausible-looking animation
+cannot satisfy — `U21` was mutation-tested by fabricating its phase from
+`performance.now()`, which passed every other check and failed that one.
+
+The guard was mutation-tested here too: marking Program EQ `SHIPPING` while
+`V27` reads `FAIL` fails by name.
+
+**Not yet built:** the animations themselves. The infrastructure they need is in
+place — `motionwave/core/dsp/visual_state.h` is a templated seqlock over any POD
+payload, so a unit publishes its own frame shape, and `facePanel.ts` renders any
+declared face. What is missing is a `graph` readout primitive: every existing
+readout (`meter`, `vu`, `lamp`, `display`) draws a scalar, and a live response
+curve is a series. That is the first piece of §4.3.
+
 ## Directive 09 — the Windows build was broken, and is now fixed
 
 The directive moved this work to a local Windows clone so deploys could be
@@ -244,10 +390,10 @@ all of them POSIX assumptions:
 | ------------------------------------------- | -------------------------------------------------- |
 | `npm run typecheck`                         | clean                                              |
 | `npm run lint`                              | clean                                              |
-| `npm test`                                  | **1757 passing**, 100 files                        |
+| `npm test`                                  | **1784 passing**, 101 files                        |
 | `npm run build`                             | clean, on Windows                                  |
 | `npx playwright test e2e/recording.spec.ts` | **15 passing**, real Chromium, fake capture device |
-| `npx playwright test` (all)                 | **275 passing**, 0 failures                        |
+| `npx playwright test` (all)                 | see the Deploy note below                          |
 | Deploy                                      | see the Deploy note below                          |
 
 ## fx-03 — the cloud, and a pool sized for one tap

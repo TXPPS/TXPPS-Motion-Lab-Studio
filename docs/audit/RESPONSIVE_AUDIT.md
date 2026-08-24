@@ -39,7 +39,7 @@ eight. Section 3 has the numbers.
 | RA-002 | P0 ✅    | the track header row clips 29 px of its own control strip    | 14      |
 | RA-003 | P0 ✅    | every plugin editor opens off the screen on a phone          | 9       |
 | RA-004 | P0 ✅    | the shortcuts sheet clips ~1400 px and cannot be scrolled    | 19      |
-| RA-005 | P1       | a plugin editor cannot be closed by touch                    | 14      |
+| RA-005 | P1 ✅    | a plugin editor cannot be closed by touch                    | 14      |
 | RA-006 | P1       | the rack's `Insert` button does not answer a pointer press   | 19      |
 | RA-007 | P1       | nothing responds to a user's text-size setting               | 19      |
 | RA-008 | P1       | channel strips clip vertically wherever the mixer is short   | 9       |
@@ -50,7 +50,7 @@ eight. Section 3 has the numbers.
 | RA-013 | P2       | the mixer scrolls sideways and clips downwards               | 1       |
 | RA-014 | P2       | touch-target debt beyond the named tickets                   | 14      |
 | RA-015 | P2       | sub-5 px clips                                               | various |
-| RA-016 | P2       | the Diagnostics sheet does not close on Escape               | 19      |
+| RA-016 | P2 ✅    | the Diagnostics sheet does not close on Escape               | 19      |
 
 Ids are stable identifiers, not a ranking; the sections below are grouped by severity, so
 RA-010 to RA-012 are not in numeric order.
@@ -305,13 +305,13 @@ global lanes 20→14), the overview is dropped, the toolbar stops wrapping and s
 sideways with a trailing fade, and in landscape the bottom nav becomes a side rail. The
 rail is the single biggest win: it returns its whole 54 px rather than a fraction.
 
-| Cell | Whole rows before | After | Portrait | Guard needs |
-| --- | --- | --- | --- | --- |
-| 740×360 | 0 | **2** | 4 | 2 |
-| 844×390 | 0 | **3** | 7 | 3 |
-| 932×430 | 1 | **4** | 8 | 4 |
+| Cell    | Whole rows before | After | Portrait | Guard needs |
+| ------- | ----------------- | ----- | -------- | ----------- |
+| 740×360 | 0                 | **2** | 4        | 2           |
+| 844×390 | 0                 | **3** | 7        | 3           |
+| 932×430 | 1                 | **4** | 8        | 4           |
 
-That clears the comparison guard *exactly* rather than comfortably — 4 against
+That clears the comparison guard _exactly_ rather than comfortably — 4 against
 `floor(8/2)` is the bar, not a margin over it. Anything that adds a band back to a short
 viewport will fail the guard, which is why the comparison is kept rather than replaced by
 the simpler floor.
@@ -505,7 +505,24 @@ end"_.
 
 ## P1
 
-### RA-005 — A plugin editor cannot be closed by touch
+### RA-005 ✅ — A plugin editor cannot be closed by touch
+
+**Closed by Directive 09 §3.** The close button and the A/B slots are 44 pt
+outright on coarse pointers, and the preset picker joins them — it is a
+`<select>` with no glyph to protect, so it can simply be the size it needs.
+
+The two lamps keep the `::after` hit area this section recommended, but the
+insets are now **derived from 44** rather than chosen to look generous:
+`.pw-power` was 32 pt and `.dev-power` 29 pt, both against a 44 pt rule, and
+nobody had noticed because the test measured the element's border box — which
+an `::after` does not change. **So the test now measures the hit area**, and
+gained the check the box measurement was really standing in for: that no
+expanded area overlaps its neighbour's by more than a quarter of a target. An
+`::after` that grows past its neighbour hands the press to the wrong control,
+which is worse than a small target because it is silent.
+
+Both halves were mutation-tested: restoring either the 32 pt inset or the 22 pt
+picker fails the cell by name and by measurement.
 
 **Cells:** all fourteen touch cells.
 **Measured:** close button 17×17, bypass lamp 10×10, A/B slots 20×22, preset picker 22 px
@@ -743,7 +760,14 @@ pseudo-element hit area:
 | 31×24 | `.tool-*`                              | arrangement tool buttons                      |
 | 40×22 | `.switch`                              | every toggle in Preferences                   |
 
-### RA-016 — The Diagnostics sheet is the only sheet that does not close on Escape
+### RA-016 ✅ — The Diagnostics sheet is the only sheet that does not close on Escape
+
+**Closed by Directive 09 §3.** `DiagnosticsSheet` now installs the same
+capture-phase Escape handler its four siblings have, and gained the
+`role="dialog"`, `aria-modal` and focus trap it was also missing — it had a
+scrim in front of the whole app while announcing itself as `complementary`. The
+`test.fail()` in `e2e/orientation.spec.ts` is gone; the test remains, as the
+guard against a fifth sheet arriving without a handler.
 
 **Cells:** all nineteen — this is not viewport-dependent, but it is in the directive's
 "modals and sheets … dismissible" column, so it belongs here rather than nowhere.

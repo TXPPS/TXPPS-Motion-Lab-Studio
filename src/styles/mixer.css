@@ -1604,11 +1604,15 @@
 }
 /* The lamp is 5px because a lamp that size is what a console rack looks like;
    a 5px *target* is not something a finger can hit. The hit area grows around
-   it without moving anything, the way `.resize-handle` already does. */
+   it without moving anything, the way `.resize-handle` already does.
+
+   -19.5px, not -12px: 5 + 39 = 44, which is the minimum. At -12px the hit area
+   was 29px — bigger than the lamp, and still under the number the rule exists
+   to meet. A hit area that is merely generous is not a hit area that passes. */
 .dev-power::after {
   content: '';
   position: absolute;
-  inset: -12px;
+  inset: -19.5px;
   border-radius: 50%;
 }
 .dev-slot.bypassed .dev-power {
@@ -1794,11 +1798,15 @@
   box-shadow: var(--ml-lamp-on);
 }
 /* Same reason as `.dev-power`: the lamp stays a lamp, the target becomes a
-   target. This one is a device's on/off, so missing it is not a small miss. */
+   target. This one is a device's on/off, so missing it is not a small miss.
+
+   -17px gives 10 + 34 = 44. It was -11px, which is 32 — the same near-miss the
+   rack's lamp had, and for the same reason: the inset was chosen to look
+   generous rather than derived from the number. */
 .pw-power::after {
   content: '';
   position: absolute;
-  inset: -11px;
+  inset: -17px;
   border-radius: 50%;
 }
 .pw-power[aria-pressed='false'] {
@@ -1895,6 +1903,13 @@
   .pw-ab button {
     min-width: 44px;
     min-height: 44px;
+  }
+  /* The preset picker was 95x22 (RA-005). It is a `<select>`, so there is no
+     glyph to keep small — it can simply be the size it needs to be, and unlike
+     the lamps it needs no hit-area trick at all. */
+  .pw-preset {
+    min-height: 44px;
+    height: auto;
   }
   /* The header has to be tall enough to hold them, or the strip clips the way
      the track header did — the same arithmetic, one panel over. */

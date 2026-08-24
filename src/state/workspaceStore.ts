@@ -23,6 +23,11 @@ export interface WorkspaceLayout {
   browserSize: number;
   inspectorSize: number;
   editorSize: number;
+  /**
+   * The tablet's bottom panel, as a percentage. 0 means "never moved", in which
+   * case the layout's own height heuristic still chooses.
+   */
+  tabletBottomSize: number;
   showBrowser: boolean;
   showInspector: boolean;
   showEditor: boolean;
@@ -34,12 +39,23 @@ export interface WorkspaceLayout {
   showTempoLane: boolean;
   /** Bird's-eye navigator strip above the arrangement. */
   showOverview: boolean;
+  /**
+   * The channel overview strip above the console.
+   *
+   * It lived in `uiStore` as `channelOverview`, declared, defaulted to true,
+   * read once by the mixer, and **written by nothing** — a surface with no
+   * control, which is the same defect as a control with no surface and just as
+   * invisible. Here it sits beside the other view options and survives a
+   * reload with them.
+   */
+  showChannelOverview: boolean;
 }
 
 export const DEFAULT_LAYOUT: WorkspaceLayout = {
   browserSize: 16,
   inspectorSize: 17,
   editorSize: 38,
+  tabletBottomSize: 0,
   showBrowser: true,
   showInspector: true,
   showEditor: true,
@@ -49,6 +65,7 @@ export const DEFAULT_LAYOUT: WorkspaceLayout = {
   showChords: false,
   showTempoLane: false,
   showOverview: true,
+  showChannelOverview: true,
 };
 
 const MAXIMIZABLE = new Set(['arrange', 'editor', 'browser', 'inspector']);
@@ -57,13 +74,28 @@ const MAXIMIZABLE = new Set(['arrange', 'editor', 'browser', 'inspector']);
 export function normalizeLayout(raw: unknown): WorkspaceLayout {
   if (typeof raw !== 'object' || raw === null) return { ...DEFAULT_LAYOUT };
   const r = raw as Record<string, unknown>;
+  /**
+   * Clamped, not rejected.
+   *
+   * A pane size is a continuous quantity, and a stored 62.007 where the panel's
+   * own maximum is 62 is not corrupt — it is 62, plus the rounding the panel
+   * library did on the way out. Rejecting it threw away a divider the user had
+   * dragged all the way to its stop, and the layout then wrote the default back
+   * over it on the next resize event, so the preference could never be made to
+   * stick at either end of its range. Anything that is not a finite number is
+   * still refused: that is corruption rather than a boundary.
+   */
   const num = (v: unknown, fallback: number, min: number, max: number) =>
-    typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max ? v : fallback;
+    typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
   const bool = (v: unknown, fallback: boolean) => (typeof v === 'boolean' ? v : fallback);
   return {
     browserSize: num(r.browserSize, DEFAULT_LAYOUT.browserSize, 10, 40),
     inspectorSize: num(r.inspectorSize, DEFAULT_LAYOUT.inspectorSize, 10, 40),
     editorSize: num(r.editorSize, DEFAULT_LAYOUT.editorSize, 12, 70),
+    tabletBottomSize:
+      typeof r.tabletBottomSize === 'number' && r.tabletBottomSize > 0
+        ? num(r.tabletBottomSize, DEFAULT_LAYOUT.tabletBottomSize, 12, 62)
+        : 0,
     showBrowser: bool(r.showBrowser, DEFAULT_LAYOUT.showBrowser),
     showInspector: bool(r.showInspector, DEFAULT_LAYOUT.showInspector),
     showEditor: bool(r.showEditor, DEFAULT_LAYOUT.showEditor),
@@ -72,6 +104,7 @@ export function normalizeLayout(raw: unknown): WorkspaceLayout {
     showChords: bool(r.showChords, DEFAULT_LAYOUT.showChords),
     showTempoLane: bool(r.showTempoLane, DEFAULT_LAYOUT.showTempoLane),
     showOverview: bool(r.showOverview, DEFAULT_LAYOUT.showOverview),
+    showChannelOverview: bool(r.showChannelOverview, DEFAULT_LAYOUT.showChannelOverview),
     maximized:
       typeof r.maximized === 'string' && MAXIMIZABLE.has(r.maximized)
         ? (r.maximized as MaximizedPane)
@@ -101,7 +134,8 @@ interface WorkspaceState extends WorkspaceLayout {
       | 'showSections'
       | 'showChords'
       | 'showTempoLane'
-      | 'showOverview',
+      | 'showOverview'
+      | 'showChannelOverview',
   ) => void;
   /** Toggle full-screen for a pane (passing the current pane restores). */
   setMaximized: (pane: MaximizedPane) => void;
@@ -176,11 +210,52 @@ function restoreScroll(mem: Map<string, { left: number; top: number }>): void {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+/** The most recent layout, kept so a page going away can still write it. */
+let pending: WorkspaceLayout | null = null;
+
+/**
+ * Write the layout now, whatever the debounce was waiting for.
+ *
+ * The write is debounced by 400 ms, which is right for a divider being dragged
+ * and wrong for a page that is about to go away: close a pane and reload — or
+ * close the tab — inside that window and the layout was silently forgotten.
+ * The timer does not survive an unload, so the flush has to happen before one.
+ */
+function flushLayout(): void {
+  if (!pending) return;
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  write(pending);
+  pending = null;
+}
+
+if (typeof window !== 'undefined') {
+  // `pagehide` rather than `beforeunload`: it fires on the back/forward cache
+  // path and on mobile app switches, where `beforeunload` does not, and those
+  // are exactly the moments a phone user loses a layout.
+  window.addEventListener('pagehide', flushLayout);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushLayout();
+  });
+}
 
 function persist(state: WorkspaceLayout): void {
   if (typeof localStorage === 'undefined') return;
+  pending = state;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
+    saveTimer = null;
+    const s = pending;
+    pending = null;
+    if (s) write(s);
+  }, 400);
+}
+
+function write(state: WorkspaceLayout): void {
+  if (typeof localStorage === 'undefined') return;
+  {
     try {
       const {
         browserSize,
@@ -195,6 +270,8 @@ function persist(state: WorkspaceLayout): void {
         showChords,
         showTempoLane,
         showOverview,
+        showChannelOverview,
+        tabletBottomSize,
       } = state;
       localStorage.setItem(
         STORAGE_KEY,
@@ -202,6 +279,7 @@ function persist(state: WorkspaceLayout): void {
           browserSize,
           inspectorSize,
           editorSize,
+          tabletBottomSize,
           showBrowser,
           showInspector,
           showEditor,
@@ -211,12 +289,13 @@ function persist(state: WorkspaceLayout): void {
           showChords,
           showTempoLane,
           showOverview,
+          showChannelOverview,
         }),
       );
     } catch {
       /* quota or private mode — layout simply won't persist */
     }
-  }, 400);
+  }
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({

@@ -80,8 +80,6 @@ interface UiState {
   settingsOpen: boolean;
   /** Export dialog */
   exportOpen: boolean;
-  /** Channel Overview strip above the console */
-  channelOverview: boolean;
   /** cue mix being monitored on the main output, or null for the main mix */
   monitorCueId: string | null;
   /**
@@ -173,7 +171,6 @@ export const useUiStore = create<UiState>((set, get) => ({
   welcomeOpen: false,
   settingsOpen: false,
   exportOpen: false,
-  channelOverview: true,
   monitorCueId: null,
   openDevice: null,
   tool: 'pointer',

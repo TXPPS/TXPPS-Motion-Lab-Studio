@@ -40,13 +40,32 @@ describe('workspace layout normalization', () => {
     expect(n.showEditor).toBe(false);
   });
 
-  it('unusable numbers and junk input yield the defaults', () => {
+  it('junk input yields the defaults', () => {
     expect(normalizeLayout(null)).toEqual(DEFAULT_LAYOUT);
     expect(normalizeLayout('nope')).toEqual(DEFAULT_LAYOUT);
-    const n = normalizeLayout({ browserSize: 9999, editorSize: -5, maximized: 'browser' });
+    const n = normalizeLayout({
+      browserSize: 'wide',
+      editorSize: Number.NaN,
+      inspectorSize: Number.POSITIVE_INFINITY,
+      maximized: 'browser',
+    });
     expect(n.browserSize).toBe(DEFAULT_LAYOUT.browserSize);
     expect(n.editorSize).toBe(DEFAULT_LAYOUT.editorSize);
+    expect(n.inspectorSize).toBe(DEFAULT_LAYOUT.inspectorSize);
     expect(n.maximized).toBe('browser');
+  });
+
+  it('clamps a size that is merely out of range, rather than discarding it', () => {
+    // This used to fall back to the default, and it cost a real preference: a
+    // divider dragged all the way to its stop comes back from the panel library
+    // a hair over its own maximum — 62.007 where the maximum is 62 — so the
+    // layout threw it away on the next load and wrote the default back over it.
+    // The size could never be made to stick at either end of its range. A
+    // number outside the range is a boundary; only a non-number is corruption.
+    const n = normalizeLayout({ browserSize: 9999, editorSize: -5, inspectorSize: 40.004 });
+    expect(n.browserSize).toBe(40);
+    expect(n.editorSize).toBe(12);
+    expect(n.inspectorSize).toBe(40);
   });
 });
 

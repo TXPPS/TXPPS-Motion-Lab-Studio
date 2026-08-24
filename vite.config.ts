@@ -14,6 +14,39 @@ function gitCommit(): string {
   }
 }
 
+/**
+ * The commit's own date, not the clock.
+ *
+ * `new Date()` made every build of the same source produce a different bundle,
+ * because the timestamp is compiled in and the asset filename is a hash of the
+ * content. So the deployed bundle's name could never be compared against a
+ * local build of the deployed commit — the one check that tells you a push
+ * actually became a deploy, and the check the directives ask for on every
+ * release. Two builds of one commit now produce byte-identical output, and a
+ * mismatch means something real.
+ *
+ * A working tree with uncommitted changes still gets the wall clock: there is
+ * no commit to be reproducible *against*, and a dev build that pretended
+ * otherwise would report a build time hours old.
+ */
+function buildTime(): string {
+  try {
+    const dirty = execSync('git status --porcelain', {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .toString()
+      .trim();
+    if (dirty) return new Date().toISOString();
+    return new Date(
+      execSync('git log -1 --format=%cI', { stdio: ['ignore', 'pipe', 'ignore'] })
+        .toString()
+        .trim(),
+    ).toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
 export default defineConfig({
   plugins: [
     react(),
@@ -71,7 +104,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.0.0'),
     __GIT_COMMIT__: JSON.stringify(gitCommit()),
-    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    __BUILD_TIME__: JSON.stringify(buildTime()),
   },
   build: {
     sourcemap: true,

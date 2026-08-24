@@ -8,14 +8,21 @@
  * a real engine, because jsdom lays nothing out and would pass whatever the CSS
  * said.
  *
- * Six of these describe defects that are open at the time of writing, so they
+ * Some of these describe defects that are open at the time of writing, so they
  * carry `test.fail()` and name the ticket in `docs/audit/RESPONSIVE_AUDIT.md`.
+ * The count is not written here: it was "six" long after four of them had been
+ * fixed and their annotations removed, which is a comment lying about the file
+ * it sits on top of. `grep -c 'test.fail()'` is the count, and it cannot go
+ * stale.
  * That annotation is not a way of ignoring them: Playwright fails a `test.fail()`
  * test that *passes*, so the day a fix lands the suite says so by name and the
  * annotation comes off. Deleting the `test.fail()` line is the last step of each
  * fix, not an optional tidy-up.
  */
 import { expect, test, type Page } from '@playwright/test';
+
+/** Newline, kept out of the template literals below for legibility. */
+const BREAK = String.fromCharCode(10);
 
 /** The touch minimum the directive sets, in CSS pixels. */
 const MIN_TOUCH = 44;
@@ -216,10 +223,31 @@ test.describe('a plugin editor opens where it can be used', () => {
   }
 
   test('the device window header meets the touch minimum on a phone', async ({ browser }) => {
-    // RA-005. The close button is 17x17 and the bypass lamp 10x10; on a touch
-    // screen the only way to shut a plugin editor is a keyboard Escape, which
-    // a phone does not have while the window is open.
-    test.fail();
+    /*
+     * RA-005, closed by Directive 09 §3.
+     *
+     * The close button was 17x17 and the bypass lamp 10x10 against a 44 pt
+     * minimum, so on a phone — where the window covers the console it was
+     * opened from, and there is no Escape key — a plugin editor had no way out
+     * at all. The close button and the A/B slots are now 44 pt outright; the
+     * preset picker joins them, being a `<select>` with no glyph to protect.
+     *
+     * The lamp cannot be, and must not be: a 44 pt bypass lamp is not a lamp.
+     * The codebase's answer for that is an `::after` hit area — the pattern
+     * `.resize-handle` and `.dev-power` already use — which grows the target
+     * without moving anything.
+     *
+     * **So this measures the hit area, not the border box.** Measuring the box
+     * declared that pattern permanently non-compliant, which would have made
+     * this a cell no correct fix could satisfy. The two insets were also merely
+     * generous rather than derived — 32 pt and 29 pt against a 44 pt rule — and
+     * measuring the box is why nobody noticed.
+     *
+     * The overlap check below is what the box measurement was really protecting
+     * against, and it is now checked directly: an `::after` that grows past its
+     * neighbour's hands the press to the wrong control, which is worse than a
+     * small target because it is silent.
+     */
     const context = await browser.newContext({
       viewport: { width: 390, height: 844 },
       hasTouch: true,
@@ -228,19 +256,60 @@ test.describe('a plugin editor opens where it can be used', () => {
     await boot(page);
     await openFirstDevice(page);
 
-    const small = await page.evaluate((min) => {
+    const measured = await page.evaluate((min) => {
       const win = document.querySelector('[data-testid="plugin-window"]');
-      if (!win) return ['no plugin window'];
-      const out: string[] = [];
-      for (const el of win.querySelectorAll('header button, header select')) {
+      if (!win) return { small: ['no plugin window'], overlaps: [] as string[] };
+
+      /** The box a finger actually has to hit: the element, plus its ::after. */
+      const hitBox = (el: Element) => {
         const r = el.getBoundingClientRect();
-        if (r.width < min || r.height < min) {
-          out.push(`${el.className || el.tagName}: ${Math.round(r.width)}x${Math.round(r.height)}`);
+        const after = getComputedStyle(el, '::after');
+        if (!after.content || after.content === 'none') return r;
+        const px = (v: string) => (v.endsWith('px') ? parseFloat(v) : 0);
+        // A negative inset grows the box; `getComputedStyle` reports it as a
+        // negative length on each side.
+        const t = px(after.top);
+        const rt = px(after.right);
+        const b = px(after.bottom);
+        const l = px(after.left);
+        return new DOMRect(r.x + l, r.y + t, r.width - l - rt, r.height - t - b);
+      };
+
+      const controls = [...win.querySelectorAll('header button, header select')];
+      const boxes = controls.map((el) => ({ el, box: hitBox(el) }));
+
+      const small = boxes
+        .filter(({ box }) => box.width < min || box.height < min)
+        .map(
+          ({ el, box }) =>
+            `${el.className || el.tagName}: ${Math.round(box.width)}x${Math.round(box.height)}`,
+        );
+
+      const overlaps: string[] = [];
+      for (let i = 0; i < boxes.length; i++) {
+        for (let k = i + 1; k < boxes.length; k++) {
+          const a = boxes[i].box;
+          const b = boxes[k].box;
+          const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+          const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          // A pixel of touching is rounding; a quarter of a target is a control
+          // stealing its neighbour's presses.
+          if (w > min / 4 && h > min / 4) {
+            overlaps.push(
+              `${boxes[i].el.className || boxes[i].el.tagName} over ` +
+                `${boxes[k].el.className || boxes[k].el.tagName}: ${Math.round(w)}x${Math.round(h)}`,
+            );
+          }
         }
       }
-      return out;
+      return { small, overlaps };
     }, MIN_TOUCH);
-    expect(small, small.join('\n')).toEqual([]);
+
+    expect(measured.small, measured.small.join(BREAK)).toEqual([]);
+    expect(
+      measured.overlaps,
+      `these hit areas take each other's presses:${BREAK}${measured.overlaps.join(BREAK)}`,
+    ).toEqual([]);
     await context.close();
   });
 });
@@ -287,12 +356,15 @@ test.describe('sheets stay inside the screen and can be got rid of', () => {
   }
 
   test('every sheet closes on Escape', async ({ browser }) => {
-    // RA-016. Preferences, Export and Keyboard shortcuts each install their own
-    // Escape handler; the Diagnostics sheet installs none, and the global
-    // Escape ladder in useKeyboard.ts only knows about `dialog` and
-    // `contextMenu`, so `diagnosticsOpen` is not in the list of overlays a
-    // press closes.
-    test.fail();
+    // RA-016, closed by Directive 09 §3. Preferences, Export and Keyboard
+    // shortcuts each installed their own Escape handler and the Diagnostics
+    // sheet installed none — the odd one out among four siblings, and the odd
+    // one out is always the one written last. It now installs the same handler,
+    // in the capture phase so the sheet closes before the arrangement behind it
+    // reads the key and clears a selection the user cannot see.
+    //
+    // The annotation is gone rather than the test: it is the guard against the
+    // fifth sheet arriving without one.
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
     await boot(page);

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useViewport } from '../../hooks/useViewport';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import { Arrangement } from '../arrangement/Arrangement';
@@ -30,6 +31,65 @@ const COMBOS: { id: Combo; label: string }[] = [
  * switch while full screen); maximizing the arrangement hides the bottom
  * panel. The split restores exactly when full screen exits.
  */
+/**
+ * A tablet drawer: the browser on the left, the inspector on the right.
+ *
+ * It had a scrim and a click-outside and nothing else — no `role="dialog"`, no
+ * `aria-modal`, no focus trap and **no Escape**. It covers the workspace and
+ * takes the pointer, so it is a modal in every way that matters to the person
+ * using it; a keyboard user could tab straight through it into an arrangement
+ * they could not see, and had no key that would close it. On a tablet that is
+ * a pane that will not go away, which is exactly how it was reported.
+ */
+function Drawer({
+  side,
+  onClose,
+  children,
+}: {
+  side: 'browser' | 'inspector';
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  useFocusTrap(ref, true);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // Captured, so the drawer closes before anything behind it reads the key
+      // — Escape in the arrangement clears a selection the user cannot see.
+      e.stopPropagation();
+      e.preventDefault();
+      onClose();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+
+  const title = side === 'browser' ? 'Browser' : 'Inspector';
+  return (
+    <>
+      <div className="drawer-overlay" onClick={onClose} />
+      <aside
+        ref={ref}
+        className={`drawer side-panel ${side === 'browser' ? 'left' : 'right'}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        data-testid={`drawer-${side}`}
+      >
+        <div className="panel-title">
+          {title}
+          <span className="spacer" style={{ flex: '1 1 auto' }} />
+          <button className="icon-btn" onClick={onClose} aria-label="Close panel">
+            <Icon name="x" size={15} />
+          </button>
+        </div>
+        {children}
+      </aside>
+    </>
+  );
+}
+
 export function TabletLayout() {
   const [combo, setCombo] = useState<Combo>('mixer');
   const [drawer, setDrawer] = useState<null | 'browser' | 'inspector'>(null);
@@ -40,7 +100,11 @@ export function TabletLayout() {
   const maxi = maximized === 'arrange' || maximized === 'editor' ? maximized : null;
   // On short tablet landscape the bottom panel starts smaller so the
   // arrangement keeps a usable number of visible lanes.
-  const defaultBottom = height < 820 ? 32 : 40;
+  // A stored size wins over the height heuristic: the heuristic is a starting
+  // guess, and a user who has moved the divider has already answered it.
+  const setSizes = useWorkspaceStore((s) => s.setSizes);
+  const storedBottom = useWorkspaceStore((s) => s.tabletBottomSize);
+  const defaultBottom = storedBottom > 0 ? storedBottom : height < 820 ? 32 : 40;
 
   const editor = (
     <div className="editor-panel" data-testid="bottom-editor">
@@ -108,6 +172,11 @@ export function TabletLayout() {
               minSize="140px"
               maxSize="62%"
               className="pane"
+              // Persisted, as the desktop panes are. Without this the tablet
+              // was the one layout where dragging a divider was forgotten on
+              // every reload — the divider moved, and the next launch put it
+              // back where it started.
+              onResize={(size) => setSizes({ tabletBottomSize: size.asPercentage })}
             >
               {editor}
             </Panel>
@@ -115,23 +184,9 @@ export function TabletLayout() {
         )}
 
         {drawer && (
-          <>
-            <div className="drawer-overlay" onClick={() => setDrawer(null)} />
-            <aside className={`drawer side-panel ${drawer === 'browser' ? 'left' : 'right'}`}>
-              <div className="panel-title">
-                {drawer === 'browser' ? 'Browser' : 'Inspector'}
-                <span className="spacer" style={{ flex: '1 1 auto' }} />
-                <button
-                  className="icon-btn"
-                  onClick={() => setDrawer(null)}
-                  aria-label="Close panel"
-                >
-                  <Icon name="x" size={15} />
-                </button>
-              </div>
-              {drawer === 'browser' ? <BrowserPanel /> : <Inspector />}
-            </aside>
-          </>
+          <Drawer side={drawer} onClose={() => setDrawer(null)}>
+            {drawer === 'browser' ? <BrowserPanel /> : <Inspector />}
+          </Drawer>
         )}
       </div>
     </>
