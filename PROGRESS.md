@@ -3,8 +3,8 @@
 ```
 RESUME: Directive 10 — Emscripten, plugin windows, latency, V27.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: 1e532e4a62
-Bundle verified: YES — live index-CGx0C4q-.js matches a clean-tree build of
+Deployed commit: b2a59c1e2c
+Bundle verified: YES — live index-DsjjyENC.js matches a clean-tree build of
                  that commit, byte for byte.
 Current section: §0, §2, §3.1, §5 and §1's V27 COMPLETE.
 Next action:     E3 reported. Then Directive 09 §4.1 - V27 for the remaining
@@ -271,6 +271,7 @@ run so drift is visible; a regression against the previous row is a P1.
 | Commit       | p90 @100 / @200 tk | Ceiling          | Transport fuzz            | Stuck-note fuzz     | Sustained run       | Retained heap | Tab switch | Undo/redo | Backgrounding |
 | ------------ | ------------------ | ---------------- | ------------------------- | ------------------- | ------------------- | ------------- | ---------- | --------- | ------------- |
 | `1e532e4a62` | 17.7 / 18.3 ms     | >408 tk /1200 fx | 196 ops, quiet in 1425 ms | 3240 notes, 0 stuck | 28.9 ms, drift −0.1 | +5 KB         | 97.5 ms    | 60/60 ok  | ok            |
+| `b2a59c1e2c` | 17.4 / 17.8 ms     | >408 tk /1200 fx | 203 ops, quiet in 1369 ms | 3408 notes, 0 stuck | 27.9 ms, drift −0.2 | −404 KB       | 84.3 ms    | 60/60 ok  | ok            |
 
 Read the first column and not the second. The ceiling is a threshold crossing,
 and a threshold crossing read off a noisy signal is bimodal — three runs of the
