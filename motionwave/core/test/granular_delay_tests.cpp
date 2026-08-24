@@ -491,7 +491,7 @@ MW_TEST("V4: the loop is bounded at every feedback, topology and cross setting")
           const double v = static_cast<double>(tail.left[i]);
           sum += v * v;
         }
-        return std::sqrt(sum / count);
+        return std::sqrt(sum / static_cast<double>(count));
       };
       const std::size_t second = static_cast<std::size_t>(kRate);
       const double early = rmsOver(0, second);
