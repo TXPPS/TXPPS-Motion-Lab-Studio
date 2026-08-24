@@ -4,11 +4,12 @@
 RESUME: Directive 08
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
 Deployed commit: 6cb507e — cell 25 green for all seven, faces mounted.
-Current unit:    fx-03 Granular Delay — cloud wired, V1/V2/V5/V6/V13/V14 measuring.
+Current unit:    fx-03 Granular Delay — V1,V2,V3,V4,V5,V6,V13,V14,V16 measuring.
 Last PASS:       X25 for all seven, backed by e2e/motionwave.spec.ts.
-Next action:     fx-03's remaining §9 rows — V3 is done, next are V7 (click on
-                 time change), V8/V10 (tape pitch and wow), V11/V12 (BBD), V15,
-                 V16 — then its manifest, D1, face and cell 25.
+Next action:     fx-03 §6 — the tape and BBD character block, which V8, V9, V10,
+                 V11 and V12 all need and none of which exists yet. Then V7
+                 (needs §5's delay-time smoothing), V15, then the manifest, D1,
+                 face and cell 25.
 Shared libraries built: decay_harness.h, tank.h (built, measured, NOT adopted —
                  see the V7 note), delay_routing/sync/smear/feedback/line,
                  nonlinear library, grain engine with a stereo source.
