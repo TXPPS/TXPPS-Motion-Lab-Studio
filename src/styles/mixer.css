@@ -1902,6 +1902,28 @@
     height: auto;
     min-height: 48px;
   }
+
+  /* The only way to add a device, at 15 px tall.
+
+     Measured on a phone: 94 x 15, against the 44 px this block exists to
+     enforce everywhere else. It is the *entry point* — nothing can be inserted
+     without hitting it — so of every control in the console this is the one
+     that could least afford to be the smallest. The rack grows to hold it,
+     rather than the button overflowing a row sized for 15 px. */
+  .dev-add {
+    min-height: 44px;
+    height: auto;
+    padding: 0 8px;
+  }
+  .dev-rack {
+    max-height: none;
+  }
+  /* The per-device options button beside it, for the same reason: a device you
+     cannot open is a device you cannot bypass, rename or remove. */
+  .dev-menu {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 .pw-close:hover {
   color: var(--text);

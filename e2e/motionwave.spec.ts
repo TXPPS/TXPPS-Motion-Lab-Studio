@@ -433,3 +433,46 @@ test.describe('Cell 25 — Motion Wave units in the host', () => {
  * machine cannot settle is whether a thumb reaches the picker, and that is in
  * `docs/MANUAL_QA_UNITS.md` for a hand to answer.
  */
+
+/**
+ * The console's own touch targets, on a phone.
+ *
+ * Not about the Motion Wave units, and here because measuring them is what
+ * found this: `.dev-add` was 94 x 15 px — the *only* way to add a device, and
+ * of every control in the console the one that could least afford to be the
+ * smallest. `.dev-menu` beside it was the same, and a device you cannot open is
+ * one you cannot bypass, rename or remove.
+ *
+ * Kept as a row rather than a one-off measurement because the rule it enforces
+ * is a rule: 44 px is the touch minimum this project holds itself to, and a
+ * control that drifts back under it should fail here rather than on a phone.
+ */
+test.describe('the console is reachable by thumb', () => {
+  test.use({ hasTouch: true, isMobile: true });
+
+  test('every way in to a device meets the 44 px minimum', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await boot(page);
+    await page.getByTestId('nav-mix').tap();
+    await page.waitForTimeout(700);
+
+    const TOUCH_MIN = 44;
+    for (const selector of ['.dev-add', '.dev-menu']) {
+      const el = page.locator(selector).first();
+      if (!(await el.count())) continue;
+      const box = await el.boundingBox();
+      console.log(
+        `cell 25 · touch target · ${selector.padEnd(10)} ${Math.round(box!.width)}x${Math.round(box!.height)}px`,
+      );
+      expect(box!.height, `${selector} is under the touch minimum`).toBeGreaterThanOrEqual(
+        TOUCH_MIN,
+      );
+    }
+
+    // And growing them must not have pushed the console sideways.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow, `the console overflows by ${overflow}px`).toBeLessThanOrEqual(1);
+  });
+});
