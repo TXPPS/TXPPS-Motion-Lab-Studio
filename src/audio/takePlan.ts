@@ -7,7 +7,7 @@
  * what window — and answering them in pure functions is what lets them be
  * tested without a microphone.
  */
-import { tempoMapOf } from '../model/music';
+import { projectBeatRangeSec, projectBeatsForSeconds, tempoMapOf } from '../model/music';
 import { beatsPerBarAt } from '../model/tempo';
 import type { ProjectData, Track } from '../model/types';
 import { useProjectStore } from '../state/projectStore';
@@ -86,4 +86,75 @@ export function captureWindow(
           ? { startBeat, endBeat: Number.POSITIVE_INFINITY }
           : null,
   };
+}
+
+/**
+ * How far into a take the recorded audio for a given moment actually sits.
+ *
+ * A take arrives late by the whole round trip. The player hears the click
+ * through the output buffer and the device — `baseLatency + outputLatency` —
+ * plays in response, and their sound then goes back through the interface and
+ * the capture path before it reaches `MediaRecorder`. So the sample that belongs
+ * at the punch point is not the first sample of the take; it is the one this
+ * many seconds in.
+ *
+ * The output half is measurable and the input half is not: no browser exposes an
+ * input latency at all. `offsetMs` is where a user puts what their interface
+ * costs, and it is additive on top of the measured figure rather than replacing
+ * it — drivers under-report, and a number the platform *did* give is still worth
+ * having.
+ *
+ * Negative is allowed. An interface with direct monitoring can have the player
+ * hearing themselves with no output latency at all, in which case the measured
+ * output figure is an over-correction and the offset has to take it back off.
+ */
+export function recordLatencySec(
+  measured: { base: number; output: number } | null,
+  offsetMs: number,
+): number {
+  const platform = measured ? measured.base + measured.output : 0;
+  // Clamped at zero rather than allowed to go negative: a take cannot start
+  // before it was recorded, and a wrong offset should mis-align the audio by the
+  // amount the user typed, not send the clip reading off the front of the file.
+  return Math.max(0, platform + offsetMs / 1000);
+}
+
+/**
+ * Where a finished take's clip goes, and how far into the media it starts.
+ *
+ * Pure, because this is the arithmetic that decides whether a take lands on the
+ * grid, and it should be checkable without a microphone, a decoder or a browser.
+ * `commitTake` does the decoding and the storage; this decides the placement.
+ */
+export function takePlacement(opts: {
+  project: ProjectData;
+  /** Timeline beat where capture began. */
+  startBeat: number;
+  /** The window the clip should cover, when the take was punched or rolled in. */
+  punchWindow?: { startBeat: number; endBeat: number };
+  /** Length of the decoded audio. */
+  durationSec: number;
+  /** Round trip, from `recordLatencySec`. */
+  latencySec: number;
+}): { clipStart: number; offsetSec: number; lengthBeats: number } {
+  const { project, startBeat, punchWindow, durationSec, latencySec } = opts;
+
+  // Never skip past the end of what was captured. A take shorter than the round
+  // trip has nothing in it that belongs on the timeline, and reading past the
+  // buffer would be a clip of silence rather than an empty one.
+  const head = Math.min(latencySec, Math.max(0, durationSec - 0.001));
+
+  const clipStart = Math.max(startBeat, punchWindow?.startBeat ?? startBeat);
+  const punchOffset =
+    clipStart > startBeat ? projectBeatRangeSec(project, startBeat, clipStart - startBeat) : 0;
+  const offsetSec = punchOffset + head;
+
+  // The musical length of what is left, measured from where the clip starts —
+  // a take crossing a tempo change is not `seconds x one bpm` beats long.
+  const usableSec = Math.max(0, durationSec - offsetSec);
+  const available = projectBeatsForSeconds(project, clipStart, usableSec);
+  const wanted = punchWindow ? punchWindow.endBeat - clipStart : available;
+  const lengthBeats = Math.max(0.25, Math.min(available, wanted));
+
+  return { clipStart, offsetSec, lengthBeats };
 }

@@ -82,6 +82,17 @@ export interface Prefs {
    * be a lie about what the platform does.
    */
   latencyHint: 'interactive' | 'balanced' | 'playback';
+  /**
+   * Extra record offset in milliseconds, on top of the measured round trip.
+   *
+   * A take arrives late by the whole loop, and only half of that loop is
+   * visible: `baseLatency` and `outputLatency` cover the way out, and no
+   * browser exposes an input latency at all. This is where an interface's own
+   * figure goes. Positive moves the take earlier — the usual direction, because
+   * drivers under-report — and negative takes correction back off, which is
+   * what an interface doing its own direct monitoring needs.
+   */
+  recordOffsetMs: number;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -99,6 +110,7 @@ export const DEFAULT_PREFS: Prefs = {
   outputDeviceId: '',
   sampleRate: 0,
   latencyHint: 'interactive',
+  recordOffsetMs: 0,
 };
 
 const KEY = 'motionlab.prefs.v1';
@@ -127,6 +139,12 @@ function readStored(): Prefs {
       )
         ? (parsed.latencyHint as Prefs['latencyHint'])
         : 'interactive',
+      // Bounded either way. A stored offset large enough to skip past the end of
+      // every take is a setting that silently records nothing.
+      recordOffsetMs:
+        typeof parsed.recordOffsetMs === 'number' && Number.isFinite(parsed.recordOffsetMs)
+          ? Math.min(250, Math.max(-250, Math.round(parsed.recordOffsetMs)))
+          : 0,
       theme: (['system', 'dark', 'light', 'contrast'] as const).includes(
         parsed.theme as ThemeChoice,
       )

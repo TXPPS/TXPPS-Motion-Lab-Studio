@@ -29,8 +29,10 @@ import {
   captureWindow,
   getCountInBars,
   midiRecordTargetTrack,
+  recordLatencySec,
   recordTargetTrack,
 } from './takePlan';
+import { usePrefsStore } from '../state/prefsStore';
 
 class RecordingController {
   private recorder = new TakeRecorder();
@@ -481,7 +483,17 @@ class RecordingController {
     pending: Promise<FinishedTake | null>,
     meta: TakeMeta,
   ): Promise<void> {
-    const outcome = await commitOrRecover(pending, meta, engine.context, () => this.cleanupInput());
+    // Measured here, at the moment the take ends, rather than carried from when
+    // it started: the engine may have been restarted mid-session and the figure
+    // that matters is the one the audio actually came through.
+    const latencySec = recordLatencySec(engine.latency(), usePrefsStore.getState().recordOffsetMs);
+    const outcome = await commitOrRecover(
+      pending,
+      meta,
+      engine.context,
+      () => this.cleanupInput(),
+      latencySec,
+    );
     const store = useInputStore.getState();
     switch (outcome.kind) {
       case 'empty':

@@ -8,12 +8,9 @@ Bundle verified: YES — live index-Cb2qn4Aa.js matches a clean-tree build of
                  that commit, byte for byte. This is the first deploy where
                  that comparison proved anything: builds only became
                  reproducible one commit earlier.
-Current section: §0 and §2 COMPLETE. App-side contrast guard COMPLETE.
-Next action:     §3.1 — record latency compensation. Read `baseLatency` and
-                 `outputLatency`, add a user offset in preferences, shift the
-                 take on commit, and verify by loopback: record a click through
-                 the interface and assert the transient lands on the grid
-                 within one sample.
+Current section: §0, §2 and §3.1 COMPLETE. App-side contrast guard COMPLETE.
+Next action:     The stress harness (Directive 10 §5), then the WASM backlog
+                 and Program EQ's V27.
 Open deviations: F11 is left to the browser's fullscreen — the one place the
                  reference's panel map is not matched.
                  §2.5's monitoring modes and latency compensation are
@@ -137,6 +134,40 @@ all green, nothing checked.
 Mutation-tested both ways. Planting the old `#67c290` fails
 `--accent on --bg-active` by name; dimming `--text-dim` one shade in the light
 palette fails two label pairs by name.
+
+## Directive 10 §3.1 — takes land on the grid
+
+Directive 09 §2.5 closed two problems as one and got half of it wrong.
+Monitoring latency is irreducible — delay can only be added — and that half
+stands. Take _alignment_ is a different problem with an exact answer, and it was
+not being done: every take sat one round trip behind the beat, so a musician who
+played correctly was told they had not.
+
+The shift is not a move of the clip. The take's first samples are the audio from
+_before_ the punch point, so the clip stays where the user punched in and starts
+that far into the media. Moving the clip instead would drag the punch point
+around, which is a different and worse thing to do to somebody's arrangement.
+
+`recordLatencySec` adds `baseLatency + outputLatency` to a user offset in
+preferences. Only the way out is measurable: **no browser exposes an input
+latency at all**, so the way back in is the offset, and it is additive rather
+than a replacement because a number the platform did give is still worth having.
+Negative is allowed — an interface doing its own direct monitoring costs the
+player no output latency, so the measured figure over-corrects.
+
+`takePlacement` is pure, so where a take lands is checkable without a
+microphone, a decoder or a browser. Eleven cases in `tests/recordLatency.test.ts`
+including the one the feature exists for — a transient played on the beat, at a
+30 ms round trip, resolving to the beat within 1e-9. Mutation-tested: removing
+the shift fails five cases by name, and failing to shorten the clip by what it
+skipped fails two.
+
+**What is not verified here, and says so:** whether the number is right on a
+given interface. That is a claim about hardware and it needs a cable —
+`docs/HARDWARE_VERIFICATION.md` carries the loopback procedure, including the
+direct-monitoring case where the offset should come out negative. The
+compensation is PASS on its arithmetic and BLOCKED on its calibration; those are
+different claims and the second is not implied by the first.
 
 ## Stress-test log
 

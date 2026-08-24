@@ -113,7 +113,7 @@ row is actually about.
 flutter on transients** — a fast, grainy stutter on the attack of a snare or a
 close-miked acoustic guitar, most obvious on dry percussive material and almost
 inaudible on sustained pads. That is a judgement about audibility, and 0.9 at
-80 ms is the literature's threshold rather than a measurement of *our* tail; a
+80 ms is the literature's threshold rather than a measurement of _our_ tail; a
 reverb can be at 70 ms and still flutter on the wrong source, or at 95 ms and be
 clean on every source anyone plays through it.
 
@@ -159,6 +159,24 @@ on its own), so what is left is exactly the part the ear decides.
 | Thermal and battery       | No instrumentation of any kind                                                                                                                                                                                                               | Sustained 30-minute render at Max tier, log thermal state and drain                |
 
 ---
+
+## Record latency compensation — the acoustic loopback
+
+Directive 10 §3.1. The take-alignment arithmetic is verified without hardware in
+`tests/recordLatency.test.ts`, and the shift is applied in `commitTake`. What
+those cannot settle is whether the _number_ is right on a given interface: the
+browser exposes `baseLatency` and `outputLatency` for the way out and nothing at
+all for the way back in, so the input half is a user offset and its correctness
+is a claim about somebody's hardware.
+
+| What                                  | Why it cannot run here                                          | Procedure                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Round-trip alignment on real hardware | No audio device, and no way to route an output back to an input | Patch the interface's output to its input with a short cable. Arm a track, set the metronome to a bar of quarters, record eight bars, commit. Measure the first sample above −40 dBFS in each recorded click and compare it to the grid position of the click that produced it. **Accept within one sample at the session rate.** Where it is not, raise `recordOffsetMs` by the measured error and repeat — the residual after one correction is the number that matters, because a constant error is exactly what the offset exists to absorb |
+| Direct-monitoring interfaces          | Same                                                            | Repeat with the interface's own direct monitoring engaged. The player hears themselves with no output latency, so the measured `outputLatency` is an over-correction and the offset should end up **negative**. Confirm the residual is still within one sample                                                                                                                                                                                                                                                                                 |
+
+Until that runs, the compensation is `PASS` on its arithmetic and `BLOCKED (no
+audio device, no loopback path)` on its calibration. Those are different claims
+and the second one is not implied by the first.
 
 ## Substitutions in force
 

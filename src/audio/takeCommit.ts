@@ -59,6 +59,7 @@ export async function commitOrRecover(
   meta: TakeMeta,
   ctx: BaseAudioContext | null,
   onFlushed: () => void,
+  latencySec = 0,
 ): Promise<TakeOutcome> {
   const take = await pending;
   onFlushed();
@@ -83,7 +84,15 @@ export async function commitOrRecover(
   }
 
   try {
-    const result = await commitTake({ take, trackId, trackName, startBeat, window, ctx });
+    const result = await commitTake({
+      take,
+      trackId,
+      trackName,
+      startBeat,
+      window,
+      ctx,
+      latencySec,
+    });
     if (!result) {
       await stashRecovery(take.blob, take.mimeType, recoveryMeta);
       return {

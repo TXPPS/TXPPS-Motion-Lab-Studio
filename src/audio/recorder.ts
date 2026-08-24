@@ -16,6 +16,7 @@
  * resulting clip lands where the user expects regardless of encoder latency.
  */
 import { projectBeatRangeSec, projectBeatsForSeconds } from '../model/music';
+import { takePlacement } from './takePlan';
 import { newId } from '../model/ids';
 import { PEAKS_VERSION, type MediaRef } from '../model/media';
 import { diagLog } from '../state/diagnostics';
@@ -181,6 +182,12 @@ export interface CommitOptions {
    */
   window?: { startBeat: number; endBeat: number };
   ctx: BaseAudioContext;
+  /**
+   * Round trip to compensate, in seconds. Passed in rather than read here so
+   * this module stays free of the engine and the preference store, and so a
+   * test can state the latency instead of simulating a device.
+   */
+  latencySec?: number;
   /** recovery record to clear once the take is safely committed */
   recoveryId?: string;
 }
@@ -238,17 +245,23 @@ export async function commitTake(opts: CommitOptions): Promise<CommitResult | nu
   cacheBuffer(mediaId, buffer, peaks);
 
   const store = useProjectStore.getState();
-  // Musical length of the take depends on where it lands: a take recorded
-  // across a tempo change is not `seconds x one bpm` beats long.
-  const takeBeats = projectBeatsForSeconds(store.project, startBeat, buffer.duration);
-  const clipStart = Math.max(startBeat, punchWindow?.startBeat ?? startBeat);
-  const offsetSec =
-    clipStart > startBeat
-      ? projectBeatRangeSec(store.project, startBeat, clipStart - startBeat)
-      : 0;
-  const available = startBeat + takeBeats - clipStart;
-  const wanted = punchWindow ? punchWindow.endBeat - clipStart : available;
-  const lengthBeats = Math.max(0.25, Math.min(available, wanted));
+  // Where the clip goes and how far into the media it starts, including the
+  // round-trip shift. A take arrives late by the whole loop, so the sample
+  // belonging at the punch point is not the first one.
+  const latencySec = opts.latencySec ?? 0;
+  const { clipStart, offsetSec, lengthBeats } = takePlacement({
+    project: store.project,
+    startBeat,
+    punchWindow,
+    durationSec: buffer.duration,
+    latencySec,
+  });
+  if (latencySec > 0) {
+    diagLog(
+      'info',
+      `Take aligned ${(latencySec * 1000).toFixed(1)} ms earlier for the record round trip`,
+    );
+  }
 
   const clipId = store.addRecordedClip({
     trackId,

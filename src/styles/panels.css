@@ -911,3 +911,16 @@ button.li-main {
 .grv-panel .insp-row .seg {
   flex: 1 1 auto;
 }
+
+/* A slider with its reading beside it, in a preferences row. The number has to
+   sit on the same line as the control it belongs to: read underneath, it is a
+   second readout rather than this one's value. */
+.set-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.set-inline input[type='range'] {
+  flex: 1 1 auto;
+  min-width: 90px;
+}

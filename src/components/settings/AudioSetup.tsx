@@ -14,6 +14,7 @@
 import { useEffect, useState } from 'react';
 import { engine } from '../../audio/engine';
 import { audioInput } from '../../audio/inputManager';
+import { recordLatencySec } from '../../audio/takePlan';
 import { midi } from '../../audio/midi';
 import { useInputStore, permissionLabel } from '../../state/inputStore';
 import { usePrefsStore, RATES } from '../../state/prefsStore';
@@ -177,6 +178,36 @@ export function AudioSetup() {
           </span>
         </Row>
       )}
+
+      <Row
+        label="Record offset"
+        hint="Added to the measured round trip. Raise it if takes land late"
+      >
+        <span className="set-inline">
+          <input
+            type="range"
+            min={-50}
+            max={100}
+            step={1}
+            value={prefs.recordOffsetMs}
+            aria-label="Record offset in milliseconds"
+            data-testid="pref-record-offset"
+            onChange={(e) => set({ recordOffsetMs: Number(e.target.value) })}
+          />
+          <span className="t-num">
+            {prefs.recordOffsetMs > 0 ? '+' : ''}
+            {prefs.recordOffsetMs} ms
+          </span>
+        </span>
+      </Row>
+
+      <Row label="Takes are shifted by" hint="What the measured path and your offset come to">
+        <span className="t-num" data-testid="record-shift">
+          {latency
+            ? `${(recordLatencySec(latency, prefs.recordOffsetMs) * 1000).toFixed(1)} ms`
+            : 'engine not started'}
+        </span>
+      </Row>
 
       <Row
         label="Engine"
