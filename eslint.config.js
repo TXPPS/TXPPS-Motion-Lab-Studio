@@ -20,10 +20,17 @@ export default tseslint.config(
       // written for several environments at once, so it references `process`
       // and `URL` unguarded by design.
       'motionwave/wasm/dist/**',
-      // Built by `npm run build:panel`, and the worklet copy `build.sh` drops
-      // beside it. Both are outputs, not sources.
+      // Built by `npm run build:panel`, and the copies
+      // `scripts/sync-motionwave-assets.mjs` drops beside it. All outputs.
+      //
+      // The processor is linted at its *source*, `motionwave/ui/worklet/`, and
+      // ignored at its two copies — a real mistake on the audio thread is worth
+      // catching, and catching it three times in three identical files is not.
       'motionwave/ui/dev/dist/**',
       'motionwave/ui/dev/public/motionwave.worklet.js',
+      'motionwave/ui/dev/public/unit_worklet.js',
+      'public/worklets/motionwave.worklet.js',
+      'public/worklets/unit_worklet.js',
     ],
   },
   js.configs.recommended,
@@ -54,7 +61,7 @@ export default tseslint.config(
     // window nor a worker: it has no DOM, no timers and no fetch, and its own
     // globals are the two below. Linted rather than ignored, because a real
     // mistake in a processor is a mistake on the audio thread.
-    files: ['public/worklets/*.js', 'motionwave/ui/dev/public/shaper_worklet.js'],
+    files: ['public/worklets/*.js', 'motionwave/ui/worklet/*.js'],
     languageOptions: {
       globals: {
         AudioWorkletProcessor: 'readonly',

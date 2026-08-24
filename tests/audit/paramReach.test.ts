@@ -21,8 +21,35 @@ import type { ParamSpec } from '../../src/model/effects';
 import { buildEffectNode } from '../../src/audio/effectChain';
 import type { Effect, EffectKind } from '../../src/model/types';
 import { createProbeContext } from './probeContext';
+import { isMotionWaveKind } from '../../src/audio/motionwave/registry';
 
 const BPM = 120;
+
+/**
+ * Why the Motion Wave units are not probed here, and where they are instead.
+ *
+ * This probe watches a Web Audio graph: it builds a node in a fake context and
+ * records which `AudioParam` writes and buffer replacements a control produces.
+ * A Motion Wave unit has none of those. Its parameters cross into WebAssembly
+ * through a `MessagePort`, and its processing happens on an audio thread this
+ * probe does not have — the fake context has no `AudioWorklet` at all, so the
+ * adapter correctly builds a pass-through and every control correctly reaches
+ * nothing.
+ *
+ * Skipping them here would be exactly the grandfathering Directive 07 §6
+ * forbids, so it is worth being precise about what covers them instead. The
+ * question this probe asks — does every declared control reach the audio — is
+ * asked of each unit by its own D1 cell, natively, against the real DSP:
+ * `motionwave/core/test/*_delta_tests.cpp` sweeps every parameter of every unit
+ * from the same generated table this file would read and requires a measurable
+ * difference in the render. That is a stronger test than this one, because it
+ * measures rendered audio rather than graph writes.
+ *
+ * What neither covers is whether the *host* reaches the unit, and that is
+ * precisely what Ledger cell 25 is for. It cannot be answered in jsdom by
+ * anything, because it is a question about a browser with an audio device.
+ */
+const MOTIONWAVE_COVERED_BY = 'D1 natively per unit, and Ledger cell 25 in the real app';
 
 function effectOf(kind: EffectKind, overrides: Record<string, number> = {}): Effect {
   return {
@@ -139,7 +166,12 @@ describe('PA · every declared control reaches the graph', () => {
 
   it('moves something in the audio graph for every parameter of every kind', () => {
     const inert: string[] = [];
+    let skipped = 0;
     for (const spec of EFFECT_SPECS) {
+      if (isMotionWaveKind(spec.kind)) {
+        skipped += spec.params.length;
+        continue;
+      }
       for (const p of spec.params) {
         const id = `${spec.kind}:${p.key}`;
         let r = probeParameter(spec.kind, p);
@@ -150,7 +182,13 @@ describe('PA · every declared control reaches the graph', () => {
     }
     // Printed rather than only asserted: the audit needs the list, not a pass.
     if (inert.length > 0) console.log('INERT CONTROLS:', inert.join(', '));
+    console.log(
+      `NOT PROBED HERE: ${skipped} Motion Wave parameter(s) — covered by ${MOTIONWAVE_COVERED_BY}.`,
+    );
     expect(inert).toEqual([]);
+    // And the skip is not silent: if the units ever stop being registered, this
+    // count goes to zero and the reason above stops being true of anything.
+    expect(skipped).toBeGreaterThan(0);
   });
 
   it('reports which controls step the graph instead of ramping it', () => {
@@ -167,6 +205,10 @@ describe('PA · bypass is written as a ramp, never as a jump', () => {
   it('writes no outright assignment when an insert is switched in or out', () => {
     const faults: string[] = [];
     for (const spec of EFFECT_SPECS) {
+      // See the note at the top: a Motion Wave unit writes no `AudioParam`, so
+      // there is nothing here for this probe to classify. Its bypass is graded
+      // by D4 natively, which nulls it against the dry signal at −240 dBFS.
+      if (isMotionWaveKind(spec.kind)) continue;
       const probe = createProbeContext();
       const on = effectOf(spec.kind);
       const node = buildEffectNode(probe.ctx, on);

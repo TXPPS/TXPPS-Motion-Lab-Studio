@@ -403,6 +403,31 @@ export interface Send {
  * an unknown kind loaded from an older or newer project degrades to a bypassed
  * slot instead of breaking the channel.
  */
+/**
+ * Motion Wave units, rendered by the shared C++ core through WebAssembly rather
+ * than by Web Audio nodes (ADR-0007).
+ *
+ * Prefixed so a Motion Wave insert is distinguishable from the twenty-seven Web
+ * Audio devices in a project file as well as in the picker: a person reading a
+ * `.json` should be able to tell which engine rendered a track.
+ *
+ * **Named as its own union so the host can branch on the group once**, rather
+ * than gaining a case per unit in every exhaustive switch over `EffectKind`.
+ * ADR-0007's boundary forbids unit-specific special-casing inside `src/`, and
+ * fourteen new cases in each of several switches is exactly how that rule gets
+ * broken without anyone deciding to break it. Everything else about a unit —
+ * its parameters, ranges, tapers, face and declared latency — is read from its
+ * own generated declaration; these names are the one thing a union must spell.
+ */
+export type MotionWaveKind =
+  | 'mw-motion-shaper'
+  | 'mw-program-eq'
+  | 'mw-optical-leveller'
+  | 'mw-fet-limiter'
+  | 'mw-variable-mu'
+  | 'mw-console-eq'
+  | 'mw-granular-reverb';
+
 export type EffectKind =
   // dynamics
   | 'trim'
@@ -436,6 +461,7 @@ export type EffectKind =
   | 'analyser'
   | 'tuner'
   | 'vocaltune'
+  | MotionWaveKind
   // third-party: a Web Audio Modules 2.0 plugin. Unlike every other kind this
   // one has no built-in DSP and no static parameter spec — see `Effect.plugin`.
   | 'wam';
@@ -506,6 +532,22 @@ export interface Effect {
   params: Record<string, number>;
   /** Present only on `kind: 'wam'`. */
   plugin?: PluginRef;
+  /**
+   * Drawn shapes, for a unit whose state is not all scalars.
+   *
+   * The Motion Shaper's modulation is a curve per band, and a curve has no
+   * range, no taper and no single value — so it cannot be a parameter, and
+   * `params` cannot hold it. It is still state the project has to keep: a
+   * session saved without it reloads as a wire, having lost the only thing the
+   * device was doing.
+   *
+   * Indexed by shape number, each a list of breakpoints as
+   * `[x, y, shape, tension]` — the same four numbers the unit's own curve
+   * editor and its WASM bridge already speak. Which units have them, and how
+   * many, is the *unit's* declaration (`shapeCount`), not the host's knowledge:
+   * ADR-0007 forbids the host from knowing which device it is looking at.
+   */
+  shapes?: number[][][];
 }
 
 /**

@@ -92,7 +92,44 @@ function validateEffectList(raw: unknown, limit = MAX_INSERTS): Effect[] {
       const ref = validatePluginRef(e.plugin);
       if (ref) fx.plugin = ref;
     }
+    const shapes = validateShapes(e.shapes);
+    if (shapes) fx.shapes = shapes;
     out.push(fx);
+  }
+  return out;
+}
+
+/**
+ * Drawn shapes, for a unit whose state is not all scalars.
+ *
+ * A Motion Shaper's modulation is a curve per band, and a project that kept its
+ * parameters and dropped its curves would reload as a wire — the device still
+ * in the rack, still named, and doing nothing, having silently lost the only
+ * thing it was for.
+ *
+ * Validated structurally rather than against a spec, because a curve has no
+ * spec: what a host can check is that it is a list of lists of four finite
+ * numbers, which is what the unit's own editor and its WASM bridge both speak.
+ * Anything malformed is dropped whole rather than in part, since half a curve
+ * is a shape nobody drew.
+ *
+ * The bounds are the unit's own: `dsp::Curve` holds at most `kMaxBreakpoints`,
+ * and a longer list would be truncated on arrival anyway. Capping here means a
+ * hand-edited file cannot make the load path do unbounded work.
+ */
+function validateShapes(raw: unknown): number[][][] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 16) return undefined;
+  const out: number[][][] = [];
+  for (const shape of raw as unknown[]) {
+    if (!Array.isArray(shape) || shape.length > 64) return undefined;
+    const points: number[][] = [];
+    for (const point of shape as unknown[]) {
+      if (!Array.isArray(point) || point.length !== 4) return undefined;
+      const numbers = point as unknown[];
+      if (!numbers.every((n) => typeof n === 'number' && Number.isFinite(n))) return undefined;
+      points.push(numbers as number[]);
+    }
+    out.push(points);
   }
   return out;
 }

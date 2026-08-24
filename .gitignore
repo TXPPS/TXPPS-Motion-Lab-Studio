@@ -46,3 +46,12 @@ motionwave/build/
 # verified.
 motionwave/ui/dev/dist/
 motionwave/ui/dev/public/motionwave.worklet.js
+
+# Copies of the Motion Wave runtime, dropped by
+# `scripts/sync-motionwave-assets.mjs` from `motionwave/wasm/dist/` and
+# `motionwave/ui/worklet/`. The sources are tracked; these are build output, and
+# a tracked copy would be a second version of a file that must have one.
+public/worklets/motionwave.worklet.js
+public/worklets/unit_worklet.js
+motionwave/ui/dev/public/motionwave.worklet.js
+motionwave/ui/dev/public/unit_worklet.js

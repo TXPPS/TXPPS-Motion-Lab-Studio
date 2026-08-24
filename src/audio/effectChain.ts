@@ -55,6 +55,8 @@ import type { DynamicsLaw } from '../model/effects';
 import type { Effect } from '../model/types';
 import { getPluginSync, pluginToken } from './wam/pluginPool';
 import { buildWamEffectNode } from './wam/wamEffectNode';
+import { isMotionWaveKind } from './motionwave/registry';
+import { buildMotionWaveNode } from './motionwave/node';
 
 const RAMP = 0.02;
 
@@ -2442,6 +2444,14 @@ export function buildEffectNode(
   effect: Effect,
   clock?: ModulationClock,
 ): EffectNode {
+  /*
+   * The Motion Wave group is handled once, before the switch, from the unit's
+   * own declaration — ADR-0007's boundary forbids unit-specific special-casing
+   * here, and a case per unit is how that rule gets broken a branch at a time.
+   * The predicate narrows the union away, so the switch below stays exhaustive
+   * over the Web Audio kinds.
+   */
+  if (isMotionWaveKind(effect.kind)) return buildMotionWaveNode(ctx, effect);
   const at = clockOf(ctx, clock);
   switch (effect.kind) {
     case 'trim':

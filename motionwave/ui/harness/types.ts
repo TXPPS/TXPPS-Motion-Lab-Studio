@@ -151,6 +151,20 @@ export interface UnitUnderTest {
   readonly declaredLatency: DeclaredLatency;
   readonly presetMeta: PresetMeta;
   readonly meters?: readonly MeterChannel[];
+  /**
+   * Shapes this unit carries beside its parameters, if any.
+   *
+   * The Motion Shaper's modulation is a drawn curve per band, and a curve is
+   * not a `ParamSpec` — it has no range, no taper and no single value. It is
+   * still state the unit needs and a project has to persist, so a unit that has
+   * shapes says how many rather than leaving a host to know.
+   *
+   * Declared here so a host can carry them without knowing which unit it is
+   * looking at: ADR-0007's boundary forbids unit-specific special-casing in the
+   * host, and "the Motion Shaper has three curves" living in `src/` would be
+   * exactly that.
+   */
+  readonly shapeCount?: number;
   readonly factoryPresets?: readonly PresetDocument[];
   /** Absent when this host cannot run the unit's DSP at all. */
   readonly renderer?: UnitRenderer;

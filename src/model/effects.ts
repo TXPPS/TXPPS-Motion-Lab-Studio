@@ -26,7 +26,10 @@ import {
 } from '../audio/dsp/curves';
 import type { BiquadType, EqBandSpec, SaturationModel } from '../audio/dsp/curves';
 import { KEY_NAMES, SCALES } from './scales';
+import { formatReal } from '../../motionwave/ui/param/format';
+import { isMotionWaveKind, motionWaveUnitFor } from '../audio/motionwave/registry';
 import type { Effect, EffectKind } from './types';
+import { MOTIONWAVE_EFFECT_SPECS } from './motionWaveSpecs';
 import type { TuneOptions } from './vocalTune';
 
 export interface ParamSpec {
@@ -37,7 +40,38 @@ export interface ParamSpec {
   step: number;
   default: number;
   /** How the value reads to a musician. */
-  unit?: 'dB' | 'Hz' | 'ms' | '%' | 'x' | ':1' | 's' | 'Q' | 'bit' | 'stages' | 'div' | '°' | 'st';
+  unit?:
+    | 'dB'
+    | 'Hz'
+    | 'ms'
+    | '%'
+    | 'x'
+    | ':1'
+    | 's'
+    | 'Q'
+    | 'bit'
+    | 'stages'
+    | 'div'
+    | '°'
+    | 'st'
+    | 'cents'
+    /**
+     * A numbered dial position, printed bare.
+     *
+     * Several Motion Wave controls are the numbered dials the hardware has —
+     * the FET Limiter's attack and release run 1 to 7, the Variable-Mu's
+     * thresholds 0 to 10 — and the number *is* the reading; there is no
+     * physical quantity behind it. Motion Wave's own enum calls this `Linear`
+     * and documents it as "a bare number".
+     *
+     * It exists as a named unit rather than as an absent one so the catalogue
+     * guard keeps its teeth: that guard requires every parameter to declare a
+     * unit or a set of choices, precisely so a parameter cannot reach a panel
+     * as an unexplained number by omission. Declaring "bare, deliberately" is a
+     * different statement from saying nothing, and only one of them is
+     * checkable.
+     */
+    | 'dial';
   /** Skew the slider so useful ranges are not crammed at one end. */
   curve?: 'linear' | 'log';
   /** Discrete settings: the value is an index into this list. */
@@ -54,7 +88,24 @@ export interface ParamSpec {
 }
 
 /** Picker categories, in the order the picker should show them. */
-export type EffectGroup = 'dynamics' | 'tone' | 'modulation' | 'time' | 'stereo' | 'utility';
+export type EffectGroup =
+  | 'dynamics'
+  | 'tone'
+  | 'modulation'
+  | 'time'
+  | 'stereo'
+  | 'utility'
+  /**
+   * The Motion Wave units, in a group of their own.
+   *
+   * Directive 07 §2.5 asks for them to be distinguishable from the twenty-seven
+   * Web Audio devices, and a separate group is the honest way to do it: they
+   * are a different engine with different latency characteristics and a
+   * different editor, and filing a WASM unit under "Dynamics" beside a
+   * `DynamicsCompressorNode` would tell a user they are alternatives of the
+   * same kind.
+   */
+  | 'motionwave';
 
 export const EFFECT_GROUPS: readonly EffectGroup[] = [
   'dynamics',
@@ -63,6 +114,7 @@ export const EFFECT_GROUPS: readonly EffectGroup[] = [
   'time',
   'stereo',
   'utility',
+  'motionwave',
 ];
 
 export const EFFECT_GROUP_LABELS: Record<EffectGroup, string> = {
@@ -72,6 +124,7 @@ export const EFFECT_GROUP_LABELS: Record<EffectGroup, string> = {
   time: 'Time',
   stereo: 'Stereo',
   utility: 'Utility',
+  motionwave: 'Motion Wave',
 };
 
 export interface EffectSpec {
@@ -773,6 +826,16 @@ export const EFFECT_SPECS: EffectSpec[] = [
       choice('formant', 'Formant', ['Shift with pitch', 'Preserve'], 1),
     ],
   },
+  /*
+   * The Motion Wave units, appended rather than written out.
+   *
+   * Their specs are derived from the same manifests the C++ dispatch is
+   * generated from, so a parameter cannot exist on one side and not the other,
+   * and `npm run params:check` guards the pair. A hand-written copy here would
+   * be a third side, outside that guard, which is exactly the drift the
+   * manifest exists to prevent.
+   */
+  ...MOTIONWAVE_EFFECT_SPECS,
 ];
 
 /**
@@ -1531,8 +1594,40 @@ function divisionText(effect: Effect, key: string): string {
   return describeDivision(paramOf(effect, key), syncModifierByIndex(choiceOf(effect, 'modifier')));
 }
 
+/**
+ * A collapsed Motion Wave slot's one line, derived from the unit's manifest.
+ *
+ * What a user wants from a collapsed slot is "what did I change here", so this
+ * names the first parameter that is not at its default and formats it with the
+ * unit's own formatter — the same `formatReal` the unit's face uses, rather
+ * than a second opinion about what a decibel looks like. An untouched insert
+ * says so, which is more useful than repeating its own name back.
+ *
+ * Nothing here knows which unit it is looking at, which is the point: adding a
+ * unit adds no code to this file.
+ */
+function describeMotionWaveEffect(effect: Effect): string {
+  const entry = motionWaveUnitFor(effect.kind);
+  if (!entry) return 'Motion Wave unit';
+  for (const spec of entry.unit.specs) {
+    const value = effect.params[String(spec.id)];
+    if (value === undefined || value === spec.def) continue;
+    return `${spec.name} ${formatReal(spec, value)}`;
+  }
+  return 'default';
+}
+
 /** Short one-line summary shown on a collapsed insert slot. */
 export function describeEffect(effect: Effect): string {
+  /*
+   * The Motion Wave group is described once, from the unit's own declaration,
+   * rather than gaining a case each. ADR-0007's boundary forbids unit-specific
+   * special-casing here, and fourteen cases in this switch is how that rule
+   * would be broken without anyone deciding to break it. The predicate narrows
+   * the union away, so the switch below stays exhaustive over the Web Audio
+   * kinds and the compiler still refuses to let one of those go unhandled.
+   */
+  if (isMotionWaveKind(effect.kind)) return describeMotionWaveEffect(effect);
   switch (effect.kind) {
     case 'trim':
       return `${signed(paramOf(effect, 'gainDb'), 1)} dB`;

@@ -1,6 +1,53 @@
 # Motion Wave — progress
 
 ```
+RESUME: Directive 07 — HOST INTEGRATION, step 2 reported
+STEP 1 DONE:   npm run build compiles the WASM core, syncs it and the processor
+               into the bundle, and ASSERTS THE ARTEFACT (not the build log —
+               a step that ran and produced nothing is indistinguishable from
+               one that never ran, from a user's point of view). CI and deploy
+               install pinned emsdk 4.0.7, cached by version.
+STEP 2 DONE:   All SEVEN units render audio in the app through the host's own
+               InsertChain, with declared latency reaching PDC:
+                 Motion Shaper 0.0965 rms / 0 samples
+                 Program EQ 0.0959 / 46      Optical Leveller 0.0949 / 46
+                 FET Limiter 0.0213 / 49     Variable-Mu 0.0958 / 46
+                 Console EQ 0.0958 / 46      Granular Reverb 0.0640 / 0
+               TWO REAL DEFECTS, neither visible to any of the 24 cells:
+                 - AN OFFLINE RENDER OUTRAN THE PROCESSOR'S ASYNC WASM INIT.
+                   startRendering runs a timeline faster than real time, so a
+                   1 s bounce finished before the unit existed: rms 0.0001, and
+                   on a second run EXACTLY ZERO. No error, no warning, and a
+                   rendered file that is not the mix. Every node now publishes a
+                   readiness promise and the renderer waits for all of them.
+                 - THE MOTION SHAPER RENDERED SILENCE UNTIL A SHAPE WAS DRAWN.
+                   Curve::valueAt returns 0 for an empty curve — right for a
+                   curve, wrong for a default. All 24 cells passed because every
+                   one of them sets a curve first. Now flat-at-1.0 in the
+                   CONSTRUCTOR (not prepare — prepare runs after a host sets its
+                   curves, and putting it there turned 8 of its own D1 rows red).
+               A curve is not a parameter and had nowhere to live: Effect.shapes
+               carries it, and which units have shapes is the UNIT's declaration
+               (shapeCount), not the host's knowledge.
+CELL 25 ADDED and applied retroactively. ALL SEVEN ARE OUT OF SHIPPING — the
+               ledger guard reports 0 shipping, which is honest. What passes:
+               picker, insert, audible processing, controls reaching the DSP,
+               declared latency compensated. What does not: the units mount the
+               host's GENERIC control body rather than their own UnitFace, so
+               meters and visualisers are not driven (MotionWaveNode.onFrame
+               publishes frames and nothing consumes them), and the save/load
+               round-trip is not yet verified to render identically.
+NEXT:          §2.3 mount UnitFace in the plugin editor and consume onFrame;
+               §2.4 verify save/load renders identically; then the deploy, then
+               resume Directive 06 at fx-03's grain cloud.
+CONSTRAINT FOUND: this app is deliberately NOT cross-origin isolated
+               (public/_headers and src/audio/wam/wamHost.ts both record why),
+               so SharedArrayBuffer is absent and the dev harness's seqlock
+               transport cannot carry over. The worklet gained a MessagePort
+               frame path, throttled in SAMPLES not blocks so the publish rate
+               does not follow the host's buffer size. It needs no lock at all,
+               because a structured clone cannot tear.
+
 RESUME: Directive 07 — HOST INTEGRATION (interrupts Directive 06)
 DIRECTIVE 06 IS PAUSED at commit "fx-03: the tank decided, and a stereo source
                that keeps one pool". fx-03 is clean and green at that point:

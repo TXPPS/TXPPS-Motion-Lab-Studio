@@ -104,6 +104,17 @@ describe('effect catalogue', () => {
       'analyser',
       'tuner',
       'vocaltune',
+      // The Motion Wave units (ADR-0007). Listed here for the same reason as
+      // the rest: this test's whole job is to fail when a kind the schema can
+      // hold has no spec behind it, and a list derived from the catalogue
+      // would agree with the catalogue about everything including its gaps.
+      'mw-motion-shaper',
+      'mw-program-eq',
+      'mw-optical-leveller',
+      'mw-fet-limiter',
+      'mw-variable-mu',
+      'mw-console-eq',
+      'mw-granular-reverb',
     ];
     for (const kind of kinds) expect(effectSpec(kind), kind).toBeTruthy();
     expect(EFFECT_SPECS.length).toBe(kinds.length);

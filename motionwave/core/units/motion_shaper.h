@@ -165,6 +165,29 @@ class MotionShaper : public Node {
 
   // ---- Node ----
 
+  /**
+   * **An unshaped band is open, not shut.**
+   *
+   * `Curve::valueAt` returns zero for an empty curve, which is right for a
+   * curve and wrong for a *default*: a freshly constructed Motion Shaper
+   * modulated every band to silence, so inserting one on a track produced no
+   * sound at all until a shape was drawn. All twenty-four of this unit's Ledger
+   * cells passed while that was true, because every one of them sets a curve
+   * before measuring anything — the defect was visible only to someone who
+   * inserted the device and expected to hear their track, which is exactly the
+   * gap Ledger cell 25 exists to close.
+   *
+   * Flat at one is the neutral shape: an undrawn Motion Shaper is a wire, and
+   * the depth control then has something to modulate away from.
+   *
+   * In the constructor rather than in `prepare`, because `prepare` runs *after*
+   * a host has set its curves — putting it there overwrote them, which turned
+   * eight of this unit's own D1 rows red the moment it was tried.
+   */
+  MotionShaper() {
+    for (int band = 0; band < kMaxBands; ++band) curves_[band].setFlat(1.0);
+  }
+
   void prepare(double sampleRate, int) override {
     sampleRate_ = sampleRate;
     fadeSamples_ = static_cast<int>(kCrossfadeSeconds * sampleRate + 0.5);

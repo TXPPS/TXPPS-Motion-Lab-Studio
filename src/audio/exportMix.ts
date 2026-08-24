@@ -51,6 +51,8 @@ import {
 import type { WarpMap } from '../model/warp';
 import { encodeWav } from './encode/wav';
 import { preloadPlugins, warmPluginModules } from './wam/pluginPool';
+import { ensureMotionWaveRuntime, motionWaveNodesReady } from './motionwave/runtime';
+import { isMotionWaveKind } from './motionwave/registry';
 import { printRequiredPlugins } from './wam/parityProbe';
 
 /** Guard against a runaway render: two hours is far past any sane project. */
@@ -97,7 +99,6 @@ const LIVE_AUTOMATION_GRID_SEC = 1 / 60;
  * and the diagnostics log says by how much.
  */
 const MAX_SUSPENSIONS = 120000;
-
 
 export interface RenderRange {
   startBeat: number;
@@ -469,6 +470,38 @@ export async function renderProject(
   // because `setParameterValues` is async and `startRendering()` will not wait.
   const pluginReport = await preloadPlugins(project, ctx);
   const missingPlugins = pluginReport.failed.map((f) => f.ref.name || f.ref.identifier);
+  /*
+   * The Motion Wave core, on the render's own context, for the same reason and
+   * before the same synchronous build.
+   *
+   * A bounce that dropped these units would be silently wrong rather than
+   * loudly broken: the graph would build, the render would succeed, and the
+   * file would be missing every Motion Wave insert the mix was approved with.
+   * `renderProject` and the realtime engine build through the same
+   * `InsertChain`, which is what makes them agree — and that agreement only
+   * holds if both contexts have the core.
+   */
+  const motionWaveReady = await ensureMotionWaveRuntime(ctx);
+  /*
+   * Counted so the failure is *reported* rather than only logged.
+   *
+   * A bounce is the artefact a person sends someone else. If the core did not
+   * load, every Motion Wave insert passed audio through unprocessed and the
+   * file is not the mix — which has to appear in the render's own summary, next
+   * to missing media and unloaded plugins, and not only in a console line
+   * nobody reads after the fact.
+   */
+  const motionWaveUnitsInMix = [
+    ...project.tracks.flatMap((track) => track.effects ?? []),
+    ...(project.master?.effects ?? []),
+  ].filter((effect) => isMotionWaveKind(effect.kind)).length;
+  if (motionWaveUnitsInMix > 0 && !motionWaveReady) {
+    diagLog(
+      'error',
+      `Bounce contains ${motionWaveUnitsInMix} Motion Wave insert(s) and the core did not ` +
+        'load: they rendered as pass-throughs. This file is not the mix.',
+    );
+  }
   opts.onProgress?.('Building graph');
 
   // ---- master chain: mirrors AudioEngine.buildMasterChain ----
@@ -973,6 +1006,18 @@ export async function renderProject(
   if (opts.signal?.cancelled) throw new ExportError('Export cancelled.');
 
   opts.onProgress?.('Rendering');
+  /*
+   * Every Motion Wave unit has its engine before the timeline starts.
+   *
+   * `startRendering` runs the whole render far faster than real time, and the
+   * processor instantiates its WebAssembly in a promise — so without this the
+   * bounce finishes before the units exist. Measured that way, a one-second
+   * render through the Motion Shaper came back at an RMS of 0.0001 and, on a
+   * second run, at exactly zero: no error, no warning, and a file that is not
+   * the mix. This is the only place in the render where waiting is both
+   * necessary and possible.
+   */
+  if (motionWaveUnitsInMix > 0) await motionWaveNodesReady(ctx);
   const rendered = await ctx.startRendering();
   // The run-up was only ever for the graph's benefit; the caller gets the range
   // it asked for, starting at its first sample.
@@ -1001,7 +1046,7 @@ export async function renderProject(
       automatedLanes ? `, ${automatedLanes} automation lane${automatedLanes === 1 ? '' : 's'}` : ''
     }${missingMedia.size ? `, ${missingMedia.size} missing media` : ''}${
       missingPlugins.length ? `, ${missingPlugins.length} plugin(s) not loaded` : ''
-    }`,
+    }${motionWaveUnitsInMix > 0 && !motionWaveReady ? `, ${motionWaveUnitsInMix} MOTION WAVE UNIT(S) NOT RENDERED` : ''}`,
   );
 
   return {

@@ -29,6 +29,7 @@ import { defaultSamplerParams, type SamplerParams } from '../model/sampler';
 import type { ModulationClock } from './effectChain';
 import { InsertChain } from './effectChain';
 import { onPluginsResolved, preloadPlugins } from './wam/pluginPool';
+import { ensureMotionWaveRuntime, onMotionWaveResolved } from './motionwave/runtime';
 import { useUiStore } from '../state/uiStore';
 import { applyEnvelope, computeClipSchedule } from './clipSchedule';
 import { expandCompClip } from '../model/comping';
@@ -219,6 +220,7 @@ class AudioEngine {
   private lastBpm = 0;
   private storeUnsub: (() => void) | null = null;
   private pluginUnsub: (() => void) | null = null;
+  private motionWaveUnsub: (() => void) | null = null;
   /** Plugins we have already told the user about, so a failing plugin produces
    *  one message rather than one per project edit. */
   private reportedPluginFailures = new Set<string>();
@@ -297,6 +299,21 @@ class AudioEngine {
           if (this.ctx) this.syncGraph(useProjectStore.getState().project, false);
         });
         this.preloadPluginsFor(useProjectStore.getState().project);
+        /*
+         * The Motion Wave core, loaded on the same seam a WAM plugin uses.
+         *
+         * `addModule` is asynchronous and building the insert chain is not, so
+         * a project containing a Motion Wave unit gets a pass-through on the
+         * first build and the real node on the rebuild this triggers. Kicking
+         * it off unconditionally rather than only when a unit is present means
+         * the core is warm before the first insert is added, which is the
+         * difference between a unit that makes sound when you drop it in and
+         * one that makes sound a moment later.
+         */
+        this.motionWaveUnsub ??= onMotionWaveResolved(() => {
+          if (this.ctx) this.syncGraph(useProjectStore.getState().project, true);
+        });
+        void ensureMotionWaveRuntime(ctx);
         this.startFrameLoop();
         diagLog('info', `AudioContext created (${ctx.sampleRate} Hz)`);
       }
@@ -549,7 +566,8 @@ class AudioEngine {
     this.syncedBpm = bpm;
     for (const [trackId, ch] of this.channels) {
       const track = p.tracks.find((x) => x.id === trackId);
-      if (track?.effects?.length) ch.inserts.sync(track.effects, bpm, this.fxOverrides.get(trackId));
+      if (track?.effects?.length)
+        ch.inserts.sync(track.effects, bpm, this.fxOverrides.get(trackId));
     }
     if (p.master?.effects?.length) {
       this.masterInserts?.sync(p.master.effects, bpm, this.fxOverrides.get(MASTER_ID));
@@ -2149,5 +2167,14 @@ if (typeof window !== 'undefined') {
     // OfflineAudioContext, which jsdom is not. Lazy for the same reason as the
     // two above: a session that never measures never loads it.
     latencyProbe: () => import('./latencyProbe'),
+    /*
+     * Ledger cell 25: does a Motion Wave unit work *in the application*.
+     *
+     * The one question the other twenty-four cannot answer, for the same reason
+     * the three probes above are here — jsdom has no `AudioWorklet` and no
+     * `OfflineAudioContext`, and the dev panel is not the app. Lazy, so a
+     * session that never measures never loads it.
+     */
+    motionWaveProbe: () => import('./motionwave/probe'),
   };
 }

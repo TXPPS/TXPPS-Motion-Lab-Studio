@@ -202,22 +202,84 @@ the box that receives the press, it fails.
 The vitest suite still reports both BLOCKED, and that is correct there: a cell
 that reported PASS from jsdom would be reporting a layout nobody laid out.
 
-| Unit                | Sheet    | Status      | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  |
-| ------------------- | -------- | ----------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- |
-| Motion Shaper       | `fx-01`  | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| Program EQ          | `dyn-01` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| Optical Leveller    | `dyn-02` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| FET Limiter         | `dyn-03` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| Variable-Mu Limiter | `dyn-04` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| Console EQ          | `dyn-05` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| Granular Reverb     | `fx-02`  | SHIPPING    | PASS | PASS | PASS | PASS | n/a  | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS |
-| Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    |
-| Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
-| DCO Poly            | `syn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
-| Phase Distortion    | `syn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
-| Analog Five         | `syn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
-| Six-Op FM           | `syn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
-| Matrix Twelve       | `syn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    |
+| Unit                | Sheet    | Status      | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  | X25 |
+| ------------------- | -------- | ----------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- | --- |
+| Motion Shaper       | `fx-01`  | X25 OPEN    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
+| Program EQ          | `dyn-01` | X25 OPEN    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
+| Optical Leveller    | `dyn-02` | X25 OPEN    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
+| FET Limiter         | `dyn-03` | X25 OPEN    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
+| Variable-Mu Limiter | `dyn-04` | X25 OPEN    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
+| Console EQ          | `dyn-05` | X25 OPEN    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
+| Granular Reverb     | `fx-02`  | X25 OPEN    | PASS | PASS | PASS | PASS | n/a  | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | —   |
+| Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    | —   |
+| Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —   |
+| DCO Poly            | `syn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —   |
+| Phase Distortion    | `syn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —   |
+| Analog Five         | `syn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —   |
+| Six-Op FM           | `syn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —   |
+| Matrix Twelve       | `syn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —   |
+
+### Cell 25 — the host, and what it found
+
+Twenty-four cells passed on seven units that could not be inserted on a track.
+`src/` contained no reference to `motionwave/`, `npm run build` ran neither the
+WASM build nor the panel build, and the shipped bundle had no core in it at all.
+Every one of those cells was measuring something real; none of them was
+measuring the boundary a user is on the other side of. ADR-0007 records the
+decision that follows from it, and this cell is the check that stops it
+recurring.
+
+**All seven units now render audio in the application**, through the host's own
+`InsertChain` — the same class the live engine and the bounce build through —
+with their declared latencies reaching the host's delay compensation:
+
+| Unit                | RMS through the host | Declared latency |
+| ------------------- | -------------------- | ---------------- |
+| Motion Shaper       | 0.0965               | 0                |
+| Program EQ          | 0.0959               | 46               |
+| Optical Leveller    | 0.0949               | 46               |
+| FET Limiter         | 0.0213               | 49               |
+| Variable-Mu Limiter | 0.0958               | 46               |
+| Console EQ          | 0.0958               | 46               |
+| Granular Reverb     | 0.0640               | 0                |
+
+Two real defects surfaced the moment the units were asked to work in a host,
+and neither was visible to any of the twenty-four cells.
+
+**An offline render outran the processor's asynchronous instantiation.** The
+worklet builds its WebAssembly in a promise; `startRendering` runs a whole
+timeline faster than real time. So a one-second bounce through the Motion Shaper
+came back at an RMS of 0.0001 and, on a second run, at exactly zero — no error,
+no warning, and a rendered file that is simply not the mix. Every Motion Wave
+node now publishes a readiness promise and the renderer waits for all of them
+before starting.
+
+**The Motion Shaper rendered silence until a shape was drawn.** `Curve::valueAt`
+returns zero for an empty curve, which is right for a curve and wrong for a
+default: a freshly constructed unit modulated every band to nothing. All
+twenty-four of its cells passed while that was true, because every one of them
+sets a curve before measuring anything. It is visible only to someone who
+inserts the device and expects to hear their track — which is exactly the gap
+this cell exists to close. An undrawn Motion Shaper is now a wire.
+
+Wiring the shape also found that a curve is not a parameter and had nowhere to
+live: it has no range, no taper and no single value, so `Effect.params` cannot
+hold it and a project saved without it reloads as a wire. `Effect.shapes` now
+carries it, and which units have shapes is the _unit's_ declaration
+(`shapeCount`) rather than the host's knowledge.
+
+**X25 is `—` for all seven, and they are out of SHIPPING until it is not.** The
+guard's vocabulary has no "partly", which is right: a cell either passes or it
+does not, and a status that let a cell be half-claimed is how twenty-four of
+them came to be green on units nobody could insert.
+What passes: they appear in the picker under their own group, insert, process
+audio audibly, take control changes through to the DSP, and declare latency the
+host compensates. What does not yet: the units mount the host's generic control
+body rather than their own `UnitFace`, so their meters and visualisers are not
+being driven — `MotionWaveNode.onFrame` publishes frames and nothing consumes
+them — and the save/load round-trip has not been verified to render identically.
+Marking these PASS on the strength of the audio alone would be the
+grandfathering the directive forbids.
 
 ### Program EQ
 
@@ -584,7 +646,7 @@ for 1/2/4/8 s asked, every interval inside ±5 %.
 **V11's apparent drift was a beat.** Ten minutes of held tone showed the level
 wandering across 1.73 dB, which reads as accumulation until you notice the 1 kHz
 tone's 48-sample period against the 137-sample grain hop. The row now fits a
-least-squares slope *with its own uncertainty* and passes on the interval
+least-squares slope _with its own uncertainty_ and passes on the interval
 containing zero — −0.109 dB total drift, 95 % CI [−0.632, +0.415] — rather than
 on any single-sample statistic that a beat can move.
 
@@ -593,7 +655,7 @@ graded a density-step level change on one render and reported 0.010 dB; across
 thirty-two seeds that comparison ranges −0.675 to +0.714 dB about a mean of
 −0.084. The row would have passed on almost any seed and the number it printed
 meant nothing, so it now runs the ensemble and grades the interval. GE-08 was
-re-examined and stands: it grades a *count*, whose standard deviation is known
+re-examined and stands: it grades a _count_, whose standard deviation is known
 analytically rather than estimated, which is what lets one render decide it — and
 that model is now itself checked against the observed spread over twelve seeds
 (43.0 against 35.6 predicted, a ratio of 1.21) so the tolerance is measured
@@ -629,7 +691,7 @@ this**. Against the loop-only placement's 125 ms, the full-length chain on the w
 bus read 398 ms and a short chain at a fifth of the lengths read 313 ms. The
 reason is in the measure: normalised echo density counts what fraction of a
 window exceeds that window's own standard deviation, and a handful of widely
-spaced allpass echoes makes a signal *more* impulsive, which puts less of its
+spaced allpass echoes makes a signal _more_ impulsive, which puts less of its
 energy above that line rather than more. §2.3's premise holds for a reverb whose
 early field is sparse; here the grain cloud is already the density builder.
 
@@ -655,7 +717,7 @@ Reading a buffer at increment `r` moves content at `f` to `f·r`, so everything
 above `fs/(2r)` folds; the Wide set's +19 semitones puts that corner at 8008 Hz
 and V12 excites it at 10 kHz. §3.1's stated remedy is a one-pole at `0.45·fs/r`
 and is marked `[I]`, so it could not be copied — and re-deriving it showed the
-*shape* was wrong, not just the constant: 10 kHz is 0.32 octaves above the
+_shape_ was wrong, not just the constant: 10 kHz is 0.32 octaves above the
 corner, where a one-pole delivers about 2 dB of the 52 dB required. The sheet's
 own remedy cannot meet the sheet's own tolerance. What ships instead is ours: the
 interpolation kernel is scaled by the read rate, so its cutoff is `fs/(2r)` by
@@ -665,7 +727,7 @@ quarantined — copying it would have shipped the mistake along with the number.
 
 **V3's DC half cannot be run on this unit, and that is a consequence rather than
 a gap.** §9 V3 feeds DC and looks for a line at `fs/blockSize`. The loop carries
-a DC blocker — V10 *requires* the output DC below −80 dBFS from a +0.5 input — so
+a DC blocker — V10 _requires_ the output DC below −80 dBFS from a +0.5 input — so
 a DC excitation is removed before it reaches the buffer and the row would be
 measuring silence. Where that behaviour can be observed is on the engine with no
 loop around it, and it is: GE-02 grades constant overlap-add on DC and GE-03
@@ -681,7 +743,7 @@ white noise through a half-millisecond window — it reported 1.64 dB against a
 1.5 dB tolerance at an overlap of thirty-two, and essentially none of that came
 from the cloud: a half-millisecond window holds 24 samples, in which white noise's
 own RMS fluctuates by about 1.3 dB before anything granulates it. Switching to a
-steady tone was worse and instructively so: it read 5.5 dB at *every* overlap from
+steady tone was worse and instructively so: it read 5.5 dB at _every_ overlap from
 4 to 32, flat where incoherent summing should fall as one over the square root of
 the overlap. That flatness is the diagnosis — grains read at randomised offsets
 carry random phase, so a coherent input summed over any number of them is Rayleigh
@@ -744,7 +806,7 @@ carries fx-02 V4's finding unchanged: the incoherent floor `4.34/sqrt(O)` is
 source symmetric about the span's centre reads the same values as the forward
 one, and the residual is zero to the last bit. The risk in any null row is that
 the feature under test does nothing at all and the null comes free, so the row
-also renders both over an *asymmetric* source and requires them to diverge — they
+also renders both over an _asymmetric_ source and requires them to diverge — they
 differ by 0.72. It also compares sample against sample rather than against the
 time-reversed buffer, which would null just as well while surviving the
 off-by-one at the span's end that the row exists to find.
@@ -771,7 +833,7 @@ different sample for each block size and the row compared two different stretche
 of audio. Priming and capture are separate segments now, each clamping to its own
 end. What made this findable rather than a shrug was checking the settings one at
 a time first: pre-delay, onset jitter, pitch set, tilt and spray each measured
-*exactly zero* difference across block sizes, and five zeros next to one large
+_exactly zero_ difference across block sizes, and five zeros next to one large
 number is not a unit that is intermittently wrong.
 
 **Pre-delay measured its full travel at −75 dBFS and was reported dead.** The
@@ -837,7 +899,7 @@ wrong, so the row also requires the dry signal to have been there.
 D6 is the one worth a note. What can fail at a sample rate is not that the unit
 refuses it; it is that something inside is written in samples where it should be
 in seconds, which shows as a decay half as long at twice the rate. So the row
-measures the *time* to fall 20 dB at each of 44.1, 48, 88.2, 96 and 192 kHz —
+measures the _time_ to fall 20 dB at each of 44.1, 48, 88.2, 96 and 192 kHz —
 1.050, 1.100, 1.100, 1.100 and 1.100 seconds, a spread of 4.8 % across a 4.35:1
 range of rates. The failure it exists for is a factor, not a margin; what is left
 is the cloud's own spread, because the grain series is not the same series at two
@@ -854,8 +916,8 @@ twenty-two parameters, 576 000 samples, all finite.
 point is that a granular shifter needs no rate change, and the anti-imaging lives
 in the interpolation kernel instead. The alias requirement itself is met and
 measured: V12 puts the Wide set's fold at −115 dBFS against a −70 threshold, and
-GE-11 publishes the figure per tier. The cell is therefore n/a *on the
-oversampling half only*, which is worth stating explicitly because "no
+GE-11 publishes the figure per tier. The cell is therefore n/a _on the
+oversampling half only_, which is worth stating explicitly because "no
 oversampler" and "no alias measurement" would be very different claims.
 
 `D12` was genuinely open — §6 lists a sync-to-tempo option for Pre-delay and the
@@ -864,12 +926,12 @@ per block, exactly as the Motion Shaper takes it, rather than from the tempo map
 directly: `node.h` says in as many words that a processor wanting bars asks
 rather than remembers, and a unit reading the map itself would keep a second
 opinion about where the song is. The division is stepped rather than free,
-because a synced delay that is *nearly* a sixteenth is worse than an unsynced
+because a synced delay that is _nearly_ a sixteenth is worse than an unsynced
 one — it beats against the material instead of sitting outside it.
 
 **Wiring it exposed a clamp that would have made the control look wired and do
 nothing.** The pre-delay line was sized for half a second, which is §6's range
-for the *millisecond* control, and the resolved delay was clamped into it. A
+for the _millisecond_ control, and the resolved delay was clamped into it. A
 musical value legitimately exceeds that: four quarters at 60 bpm is four
 seconds. So a quarter note arrived at the same instant at 120 bpm and at 80 —
 both resolved past the cap and both stopped there. The row caught it because it
@@ -897,7 +959,7 @@ Building it corrected two of my own errors, both structural rather than
 numerical. The first lengths were tens of milliseconds, which put one lap at
 54 ms — so an 80 ms settling time allowed one and a half laps, and the decay
 gain that achieves that is 0.009, which is a tank that does not recirculate. It
-measured 753 ms, *worse* than the chain it replaced. The second was a settling
+measured 753 ms, _worse_ than the chain it replaced. The second was a settling
 law that counted only the two delay lines: measured settling came out 2.10 times
 the asked value at every setting, and a constant factor is the signature of a
 term omitted from a derivation rather than a wrong law. The allpasses sit in the
@@ -910,8 +972,8 @@ diffusing the input to the buffer 205 ms. Four placements, all worse than none,
 with the best diffuser of them among the worst results.
 
 **The reason is the row's excitation, and it is the same defect as V5's.**
-Measured directly, the granular reverb's impulse response is *silent for eighty
-milliseconds*, and then the density bounces between 0.18 and 1.02 from one 20 ms
+Measured directly, the granular reverb's impulse response is _silent for eighty
+milliseconds_, and then the density bounces between 0.18 and 1.02 from one 20 ms
 window to the next while the RMS swings two orders of magnitude. A grain cloud
 reading a buffer that holds one impulse emits one windowed sample per grain that
 happens to catch it: the early IR is a sparse train of isolated events, and
@@ -1025,9 +1087,10 @@ control exists for.
 
 `n/a` in `I13`–`I18` marks a unit that is an effect and has no voices.
 
-| Id    | Group       | Definition-of-Done item                                                                                           |
-| ----- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
-| `X24` | Integration | The unit's real DSP, compiled to WASM, driven by its real UI, produces correct audio and correct visualiser state |
+| Id    | Group       | Definition-of-Done item                                                                                              |
+| ----- | ----------- | -------------------------------------------------------------------------------------------------------------------- |
+| `X24` | Integration | The unit's real DSP, compiled to WASM, driven by its real UI, produces correct audio and correct visualiser state    |
+| `X25` | Host        | The unit is insertable, audible, editable, compensated and persistable **in the application** — not in the dev panel |
 
 ## Who owns which cell, and where it runs
 
@@ -1039,11 +1102,12 @@ re-verifying in TypeScript what was already verified in C++ and reporting the
 duplication as a blockage. Across fourteen units that defers about 154 cells to
 a hardware pass that does not exist.
 
-| Layer          | Owns                                                                                | Runs where                                  | Needs Emscripten |
-| -------------- | ----------------------------------------------------------------------------------- | ------------------------------------------- | ---------------- |
-| C++ test suite | `D1`–`I18` — all DSP and instrument behaviour                                       | Native, `ctest --test-dir motionwave/build` | No               |
-| TS harness     | `U19`–`U23` — artwork and IP, visualisers, responsive matrix, themes, accessibility | jsdom and Playwright                        | No               |
-| Integration    | `X24`                                                                               | `npm run test:mw`                           | **Yes**          |
+| Layer          | Owns                                                                                | Runs where                                   | Needs Emscripten |
+| -------------- | ----------------------------------------------------------------------------------- | -------------------------------------------- | ---------------- |
+| C++ test suite | `D1`–`I18` — all DSP and instrument behaviour                                       | Native, `ctest --test-dir motionwave/build`  | No               |
+| TS harness     | `U19`–`U23` — artwork and IP, visualisers, responsive matrix, themes, accessibility | jsdom and Playwright                         | No               |
+| Integration    | `X24`                                                                               | `npm run test:mw`                            | **Yes**          |
+| Host           | `X25`                                                                               | `npx playwright test e2e/motionwave.spec.ts` | **Yes**          |
 
 A cell owned by the C++ suite is `PASS` on the strength of its named C++ test.
 It is not re-run through TypeScript, and the harness no longer claims it — a

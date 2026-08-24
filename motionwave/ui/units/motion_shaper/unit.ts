@@ -68,6 +68,13 @@ export const motionShaperUnit: UnitUnderTest = {
   // gain is memoryless, and the oversampled modulator is a control signal that
   // never touches the audio path's timing.
   declaredLatency: declareLatency(0, 'none', 'minimum-phase crossover, memoryless gain'),
+  /**
+   * Three, one per band. The modulation shape is this unit's whole subject —
+   * a Motion Shaper with no curve is a wire, which is what its constructor now
+   * makes it — so a host that persisted parameters and not shapes would save a
+   * project that reloads silent.
+   */
+  shapeCount: 3,
   presetMeta: { unit: 'fx-01', unitVersion: 1, name: 'Init' },
   meters: motionShaperMeters,
   face: motionShaperFace,
