@@ -44,6 +44,19 @@ struct SpawnParams {
   float sprayAmount = 0.70f;
   float ampJitter = 0.15f;
   float panSpread = 1.0f;
+  /**
+   * The tap's own level and pan, before the per-grain jitter and spread above.
+   *
+   * A multi-tap delay gives each tap its own level and position, and this engine
+   * sums every tap into one stereo pair — so a host cannot apply them
+   * afterwards without unmixing what it just mixed. They belong here, where the
+   * grain is built and the tap it came from is still known.
+   *
+   * The defaults are unity and centre, which is what a single-tap consumer
+   * wants: `fx-02` sets neither and is unchanged by their existence.
+   */
+  float level = 1.0f;
+  float pan = 0.0f;
   WindowShape shape = WindowShape::Hann;
   float tukeyAlpha = 1.0f;
   bool reverse = false;
@@ -294,8 +307,16 @@ class GrainEngine {
     // turning density up multiplies the loop gain, the decay time changes with
     // density, and at long decays the reverb runs away — which is the whole
     // content of fx-02 V6 and fx-03 V6, and what GE-06 measures.
-    spec.amplitude *= normalisation(tap);
-    spec.pan = spawn.panSpread * rng.bipolar();
+    spec.amplitude *= normalisation(tap) * spawn.level;
+    /*
+     * The tap's position, with the per-grain spread around it — and clamped,
+     * because a tap panned hard right with spread on would otherwise ask for a
+     * position past the speaker, which the equal-power law turns back inward
+     * and quietly narrows the field it was asked to widen.
+     */
+    spec.pan = spawn.pan + spawn.panSpread * rng.bipolar();
+    if (spec.pan < -1.0f) spec.pan = -1.0f;
+    if (spec.pan > 1.0f) spec.pan = 1.0f;
 
     spawnGrain(slot, spec, source, frame, nextId_++);
     ++spawned_;

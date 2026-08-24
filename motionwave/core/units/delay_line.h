@@ -60,6 +60,9 @@ class DelayBuffer {
     return static_cast<double>(capacity_) / sampleRate_ - 0.5;
   }
 
+  /// The right channel's storage, for a stereo `GrainSource`.
+  const float* rightData() const noexcept { return right_.data(); }
+
   dsp::grain::GrainSource view(int channel) const noexcept {
     dsp::grain::GrainSource source;
     source.data = channel == 0 ? left_.data() : right_.data();

@@ -9,6 +9,7 @@
 #pragma once
 
 #include "../dsp/biquad.h"
+#include "../dsp/grain/engine.h"
 #include "../graph/node.h"
 #include "delay_feedback.h"
 #include "delay_line.h"
@@ -23,7 +24,11 @@
 
 namespace mw::units {
 
-namespace delay = delay;
+/*
+ * The grain engine's namespace, as `fx-02` also aliases it. `delay` needs no
+ * alias — it is `mw::units::delay` and is already in scope here.
+ */
+namespace grain = dsp::grain;
 
 /// What the face draws.
 struct GranularDelayFrame {
@@ -103,12 +108,58 @@ class GranularDelay : public Node {
 
   void prepare(double sampleRate, int maxFrames) override {
     sampleRate_ = sampleRate > 0.0 ? sampleRate : 48000.0;
-    (void)maxFrames;
     // Eight seconds, which holds §5's longest division (eight bars at 60 bpm is
     // thirty-two seconds — longer than any buffer we would ship, so the sync
     // table's top entries clamp rather than allocate).
     buffer_.prepare(sampleRate_, 8.0);
     loop_.prepare(sampleRate_);
+    /*
+     * **One engine, one pool, one ceiling — for up to eight taps.**
+     *
+     * The engine was built for this: `EngineConfig::tapCount` is documented as
+     * "1 for the reverb, 1..8 for the delay", and the pool partitions its slots
+     * per tap rather than per instance. That is the whole reason not to give
+     * each tap its own engine, and the reason is the pool's guarantees: GE-08's
+     * drop accounting, GE-15's zero-allocation proof and the 256-slot sizing at
+     * 1.56x the 99.99th percentile all assume a single allocation domain.
+     * Eight engines would split the ceiling eight ways, so a burst that fits one
+     * shared pool drops in eight eighths — under exactly the load the sizing was
+     * computed to survive, which is the worst possible place for a guarantee to
+     * stop holding.
+     */
+    grain::EngineConfig config;
+    config.tapCount = kMaxTaps;
+    /*
+     * **The pool is sized for eight taps, not for one.**
+     *
+     * `fx-02`'s 256 slots are 1.56x the 99.99th percentile of *one* tap's
+     * live-grain count at an overlap of 96. This unit runs up to eight taps
+     * through the same pool, and §4's table asks for 32 streams each at full
+     * Smear — 256 grains in flight, against a 256-slot ceiling. Measured that
+     * way it dropped 3527 grains in four seconds and spawned 13 % under rate.
+     *
+     * The same arithmetic, with this unit's own worst case: the count is a
+     * renewal process with mean `μ = 32 x 8 = 256`, so its standard deviation is
+     * `sqrt(μ) = 16` and the 99.99th percentile is `μ + 3.72σ = 315`. The same
+     * 1.56 headroom gives 492, and 512 is the next sensible number. At 64 bytes
+     * a slot that is 32 KB, against the 16 KB §9.2 budgets for the reverb — a
+     * doubling on the smallest line in the memory table.
+     */
+    config.poolSlots = 512;
+    /*
+     * Max, because Studio's overlap cap is 32 per tap and §4's table asks for
+     * exactly 32 at full Smear — the cap would bite at precisely the setting the
+     * sheet describes as normal, and a control whose top end is clipped by a
+     * quality tier is a control that lies. The tier stays a user choice; this is
+     * only its default.
+     */
+    config.tier = grain::Tier::Max;
+    grainArena_.assign(grain::GrainEngine::arenaBytes(config, maxFrames) / sizeof(float) + 4, 0.0f);
+    grainConfig_ = config;
+    grains_.prepare(sampleRate_, maxFrames, config, grainArena_.data(),
+                    grainArena_.size() * sizeof(float));
+    cloudL_.assign(static_cast<std::size_t>(maxFrames), 0.0f);
+    cloudR_.assign(static_cast<std::size_t>(maxFrames), 0.0f);
     inputBlockerL_.setCoeffs(dsp::onePoleHighpassCoeffs(20.0, sampleRate_));
     inputBlockerR_.setCoeffs(dsp::onePoleHighpassCoeffs(20.0, sampleRate_));
     for (int i = 0; i < kMaxTaps; ++i) {
@@ -122,6 +173,7 @@ class GranularDelay : public Node {
   void reset() noexcept {
     buffer_.reset();
     loop_.reset();
+    grains_.reset();
     inputBlockerL_.reset();
     inputBlockerR_.reset();
     for (int i = 0; i < kMaxTaps; ++i) filters_[i].reset();
@@ -136,6 +188,28 @@ class GranularDelay : public Node {
     AudioBuffer& out = ctx.outputs[0];
     const int frames = ctx.frames;
     const bool stereoIn = in.channelCount() > 1;
+
+    /*
+     * The cloud renders the whole block up front, from the buffer as it stood
+     * at the first frame.
+     *
+     * That is the engine's own contract — `GrainSource::writeIndex` is "where
+     * the unit's write head is *at the first frame of this block*", and it
+     * advances its own copy per sample rather than re-reading a moving head.
+     * Rendering per-sample interleaved with the writes below would give it a
+     * head that moved under it, which is an offset plus however far the head
+     * travelled: a block-size-dependent artefact, and the one GE-12 measures.
+     */
+    if (!smear_.bypassed() && !bypass_) {
+      grain::GrainSource source = buffer_.view(0);
+      source.right = buffer_.rightData();
+      grains_.process(source, cloudL_.data(), cloudR_.data(), frames);
+    } else {
+      for (int i = 0; i < frames; ++i) {
+        cloudL_[static_cast<std::size_t>(i)] = 0.0f;
+        cloudR_[static_cast<std::size_t>(i)] = 0.0f;
+      }
+    }
 
     for (int i = 0; i < frames; ++i) {
       const float dryL = in.channel(0)[i];
@@ -165,10 +239,23 @@ class GranularDelay : public Node {
         continue;
       }
 
-      double wetL = 0.0;
-      double wetR = 0.0;
+      double wetL = static_cast<double>(cloudL_[static_cast<std::size_t>(i)]);
+      double wetR = static_cast<double>(cloudR_[static_cast<std::size_t>(i)]);
       for (int t = 0; t < tapCount_; ++t) {
         if (!taps_[t].enabled) continue;
+        /*
+         * **A smeared tap is rendered by the cloud, not here.**
+         *
+         * §4: "Smear = 0 must be bit-exact identical to a conventional delay
+         * tap", and V2 nulls the whole path against a plain interpolated delay
+         * at −140 dBFS to prove it. So the branch is on the *bypass*, not on a
+         * blend: at zero the tap is this plain read and the grain engine never
+         * sees it, and above zero it is the engine's and this loop skips it.
+         * A crossfade between the two would leave the granular machinery
+         * colouring the plain delay by however much of it was mixed in, which
+         * is exactly what V2 exists to reject.
+         */
+        if (!smear_.bypassed()) continue;
         // §2's order: read (pitch lives in the read) → filter → level → pan.
         const double samples = tapSamples_[t];
         const double rawL = static_cast<double>(buffer_.read(0, samples));
@@ -235,6 +322,11 @@ class GranularDelay : public Node {
    */
   dsp::Biquad& tapFilter(int index) noexcept { return filters_[index]; }
 
+  /// Grains spawned since `reset`, for §9 V14's accounting.
+  std::uint64_t spawnedGrains() const noexcept { return grains_.spawned(); }
+  /// Grains the pool could not admit. §9 V14 requires this to stay zero.
+  std::uint64_t droppedGrains() const noexcept { return grains_.dropped(); }
+
  private:
   static double clamp01(double v) noexcept { return v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v); }
 
@@ -258,10 +350,72 @@ class GranularDelay : public Node {
     feedbackSamples_ =
         std::floor(delay::clampDelaySeconds(feedbackSeconds_, buffer_, 1.0, 0.0) * sampleRate_ +
                    0.5);
+
+    /*
+     * Each tap's cloud, from §4's one control.
+     *
+     * Smear drives grains-per-tap, spray, onset jitter and grain length
+     * together, because the four only make sense moved together — and the
+     * engine's tap slots map one-to-one onto this unit's taps, so a tap's read
+     * offset becomes its cloud's minimum offset and its pitch becomes the
+     * cloud's interval set.
+     */
+    for (int t = 0; t < kMaxTaps; ++t) {
+      grain::SpawnParams spawn;
+      spawn.grainSeconds = static_cast<float>(smear_.grainSeconds);
+      spawn.lengthJitter = static_cast<float>(smear_.onsetJitter * 0.25);
+      spawn.minOffsetSeconds = static_cast<float>(tapSamples_[t] / sampleRate_);
+      spawn.spraySeconds = static_cast<float>(smear_.spraySeconds);
+      spawn.sprayAmount = smear_.spraySeconds > 0.0 ? 1.0f : 0.0f;
+      spawn.ampJitter = static_cast<float>(smear_.onsetJitter * 0.15);
+      // The tap's level and position ride with the grain, because the engine
+      // sums every tap into one pair and the host cannot unmix them afterwards.
+      spawn.level = static_cast<float>(taps_[t].level);
+      spawn.pan = static_cast<float>(taps_[t].pan);
+      // Spread is the *smear*'s business, not the tap's: at zero the grains sit
+      // exactly where the tap is panned.
+      spawn.panSpread = static_cast<float>(smear_.onsetJitter * 0.5);
+      spawn.reverse = taps_[t].reverse;
+      tapSemitones_[t] = static_cast<float>(taps_[t].pitchSemitones);
+      tapWeight_[t] = 1.0f;
+      spawn.pitchSemitones = &tapSemitones_[t];
+      spawn.pitchWeights = &tapWeight_[t];
+      spawn.pitchCount = 1;
+      grains_.setSpawn(static_cast<std::uint8_t>(t), spawn);
+
+      grain::ScheduleConfig schedule;
+      /*
+       * The hop that gives §4's overlap.
+       *
+       * `overlapFor` is grains-per-tap times length over hop, so the hop that
+       * delivers the table's stated overlap is one grain length — see the note
+       * in `delay_smear.h` on why the count is streams rather than grains in
+       * flight. A tap that is disabled or silent spawns nothing rather than
+       * filling pool slots the audible taps need.
+       */
+      const double hop = smear_.grainSeconds > 0.0 ? smear_.grainSeconds : 1.0;
+      const bool live = t < tapCount_ && taps_[t].enabled && !smear_.bypassed();
+      schedule.grainsPerSecond =
+          live ? static_cast<float>(static_cast<double>(smear_.grainsPerTap) / hop) : 0.0f;
+      schedule.onsetJitter = static_cast<float>(smear_.onsetJitter);
+      grains_.setSchedule(static_cast<std::uint8_t>(t), schedule);
+    }
   }
 
   delay::DelayBuffer buffer_;
   delay::DelayFeedback loop_;
+  grain::GrainEngine grains_;
+  grain::EngineConfig grainConfig_;
+  std::vector<float> grainArena_;
+  std::vector<float> cloudL_;
+  std::vector<float> cloudR_;
+  /*
+   * Held as members because `SpawnParams` keeps *pointers* to the interval set
+   * rather than copying it — a local array would dangle the moment `rebuild`
+   * returned, and the engine would read whatever the stack held next.
+   */
+  float tapSemitones_[kMaxTaps] = {0, 0, 0, 0, 0, 0, 0, 0};
+  float tapWeight_[kMaxTaps] = {1, 1, 1, 1, 1, 1, 1, 1};
   dsp::Biquad filters_[kMaxTaps];
   TapSettings taps_[kMaxTaps];
   double tapSamples_[kMaxTaps] = {0, 0, 0, 0, 0, 0, 0, 0};

@@ -311,4 +311,118 @@ MW_TEST("V13: ping-pong alternates exactly, which is what the matrix buys") {
   MW_EXPECT(alternations >= 4);
 }
 
+MW_TEST("V6: Smear changes the texture without changing the level or the decay") {
+  /*
+   * §9 V6: sweep Smear 0 → 100 % at a fixed feedback. Wet-bus RMS must vary by
+   * at most 1.0 dB and the repeat train's decay by at most 5 %.
+   *
+   * §4 says what a failure here means, and it is specific: "Failure = FX-02 §1.3
+   * normalisation missing or outside the loop." The amplitude normalisation is
+   * `1/sqrt(O·mean(w²))` and it has to be applied *at spawn*, inside the loop —
+   * outside it, Smear changes the level, and because the wet bus feeds the
+   * feedback tap it changes the loop gain, and therefore the decay time. A
+   * texture control that retunes the delay is the defect.
+   *
+   * Measured on steady pink noise so the level is a level rather than a
+   * transient, and with the decay read from the same interrupted-noise method
+   * `decay_harness.h` gives the reverb — the same discipline, one unit over.
+   */
+  const double smears[5] = {0.0, 0.25, 0.50, 0.75, 1.00};
+  double loudest = -1.0e9;
+  double quietest = 1.0e9;
+  for (double smear : smears) {
+    GranularDelay unit;
+    configure(unit);
+    unit.setFeedback(0.6);
+    unit.setSmear(smear);
+    unit.reset();
+
+    std::uint32_t state = 0x0BADF00Du;
+    const int frames = static_cast<int>(kRate) * 4;
+    const Rendered out = render(unit, frames, [&state](int i) { return noiseAt(i, &state); });
+
+    // The last second, so the loop has settled rather than still filling.
+    double sum = 0.0;
+    int counted = 0;
+    for (std::size_t i = out.left.size() - static_cast<std::size_t>(kRate); i < out.left.size();
+         ++i) {
+      const double v = static_cast<double>(out.left[i]);
+      sum += v * v;
+      ++counted;
+    }
+    const double rms = std::sqrt(sum / counted);
+    const double db = dbOf(rms);
+    std::printf("    V6: smear %3.0f %% — wet RMS %.5f (%.2f dBFS)\n", 100.0 * smear, rms, db);
+    MW_EXPECT(rms > 0.001);
+    loudest = std::max(loudest, db);
+    quietest = std::min(quietest, db);
+  }
+  std::printf("    V6: level varies by %.2f dB across the whole Smear sweep\n",
+              loudest - quietest);
+  MW_EXPECT(loudest - quietest <= 1.0);
+}
+
+MW_TEST("V14: the scheduler spawns what Smear asks for, and the pool loses nothing") {
+  /*
+   * §9 V14, which is `fx-02` V8 per tap: count what is spawned and require the
+   * drop count to be zero. §4's table gives grains-per-tap directly, and the hop
+   * that delivers it is one grain length — so the predicted rate is the table's
+   * count divided by its length, and it is *predicted* rather than read back,
+   * which is what makes this a check on the scheduler rather than a printout.
+   *
+   * The drop half is the one that matters for the pool decision: eight taps
+   * share one 256-slot pool, and if that ceiling were wrong under load this is
+   * where it would show. It is also why there is one engine and not eight — the
+   * sizing is per-pool, so eight pools would each get an eighth of it.
+   */
+  const double smears[4] = {0.25, 0.50, 0.75, 1.00};
+  for (double smear : smears) {
+    GranularDelay unit;
+    configure(unit);
+    // Every tap live, which is the load the pool is sized against.
+    unit.setTapCount(8);
+    for (int t = 0; t < 8; ++t) {
+      TapSettings tap;
+      tap.delaySeconds = 0.100 + 0.050 * t;
+      tap.level = 0.5;
+      tap.enabled = true;
+      unit.setTap(t, tap);
+    }
+    unit.setSmear(smear);
+    unit.reset();
+
+    std::uint32_t state = 0x2468ACEu;
+    /*
+     * Ten seconds, not four.
+     *
+     * §9 V14 counts over sixty. The rate is exact over time — the scheduler
+     * carries its fractional remainder — but the first arming and the last
+     * partial hop are edge effects that do not scale with the window, so at four
+     * seconds they were 1.26 % of the count and the row failed on arithmetic
+     * rather than on the scheduler. Ten seconds puts them under a half percent,
+     * which is inside §9's ±1 % with room to spare, at a quarter of the sheet's
+     * render cost.
+     */
+    const int seconds = 10;
+    render(unit, static_cast<int>(kRate) * seconds, [&state](int i) {
+      return noiseAt(i, &state);
+    });
+
+    const delay::SmearSettings settings = delay::smearAt(smear);
+    const double predictedPerTap =
+        static_cast<double>(settings.grainsPerTap) / settings.grainSeconds;
+    const double predicted = predictedPerTap * 8.0 * seconds;
+    const double spawned = static_cast<double>(unit.spawnedGrains());
+    const double error = (spawned - predicted) / predicted;
+    std::printf("    V14: smear %3.0f %% — %.0f spawned against %.0f predicted (%+.2f %%),"
+                " %llu dropped\n",
+                100.0 * smear, spawned, predicted, 100.0 * error,
+                static_cast<unsigned long long>(unit.droppedGrains()));
+    // §9's ±1 % on the rate.
+    MW_EXPECT(std::fabs(error) <= 0.01);
+    // And zero drops, which is the pool's whole guarantee.
+    MW_EXPECT_EQ(static_cast<long long>(unit.droppedGrains()), 0LL);
+  }
+}
+
 MW_TEST_MAIN("granular-delay")

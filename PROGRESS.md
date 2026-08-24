@@ -4,11 +4,11 @@
 RESUME: Directive 08
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
 Deployed commit: 6cb507e — cell 25 green for all seven, faces mounted.
-Current unit:    all seven effects SHIPPING including cell 25. Next is fx-03.
+Current unit:    fx-03 Granular Delay — cloud wired, V1/V2/V5/V6/V13/V14 measuring.
 Last PASS:       X25 for all seven, backed by e2e/motionwave.spec.ts.
-Next action:     resume fx-03 at "wire the grain cloud into the taps" — the
-                 stereo GrainSource is built and GE-22 proves the mono path is
-                 bit-identical, so the cloud has one pool to spawn into.
+Next action:     fx-03's remaining §9 rows — V3 is done, next are V7 (click on
+                 time change), V8/V10 (tape pitch and wow), V11/V12 (BBD), V15,
+                 V16 — then its manifest, D1, face and cell 25.
 Shared libraries built: decay_harness.h, tank.h (built, measured, NOT adopted —
                  see the V7 note), delay_routing/sync/smear/feedback/line,
                  nonlinear library, grain engine with a stereo source.
@@ -32,6 +32,41 @@ BRANCHES — NEEDS A HUMAN, cannot be done from here:
   the default still pointing at it, deleting it would break the only deploy the
   user has. It goes the moment the default moves.
 ```
+
+## fx-03 — the cloud, and a pool sized for one tap
+
+The grain engine was built for this: `EngineConfig::tapCount` is documented as
+"1 for the reverb, 1..8 for the delay", and the pool partitions its slots per
+tap. So there is **one engine, one pool, one ceiling** for all eight taps, which
+is the carried decision and the right one — eight engines would split every
+guarantee the pool makes eight ways.
+
+**The ceiling was still wrong, and V14 found it.** `fx-02`'s 256 slots are 1.56x
+the 99.99th percentile of *one* tap at an overlap of 96. This unit runs eight
+taps, and §4's table asks for 32 streams each at full Smear — 256 grains in
+flight against a 256-slot pool. Measured: **3527 grains dropped in four seconds
+and the spawn rate 13.35 % under**. The same arithmetic with this unit's own
+worst case — mean 256, sd 16, 99.99th percentile at 315, times 1.56 — gives 492,
+so 512 slots. 32 KB against the reverb's 16 KB.
+
+Two smaller things the same row surfaced. The default tier was Studio, whose
+overlap cap is 32 per tap, which is exactly what §4's table asks for at full
+Smear — the cap bit at precisely the setting the sheet calls normal, and a
+control clipped by a quality tier is a control that lies. And the count window
+was four seconds, where the first arming and last partial hop are 1.26 % of the
+total; §9 counts over sixty, ten is enough to put them under half a percent.
+
+With all three: **zero drops at every Smear, rate within 0.92 %**, and V6's level
+variation across the whole sweep down to 0.52 dB against §9's 1.0 dB — which is
+the row that proves `fx-02` §1.3's normalisation is applied at spawn and inside
+the loop, where a texture control that retuned the delay would show up.
+
+`SpawnParams` gained `level` and `pan`. The engine sums every tap into one
+stereo pair, so a host cannot apply a tap's level and position afterwards
+without unmixing what it just mixed; they belong where the grain is built and
+the tap it came from is still known. Both default to unity and centre, so
+`fx-02` is unchanged by their existence.
+
 
 
 **Read this first:** the Definition of Done is **not reachable on this build
