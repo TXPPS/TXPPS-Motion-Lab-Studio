@@ -3,7 +3,7 @@
 ```
 RESUME: Directive 08
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: see the line below this block, updated on every deploy.
+Deployed commit: 6cb507e — cell 25 green for all seven, faces mounted.
 Current unit:    all seven effects SHIPPING including cell 25. Next is fx-03.
 Last PASS:       X25 for all seven, backed by e2e/motionwave.spec.ts.
 Next action:     resume fx-03 at "wire the grain cloud into the taps" — the
