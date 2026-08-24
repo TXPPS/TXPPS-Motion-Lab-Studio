@@ -167,8 +167,29 @@ D12 DONE:      Pre-delay tempo sync built. Tempo comes from the host per block
                passed. Line now sized for the synced maximum (4 quarters at 60
                bpm = 4 s); the millisecond control keeps its own 0-500 ms range.
 fx-02:         SHIPPING. 23 controls, every ledger cell PASS or justified n/a.
-Next action:   Granular Delay (fx-03), reusing decay_harness.h for its feedback
-               rows, then the voice substrate through Slipstream.
+FX-03 STARTED: three foundations built and tested before the unit around them —
+               delay_routing.h (§1.2's 2x2 matrix, and §3.2's stability
+               predicate), delay_sync.h (§5's two-axis divisions), and
+               delay_smear.h (§4's one-control continuum).
+               §3.2(b) IS ASSERTED, NOT REVIEWED: the loop gain is |a|+|b| times
+               fb, from the eigenvalues of [[a,b],[b,a]] — not each term checked
+               alone. Self 0.8 with cross 0.8 passes the separate check and has
+               a loop gain of 1.6, which is the bug §3.2 names. The row also
+               asserts every shipped mode has unity worst-case gain at every
+               cross setting, so a future mode that broke it fails here rather
+               than in a user's session.
+               §3.2(a) likewise: the condition is fb·max|H| < 1, so a Q=4 loop
+               filter's 12 dB peak makes fb=0.5 unstable (loop gain 1.99).
+               §4's Smear zero is a BRANCH, not the bottom of an interpolation —
+               V2 nulls the whole path against a plain delay at -140 dBFS, and a
+               limit that merely approached one grain would leave the granular
+               machinery colouring the plain delay.
+               One test error worth keeping: §4's "grains-per-tap" counts
+               independent STREAMS, each contributing L/hop. Reading it as
+               grains-in-flight and dividing the hop by N too counts the streams
+               twice and gives N^2 (1024 instead of 32).
+Next action:   fx-03's buffer, taps and feedback chain, then V1-V5 and V13,
+               reusing decay_harness.h for the decay rows.
 BUILD ORDER CORRECTED (user, before R3): the voice substrate is built DURING
                Slipstream and proven through it, the way the nonlinear library
                was built during Program EQ — not after Slipstream. Slipstream is
