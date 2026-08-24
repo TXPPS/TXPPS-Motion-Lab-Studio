@@ -1,5 +1,51 @@
 # Manual QA — the Motion Wave units in the app
 
+## The live app
+
+**https://txpps-motionlab-studio.roan-crest.workers.dev**
+
+Deployed commit: `a98dd5e`. Open it in Safari or Chrome on the phone — nothing to
+install, no terminal, no build step.
+
+### Inserting a Motion Wave unit on a phone, tap by tap
+
+1. Open the URL. Wait for the arrangement to appear.
+2. **Tap once anywhere** before expecting sound. Browsers will not start audio
+   until you have touched the page, so a first tap that seems to do nothing is
+   the browser's rule and not a fault.
+3. You need audio on a track to hear anything through an insert. Either:
+   - tap **Browse** in the bottom bar, pick a loop, and drag it onto a track; or
+   - tap **Record**, arm a track, and record a few seconds of anything.
+4. Tap **Mix** in the bottom bar. This is the console — one strip per track.
+5. Find the track's strip and its **inserts** area — the column of slots under
+   the fader.
+6. Tap the **"Add insert…"** control on that strip. A grouped menu opens:
+   Dynamics, Tone, Modulation, Time, Stereo, Utility, and — at the bottom —
+   **Motion Wave**.
+7. Under **Motion Wave**, choose **Motion Shaper**. The slot fills with its name.
+8. Play the track. The Motion Shaper starts as a **wire** — it should sound
+   exactly like the track without it. That is deliberate: an undrawn shaper does
+   nothing until you give it a shape.
+9. **Tap the slot** to open the editor.
+10. Move **Depth** up, and **Mix** to 100%. With the default flat shape you will
+    still hear no change — the shape is what depth modulates, and a flat shape
+    has nothing to modulate. Move **Rate** and the **crossovers** to hear the
+    unit responding.
+11. To close the editor: tap the **×** at its top right, or **swipe the header
+    downward**. Both work with a thumb.
+
+If you hear nothing at all at step 8 — not even the dry track — that is a fault
+worth reporting; see the bottom of this document for what to include.
+
+### What is not there yet
+
+The units currently open the app's **generic control body** — a grid of labelled
+knobs — rather than their own designed panels. Their meters and visualisers are
+therefore not moving yet. The controls are real and reach the DSP; the artwork
+and the live displays are the next piece of work.
+
+---
+
 A checklist to follow in the running application. Not a description of tests: if
 you are reading a number rather than hearing something, you are on the wrong
 document — the offline measurements live in `docs/UNIT_LEDGER.md`.
