@@ -3,7 +3,7 @@
 ```
 RESUME: Directive 09 — faces. Directive 08 §3 (fx-03) is STOPPED.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: 5ea35a9 and its successor — Program EQ on the new primitives.
+Deployed commit: 0ae5b4e and its successor — Program EQ on the new primitives.
 Current work:    Cell 26 usability. Program EQ is SHIPPING again; the other six
                  render the framework default and are NOT SHIPPING, honestly.
 Last PASS:       X26 for Program EQ, backed by e2e/motionwave-face.spec.ts.
