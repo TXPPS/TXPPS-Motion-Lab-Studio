@@ -64,7 +64,14 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons/icon-192.png', 'icons/icon-512.png'],
+      includeAssets: [
+        'favicon-16.png',
+        'favicon-32.png',
+        'apple-touch-icon.png',
+        'icons/icon-192.png',
+        'icons/icon-512.png',
+        'icons/icon-512-maskable.png',
+      ],
       manifest: {
         name: 'TXPPS MotionLab Studio',
         short_name: 'MotionLab',
@@ -76,8 +83,12 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         icons: [
-          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          // `any` and `maskable` are declared separately rather than as one
+          // entry with `purpose: 'any maskable'`. A single dual-purpose icon has
+          // to be padded for the mask, and then it is padded in the places that
+          // do not mask — a small logo floating in a large square.
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           {
             src: 'icons/icon-512-maskable.png',
             sizes: '512x512',

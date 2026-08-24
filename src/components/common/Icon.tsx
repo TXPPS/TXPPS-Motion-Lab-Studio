@@ -335,19 +335,30 @@ const REBOX: Partial<Record<IconName, string>> = {
 
 export function Icon({ name, size = 16, weight = 1.8, className }: IconProps) {
   if (name === 'logo') {
+    /*
+     * The product's actual artwork, not a drawing of it.
+     *
+     * This was an inline SVG waveform — a third mark, after the one on the home
+     * screen and the one in the browser tab, and the only thing keeping the
+     * three alike was that nobody had changed any of them. It is the same file
+     * `npm run icons` generates every other icon from, so the mark in the top
+     * bar and the mark on a phone's home screen cannot come apart.
+     *
+     * The 192px source rather than the 512: the largest place this is drawn is
+     * the Start page at 44px, so 192 covers it at 4x and costs a quarter of
+     * what the big one would. It is precached by the service worker along with
+     * the rest of the icon set.
+     */
     return (
-      <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden className={className}>
-        <rect width="64" height="64" rx="12" fill="var(--bg-raised)" />
-        <path
-          d="M8 32 L16 32 L20 18 L26 46 L32 24 L38 40 L42 30 L48 32 L56 32"
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="4.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx="50" cy="15" r="4.5" fill="var(--warm)" />
-      </svg>
+      <img
+        src="/icons/icon-192.png"
+        width={size}
+        height={size}
+        alt=""
+        aria-hidden
+        className={className}
+        style={{ borderRadius: Math.round(size * 0.22), display: 'block' }}
+      />
     );
   }
   const filled = FILLED[name];

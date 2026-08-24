@@ -13,12 +13,19 @@
  * SHOT_CLICK (comma-separated selectors to click first), SHOT_CLICKS (click
  * count, 2 for a double-click), SHOT_SETTLE (ms to wait after each click).
  */
+import { existsSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 const OUT = process.env.SHOT_DIR;
 const url = process.env.SHOT_URL || 'http://localhost:4173/';
 const theme = process.env.SHOT_THEME || 'dark';
 const clipSel = process.env.SHOT_CLIP || '';
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+// The preinstalled browser where there is one, and Playwright's own resolution
+// where there is not. Hard-coded, this path made the tool exit on any machine
+// that was not the remote container — including every developer's.
+const preinstalled = '/opt/pw-browsers/chromium';
+const browser = await chromium.launch(
+  existsSync(preinstalled) ? { executablePath: preinstalled } : {},
+);
 const w = Number(process.env.SHOT_W || 1680);
 const h = Number(process.env.SHOT_H || 1000);
 const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });

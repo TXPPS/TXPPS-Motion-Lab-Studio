@@ -263,12 +263,12 @@
   --lamp-ink: #17150f; /* glyph colour on a LIT lamp                   */
 
   /* -- semantic: green = signal present and passing ---------------------- */
-  --accent: #67c290;
-  --accent-hi: #7fdfaa;
-  --accent-dim: #428f66; /* non-text only                                */
-  --accent-lamp: #67c290; /* lit-lamp fill; --lamp-ink on it is 8.43      */
-  --accent-bg: rgba(103, 194, 144, 0.14);
-  --accent-line: rgba(103, 194, 144, 0.42);
+  --accent: #3ad406;
+  --accent-hi: #45fc08;
+  --accent-dim: #268c04; /* non-text only                                */
+  --accent-lamp: #289304; /* lit-lamp fill; --lamp-ink on it is 8.43      */
+  --accent-bg: rgba(58, 212, 6, 0.14);
+  --accent-line: rgba(58, 212, 6, 0.42);
 
   /* -- semantic: yellow = SOLO + musical selection ----------------------- */
   --solo: #efc945;
@@ -419,12 +419,12 @@
     --text-inverse: #f9f8f6;
     --lamp-ink: #17150f;
 
-    --accent: #00683f;
-    --accent-hi: #005130;
-    --accent-dim: #45a271;
-    --accent-lamp: #45a271;
-    --accent-bg: rgba(0, 104, 63, 0.13);
-    --accent-line: rgba(0, 104, 63, 0.42);
+    --accent: #195c03;
+    --accent-hi: #0f3802;
+    --accent-dim: #2ea805;
+    --accent-lamp: #289304;
+    --accent-bg: rgba(25, 92, 3, 0.13);
+    --accent-line: rgba(25, 92, 3, 0.42);
 
     --solo: #735c00;
     --solo-hi: #5f4b00;
@@ -567,12 +567,12 @@
   --text-inverse: #f9f8f6;
   --lamp-ink: #17150f;
 
-  --accent: #00683f;
-  --accent-hi: #005130;
-  --accent-dim: #45a271; /* lamp fill, non-text */
-  --accent-lamp: #45a271;
-  --accent-bg: rgba(0, 104, 63, 0.13);
-  --accent-line: rgba(0, 104, 63, 0.42);
+  --accent: #195c03;
+  --accent-hi: #0f3802;
+  --accent-dim: #2ea805; /* lamp fill, non-text */
+  --accent-lamp: #289304;
+  --accent-bg: rgba(25, 92, 3, 0.13);
+  --accent-line: rgba(25, 92, 3, 0.42);
 
   --solo: #735c00; /* solo as TEXT */
   --solo-hi: #5f4b00;
@@ -700,12 +700,12 @@
   --text-inverse: #000000;
   --lamp-ink: #000000;
 
-  --accent: #6eeeab;
-  --accent-hi: #9fffc8;
-  --accent-dim: #46b37c;
-  --accent-lamp: #6eeeab;
-  --accent-bg: rgba(110, 238, 171, 0.22);
-  --accent-line: rgba(110, 238, 171, 0.65);
+  --accent: #45fe08;
+  --accent-hi: #45ff08;
+  --accent-dim: #32b605;
+  --accent-lamp: #258704;
+  --accent-bg: rgba(69, 254, 8, 0.22);
+  --accent-line: rgba(69, 254, 8, 0.65);
 
   --solo: #ffe082;
   --solo-hi: #fff4d0;
@@ -833,12 +833,12 @@
     --text-inverse: #000000;
     --lamp-ink: #000000;
 
-    --accent: #6eeeab;
-    --accent-hi: #9fffc8;
-    --accent-dim: #46b37c;
-    --accent-lamp: #6eeeab;
-    --accent-bg: rgba(110, 238, 171, 0.22);
-    --accent-line: rgba(110, 238, 171, 0.65);
+    --accent: #45fe08;
+    --accent-hi: #45ff08;
+    --accent-dim: #32b605;
+    --accent-lamp: #258704;
+    --accent-bg: rgba(69, 254, 8, 0.22);
+    --accent-line: rgba(69, 254, 8, 0.65);
 
     --solo: #ffe082;
     --solo-hi: #fff4d0;
