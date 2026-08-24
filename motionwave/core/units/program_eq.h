@@ -60,8 +60,18 @@ struct ProgramEqFrame {
   /// Second- and third-order coefficients of the make-up amplifier, right now.
   float c2 = 0.0f;
   float c3 = 0.0f;
-  /// How hard each transformer is being driven, so a face can show the
-  /// low-frequency thickening happening rather than implying it.
+  /**
+   * How hard each transformer is being driven: the peak flux this block as a
+   * fraction of the knee where the anhysteretic curve is a third compressed.
+   *
+   * The core's own state, read from the same object the audio goes through.
+   * These two fields used to be assigned the input and output *peaks*, which
+   * looked plausible and was a second opinion — a transformer follows flux, and
+   * flux is the integral of the voltage, so the same level at 30 Hz and 1 kHz
+   * drives the core by amounts that differ by more than an order of magnitude.
+   * A meter fed the peak reads the same for both and so cannot show the one
+   * thing it is named after: `dyn-01` §7's low-frequency thickening.
+   */
   float inputCoreDrive = 0.0f;
   float outputCoreDrive = 0.0f;
 };
@@ -168,7 +178,10 @@ class ProgramEq : public Node {
         out.channelCount() < kProgramEqChannels ? out.channelCount() : kProgramEqChannels;
     if (bypass_) {
       out.copyFrom(in);
-      // Bypass passes the signal through, so the meters carry on reading it.
+      // Bypass passes the signal through, so the level meters carry on reading
+      // it — but the transformers are out of circuit and are not being driven
+      // by anything. `publish` resets these two, so they go to zero here, which
+      // is the truth: a bypassed unit's iron is doing nothing.
       const float passed = peakOfBuffer(out);
       publish(passed, passed);
       return;
@@ -188,6 +201,15 @@ class ProgramEq : public Node {
         // than the equalised signal, and swapping them would put the
         // low-frequency distortion after the low-frequency boost that causes it.
         double y = static_cast<double>(inputCore_[c].process(static_cast<float>(x)));
+        // Sampled per sample rather than once at the block's end. Flux swings
+        // at signal rate, so a block-end read samples that swing at the block
+        // rate and aliases: a 30 Hz core excursion read every 128 samples
+        // returns an arbitrary point on the cycle and the meter flickers
+        // instead of rising. One fabs and one compare, no allocation, nothing
+        // that scales with anything — which is what the audio-thread rule
+        // asks (`CLAUDE.md`, and `rt_guard.h` proves it).
+        const float inFlux = inputCore_[c].saturationFraction();
+        if (inFlux > inputCoreDrive_) inputCoreDrive_ = inFlux;
         if (eqIn_) y = eq_[c].process(y);
         work_[static_cast<std::size_t>(i)] = static_cast<float>(y * inputGain_);
       }
@@ -196,7 +218,10 @@ class ProgramEq : public Node {
       // edge.
       auto shaper = [&](float v) {
         const float amplified = driver_[c].process(voltage_[c].process(v));
-        return outputCore_[c].process(amplified);
+        const float shaped = outputCore_[c].process(amplified);
+        const float outFlux = outputCore_[c].saturationFraction();
+        if (outFlux > outputCoreDrive_) outputCoreDrive_ = outFlux;
+        return shaped;
       };
       switch (tier_) {
         case Tier::Off:
@@ -344,14 +369,25 @@ class ProgramEq : public Node {
     return peak;
   }
 
+  /**
+   * Hand the face one frame of what just happened.
+   *
+   * The core peaks are reset here rather than at the top of `process`, so a
+   * block that ran with no signal publishes what the cores actually decayed to
+   * instead of holding the last driven reading on screen and looking like the
+   * unit is still working. That is the Motion Shaper's convention and the
+   * reason for it is the same.
+   */
   void publish(float inputPeak, float outputPeak) noexcept {
     ProgramEqFrame frame;
     frame.inputPeak = inputPeak;
     frame.outputPeak = outputPeak;
     frame.c2 = curvature_.c2;
     frame.c3 = curvature_.c3;
-    frame.inputCoreDrive = inputPeak;
-    frame.outputCoreDrive = outputPeak;
+    frame.inputCoreDrive = inputCoreDrive_;
+    frame.outputCoreDrive = outputCoreDrive_;
+    inputCoreDrive_ = 0.0f;
+    outputCoreDrive_ = 0.0f;
     visual_.publish(frame);
   }
 
@@ -365,6 +401,9 @@ class ProgramEq : public Node {
   nl::Oversampler<4> over4_;
   nl::Oversampler<8> over8_;
   ProgramEqPublisher visual_;
+  /// Peak core flux this block, as a fraction of the saturation knee.
+  float inputCoreDrive_ = 0.0f;
+  float outputCoreDrive_ = 0.0f;
   nl::Curvature curvature_{};
 
   std::vector<float> scratch_;

@@ -6,19 +6,17 @@ Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
 Deployed commit: 1e532e4a62
 Bundle verified: YES — live index-CGx0C4q-.js matches a clean-tree build of
                  that commit, byte for byte.
-Current section: §0, §2, §3.1 COMPLETE. Contrast guard and the §5 stress
-                 harness COMPLETE, with the first row of measured numbers
-                 recorded below.
-Next action:     The WASM backlog, then Program EQ's V27, then deploy and
-                 report E3.
+Current section: §0, §2, §3.1, §5 and §1's V27 COMPLETE.
+Next action:     E3 reported. Then Directive 09 §4.1 - V27 for the remaining
+                 six panels - and §5, instruments 9-14.
 Open deviations: F11 is left to the browser's fullscreen — the one place the
                  reference's panel map is not matched.
                  §2.5's monitoring modes and latency compensation are
                  DIVERGENT-BY-DESIGN; §3.1 reopens the take-alignment half,
                  which is a different problem and is not divergent.
                  recordingController.ts is 630 lines against the ~400 rule.
-Ledger:          0 of 14 shipping. V27 (live visual) is in the Ledger and its
-                 guard; no unit has it yet.
+Ledger:          **1 of 14 SHIPPING** - Program EQ, all 27 cells PASS. The
+                 other six built units are FAIL at V27 only.
 ```
 
 ## Directive 10 §0 — Emscripten, and a check that could not fail
@@ -169,6 +167,102 @@ direct-monitoring case where the offset should come out negative. The
 compensation is PASS on its arithmetic and BLOCKED on its calibration; those are
 different claims and the second is not implied by the first.
 
+## Directive 10 §1 — Program EQ passes V27, and the suite that proves it was dead
+
+**The panel browser suite had not run since the worklet was renamed.** `panel.ts`
+called `addModule('/shaper_worklet.js')`; the file became `unit_worklet.js` when
+it was generalised to name any unit's exports, and this line was not updated.
+Every run after that commit failed with "Unable to load a worklet's module" — so
+**U21, the cell that page exists to measure, has not executed since**, while the
+Ledger recorded it PASS on seven units. A string that names a file is not checked
+by anything the way an import is, which is the whole argument for running a suite
+rather than owning one.
+
+Behind it were four more faults, each hidden by the one in front:
+
+| Found                                                                  | Now                                                            |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Nothing emitted `data-mw-element`, so the spec's selector matched null | The renderer stamps each element with the id its face declares |
+| U22's breakpoint case required the column count to _rise_              | It asserts the layout _differs_ — see below                    |
+| That same wrong assertion existed twice, verbatim                      | One `layoutSignature` helper in `e2e/harness.ts`               |
+| `panel.ts` refused to start an engine for any unit but the shaper      | Every unit whose channel packing is declared now gets one      |
+
+The breakpoint case is worth spelling out. It counted grid columns and required
+more of them past each breakpoint, and the stylesheet does neither reliably: the
+first breakpoint raises `--mw-ctl-min` from 4.75rem to 5.25rem without
+necessarily changing how many controls fit, and the second turns the body from a
+column into a row, so the controls grid takes half the width and the count
+**falls**, 7 to 2. Both are the layout changing exactly as declared. It now
+compares a signature of everything a breakpoint may move, so it can neither pass
+vacuously nor fail on a change in the unexpected direction.
+
+All 15 browser cases pass.
+
+### What V27 actually needed
+
+Program EQ satisfied `U20` from the day it was written and still failed `V27`,
+which is the clearest illustration of why they are two cells. Its most
+mechanism-revealing readout is the harmonic display, and that reads
+`TriodeStage::curvature` — `nl::curvature(config_.bias)`, a function of the
+configuration. Real state, honestly published, unchanging until a knob moves.
+
+What moves with the music is the iron, and it was being published wrongly: the
+two transformer fields were assigned the input and output **peaks**. That is a
+second opinion of the kind `CLAUDE.md` rules out, and a specific one — a
+transformer follows flux, flux is the integral of the voltage, so the same level
+at 30 Hz and at 1 kHz drives the core by amounts differing by more than an order
+of magnitude. A meter fed the peak reads the same for both and therefore cannot
+show the one thing it is named after: §7's low-frequency thickening.
+`MagneticCore` now answers `saturationFraction()`, and the unit publishes its
+peak per block.
+
+Measured: at 40 Hz the panel reads **core drive 0.1217 against an input peak of
+0.4747**. Before the core was rebuilt those two numbers were byte-identical,
+which is how the first run of this test passed against the old behaviour — a
+reminder that a green browser test proves nothing about a `.wasm` nobody rebuilt.
+
+Mutation-tested at both ends. Wiring the field back to a level prints
+`30 Hz core 0.2510, 1 kHz core 0.2510, ratio 1.0 x` and fails two C++ cases;
+fabricating the panel value from `performance.now()` gives 40 distinct values out
+of 40 while running — passing everything else — and 20 instead of 1 once the
+context is suspended.
+
+**Program EQ is SHIPPING: 27 of 27 cells PASS, the first unit to get there.**
+
+## The C++ suite could not run on this machine at all
+
+`CLAUDE.md` documents the core's tests as a CMake build against the host
+compiler. There is no Visual Studio, no Ninja and no `g++` here, so `cmake`
+cannot configure — which meant a change to `motionwave/core/` could be made,
+reviewed and committed on Windows without one of its tests ever executing.
+
+`npm run test:core` compiles each suite to WebAssembly with the emsdk clang and
+runs it under Node. The core has no dependencies and each test is a `main()` over
+a header-only harness, which is exactly what makes that possible. It is the same
+compiler and the same source the shipping browser target is built from, so a pass
+is a real pass — it is not the host target, so it supplements the CMake build
+rather than replacing it. **39 of 39 suites pass.**
+
+Getting there found three things:
+
+- **`granular_delay.h` overrode `Node::reset()` without `override`.** Clang
+  reports it; GCC's default flags do not. Now marked.
+- **Eleven suites died with "memory access out of bounds"** on emscripten's 64 KB
+  default stack. That reads like a product fault and is the sandbox. Raised.
+- **`param_tests`' own mutation case failed at `-O1`** — the case that
+  deliberately allocates inside an armed `RtGuard` to prove the guard can see an
+  allocation. Clang elides the `new`/`delete` pair, which C++14 permits, so the
+  guard saw nothing and the case correctly reported that it was proving nothing.
+  The guard was fine; the optimiser had removed the thing it was watching for.
+  Built at `-O0`, which is what the documented `-DCMAKE_BUILD_TYPE=Debug` gives.
+
+The one flag not applied is `-Wdouble-promotion`. `oversampler.h` normalises its
+window in double and stores each tap through a `static_cast<float>` — a
+deliberate quantisation the bit-exact WASM boundary depends on. The first attempt
+here "fixed" that line, having misread `double taps_[]` as a float array, and
+would have changed what the core computes in order to silence a warning about a
+cast that is the point.
+
 ## Stress-test log
 
 Directive 10 §5. `npm run stress`, against a preview build. Measured numbers per
@@ -227,15 +321,15 @@ what it has not got round to freeing.
 
 ## Verification status
 
-| Gate                | Result                                                                                                                                         |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run typecheck` | clean                                                                                                                                          |
-| `npm run lint`      | clean                                                                                                                                          |
-| `npm test`          | **1964 passing**, 104 files                                                                                                                    |
-| `npm run build`     | clean, and now runs the licence, ledger, params, accent, contrast, icon and WASM guards                                                        |
-| `npm run test:mw`   | 311 of 312; the one failure is a pre-existing framework guard about `e2e/panel.spec.ts` importing `@playwright/test`, unrelated to any of this |
-| WASM boundary       | **0.000e+0** worst difference against the native golden                                                                                        |
-| Deploy              | verified — see the resume block                                                                                                                |
+| Gate                | Result                                                                                                                                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run typecheck` | clean                                                                                                                                                                                                                                                              |
+| `npm run lint`      | clean                                                                                                                                                                                                                                                              |
+| `npm test`          | **1964 passing**, 104 files                                                                                                                                                                                                                                        |
+| `npm run build`     | clean, and now runs the licence, ledger, params, accent, contrast, icon and WASM guards                                                                                                                                                                            |
+| `npm run test:mw`   | **312 of 312.** The framework guard had been red for two directives over `e2e/panel.spec.ts` importing Playwright - a rule that already allowed it, defeated by `fileURLToPath` returning backslashes so `/e2e/` never matched. It passed on Linux and failed here |
+| WASM boundary       | **0.000e+0** worst difference against the native golden                                                                                                                                                                                                            |
+| Deploy              | verified — see the resume block                                                                                                                                                                                                                                    |
 
 ## Directive 09 §1 — the manual has been read
 

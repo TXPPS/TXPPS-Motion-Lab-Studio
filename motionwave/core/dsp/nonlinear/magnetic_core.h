@@ -240,6 +240,26 @@ class MagneticCore {
     }
   }
 
+  /**
+   * How far into saturation the core is right now, as a fraction of the flux
+   * at which the anhysteretic curve is a third compressed. 1 is that knee.
+   *
+   * This exists because a face was drawing "transformer drive" from the *input
+   * peak*, which is a second opinion and the wrong one: a transformer's
+   * behaviour follows flux, and flux is the integral of the voltage, so the
+   * same level at 30 Hz and at 1 kHz drives the core by wildly different
+   * amounts. A meter fed the input peak reads identically for both and tells
+   * the user nothing about the mechanism it is named after.
+   *
+   * A read of one float with no side effects. Nothing here is on the audio
+   * path; the value it returns is a state the audio path already keeps.
+   */
+  float saturationFraction() const noexcept {
+    const float magnitude = flux_ < 0.0f ? -flux_ : flux_;
+    const float knee = config_.saturationFlux;
+    return knee > 0.0f ? magnitude / knee : 0.0f;
+  }
+
  private:
   Config config_{};
   double sampleRate_ = 48000.0;

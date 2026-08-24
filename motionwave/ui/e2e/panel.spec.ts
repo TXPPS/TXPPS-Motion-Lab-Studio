@@ -20,23 +20,8 @@
  *    `em`, and every interactive element meets the 44 px touch minimum at every
  *    width including the narrowest one the face says it supports.
  */
-import { expect, test, type Page } from '@playwright/test';
-
-/** The touch minimum, in CSS pixels. A diameter, not a radius. */
-const TOUCH_MIN = 44;
-
-async function boot(page: Page, unit = 'fx-01') {
-  const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(String(error)));
-  await page.goto(`/?unit=${unit}`);
-  // Cross-origin isolation, without which SharedArrayBuffer does not exist and
-  // the worklet has no way to publish that does not allocate per block. Checked
-  // first because every failure downstream of it is confusing.
-  expect(await page.evaluate(() => globalThis.crossOriginIsolated)).toBe(true);
-  await page.evaluate(() => window.__mwPanel.start());
-  expect(errors, errors.join('\n')).toEqual([]);
-  return errors;
-}
+import { expect, test } from '@playwright/test';
+import { boot, layoutSignature, straddling, TOUCH_MIN } from './harness';
 
 test.describe('U21 — the face paces against the display, decoupled from the audio thread', () => {
   test('repaints at display rate from state the audio thread published', async ({ page }) => {
@@ -155,26 +140,21 @@ test.describe('U22 — the panel reflows where the face says, and stays touchabl
       rootFontPx: parseFloat(getComputedStyle(document.documentElement).fontSize),
     }));
     expect(breakpoints.length).toBeGreaterThan(0);
-    const widths: number[] = [];
-    for (const em of breakpoints) {
-      widths.push(Math.round(em * rootFontPx) - 8, Math.round(em * rootFontPx) + 8);
-    }
-    const columnsAt: number[] = [];
+    const widths = straddling(breakpoints, rootFontPx);
+    const layoutAt: string[] = [];
     for (const width of widths) {
       await page.setViewportSize({ width, height: 900 });
-      columnsAt.push(
-        await page.evaluate(() => {
-          const grid = document.querySelector('.mw-panel-controls') as HTMLElement;
-          return getComputedStyle(grid).gridTemplateColumns.split(' ').length;
-        }),
-      );
+      layoutAt.push(await layoutSignature(page));
     }
-    console.log(`U22: columns at ${widths.join(', ')} px = ${columnsAt.join(', ')}`);
-    // Either side of each breakpoint the column count differs. That is what a
+    console.log(`U22: layout at ${widths.join(', ')} px = ${layoutAt.join('  ')}`);
+    // Either side of each breakpoint the layout differs. That is what a
     // breakpoint *is*, and a face that declared one where nothing changed would
     // be describing a layout it does not have.
-    expect(columnsAt[0]).toBeLessThan(columnsAt[1]);
-    expect(columnsAt[2]).toBeLessThan(columnsAt[3]);
+    for (let i = 0; i < breakpoints.length; i++) {
+      expect(layoutAt[i * 2], `nothing changes across ${breakpoints[i]}em`).not.toBe(
+        layoutAt[i * 2 + 1],
+      );
+    }
   });
 
   test('every control meets the touch minimum at every width, and is not clipped', async ({
@@ -234,23 +214,18 @@ test.describe('U22 — the panel reflows where the face says, and stays touchabl
         minWidthRem: window.__mwPanel.minWidthRem,
       }));
       expect(breakpoints.length).toBeGreaterThan(0);
-      const columnsAt: number[] = [];
-      const widths: number[] = [];
-      for (const em of breakpoints) {
-        widths.push(Math.round(em * rootFontPx) - 8, Math.round(em * rootFontPx) + 8);
-      }
+      const widths = straddling(breakpoints, rootFontPx);
+      const layoutAt: string[] = [];
       for (const width of widths) {
         await page.setViewportSize({ width, height: 900 });
-        columnsAt.push(
-          await page.evaluate(() => {
-            const grid = document.querySelector('.mw-panel-controls') as HTMLElement;
-            return getComputedStyle(grid).gridTemplateColumns.split(' ').length;
-          }),
+        layoutAt.push(await layoutSignature(page));
+      }
+      console.log(`U22 ${unit}: layout at ${widths.join(', ')} px = ${layoutAt.join('  ')}`);
+      for (let i = 0; i < breakpoints.length; i++) {
+        expect(layoutAt[i * 2], `${unit}: nothing changes across ${breakpoints[i]}em`).not.toBe(
+          layoutAt[i * 2 + 1],
         );
       }
-      console.log(`U22 ${unit}: columns at ${widths.join(', ')} px = ${columnsAt.join(', ')}`);
-      expect(columnsAt[0]).toBeLessThan(columnsAt[1]);
-      expect(columnsAt[2]).toBeLessThan(columnsAt[3]);
 
       for (const width of [Math.ceil(minWidthRem * rootFontPx), 500, 1000, 1600]) {
         await page.setViewportSize({ width, height: 900 });

@@ -228,6 +228,23 @@ export function renderFace(options: PanelOptions): PanelHandle {
   const byParam = new Map<number, ControlHandle>();
   const handles: { dispose(): void }[] = [];
 
+  /**
+   * Every element carries the id its face gave it.
+   *
+   * Without it nothing outside can address one element: the nodes carry
+   * `data-mw-primitive` and `data-mw-value`, so a test can find *a* meter but
+   * never *this* meter. `panel.spec.ts` was written against a
+   * `[data-mw-element="curve-editor"]` selector that nothing emitted, so its
+   * `querySelector` returned null and two U21 cases died on `.dataset` of null
+   * rather than on anything they were measuring.
+   *
+   * The id comes from the face, which is the one place it is declared, so this
+   * cannot drift from it the way a hand-written selector did.
+   */
+  const identify = (node: HTMLElement | SVGElement, element: FaceElement): void => {
+    node.setAttribute('data-mw-element', element.id);
+  };
+
   for (const element of options.face.elements) {
     if (element.role === 'curve') {
       const index = element.shapeIndex ?? 0;
@@ -238,6 +255,7 @@ export function renderFace(options: PanelOptions): PanelHandle {
         coarsePointer: options.coarsePointer ?? false,
         onChange: (nodes) => options.onShape?.(index, nodes),
       });
+      identify(editor.node, element);
       curves.set(index, editor);
       handles.push(editor);
       if (element.meterChannel)
@@ -250,6 +268,7 @@ export function renderFace(options: PanelOptions): PanelHandle {
 
     if (READOUT.has(element.role)) {
       const handle = buildReadoutFor(doc, element);
+      identify(handle.node, element);
       handles.push(handle);
       readouts.appendChild(handle.node);
       if (element.meterChannel) painters.push({ handle, channel: element.meterChannel });
@@ -259,6 +278,7 @@ export function renderFace(options: PanelOptions): PanelHandle {
     const spec = specs.get(element.paramId ?? -1);
     if (spec === undefined) continue;
     const control = buildControlFor(doc, element, spec, skin, options.onParam);
+    identify(control.node, element);
     handles.push(control);
     byParam.set(spec.id, control);
     controls.appendChild(control.node);

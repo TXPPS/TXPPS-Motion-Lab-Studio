@@ -170,7 +170,7 @@ class GranularDelay : public Node {
     reset();
   }
 
-  void reset() noexcept {
+  void reset() noexcept override {
     buffer_.reset();
     loop_.reset();
     grains_.reset();

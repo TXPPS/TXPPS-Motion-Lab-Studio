@@ -17,7 +17,7 @@ import { renderFace, type PanelHandle } from '../render/facePanel';
 import { motionShaperFace, MotionShaperMeter } from '../units/motion_shaper/face';
 import { motionShaperSpecs } from '../units/motion_shaper/params.gen';
 import { MotionShaperParam } from '../units/motion_shaper/params.gen';
-import { programEqFace } from '../units/program_eq/face';
+import { programEqFace, ProgramEqMeter } from '../units/program_eq/face';
 import { programEqSpecs } from '../units/program_eq/params.gen';
 import { opticalLevellerFace } from '../units/optical_leveller/face';
 import { opticalLevellerSpecs } from '../units/optical_leveller/params.gen';
@@ -30,18 +30,51 @@ import { variableMuFace } from '../units/variable_mu/face';
 import { variableMuSpecs } from '../units/variable_mu/params.gen';
 import { fetLimiterSpecs } from '../units/fet_limiter/params.gen';
 
-/** The channel each published double carries, in the bridge's packing order. */
-const CHANNELS = [
-  MotionShaperMeter.Phase,
-  MotionShaperMeter.BandGainLow,
-  MotionShaperMeter.BandGainMid,
-  MotionShaperMeter.BandGainHigh,
-  MotionShaperMeter.BandLevelLow,
-  MotionShaperMeter.BandLevelMid,
-  MotionShaperMeter.BandLevelHigh,
-  MotionShaperMeter.InputPeak,
-  MotionShaperMeter.OutputPeak,
-] as const;
+/**
+ * The channel each published double carries, in the bridge's packing order,
+ * per unit.
+ *
+ * Per unit because a frame is the unit's own shape — the same reason
+ * `unit_worklet.js` keeps a frame width per unit and `unit_bridge.h` leaves the
+ * visual export out of its macro. A single list was the Motion Shaper's, so
+ * every other unit's panel read the shaper's nine channel names over its own
+ * six doubles and drew nothing it could recognise.
+ *
+ * The order is `bridge.cpp`'s and must stay that way; it is asserted from the
+ * other end by each unit's own visual export, which packs it.
+ */
+const CHANNELS: Record<string, readonly string[]> = {
+  'fx-01': [
+    MotionShaperMeter.Phase,
+    MotionShaperMeter.BandGainLow,
+    MotionShaperMeter.BandGainMid,
+    MotionShaperMeter.BandGainHigh,
+    MotionShaperMeter.BandLevelLow,
+    MotionShaperMeter.BandLevelMid,
+    MotionShaperMeter.BandLevelHigh,
+    MotionShaperMeter.InputPeak,
+    MotionShaperMeter.OutputPeak,
+  ],
+  'dyn-01': [
+    ProgramEqMeter.InputPeak,
+    ProgramEqMeter.OutputPeak,
+    ProgramEqMeter.HarmonicSecond,
+    ProgramEqMeter.HarmonicThird,
+    ProgramEqMeter.InputCoreDrive,
+    ProgramEqMeter.OutputCoreDrive,
+  ],
+};
+
+/**
+ * What to play at each unit, and why it is not one tone for all of them.
+ *
+ * The Motion Shaper's claim is about a modulator, so a steady tone is right —
+ * what moves is the shaping. The Program EQ's is about iron, and a transformer
+ * follows *flux*: at 1 kHz the core barely moves whatever the level, so a
+ * kilohertz probe would leave its panel still and V27 would be measuring the
+ * stimulus rather than the unit. 40 Hz is where `dyn-01` §7's thickening lives.
+ */
+const STIMULUS: Record<string, number> = { 'fx-01': 1000, 'dyn-01': 40 };
 
 interface Harness {
   panel: PanelHandle;
@@ -134,7 +167,8 @@ function readFrame(): Record<string, number> | null {
       continue;
     }
     const values: Record<string, number> = {};
-    for (let i = 0; i < CHANNELS.length; i++) values[CHANNELS[i]] = frame[i];
+    const names = CHANNELS[requested] ?? CHANNELS['fx-01'];
+    for (let i = 0; i < names.length; i++) values[names[i]] = frame[i];
     if (Atomics.load(sequence, 0) === before) {
       reads++;
       return values;
@@ -155,14 +189,29 @@ function tick() {
 }
 
 async function start() {
-  // Only the Motion Shaper has an engine across the boundary today, and this
-  // page says so rather than pretending: a harness that silently rendered a
-  // dead panel would let U21 be measured against a face nothing is driving,
-  // which is the exact failure that cell exists to catch.
-  if (!isShaper) return;
+  // Every unit this page knows the channel packing for gets a real engine.
+  //
+  // It used to be the Motion Shaper alone, and the comment here said so — but
+  // that had stopped being true underneath it: `unit_worklet.js` names seven
+  // units' exports and `bridge.cpp` exports all seven. What was left was this
+  // early return, so six panels laid out against nothing and V27 — which asks
+  // whether something *moves* — could not be measured on any of them.
+  //
+  // The guard stays for a unit whose packing is not declared above, because a
+  // panel reading another unit's channel names over its own doubles is worse
+  // than a still one: it would draw numbers, and they would be wrong.
+  if (!CHANNELS[requested]) return;
   context = new AudioContext({ sampleRate: 48000 });
   await context.audioWorklet.addModule('/motionwave.worklet.js');
-  await context.audioWorklet.addModule('/shaper_worklet.js');
+  // `unit_worklet.js`, and the name is the whole of a bug worth recording.
+  // The worklet was `shaper_worklet.js` until it was generalised to name any
+  // unit's exports; it was renamed and this line was not. `addModule` then
+  // rejected with "Unable to load a worklet's module" for every run after
+  // that commit — so U21, which is the cell this whole page exists to
+  // measure, has not executed since, while the Ledger recorded it PASS on
+  // seven units. A string that names a file is not checked by anything the
+  // way an import is, which is exactly why the suite has to be *run*.
+  await context.audioWorklet.addModule('/unit_worklet.js');
 
   // One doubles-aligned buffer: eight bytes for the sequence so the frame that
   // follows it starts on an eight-byte boundary, then the frame itself.
@@ -181,7 +230,7 @@ async function start() {
   });
 
   const osc = context.createOscillator();
-  osc.frequency.value = 1000;
+  osc.frequency.value = STIMULUS[requested] ?? 1000;
   const level = context.createGain();
   level.gain.value = 0.5;
   osc.connect(level).connect(node);
@@ -197,27 +246,24 @@ async function start() {
     };
   });
 
-  // A shape with an obvious envelope, sent the way the curve editor would.
-  node.port.postMessage({
-    kind: 'curve',
-    band: 0,
-    nodes: [
-      [0, 1, 0, 0],
-      [0.5, 0, 0, 0],
-    ],
-  });
-  for (let band = 0; band < 3; band++) {
-    node.port.postMessage({
-      kind: 'curve',
-      band,
-      nodes: [
-        [0, 1, 0, 0],
-        [0.5, 0, 0, 0],
-      ],
-    });
+  if (isShaper) {
+    // A shape with an obvious envelope, sent the way the curve editor would.
+    // Only the Motion Shaper has curves; the worklet's own table records that
+    // as `curve: false` for every other unit, and posting one at a unit that
+    // has none is a message its processor drops on the audio thread.
+    for (let band = 0; band < 3; band++) {
+      node.port.postMessage({
+        kind: 'curve',
+        band,
+        nodes: [
+          [0, 1, 0, 0],
+          [0.5, 0, 0, 0],
+        ],
+      });
+    }
+    node.port.postMessage({ kind: 'param', id: MotionShaperParam.SyncMode, value: 1 });
+    node.port.postMessage({ kind: 'param', id: MotionShaperParam.Rate, value: 2 });
   }
-  node.port.postMessage({ kind: 'param', id: MotionShaperParam.SyncMode, value: 1 });
-  node.port.postMessage({ kind: 'param', id: MotionShaperParam.Rate, value: 2 });
   await context.resume();
   requestAnimationFrame(tick);
 }

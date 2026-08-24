@@ -206,22 +206,22 @@ the box that receives the press, it fails.
 The vitest suite still reports both BLOCKED, and that is correct there: a cell
 that reported PASS from jsdom would be reporting a layout nobody laid out.
 
-| Unit                | Sheet    | Status       | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  | X25  | X26 | V27  |
+| Unit                | Sheet    | Status       | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  | X25  | X26  | V27  |
 | ------------------- | -------- | ------------ | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
 | Motion Shaper       | `fx-01`  | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
-| Program EQ          | `dyn-01` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
+| Program EQ          | `dyn-01` | SHIPPING     | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | Optical Leveller    | `dyn-02` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
 | FET Limiter         | `dyn-03` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
 | Variable-Mu Limiter | `dyn-04` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
 | Console EQ          | `dyn-05` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
 | Granular Reverb     | `fx-02`  | NOT SHIPPING | PASS | PASS | PASS | PASS | n/a  | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
-| Granular Delay      | `fx-03`  | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    | —    | — | —    |
-| Slipstream Sampler  | `smp-01` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | — | —    |
-| DCO Poly            | `syn-01` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | — | —    |
-| Phase Distortion    | `syn-02` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | — | —    |
-| Analog Five         | `syn-03` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | — | —    |
-| Six-Op FM           | `syn-04` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | — | —    |
-| Matrix Twelve       | `syn-05` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | — | —    |
+| Granular Delay      | `fx-03`  | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    | —    | —    | —    |
+| Slipstream Sampler  | `smp-01` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    |
+| DCO Poly            | `syn-01` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    |
+| Phase Distortion    | `syn-02` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    |
+| Analog Five         | `syn-03` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    |
+| Six-Op FM           | `syn-04` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    |
+| Matrix Twelve       | `syn-05` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    |
 
 ### Cell 26 — usability, and why all seven dropped out again
 
@@ -1202,7 +1202,7 @@ control exists for.
 | `X24` | Integration | The unit's real DSP, compiled to WASM, driven by its real UI, produces correct audio and correct visualiser state                                                                                                  |
 | `X25` | Host        | The unit is insertable, audible, editable, compensated and persistable **in the application** — not in the dev panel                                                                                               |
 | `X26` | Usability   | Every control is the correct primitive for what it represents, operable by touch in portrait on a phone; the panel is visually distinct from every other unit; the unit's defining control is present and operable |
-| `V27` | Live visual | The panel shows, in motion, what the unit is doing right now — see below                                                                                                                                          |
+| `V27` | Live visual | The panel shows, in motion, what the unit is doing right now — see below                                                                                                                                           |
 
 ### `V27` — live visual feedback
 
@@ -1222,15 +1222,43 @@ animated element that:
    on a phone.
 
 `V27` is **not** `U20`. `U20` asks whether a visualiser reads real engine state;
-`V27` asks whether there is something *moving* that a user can watch a mechanism
-in. Program EQ satisfies `U20` today — its harmonic display reads the
-amplifier's own `curvature()` — and does not satisfy `V27`, because nothing on
-its panel moves with the music. This is the distinction Directive 09 §9 names:
-a cell tests what it says, not what its title implies.
+`V27` asks whether there is something _moving_ that a user can watch a mechanism
+in. This is the distinction Directive 09 §9 names: a cell tests what it says,
+not what its title implies.
 
-Every unit with a face is therefore `FAIL` at `V27` until its animation is
-built, and **Program EQ has dropped out of SHIPPING** on the strength of it. It
-had been the only unit shipping; it is now honest instead.
+### Program EQ is `PASS`, and what it took
+
+The unit satisfied `U20` from the day it was written and still failed this, for
+a reason that is the clearest illustration of the difference. Its most
+mechanism-revealing readout is the harmonic display, and that reads
+`TriodeStage::curvature` — which is `nl::curvature(config_.bias)`, a function of
+the _configuration_. Real engine state, honestly published, and it does not
+change until a knob does. `program_eq_visual_tests.cpp` asserts that it stays
+that way, so nobody reads the rows below and concludes the harmonic display now
+animates.
+
+What moves with the music is the iron, and it was being published wrongly. The
+two transformer fields were assigned the input and output **peaks** — a second
+opinion of the kind `CLAUDE.md` rules out, and a specific one: a transformer
+follows flux, flux is the integral of the voltage, so the same level at 30 Hz
+and 1 kHz drives the core by amounts that differ by more than an order of
+magnitude. A meter fed the peak reads identically for both, and so cannot show
+the one thing it is named after — `dyn-01` §7's low-frequency thickening. They
+now carry the core's own peak flux, as a fraction of its saturation knee.
+
+The discriminator is a case that fails if either field is ever wired back to a
+level: two tones at _equal amplitude_ must not read the same. Wire it back and
+it prints `30 Hz core 0.2510, 1 kHz core 0.2510, ratio 1.0 x` and fails; nothing
+else in that file would.
+
+The browser end is `e2e/live_visual.spec.ts`, which measures all four
+requirements against a running engine — 29 distinct values over 40 frames while
+the tone plays, and exactly one after the context is suspended. Mutation-tested
+the way `U21` was: fabricating the value from `performance.now()` gives 40
+distinct values of 40 while running, which passes everything except the stop,
+where it reads 20 instead of 1.
+
+Every other unit with a face is `FAIL` at `V27` until its animation is built.
 
 ## Who owns which cell, and where it runs
 

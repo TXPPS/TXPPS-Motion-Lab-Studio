@@ -39,7 +39,8 @@
     "scope-guard": "node scripts/scope-guard.mjs",
     "curve:golden": "node scripts/generate-curve-golden.mjs",
     "curve:check": "node scripts/generate-curve-golden.mjs --check",
-    "stress": "node scripts/stress.mjs"
+    "stress": "node scripts/stress.mjs",
+    "test:core": "node scripts/run-core-tests.mjs"
   },
   "dependencies": {
     "@webaudiomodules/api": "2.0.0-alpha.6",

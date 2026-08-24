@@ -2,11 +2,25 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url));
+/**
+ * Separators are normalised to `/` here and nowhere else.
+ *
+ * `fileURLToPath` returns backslashes on Windows, so a collected path read
+ * `ui\e2e/panel.spec.ts` — half one separator and half the other — and every rule
+ * below that recognises a directory by matching `/e2e/` silently stopped
+ * recognising it. The dependency rule was the one that showed: it allows the
+ * browser suite to import Playwright, could not tell that a file was in the
+ * browser suite, and failed. It had been red for two directives and was carried
+ * as "pre-existing", which is the real cost — a guard that is expected to be
+ * red is a guard whose next failure nobody reads.
+ *
+ * Node accepts forward slashes on Windows, so normalising costs nothing.
+ */
+const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/');
 
 function sourceFiles(directory = ROOT, found: string[] = []): string[] {
   for (const entry of readdirSync(directory)) {
-    const path = `${directory}${entry}`;
+    const path = `${directory}${entry}`.replace(/\\/g, '/');
     if (statSync(path).isDirectory()) {
       sourceFiles(`${path}/`, found);
       continue;
@@ -76,7 +90,11 @@ describe('the house rules hold for this tree as well', () => {
     // need one are written against the runner that can. Scoped to the browser
     // suite's own files so it never becomes an import shipping code can use.
     const buildConfig = /(^|\/)(vite|vitest|playwright)\.config\.ts$/;
-    const browserSuite = /(^|\/)e2e\/[^/]+\.spec\.ts$/;
+    // The whole `e2e/` directory, not only its `.spec.ts` files. The suite
+    // grew a `harness.ts` when three cells in one file crossed the length rule
+    // and V27 moved out; the shared booting went with it, and a helper for the
+    // browser suite is as much the browser suite as a spec is.
+    const browserSuite = /(^|\/)e2e\/[^/]+\.ts$/;
     for (const path of FILES) {
       if (!path.endsWith('.ts')) continue;
       const source = readFileSync(path, 'utf8');
