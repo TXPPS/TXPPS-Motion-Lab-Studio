@@ -1,15 +1,18 @@
 # Motion Wave — progress
 
 ```
-RESUME: Directive 08
+RESUME: Directive 08 §3 SUSPENDED — Directive 09, faces.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: 6cb507e — cell 25 green for all seven, faces mounted.
-Current unit:    fx-03 Granular Delay — V1,V2,V3,V4,V5,V6,V13,V14,V16 measuring.
+Deployed commit: dac8bc4 — cell 25 green for all seven, faces mounted.
+Current work:    Cell 26 usability. All seven units are NOT SHIPPING: every
+                 control in the product is `<input type="range">` and the seven
+                 panels are one panel. fx-03 is STOPPED mid-build at the user's
+                 instruction — its nine green rows are committed and stay green.
 Last PASS:       X25 for all seven, backed by e2e/motionwave.spec.ts.
-Next action:     fx-03 §6 — the tape and BBD character block, which V8, V9, V10,
-                 V11 and V12 all need and none of which exists yet. Then V7
-                 (needs §5's delay-time smoothing), V15, then the manifest, D1,
-                 face and cell 25.
+Next action:     Control primitives in the shared framework (knob, stepped
+                 selector, toggle/rocker, latching button, VU with ballistics,
+                 lamp, curve editor), then Program EQ's panel end to end, then
+                 deploy for judgement before the other six.
 Shared libraries built: decay_harness.h, tank.h (built, measured, NOT adopted —
                  see the V7 note), delay_routing/sync/smear/feedback/line,
                  nonlinear library, grain engine with a stereo source.
@@ -19,6 +22,12 @@ Open deviations: V7 echo density 125 ms vs 80 ms (both granular units ship with
                  incoherent floor permits it; fx-02 D5 n/a on the oversampling
                  half only; §2.3's "not identical to bypass" replaced by
                  "reachable" for two units whose neutral default is correct.
+WHEN fx-03 RESUMES: §6 tape and BBD character, which V8, V9, V10, V11 and V12
+                 all need. Measure the BBD companding artefacts with the
+                 ensemble discipline the decay rows use — they are
+                 program-dependent, so a single render is a single sample of a
+                 distribution — and calibrate the instrument against a known
+                 compander before believing any number it reports.
 Blocked cells awaiting hardware: V7 listening check (docs/HARDWARE_VERIFICATION.md).
 
 BRANCHES — NEEDS A HUMAN, cannot be done from here:

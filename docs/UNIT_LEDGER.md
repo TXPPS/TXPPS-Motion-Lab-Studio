@@ -20,9 +20,11 @@ sessions. **Read this first**, then the resume block at the top of
 
 ## Status
 
-**0 of 14 shipping.** Motion Shaper's DSP is built and measured; its UI is not,
-and the framework its UI builds on is still in progress, so it is not shipping
-and its row says so.
+**0 of 14 shipping.** Seven units are complete through cell 25 — their DSP is
+measured, their audio reaches a track and their state persists. All seven fail
+cell 26: every control in the product is a slider, and the seven panels are one
+panel. They are held at `NOT SHIPPING` until each has real control primitives
+and its own visual identity. See "Cell 26 — usability" below.
 
 ### How a sheet's V-numbers relate to the Ledger's cells
 
@@ -202,22 +204,63 @@ the box that receives the press, it fails.
 The vitest suite still reports both BLOCKED, and that is correct there: a cell
 that reported PASS from jsdom would be reporting a layout nobody laid out.
 
-| Unit                | Sheet    | Status      | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  | X25  |
-| ------------------- | -------- | ----------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
-| Motion Shaper       | `fx-01`  | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| Program EQ          | `dyn-01` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| Optical Leveller    | `dyn-02` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| FET Limiter         | `dyn-03` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| Variable-Mu Limiter | `dyn-04` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| Console EQ          | `dyn-05` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| Granular Reverb     | `fx-02`  | SHIPPING    | PASS | PASS | PASS | PASS | n/a  | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    | —    |
-| Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    |
-| DCO Poly            | `syn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    |
-| Phase Distortion    | `syn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    |
-| Analog Five         | `syn-03` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    |
-| Six-Op FM           | `syn-04` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    |
-| Matrix Twelve       | `syn-05` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    |
+| Unit                | Sheet    | Status       | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  | X25  | X26  |
+| ------------------- | -------- | ------------ | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| Motion Shaper       | `fx-01`  | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
+| Program EQ          | `dyn-01` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
+| Optical Leveller    | `dyn-02` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
+| FET Limiter         | `dyn-03` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
+| Variable-Mu Limiter | `dyn-04` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
+| Console EQ          | `dyn-05` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
+| Granular Reverb     | `fx-02`  | NOT SHIPPING | PASS | PASS | PASS | PASS | n/a  | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
+| Granular Delay      | `fx-03`  | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    | —    | —    |
+| Slipstream Sampler  | `smp-01` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    |
+| DCO Poly            | `syn-01` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    |
+| Phase Distortion    | `syn-02` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    |
+| Analog Five         | `syn-03` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    |
+| Six-Op FM           | `syn-04` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    |
+| Matrix Twelve       | `syn-05` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    |
+
+### Cell 26 — usability, and why all seven dropped out again
+
+Twenty-five cells passed on seven units that a user opened and could not tell
+apart, and could not operate. The cells were not wrong about what they measured.
+They measured the wrong set of things, and the shape of the miss is worth
+stating because it is the second time in two directives:
+
+- **`U19` is an IP cell wearing a styling cell's title.** "original artwork"
+  checks that every declared asset has `origin: original` and an attribution.
+  Seven faces declaring `panel-surface / original / drawn in code` satisfy it
+  completely while rendering the same panel. The cell was doing its job; nothing
+  was doing the other one.
+- **`U22` measures that a control is at least 44 px.** It does not ask whether
+  the 44 px is a knob or a slider. Every control in the product was
+  `<input type="range">` — `render/facePanel.ts` built one for all six roles,
+  through a ternary whose two branches both returned `'range'`. A stepped
+  selector, a latching button and a rotary dial were the same widget with
+  different labels.
+- **`U20` proves a readout is bound to a real channel.** The Motion Shaper's
+  curve — the control the whole unit is about — has no surface at all, and no
+  cell asked for one, because `U20` is satisfied by the readouts that _do_ exist.
+
+So cell 26 is not "make it prettier". It is the check that the twenty-five
+cannot express: **is this a usable instrument, or a form?**
+
+A unit passes only when all four hold:
+
+1. Every control is the correct primitive for what it represents. A rotary
+   parameter gets a knob, a stepped parameter gets a detented selector, a
+   two-state parameter gets a switch or a latching button. `<input type="range">`
+   standing in for any of these is a FAIL.
+2. Every control is operable by touch in portrait on a phone — pointer capture,
+   ≥ 44 pt, reachable and draggable one-handed.
+3. The panel is visually distinct from every other unit's, at a glance.
+4. The unit's defining control is present and operable.
+
+**All seven FAIL it today**, and their status column says `NOT SHIPPING` rather
+than carrying a footnote under `SHIPPING`. That is the point of applying a cell
+retroactively: a unit that fails a cell is not shipping, and the ledger is the
+place that has to say so first.
 
 ### Cell 25 — the host, and the three defects it found
 
@@ -1091,10 +1134,11 @@ control exists for.
 
 `n/a` in `I13`–`I18` marks a unit that is an effect and has no voices.
 
-| Id    | Group       | Definition-of-Done item                                                                                              |
-| ----- | ----------- | -------------------------------------------------------------------------------------------------------------------- |
-| `X24` | Integration | The unit's real DSP, compiled to WASM, driven by its real UI, produces correct audio and correct visualiser state    |
-| `X25` | Host        | The unit is insertable, audible, editable, compensated and persistable **in the application** — not in the dev panel |
+| Id    | Group       | Definition-of-Done item                                                                                                                                                                                            |
+| ----- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `X24` | Integration | The unit's real DSP, compiled to WASM, driven by its real UI, produces correct audio and correct visualiser state                                                                                                  |
+| `X25` | Host        | The unit is insertable, audible, editable, compensated and persistable **in the application** — not in the dev panel                                                                                               |
+| `X26` | Usability   | Every control is the correct primitive for what it represents, operable by touch in portrait on a phone; the panel is visually distinct from every other unit; the unit's defining control is present and operable |
 
 ## Who owns which cell, and where it runs
 
