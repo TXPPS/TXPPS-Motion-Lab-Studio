@@ -3,9 +3,14 @@
 ```
 RESUME: Directive 10 — Emscripten, plugin windows, latency, V27.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: b2a59c1e2c
-Bundle verified: YES — live index-DsjjyENC.js matches a clean-tree build of
-                 that commit, byte for byte.
+Deployed commit: 340ba25 — verified live, not merely pushed.
+Bundle verified: YES — live index-BnAJBjl3.js matches a clean-tree build of
+                 that commit, byte for byte. Cloudflare took 280 s to pick it
+                 up; a check that does not wait that long reports the previous
+                 bundle and calls it a match.
+                 This line names the tip at the moment it was written, so the
+                 commit that edits it is by construction one ahead of what it
+                 describes. Said plainly rather than left to be noticed.
 Current section: §0, §2, §3.1, §5 and §1's V27 COMPLETE.
 Next action:     E3 reported. Then Directive 09 §4.1 - V27 for the remaining
                  six panels - and §5, instruments 9-14.
