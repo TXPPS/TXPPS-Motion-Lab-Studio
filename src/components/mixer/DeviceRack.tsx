@@ -27,7 +27,8 @@ import { CHAIN_PRESETS } from '../../model/effectPresets';
 import { applyChainSteps, type ChainStepLike } from '../../app/chainActions';
 import { useChainStore } from '../../state/chainStore';
 import { saveChainFrom } from './InsertRack';
-import type { Effect, EffectKind, Track } from '../../model/types';
+import { MASTER_ID } from '../../model/types';
+import type { Effect, EffectKind, ProjectData, Track } from '../../model/types';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
 import { useProjectStore } from '../../state/projectStore';
 import { useWorkspaceStore } from '../../state/workspaceStore';
@@ -105,6 +106,26 @@ export function masterRack(effects: Effect[]): RackHost {
   };
 }
 
+/**
+ * The rack for any channel id, master included.
+ *
+ * The master channel is not a member of `project.tracks` — it is
+ * `project.master` — so anything that resolved a channel by searching the track
+ * list found nothing for `'master'` and did nothing about it. That is why a
+ * device on the master could be inserted and heard but never opened: the editor
+ * looked the channel up that way, got `undefined`, and returned `null` rather
+ * than a window.
+ *
+ * One resolver rather than a conditional at each call site, because the whole
+ * point of `RackHost` is that a caller should not have to know which kind of
+ * channel it is holding.
+ */
+export function channelRack(project: ProjectData, channelId: string): RackHost | null {
+  if (channelId === MASTER_ID) return masterRack(project.master?.effects ?? []);
+  const track = project.tracks.find((t) => t.id === channelId);
+  return track ? trackRack(track) : null;
+}
+
 /** What a drag is carrying: a device, and the channel it came from. */
 const DEVICE_MIME = 'application/x-motionlab-device';
 
@@ -127,9 +148,26 @@ function readDrag(e: React.DragEvent): DragPayload | null {
   }
 }
 
+/**
+ * What `deviceMenu` needs from whoever is holding the chain.
+ *
+ * Deliberately narrower than `RackHost`, so the inspector's `ChainHost` can
+ * satisfy it too. The mixer offered these options behind a caret and the
+ * inspector offered a subset as inline buttons behind a disclosure — the same
+ * job, two different answers depending on which surface the user happened to
+ * be on, which is what "some devices have no options" turned out to mean.
+ */
+export interface DeviceMenuHost {
+  id: string;
+  name: string;
+  setBypass: (effectId: string, bypass: boolean) => void;
+  move: (effectId: string, delta: number) => void;
+  remove: (effectId: string) => void;
+}
+
 /** The menu every device slot answers to, on right-click and from its caret. */
-function deviceMenu(
-  rack: RackHost,
+export function deviceMenu(
+  rack: DeviceMenuHost,
   effect: Effect,
   index: number,
   total: number,

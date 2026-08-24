@@ -12,6 +12,8 @@
     "noEmit": true,
 
     "strict": true,
+    // See tsconfig.app.json.
+    "allowUnreachableCode": false,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,

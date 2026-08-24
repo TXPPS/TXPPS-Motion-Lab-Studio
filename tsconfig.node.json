@@ -12,6 +12,8 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    // See tsconfig.app.json.
+    "allowUnreachableCode": false,
     "types": ["node"]
   },
   "include": ["vite.config.ts", "playwright.config.ts"]

@@ -169,6 +169,7 @@ function eventChainHost(clip: { id: string; eventFx?: Effect[] }): ChainHost {
   const store = useProjectStore;
   return {
     id: `clip:${clip.id}`,
+    name: 'this clip',
     title: 'Event FX',
     emptyHint: 'Inserts that process this clip alone, before it reaches the channel.',
     effects: clip.eventFx ?? [],

@@ -17,6 +17,19 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    /*
+     * Unreachable code is an error, not a warning.
+     *
+     * TypeScript's default is to grey it in an editor and say nothing to a
+     * build. That let a `return` followed by a newline and a comment ship: the
+     * plugin window's drag handler read `return` / comment / `setPos(...)`, so
+     * automatic semicolon insertion ended the statement at the newline and the
+     * move was never applied. The window could not be dragged for four
+     * releases. ESLint could not see it either — typescript-eslint defers
+     * `no-unreachable` to the compiler, on the reasonable assumption that the
+     * compiler is being asked.
+     */
+    "allowUnreachableCode": false,
     "noUncheckedSideEffectImports": true,
 
     "types": ["vite/client", "vite-plugin-pwa/client"]

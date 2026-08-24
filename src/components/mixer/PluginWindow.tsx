@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { describeEffect, effectSpec, formatParam, MAX_INSERTS } from '../../model/effects';
 import { presetParams, presetsFor } from '../../model/effectPresets';
-import type { Effect, Track } from '../../model/types';
+import type { Effect } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
@@ -22,6 +22,7 @@ import { Icon } from '../common/Icon';
 import { EffectVisual, FxKnob } from './PluginFace';
 import { MotionWaveFace } from './MotionWaveFace';
 import { isMotionWaveKind } from '../../audio/motionwave/registry';
+import { channelRack, type RackHost } from './DeviceRack';
 import { clampToViewport, placeWindow } from './windowPlace';
 import type { Rect } from './windowPlace';
 
@@ -32,6 +33,37 @@ import type { Rect } from './windowPlace';
  * it instead — this is a preference, not a position. See `windowPlace.ts`.
  */
 const PREFERRED_POS = { x: 220, y: 120 };
+
+/**
+ * Where the user last put a device window, for the rest of this session.
+ *
+ * Module-level rather than component state, because the window unmounts between
+ * devices: opening a second device used to place it back at the default, so a
+ * musician working through a chain had to move it again for every insert. Once
+ * they have moved one, that is where the next one belongs.
+ *
+ * Not persisted across reloads on purpose. A saved x/y is a promise about a
+ * viewport that may not be the same one next time, and `clampToViewport` can
+ * only rescue a position that is off the edge, not one that is now covering the
+ * control the window was moved away from.
+ */
+let lastUserPos: { x: number; y: number } | null = null;
+
+/**
+ * Where a window opens: where the user last dragged one, or the default.
+ *
+ * Clamped either way — a remembered position on a smaller viewport is exactly
+ * the case that would otherwise open a window off the screen with its own drag
+ * handle out of reach.
+ */
+function placeOpening(
+  box: Rect,
+  viewport: { width: number; height: number },
+): { x: number; y: number } {
+  return lastUserPos
+    ? clampToViewport(lastUserPos, box, viewport)
+    : placeWindow(PREFERRED_POS, box, viewport);
+}
 
 /** How far the header must be thrown downward before a drag counts as a dismiss. */
 const SWIPE_CLOSE_PX = 120;
@@ -45,7 +77,7 @@ const SWIPE_CLOSE_PX = 120;
  */
 type Snapshot = Record<string, number>;
 
-function EffectBody({ track, effect }: { track: Track; effect: Effect }) {
+function EffectBody({ rack, effect }: { rack: RackHost; effect: Effect }) {
   /*
    * A Motion Wave unit brings its own panel.
    *
@@ -58,7 +90,7 @@ function EffectBody({ track, effect }: { track: Track; effect: Effect }) {
   if (isMotionWaveKind(effect.kind)) {
     return (
       <div className="pw-body pw-body-mw">
-        <MotionWaveFace trackId={track.id} effect={effect} />
+        <MotionWaveFace trackId={rack.id} effect={effect} />
       </div>
     );
   }
@@ -71,8 +103,8 @@ function EffectBody({ track, effect }: { track: Track; effect: Effect }) {
       <div className="pw-visual">
         <EffectVisual
           effect={effect}
-          trackId={track.id}
-          onParam={(key, value) => store.getState().setEffectParam(track.id, effect.id, key, value)}
+          trackId={rack.id}
+          onParam={(key, value) => rack.setParam(effect.id, key, value)}
           onGestureStart={() => store.getState().beginGesture()}
           onGestureEnd={() => store.getState().endGesture()}
         />
@@ -84,7 +116,7 @@ function EffectBody({ track, effect }: { track: Track; effect: Effect }) {
             spec={p}
             value={effect.params[p.key] ?? p.default}
             size={48}
-            onChange={(v) => store.getState().setEffectParam(track.id, effect.id, p.key, v)}
+            onChange={(v) => rack.setParam(effect.id, p.key, v)}
             onGestureStart={() => store.getState().beginGesture()}
             onGestureEnd={() => store.getState().endGesture()}
           />
@@ -96,10 +128,12 @@ function EffectBody({ track, effect }: { track: Track; effect: Effect }) {
 
 export function PluginWindow() {
   const open = useUiStore((s) => s.openDevice);
-  const track = useProjectStore((s) =>
-    open ? s.project.tracks.find((t) => t.id === open.trackId) : undefined,
-  );
-  const effect = track?.effects?.find((e) => e.id === open?.effectId);
+  // Resolved through `channelRack`, which knows the master channel is not a
+  // member of `project.tracks`. Searching the track list here is why a device
+  // on the master could be inserted and heard but never opened.
+  const project = useProjectStore((s) => s.project);
+  const rack = open ? channelRack(project, open.trackId) : null;
+  const effect = rack?.effects.find((e) => e.id === open?.effectId);
 
   const [pos, setPos] = useState(PREFERRED_POS);
   const [ab, setAb] = useState<{ slot: 'a' | 'b'; a: Snapshot | null; b: Snapshot | null }>({
@@ -152,17 +186,26 @@ export function PluginWindow() {
     },
     onMove: (dx, dy, _e, start) => {
       swipe.current.dy = dy;
-      return
       // Kept inside the viewport: a plugin dragged off the edge is a plugin
       // that has to be found again with the keyboard. Clamped against the
       // window's real width — the old constant 220 was neither the window's
       // width nor related to it, so a wide device could still be dragged out.
-        setPos(
-          clampToViewport({ x: start.x + dx, y: start.y + dy }, measure(), {
-            width: window.innerWidth,
-            height: window.innerHeight,
-          }),
-        );
+      //
+      // There was a bare `return` above this comment. The handler had been a
+      // concise arrow whose body *was* this call, and turning it into a block
+      // to add the swipe line above kept the `return` and left it on its own
+      // line — so automatic semicolon insertion ended the statement there and
+      // everything below became dead. The window stopped moving on every
+      // pointer type at once, and nothing said so: `tsc` greys unreachable code
+      // by default rather than failing, and typescript-eslint defers
+      // `no-unreachable` to the compiler. `allowUnreachableCode: false` is now
+      // set in every tsconfig, and it fails this file if the `return` returns.
+      const next = clampToViewport({ x: start.x + dx, y: start.y + dy }, measure(), {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+      lastUserPos = next;
+      setPos(next);
     },
   });
 
@@ -176,7 +219,7 @@ export function PluginWindow() {
       setPos((current) =>
         placed.current
           ? clampToViewport(current, measure(), viewport)
-          : placeWindow(PREFERRED_POS, measure(), viewport),
+          : placeOpening(measure(), viewport),
       );
       placed.current = true;
     };
@@ -189,15 +232,15 @@ export function PluginWindow() {
     };
   }, [open, measure]);
 
-  // Reset when a different device is opened, so the next one is placed rather
-  // than inheriting wherever the last one was dragged to.
+  // A different device re-places the window — unless the user has moved one,
+  // in which case `placeOpening` below honours where they put it.
   useEffect(() => {
     placed.current = false;
   }, [open?.trackId, open?.effectId]);
 
   const presets = useMemo(() => (effect ? presetsFor(effect.kind) : []), [effect]);
 
-  if (!open || !track || !effect) return null;
+  if (!open || !rack || !effect) return null;
   const spec = effectSpec(effect.kind);
   const name = spec?.label ?? effect.kind;
   const store = useProjectStore.getState();
@@ -205,7 +248,7 @@ export function PluginWindow() {
   const snapshot = (): Snapshot => ({ ...effect.params });
   const restore = (snap: Snapshot) => {
     store.beginGesture();
-    for (const [k, v] of Object.entries(snap)) store.setEffectParam(track.id, effect.id, k, v);
+    for (const [k, v] of Object.entries(snap)) rack.setParam(effect.id, k, v);
     store.endGesture();
   };
 
@@ -217,7 +260,7 @@ export function PluginWindow() {
       ref={panelRef}
       style={{ left: pos.x, top: pos.y }}
       role="dialog"
-      aria-label={`${name} on ${track.name}`}
+      aria-label={`${name} on ${rack.name}`}
       data-testid="plugin-window"
     >
       <header className="pw-head" onPointerDown={onHeaderDown}>
@@ -227,11 +270,11 @@ export function PluginWindow() {
           aria-pressed={!effect.bypass}
           title={effect.bypass ? 'Bypassed' : 'Active'}
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => store.setEffectBypass(track.id, effect.id, !effect.bypass)}
+          onClick={() => rack.setBypass(effect.id, !effect.bypass)}
         />
         <div className="pw-title">
           <span className="pw-name">{name}</span>
-          <span className="pw-on">{track.name}</span>
+          <span className="pw-on">{rack.name}</span>
         </div>
         <span className="grow" />
         {presets.length > 0 && (
@@ -247,7 +290,7 @@ export function PluginWindow() {
               if (!preset) return;
               store.beginGesture();
               for (const [k, v] of Object.entries(presetParams(preset))) {
-                store.setEffectParam(track.id, effect.id, k, v);
+                rack.setParam(effect.id, k, v);
               }
               store.endGesture();
             }}
@@ -294,7 +337,7 @@ export function PluginWindow() {
         </button>
       </header>
 
-      <EffectBody track={track} effect={effect} />
+      <EffectBody rack={rack} effect={effect} />
 
       <footer className="pw-foot">
         <span className="pw-summary" title={describeEffect(effect)}>
@@ -302,8 +345,8 @@ export function PluginWindow() {
         </span>
         <span className="grow" />
         <span className="pw-slot">
-          {(track.effects ?? []).findIndex((e) => e.id === effect.id) + 1} of{' '}
-          {(track.effects ?? []).length} · max {MAX_INSERTS}
+          {rack.effects.findIndex((e) => e.id === effect.id) + 1} of {rack.effects.length} · max{' '}
+          {MAX_INSERTS}
         </span>
       </footer>
     </div>

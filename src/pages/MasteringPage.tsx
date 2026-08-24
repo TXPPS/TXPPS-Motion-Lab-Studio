@@ -180,6 +180,7 @@ export default function MasteringPage() {
    */
   const releaseChain: ChainHost = {
     id: 'release',
+    name: 'Release',
     effects: mastering.effects ?? [],
     add: (kind) => {
       const id = newId('fx');

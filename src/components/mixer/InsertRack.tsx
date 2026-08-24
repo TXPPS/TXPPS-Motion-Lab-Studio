@@ -17,6 +17,7 @@ import { useChainStore } from '../../state/chainStore';
 import type { Effect, EffectKind, Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
+import { deviceMenu } from './DeviceRack';
 import { Icon } from '../common/Icon';
 import { EffectVisual, FxKnob, faceKindOf } from './PluginFace';
 import { MotionWaveFace } from './MotionWaveFace';
@@ -80,6 +81,25 @@ function InsertSlot({
           onClick={() => chain.setBypass(effect.id, !effect.bypass)}
         >
           {effect.bypass ? 'OFF' : 'ON'}
+        </button>
+        {/*
+          The same options the console's rack offers, on the same gesture.
+          This rack had move and remove as inline buttons behind the
+          disclosure and no menu at all, so whether a device "had options"
+          depended on which surface the user opened it from — the inspector or
+          the console — rather than on anything about the device.
+        */}
+        <button
+          className="dev-menu"
+          aria-label={`${spec?.label ?? effect.kind} options`}
+          data-testid={`fx-menu-${effect.id}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            const box = e.currentTarget.getBoundingClientRect();
+            deviceMenu(chain, effect, index, total, box.left, box.bottom);
+          }}
+        >
+          <Icon name="dots-v" size={11} />
         </button>
       </div>
 
@@ -219,6 +239,8 @@ function InsertSlot({
 export interface ChainHost {
   /** stable id used for meter and gain-reduction lookups ('master' for the master) */
   id: string;
+  /** What the chain belongs to, for the device menu's labels and its toasts. */
+  name: string;
   /** Section heading; defaults to "Inserts". */
   title?: string;
   /** Shown when the chain is empty. */
@@ -264,6 +286,7 @@ export function trackChainHost(track: Track): ChainHost {
   const store = useProjectStore;
   return {
     id: track.id,
+    name: track.name,
     effects: track.effects ?? [],
     add: (kind) => store.getState().addEffect(track.id, kind),
     remove: (id) => store.getState().removeEffect(track.id, id),
