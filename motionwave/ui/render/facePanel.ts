@@ -87,7 +87,15 @@ export interface PanelHandle {
   painted(): number;
   /** Set a control's position from outside — a preset load, an automation lane. */
   setParam(paramId: number, normalised: number): void;
+  /**
+   * Where a control currently sits, so a caller syncing from a store can tell
+   * whether it has anything to say. Without it the only safe move is to write
+   * every value on every change, and every write is a change — which is a loop
+   * that runs once per frame of a drag for as long as the drag lasts.
+   */
+  paramValue(paramId: number): number | undefined;
   setShape(index: number, nodes: readonly CurveNode[]): void;
+  shapeNodes(index: number): readonly CurveNode[] | undefined;
   dispose(): void;
 }
 
@@ -284,9 +292,11 @@ export function renderFace(options: PanelOptions): PanelHandle {
     setParam(paramId, normalised) {
       byParam.get(paramId)?.setNormalised(normalised);
     },
+    paramValue: (paramId) => byParam.get(paramId)?.normalised(),
     setShape(index, nodes) {
       curves.get(index)?.setNodes(nodes);
     },
+    shapeNodes: (index) => curves.get(index)?.nodes(),
     dispose() {
       for (const handle of handles) handle.dispose();
       root.remove();

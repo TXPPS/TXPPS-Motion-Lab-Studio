@@ -345,6 +345,33 @@ directly, the WASM boundary test sends no messages, and cell 24 measures a face
 against its own DSP with no host to bypass it from. It took a row that renders
 the same unit twice and requires the two to differ.
 
+### A fourth defect, found from cell 26's side
+
+**Commands written before a processor's core resolved were dropped.** The
+worklet assigned `port.onmessage` inside the promise that loads its WebAssembly,
+on the theory that a `MessagePort` queues what is sent before a handler exists.
+A port does — until something starts it, and an AudioWorklet's port is started
+by the implementation when the processor is constructed. So every parameter and
+every curve the host wrote at construction landed in the window between the
+processor existing and its core arriving, and went nowhere.
+
+It was intermittent, which is why twenty-six cells never saw it: on a warm page
+the core resolves before the host writes and nothing is lost. It surfaced as a
+single flaky row in a full-suite run — a Motion Shaper with three saved curves
+rendering at **0.096451**, which is exactly its undrawn wire, against
+**0.025869** for the identical project a moment later. `shapes=3` on both, so
+the save and the validator were blameless; the first render simply never
+received the curves. A saved session opening as a wire, one time in some.
+
+The processor now takes commands from the moment it exists and applies the
+queue after `prepare`. Verified over two full passes of the cell 25 suite with
+retries off: 28 rows, both round trips at 0.025868561 on the cold render.
+
+`motionwave/ui/test/worklet_commands.test.ts` holds it, with the worklet's
+global scope stubbed so the race can be entered deliberately rather than won by
+luck — and it is mutation-tested: moving the handler back inside the promise
+fails exactly the two rows about commands sent early.
+
 ### The default-state rule, and where its literal form had to bend
 
 The rule is: insert the unit, touch nothing, assert audio passes **and is not

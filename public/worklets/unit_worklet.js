@@ -90,6 +90,36 @@ class UnitProcessor extends AudioWorkletProcessor {
     this.ready = false;
     this.blocks = 0;
     this.sampleRateUsed = sampleRate;
+
+    /*
+     * **Commands are taken from the first moment, and held until there is
+     * something to apply them to.**
+     *
+     * `port.onmessage` used to be assigned inside the `.then()` below, on the
+     * theory that a MessagePort queues everything sent before a handler exists.
+     * A port does — until something starts it, and an AudioWorklet's port is
+     * started by the implementation when the processor is constructed. So every
+     * `param` and every `curve` the host wrote at construction landed in the
+     * window between the processor existing and its core resolving, and was
+     * dropped.
+     *
+     * It was intermittent, which is why twenty-six cells and a hundred runs did
+     * not find it: on a warm page the core resolves before the host writes and
+     * nothing is lost. It surfaced on a cold first render inside a full suite —
+     * a Motion Shaper with three saved curves rendered at 0.096451, which is
+     * exactly its undrawn wire, while the same project rendered a moment later
+     * gave 0.025869. A saved session opening as a wire, one time in some.
+     *
+     * Queueing rather than dropping is the whole fix, and it is deliberately
+     * unbounded: the host writes a fixed number of commands per insert, so the
+     * queue's length is a property of the unit's own parameter count.
+     */
+    this.pending = [];
+    this.port.onmessage = (event) => {
+      if (this.core) this.onCommand(event.data);
+      else this.pending.push(event.data);
+    };
+
     createMotionWaveCore().then((core) => {
       this.core = core;
       // Bound once, so `process` is a few indexed calls rather than a lookup
@@ -104,7 +134,11 @@ class UnitProcessor extends AudioWorkletProcessor {
       this.setBypassCall = core[`_${p}_set_bypass`];
       this.prepare(sampleRate, 128, 2);
       if (this.spec.bpm) core._mw_shaper_set_bpm(120);
-      this.port.onmessage = (event) => this.onCommand(event.data);
+      // Drained in arrival order, after `prepare`, because a curve written
+      // before the unit was prepared would be a curve written into a core that
+      // then reinitialised over it.
+      for (const message of this.pending) this.onCommand(message);
+      this.pending.length = 0;
       this.ready = true;
       this.port.postMessage({ kind: 'ready' });
     });
