@@ -65,3 +65,7 @@ motionwave/ui/dev/public/unit_worklet.js
 # repository may redistribute. Drop it in docs/ locally; the parity spec in
 # docs/reference/ is the tracked record of what it says, with attribution.
 docs/*User Manual*.pdf
+
+# Vite writes this beside vite.config.ts while loading it, and deletes it again.
+# A build that races a `git status` would otherwise see a dirty tree.
+vite.config.ts.timestamp-*.mjs

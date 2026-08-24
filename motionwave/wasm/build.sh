@@ -31,14 +31,44 @@ OUT="$HERE/dist"
 # The pinned SDK. Recorded in CLAUDE.md as a prerequisite; a different version
 # is allowed to produce a different binary, which is why the boundary test runs
 # on every build rather than once.
-EMSDK_DIR="${EMSDK_DIR:-/home/user/emsdk}"
-if [ ! -f "$EMSDK_DIR/emsdk_env.sh" ]; then
-  echo "emsdk not found at $EMSDK_DIR" >&2
+# Two default locations, because the SDK does not live in the same place on
+# every machine and hard-coding one made this script exit 1 on a perfectly good
+# install.
+for candidate in "${EMSDK_DIR:-}" "$HOME/emsdk" /home/user/emsdk; do
+  if [ -n "$candidate" ] && [ -f "$candidate/.emscripten" ]; then
+    EMSDK_DIR="$candidate"
+    break
+  fi
+done
+if [ -z "${EMSDK_DIR:-}" ] || [ ! -f "$EMSDK_DIR/.emscripten" ]; then
+  echo "emsdk not found. Looked at: \$EMSDK_DIR, \$HOME/emsdk, /home/user/emsdk" >&2
   echo "Install it (see CLAUDE.md, 'Build prerequisites') or set EMSDK_DIR." >&2
   exit 1
 fi
-# shellcheck disable=SC1091
-source "$EMSDK_DIR/emsdk_env.sh" >/dev/null 2>&1
+
+# The environment is built here rather than by sourcing `emsdk_env.sh`.
+#
+# That script calls bare `python`, and on Windows that name is an App Execution
+# Alias which prints "Python was not found" and exits — so sourcing it silently
+# left `emcc` off the PATH and the build failed one line later with a message
+# about the wrong thing. Every value it would have set is already written in
+# `.emscripten` by `emsdk activate`, so they are read from there instead: one
+# source of truth, and no shell-out to a python that may not be the SDK's own.
+emsdk_field() {
+  sed -n "s|^$1 = emsdk_path + '\(.*\)'.*|\1|p" "$EMSDK_DIR/.emscripten" | head -1
+}
+EM_NODE="$EMSDK_DIR$(emsdk_field NODE_JS)"
+EM_PYTHON="$EMSDK_DIR$(emsdk_field PYTHON)"
+EM_ROOT="$EMSDK_DIR$(emsdk_field EMSCRIPTEN_ROOT)"
+if [ ! -d "$EM_ROOT" ]; then
+  echo "emsdk at $EMSDK_DIR is not activated — run: emsdk activate 4.0.7" >&2
+  exit 1
+fi
+export EM_CONFIG="$EMSDK_DIR/.emscripten"
+export EMSDK="$EMSDK_DIR"
+export EMSDK_NODE="$EM_NODE"
+export EMSDK_PYTHON="$EM_PYTHON"
+export PATH="$EMSDK_DIR:$EM_ROOT:$(dirname "$EM_NODE"):$(dirname "$EM_PYTHON"):$PATH"
 
 mkdir -p "$OUT"
 

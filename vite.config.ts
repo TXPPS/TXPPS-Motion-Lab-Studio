@@ -31,7 +31,19 @@ function gitCommit(): string {
  */
 function buildTime(): string {
   try {
-    const dirty = execSync('git status --porcelain', {
+    // `--untracked-files=no`, and the reason is not tidiness.
+    //
+    // Vite writes a `vite.config.ts.timestamp-*.mjs` beside this file while it
+    // loads it, so an untracked-aware status is *never* empty during a build:
+    // the check below always saw a dirty tree and always fell back to the wall
+    // clock, and the reproducibility this function exists for silently never
+    // happened. The file is gitignored as well, but the flag is what makes this
+    // independent of anyone remembering to keep that list current.
+    //
+    // Tracked modifications are the ones that matter here anyway: an untracked
+    // file that changed the build would be a build nobody could reproduce from
+    // the repository at all, which is a different and larger problem.
+    const dirty = execSync('git status --porcelain --untracked-files=no', {
       stdio: ['ignore', 'pipe', 'ignore'],
     })
       .toString()
