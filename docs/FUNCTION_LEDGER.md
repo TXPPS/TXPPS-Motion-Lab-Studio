@@ -19,7 +19,7 @@ Coverage is counted as **rows with a state-asserting result**, never as rows
 that are not FAIL. Those are the same number only until somebody is tempted to
 make the column green.
 
-Soak coverage: 69 of 136 attempted rows asserted a state change, measured against `index-mykgjkxf.js` (`28d8e3d50ee4859b`).
+Soak coverage: 69 of 136 attempted rows asserted a state change, measured against `index-DzQWmA0T.js` (`83a90cac3cfb00ae`).
 
 | kind | count |
 | --- | --- |
@@ -117,35 +117,35 @@ Soak coverage: 69 of 136 attempted rows asserted a state change, measured agains
 | `action:recoveryActions.scanRecoveries` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
 | `effect:ampsim` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.01e-2 RMS |
 | `effect:analyser` | insert rack | effect | FAIL | ? | ? | none | FAIL | rendered audio is identical to the dry render |
-| `effect:autopan` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.66e-2 RMS |
+| `effect:autopan` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.40e-2 RMS |
 | `effect:bitcrusher` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.72e-2 RMS |
-| `effect:chorus` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 3.02e-2 RMS |
-| `effect:compressor` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.95e-3 RMS |
+| `effect:chorus` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 3.03e-2 RMS |
+| `effect:compressor` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.94e-3 RMS |
 | `effect:deesser` | insert rack | effect | FAIL | ? | ? | none | FAIL | rendered audio is identical to the dry render |
-| `effect:delay` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.14e-2 RMS |
-| `effect:distortion` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.11e-1 RMS |
-| `effect:eq3` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.13e-3 RMS |
-| `effect:eq8` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.84e-2 RMS |
-| `effect:filter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 4.24e-2 RMS |
-| `effect:flanger` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.96e-2 RMS |
-| `effect:gainMatch` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.95e-3 RMS |
-| `effect:gate` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.58e-2 RMS |
-| `effect:limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 6.62e-2 RMS |
-| `effect:multiband` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 8.12e-2 RMS |
-| `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 4.93e-2 RMS |
-| `effect:mw-fet-limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 3.88e-2 RMS |
-| `effect:mw-granular-reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.14e-3 RMS |
-| `effect:mw-motion-shaper` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 7.21e-2 RMS |
-| `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 4.33e-2 RMS |
-| `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 4.41e-2 RMS |
-| `effect:mw-variable-mu` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 3.59e-2 RMS |
-| `effect:phaser` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.82e-2 RMS |
-| `effect:pingpong` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.27e-2 RMS |
+| `effect:delay` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.21e-2 RMS |
+| `effect:distortion` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.12e-1 RMS |
+| `effect:eq3` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.10e-3 RMS |
+| `effect:eq8` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.77e-2 RMS |
+| `effect:filter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 4.23e-2 RMS |
+| `effect:flanger` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 3.29e-2 RMS |
+| `effect:gainMatch` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.94e-3 RMS |
+| `effect:gate` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.52e-2 RMS |
+| `effect:limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 6.68e-2 RMS |
+| `effect:multiband` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 8.11e-2 RMS |
+| `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 4.90e-2 RMS |
+| `effect:mw-fet-limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 3.94e-2 RMS |
+| `effect:mw-granular-reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.12e-3 RMS |
+| `effect:mw-motion-shaper` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 7.40e-2 RMS |
+| `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 4.39e-2 RMS |
+| `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 4.47e-2 RMS |
+| `effect:mw-variable-mu` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 3.60e-2 RMS |
+| `effect:phaser` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.91e-2 RMS |
+| `effect:pingpong` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.20e-2 RMS |
 | `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.01e-2 RMS |
-| `effect:rotary` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.59e-2 RMS |
-| `effect:saturator` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 6.55e-2 RMS |
-| `effect:tremolo` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.06e-3 RMS |
-| `effect:trim` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.95e-3 RMS |
+| `effect:rotary` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.61e-2 RMS |
+| `effect:saturator` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 6.63e-2 RMS |
+| `effect:tremolo` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.27e-3 RMS |
+| `effect:trim` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.94e-3 RMS |
 | `effect:tuner` | insert rack | effect | FAIL | ? | ? | none | FAIL | rendered audio is identical to the dry render |
 | `effect:vocaltune` | insert rack | effect | FAIL | ? | ? | none | FAIL | rendered audio is identical to the dry render |
 | `effect:width` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.06e-2 RMS |
@@ -250,7 +250,7 @@ Soak coverage: 69 of 136 attempted rows asserted a state change, measured agains
 | `store:projectStore.addRecordedClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.addSamplerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.addSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmt8wlpp50e716l |
+| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmt99ou8v0e7h64 |
 | `store:projectStore.addVca` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.applyGrooveToClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.applyPreset` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
@@ -291,7 +291,7 @@ Soak coverage: 69 of 136 attempted rows asserted a state change, measured agains
 | `store:projectStore.moveSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.moveTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.moveTempoEvent` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmt8wliz306vhic,tmt8wliz306wfw0,tmt8wliz306x03d,tmt8wliz306yt4y,tmt8wliz306zvu8,tmt8wliz307087w,tmt8wlj380dpaur,tmt8wlj390drg3q,tmt8wlj390e0wse,tmt8wlj3a0e170c,tmt8wliz30715ld,tmt8wliz3072fni,tmt8wlj3a0e2z9q -> tmt8wliz306wfw0,tmt8wliz306x03d,tmt8wliz306vhic,tmt8wliz306yt4y,tmt8wliz306zvu8,tmt8wliz307087w,tmt8wlj380dpaur,tmt8wlj390drg3q,tmt8wlj390e0wse,tmt8wlj3a0e170c,tmt8wliz30715ld,tmt8wliz3072fni,tmt8wlj3a0e2z9q |
+| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmt99onk606vu2e,tmt99onk606woah,tmt99onk606xde8,tmt99onk606y8yg,tmt99onk606zn3r,tmt99onk6070wg0,tmt99ono70dp7rv,tmt99ono80dr072,tmt99ono80e0rzf,tmt99ono90e1s1n,tmt99onk60714t6,tmt99onk6072809,tmt99ono90e2sc0 -> tmt99onk606woah,tmt99onk606xde8,tmt99onk606vu2e,tmt99onk606y8yg,tmt99onk606zn3r,tmt99onk6070wg0,tmt99ono70dp7rv,tmt99ono80dr072,tmt99ono80e0rzf,tmt99ono90e1s1n,tmt99onk60714t6,tmt99onk6072809,tmt99ono90e2sc0 |
 | `store:projectStore.packTakes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.promoteTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.rackAddItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
@@ -399,7 +399,7 @@ Soak coverage: 69 of 136 attempted rows asserted a state change, measured agains
 | `store:uiStore.openEditorFor` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:uiStore.selectClip` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:uiStore.selectClips` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmt8wlj380dpaur -> tmt8wliz306wfw0 |
+| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmt99ono70dp7rv -> tmt99onk606woah |
 | `store:uiStore.set` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — editorTab mixer -> piano |
 | `store:uiStore.showDialog` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:uiStore.showMenu` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
