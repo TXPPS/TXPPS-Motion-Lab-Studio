@@ -437,7 +437,22 @@ class VariableMu : public Node {
     frame.outputPeak = outputPeak;
     for (int c = 0; c < kVariableMuChannels; ++c) {
       frame.gainReductionDb[c] = static_cast<float>(reductionDb_[c]);
-      frame.storage[c] = static_cast<float>(timing_[c].stageValue(1));
+      // What the network is holding, not what its second element holds.
+      //
+      // This read `stageValue(1)`, and the second storage element only exists
+      // at time-constant positions 5 and 6 — `configureStorage` sets
+      // `timing.count = 1` for the other four. So at four of the six settings,
+      // including the default, the panel's storage meter published a slot the
+      // model never writes and read zero while the unit compressed 15.9 dB. A
+      // dead meter on a working unit is the failure X24 exists for, arriving
+      // through a field that names a stage rather than the state.
+      //
+      // `value()` is the highest across the elements that are in circuit, which
+      // is what the attenuator is actually handed and therefore the storage the
+      // recovery comes out of. It is live at every position, and at positions 5
+      // and 6 it is still the multi-element behaviour — the elements are a
+      // chain and the observed recovery is wherever the charge happens to be.
+      frame.storage[c] = static_cast<float>(timing_[c].value());
     }
     frame.lateralVertical = mode_ == Mode::LateralVertical;
     visual_.publish(frame);

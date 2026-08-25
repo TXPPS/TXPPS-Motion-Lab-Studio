@@ -208,13 +208,13 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 
 | Unit                | Sheet    | Status       | D1   | D2   | D3   | D4   | D5   | D6   | D7   | D8   | D9   | D10  | D11  | D12  | I13 | I14 | I15 | I16 | I17 | I18 | U19  | U20  | U21  | U22  | U23  | X24  | X25  | X26  | V27  |
 | ------------------- | -------- | ------------ | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --- | --- | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
-| Motion Shaper       | `fx-01`  | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
+| Motion Shaper       | `fx-01`  | SHIPPING     | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | Program EQ          | `dyn-01` | SHIPPING     | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| Optical Leveller    | `dyn-02` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
-| FET Limiter         | `dyn-03` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
-| Variable-Mu Limiter | `dyn-04` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
-| Console EQ          | `dyn-05` | NOT SHIPPING | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
-| Granular Reverb     | `fx-02`  | NOT SHIPPING | PASS | PASS | PASS | PASS | n/a  | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
+| Optical Leveller    | `dyn-02` | SHIPPING     | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| FET Limiter         | `dyn-03` | SHIPPING     | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| Variable-Mu Limiter | `dyn-04` | SHIPPING     | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| Console EQ          | `dyn-05` | SHIPPING     | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| Granular Reverb     | `fx-02`  | NOT SHIPPING | PASS | PASS | PASS | PASS | n/a  | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
 | Granular Delay      | `fx-03`  | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    | —    | —    | —    |
 | Slipstream Sampler  | `smp-01` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    |
 | DCO Poly            | `syn-01` | NOT STARTED  | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    |
@@ -313,13 +313,13 @@ never the dev panel, which is the distinction the cell exists for.
 
 | Unit                | RMS through the host | Latency | Reachable by              | Save/load                |
 | ------------------- | -------------------- | ------- | ------------------------- | ------------------------ |
-| Motion Shaper       | 0.0965               | 0       | Bands, 73.1 % from bypass | identical, 3 shapes kept |
+| Motion Shaper       | 0.0965               | SHIPPING| PASS                      | PASS                     |
 | Program EQ          | 0.0959               | 46      | Low Boost, 24.6 %         | identical                |
-| Optical Leveller    | 0.0949               | 46      | Peak Reduction, 80.0 %    | identical                |
-| FET Limiter         | 0.0213               | 49      | Input, 2208 %             | identical                |
-| Variable-Mu Limiter | 0.0958               | 46      | Input A, 29.0 %           | identical                |
-| Console EQ          | 0.0958               | 46      | Lineage, 0.59 %           | identical                |
-| Granular Reverb     | 0.0640               | 0       | Mix, 41.0 %               | identical                |
+| Optical Leveller    | 0.0949               | SHIPPING| PASS                      | PASS                     |
+| FET Limiter         | 0.0213               | SHIPPING| PASS                      | PASS                     |
+| Variable-Mu Limiter | 0.0958               | SHIPPING| PASS                      | PASS                     |
+| Console EQ          | 0.0958               | SHIPPING| PASS                      | PASS                     |
+| Granular Reverb     | 0.0640               | 0       | PASS                      | FAIL                     |
 
 Three defects surfaced, and not one was visible to the twenty-four cells.
 
@@ -1258,7 +1258,49 @@ the way `U21` was: fabricating the value from `performance.now()` gives 40
 distinct values of 40 while running, which passes everything except the stop,
 where it reads 20 instead of 1.
 
-Every other unit with a face is `FAIL` at `V27` until its animation is built.
+### The other six, measured
+
+Directive 11 §8. `V27` was `FAIL` on all six and the reasons were three
+different things, none of which was "the animation has not been built".
+
+**Five had never had an engine behind them.** `dev/panel.ts` kept a hand-written
+channel order for two units and returned early for any unit it had no entry for,
+so five faces had never been paced against a running worklet on the page the
+cell is measured on. It reads the order off `unit.meters` now, which is what
+`MotionWaveFace.tsx` in the app has always done — the duplicate was the defect,
+and the copy that was wrong was the one nobody was looking at.
+
+**A steady tone cannot reveal a leveller.** A detector settles inside its attack
+and then every block publishes the same figure, so a probe that holds its level
+constant measures the probe. The dynamics units are driven with an envelope and
+put into the state their mechanism needs: the Optical Leveller's Peak Reduction
+defaults to zero, which is a leveller with the cell dark, and the FET Limiter at
+unity input sat 17.9 dB into limiting where the detector is pinned.
+
+**Two were publishing defects, and both are the `dyn-01` defect again.**
+
+| unit | field | was | is |
+| --- | --- | --- | --- |
+| Variable-Mu | `storage` | `stageValue(1)` — the second timing element, which only exists at time-constant positions 5 and 6, so four settings including the default published a slot the model never writes | `value()` — what the network is holding across the elements in circuit |
+| Console EQ | — | nothing that moved: widths and a working Q are functions of the controls, peaks are levels | `eqCoreDrive`, the EQ inductor's peak flux |
+
+The Console EQ's is the better readout of the two, because it also says which
+unit is in circuit: §7.2 gives the bridged-T panel no inductors, so the meter
+that breathes on one lineage reads exactly zero on the other.
+`console_eq_visual_tests.cpp` holds three discriminators — a bell boosted at two
+centres and probed at each (same current, 4.44× the flux, which is the frequency
+ratio), a flat EQ against a boosted one, and the American lineage reading zero.
+The first of those took two attempts: the first version compared a low shelf at
+50 Hz against the same shelf at 1 kHz, where a shelf adds nothing, so wiring the
+field to an amplitude passed all six cases. The mutation is what said so.
+
+**Six of the seven pass. The Granular Reverb does not, and it needs engine work
+rather than a face.** Every field it publishes but the two peaks is a function
+of the controls — `overlap`, `clampedDensity`, `rt60At8k`, `feedback` and
+`liveGrains`, which is a spawn rate and a grain length and therefore sits at 22
+whatever the music does. What moves with the music in a granular reverb is where
+the cloud is reading from and what it finds there, and neither is published. It
+is recorded `FAIL` rather than given a level meter and called animated.
 
 ## Who owns which cell, and where it runs
 

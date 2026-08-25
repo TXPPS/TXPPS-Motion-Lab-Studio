@@ -30,6 +30,7 @@ export const variableMuMeters: readonly MeterChannel[] = [
   { name: VariableMuMeter.GainReductionB, kind: 'raw' },
   { name: VariableMuMeter.StorageA, kind: 'raw' },
   { name: VariableMuMeter.StorageB, kind: 'raw' },
+  { name: VariableMuMeter.LateralVertical, kind: 'raw' },
 ];
 
 export const variableMuUnit: UnitUnderTest = {

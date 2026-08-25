@@ -356,7 +356,7 @@ EMSCRIPTEN_KEEPALIVE
 const double* mw_console_eq_visual() {
   mw::units::ConsoleEqFrame frame;
   g_consoleEq.unit().visual().read(frame);
-  std::vector<double>& out = g_consoleEq.visualScratch(7);
+  std::vector<double>& out = g_consoleEq.visualScratch(9);
   out[0] = static_cast<double>(frame.inputPeak);
   out[1] = static_cast<double>(frame.outputPeak);
   out[2] = frame.american ? 1.0 : 0.0;
@@ -364,6 +364,10 @@ const double* mw_console_eq_visual() {
   for (int b = 0; b < 3; ++b) {
     out[static_cast<std::size_t>(4 + b)] = static_cast<double>(frame.bandwidthOctaves[b]);
   }
+  // The two flux readings, last, because they were added last: the packing
+  // order is this file's and every reader derives its names from it in order.
+  out[7] = static_cast<double>(frame.eqCoreDrive);
+  out[8] = static_cast<double>(frame.outputCoreDrive);
   return out.data();
 }
 

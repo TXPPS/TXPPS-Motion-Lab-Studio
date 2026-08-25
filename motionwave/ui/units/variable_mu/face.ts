@@ -47,6 +47,17 @@ export const VariableMuMeter = {
   GainReductionB: 'gain-reduction-b',
   StorageA: 'storage-a',
   StorageB: 'storage-b',
+  /**
+   * Which link is in circuit, as 1 or 0.
+   *
+   * Declared because the bridge publishes it, and a published double that no
+   * channel names is not a spare — `MotionWaveFace` compares the frame's length
+   * against this list and refuses to paint when they disagree, on the grounds
+   * that a frame read one slot out would mislabel every readout. It packed
+   * seven and this named six, so the Variable-Mu's panel has never painted in
+   * the app: it logged the mismatch and returned, once per animation frame.
+   */
+  LateralVertical: 'lateral-vertical',
 } as const;
 
 function meter(id: string, channel: string, name: string): FaceElement {

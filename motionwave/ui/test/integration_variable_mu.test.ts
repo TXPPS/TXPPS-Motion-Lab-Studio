@@ -10,7 +10,6 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { VariableMuMeter } from '../units/variable_mu/face';
 import { VariableMuParam } from '../units/variable_mu/params.gen';
 import { variableMuUnit } from '../units/variable_mu/unit';
 import { UnitDriver, expectPublishedOncePerBlock, loadCore } from './x24_driver';
@@ -115,14 +114,16 @@ describe('X24 — Variable-Mu Limiter through the real boundary', () => {
   });
 
   it('the face names channels the engine actually publishes', () => {
-    const published = new Set<string>([
-      VariableMuMeter.InputPeak,
-      VariableMuMeter.OutputPeak,
-      VariableMuMeter.GainReductionA,
-      VariableMuMeter.GainReductionB,
-      VariableMuMeter.StorageA,
-      VariableMuMeter.StorageB,
-    ]);
+    // Read from the unit's own declaration rather than listed here.
+    //
+    // A list beside the thing can agree with the thing while the thing has
+    // changed, and this one did: the Console EQ gained two published channels
+    // and this set did not, so a test whose whole subject is "the face names
+    // what the engine publishes" failed on a face that had been kept in step.
+    // `frame_packing.test.ts` is the other half — it holds the declaration
+    // against what `bridge.cpp` actually packs, so trusting it here is not
+    // trusting nobody.
+    const published = new Set<string>((variableMuUnit.meters ?? []).map((c) => c.name));
     for (const element of variableMuUnit.face?.elements ?? []) {
       if (!element.meterChannel) continue;
       expect(

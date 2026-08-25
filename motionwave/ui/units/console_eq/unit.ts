@@ -22,10 +22,13 @@ export { consoleEqSpecs } from './params.gen';
 export const consoleEqMeters: readonly MeterChannel[] = [
   { name: ConsoleEqMeter.InputPeak, kind: 'peak' },
   { name: ConsoleEqMeter.OutputPeak, kind: 'peak' },
+  { name: ConsoleEqMeter.American, kind: 'raw' },
   { name: ConsoleEqMeter.MidQ, kind: 'raw' },
   { name: ConsoleEqMeter.BandOneWidth, kind: 'raw' },
   { name: ConsoleEqMeter.BandTwoWidth, kind: 'raw' },
   { name: ConsoleEqMeter.BandThreeWidth, kind: 'raw' },
+  { name: ConsoleEqMeter.EqCoreDrive, kind: 'raw' },
+  { name: ConsoleEqMeter.OutputCoreDrive, kind: 'raw' },
 ];
 
 export const consoleEqUnit: UnitUnderTest = {

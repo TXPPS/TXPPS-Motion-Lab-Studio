@@ -48,6 +48,30 @@ struct ConsoleEqFrame {
   /// The American bands' working bandwidth in octaves, which is set by the
   /// amount and by nothing else.
   float bandwidthOctaves[3] = {0.0f, 0.0f, 0.0f};
+  /**
+   * How hard the EQ section's inductor core is being driven this block, as a
+   * fraction of the knee where its anhysteretic curve is a third compressed.
+   *
+   * The one number on this panel that moves with the music *and* says which
+   * unit you are listening to. Everything else a face could show here is either
+   * a level, which any box has, or a working Q, which is a function of the
+   * controls and does not move until one does — the same distinction that made
+   * `dyn-01`'s harmonic display the wrong readout for `V27` and its transformer
+   * flux the right one.
+   *
+   * It reads exactly zero on the American lineage, and that is not a gap. §7.2
+   * is that the bridged-T panel has *no inductors*, so there is nothing in its
+   * EQ section to saturate; §10 test 17 asserts that absence. A meter that goes
+   * still when the lineage switch is thrown is showing the difference between
+   * the two units rather than decorating one of them.
+   *
+   * The core sees what the *network* added, never the signal passing through —
+   * see the note in `shape()`, and the four-times-apart measurement that made
+   * the distinction load-bearing rather than fastidious.
+   */
+  float eqCoreDrive = 0.0f;
+  /// The same, for the output transformer, which is in circuit on both panels.
+  float outputCoreDrive = 0.0f;
 };
 
 using ConsoleEqPublisher = dsp::FramePublisher<ConsoleEqFrame>;
@@ -188,6 +212,8 @@ class ConsoleEq : public Node {
       inputCore_[c].reset();
       outputCore_[c].reset();
       eqCore_[c].reset();
+      eqCoreDrive_ = 0.0f;
+      outputCoreDrive_ = 0.0f;
       stageA_[c].reset();
       stageB_[c].reset();
       highPass_[c].reset();
@@ -305,7 +331,10 @@ class ConsoleEq : public Node {
       // outside the EQ-in switch as it does on the panel.
       y = bandPass_[c].process(y);
       const float amplified = stageB_[c].process(static_cast<float>(y));
-      return outputCore_[c].process(amplified);
+      const float out = outputCore_[c].process(amplified);
+      const float outFlux = outputCore_[c].saturationFraction();
+      if (outFlux > outputCoreDrive_) outputCoreDrive_ = outFlux;
+      return out;
     }
 
     // §7.1: input transformer, two Class A stages in series with the EQ
@@ -340,12 +369,19 @@ class ConsoleEq : public Node {
        */
       const double added = y - flat;
       y = flat + static_cast<double>(eqCore_[c].process(static_cast<float>(added)));
+      // Read after the core has taken the sample, so the figure is the flux the
+      // audio was actually shaped by rather than the one it is about to be.
+      const float eqFlux = eqCore_[c].saturationFraction();
+      if (eqFlux > eqCoreDrive_) eqCoreDrive_ = eqFlux;
     }
     // The high-pass is a separate network on its own switch, so it is outside
     // the EQ-in latch exactly as the band controls are inside it.
     y = highPass_[c].process(y);
     const float amplified = stageB_[c].process(static_cast<float>(y));
-    return outputCore_[c].process(amplified);
+    const float out = outputCore_[c].process(amplified);
+    const float outFlux = outputCore_[c].saturationFraction();
+    if (outFlux > outputCoreDrive_) outputCoreDrive_ = outFlux;
+    return out;
   }
 
   static int clampIndex(int index, int count) noexcept {
@@ -476,6 +512,13 @@ class ConsoleEq : public Node {
     for (int b = 0; b < 3; ++b) {
       frame.bandwidthOctaves[b] = static_cast<float>(american_[0][b].bandwidthOctaves());
     }
+    // Taken and cleared together: a peak-per-block reading that is never reset
+    // becomes a peak-since-the-unit-was-built, which rises once and then never
+    // moves again — a meter that looks alive for a second and is dead after it.
+    frame.eqCoreDrive = eqCoreDrive_;
+    frame.outputCoreDrive = outputCoreDrive_;
+    eqCoreDrive_ = 0.0f;
+    outputCoreDrive_ = 0.0f;
     visual_.publish(frame);
   }
 
@@ -499,6 +542,8 @@ class ConsoleEq : public Node {
     return 1;
   }
 
+  float eqCoreDrive_ = 0.0f;
+  float outputCoreDrive_ = 0.0f;
   nl::MagneticCore inputCore_[kConsoleChannels];
   nl::MagneticCore outputCore_[kConsoleChannels];
   nl::MagneticCore eqCore_[kConsoleChannels];

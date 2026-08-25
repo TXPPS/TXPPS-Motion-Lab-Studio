@@ -45,10 +45,34 @@ export { ConsoleEqParam } from './params.gen';
 export const ConsoleEqMeter = {
   InputPeak: 'input-peak',
   OutputPeak: 'output-peak',
+  /**
+   * Which lineage is in circuit, as 1 or 0.
+   *
+   * Declared because the bridge publishes it. A published double that no
+   * channel names is not a spare: `MotionWaveFace` compares the frame's length
+   * against the unit's meter list and refuses to paint when they disagree,
+   * because a frame read one slot out mislabels every readout. It packed seven
+   * and the list named six, so this panel has never painted in the app — it
+   * logged the mismatch and returned, once per animation frame.
+   */
+  American: 'american',
   MidQ: 'mid-q',
   BandOneWidth: 'band-one-width',
   BandTwoWidth: 'band-two-width',
   BandThreeWidth: 'band-three-width',
+  /**
+   * The EQ section's inductor core, as a fraction of its saturation knee.
+   *
+   * This is the panel's `V27` readout and the only number on it that both moves
+   * with the music and says which unit is in circuit. The widths and the working
+   * Q are functions of the controls and sit perfectly still until one is turned;
+   * the peaks are levels, which every box has. Zero on the American lineage,
+   * because that panel has no inductors — a meter that stops when the lineage
+   * switch is thrown is showing the difference rather than decorating it.
+   */
+  EqCoreDrive: 'eq-core-drive',
+  /** The output transformer, which is in circuit on both panels. */
+  OutputCoreDrive: 'output-core-drive',
 } as const;
 
 function meter(id: string, channel: string, name: string): FaceElement {
@@ -123,6 +147,11 @@ export const consoleEqFace: UnitFace = {
     meter('band-three-width', ConsoleEqMeter.BandThreeWidth, 'Band 3 bandwidth in octaves'),
     meter('input-level', ConsoleEqMeter.InputPeak, 'Input level'),
     meter('output-level', ConsoleEqMeter.OutputPeak, 'Output level'),
+    // The two the panel is judged on for V27. Named for what they are — a core
+    // being driven — rather than for a level, because a user watching this is
+    // watching the iron and the meter should say so.
+    meter('eq-core', ConsoleEqMeter.EqCoreDrive, 'EQ inductor core drive'),
+    meter('output-core', ConsoleEqMeter.OutputCoreDrive, 'Output transformer drive'),
 
     // Every control, from the generated table — the set is the manifest's and
     // cannot be written here.

@@ -47,7 +47,15 @@ import {
   termsStyledBy,
 } from '../design/vocabulary';
 import { contrastRatio, hslToRgb } from '../design/contrast';
-import type { PanelSkin } from '../harness/types';
+import type { PanelSkin, UnitFace } from '../harness/types';
+import { motionShaperUnit } from '../units/motion_shaper/unit';
+import { programEqUnit } from '../units/program_eq/unit';
+import { opticalLevellerUnit } from '../units/optical_leveller/unit';
+import { fetLimiterUnit } from '../units/fet_limiter/unit';
+import { variableMuUnit } from '../units/variable_mu/unit';
+import { consoleEqUnit } from '../units/console_eq/unit';
+import { granularReverbUnit } from '../units/granular_reverb/unit';
+import { DEFAULT_SKIN } from '../render/facePanel';
 
 /** Hues at the corners and through the middle of the wheel, plus the shipped seven. */
 const HUES = [0, 15, 34, 36, 60, 96, 120, 168, 208, 248, 276, 300, 330];
@@ -284,6 +292,81 @@ describe('a term is legible on what it paints, not on the token it names', () =>
           ).toBeGreaterThanOrEqual(6.99);
         }
       }
+    }
+  });
+});
+
+describe('cell 26 — no two panels are the same panel', () => {
+  const SHIPPED = [
+    motionShaperUnit,
+    programEqUnit,
+    opticalLevellerUnit,
+    fetLimiterUnit,
+    variableMuUnit,
+    consoleEqUnit,
+    granularReverbUnit,
+  ];
+
+  /**
+   * What a user sees, as one comparable string.
+   *
+   * The resolved fascia rather than the declared one, because two faces can
+   * declare different `value` targets and resolve to the same lightness — the
+   * resolver moves a target that cannot carry ink, and two targets can move to
+   * the same place. Comparing what was asked for would call those distinct.
+   */
+  const identity = (face: UnitFace): string => {
+    const skin = face.skin ?? DEFAULT_SKIN;
+    const c = skinColours(skin);
+    return [
+      c.fascia,
+      skin.surface,
+      skin.knob,
+      skin.arrangement,
+      skin.lettering,
+      skin.furniture,
+    ].join(' | ');
+  };
+
+  it('every unit declares a skin of its own', () => {
+    // An unskinned face renders as the framework default, which is the exact
+    // appearance cell 26 exists to fail — and it is worse than a clash, because
+    // *every* unskinned face is that same charcoal panel. Six of the seven were
+    // in that state, which is what "merged randomly with the FET Limiter's
+    // controls" turned out to describe.
+    for (const unit of SHIPPED) {
+      expect(unit.face, `${unit.name} has no face`).toBeDefined();
+      expect(unit.face!.skin, `${unit.name} falls through to the framework default`).toBeDefined();
+    }
+  });
+
+  it('no two faces render the same panel', () => {
+    const seen = new Map<string, string>();
+    for (const unit of SHIPPED) {
+      const key = identity(unit.face!);
+      const twin = seen.get(key);
+      expect(twin, `${unit.name} is the same panel as ${twin}: ${key}`).toBeUndefined();
+      seen.set(key, unit.name);
+    }
+    expect(seen.size).toBe(SHIPPED.length);
+  });
+
+  it('every panel carries legible ink at its own declared skin', () => {
+    // The cross-product above proves the vocabulary can be built. This proves
+    // the seven combinations somebody actually chose were, which is not implied
+    // by it: the sweep uses one probe skin per axis and a shipped face varies
+    // several at once.
+    for (const unit of SHIPPED) {
+      const c = skinColours(unit.face!.skin ?? DEFAULT_SKIN);
+      for (const ground of [c.fascia, c.fasciaHigh, c.fasciaLow, c.plate]) {
+        expect(
+          contrastRatio(channels(ground), channels(c.ink)),
+          `${unit.name}: ink on ${ground}`,
+        ).toBeGreaterThanOrEqual(6.99);
+      }
+      expect(c.inkRatio, `${unit.name} reports ${c.inkRatio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
+        6.99,
+      );
     }
   });
 });

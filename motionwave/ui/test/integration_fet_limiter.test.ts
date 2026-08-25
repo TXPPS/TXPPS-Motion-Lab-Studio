@@ -11,7 +11,6 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { FetLimiterMeter } from '../units/fet_limiter/face';
 import { FetLimiterParam } from '../units/fet_limiter/params.gen';
 import { fetLimiterUnit } from '../units/fet_limiter/unit';
 import { UnitDriver, expectPublishedOncePerBlock, loadCore } from './x24_driver';
@@ -137,12 +136,16 @@ describe('X24 — FET Limiter through the real boundary', () => {
     // U20 checks the face's meters against the unit's declared channel list;
     // this checks that list against the engine's published frame. Without it
     // both halves could agree on a channel nothing fills.
-    const published = new Set<string>([
-      FetLimiterMeter.InputPeak,
-      FetLimiterMeter.OutputPeak,
-      FetLimiterMeter.GainReduction,
-      FetLimiterMeter.Detector,
-    ]);
+    // Read from the unit's own declaration rather than listed here.
+    //
+    // A list beside the thing can agree with the thing while the thing has
+    // changed, and this one did: the Console EQ gained two published channels
+    // and this set did not, so a test whose whole subject is "the face names
+    // what the engine publishes" failed on a face that had been kept in step.
+    // `frame_packing.test.ts` is the other half — it holds the declaration
+    // against what `bridge.cpp` actually packs, so trusting it here is not
+    // trusting nobody.
+    const published = new Set<string>((fetLimiterUnit.meters ?? []).map((c) => c.name));
     for (const element of fetLimiterUnit.face?.elements ?? []) {
       if (!element.meterChannel) continue;
       expect(

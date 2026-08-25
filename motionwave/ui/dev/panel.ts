@@ -14,56 +14,63 @@
  * makes that safe is in the seqlock either side.
  */
 import { renderFace, type PanelHandle } from '../render/facePanel';
-import { motionShaperFace, MotionShaperMeter } from '../units/motion_shaper/face';
-import { motionShaperSpecs } from '../units/motion_shaper/params.gen';
 import { MotionShaperParam } from '../units/motion_shaper/params.gen';
-import { programEqFace, ProgramEqMeter } from '../units/program_eq/face';
-import { programEqSpecs } from '../units/program_eq/params.gen';
-import { opticalLevellerFace } from '../units/optical_leveller/face';
-import { opticalLevellerSpecs } from '../units/optical_leveller/params.gen';
-import { fetLimiterFace } from '../units/fet_limiter/face';
-import { consoleEqFace } from '../units/console_eq/face';
-import { granularReverbFace } from '../units/granular_reverb/face';
-import { consoleEqSpecs } from '../units/console_eq/params.gen';
-import { granularReverbSpecs } from '../units/granular_reverb/params.gen';
-import { variableMuFace } from '../units/variable_mu/face';
-import { variableMuSpecs } from '../units/variable_mu/params.gen';
-import { fetLimiterSpecs } from '../units/fet_limiter/params.gen';
+import { ConsoleEqParam } from '../units/console_eq/params.gen';
+import { OpticalLevellerParam } from '../units/optical_leveller/params.gen';
+import { FetLimiterParam } from '../units/fet_limiter/params.gen';
+import { VariableMuParam } from '../units/variable_mu/params.gen';
+import { motionShaperUnit } from '../units/motion_shaper/unit';
+import { programEqUnit } from '../units/program_eq/unit';
+import { opticalLevellerUnit } from '../units/optical_leveller/unit';
+import { fetLimiterUnit } from '../units/fet_limiter/unit';
+import { variableMuUnit } from '../units/variable_mu/unit';
+import { consoleEqUnit } from '../units/console_eq/unit';
+import { granularReverbUnit } from '../units/granular_reverb/unit';
+import type { UnitUnderTest } from '../harness/types';
 
 /**
- * The channel each published double carries, in the bridge's packing order,
- * per unit.
+ * Every unit this page can host, keyed by its ledger id.
  *
- * Per unit because a frame is the unit's own shape — the same reason
- * `unit_worklet.js` keeps a frame width per unit and `unit_bridge.h` leaves the
- * visual export out of its macro. A single list was the Motion Shaper's, so
- * every other unit's panel read the shaper's nine channel names over its own
- * six doubles and drew nothing it could recognise.
+ * One object per unit rather than a face, a spec list and a channel list kept
+ * in parallel. The parallel version had a hand-written channel order for two
+ * units and nothing for the other five, and the consequence was not a
+ * mislabelled readout — it was `startEngine` returning early for any unit whose
+ * packing was not listed. Five faces have never had an engine behind them on
+ * this page, which is most of why five units read `FAIL` at `V27`: not because
+ * nothing moves, because nothing was ever asked to.
  *
- * The order is `bridge.cpp`'s and must stay that way; it is asserted from the
- * other end by each unit's own visual export, which packs it.
+ * `MotionWaveFace.tsx` in the app has always read the order off `unit.meters`.
+ * Two opinions about the same ordering is the arrangement `CLAUDE.md` rules out
+ * for pictures, and it is the same failure here: the copy that is wrong is the
+ * one nobody is looking at.
  */
-const CHANNELS: Record<string, readonly string[]> = {
-  'fx-01': [
-    MotionShaperMeter.Phase,
-    MotionShaperMeter.BandGainLow,
-    MotionShaperMeter.BandGainMid,
-    MotionShaperMeter.BandGainHigh,
-    MotionShaperMeter.BandLevelLow,
-    MotionShaperMeter.BandLevelMid,
-    MotionShaperMeter.BandLevelHigh,
-    MotionShaperMeter.InputPeak,
-    MotionShaperMeter.OutputPeak,
-  ],
-  'dyn-01': [
-    ProgramEqMeter.InputPeak,
-    ProgramEqMeter.OutputPeak,
-    ProgramEqMeter.HarmonicSecond,
-    ProgramEqMeter.HarmonicThird,
-    ProgramEqMeter.InputCoreDrive,
-    ProgramEqMeter.OutputCoreDrive,
-  ],
+const UNITS: Record<string, UnitUnderTest> = {
+  'fx-01': motionShaperUnit,
+  'dyn-01': programEqUnit,
+  'dyn-02': opticalLevellerUnit,
+  'dyn-03': fetLimiterUnit,
+  'dyn-04': variableMuUnit,
+  'dyn-05': consoleEqUnit,
+  'fx-02': granularReverbUnit,
 };
+
+/**
+ * The name each published double carries, in the bridge's packing order.
+ *
+ * Read off the unit's own declaration, exactly as the app reads it. The order
+ * is `bridge.cpp`'s and is asserted from the other end by each unit's visual
+ * export, which packs it.
+ */
+const channelsOf = (unit: UnitUnderTest): readonly string[] =>
+  (unit.meters ?? []).map((m) => m.name);
+
+/**
+ * The widest frame any unit publishes, and what the shared buffer holds.
+ *
+ * The same nine as `unit_worklet.js`, and it has to be: both sides construct
+ * a view over one buffer and the worklet's is unconditional.
+ */
+const MAX_FRAME_DOUBLES = 9;
 
 /**
  * What to play at each unit, and why it is not one tone for all of them.
@@ -74,7 +81,81 @@ const CHANNELS: Record<string, readonly string[]> = {
  * kilohertz probe would leave its panel still and V27 would be measuring the
  * stimulus rather than the unit. 40 Hz is where `dyn-01` §7's thickening lives.
  */
-const STIMULUS: Record<string, number> = { 'fx-01': 1000, 'dyn-01': 40 };
+interface Stimulus {
+  hz: number;
+  /**
+   * Rate of an amplitude envelope, in Hz, or 0 for a steady tone.
+   *
+   * A steady tone cannot reveal a leveller. Its detector settles within its
+   * attack and then every block publishes the same gain reduction, so the panel
+   * shows one number forever and `V27` fails for a unit whose animation is
+   * perfectly correct. What a compressor's face has to show is its *time*
+   * behaviour — an optical cell's exposure history, a FET's recovery, a valve's
+   * bias storage — and time behaviour is invisible under a signal that has none.
+   *
+   * So the dynamics units get programme rather than a tone: the same sine under
+   * a slow envelope, which is the smallest stimulus their mechanism responds to.
+   * This is the same argument as `dyn-01`'s 40 Hz and not a different one — a
+   * probe that leaves the mechanism still measures the probe.
+   */
+  envelopeHz?: number;
+}
+
+const STIMULUS: Record<string, Stimulus> = {
+  // A modulator, so the shaping is what moves. Steady is right.
+  'fx-01': { hz: 1000 },
+  // Iron follows flux, and at 1 kHz the core barely moves whatever the level.
+  'dyn-01': { hz: 40 },
+  // Levellers, limiters and valves: what they show is what they do over time.
+  'dyn-02': { hz: 220, envelopeHz: 1.7 },
+  'dyn-03': { hz: 220, envelopeHz: 3.1 },
+  'dyn-04': { hz: 220, envelopeHz: 1.3 },
+  // An equaliser is not time-varying, but its meters are: an envelope is what
+  // puts anything at all on the input and output readouts.
+  'dyn-05': { hz: 220, envelopeHz: 2.3 },
+  // Grains are spawned against the incoming signal, so the population moves
+  // with it.
+  'fx-02': { hz: 440, envelopeHz: 0.9 },
+};
+
+/**
+ * Controls a unit needs off their defaults before its mechanism does anything.
+ *
+ * The Console EQ is the case that made this necessary and it is not a special
+ * case. Its `V27` readout is the EQ section's inductor core, and an inductor
+ * carries the *network's* current — with every band at zero the network is out
+ * of circuit and the core is correctly still. Measuring a flat equaliser and
+ * reporting that nothing moves would be measuring the stimulus again, which is
+ * the same error as probing a transformer at a kilohertz.
+ *
+ * Sent as parameter messages through the port the app uses, not by reaching
+ * into the unit: a state a user cannot get the unit into is not a state worth
+ * measuring a panel in.
+ */
+const SETUP: Record<string, { id: number; value: number }[]> = {
+  // Peak Reduction defaults to zero, which is a leveller with the cell dark.
+  // The panel read exposure 0 and 0.06 dB of gain reduction, and that is the
+  // unit behaving correctly under a control nobody had turned.
+  'dyn-02': [{ id: OpticalLevellerParam.PeakReduction, value: 0.7 }],
+  // The opposite problem: at unity input this limiter sat 17.9 dB into
+  // limiting, where the detector is pinned and nothing moves. Backed off so it
+  // rides the envelope instead of flattening it — which is where a limiter's
+  // mechanism is visible and also where anybody would actually use one.
+  'dyn-03': [{ id: FetLimiterParam.Input, value: -16 }],
+  // Threshold defaults to its maximum and input to zero, so the valve was
+  // barely biased: 0.58 dB of reduction and a bias store that never charged.
+  'dyn-04': [
+    { id: VariableMuParam.InputA, value: 12 },
+    { id: VariableMuParam.InputB, value: 12 },
+    { id: VariableMuParam.ThresholdA, value: 3 },
+    { id: VariableMuParam.ThresholdB, value: 3 },
+  ],
+  'dyn-05': [
+    { id: ConsoleEqParam.EqIn, value: 1 },
+    { id: ConsoleEqParam.LowFrequency, value: 0 },
+    { id: ConsoleEqParam.LowAmount, value: 12 },
+  ],
+};
 
 interface Harness {
   panel: PanelHandle;
@@ -117,19 +198,17 @@ const mount = document.getElementById('mount') as HTMLElement;
  * U21 is different and cannot be shortcut this way — it is a claim about two
  * clocks, so it needs that unit's engine actually running.
  */
-const FACES = {
-  'fx-01': { face: motionShaperFace, specs: motionShaperSpecs, title: 'Motion Shaper' },
-  'dyn-01': { face: programEqFace, specs: programEqSpecs, title: 'Program EQ' },
-  'dyn-02': { face: opticalLevellerFace, specs: opticalLevellerSpecs, title: 'Optical Leveller' },
-  'dyn-03': { face: fetLimiterFace, specs: fetLimiterSpecs, title: 'FET Limiter' },
-  'dyn-04': { face: variableMuFace, specs: variableMuSpecs, title: 'Variable-Mu Limiter' },
-  'dyn-05': { face: consoleEqFace, specs: consoleEqSpecs, title: 'Console EQ' },
-  'fx-02': { face: granularReverbFace, specs: granularReverbSpecs, title: 'Granular Reverb' },
-} as const;
+const requestedId = new URLSearchParams(window.location.search).get('unit') ?? 'fx-01';
+const selectedUnit = UNITS[requestedId] ?? UNITS['fx-01'];
 
-const requested = new URLSearchParams(window.location.search).get('unit') ?? 'fx-01';
-const selected = FACES[requested as keyof typeof FACES] ?? FACES['fx-01'];
+const requested = requestedId in UNITS ? requestedId : 'fx-01';
+const selected = {
+  face: selectedUnit.face!,
+  specs: selectedUnit.specs,
+  title: selectedUnit.name,
+};
 const isShaper = requested === 'fx-01';
+const CHANNEL_NAMES = channelsOf(selectedUnit);
 
 let node: AudioWorkletNode | null = null;
 let sequence: Int32Array | null = null;
@@ -167,8 +246,7 @@ function readFrame(): Record<string, number> | null {
       continue;
     }
     const values: Record<string, number> = {};
-    const names = CHANNELS[requested] ?? CHANNELS['fx-01'];
-    for (let i = 0; i < names.length; i++) values[names[i]] = frame[i];
+    for (let i = 0; i < CHANNEL_NAMES.length; i++) values[CHANNEL_NAMES[i]] = frame[i];
     if (Atomics.load(sequence, 0) === before) {
       reads++;
       return values;
@@ -197,10 +275,10 @@ async function start() {
   // early return, so six panels laid out against nothing and V27 — which asks
   // whether something *moves* — could not be measured on any of them.
   //
-  // The guard stays for a unit whose packing is not declared above, because a
-  // panel reading another unit's channel names over its own doubles is worse
-  // than a still one: it would draw numbers, and they would be wrong.
-  if (!CHANNELS[requested]) return;
+  // A unit that publishes nothing has nothing for an engine to feed a face
+  // with. That is a real state — an instrument shell with no metering yet — and
+  // it is reported by the panel staying still rather than by a crash.
+  if (CHANNEL_NAMES.length === 0) return;
   context = new AudioContext({ sampleRate: 48000 });
   await context.audioWorklet.addModule('/motionwave.worklet.js');
   // `unit_worklet.js`, and the name is the whole of a bug worth recording.
@@ -210,14 +288,26 @@ async function start() {
   // that commit — so U21, which is the cell this whole page exists to
   // measure, has not executed since, while the Ledger recorded it PASS on
   // seven units. A string that names a file is not checked by anything the
-  // way an import is, which is exactly why the suite has to be *run*.
+  // way an import is, which is exactly why the suite has to be *run*.
+
   await context.audioWorklet.addModule('/unit_worklet.js');
 
   // One doubles-aligned buffer: eight bytes for the sequence so the frame that
   // follows it starts on an eight-byte boundary, then the frame itself.
-  const shared = new SharedArrayBuffer(8 + 9 * 8);
+  // The widest frame any unit publishes, not this unit's.
+  //
+  // Both sides view the same buffer and the worklet's view is
+  // `new Float64Array(shared, 8, MAX_FRAME_DOUBLES)`, unconditionally — so a
+  // buffer cut to a narrower unit's width makes that construction throw and
+  // takes the processor down with it. Sizing this to `unit.meters.length`
+  // looked like tidying and stopped every panel on the page: the Program EQ,
+  // which had been passing V27 for a week, failed alongside the six that never
+  // had. Reading the tail is not the risk the narrow buffer was guarding
+  // against either — the worklet zeroes every slot past its own width before
+  // publishing, and only the named channels are read below.
+  const shared = new SharedArrayBuffer(8 + MAX_FRAME_DOUBLES * 8);
   sequence = new Int32Array(shared, 0, 1);
-  frame = new Float64Array(shared, 8, 9);
+  frame = new Float64Array(shared, 8, MAX_FRAME_DOUBLES);
 
   node = new AudioWorkletNode(context, 'motion-wave-unit', {
     numberOfInputs: 1,
@@ -229,11 +319,25 @@ async function start() {
     processorOptions: { shared, unit: requested },
   });
 
+  const stimulus = STIMULUS[requested] ?? { hz: 1000 };
   const osc = context.createOscillator();
-  osc.frequency.value = STIMULUS[requested] ?? 1000;
+  osc.frequency.value = stimulus.hz;
   const level = context.createGain();
   level.gain.value = 0.5;
   osc.connect(level).connect(node);
+  if (stimulus.envelopeHz) {
+    // A sine into the gain, biased so it never goes negative: the tone swells
+    // and falls between about 0.05 and 0.55 rather than inverting. A polarity
+    // flip would be a click, and a click is a transient the detectors would
+    // respond to instead of the envelope.
+    const lfo = context.createOscillator();
+    lfo.frequency.value = stimulus.envelopeHz;
+    const depth = context.createGain();
+    depth.gain.value = 0.25;
+    level.gain.value = 0.3;
+    lfo.connect(depth).connect(level.gain);
+    lfo.start();
+  }
   // Connected to the destination so the graph actually pulls: a worklet in a
   // graph nothing renders is never called, and the test would then be measuring
   // a face paced against an engine that never ran.
@@ -263,6 +367,9 @@ async function start() {
     }
     node.port.postMessage({ kind: 'param', id: MotionShaperParam.SyncMode, value: 1 });
     node.port.postMessage({ kind: 'param', id: MotionShaperParam.Rate, value: 2 });
+  }
+  for (const { id, value } of SETUP[requested] ?? []) {
+    node.port.postMessage({ kind: 'param', id, value });
   }
   await context.resume();
   requestAnimationFrame(tick);
