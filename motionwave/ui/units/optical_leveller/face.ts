@@ -23,7 +23,7 @@
  * number. A face that showed the true reduction would be more accurate and less
  * faithful, and would disagree with the hardware exactly where users notice.
  */
-import type { FaceElement, UnitFace } from '../../harness/types';
+import type { FaceElement, PanelSkin, UnitFace } from '../../harness/types';
 import { opticalLevellerControls, opticalLevellerSpecs } from './params.gen';
 import { controlElements } from '../../render/faceControls';
 
@@ -72,7 +72,32 @@ const movement: FaceElement = {
   ],
 };
 
+/**
+ * `dyn-02` §0: the era's design language — a large VU meter, two large control
+ * knobs, a small mode toggle, a metering selector — "is general to early-1960s
+ * American broadcast outboard and is fair to evoke".
+ *
+ * So: painted steel in the period's blue-grey, pointer-and-skirt knobs, rack ears,
+ * and the meter given the centre of the panel because on this class of unit it is
+ * the only thing anyone looks at. Nothing is traced, matched to a manufacturer's
+ * colour, or named after one — `LEGAL_NOTES.md`, which is a commercial-safety
+ * requirement rather than a stylistic one.
+ */
+const skin: PanelSkin = {
+  era: 'early-1960s American broadcast outboard — a large VU given the centre of the panel, two large knobs, a metering selector',
+  surface: 'painted-steel',
+  hueDeg: 208,
+  chroma: 'muted',
+  value: 'mid',
+  knob: 'pointer-skirt',
+  arrangement: 'centre-stage',
+  lettering: 'silkscreen',
+  furniture: 'rack-ears',
+  lampToken: '--mw-warn',
+};
+
 export const opticalLevellerFace: UnitFace = {
+  skin,
   elements: [
     movement,
 

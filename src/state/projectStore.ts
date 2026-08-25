@@ -65,6 +65,7 @@ import {
   type SamplerParams,
   type SampleZone,
 } from '../model/sampler';
+import { defaultShapesFor } from '../audio/motionwave/shapes';
 
 const MAX_UNDO = 60;
 
@@ -1087,7 +1088,19 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         if (!t.effects) t.effects = [];
         // A hard slot cap keeps a channel's CPU cost predictable.
         if (t.effects.length >= MAX_INSERTS) return;
-        t.effects.push({ id, kind, bypass: false, params: defaultParams(kind) });
+        // Shapes as well as parameters. A unit whose mechanism *is* a drawn
+        // curve inserted with none is a wire with a control panel — the Motion
+        // Shaper shipped that way and was reported as "doesn't really do
+        // anything". `defaultShapesFor` reads the unit's own declaration, so
+        // nothing here knows which unit has curves or what belongs in them.
+        const shapes = defaultShapesFor(kind);
+        t.effects.push({
+          id,
+          kind,
+          bypass: false,
+          params: defaultParams(kind),
+          ...(shapes ? { shapes } : {}),
+        });
         added = true;
       });
       return added ? id : null;

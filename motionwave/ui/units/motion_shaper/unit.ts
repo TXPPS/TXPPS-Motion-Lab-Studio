@@ -75,6 +75,28 @@ export const motionShaperUnit: UnitUnderTest = {
    * project that reloads silent.
    */
   shapeCount: 3,
+  /**
+   * A sidechain duck on every band, because a fresh insert has to *do*
+   * something.
+   *
+   * It did not. `reset()` leaves each curve flat at 1.0, which
+   * `motion_shaper.h` defines as unity gain, and the host sent no curve because
+   * the project held none — so inserting this unit produced an empty curve
+   * editor above a bit-exact no-op. It was reported as "doesn't really do
+   * anything", and the comment above already knew why: a Motion Shaper with no
+   * curve is a wire.
+   *
+   * A duck rather than a shape chosen for looks: §5.2 of the sheet lists
+   * sidechain-duck shapes among the stock waves, and it is the one shape whose
+   * effect is unmistakable within a bar on any material. Ducked at the
+   * downbeat, recovered by 38 % of the cycle, held until the wrap takes it back
+   * down — which is where the sharp edge belongs, at the start of the beat.
+   */
+  defaultShapes: [0, 1, 2].map(() => [
+    { x: 0, y: 0, shape: 'line' as const, tension: 0 },
+    { x: 0.38, y: 1, shape: 'line' as const, tension: 0 },
+    { x: 0.97, y: 1, shape: 'line' as const, tension: 0 },
+  ]),
   presetMeta: { unit: 'fx-01', unitVersion: 1, name: 'Init' },
   meters: motionShaperMeters,
   face: motionShaperFace,

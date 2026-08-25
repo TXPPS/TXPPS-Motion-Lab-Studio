@@ -155,6 +155,34 @@ const ARRANGEMENTS = `
 .mw-panel[data-mw-arrangement='centre-stage'] .mw-panel-readouts {
   justify-content: center;
 }
+/*
+ * On a centre-stage panel the instrument gets the room, and on the one face
+ * that has a curve the instrument is the curve.
+ *
+ * The wide breakpoint turns the body into a row of flex: 1 1 0 children, so
+ * the editor ended up one of three equal columns — a small pale box beside two
+ * columns of knobs, on a unit whose entire subject is the shape drawn in it.
+ * That is the half of "looks weird" that survived giving the panel its own skin.
+ *
+ * It takes a whole row rather than a bigger share of one. Widening it inside
+ * the row was tried first and moved the problem: at flex 2.2 the curve read
+ * well and the controls collapsed to a single column, which made the panel
+ * twice as tall as the window. A row of its own is what centre stage means
+ * physically, and it is what this arrangement previously only said about
+ * control sizes.
+ *
+ * No backticks in this comment: it lives inside a template literal, and the
+ * first one closed the string and took the build with it.
+ */
+.mw-panel[data-mw-arrangement='centre-stage'] .mw-panel-body {
+  flex-wrap: wrap;
+}
+.mw-panel[data-mw-arrangement='centre-stage'] .mw-panel-body > .mw-curve {
+  flex: 1 1 100%;
+  align-self: stretch;
+  aspect-ratio: auto;
+  height: 13rem;
+}
 .mw-panel[data-mw-arrangement='strip'] .mw-panel-controls,
 .mw-panel[data-mw-arrangement='console'] .mw-panel-controls {
   gap: var(--mw-space-3);

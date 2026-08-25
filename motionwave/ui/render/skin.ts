@@ -38,7 +38,16 @@ type Rgb = { r: number; g: number; b: number };
 const CHROMA: Record<PanelSkin['chroma'], number> = { neutral: 4, muted: 13, saturated: 27 };
 
 /** Value names to lightness, in percent. */
-const LIGHTNESS: Record<PanelSkin['value'], number> = { light: 78, mid: 47, dark: 16 };
+/**
+ * Fascia lightness per declared value — a *target*, resolved by `legibleFascia`.
+ *
+ * 47 is the true midpoint of light and dark and is unreachable at every hue: no
+ * fascia in the band 36-58 carries the 7:1 ink `INK_CONTRAST` demands. Left at
+ * the midpoint deliberately, because the resolver moving it is the honest
+ * behaviour and hiding the constraint in this constant would only mean the next
+ * hue that cannot use it fails somewhere else.
+ */
+const LIGHTNESS: Record<PanelSkin['value'], number> = { light: 78, mid: 59, dark: 16 };
 
 /** What panel text has to clear. 4.5:1 is the contract; this asks for more. */
 const INK_CONTRAST = 7;
@@ -86,9 +95,40 @@ export class SkinContrastError extends Error {
   }
 }
 
+/**
+ * The nearest fascia lightness to `wanted` that can carry legible ink.
+ *
+ * A hue-independent constant cannot do this job, and finding that out is what
+ * this function is. `INK_CONTRAST` asks for 7:1, and whether a fascia reaches it
+ * depends on its *luminance* — which for one HSL lightness varies enormously
+ * with hue, because the green coefficient is ten times the blue one. At 208 deg
+ * a lightness of 59 clears the bar and at 0 deg the same 59 does not. `mid` was
+ * 47, which clears it at no hue at all, and the two skins declaring it threw.
+ *
+ * So a skin's `value` is a *target* and this resolves it. The search walks
+ * outward and takes the first lightness that works, preferring the lighter side
+ * on a tie: a grey panel carrying dark legends is what hardware of every period
+ * actually is, and the darker branch would be a different object wearing the
+ * same word.
+ *
+ * A target that is already legible resolves to itself and moves nothing, so
+ * `light` and `dark` are untouched and no shipped skin changes colour.
+ */
+function legibleFascia(hue: number, sat: number, wanted: number): number {
+  const inkSat = Math.min(sat, 18);
+  const works = (l: number): boolean =>
+    l >= 0 && l <= 100 && solveInk(hslToRgb(hue, sat, l), hue, inkSat, INK_CONTRAST) >= 0;
+  if (works(wanted)) return wanted;
+  for (let step = 1; step <= 100; step += 1) {
+    if (works(wanted + step)) return wanted + step;
+    if (works(wanted - step)) return wanted - step;
+  }
+  return wanted;
+}
+
 export function skinColours(skin: PanelSkin): SkinColours {
   const sat = CHROMA[skin.chroma];
-  const light = LIGHTNESS[skin.value];
+  const light = legibleFascia(skin.hueDeg, sat, LIGHTNESS[skin.value]);
   const fascia = hslToRgb(skin.hueDeg, sat, light);
   const inkL = solveInk(fascia, skin.hueDeg, Math.min(sat, 18), INK_CONTRAST);
   const mutedL = solveInk(fascia, skin.hueDeg, Math.min(sat, 18), MUTED_CONTRAST);

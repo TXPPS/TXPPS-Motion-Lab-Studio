@@ -15,41 +15,12 @@
 import { useEffect, useRef } from 'react';
 import { renderFace } from '../../../motionwave/ui/render/facePanel';
 import type { PanelHandle } from '../../../motionwave/ui/render/facePanel';
-import type { CurveNode } from '../../../motionwave/ui/render/controls/curve_model';
 import { toNormalised } from '../../../motionwave/ui/param/spec';
 import { motionWaveUnitFor } from '../../audio/motionwave/registry';
+import { fromNodes, toNodes } from '../../audio/motionwave/shapes';
 import { engine } from '../../audio/engine';
 import { useProjectStore } from '../../state/projectStore';
 import type { Effect } from '../../model/types';
-
-/**
- * The four numbers a project stores per breakpoint, as the editor's own node.
- *
- * The shape codes are an index in the file and a name in the editor, and the
- * mapping lives here because it is the host's translation rather than either
- * side's model. Anything out of range reads as a line, which is the shape that
- * cannot be wrong: a corrupt code that fell through to `step` would make a
- * saved session play a curve nobody drew.
- */
-const SHAPES: readonly CurveNode['shape'][] = ['line', 'arc', 'scurve', 'step'];
-
-function toNodes(rows: readonly (readonly number[])[] | undefined): CurveNode[] {
-  return (rows ?? []).map((row) => ({
-    x: row[0] ?? 0,
-    y: row[1] ?? 0,
-    shape: SHAPES[row[2] ?? 0] ?? 'line',
-    tension: row[3] ?? 0,
-  }));
-}
-
-function fromNodes(nodes: readonly CurveNode[]): number[][] {
-  return nodes.map((node) => [
-    node.x,
-    node.y,
-    Math.max(0, SHAPES.indexOf(node.shape)),
-    node.tension,
-  ]);
-}
 
 export function MotionWaveFace({ trackId, effect }: { trackId: string; effect: Effect }) {
   const host = useRef<HTMLDivElement>(null);

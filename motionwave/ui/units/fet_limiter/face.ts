@@ -30,7 +30,7 @@
  * number. A face that showed the true reduction would be more accurate and less
  * faithful, and would disagree with the hardware exactly where users notice.
  */
-import type { FaceElement, UnitFace } from '../../harness/types';
+import type { FaceElement, PanelSkin, UnitFace } from '../../harness/types';
 import { fetLimiterControls, fetLimiterSpecs } from './params.gen';
 import { controlElements } from '../../render/faceControls';
 
@@ -76,7 +76,36 @@ const movement: FaceElement = {
   ],
 };
 
+/**
+ * `dyn-03` §0: the era's design language — a row of interlocked square
+ * pushbuttons, two large continuous attenuator knobs, two smaller time-constant
+ * knobs, a VU with a metering selector — "is general to late-1960s American
+ * solid-state outboard and is fair to evoke".
+ *
+ * So: a light brushed-alloy fascia with engraved legends and bar knobs, laid out
+ * as a strip because that is what a limiter of this class is — one signal path
+ * across the panel, left to right. The lamp is the danger token: on this unit the
+ * thing worth seeing from across a room is that it is limiting.
+ *
+ * The sheet also forbids one specific thing, and it is not a colour: the nickname
+ * the reference unit's four-button mode is known by may not appear as a Motion
+ * Wave feature name. Nothing here names it.
+ */
+const skin: PanelSkin = {
+  era: 'late-1960s American solid-state outboard — a brushed fascia, an interlocked pushbutton row, two large attenuators across one strip',
+  surface: 'brushed-alloy',
+  hueDeg: 34,
+  chroma: 'neutral',
+  value: 'light',
+  knob: 'bar',
+  arrangement: 'strip',
+  lettering: 'engraved',
+  furniture: 'rack-ears',
+  lampToken: '--mw-danger',
+};
+
 export const fetLimiterFace: UnitFace = {
+  skin,
   elements: [
     movement,
 

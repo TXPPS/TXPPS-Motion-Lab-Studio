@@ -33,7 +33,7 @@
  * setting, so a face that showed only the switch position would be hiding the
  * behaviour the switch selects.
  */
-import type { FaceElement, UnitFace } from '../../harness/types';
+import type { FaceElement, PanelSkin, UnitFace } from '../../harness/types';
 import { variableMuControls, variableMuSpecs } from './params.gen';
 import { controlElements } from '../../render/faceControls';
 
@@ -85,7 +85,33 @@ function movement(id: string, channel: string, name: string): FaceElement {
   };
 }
 
+/**
+ * `dyn-04` §0: the era's design language — a wide 6U chassis, two symmetrical
+ * channel strips of small stepped knobs flanking a pair of VU meters, a mode
+ * switch between them — "is general to late-1950s American disk mastering
+ * equipment and is fair to evoke".
+ *
+ * So: wrinkle enamel in the period's grey-green, chicken-head pointers on the
+ * stepped controls, legend plates rather than printing, and a wide banded
+ * arrangement because the panel really is two strips either side of the metering.
+ * A valve unit of this period reads as heavy, and the surface treatment is most of
+ * why.
+ */
+const skin: PanelSkin = {
+  era: 'late-1950s American disk-mastering equipment — a wide chassis, symmetrical strips of small stepped knobs flanking the metering',
+  surface: 'wrinkle-enamel',
+  hueDeg: 96,
+  chroma: 'neutral',
+  value: 'mid',
+  knob: 'chicken-head',
+  arrangement: 'wide-banded',
+  lettering: 'legend-plate',
+  furniture: 'rack-ears',
+  lampToken: '--mw-warn',
+};
+
 export const variableMuFace: UnitFace = {
+  skin,
   elements: [
     movement(
       'movement-a',

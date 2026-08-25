@@ -291,23 +291,24 @@ test.describe('Cell 26 — one panel per unit', () => {
       const id = await openUnit(page, unit.kind);
       const era = await page.getAttribute(`[data-testid="mw-face-${id}"] .mw-panel`, 'data-mw-era');
       const shot = await page.locator(`[data-testid="mw-face-${id}"] .mw-panel`).screenshot();
-      if (era === null || era.startsWith('undeclared')) {
-        // One of them stands in for all of them. They render the same panel, so
-        // comparing them with each other proves nothing — but a skinned panel
-        // still has to differ from the default, and while only one unit is
-        // skinned that comparison is the *only* one carrying any weight. Without
-        // it the pairwise loop below is vacuously true on a set of one.
-        if (unskinned.length === 0) signatures.push({ label: 'framework default', bytes: shot });
-        unskinned.push(unit.label);
-      } else {
-        signatures.push({ label: unit.label, bytes: shot });
-      }
+      if (era === null || era.startsWith('undeclared')) unskinned.push(unit.label);
+      else signatures.push({ label: unit.label, bytes: shot });
       await closeUnit(page, id);
     }
 
-    if (unskinned.length > 0) {
-      console.log(`cell 26 · NOT YET SKINNED (ledger: FAIL) · ${unskinned.join(', ')}`);
-    }
+    // An unskinned face is a failure now, not a note.
+    //
+    // This test used to fold them into one "framework default" entry and carry
+    // on, which was right while exactly one unit was skinned: they render the
+    // same panel, so comparing them with each other proves nothing, and the
+    // pairwise loop below would have been vacuously true on a set of one.
+    //
+    // It also meant six units wore one panel through two directives while this
+    // passed, and a user reported the Motion Shaper as "looking like it was
+    // merged randomly with the FET Limiter's controls" — which is what six
+    // units sharing a face looks like from the outside. All seven declare their
+    // own skin now, so the tolerance has done its job and closes.
+    expect(unskinned, `${unskinned.join(', ')} declare no skin`).toEqual([]);
     expect(signatures.length, 'nothing to compare').toBeGreaterThan(1);
     for (let i = 0; i < signatures.length; i++) {
       for (let j = i + 1; j < signatures.length; j++) {

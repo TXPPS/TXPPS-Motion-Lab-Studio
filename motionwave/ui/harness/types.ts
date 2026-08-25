@@ -16,6 +16,7 @@
  */
 
 import type { DeclaredLatency } from '../mix/latency';
+import type { CurveNode } from '../render/controls/curve_model';
 import type { MeterChannel } from '../metering/bus';
 import type { ParamId, ParamSpec } from '../param/spec';
 import type { Ramp } from '../param/ramp';
@@ -263,6 +264,22 @@ export interface UnitUnderTest {
    * exactly that.
    */
   readonly shapeCount?: number;
+  /**
+   * What each curve holds on a fresh insert. Required wherever `shapeCount` is.
+   *
+   * A unit whose whole mechanism is a drawn shape starts with **no shape**
+   * unless it says otherwise, and the core's `reset()` leaves every curve flat
+   * at 1.0 — which `motion_shaper.h` defines as unity gain. The Motion Shaper
+   * shipped that way: inserting it produced an empty curve editor and a unit
+   * that was a bit-exact no-op until the user guessed that the blank box was
+   * the instrument. It was reported as "doesn't really do anything", and that
+   * was exactly right.
+   *
+   * Declared beside `shapeCount` and in the unit's own curve model, so the host
+   * seeds it without knowing which unit it is holding — the same reason
+   * `shapeCount` lives here rather than in `src/`.
+   */
+  readonly defaultShapes?: readonly (readonly CurveNode[])[];
   readonly factoryPresets?: readonly PresetDocument[];
   /** Absent when this host cannot run the unit's DSP at all. */
   readonly renderer?: UnitRenderer;

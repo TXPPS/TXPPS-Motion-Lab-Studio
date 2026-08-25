@@ -26,7 +26,7 @@
  * a drawn playhead that merely animates at the right rate is a lie that looks
  * exactly like the truth until the engine stalls.
  */
-import type { FaceElement, UnitFace } from '../../harness/types';
+import type { FaceElement, PanelSkin, UnitFace } from '../../harness/types';
 import { motionShaperControls, motionShaperSpecs } from './params.gen';
 import { controlElements } from '../../render/faceControls';
 
@@ -99,7 +99,34 @@ const curveEditor: FaceElement = {
  * parameter is a feature nobody can use — the same class of defect as a control
  * that does nothing, seen from the other side.
  */
+/**
+ * The Motion Shaper has no hardware antecedent to evoke and must not borrow one.
+ *
+ * Its sheet's reference family is a software plug-in, so the era language here is
+ * software's own: a dark glass field with the drawn shape lit on it and everything
+ * else deliberately subordinate. That is not decoration — the curve *is* the unit,
+ * and a panel that gave the knobs the visual weight would be describing a
+ * different instrument.
+ *
+ * Until this existed the unit wore `DEFAULT_SKIN`, which is what cell 26 records
+ * as FAIL and what a user described as looking "merged randomly with the FET
+ * Limiter's controls": six of seven units were wearing one panel.
+ */
+const skin: PanelSkin = {
+  era: 'contemporary software — a dark glass field with the drawn shape lit on it, controls subordinate to the curve',
+  surface: 'glass',
+  hueDeg: 276,
+  chroma: 'muted',
+  value: 'dark',
+  knob: 'flat-cap',
+  arrangement: 'centre-stage',
+  lettering: 'silkscreen',
+  furniture: 'none',
+  lampToken: '--mw-accent',
+};
+
 export const motionShaperFace: UnitFace = {
+  skin,
   elements: [
     curveEditor,
 

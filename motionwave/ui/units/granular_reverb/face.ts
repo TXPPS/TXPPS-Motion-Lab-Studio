@@ -38,7 +38,7 @@
  * identifier it declares, and no preset named after one. Every asset is drawn
  * in code from design tokens.
  */
-import type { FaceElement, UnitFace } from '../../harness/types';
+import type { FaceElement, PanelSkin, UnitFace } from '../../harness/types';
 import { granularReverbControls, granularReverbSpecs } from './params.gen';
 import { controlElements } from '../../render/faceControls';
 
@@ -107,7 +107,33 @@ const cloud: FaceElement = {
   ],
 };
 
+/**
+ * `fx-02` has no single reference product — its sheet says so in its opening
+ * lines: it is an academic subject drawn from the granular-synthesis and
+ * artificial-reverberation literature. There is therefore no era to evoke, and
+ * inventing one would be the only dishonest panel in the set.
+ *
+ * So the language is the mechanism's own: a moulded teal field of grains behind a
+ * bezel, fluted knobs, and a `field` arrangement because a grain cloud has no
+ * signal path to lay out left to right. It is deliberately far from the framework
+ * default it used to wear, which is also moulded and dark — hue, chroma, knob and
+ * furniture all move, so nobody mistakes an identity for the absence of one.
+ */
+const skin: PanelSkin = {
+  era: 'no hardware antecedent — a moulded field of grains behind a bezel, which is what the mechanism looks like rather than what a period looked like',
+  surface: 'moulded',
+  hueDeg: 168,
+  chroma: 'saturated',
+  value: 'dark',
+  knob: 'fluted',
+  arrangement: 'field',
+  lettering: 'silkscreen',
+  furniture: 'bezel',
+  lampToken: '--mw-accent',
+};
+
 export const granularReverbFace: UnitFace = {
+  skin,
   elements: [
     cloud,
 

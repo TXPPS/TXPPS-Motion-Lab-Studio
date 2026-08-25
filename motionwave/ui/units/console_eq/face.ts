@@ -35,7 +35,7 @@
  * which is the house rule and the reason a drawn curve here cannot disagree
  * with what is heard.
  */
-import type { FaceElement, UnitFace } from '../../harness/types';
+import type { FaceElement, PanelSkin, UnitFace } from '../../harness/types';
 import { consoleEqControls, consoleEqSpecs } from './params.gen';
 import { controlElements } from '../../render/faceControls';
 
@@ -86,7 +86,33 @@ const curve: FaceElement = {
   ],
 };
 
+/**
+ * `dyn-05` §0: the era's design language — concentric stepped rotary switches
+ * with coloured skirts, one switch per band carrying both frequency and amount, a
+ * small EQ-in latching switch, narrow module proportions — "is general to
+ * late-1960s and early-1970s console modules and is fair to evoke".
+ *
+ * So: a dark anodised module, collet knobs, silkscreened legends, no rack ears —
+ * because this is a channel strip that lives in a frame rather than a box that
+ * lives in a rack, and the proportions are the first thing that says so. The unit
+ * carries two lineages and one panel: the era language above is common to both,
+ * which is why the lineage shows in the controls rather than in the fascia.
+ */
+const skin: PanelSkin = {
+  era: 'late-1960s and early-1970s console modules — a narrow anodised strip of collet knobs, no rack ears because it lives in a frame',
+  surface: 'anodised',
+  hueDeg: 248,
+  chroma: 'muted',
+  value: 'dark',
+  knob: 'collet',
+  arrangement: 'console',
+  lettering: 'silkscreen',
+  furniture: 'none',
+  lampToken: '--mw-accent',
+};
+
 export const consoleEqFace: UnitFace = {
+  skin,
   elements: [
     curve,
 
