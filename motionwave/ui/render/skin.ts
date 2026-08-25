@@ -113,9 +113,28 @@ export class SkinValueError extends Error {
   }
 }
 
-/** The three stops of the surface gradient at a given fascia lightness. */
+/**
+ * Every ground panel text can land on, at a given fascia lightness.
+ *
+ * Four, not three. The first three are the surface gradient's stops; the fourth
+ * is the legend plate's *upward* position, which is `light + SURFACE_LOW` and
+ * was therefore one point brighter than the brightest ground the ink had been
+ * solved against. One point is not a contrast failure and that is not the
+ * point: a plate is a ground text is drawn on, and this file's whole subject is
+ * that a ground the check does not know about is a ground the check is not
+ * checking. The plate came second in that lesson and had not been added.
+ *
+ * `assertPaintsFrom` in `panelCss.ts` is the other half — it proves no surface
+ * paints a colour outside these, so any pixel a treatment produces is a
+ * composite of colours listed here and therefore channelwise between them.
+ */
 function grounds(lightness: number): readonly number[] {
-  return [lightness, Math.min(97, lightness + SURFACE_HIGH), Math.max(3, lightness - SURFACE_LOW)];
+  return [
+    lightness,
+    Math.min(97, lightness + SURFACE_HIGH),
+    Math.max(3, lightness - SURFACE_LOW),
+    Math.min(97, lightness + SURFACE_LOW),
+  ];
 }
 
 /**

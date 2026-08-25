@@ -39,7 +39,13 @@ import { describe, expect, it } from 'vitest';
 import { skinColours } from '../render/skin';
 import { PANEL_CSS } from '../render/panelCss';
 import { knobParts } from '../render/controls/knob';
-import { SKIN_VOCABULARY, assertImplements, termsStyledBy } from '../design/vocabulary';
+import {
+  SKIN_VOCABULARY,
+  assertImplements,
+  assertPaintsFrom,
+  paintSources,
+  termsStyledBy,
+} from '../design/vocabulary';
 import { contrastRatio, hslToRgb } from '../design/contrast';
 import type { PanelSkin } from '../harness/types';
 
@@ -211,6 +217,72 @@ describe('every colour term carries legible ink', () => {
           light - mid,
           `${chroma} at ${hueDeg}deg: light L${light} vs mid L${mid}`,
         ).toBeGreaterThanOrEqual(8);
+      }
+    }
+  });
+});
+
+describe('a term is legible on what it paints, not on the token it names', () => {
+  const FASCIA_STOPS = ['--mw-fascia', '--mw-fascia-high', '--mw-fascia-low'];
+
+  it('every surface paints only from the three stops the ink is solved against', () => {
+    // The load-time assertion in `panelCss.ts` is the guard; this is the test
+    // that the guard is looking at the right thing. Without it, the assertion
+    // could be checking an empty set and passing.
+    for (const surface of SKIN_VOCABULARY.surface) {
+      const sources = paintSources(PANEL_CSS, 'data-mw-surface', surface);
+      expect(sources.length, `${surface} paints from nothing at all`).toBeGreaterThan(0);
+      expect(
+        sources.filter((c) => !FASCIA_STOPS.includes(c)),
+        surface,
+      ).toEqual([]);
+    }
+  });
+
+  it('names a colour the ink was never solved against, whatever syntax names it', () => {
+    // Three syntaxes, because a check that only catches the one somebody
+    // happened to write is the same restatement problem one layer down. The
+    // named-colour case is the one that took two attempts: the first scanner
+    // read `radial` out of `radial-gradient` and `high` out of
+    // `--mw-fascia-high`, and reported six surfaces painting from `fascia`.
+    for (const stray of ['#ff0044', 'ghostwhite', 'var(--mw-accent)']) {
+      const css = `.p[data-mw-surface='glass'] { background-image: linear-gradient(180deg, ${stray}, var(--mw-fascia)); }`;
+      expect(() => assertPaintsFrom(css, 'data-mw-surface', FASCIA_STOPS), stray).toThrow(
+        /never solved against/,
+      );
+    }
+  });
+
+  it('passes a treatment that composites the three stops however it likes', () => {
+    // The other half. Any composite of colours the ink was solved against is
+    // channelwise between them, so it is legible by construction — and a check
+    // that rejected `color-mix` would push treatments toward a hex literal,
+    // which is the thing it is trying to prevent.
+    const css = `.p[data-mw-surface='glass'] {
+      background-image:
+        repeating-linear-gradient(38deg, color-mix(in srgb, var(--mw-fascia-low) 60%, transparent) 0 2px, transparent 2px 5px),
+        radial-gradient(120% 100% at 50% 0%, var(--mw-fascia-high), var(--mw-fascia) 55%, var(--mw-fascia-low));
+    }`;
+    expect(() => assertPaintsFrom(css, 'data-mw-surface', FASCIA_STOPS)).not.toThrow();
+  });
+
+  it('the legend plate is a ground the ink was solved against', () => {
+    // The plate sits at `light ± 8` and the brightest solved ground was
+    // `light + 7`, so on a dark panel the label sat one point off the top of
+    // everything the solver had considered. One point is not a contrast
+    // failure; a ground the solver has never seen is the failure, and it is the
+    // second time the same one — the first was solving against the flat fascia
+    // while the sheet painted a gradient.
+    for (const hueDeg of HUES) {
+      for (const chroma of SKIN_VOCABULARY.chroma) {
+        for (const value of SKIN_VOCABULARY.value) {
+          const c = skinColours(probe({ hueDeg, chroma, value, lettering: 'legend-plate' }));
+          const ratio = contrastRatio(channels(c.plate), channels(c.ink));
+          expect(
+            ratio,
+            `${value}/${chroma}/${hueDeg}deg: ink on the plate at ${c.plate}`,
+          ).toBeGreaterThanOrEqual(6.99);
+        }
       }
     }
   });

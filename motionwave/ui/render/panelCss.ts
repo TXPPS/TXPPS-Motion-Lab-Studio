@@ -13,7 +13,7 @@
  * taxonomy, which is what an era language is — see `LEGAL_NOTES.md`, which
  * makes this a commercial-safety requirement rather than a preference.
  */
-import { assertImplements, termsStyledBy } from '../design/vocabulary';
+import { assertImplements, assertPaintsFrom, termsStyledBy } from '../design/vocabulary';
 
 /**
  * Surfaces, as light behaves on them.
@@ -239,6 +239,16 @@ const PANEL = `
 }
 `;
 
+/**
+ * The only colours a surface treatment may paint from.
+ *
+ * Three, because three is what `skin.ts` solves the ink against. Adding one
+ * here without adding it there is how the ground and the check drift apart
+ * again, so they are named in the two places and the assertion below is what
+ * keeps them the same set.
+ */
+const FASCIA_STOPS = ['--mw-fascia', '--mw-fascia-high', '--mw-fascia-low'];
+
 export const PANEL_CSS = `${PANEL}${SURFACES}${FURNITURE}${LETTERING}${ARRANGEMENTS}`;
 
 /*
@@ -255,6 +265,25 @@ export const PANEL_CSS = `${PANEL}${SURFACES}${FURNITURE}${LETTERING}${ARRANGEME
  * importable: the panel would still paint, and would paint the term as nothing.
  */
 assertImplements('surface', termsStyledBy(SURFACES, 'data-mw-surface'));
+
+/*
+ * And every one of them paints from the three stops the ink was solved against.
+ *
+ * `assertImplements` proves a word has a rule. It cannot see what the rule
+ * paints, and the difference between those two questions is precisely the
+ * failure that shipped: the ink was solved against `--mw-fascia` while the
+ * sheet painted a gradient, so the panel title sat on the highlight at 5.68:1
+ * under a 7:1 claim, and every check agreed with itself because the check and
+ * the paint were using different grounds.
+ *
+ * Solving against the whole gradient fixed that instance and left the class
+ * open — nothing stopped the *next* surface from introducing a fourth colour.
+ * This closes it: a treatment may composite these three however it likes, and
+ * any composite of them is channelwise between them, so the ink solved against
+ * all three is legible on every pixel the surface can produce. A fourth colour
+ * breaks that argument, so a fourth colour fails to import.
+ */
+assertPaintsFrom(SURFACES, 'data-mw-surface', FASCIA_STOPS);
 assertImplements('furniture', termsStyledBy(FURNITURE, 'data-mw-furniture'));
 assertImplements('lettering', termsStyledBy(LETTERING, 'data-mw-lettering'));
 assertImplements('arrangement', termsStyledBy(ARRANGEMENTS, 'data-mw-arrangement'));
