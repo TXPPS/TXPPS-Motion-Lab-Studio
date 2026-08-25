@@ -26,7 +26,7 @@
  */
 import { useProjectStore } from './projectStore';
 import { useUiStore } from './uiStore';
-import type { ProjectData } from '../model/types';
+import { MASTER_ID, type ProjectData } from '../model/types';
 
 /** What `uiStore` should hold once everything missing has been dropped. */
 export function danglingSelection(
@@ -41,7 +41,21 @@ export function danglingSelection(
     range: { fromBeat: number; toBeat: number; trackIds: string[] } | null;
   },
 ): Partial<typeof ui> | null {
-  const tracks = new Set(project.tracks.map((t) => t.id));
+  // The master is a channel and is not a member of `project.tracks`.
+  //
+  // Leaving it out meant a device window opened on the master closed itself on
+  // the next project change — including the change the window's own power
+  // button makes, so bypassing a master insert from its editor shut the editor.
+  // Two end-to-end cases caught it and neither was running when this
+  // reconciler landed: `npm run e2e` had been reported on the strength of two
+  // spec files out of thirty-two.
+  //
+  // A channel id that is not a track is not a dangling pointer; it is a channel
+  // this predicate does not know about, and the safe reading of "not in the
+  // list" is the one that keeps the user's work rather than the one that
+  // deletes it. `paramIdExists` in `projectRepo.ts` is deliberately wide for
+  // the same reason.
+  const tracks = new Set<string>([MASTER_ID, ...project.tracks.map((t) => t.id)]);
   const clips = new Set(project.clips.map((c) => c.id));
   const patch: Record<string, unknown> = {};
 

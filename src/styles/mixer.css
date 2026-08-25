@@ -1484,9 +1484,17 @@
   background: var(--bg-well);
   box-shadow: var(--sh-well);
   /* Four devices and the Insert button. A chain longer than that scrolls
-     inside the rack; it must never push a control out of the strip. */
+     inside the rack; it must never push a control out of the strip.
+
+     `hidden auto`, and it was `hidden`. The comment above has said "scrolls"
+     since the rack was written and the property said otherwise, so a fifth
+     device was clipped with no way to reach it — its options menu could not be
+     opened at all, by a finger or a pointer. Found by `devicewindow.spec.ts`
+     walking all forty-two offered devices: it stuck on the first, because the
+     demo project's drum rack is already at the fold. The x axis stays hidden
+     because a device slot must never widen the strip. */
   max-height: var(--dev-rack-h);
-  overflow: hidden;
+  overflow: hidden auto;
 }
 .dev-list {
   list-style: none;

@@ -301,7 +301,9 @@ test.describe('every device offers the same options', () => {
     expect(kinds.length, 'the add menu offered nothing').toBeGreaterThan(4);
 
     const missing: string[] = [];
+    console.log(`§2.1 · walking ${kinds.length} offered kind(s): ${kinds.join(', ')}`);
     for (const kind of kinds) {
+      console.log(`§2.1 · ${kind}`);
       await addDevice(page, rack, kind);
       const slot = page.locator(`[data-testid^="device-${rack}-"]`).last();
       const menu = slot.locator('.dev-menu');
@@ -309,6 +311,17 @@ test.describe('every device offers the same options', () => {
         missing.push(kind);
         continue;
       }
+      // Scrolled to first. A rack is taller than its own viewport once it holds
+      // a few devices, and the slot just added is the one below the fold — so
+      // every click below reported an *ancestor* intercepting pointer events,
+      // which is what Playwright says when an element is clipped rather than
+      // covered. It stuck on the first kind of forty-two.
+      //
+      // This is not a widening. A control one flick away is not an inoperable
+      // control, and whether it is big enough for a finger is measured on the
+      // next line rather than inferred from whether a click landed. The
+      // reachability sweep learned the same thing about track headers.
+      await menu.scrollIntoViewIfNeeded();
       const box = await menu.boundingBox();
       if (!box || box.width < MIN_TOUCH || box.height < MIN_TOUCH) {
         // Measured, not assumed: a menu that exists at 20x36 is a menu a finger
@@ -326,6 +339,7 @@ test.describe('every device offers the same options', () => {
         if (!items.some((i) => i.includes(required))) missing.push(`${kind} has no "${required}"`);
       }
       // Keep the rack short so the next device is still on screen.
+      await slot.locator('.dev-menu').scrollIntoViewIfNeeded();
       await slot.locator('.dev-menu').click();
       await page
         .locator('.ctx-menu [role="menuitem"]')

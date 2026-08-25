@@ -127,6 +127,17 @@ describe('the predicate itself', () => {
     expect(danglingSelection(project, clean)).toBeNull();
   });
 
+  it('keeps an open device on the master, which is not a track', () => {
+    // The master is a channel and is not a member of `project.tracks`, so the
+    // first version of this predicate read its id as dangling and cleared the
+    // window — including on the change the window's own power button makes, so
+    // bypassing a master insert from its editor shut the editor. Two e2e cases
+    // caught it and neither had been run when this file was written.
+    expect(
+      danglingSelection(project, { ...clean, openDevice: { trackId: 'master', effectId: 'fx1' } }),
+    ).toBeNull();
+  });
+
   it('drops an open device on a track that is gone', () => {
     const patch = danglingSelection(project, {
       ...clean,
