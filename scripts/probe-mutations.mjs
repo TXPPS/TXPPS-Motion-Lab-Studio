@@ -50,7 +50,13 @@ const PROBES = {
     'scripts/reach/menus.mjs',
     'scripts/reach/report.mjs',
   ],
-  stress: ['scripts/stress.mjs'],
+  stress: [
+    'scripts/stress.mjs',
+    'scripts/stress/harness.mjs',
+    'scripts/stress/scaling.mjs',
+    'scripts/stress/fuzz.mjs',
+    'scripts/stress/endurance.mjs',
+  ],
   bypass: ['scripts/bypass-probe.mjs'],
 };
 
