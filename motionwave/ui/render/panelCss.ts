@@ -13,6 +13,7 @@
  * taxonomy, which is what an era language is — see `LEGAL_NOTES.md`, which
  * makes this a commercial-safety requirement rather than a preference.
  */
+import { assertImplements, termsStyledBy } from '../design/vocabulary';
 
 /**
  * Surfaces, as light behaves on them.
@@ -126,8 +127,15 @@ const LETTERING = `
   letter-spacing: 0.11em;
   text-transform: uppercase;
 }
+/* The plate is the colour skin.ts solved for it, never a gradient stop.
+   It was the low stop, which on a light panel steps the plate *toward* dark
+   legends: the Variable-Mu shipped its control labels at 3.50:1 against a 4.5
+   contract because of this one declaration, and the skin's own ink solver could
+   not see it — the solver was measuring against a background this rule
+   replaced. No backticks in here: this comment lives inside a template literal
+   and the first one closes the string, which has now cost three builds. */
 .mw-panel[data-mw-lettering='legend-plate'] .mw-ctl-label {
-  background: var(--mw-fascia-low);
+  background: var(--mw-panel-plate);
   border: var(--mw-hairline) solid var(--mw-fascia-high);
   border-radius: var(--mw-radius-sm);
   padding: var(--mw-space-1) var(--mw-space-3);
@@ -232,3 +240,21 @@ const PANEL = `
 `;
 
 export const PANEL_CSS = `${PANEL}${SURFACES}${FURNITURE}${LETTERING}${ARRANGEMENTS}`;
+
+/*
+ * Every drawn axis, checked against the sheet that draws it, at module load.
+ *
+ * A `surface` with no rule is not a subtle failure — it renders as the bare
+ * `--mw-fascia` fill and reads as a panel somebody forgot to finish, which is
+ * exactly the appearance cell 26 exists to fail. The check is on the emitted
+ * CSS rather than on a list kept beside it, because a list beside the rules can
+ * agree with the vocabulary while the rule it names has been deleted; the
+ * selectors are the only evidence a stylesheet actually offers.
+ *
+ * It runs here rather than in a test because a test leaves the module
+ * importable: the panel would still paint, and would paint the term as nothing.
+ */
+assertImplements('surface', termsStyledBy(SURFACES, 'data-mw-surface'));
+assertImplements('furniture', termsStyledBy(FURNITURE, 'data-mw-furniture'));
+assertImplements('lettering', termsStyledBy(LETTERING, 'data-mw-lettering'));
+assertImplements('arrangement', termsStyledBy(ARRANGEMENTS, 'data-mw-arrangement'));

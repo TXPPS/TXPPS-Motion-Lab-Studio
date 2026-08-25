@@ -23,6 +23,7 @@ import type { Ramp } from '../param/ramp';
 import type { PresetDocument } from '../preset/format';
 import type { PresetMeta } from '../preset/codec';
 import type { Capability } from './capability';
+import type { SkinTerm } from '../design/vocabulary';
 
 export type UnitKind = 'effect' | 'instrument';
 
@@ -187,27 +188,32 @@ export interface ArtworkAsset {
 export interface PanelSkin {
   /** The era and class this panel speaks, in prose. Evidence for `U19`. */
   readonly era: string;
-  /** Fascia treatment. Each is drawn in code from tokens; none is traced. */
-  readonly surface:
-    | 'painted-steel'
-    | 'brushed-alloy'
-    | 'wrinkle-enamel'
-    | 'anodised'
-    | 'moulded'
-    | 'glass';
+  /**
+   * Fascia treatment. Each is drawn in code from tokens; none is traced.
+   *
+   * Every term below is `SkinTerm<...>` rather than a union written out here,
+   * and that is load-bearing rather than tidy. A union restated beside its
+   * implementation can agree with nothing: `value` offered `mid`, which no
+   * implementation could build at any hue, and the type said it was a free
+   * choice of three right up to the moment a panel was painted. The terms now
+   * live once in `design/vocabulary.ts`, and each implementing module asserts
+   * at load that it covers them — so a word with nothing behind it, or a
+   * drawing no word can ask for, throws on import.
+   */
+  readonly surface: SkinTerm<'surface'>;
   /** Fascia hue in degrees, and how far from neutral the surface sits. */
   readonly hueDeg: number;
-  readonly chroma: 'neutral' | 'muted' | 'saturated';
+  readonly chroma: SkinTerm<'chroma'>;
   /** Fascia lightness. A 1950s rack panel is light; a 1970s one is black. */
-  readonly value: 'light' | 'mid' | 'dark';
+  readonly value: SkinTerm<'value'>;
   /** The knob body of this class and period. */
-  readonly knob: 'pointer-skirt' | 'chicken-head' | 'fluted' | 'bar' | 'collet' | 'flat-cap';
+  readonly knob: SkinTerm<'knob'>;
   /** How the panel arranges what it carries. */
-  readonly arrangement: 'wide-banded' | 'centre-stage' | 'strip' | 'console' | 'field';
+  readonly arrangement: SkinTerm<'arrangement'>;
   /** How legends are set on the fascia. */
-  readonly lettering: 'engraved' | 'silkscreen' | 'legend-plate';
+  readonly lettering: SkinTerm<'lettering'>;
   /** Panel furniture, which is most of what a panel reads as from across a room. */
-  readonly furniture: 'rack-ears' | 'bezel' | 'none';
+  readonly furniture: SkinTerm<'furniture'>;
   /** Token used for lamps and pointer indicators on this panel. */
   readonly lampToken: string;
 }

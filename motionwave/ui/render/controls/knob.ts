@@ -19,6 +19,7 @@ import { attachDrag } from './gesture';
 import { arcPath, polar, rotaryCanvas, svgEl, tickPath } from './svg';
 import type { ControlOptions, ControlHandle, PrimitiveParts } from './shell';
 import { buildControl } from './shell';
+import { assertImplements } from '../../design/vocabulary';
 
 /**
  * The sweep, in degrees either side of twelve o'clock.
@@ -64,77 +65,85 @@ function scaleGroup(doc: Document, steps: number): SVGGElement {
   return group;
 }
 
-function rotorFor(doc: Document, style: PanelSkin['knob']): SVGGElement {
-  const rotor = svgEl(doc, 'g', { class: 'mw-knob-rotor' });
-  switch (style) {
-    case 'pointer-skirt': {
-      rotor.appendChild(svgEl(doc, 'circle', { class: 'mw-knob-skirt', cx: CX, cy: CY, r: 33 }));
-      rotor.appendChild(svgEl(doc, 'circle', { class: 'mw-knob-cap', cx: CX, cy: CY, r: 23 }));
+/**
+ * The six bodies, as a record rather than a switch.
+ *
+ * A switch is exhaustive to the compiler and invisible at runtime, so nothing
+ * could check that the six words `PanelSkin` offers are the six this file
+ * draws. A record is both: `Record<SkinTerm<'knob'>, ...>` still fails to
+ * compile if a case is missing, and `Object.keys` is evidence the vocabulary
+ * check can read. A knob term with no body would otherwise render as an empty
+ * group — a control that turns and shows nothing turning.
+ */
+const ROTORS: Record<PanelSkin['knob'], (doc: Document, rotor: SVGGElement) => void> = {
+  'pointer-skirt': (doc, rotor) => {
+    rotor.appendChild(svgEl(doc, 'circle', { class: 'mw-knob-skirt', cx: CX, cy: CY, r: 33 }));
+    rotor.appendChild(svgEl(doc, 'circle', { class: 'mw-knob-cap', cx: CX, cy: CY, r: 23 }));
+    rotor.appendChild(
+      svgEl(doc, 'path', { class: 'mw-knob-pointer', d: tickPath(CX, CY, 14, 32, 0) }),
+    );
+  },
+  'chicken-head': (doc, rotor) => {
+    const tip = polar(CX, CY, 34, 0);
+    const left = polar(CX, CY, 13, -104);
+    const right = polar(CX, CY, 13, 104);
+    rotor.appendChild(
+      svgEl(doc, 'polygon', {
+        class: 'mw-knob-cap',
+        points: `${tip.x},${tip.y} ${right.x},${right.y} ${left.x},${left.y}`,
+      }),
+    );
+    rotor.appendChild(svgEl(doc, 'circle', { class: 'mw-knob-hub', cx: CX, cy: CY, r: 11 }));
+  },
+  fluted: (doc, rotor) => {
+    rotor.appendChild(svgEl(doc, 'circle', { class: 'mw-knob-cap', cx: CX, cy: CY, r: 29 }));
+    for (let i = 0; i < 24; i++) {
       rotor.appendChild(
-        svgEl(doc, 'path', { class: 'mw-knob-pointer', d: tickPath(CX, CY, 14, 32, 0) }),
-      );
-      break;
-    }
-    case 'chicken-head': {
-      const tip = polar(CX, CY, 34, 0);
-      const left = polar(CX, CY, 13, -104);
-      const right = polar(CX, CY, 13, 104);
-      rotor.appendChild(
-        svgEl(doc, 'polygon', {
-          class: 'mw-knob-cap',
-          points: `${tip.x},${tip.y} ${right.x},${right.y} ${left.x},${left.y}`,
+        svgEl(doc, 'path', {
+          class: 'mw-knob-flute',
+          d: tickPath(CX, CY, 21, 29, (360 * i) / 24),
         }),
       );
-      rotor.appendChild(svgEl(doc, 'circle', { class: 'mw-knob-hub', cx: CX, cy: CY, r: 11 }));
-      break;
     }
-    case 'fluted': {
-      rotor.appendChild(svgEl(doc, 'circle', { class: 'mw-knob-cap', cx: CX, cy: CY, r: 29 }));
-      for (let i = 0; i < 24; i++) {
-        rotor.appendChild(
-          svgEl(doc, 'path', {
-            class: 'mw-knob-flute',
-            d: tickPath(CX, CY, 21, 29, (360 * i) / 24),
-          }),
-        );
-      }
+    rotor.appendChild(
+      svgEl(doc, 'path', { class: 'mw-knob-pointer', d: tickPath(CX, CY, 6, 20, 0) }),
+    );
+  },
+  bar: (doc, rotor) => {
+    rotor.appendChild(
+      svgEl(doc, 'rect', { class: 'mw-knob-cap', x: 43, y: 18, width: 14, height: 64, rx: 7 }),
+    );
+    rotor.appendChild(
+      svgEl(doc, 'path', { class: 'mw-knob-pointer', d: tickPath(CX, CY, 24, 32, 0) }),
+    );
+  },
+  collet: (doc, rotor) => {
+    rotor.appendChild(svgEl(doc, 'circle', { class: 'mw-knob-cap', cx: CX, cy: CY, r: 27 }));
+    for (let i = 0; i < 16; i++) {
       rotor.appendChild(
-        svgEl(doc, 'path', { class: 'mw-knob-pointer', d: tickPath(CX, CY, 6, 20, 0) }),
+        svgEl(doc, 'path', {
+          class: 'mw-knob-flute',
+          d: tickPath(CX, CY, 23, 27, (360 * i) / 16),
+        }),
       );
-      break;
     }
-    case 'bar': {
-      rotor.appendChild(
-        svgEl(doc, 'rect', { class: 'mw-knob-cap', x: 43, y: 18, width: 14, height: 64, rx: 7 }),
-      );
-      rotor.appendChild(
-        svgEl(doc, 'path', { class: 'mw-knob-pointer', d: tickPath(CX, CY, 24, 32, 0) }),
-      );
-      break;
-    }
-    case 'collet': {
-      rotor.appendChild(svgEl(doc, 'circle', { class: 'mw-knob-cap', cx: CX, cy: CY, r: 27 }));
-      for (let i = 0; i < 16; i++) {
-        rotor.appendChild(
-          svgEl(doc, 'path', {
-            class: 'mw-knob-flute',
-            d: tickPath(CX, CY, 23, 27, (360 * i) / 16),
-          }),
-        );
-      }
-      rotor.appendChild(
-        svgEl(doc, 'path', { class: 'mw-knob-pointer', d: tickPath(CX, CY, 4, 25, 0) }),
-      );
-      break;
-    }
-    case 'flat-cap': {
-      rotor.appendChild(svgEl(doc, 'circle', { class: 'mw-knob-cap', cx: CX, cy: CY, r: 31 }));
-      rotor.appendChild(
-        svgEl(doc, 'rect', { class: 'mw-knob-notch', x: 46, y: 19, width: 8, height: 14, rx: 2 }),
-      );
-      break;
-    }
-  }
+    rotor.appendChild(
+      svgEl(doc, 'path', { class: 'mw-knob-pointer', d: tickPath(CX, CY, 4, 25, 0) }),
+    );
+  },
+  'flat-cap': (doc, rotor) => {
+    rotor.appendChild(svgEl(doc, 'circle', { class: 'mw-knob-cap', cx: CX, cy: CY, r: 31 }));
+    rotor.appendChild(
+      svgEl(doc, 'rect', { class: 'mw-knob-notch', x: 46, y: 19, width: 8, height: 14, rx: 2 }),
+    );
+  },
+};
+
+assertImplements('knob', Object.keys(ROTORS));
+
+function rotorFor(doc: Document, style: PanelSkin['knob']): SVGGElement {
+  const rotor = svgEl(doc, 'g', { class: 'mw-knob-rotor' });
+  ROTORS[style](doc, rotor);
   return rotor;
 }
 
