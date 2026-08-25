@@ -1,4 +1,24 @@
 {
+  /*
+   * The end-to-end suite, type-checked.
+   *
+   * This file was already here and correct. Nothing ran it: `npm run typecheck`
+   * invoked `tsconfig.app.json` (src and tests), `tsconfig.node.json` (two
+   * config files) and the Motion Wave UI, and never this one — so thirty-one
+   * spec files carrying the bounce-parity guards were compiled by nothing.
+   *
+   * What that cost: every render in the suite passed
+   * `range: { startSec, endSec }` to `renderProject`, whose range is
+   * `{ startBeat, endBeat }`. Excess-property checking rejects that on sight;
+   * unrun, it was accepted and silently ignored, so specs that described
+   * themselves as rendering four seconds rendered the whole project.
+   *
+   * A configured check nobody invokes is worse than a missing one, because the
+   * file's existence is what stops anybody asking. It is the same shape as the
+   * root `tsconfig.json` being `files: []` and reporting success having
+   * compiled nothing — the gotcha at the top of CLAUDE.md, arriving from the
+   * other direction.
+   */
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],

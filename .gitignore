@@ -81,3 +81,6 @@ reachability-out.json
 reachability-probe.json
 soak-out.json
 .soaktmp/
+
+# Written by `node scripts/bypass-probe.mjs --json`; read by probe:mutations.
+bypass-out.json

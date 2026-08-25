@@ -33,7 +33,13 @@ test.use({
  * push the note editors off the end of a 390 px row. Excluded is not missing,
  * and the second assertion below is what keeps that honest.
  */
-const FORMS = [
+const FORMS: {
+  id: string;
+  width: number;
+  height: number;
+  enter: string | null;
+  elsewhere: string[];
+}[] = [
   { id: 'phone', width: 390, height: 844, enter: 'nav-edit', elsewhere: ['mixer', 'synth'] },
   { id: 'tablet', width: 768, height: 1024, enter: 'combo-piano', elsewhere: ['mixer', 'synth'] },
   { id: 'desktop', width: 1440, height: 900, enter: null, elsewhere: [] },

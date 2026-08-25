@@ -1,9 +1,9 @@
 /**
  * A corrected probe is not believed until the correction has been mutated.
  *
- * Thirteen probe defects have been found and fixed across the stress harness
- * and the reachability sweep, and every one was diagnosed properly. That is
- * the problem. "Suspect the probe first" is a good rule that decays into
+ * Twenty-four probe defects have been found and fixed across the stress
+ * harness, the reachability sweep and the bypass localiser, and every one was
+ * diagnosed properly. That is the problem. "Suspect the probe first" is a good rule that decays into
  * "assume the probe", and at the point it has decayed, a correction that
  * quietly *widens* a check is indistinguishable from one that fixes it — both
  * make the red go away, which is the only signal anybody looks at.
@@ -67,6 +67,63 @@ export function mutated(id) {
  * over-reporting (reaching a surface through the store, which no thumb can do).
  */
 export const MUTATIONS = [
+  // ------------------------------------------------------------------ bypass
+  {
+    id: 'bypass/range-in-beats',
+    probe: 'bypass',
+    correction: 'The render range is given in beats, which is what `RenderRange` is.',
+    defect: 'Give it in seconds, as `{ startSec, endSec }`.',
+    cost:
+      'Silently ignored, so a probe that described a two second render rendered the whole ' +
+      'seventeen second project. The same mistake was live in three soak layers and in the ' +
+      'end-to-end suite, where nothing type-checked it.',
+    scope: { kinds: 'reverb' },
+    metric: 'samples rendered',
+    expect: 'differs',
+  },
+  {
+    id: 'bypass/full-resolution',
+    probe: 'bypass',
+    correction: 'Every sample is compared.',
+    defect: 'Compare every eighth, as the property did.',
+    cost:
+      'A decimation with no anti-alias filter in front of it: any difference above 2.7 kHz ' +
+      'folds down to a frequency it is not at. The difference this probe was built to ' +
+      'characterise could have been anywhere in the band.',
+    scope: { kinds: 'reverb' },
+    metric: 'samples compared',
+    expect: 'differs',
+  },
+  {
+    id: 'bypass/isolate-track',
+    probe: 'bypass',
+    correction: 'The affected track is rendered alone.',
+    defect: 'Render the whole mix, as the property did.',
+    cost:
+      'Diluted a level ratio of exactly 1.414214 to 1.0331 — a number that matches no clean ' +
+      'hypothesis, and against which two wrong guesses were tried and reverted before anybody ' +
+      'localised the difference.',
+    scope: { kinds: 'reverb' },
+    metric: 'dry rms',
+    expect: 'differs',
+  },
+  {
+    id: 'bypass/preload-context',
+    probe: 'bypass',
+    correction: 'The decode context `preloadForRender` requires is passed to it.',
+    defect: 'Omit it, as every untyped caller in the harness did.',
+    cost:
+      'None yet, on this fixture. `loadBuffer` was being handed `undefined` to decode into, ' +
+      'which is unreachable while every media id is already in the cache.',
+    scope: { kinds: 'reverb' },
+    metric: 'dry rms',
+    expect: 'unfalsifiable',
+    unfalsifiableBecause:
+      'The app decodes the fixture before the probe runs, so `getBufferSync` short-circuits ' +
+      'every id and the context is never reached on this host. It is supplied because the ' +
+      'first fixture carrying an undecoded import would decode into undefined and render ' +
+      'silence where the audio is — and would do it without an error.',
+  },
   // ------------------------------------------------------------ reachability
   {
     id: 'reach/route-discovery',

@@ -2566,6 +2566,42 @@ function buildPlugin(ctx: BaseAudioContext, effect: Effect): EffectNode {
 }
 
 /**
+ * What one insert is routed around by while it is bypassed.
+ *
+ * `around` carries the chain's signal straight past the node and `through`
+ * carries the node's own output; they meet at `sum` and cross-fade against each
+ * other. Index-aligned with `InsertChain`'s nodes.
+ *
+ * This exists because "bypassed" used to mean *every parameter set to neutral*,
+ * and a node set to neutral is not the same thing as a node that is not there.
+ * Two ways it differed, both shipped:
+ *
+ *  - **channel count.** Fifteen of the thirty-four inserts contain a node that
+ *    emits two channels whatever arrives — a `StereoPannerNode`, a
+ *    `ChannelMergerNode`, the worklet the Motion Wave units run in, or a
+ *    `makeStereoTap`. A leg at gain zero still contributes its *channel count*
+ *    to the node it sums into, so a bypassed insert up-mixed a mono track to
+ *    stereo. The track's `StereoPannerNode` then applied the stereo pan law
+ *    instead of the mono one, and the track came out √2 louder at centre and
+ *    twice as loud panned hard over. Measured, not reasoned: exactly 1.414214
+ *    on both channels, in every window of the render that had signal in it.
+ *  - **transparency at neutral.** A three-band crossover summed flat is not a
+ *    wire, and neither is a filter at unity gain — its phase response is still
+ *    in the path.
+ *
+ * Routing around the node answers both at once, and answers them for an insert
+ * nobody has written yet, which a fix inside each of the fifteen would not.
+ */
+interface BypassSlot {
+  /** The node's own contribution. Muted and pinned to one channel while bypassed. */
+  through: GainNode;
+  /** The signal going straight past. Unity while bypassed. */
+  around: GainNode;
+  /** Where the two meet, and what the next insert reads. */
+  sum: GainNode;
+}
+
+/**
  * The insert chain for one channel. Owns its nodes and the connections between
  * `entry` and `exit`, both of which stay stable for the channel's lifetime so
  * the surrounding graph never has to be rewired.
@@ -2574,6 +2610,18 @@ export class InsertChain {
   readonly entry: GainNode;
   readonly exit: GainNode;
   private nodes: EffectNode[] = [];
+  /** Bypass routing, one per node and in the same order. */
+  private slots: BypassSlot[] = [];
+  /**
+   * Set by `rebuild`, cleared by the sync that follows it.
+   *
+   * The bypass cross-fade is ramped while the chain is running and assigned
+   * outright on the first pass, because an offline render's whole existence is
+   * shorter than the ramp: `setTargetAtTime` approaches its target and never
+   * arrives, so a bounce of a project whose inserts were already bypassed would
+   * render the first seconds through a leg that was still opening.
+   */
+  private fresh = false;
   /** Shape signature of the current chain — order and kinds. */
   private signature = '';
 
@@ -2638,6 +2686,48 @@ export class InsertChain {
       if (!e) continue;
       const ov = overrides?.get(e.id);
       this.nodes[i].update(ov ? { ...e, params: { ...e.params, ...ov } } : e, bpm, e.bypass);
+      // The node still neutralises itself. That is not redundant: it keeps a
+      // bypassed insert's own state sane, so un-bypassing does not arrive at a
+      // filter that has been sitting at a stale setting. What it is no longer
+      // relied on for is transparency.
+      const slot = this.slots[i];
+      if (slot) this.setBypassRouting(slot, e.bypass, this.fresh);
+    }
+    this.fresh = false;
+  }
+
+  /**
+   * Open one leg and close the other.
+   *
+   * The cross-fade is linear rather than equal-power, which is the opposite of
+   * the usual advice and is right here: the two legs carry almost the same
+   * signal, so they sum coherently and an equal-power pair would bulge by 3 dB
+   * across the middle of the fade.
+   *
+   * The channel pin is applied as soon as the leg starts closing rather than
+   * when it finishes. A timer on the audio path to wait for the ramp would be a
+   * worse trade than what it buys: for the twenty milliseconds of the fade, a
+   * signal that the `around` leg is already carrying at full width also arrives
+   * mono-summed and fading, which is a centre pull nobody can hear. Waiting
+   * would mean a callback that has to survive a rebuild, a dispose and an
+   * offline context that never runs a timer at all.
+   */
+  private setBypassRouting(slot: BypassSlot, bypass: boolean, immediate: boolean): void {
+    if (immediate) {
+      slot.through.gain.value = bypass ? 0 : 1;
+      slot.around.gain.value = bypass ? 1 : 0;
+    } else {
+      setParam(slot.through.gain, bypass ? 0 : 1, this.ctx);
+      setParam(slot.around.gain, bypass ? 1 : 0, this.ctx);
+    }
+    if (bypass) {
+      slot.through.channelCount = 1;
+      slot.through.channelCountMode = 'explicit';
+    } else {
+      // Back to following the input, so an active stereo insert on a mono track
+      // still widens it — which is what a stereo insert is for, and the
+      // behaviour this fix must not take away while removing the accidental one.
+      slot.through.channelCountMode = 'max';
     }
   }
 
@@ -2690,7 +2780,9 @@ export class InsertChain {
 
   private rebuild(effects: Effect[]): void {
     for (const n of this.nodes) n.dispose();
+    for (const s of this.slots) kill([s.through, s.around, s.sum]);
     this.nodes = [];
+    this.slots = [];
     try {
       this.entry.disconnect();
     } catch {
@@ -2704,16 +2796,32 @@ export class InsertChain {
 
     this.nodes = effects.map((e) => buildEffectNode(this.ctx, e, this.clock));
     let cursor: AudioNode = this.entry;
-    for (const n of this.nodes) {
+    this.nodes.forEach((n, i) => {
+      const slot: BypassSlot = {
+        through: this.ctx.createGain(),
+        around: this.ctx.createGain(),
+        sum: this.ctx.createGain(),
+      };
       cursor.connect(n.input);
-      cursor = n.output;
-    }
+      cursor.connect(slot.around);
+      n.output.connect(slot.through).connect(slot.sum);
+      slot.around.connect(slot.sum);
+      // Assigned rather than ramped: the sync that follows has not run yet, and
+      // a chain built with its inserts already bypassed must be a wire from the
+      // first sample rather than from twenty milliseconds in.
+      this.setBypassRouting(slot, effects[i]?.bypass === true, true);
+      this.slots.push(slot);
+      cursor = slot.sum;
+    });
     cursor.connect(this.exit);
+    this.fresh = true;
   }
 
   dispose(): void {
     for (const n of this.nodes) n.dispose();
+    for (const s of this.slots) kill([s.through, s.around, s.sum]);
     this.nodes = [];
+    this.slots = [];
     kill([this.entry, this.exit]);
   }
 }

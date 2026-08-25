@@ -218,9 +218,9 @@ async function renderWith(page, kind) {
       }
     }
     const project = st().project;
-    await preloadForRender(project);
+    await preloadForRender(project, w.__ml.engine.context ?? new OfflineAudioContext(1, 1, 44100));
     const res = await renderProject(project, {
-      range: { startSec: 0, endSec: 3 },
+      range: { startBeat: 0, endBeat: 4 },
       sampleRate: 44100,
       tailSeconds: 0,
     });

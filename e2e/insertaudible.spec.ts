@@ -54,9 +54,14 @@ async function renderEnvelope(page: Page, kind: string | null) {
       (st().addEffect as (t: string, k: string) => void)(track.id, unitKind);
     }
     const project = st().project as Parameters<typeof renderProject>[0];
-    await preloadForRender(project);
+    const decodeCtx = new OfflineAudioContext(1, 1, 44100);
+    await preloadForRender(project, decodeCtx);
+    // Beats, not seconds. This read `{ startSec: 0, endSec: 4 }`, which is not
+    // a `RenderRange` and was therefore ignored: the spec described a four
+    // second render and rendered the whole project. Nothing caught it because
+    // `e2e/` was outside every tsconfig — see `tsconfig.e2e.json`.
     const res = await renderProject(project, {
-      range: { startSec: 0, endSec: 4 },
+      range: { startBeat: 0, endBeat: 8 },
       sampleRate: 44100,
       tailSeconds: 0,
     });

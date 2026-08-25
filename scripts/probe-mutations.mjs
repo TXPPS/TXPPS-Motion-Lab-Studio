@@ -37,6 +37,7 @@ const FILTER = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? '';
 const PROBES = {
   reachability: 'scripts/reachability.mjs',
   stress: 'scripts/stress.mjs',
+  bypass: 'scripts/bypass-probe.mjs',
 };
 
 function plantedIn(file) {
@@ -119,6 +120,23 @@ function run(entry, mutation) {
       exercised,
       why,
     };
+  }
+
+  if (entry.probe === 'bypass') {
+    // One kind is enough. Every correction here is about how the render is
+    // taken rather than about which insert took it, so a sweep of thirty-four
+    // would cost thirty-four renders to learn what one render says.
+    env.BYPASS_KINDS = entry.scope.kinds ?? 'reverb';
+    execFileSync(process.execPath, ['scripts/bypass-probe.mjs', '--json'], {
+      cwd: ROOT,
+      env,
+      stdio: ['ignore', 'ignore', 'inherit'],
+      timeout: 600000,
+    });
+    const rows = JSON.parse(readFileSync(join(ROOT, 'bypass-out.json'), 'utf8'));
+    const row = rows.find((r) => r.name === entry.metric);
+    if (!row) throw new Error(`bypass-probe reported no row named "${entry.metric}"`);
+    return { value: row.value, unit: row.unit ?? '', exercised: true, why: '' };
   }
 
   env.STRESS_ONLY = entry.scope.section;

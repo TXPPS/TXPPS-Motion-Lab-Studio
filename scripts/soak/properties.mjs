@@ -13,10 +13,20 @@
  * an inverse, that automation reads back what was written, that a bypassed
  * insert is out of the path.
  *
- * **The last of those is the one that has already been wrong.** "Bypass makes
- * the render identical" was assumed, asserted, and false: a three-band
- * crossover is not transparent at unity, so the honest property is that bypass
- * is *closer to dry than the active unit is*, which is checkable and true.
+ * **The last of those is the one that has already been wrong, twice, in
+ * opposite directions.** "Bypass makes the render identical" was first assumed,
+ * asserted, and false — a three-band crossover summed flat is not a wire — so
+ * it was weakened to "bypass is closer to dry than the active unit is", which
+ * was checkable and true and far too weak to catch what was actually there.
+ *
+ * What was actually there: fifteen of the thirty-four inserts made the track √2
+ * louder while bypassed, by changing its channel count and so which pan law its
+ * `StereoPannerNode` applied. `InsertChain` now routes a bypassed insert around
+ * itself instead of trusting it to be transparent, which makes the *strong*
+ * form true — so the strong form is what is asserted here, at full resolution
+ * and on the track alone. A property weakened to fit an implementation has
+ * stopped being a check on it; the right response to one that fails is to find
+ * out why, and only then to decide which of the two was wrong.
  */
 
 /** Every property, as a name and a body that returns null or a reason. */
@@ -179,6 +189,13 @@ export const PROPERTIES = [
       const render = async (kind) => {
         st().setProject(structuredClone(w.__soakBaseline));
         const track = st().project.tracks.find((t) => t.type === 'instrument');
+        // The track alone. Measured across the whole mix, the √2 this is
+        // watching for arrives diluted to 1.0331 by every track that did not
+        // change — a number that matches no clean hypothesis, and against which
+        // two wrong guesses were tried and reverted before anyone localised it.
+        for (const t of st().project.tracks.slice()) {
+          if (t.id !== track.id) st().deleteTrack(t.id);
+        }
         if (kind) {
           st().addEffect(track.id, kind);
           const fx = st()
@@ -186,16 +203,20 @@ export const PROPERTIES = [
             .effects.at(-1);
           st().setEffectBypass(track.id, fx.id, true);
         }
-        await preloadForRender(st().project);
+        await preloadForRender(
+          st().project,
+          w.__ml.engine.context ?? new OfflineAudioContext(1, 1, 44100),
+        );
         const res = await renderProject(st().project, {
-          range: { startSec: 0, endSec: 2 },
+          range: { startBeat: 0, endBeat: 4 },
           sampleRate: 44100,
           tailSeconds: 0,
         });
-        const d = res.buffer.getChannelData(0);
-        const o = [];
-        for (let i = 0; i < d.length; i += 8) o.push(d[i]);
-        return o;
+        // Every sample. This took every eighth, which is a decimation with no
+        // anti-alias filter in front of it: a difference above 2.7 kHz would
+        // have been folded down to somewhere it is not, and the number it
+        // produced was one nobody could have acted on either way.
+        return Array.from(res.buffer.getChannelData(0));
       };
       const dist = (a, b) => {
         const n = Math.min(a.length, b.length);
@@ -203,14 +224,22 @@ export const PROPERTIES = [
         for (let i = 0; i < n; i += 1) s += (a[i] - b[i]) ** 2;
         return Math.sqrt(s / n);
       };
+      const rms = (a) => Math.sqrt(a.reduce((t, x) => t + x * x, 0) / a.length);
       const dry = await render(null);
       // The floor two identical renders reach, measured rather than assumed.
       // It is about 2e-7 and it is what makes 1.6e-2 legible as a fault.
       const floor = Math.max(dist(dry, await render(null)) * 8, 1e-6);
+      const dryLevel = rms(dry);
       const leaks = [];
       for (const kind of w.__ml.effectKinds ?? []) {
-        const d = dist(dry, await render(kind));
-        if (d > floor) leaks.push(`${kind} ${d.toExponential(3)}`);
+        const got = await render(kind);
+        const d = dist(dry, got);
+        // The level is reported beside the distance because it is the number
+        // that names the mechanism: ×1.414214 is the mono/stereo pan-law step
+        // and nothing else in this graph produces it.
+        if (d > floor) {
+          leaks.push(`${kind} ${d.toExponential(3)} at x${(rms(got) / dryLevel).toFixed(6)}`);
+        }
       }
       if (leaks.length > 0) {
         return `${leaks.length} of ${(w.__ml.effectKinds ?? []).length} inserts change the render while bypassed (floor ${floor.toExponential(1)}): ${leaks.join(', ')}`;
@@ -230,9 +259,12 @@ export const PROPERTIES = [
         st().setProject(structuredClone(w.__soakBaseline));
         const track = st().project.tracks.find((t) => t.type === 'instrument');
         st().setTrack(track.id, { volume });
-        await preloadForRender(st().project);
+        await preloadForRender(
+          st().project,
+          w.__ml.engine.context ?? new OfflineAudioContext(1, 1, 44100),
+        );
         const res = await renderProject(st().project, {
-          range: { startSec: 0, endSec: 2 },
+          range: { startBeat: 0, endBeat: 4 },
           sampleRate: 44100,
           tailSeconds: 0,
         });
