@@ -1,19 +1,21 @@
 # Motion Wave — progress
 
 ```
-RESUME: Directive 10 — Emscripten, plugin windows, latency, V27.
+RESUME: Directive 11 — parity, reachability, exhaustive proof.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: 340ba25 — verified live, not merely pushed.
-Bundle verified: YES — live index-BnAJBjl3.js matches a clean-tree build of
-                 that commit, byte for byte. Cloudflare took 280 s to pick it
-                 up; a check that does not wait that long reports the previous
-                 bundle and calls it a match.
+Deployed commit: see below; updated at every landing.
+Bundle verified: every deploy is checked by fetching the live bundle and
+                 matching its hash against a clean-tree build. Cloudflare takes
+                 260-280 s to pick one up; a check that does not wait that long
+                 reports the previous bundle and calls it a match.
                  This line names the tip at the moment it was written, so the
                  commit that edits it is by construction one ahead of what it
                  describes. Said plainly rather than left to be noticed.
-Current section: §0, §2, §3.1, §5 and §1's V27 COMPLETE.
-Next action:     E3 reported. Then Directive 09 §4.1 - V27 for the remaining
-                 six panels - and §5, instruments 9-14.
+Current section: D11 §1 COMPLETE (all three P0s), §2 Function Ledger COMPLETE,
+                 §5 Reachability Matrix COMPLETE at 0 defects.
+Next action:     §3 - the four testing layers, wired into `npm run soak`.
+                 Then §8 V27 for the remaining six panels, then §4 FSP8 parity.
+Function Ledger: 396 functions, 0 tested, 0 unreachable.
 Open deviations: F11 is left to the browser's fullscreen — the one place the
                  reference's panel map is not matched.
                  §2.5's monitoring modes and latency compensation are
@@ -23,6 +25,143 @@ Open deviations: F11 is left to the browser's fullscreen — the one place the
 Ledger:          **1 of 14 SHIPPING** - Program EQ, all 27 cells PASS. The
                  other six built units are FAIL at V27 only.
 ```
+
+## Directive 11 §1 — the three reported defects
+
+All three were real. Two were what the user said they were; the third was
+something else wearing the same coat.
+
+### §1.1 — "merged randomly with the FET Limiter's controls"
+
+Not the registry. The two control sets are disjoint — 25 against 13, nothing
+shared — and reopening is stable. **Only Program EQ declared a `PanelSkin`.** The
+other six fell through `face.skin ?? DEFAULT_SKIN` to one identical charcoal
+panel, so any two Motion Wave units side by side looked like one plugin with
+different words under the knobs. The Ledger already recorded X26 = FAIL for
+exactly those six; what nobody had done is look at what that meant from the
+outside.
+
+Each of the six now declares a skin derived from its own sheet's era sentence —
+each of which says, in the sheet, that the era's design language "is fair to
+evoke". Nothing is named, traced, or matched.
+
+Cell 26's distinctness test had been excluding the six from its own check and
+passing on the one remaining pair. It compares all twenty-one now, and an
+unskinned face is fatal rather than a note.
+
+**The skin vocabulary had a word with nothing behind it.** `value: 'mid'` could
+not be built: `INK_CONTRAST` wants 7:1 and no fascia between L36 and L58 reaches
+it against any ink at any chroma — measured by sweeping both axes, usable ranges
+`[10, 35]` and `[59, 90]`, with 47 sitting dead centre of the hole. Worse, no
+constant works at all: at 208° a lightness of 59 clears the bar and at 0° the
+same 59 does not, because one HSL lightness is a different luminance at every
+hue. A skin's `value` is a target now, and `legibleFascia` resolves it to the
+nearest lightness that can carry ink. A target already legible resolves to
+itself, so no shipped skin moved — Program EQ is still `hsl(36 13% 78%)`.
+
+### §1.2 — "doesn't really do anything"
+
+A fresh insert carried no shapes, so `node.ts` sent no curve, so the core kept
+the flat curve at 1.0 that `reset()` leaves and `motion_shaper.h` defines as
+unity gain. Units declare `defaultShapes` beside `shapeCount` now and the host
+seeds them without knowing which unit it holds; the Motion Shaper's is a
+sidechain duck, which its sheet lists among the stock waves.
+
+**I called that a bit-exact no-op and it was not.** With the default removed the
+render still differs by a mean of 0.0073 — a three-band crossover and an
+oversampled path are not transparent at unity modulation. The unit was not a
+wire; it never moved. So the test measures the spread of the wet/dry ratio,
+which is modulation rather than difference:
+
+|                      | no curve   | sidechain duck |
+| -------------------- | ---------- | -------------- |
+| wet/dry ratio spread | 7.2–7.9 dB | 13.2–13.6 dB   |
+
+The bar sits at 10.5, the midpoint. The first version asked whether the renders
+differed at all, and passed on the mutation.
+
+And `centre-stage` now means something: the wide breakpoint had made the curve
+one of three equal columns — a small pale box beside two columns of knobs, on a
+unit whose entire subject is the shape drawn in it. It takes its own row.
+726 × 208, and the panel is 696 tall rather than 901.
+
+### §1.3 — "on mobile, whole areas are unreachable"
+
+Real, and not where it was reported. **The MIDI effects rack and the arpeggiator
+are reachable on every form factor** — Arrange, tap the track name, Browse, and
+the rack is there at 374 × 76 with its add button. Four steps and no signpost,
+which is a fair thing to have experienced as unreachable; the fix for that is
+§6's, not §5's.
+
+What was genuinely desktop-only was five of the eight editors. `app/editors.ts`
+declares eight and a phone and a tablet each mounted the piano roll and nothing
+else, so the drum editor, the score, the audio editor, the chord assistant and
+diagnostics existed on a desktop and on nothing smaller. They share the registry
+now rather than the widget.
+
+## The reachability matrix
+
+`npm run reachability`, checked in at `docs/audit/REACHABILITY.md`.
+
+|                             | reachable |
+| --------------------------- | --------- |
+| phone portrait / landscape  | 20 of 25  |
+| tablet portrait / landscape | 19 of 25  |
+| desktop                     | 19 of 25  |
+
+**0 defects** — nothing is reachable on a desktop and not on something smaller.
+Five surfaces are not reached on any form factor, and that is recorded as `NOT
+REACHED` rather than `UNREACHABLE`: the sweep navigates, selects and long-presses,
+and does not open a device from an insert slot or review a take by recording one.
+
+Getting to a number worth reporting took eight corrections and every one was the
+probe:
+
+| The sweep believed                         | It was                                                            |
+| ------------------------------------------ | ----------------------------------------------------------------- |
+| The tablet has one route                   | It navigates by `combo-*`, which discovery had never heard of     |
+| Nine surfaces are unreachable everywhere   | Selection is part of a route                                      |
+| Four surfaces are reachable on a phone     | Only by calling `selectTrack`, which is not a route a thumb has   |
+| There are no track headers                 | Their test id is keyed on the track's **name**                    |
+| Tapping a header does nothing              | Its centre is `div.th-controls`; only the name strip selects      |
+| There are no track headers, again          | `page-*` are routes too, and the walk ended on Mastering          |
+| Settings and diagnostics are phone defects | They are one tap further, inside the overflow menu                |
+| The automation toggle is a phone defect    | `longPress` ignores mouse pointers, which is all Playwright sends |
+
+The last one is the important one. The toggle is `display: none` below the
+desktop breakpoint and the track's long-press menu carries the same commands on
+every form factor. The matrix targets the **lane** now rather than the button
+that reveals it — §5's own rule, that the shared layer is the action and never
+the widget.
+
+One product behaviour surfaced on the way: entering Record mode reassigns the
+selection to a record-capable track. Sensible on its own terms, and it means a
+sweep has to re-assert a selection before each route rather than once.
+
+## The Function Ledger
+
+`npm run functions`, checked in at `docs/FUNCTION_LEDGER.md`, `--check` in the
+build. **396 functions**, derived from source rather than listed:
+
+| kind               | count |
+| ------------------ | ----- |
+| store contracts    | 186   |
+| exported actions   | 82    |
+| shortcuts          | 70    |
+| effect kinds       | 33    |
+| navigable surfaces | 19    |
+| instrument kinds   | 6     |
+
+Every row's `tested` column reads `FAIL`, which is the honest state: this is the
+denominator, not a claim. Adding a function without a row fails the build,
+verified by adding one.
+
+Two axes were read from the wrong place first and both under-reported silently.
+Navigable surfaces came out as zero because every one is rendered by mapping over
+a const array, so the ids in the markup are templates and matching the markup
+found `nav-` and nothing after it. And `\b` in a Python heredoc is a backspace,
+not a word boundary — the regex was searching for `\x08id:`. That is the second
+time this session; the first was in the stuck-note axis guard.
 
 ## Directive 10 §0 — Emscripten, and a check that could not fail
 
