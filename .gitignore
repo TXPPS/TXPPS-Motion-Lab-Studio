@@ -74,3 +74,7 @@ vite.config.ts.timestamp-*.mjs
 # transcribed into PROGRESS.md by hand, where they can be compared; a tracked
 # copy would just be the last run anyone happened to do.
 stress-out.json
+
+# Written by `npm run reachability` on every run; the matrix in
+# docs/audit/REACHABILITY.md is the checked-in form.
+reachability-out.json

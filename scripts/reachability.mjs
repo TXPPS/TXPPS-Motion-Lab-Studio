@@ -200,15 +200,36 @@ for (const form of FORMS) {
 
   const found = new Map(TARGETS.map((t) => [t.id, null]));
 
+  /**
+   * Every outstanding target checked in one call into the page.
+   *
+   * One `page.evaluate` rather than a Playwright locator per target. The first
+   * version did twenty-six round-trips per route per track, which is about
+   * twenty thousand for a full sweep and took long enough that the sweep could
+   * not be part of anything run constantly. The visibility test is the same one
+   * — laid out, on screen, and big enough to hit.
+   */
   const sweep = async (via) => {
-    for (const target of TARGETS) {
-      if (found.get(target.id)) continue;
-      const node = page.locator(target.selector).first();
-      if (!(await node.isVisible().catch(() => false))) continue;
-      const box = await node.boundingBox().catch(() => null);
-      if (!box || box.width < 2 || box.height < 2) continue;
-      found.set(target.id, via);
-    }
+    const outstanding = TARGETS.filter((t) => !found.get(t.id));
+    if (outstanding.length === 0) return;
+    const hits = await page.evaluate(
+      (list) => {
+        const seen = [];
+        for (const { id, selector } of list) {
+          for (const node of document.querySelectorAll(selector)) {
+            const box = node.getBoundingClientRect();
+            if (box.width < 2 || box.height < 2) continue;
+            const style = getComputedStyle(node);
+            if (style.visibility === 'hidden' || style.display === 'none') continue;
+            seen.push(id);
+            break;
+          }
+        }
+        return seen;
+      },
+      outstanding.map((t) => ({ id: t.id, selector: t.selector })),
+    );
+    for (const id of hits) found.set(id, via);
   };
 
   /**
@@ -221,7 +242,9 @@ for (const form of FORMS) {
    * not on where you navigated. So each route is walked once per track kind.
    */
   const tracks = await page.evaluate(() =>
-    window.__ml.projectStore.getState().project.tracks.map((t) => ({ id: t.id, type: t.type })),
+    window.__ml.projectStore
+      .getState()
+      .project.tracks.map((t) => ({ id: t.id, type: t.type, name: t.name })),
   );
 
   /**
@@ -239,32 +262,105 @@ for (const form of FORMS) {
    * that cannot be selected by tapping anywhere is recorded as such rather than
    * forced.
    */
-  const selectByTapping = async (trackId) => {
-    for (const route of routes) {
-      const header = page.locator(`[data-testid="track-header-${trackId}"]`).first();
+  // The route that showed track headers last time, tried first.
+  //
+  // Without it every track re-walked every route hunting for a header, and the
+  // sweep took eight minutes. It is the same route every time in practice, so
+  // remembering it turns a search into a lookup.
+  let headerRoute = null;
+
+  // Keyed on the track's *name*, which is what `TrackHeader` puts in its test
+  // id. Looking it up by id found nothing, so every selection-dependent surface
+  // read as unreachable on every form factor — the sweep failing quietly, which
+  // is the failure mode this whole file exists to remove.
+  const selectByTapping = async (track) => {
+    const trackId = track.id;
+    // Anything modal is dismissed first.
+    //
+    // The route walk ends by opening the sheets — settings, diagnostics, the
+    // overflow menu — and a sheet left open intercepts every click after it, so
+    // each `click()` threw, each throw was swallowed, and every selection came
+    // back null while the manual sequence worked perfectly. Escape twice, then
+    // start.
+    for (let i = 0; i < 2; i += 1) {
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(120);
+    }
+    // And back to the page the arrangement lives on.
+    //
+    // `page-*` are routes too — Start, Song, Mastering, Show — so the route walk
+    // ends on whichever came last, and on any page but Song there is no track
+    // list and no bottom nav to get back with. Every header lookup returned a
+    // count of zero, which reads identically to "this product has no track
+    // headers" and is why the sweep has to say what it looked for.
+    const song = page.locator('[data-testid="page-song"]').first();
+    if (await song.isVisible().catch(() => false)) {
+      await song.click({ timeout: 2000 }).catch(() => {});
+      await page.waitForTimeout(300);
+    }
+    const order = headerRoute
+      ? [routes.find((r) => r.id === headerRoute), ...routes.filter((r) => r.id !== headerRoute)]
+      : routes;
+    for (const route of order.filter(Boolean)) {
+      const header = page.locator(`[data-testid="track-header-${track.name}"]`).first();
+      // Scrolled to first. A track list is longer than any screen, and a header
+      // below the fold is not unreachable — it is one flick away. Skipping it as
+      // "not visible" made every surface that needs an instrument track selected
+      // read as unreachable, because the instrument track happened to be
+      // off-screen in the fixture.
+      if ((await header.count()) > 0) await header.scrollIntoViewIfNeeded().catch(() => {});
       if (await header.isVisible().catch(() => false)) {
-        await header.click({ timeout: 2000 }).catch(() => {});
+        // The top-left corner, not the centre.
+        //
+        // A header is 208x64 and most of that is `div.th-controls` — mute, solo,
+        // arm — which sits over the middle and swallows a click aimed there. The
+        // sweep read every selection-dependent surface as unreachable on every
+        // form factor because of it, and the fix is a coordinate rather than
+        // anything in the product. It is worth knowing that only the name strip
+        // selects, but that is a §6 note and not a reachability defect.
+        await header.click({ position: { x: 8, y: 8 }, timeout: 2000 }).catch(() => {});
         await page.waitForTimeout(160);
         const got = await page.evaluate(() => window.__ml.uiStore.getState().selectedTrackId);
-        if (got === trackId) return route.id;
+        if (got === trackId) {
+          headerRoute = route.id;
+          return route.id;
+        }
       }
       if (route.kind === 'none') continue;
       const control = page.locator(`[data-testid="${route.id}"]`).first();
       if (await control.isVisible().catch(() => false)) {
         await control.click({ timeout: 2000 }).catch(() => {});
-        await page.waitForTimeout(220);
+        await page.waitForTimeout(260);
       }
     }
     return null;
   };
 
-  const walkRoutes = async (label) => {
+  /**
+   * Walk every route, optionally holding a track selected throughout.
+   *
+   * The selection has to be re-asserted before each route rather than made once
+   * at the start, because a route can legitimately change it: entering Record
+   * mode selects a record-capable track, which is sensible on its own terms and
+   * meant the walk arrived at the Inspector holding whatever Record had chosen.
+   * Every surface that needs an instrument track selected then read as
+   * unreachable, on all five form factors, while the same sequence performed by
+   * hand worked.
+   *
+   * Re-asserting is a tap, not a store call, so a surface still only counts if a
+   * thumb could have got there.
+   */
+  const walkRoutes = async (label, track) => {
     for (const route of routes) {
+      if (track) {
+        const held = await page.evaluate(() => window.__ml.uiStore.getState().selectedTrackId);
+        if (held !== track.id) await selectByTapping(track);
+      }
       if (route.kind !== 'none') {
         const control = page.locator(`[data-testid="${route.id}"]`).first();
         if (await control.isVisible().catch(() => false)) {
           await control.click({ timeout: 2500 }).catch(() => {});
-          await page.waitForTimeout(300);
+          await page.waitForTimeout(180);
         }
       }
       await sweep(`${route.id}${label}`);
@@ -273,11 +369,19 @@ for (const form of FORMS) {
   };
 
   await walkRoutes('');
-  for (const track of tracks) {
+  // One representative per track *type*, not per track.
+  //
+  // What a surface is conditional on is the kind of track selected — a note FX
+  // rack wants an instrument, a zone editor wants a sampler. Walking every route
+  // for each of eleven tracks measured the same five answers twice over and was
+  // most of an eight-minute sweep.
+  const byType = new Map();
+  for (const track of tracks) if (!byType.has(track.type)) byType.set(track.type, track);
+  for (const track of byType.values()) {
     if ([...found.values()].every(Boolean)) break;
-    const via = await selectByTapping(track.id);
+    const via = await selectByTapping(track);
     if (via === null) continue;
-    await walkRoutes(` · ${track.type} selected by tapping its header in ${via}`);
+    await walkRoutes(` · ${track.type} track selected by tapping its header`, track);
   }
 
   for (const target of TARGETS) {
@@ -287,7 +391,7 @@ for (const form of FORMS) {
       target: target.id,
       label: target.label,
       via: found.get(target.id),
-      state: found.get(target.id) ? 'REACHABLE' : 'UNREACHABLE',
+      state: found.get(target.id) ? 'REACHABLE' : 'NOT REACHED',
     });
   }
   await page.close();
@@ -303,27 +407,87 @@ for (const form of FORMS) {
 await browser.close();
 writeFileSync('reachability-out.json', JSON.stringify(rows, null, 2));
 
+const forms = FORMS.map((f) => f.id);
+const cell = (form, target) =>
+  rows.find((r) => r.form === form && r.target === target).state === 'REACHABLE';
+const onDesktop = new Set(TARGETS.filter((t) => cell('desktop', t.id)).map((t) => t.id));
+const defects = rows.filter(
+  (r) => r.kind !== 'desktop' && r.state !== 'REACHABLE' && onDesktop.has(r.target),
+);
+const nowhere = TARGETS.filter((t) => !forms.some((f) => cell(f, t.id)));
+
+const grouped = defects.reduce((acc, d) => {
+  const at = acc.find((a) => a.target === d.target);
+  if (at) at.forms.push(d.form);
+  else acc.push({ target: d.target, label: d.label, forms: [d.form] });
+  return acc;
+}, []);
+
+const NL = '\n';
+const lines = [
+  '# Reachability Matrix',
+  '',
+  '**Generated by `npm run reachability`. Do not edit by hand.**',
+  '',
+  'Directive 11 §5. Every surface, on every form factor, reached the way a user',
+  "reaches it: navigate with the shell's own controls, select a track by tapping",
+  'its header, and look. Nothing here is reached by calling a store.',
+  '',
+  '**`NOT REACHED` is not the same as unreachable.** It means this sweep did not',
+  'get there, and the sweep performs navigation and selection only — it does not',
+  'open a device by clicking an insert slot, or a take review by recording one. A',
+  'row that is not reached on every form factor including desktop is almost',
+  'certainly behind an interaction this sweep does not perform, and is listed',
+  'separately below rather than counted as a mobile defect.',
+  '',
+  '**A defect is a surface reachable on desktop and not on something smaller.**',
+  'That is the rule the directive sets: layout may differ, capability may not.',
+  '',
+  `| surface | ${forms.join(' | ')} |`,
+  `| --- | ${forms.map(() => '---').join(' | ')} |`,
+  ...TARGETS.map(
+    (t) => `| ${t.label} | ${forms.map((f) => (cell(f, t.id) ? 'yes' : '—')).join(' | ')} |`,
+  ),
+  '',
+  '## Defects: reachable on desktop, not on a smaller screen',
+  '',
+  grouped.length === 0
+    ? 'None.'
+    : grouped.map((d) => `- **${d.label}** — ${d.forms.join(', ')}`).join(NL),
+  '',
+  '## Not reached anywhere, including desktop',
+  '',
+  'These need an interaction this sweep does not perform — opening a device from',
+  'an insert slot, reviewing a take after recording one. They are work for the',
+  'functional sweep rather than evidence of a missing feature.',
+  '',
+  nowhere.length === 0 ? 'None.' : nowhere.map((t) => `- ${t.label} (\`${t.selector}\`)`).join(NL),
+  '',
+  '## How each was reached',
+  '',
+  '| surface | form | via |',
+  '| --- | --- | --- |',
+  ...rows
+    .filter((r) => r.state === 'REACHABLE')
+    .map((r) => `| ${r.label} | ${r.form} | ${r.via} |`),
+  '',
+];
+
+writeFileSync('docs/audit/REACHABILITY.md', lines.join(NL));
+
 if (JSON_ONLY) {
   console.log(JSON.stringify(rows, null, 2));
 } else {
-  const forms = FORMS.map((f) => f.id);
-  console.log(`\n${'function'.padEnd(30)}${forms.map((f) => f.slice(0, 9).padEnd(11)).join('')}`);
+  console.log(`${NL}${'surface'.padEnd(30)}${forms.map((f) => f.slice(0, 9).padEnd(11)).join('')}`);
   console.log('-'.repeat(30 + forms.length * 11));
   for (const target of TARGETS) {
-    const cells = forms.map((f) => {
-      const row = rows.find((r) => r.form === f && r.target === target.id);
-      return (row.state === 'REACHABLE' ? 'yes' : 'NO').padEnd(11);
-    });
-    console.log(`${target.label.padEnd(30)}${cells.join('')}`);
+    const cells = forms.map((f) => (cell(f, target.id) ? 'yes' : 'NO').padEnd(11)).join('');
+    console.log(`${target.label.padEnd(30)}${cells}`);
   }
-  const gaps = rows.filter((r) => r.state === 'UNREACHABLE' && r.kind !== 'desktop');
-  const onDesktop = new Set(
-    rows.filter((r) => r.kind === 'desktop' && r.state === 'REACHABLE').map((r) => r.target),
-  );
-  const defects = gaps.filter((r) => onDesktop.has(r.target));
+  console.log(`${NL}${grouped.length} defect(s) — reachable on desktop, not on a smaller screen:`);
+  for (const d of grouped) console.log(`  ${d.label.padEnd(30)} ${d.forms.join(', ')}`);
   console.log(
-    `\n${defects.length} defect(s): reachable on desktop and not on a smaller screen.` +
-      (defects.length ? '' : ' None.'),
+    `${NL}${nowhere.length} surface(s) not reached anywhere; this sweep does not open them.`,
   );
-  for (const d of defects) console.log(`  ${d.form.padEnd(17)} ${d.label}`);
+  console.log(`${NL}docs/audit/REACHABILITY.md written.`);
 }
