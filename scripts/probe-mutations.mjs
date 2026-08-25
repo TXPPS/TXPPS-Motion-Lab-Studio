@@ -33,17 +33,33 @@ const ROOT = resolve(import.meta.dirname, '..');
 const CHECK = process.argv.includes('--check');
 const FILTER = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? '';
 
-/** The probe sources, and the ids each one actually plants. */
+/**
+ * The probe sources, and the ids each one actually plants.
+ *
+ * A list of files per probe rather than a single file, because two of the three
+ * grew past the house limit of about four hundred lines and were split. The
+ * `--check` below is what made that split safe to make: a correction whose call
+ * site moved into a module this list does not name reads as a registry entry
+ * planted nowhere, and fails the build rather than going quiet.
+ */
 const PROBES = {
-  reachability: 'scripts/reachability.mjs',
-  stress: 'scripts/stress.mjs',
-  bypass: 'scripts/bypass-probe.mjs',
+  reachability: [
+    'scripts/reachability.mjs',
+    'scripts/reach/targets.mjs',
+    'scripts/reach/walk.mjs',
+    'scripts/reach/menus.mjs',
+    'scripts/reach/report.mjs',
+  ],
+  stress: ['scripts/stress.mjs'],
+  bypass: ['scripts/bypass-probe.mjs'],
 };
 
-function plantedIn(file) {
-  const src = readFileSync(join(ROOT, file), 'utf8');
+function plantedIn(files) {
   const found = new Set();
-  for (const m of src.matchAll(/\b(?:unless|mutated)\(\s*'([^']+)'/g)) found.add(m[1]);
+  for (const file of files) {
+    const src = readFileSync(join(ROOT, file), 'utf8');
+    for (const m of src.matchAll(/\b(?:unless|mutated)\(\s*'([^']+)'/g)) found.add(m[1]);
+  }
   return found;
 }
 
@@ -51,8 +67,8 @@ function plantedIn(file) {
 
 if (CHECK) {
   const planted = new Map();
-  for (const [probe, file] of Object.entries(PROBES)) {
-    for (const id of plantedIn(file)) planted.set(id, probe);
+  for (const [probe, files] of Object.entries(PROBES)) {
+    for (const id of plantedIn(files)) planted.set(id, probe);
   }
   const problems = [];
   for (const m of MUTATIONS) {
@@ -208,12 +224,27 @@ if (!existsSync(join(ROOT, 'scripts/reachability.mjs'))) throw new Error('probes
 const entries = MUTATIONS.filter((m) => m.id.startsWith(FILTER));
 console.log(`Planting ${entries.length} recorded probe correction(s).\n`);
 
-/** Baselines are shared by scope, since a scope is deterministic. */
+/**
+ * Baselines are shared by scope, since a scope is deterministic.
+ *
+ * The key carries `exercisedBy` as well, and that was not obvious. A baseline
+ * is not only a number: it also carries whether the branch this correction is
+ * about was entered, and that is computed from the *entry's own* guard. Two
+ * entries with the same scope and different guards were sharing one baseline,
+ * so `reach/reassert-selection` — whose guard is `counter:reasserts` — was
+ * being judged on `counter:scrolls`, and printed BLOCKED naming a counter that
+ * has nothing to do with it.
+ *
+ * That is the defect this whole file exists to prevent, arriving in this file:
+ * a verdict that looks decisive and is about something else. It was visible
+ * only because the reason is printed beside the verdict rather than left as a
+ * word in a column.
+ */
 const baselines = new Map();
 const verdicts = [];
 
 for (const entry of entries) {
-  const key = `${entry.probe}|${JSON.stringify(entry.scope)}|${entry.metric ?? ''}`;
+  const key = `${entry.probe}|${JSON.stringify(entry.scope)}|${entry.metric ?? ''}|${entry.exercisedBy ?? ''}`;
   if (!baselines.has(key)) baselines.set(key, run(entry, null));
   const base = baselines.get(key);
   const mutant = run(entry, entry.id);
@@ -228,7 +259,17 @@ for (const entry of entries) {
   const ok = blocked ? null : degraded(entry, base, mutant);
   verdicts.push({ entry, base, mutant, ok, blocked });
   const show = (r) => `${r.value}${r.failed ? ' (FAIL)' : ''}`;
-  const verdict = blocked ? 'BLOCKED' : ok ? 'HELD   ' : 'DECAYED';
+  // KEPT is its own word in the column as well as in the summary. It printed
+  // HELD, because an `unfalsifiable` expectation is satisfied by definition —
+  // so the one verdict that means "this correction is not load-bearing" was
+  // showing up as the one that means it is.
+  const verdict = blocked
+    ? 'BLOCKED'
+    : entry.expect === 'unfalsifiable'
+      ? 'KEPT   '
+      : ok
+        ? 'HELD   '
+        : 'DECAYED';
   console.log(
     `${verdict} ${entry.id.padEnd(28)} ` +
       `${String(show(base)).padStart(8)} -> ${String(show(mutant)).padEnd(10)} ` +
