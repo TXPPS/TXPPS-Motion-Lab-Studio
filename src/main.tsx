@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { startSelectionReconciler } from './state/reconcileSelection';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/shell.css';
@@ -76,12 +77,26 @@ registerPwa();
  * that the UI does not already offer.
  */
 void (async () => {
-  const [exportMix, demoProject, uiStoreMod, encode, freeze] = await Promise.all([
+  const [
+    exportMix,
+    demoProject,
+    uiStoreMod,
+    encode,
+    freeze,
+    effects,
+    mwRegistry,
+    shortcuts,
+    projectRepo,
+  ] = await Promise.all([
     import('./audio/exportMix'),
     import('./model/demoProject'),
     import('./state/uiStore'),
     import('./audio/encode'),
     import('./audio/freeze'),
+    import('./model/effects'),
+    import('./audio/motionwave/registry'),
+    import('./app/shortcuts'),
+    import('./persistence/projectRepo'),
   ]);
   const w = window as unknown as { __ml?: Record<string, unknown> };
   // Merge: the engine already publishes meter/transport probes on this handle,
@@ -100,6 +115,29 @@ void (async () => {
     engine,
     projectStore: useProjectStore,
     uiStore: uiStoreMod.useUiStore,
+    // The axes the soak sweep enumerates over.
+    //
+    // Read from the same declarations the UI builds itself from, so a sweep
+    // cannot cover a list that has stopped matching the product — which is the
+    // failure `docs/FUNCTION_LEDGER.md` exists to make impossible one layer up.
+    // They are lists of names, and nothing here is a privileged action.
+    shortcuts: shortcuts.SHORTCUTS.map((s) => ({ id: s.id, combo: s.combo, when: s.when ?? null })),
+    // Deduplicated: the Motion Wave units appear in both lists, so a sweep over
+    // this rendered each of them twice and reported fourteen findings where
+    // there are seven.
+    effectKinds: [
+      ...new Set([
+        ...effects.EFFECT_SPECS.map((e) => e.kind),
+        ...mwRegistry.MOTIONWAVE_UNITS.map((u) => u.kind),
+      ]),
+    ],
+    instrumentKinds: ['synth', 'quick', 'drum', 'multi'],
+    // The real persistence boundary, so a soak can round-trip a project through
+    // the code that actually opens one rather than through `JSON.parse`. The two
+    // are not the same function: `validateProject` *drops* what it cannot read,
+    // which is the behaviour worth fuzzing and the one a shape-only round trip
+    // cannot see.
+    projectRepo,
   };
 })();
 
@@ -117,6 +155,10 @@ function missingHardRequirements(): string[] {
   }
   return out;
 }
+
+// Started before anything renders, so no component ever sees a selection that
+// names something the project has already lost.
+startSelectionReconciler();
 
 const rootEl = document.getElementById('root');
 if (rootEl) {

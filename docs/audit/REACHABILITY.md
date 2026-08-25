@@ -18,10 +18,10 @@ That is the rule the directive sets: layout may differ, capability may not.
 
 | surface | phone-portrait | phone-landscape | tablet-portrait | tablet-landscape | desktop |
 | --- | --- | --- | --- | --- | --- |
-| MIDI/note FX rack | yes | yes | yes | yes | yes |
-| add a note FX (arpeggiator) | yes | yes | yes | yes | yes |
-| automation lane | — | — | — | — | — |
-| sends rack | yes | yes | yes | yes | yes |
+| MIDI/note FX rack | yes | yes | — | — | yes |
+| add a note FX (arpeggiator) | yes | yes | — | — | yes |
+| automation lane | yes | yes | yes | yes | yes |
+| sends rack | yes | yes | — | — | yes |
 | cue mixes | yes | yes | yes | yes | yes |
 | sampler zone editor | — | — | — | — | — |
 | score view | yes | yes | yes | yes | yes |
@@ -38,7 +38,7 @@ That is the rule the directive sets: layout may differ, capability may not.
 | settings | yes | yes | yes | yes | yes |
 | diagnostics | yes | yes | yes | yes | yes |
 | export / bounce | yes | yes | — | — | — |
-| groove panel | — | — | — | — | — |
+| groove panel | — | yes | yes | yes | yes |
 | chord assistant | yes | yes | yes | yes | yes |
 | audio editor | yes | yes | yes | yes | yes |
 | take review | — | — | — | — | — |
@@ -46,7 +46,10 @@ That is the rule the directive sets: layout may differ, capability may not.
 
 ## Defects: reachable on desktop, not on a smaller screen
 
-None.
+- **groove panel** — phone-portrait
+- **MIDI/note FX rack** — tablet-portrait, tablet-landscape
+- **add a note FX (arpeggiator)** — tablet-portrait, tablet-landscape
+- **sends rack** — tablet-portrait, tablet-landscape
 
 ## Not reached anywhere, including desktop
 
@@ -54,10 +57,8 @@ These need an interaction this sweep does not perform — opening a device from
 an insert slot, reviewing a take after recording one. They are work for the
 functional sweep rather than evidence of a missing feature.
 
-- automation lane (`[data-testid^="auto-lane-"]`)
 - sampler zone editor (`[data-testid="zone-map"]`)
 - a device editor (`[data-testid="plugin-window"]`)
-- groove panel (`[data-testid="groove-panel"]`)
 - take review (`[data-testid="take-review"]`)
 
 ## How each was reached
@@ -66,10 +67,11 @@ functional sweep rather than evidence of a missing feature.
 | --- | --- | --- |
 | MIDI/note FX rack | phone-portrait | nav-browse · drum track selected by tapping its header |
 | add a note FX (arpeggiator) | phone-portrait | nav-browse · drum track selected by tapping its header |
+| automation lane | phone-portrait | long-press on track-header-Drums > "Add automation lane…" > "Volume" |
 | sends rack | phone-portrait | nav-browse |
 | cue mixes | phone-portrait | nav-mix |
 | score view | phone-portrait | nav-edit > editor-tab-score |
-| freeze a track | phone-portrait | nav-browse · drum track selected by tapping its header |
+| freeze a track | phone-portrait | long-press on track-header-Drums > "Freeze — render this track to audio" |
 | insert rack | phone-portrait | nav-mix |
 | drum editor | phone-portrait | nav-edit > editor-tab-drums |
 | sampler | phone-portrait | nav-perform |
@@ -86,10 +88,11 @@ functional sweep rather than evidence of a missing feature.
 | keyboard shortcuts | phone-portrait | topbar-overflow > "Keyboard shortcuts…?" |
 | MIDI/note FX rack | phone-landscape | nav-browse · drum track selected by tapping its header |
 | add a note FX (arpeggiator) | phone-landscape | nav-browse · drum track selected by tapping its header |
+| automation lane | phone-landscape | long-press on track-header-Drums > "Add automation lane…" > "Volume" |
 | sends rack | phone-landscape | nav-browse |
 | cue mixes | phone-landscape | nav-mix |
 | score view | phone-landscape | nav-edit > editor-tab-score |
-| freeze a track | phone-landscape | nav-browse · drum track selected by tapping its header |
+| freeze a track | phone-landscape | long-press on track-header-Drums > "Freeze — render this track to audio" |
 | insert rack | phone-landscape | nav-mix |
 | drum editor | phone-landscape | nav-edit > editor-tab-drums |
 | sampler | phone-landscape | nav-perform |
@@ -101,15 +104,14 @@ functional sweep rather than evidence of a missing feature.
 | settings | phone-landscape | topbar-overflow > "Preferences…" |
 | diagnostics | phone-landscape | nav-edit > editor-tab-diagnostics |
 | export / bounce | phone-landscape | topbar-overflow > "Export…Ctrl+Shift+E" |
+| groove panel | phone-landscape | nav-browse · with a MIDI clip open |
 | chord assistant | phone-landscape | nav-edit > editor-tab-chords |
 | audio editor | phone-landscape | nav-edit > editor-tab-audio |
 | keyboard shortcuts | phone-landscape | topbar-overflow > "Keyboard shortcuts…?" |
-| MIDI/note FX rack | tablet-portrait | tablet-inspector · drum track selected by tapping its header |
-| add a note FX (arpeggiator) | tablet-portrait | tablet-inspector · drum track selected by tapping its header |
-| sends rack | tablet-portrait | tablet-inspector · drum track selected by tapping its header |
+| automation lane | tablet-portrait | long-press on track-header-Drums > "Add automation lane…" > "Volume" |
 | cue mixes | tablet-portrait | combo-mixer |
 | score view | tablet-portrait | combo-piano > editor-tab-score |
-| freeze a track | tablet-portrait | tablet-inspector · drum track selected by tapping its header |
+| freeze a track | tablet-portrait | long-press on track-header-Drums > "Freeze — render this track to audio" |
 | insert rack | tablet-portrait | combo-mixer |
 | drum editor | tablet-portrait | combo-piano > editor-tab-drums |
 | sampler | tablet-portrait | combo-synth |
@@ -120,15 +122,14 @@ functional sweep rather than evidence of a missing feature.
 | inspector | tablet-portrait | tablet-inspector |
 | settings | tablet-portrait | combo-mixer |
 | diagnostics | tablet-portrait | combo-mixer |
+| groove panel | tablet-portrait | tablet-inspector · with a MIDI clip open |
 | chord assistant | tablet-portrait | combo-piano > editor-tab-chords |
 | audio editor | tablet-portrait | combo-piano > editor-tab-audio |
 | keyboard shortcuts | tablet-portrait | open-settings |
-| MIDI/note FX rack | tablet-landscape | tablet-inspector · drum track selected by tapping its header |
-| add a note FX (arpeggiator) | tablet-landscape | tablet-inspector · drum track selected by tapping its header |
-| sends rack | tablet-landscape | tablet-inspector · drum track selected by tapping its header |
+| automation lane | tablet-landscape | long-press on track-header-Drums > "Add automation lane…" > "Volume" |
 | cue mixes | tablet-landscape | combo-mixer |
 | score view | tablet-landscape | combo-piano > editor-tab-score |
-| freeze a track | tablet-landscape | tablet-inspector · drum track selected by tapping its header |
+| freeze a track | tablet-landscape | long-press on track-header-Drums > "Freeze — render this track to audio" |
 | insert rack | tablet-landscape | combo-mixer |
 | drum editor | tablet-landscape | combo-piano > editor-tab-drums |
 | sampler | tablet-landscape | combo-synth |
@@ -139,15 +140,17 @@ functional sweep rather than evidence of a missing feature.
 | inspector | tablet-landscape | tablet-inspector |
 | settings | tablet-landscape | combo-mixer |
 | diagnostics | tablet-landscape | combo-mixer |
+| groove panel | tablet-landscape | tablet-inspector · with a MIDI clip open |
 | chord assistant | tablet-landscape | combo-piano > editor-tab-chords |
 | audio editor | tablet-landscape | combo-piano > editor-tab-audio |
 | keyboard shortcuts | tablet-landscape | open-settings |
-| MIDI/note FX rack | desktop | editor-tab-mixer · drum track selected by tapping its header |
-| add a note FX (arpeggiator) | desktop | editor-tab-mixer · drum track selected by tapping its header |
-| sends rack | desktop | editor-tab-mixer · drum track selected by tapping its header |
+| MIDI/note FX rack | desktop | right-click on track-header-Drums |
+| add a note FX (arpeggiator) | desktop | right-click on track-header-Drums |
+| automation lane | desktop | right-click on track-header-Drums > "Add automation lane…" > "Volume" |
+| sends rack | desktop | right-click on track-header-Drums |
 | cue mixes | desktop | editor-tab-mixer |
 | score view | desktop | editor-tab-score |
-| freeze a track | desktop | editor-tab-mixer · drum track selected by tapping its header |
+| freeze a track | desktop | right-click on track-header-Drums |
 | insert rack | desktop | editor-tab-mixer |
 | drum editor | desktop | editor-tab-drums |
 | sampler | desktop | editor-tab-synth |
@@ -158,6 +161,7 @@ functional sweep rather than evidence of a missing feature.
 | inspector | desktop | editor-tab-mixer |
 | settings | desktop | editor-tab-mixer |
 | diagnostics | desktop | editor-tab-mixer |
+| groove panel | desktop | right-click on track-header-Drums > "Add MIDI clip" |
 | chord assistant | desktop | editor-tab-chords |
 | audio editor | desktop | editor-tab-audio |
 | keyboard shortcuts | desktop | open-settings |

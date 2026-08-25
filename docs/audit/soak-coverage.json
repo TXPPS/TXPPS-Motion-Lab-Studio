@@ -1,0 +1,2153 @@
+{
+  "bundle": {
+    "entry": "index-mykgjkxf.js",
+    "hash": "28d8e3d50ee4859b"
+  },
+  "seed": 20260825,
+  "rows": [
+    {
+      "id": "shortcut:play",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "transport changed"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "transport changed"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "transport changed"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "shortcut:return",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "Enter changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "Enter changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "Enter changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:return-home",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "Home changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "Home changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "Home changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:record",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "R changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "R changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "R changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:escape",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "Escape changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "Escape changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "Escape changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:save",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "Control+S changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "Control+S changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "Control+S changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:export",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "surfaces changed"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "surfaces changed"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "surfaces changed"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "shortcut:preferences",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "surfaces changed"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "surfaces changed"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "surfaces changed"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "shortcut:undo",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo, redo changed"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo, redo changed"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, surfaces, undo, redo changed"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "shortcut:redo",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "Control+Shift+Z changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "Control+Shift+Z changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "Control+Shift+Z changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:select-all",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "ui changed"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "ui changed"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "ui, surfaces changed"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "shortcut:add-to-selection",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"shift+click\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"shift+click\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"shift+click\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:marquee",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"drag\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"drag\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"drag\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:context-menu",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"contextmenu\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"contextmenu\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"contextmenu\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:copy",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "Control+C changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "Control+C changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "Control+C changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:cut",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "Control+X changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "Control+X changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "Control+X changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:paste",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "Control+V changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "Control+V changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "Control+V changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:duplicate",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "Control+D changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "Control+D changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "Control+D changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:delete",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "Delete changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "Delete changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "Delete changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:split",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "Control+E changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "Control+E changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "Control+E changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:snap-bypass",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"shift+drag\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"shift+drag\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"shift+drag\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:alt-duplicate",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"alt+drag\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"alt+drag\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"alt+drag\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:pr-nudge",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"arrowleft/right\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"arrowleft/right\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"arrowleft/right\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:pr-transpose",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"arrowup/down\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"arrowup/down\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"arrowup/down\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:pr-mute",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "M changed nothing (notes selected)"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "M changed nothing (notes selected)"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "M changed nothing (notes selected)"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:pr-alt-mute",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"alt+click\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"alt+click\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"alt+click\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:pr-select-all",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"mod+a (piano roll)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"mod+a (piano roll)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"mod+a (piano roll)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:pr-duplicate",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"mod+d (piano roll)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"mod+d (piano roll)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"mod+d (piano roll)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:tools",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"1-9\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"1-9\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"1-9\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:octave-down",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "Z changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "Z changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "Z changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:octave-up",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "X changed nothing"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "X changed nothing"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "X changed nothing"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:panel-editor",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"f2\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"f2\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"f2\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:panel-mixer",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"f3\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"f3\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"f3\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:panel-inspector",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"f4\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"f4\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"f4\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:panel-browser",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"f5\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"f5\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"f5\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:panel-instruments",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"f6\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"f6\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"f6\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:panel-effects",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"f7\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"f7\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"f7\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:panel-loops",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"f8\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"f8\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"f8\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:panel-samples",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"f9\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"f9\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"f9\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:panel-pool",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"f10\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"f10\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"f10\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:maximize-arrange",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "Shift+F changed nothing"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "surfaces changed"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "surfaces changed"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "shortcut:pages",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"mod+1-4\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"mod+1-4\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"mod+1-4\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:help",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "surfaces changed"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "surfaces changed"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "surfaces changed"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "shortcut:tool-slip",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "ui changed"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "ui changed"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "ui changed"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "shortcut:tool-paint",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "ui changed"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "ui changed"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "ui changed"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "shortcut:tool-listen",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "ui changed"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "ui changed"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "ui changed"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "shortcut:tool-zoom",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "ui changed"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "ui changed"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "ui changed"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "shortcut:clip-nudge",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"arrowleft/right (clips)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"arrowleft/right (clips)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"arrowleft/right (clips)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:crossfade",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"menu (two audio clips)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"menu (two audio clips)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"menu (two audio clips)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:take-swipe",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"drag (take lane)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"drag (take lane)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"drag (take lane)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:auto-add-point",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"dblclick (automation lane)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"dblclick (automation lane)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"dblclick (automation lane)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:auto-delete-point",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"dblclick (automation point)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"dblclick (automation point)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"dblclick (automation point)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:auto-marquee",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"drag (automation lane)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"drag (automation lane)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"drag (automation lane)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:auto-drag",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"drag (automation point)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"drag (automation point)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"drag (automation point)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:auto-delete",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"delete (automation)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"delete (automation)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"delete (automation)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:auto-copy",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"mod+c (automation)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"mod+c (automation)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"mod+c (automation)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:auto-paste",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"mod+v (automation)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"mod+v (automation)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"mod+v (automation)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:auto-duplicate",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"mod+d (automation)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"mod+d (automation)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"mod+d (automation)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:clip-select",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"enter (clip)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"enter (clip)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"enter (clip)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:clip-trim-start",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"[/] (clip)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"[/] (clip)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"[/] (clip)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:clip-trim-end",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"shift+[/] (clip)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"shift+[/] (clip)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"shift+[/] (clip)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:clip-fade-in",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \",/. (clip)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \",/. (clip)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \",/. (clip)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:clip-fade-out",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"shift+,/. (clip)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"shift+,/. (clip)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"shift+,/. (clip)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:pr-note-select",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"enter (note)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"enter (note)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"enter (note)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:pr-note-resize",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"alt+arrowleft/right (note)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"alt+arrowleft/right (note)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"alt+arrowleft/right (note)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:pr-grid-cursor",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"arrows (note grid)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"arrows (note grid)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"arrows (note grid)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:pr-grid-add",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"enter (note grid)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"enter (note grid)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"enter (note grid)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:pr-velocity",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"arrowup/down (velocity lane)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"arrowup/down (velocity lane)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"arrowup/down (velocity lane)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:auto-point-keys",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"arrows (automation point)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"arrows (automation point)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"arrows (automation point)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:auto-point-select",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"enter (automation point)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"enter (automation point)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"enter (automation point)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "shortcut:auto-add-at-playhead",
+      "forms": {
+        "phone": {
+          "state": "FAIL",
+          "why": "combo \"enter (automation lane)\" has no keyboard spelling"
+        },
+        "tablet": {
+          "state": "FAIL",
+          "why": "combo \"enter (automation lane)\" has no keyboard spelling"
+        },
+        "desktop": {
+          "state": "FAIL",
+          "why": "combo \"enter (automation lane)\" has no keyboard spelling"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "store:projectStore.addTrack",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 tracks, id tmt8wlpp50e716l"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 tracks, id tmt8wm2lg0e7clc"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, surfaces, undo changed — 13 -> 14 tracks, id tmt8wmfl00e709w"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.duplicateTrack",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 tracks"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 tracks"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, surfaces, undo changed — 13 -> 14 tracks"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.deleteTrack",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 12 tracks"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 12 tracks"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, surfaces, undo changed — 13 -> 12 tracks"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.setTrack",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — name \"Soak renamed\", volume 0.42"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — name \"Soak renamed\", volume 0.42"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, surfaces, undo changed — name \"Soak renamed\", volume 0.42"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.setInstrument",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — instrument now undefined"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — instrument now undefined"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — instrument now undefined"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.setSynthParams",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — cutoff 0.31"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — cutoff 0.31"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — cutoff 0.31"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.moveTrack",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — tmt8wliz306vhic,tmt8wliz306wfw0,tmt8wliz306x03d,tmt8wliz306yt4y,tmt8wliz306zvu8,tmt8wliz307087w,tmt8wlj380dpaur,tmt8wlj390drg3q,tmt8wlj390e0wse,tmt8wlj3a0e170c,tmt8wliz30715ld,tmt8wliz3072fni,tmt8wlj3a0e2z9q -> tmt8wliz306wfw0,tmt8wliz306x03d,tmt8wliz306vhic,tmt8wliz306yt4y,tmt8wliz306zvu8,tmt8wliz307087w,tmt8wlj380dpaur,tmt8wlj390drg3q,tmt8wlj390e0wse,tmt8wlj3a0e170c,tmt8wliz30715ld,tmt8wliz3072fni,tmt8wlj3a0e2z9q"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — tmt8wlvm806v43u,tmt8wlvm806wvmh,tmt8wlvm806xspb,tmt8wlvm806yvv6,tmt8wlvm806zx0s,tmt8wlvm8070hjx,tmt8wlvrd0dpc7e,tmt8wlvre0dr1qr,tmt8wlvre0e08om,tmt8wlvrg0e1xfd,tmt8wlvm80710rj,tmt8wlvm80721vh,tmt8wlvrg0e2042 -> tmt8wlvm806wvmh,tmt8wlvm806xspb,tmt8wlvm806v43u,tmt8wlvm806yvv6,tmt8wlvm806zx0s,tmt8wlvm8070hjx,tmt8wlvrd0dpc7e,tmt8wlvre0dr1qr,tmt8wlvre0e08om,tmt8wlvrg0e1xfd,tmt8wlvm80710rj,tmt8wlvm80721vh,tmt8wlvrg0e2042"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — tmt8wm8iz06vwmo,tmt8wm8iz06wtr8,tmt8wm8iz06xm0c,tmt8wm8iz06ysqk,tmt8wm8iz06z2df,tmt8wm8iz070lm4,tmt8wm8og0dpljs,tmt8wm8oh0drhjc,tmt8wm8oh0e0x88,tmt8wm8oi0e1ooq,tmt8wm8iz07172s,tmt8wm8iz072bam,tmt8wm8oi0e2bgo -> tmt8wm8iz06wtr8,tmt8wm8iz06xm0c,tmt8wm8iz06vwmo,tmt8wm8iz06ysqk,tmt8wm8iz06z2df,tmt8wm8iz070lm4,tmt8wm8og0dpljs,tmt8wm8oh0drhjc,tmt8wm8oh0e0x88,tmt8wm8oi0e1ooq,tmt8wm8iz07172s,tmt8wm8iz072bam,tmt8wm8oi0e2bgo"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.addMidiClip",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 clips"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 clips"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 clips"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.moveClip",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project changed — start 0 -> 4"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project changed — start 0 -> 4"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project changed — start 0 -> 4"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.resizeClip",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project changed — length 7"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project changed — length 7"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project changed — length 7"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.duplicateClip",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 clips"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 clips"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 clips"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.deleteClip",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 12 clips"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 12 clips"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 12 clips"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.splitClip",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 clips"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 clips"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 clips"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.setClip",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — name Soak clip"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — name Soak clip"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — name Soak clip"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.deleteClips",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 12 clips"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 12 clips"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 12 clips"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.moveClipsBy",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — start 0 -> 2"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — start 0 -> 2"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — start 0 -> 2"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.addEffect",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — 1 -> 2 inserts"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — 1 -> 2 inserts"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — 1 -> 2 inserts"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.removeEffect",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — 1 -> 0"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — 1 -> 0"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — 1 -> 0"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.setEffectParam",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project changed — threshold: -22 -> -10.9"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project changed — threshold: -22 -> -10.9"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project changed — threshold: -22 -> -10.9"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.setEffectBypass",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — bypass false -> true"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — bypass false -> true"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — bypass false -> true"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.undo",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "redo changed — 13 -> 14 -> 13 tracks"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "redo changed — 13 -> 14 -> 13 tracks"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "redo changed — 13 -> 14 -> 13 tracks"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.redo",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 tracks after redo"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — 13 -> 14 tracks after redo"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, surfaces, undo changed — 13 -> 14 tracks after redo"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.update",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — bpm 137"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — bpm 137"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — bpm 137"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.addAutomationLane",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — 0 -> 1 lanes"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — 0 -> 1 lanes"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — 0 -> 1 lanes"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:projectStore.addAutomationPoint",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "project, undo changed — 0 -> 1 points"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "project, undo changed — 0 -> 1 points"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "project, undo changed — 0 -> 1 points"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:uiStore.set",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "ui changed — editorTab mixer -> piano"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "ui changed — editorTab mixer -> piano"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "ui changed — editorTab mixer -> piano"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "store:uiStore.selectTrack",
+      "forms": {
+        "phone": {
+          "state": "PASS",
+          "why": "ui changed — selection tmt8wlj380dpaur -> tmt8wliz306wfw0"
+        },
+        "tablet": {
+          "state": "PASS",
+          "why": "ui changed — selection tmt8wlvrd0dpc7e -> tmt8wlvm806wvmh"
+        },
+        "desktop": {
+          "state": "PASS",
+          "why": "ui changed — selection tmt8wm8og0dpljs -> tmt8wm8iz06wtr8"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:compressor",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 2.95e-3 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:gate",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 2.58e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:limiter",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 6.62e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:multiband",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 8.12e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:deesser",
+      "forms": {
+        "desktop": {
+          "state": "FAIL",
+          "why": "rendered audio is identical to the dry render"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "effect:eq3",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 2.13e-3 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:eq8",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 2.84e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:filter",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 4.24e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:saturator",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 6.55e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:distortion",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 1.11e-1 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:ampsim",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 5.01e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:bitcrusher",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 1.72e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:chorus",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 3.02e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:flanger",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 2.96e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:phaser",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 1.82e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:tremolo",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 9.06e-3 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:rotary",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 5.59e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:delay",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 1.14e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:pingpong",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 1.27e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:reverb",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 1.01e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:width",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 2.06e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:autopan",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 2.66e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:trim",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 2.95e-3 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:gainMatch",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 2.95e-3 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:analyser",
+      "forms": {
+        "desktop": {
+          "state": "FAIL",
+          "why": "rendered audio is identical to the dry render"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "effect:tuner",
+      "forms": {
+        "desktop": {
+          "state": "FAIL",
+          "why": "rendered audio is identical to the dry render"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "effect:vocaltune",
+      "forms": {
+        "desktop": {
+          "state": "FAIL",
+          "why": "rendered audio is identical to the dry render"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "effect:mw-motion-shaper",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 7.21e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:mw-program-eq",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 4.41e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:mw-optical-leveller",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 4.33e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:mw-fet-limiter",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 3.88e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:mw-variable-mu",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 3.59e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:mw-console-eq",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 4.93e-2 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:mw-granular-reverb",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 9.14e-3 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "instrument:synth",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "key 60 gave 1 source(s), 1 voice(s) held"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "instrument:quick",
+      "forms": {
+        "desktop": {
+          "state": "FAIL",
+          "why": "no zones are loaded, so there is nothing for a note to play — untested here"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "instrument:drum",
+      "forms": {
+        "desktop": {
+          "state": "FAIL",
+          "why": "key 24 of 8 zone(s) produced no source and no held voice"
+        }
+      },
+      "covered": false
+    },
+    {
+      "id": "instrument:multi",
+      "forms": {
+        "desktop": {
+          "state": "FAIL",
+          "why": "no zones are loaded, so there is nothing for a note to play — untested here"
+        }
+      },
+      "covered": false
+    }
+  ]
+}

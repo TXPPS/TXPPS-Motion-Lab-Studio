@@ -66,6 +66,8 @@ export default tseslint.config(
       'scripts/*-audit.mjs',
       'scripts/stress.mjs',
       'scripts/reachability.mjs',
+      'scripts/soak.mjs',
+      'scripts/soak/*.mjs',
     ],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },

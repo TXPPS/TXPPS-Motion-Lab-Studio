@@ -8,418 +8,424 @@ module, every store contract, every shortcut, every effect and instrument kind,
 every navigable surface the shell declares. A function added without a row fails
 the build.
 
-**A row is a question, not a claim.** This file establishes the denominator;
-what fills the answer columns is the sweep that actually invokes each one and
-asserts a state change. Until that sweep covers a row, its `tested` column
-reads `FAIL`, and `FAIL` here means untested rather than broken — the
-distinction the directive draws, and the reason there is no "covered by" prose
-allowed in that column.
+**A row is a question, not a claim.** `tested` reads `PASS` only where
+`npm run soak` invoked the function and *observed a named part of the state
+change* — the project, the ui, the undo stack or the transport. A row that was
+invoked and changed nothing stays `FAIL`, and so does every row nobody has
+written a case for. `FAIL` means untested rather than broken, which is the
+distinction the directive draws.
+
+Coverage is counted as **rows with a state-asserting result**, never as rows
+that are not FAIL. Those are the same number only until somebody is tempted to
+make the column green.
+
+Soak coverage: 69 of 136 attempted rows asserted a state change, measured against `index-mykgjkxf.js` (`28d8e3d50ee4859b`).
 
 | kind | count |
 | --- | --- |
 | action | 82 |
-| effect | 33 |
-| instrument | 6 |
-| shortcut | 70 |
+| effect | 34 |
+| instrument | 4 |
+| shortcut | 71 |
 | store | 186 |
 | surface | 19 |
 | **total** | **396** |
 
-| id | surface | kind | desktop | tablet | phone | keyboard | tested | undo | persists |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `action:audioEditActions.analyzeClip` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:audioEditActions.clipBufferReady` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:audioEditActions.crossfadeSelection` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:audioEditActions.ensureClipDecoded` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:audioEditActions.healSelection` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:audioEditActions.maxSlipOffset` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:audioEditActions.mediaDurationSec` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:audioEditActions.normalizeClip` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:audioEditActions.packSelectionIntoTakes` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:audioEditActions.rippleDeleteSelection` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:audioEditActions.zoomToSelection` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:automationActions.activeCaptureCount` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:automationActions.captureParamChange` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:automationActions.captureParamRelease` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:automationActions.copyAutomationSelection` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:automationActions.deleteAutomationSelection` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:automationActions.duplicateAutomationSelection` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:automationActions.hasAutomationClipboard` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:automationActions.pasteAutomation` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:automationActions.startAutomationRunners` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:chainActions.applyChainSteps` | src/app/chainActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:chainActions.captureChain` | src/app/chainActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:clipboardActions.clipboardCount` | src/app/clipboardActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:clipboardActions.copySelection` | src/app/clipboardActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:clipboardActions.cutSelection` | src/app/clipboardActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:clipboardActions.duplicateSelection` | src/app/clipboardActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:clipboardActions.pasteAtPlayhead` | src/app/clipboardActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:clipboardActions.resetClipboard` | src/app/clipboardActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:exportActions.cancelExport` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:exportActions.exportLoopRegion` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:exportActions.exportProject` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:exportActions.exportState` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:exportActions.exportWav` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:exportActions.normalizeInPlace` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:exportActions.onExportState` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:importActions.dragHasFiles` | src/app/importActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:importActions.importDrop` | src/app/importActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:importActions.importToNewTrack` | src/app/importActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:importActions.isImporting` | src/app/importActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:importActions.pickAndImport` | src/app/importActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:importActions.runImport` | src/app/importActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:midiFileActions.exportMidiFile` | src/app/midiFileActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:midiFileActions.importMidiFile` | src/app/midiFileActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:midiFileActions.isMidiFile` | src/app/midiFileActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:midiFileActions.pickMidiFile` | src/app/midiFileActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:monitorActions.inputDeviceOf` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:monitorActions.inputFormatOf` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:monitorActions.isInputOpen` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:monitorActions.isMonitoring` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:monitorActions.setArmed` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:monitorActions.setTrackInputDevice` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:monitorActions.setTrackInputFormat` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:monitorActions.syncTrackInput` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:monitorActions.toggleMonitoring` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:monitorActions.wantedInput` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:projectActions.bootProject` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:projectActions.deleteById` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:projectActions.duplicateById` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:projectActions.installAutosave` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:projectActions.mergeProjectById` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:projectActions.newProject` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:projectActions.newProjectFromTemplate` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:projectActions.openProject` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:projectActions.renameCurrent` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:projectActions.saveCurrent` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:projectActions.saveCurrentAs` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:rangeActions.hasRangeClipboard` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:rangeActions.rangeCopy` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:rangeActions.rangeCrop` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:rangeActions.rangeCut` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:rangeActions.rangeDelete` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:rangeActions.rangeDuplicate` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:rangeActions.rangeFade` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:rangeActions.rangeInsertSilence` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:rangeActions.rangePaste` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:rangeActions.rangeSplit` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:rangeActions.stripSilenceFromClip` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:recoveryActions.describeRecovery` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:recoveryActions.discardAllRecoveries` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:recoveryActions.discardRecovery` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:recoveryActions.recoverTake` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `action:recoveryActions.scanRecoveries` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:ampsim` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:analyser` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:autopan` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:bitcrusher` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:chorus` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:compressor` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:deesser` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:delay` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:distortion` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:eq3` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:eq8` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:filter` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:flanger` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:gate` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:limiter` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:multiband` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:mw-console-eq` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:mw-fet-limiter` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:mw-granular-reverb` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:mw-motion-shaper` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:mw-optical-leveller` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:mw-program-eq` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:mw-variable-mu` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:phaser` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:pingpong` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:reverb` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:rotary` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:saturator` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:tremolo` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:trim` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:tuner` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:wam` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `effect:width` | insert rack | effect | ? | ? | ? | none | FAIL | ? | ? |
-| `instrument:drumkit` | instrument | instrument | ? | ? | ? | none | FAIL | ? | ? |
-| `instrument:rack` | instrument | instrument | ? | ? | ? | none | FAIL | ? | ? |
-| `instrument:sampler-drum` | instrument | instrument | ? | ? | ? | none | FAIL | ? | ? |
-| `instrument:sampler-multi` | instrument | instrument | ? | ? | ? | none | FAIL | ? | ? |
-| `instrument:sampler-quick` | instrument | instrument | ? | ? | ? | none | FAIL | ? | ? |
-| `instrument:synth` | instrument | instrument | ? | ? | ? | none | FAIL | ? | ? |
-| `shortcut:add-to-selection` | keyboard | shortcut | ? | ? | ? | add-to-selection | FAIL | ? | ? |
-| `shortcut:alt-duplicate` | keyboard | shortcut | ? | ? | ? | alt-duplicate | FAIL | ? | ? |
-| `shortcut:auto-add-at-playhead` | keyboard | shortcut | ? | ? | ? | auto-add-at-playhead | FAIL | ? | ? |
-| `shortcut:auto-add-point` | keyboard | shortcut | ? | ? | ? | auto-add-point | FAIL | ? | ? |
-| `shortcut:auto-copy` | keyboard | shortcut | ? | ? | ? | auto-copy | FAIL | ? | ? |
-| `shortcut:auto-delete` | keyboard | shortcut | ? | ? | ? | auto-delete | FAIL | ? | ? |
-| `shortcut:auto-delete-point` | keyboard | shortcut | ? | ? | ? | auto-delete-point | FAIL | ? | ? |
-| `shortcut:auto-drag` | keyboard | shortcut | ? | ? | ? | auto-drag | FAIL | ? | ? |
-| `shortcut:auto-duplicate` | keyboard | shortcut | ? | ? | ? | auto-duplicate | FAIL | ? | ? |
-| `shortcut:auto-marquee` | keyboard | shortcut | ? | ? | ? | auto-marquee | FAIL | ? | ? |
-| `shortcut:auto-paste` | keyboard | shortcut | ? | ? | ? | auto-paste | FAIL | ? | ? |
-| `shortcut:auto-point-keys` | keyboard | shortcut | ? | ? | ? | auto-point-keys | FAIL | ? | ? |
-| `shortcut:auto-point-select` | keyboard | shortcut | ? | ? | ? | auto-point-select | FAIL | ? | ? |
-| `shortcut:clip-fade-in` | keyboard | shortcut | ? | ? | ? | clip-fade-in | FAIL | ? | ? |
-| `shortcut:clip-fade-out` | keyboard | shortcut | ? | ? | ? | clip-fade-out | FAIL | ? | ? |
-| `shortcut:clip-nudge` | keyboard | shortcut | ? | ? | ? | clip-nudge | FAIL | ? | ? |
-| `shortcut:clip-select` | keyboard | shortcut | ? | ? | ? | clip-select | FAIL | ? | ? |
-| `shortcut:clip-trim-end` | keyboard | shortcut | ? | ? | ? | clip-trim-end | FAIL | ? | ? |
-| `shortcut:clip-trim-start` | keyboard | shortcut | ? | ? | ? | clip-trim-start | FAIL | ? | ? |
-| `shortcut:context-menu` | keyboard | shortcut | ? | ? | ? | context-menu | FAIL | ? | ? |
-| `shortcut:copy` | keyboard | shortcut | ? | ? | ? | copy | FAIL | ? | ? |
-| `shortcut:crossfade` | keyboard | shortcut | ? | ? | ? | crossfade | FAIL | ? | ? |
-| `shortcut:cut` | keyboard | shortcut | ? | ? | ? | cut | FAIL | ? | ? |
-| `shortcut:delete` | keyboard | shortcut | ? | ? | ? | delete | FAIL | ? | ? |
-| `shortcut:duplicate` | keyboard | shortcut | ? | ? | ? | duplicate | FAIL | ? | ? |
-| `shortcut:escape` | keyboard | shortcut | ? | ? | ? | escape | FAIL | ? | ? |
-| `shortcut:export` | keyboard | shortcut | ? | ? | ? | export | FAIL | ? | ? |
-| `shortcut:help` | keyboard | shortcut | ? | ? | ? | help | FAIL | ? | ? |
-| `shortcut:marquee` | keyboard | shortcut | ? | ? | ? | marquee | FAIL | ? | ? |
-| `shortcut:maximize-arrange` | keyboard | shortcut | ? | ? | ? | maximize-arrange | FAIL | ? | ? |
-| `shortcut:octave-down` | keyboard | shortcut | ? | ? | ? | octave-down | FAIL | ? | ? |
-| `shortcut:octave-up` | keyboard | shortcut | ? | ? | ? | octave-up | FAIL | ? | ? |
-| `shortcut:pages` | keyboard | shortcut | ? | ? | ? | pages | FAIL | ? | ? |
-| `shortcut:panel-browser` | keyboard | shortcut | ? | ? | ? | panel-browser | FAIL | ? | ? |
-| `shortcut:panel-editor` | keyboard | shortcut | ? | ? | ? | panel-editor | FAIL | ? | ? |
-| `shortcut:panel-effects` | keyboard | shortcut | ? | ? | ? | panel-effects | FAIL | ? | ? |
-| `shortcut:panel-inspector` | keyboard | shortcut | ? | ? | ? | panel-inspector | FAIL | ? | ? |
-| `shortcut:panel-instruments` | keyboard | shortcut | ? | ? | ? | panel-instruments | FAIL | ? | ? |
-| `shortcut:panel-loops` | keyboard | shortcut | ? | ? | ? | panel-loops | FAIL | ? | ? |
-| `shortcut:panel-mixer` | keyboard | shortcut | ? | ? | ? | panel-mixer | FAIL | ? | ? |
-| `shortcut:panel-pool` | keyboard | shortcut | ? | ? | ? | panel-pool | FAIL | ? | ? |
-| `shortcut:panel-samples` | keyboard | shortcut | ? | ? | ? | panel-samples | FAIL | ? | ? |
-| `shortcut:paste` | keyboard | shortcut | ? | ? | ? | paste | FAIL | ? | ? |
-| `shortcut:play` | keyboard | shortcut | ? | ? | ? | play | FAIL | ? | ? |
-| `shortcut:pr-alt-mute` | keyboard | shortcut | ? | ? | ? | pr-alt-mute | FAIL | ? | ? |
-| `shortcut:pr-duplicate` | keyboard | shortcut | ? | ? | ? | pr-duplicate | FAIL | ? | ? |
-| `shortcut:pr-grid-add` | keyboard | shortcut | ? | ? | ? | pr-grid-add | FAIL | ? | ? |
-| `shortcut:pr-grid-cursor` | keyboard | shortcut | ? | ? | ? | pr-grid-cursor | FAIL | ? | ? |
-| `shortcut:pr-mute` | keyboard | shortcut | ? | ? | ? | pr-mute | FAIL | ? | ? |
-| `shortcut:pr-note-resize` | keyboard | shortcut | ? | ? | ? | pr-note-resize | FAIL | ? | ? |
-| `shortcut:pr-note-select` | keyboard | shortcut | ? | ? | ? | pr-note-select | FAIL | ? | ? |
-| `shortcut:pr-nudge` | keyboard | shortcut | ? | ? | ? | pr-nudge | FAIL | ? | ? |
-| `shortcut:pr-select-all` | keyboard | shortcut | ? | ? | ? | pr-select-all | FAIL | ? | ? |
-| `shortcut:pr-transpose` | keyboard | shortcut | ? | ? | ? | pr-transpose | FAIL | ? | ? |
-| `shortcut:pr-velocity` | keyboard | shortcut | ? | ? | ? | pr-velocity | FAIL | ? | ? |
-| `shortcut:preferences` | keyboard | shortcut | ? | ? | ? | preferences | FAIL | ? | ? |
-| `shortcut:record` | keyboard | shortcut | ? | ? | ? | record | FAIL | ? | ? |
-| `shortcut:redo` | keyboard | shortcut | ? | ? | ? | redo | FAIL | ? | ? |
-| `shortcut:return` | keyboard | shortcut | ? | ? | ? | return | FAIL | ? | ? |
-| `shortcut:return-home` | keyboard | shortcut | ? | ? | ? | return-home | FAIL | ? | ? |
-| `shortcut:save` | keyboard | shortcut | ? | ? | ? | save | FAIL | ? | ? |
-| `shortcut:select-all` | keyboard | shortcut | ? | ? | ? | select-all | FAIL | ? | ? |
-| `shortcut:snap-bypass` | keyboard | shortcut | ? | ? | ? | snap-bypass | FAIL | ? | ? |
-| `shortcut:split` | keyboard | shortcut | ? | ? | ? | split | FAIL | ? | ? |
-| `shortcut:take-swipe` | keyboard | shortcut | ? | ? | ? | take-swipe | FAIL | ? | ? |
-| `shortcut:tool-listen` | keyboard | shortcut | ? | ? | ? | tool-listen | FAIL | ? | ? |
-| `shortcut:tool-paint` | keyboard | shortcut | ? | ? | ? | tool-paint | FAIL | ? | ? |
-| `shortcut:tool-slip` | keyboard | shortcut | ? | ? | ? | tool-slip | FAIL | ? | ? |
-| `shortcut:tool-zoom` | keyboard | shortcut | ? | ? | ? | tool-zoom | FAIL | ? | ? |
-| `shortcut:tools` | keyboard | shortcut | ? | ? | ? | tools | FAIL | ? | ? |
-| `store:chainStore.remove` | src/state/chainStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:chainStore.reset` | src/state/chainStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:chainStore.save` | src/state/chainStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:inputStore.set` | src/state/inputStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:keymapStore.clearBinding` | src/state/keymapStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:keymapStore.resetAll` | src/state/keymapStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:keymapStore.setBinding` | src/state/keymapStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:prefsStore.reset` | src/state/prefsStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:prefsStore.set` | src/state/prefsStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addAudioClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addAutomationLane` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addAutomationPoint` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addControlLink` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addCueMix` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addEventFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addMacro` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addMarker` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addMasterEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addMidiClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addNote` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addNoteFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addRecordedClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addSamplerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addTrack` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.addVca` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.applyGrooveToClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.applyPreset` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.applySamplerPreset` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.assignMacroTarget` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.assignPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.assignVca` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.beginGesture` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.clearChords` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.clearControlLinks` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.copyEffectTo` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.createCrossfade` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.createScratchPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.deleteAutomationPoints` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.deleteClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.deleteClips` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.deleteNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.deleteScratchPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.deleteTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.deleteTrack` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.duplicateClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.duplicateClips` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.duplicateTrack` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.endGesture` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.flushGestures` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.groupTracks` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.healClips` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.insertAutomationPoints` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.insertClips` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.markSaved` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.matchCueToMain` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.moveClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.moveClipsBy` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.moveEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.moveEventFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.moveMasterEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.moveNoteFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.moveSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.moveTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.moveTempoEvent` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.packTakes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.promoteTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.rackAddItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.rackMoveItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.rackRemoveItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.rackUpdateItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.redo` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.registerMedia` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeAutomationLane` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeChord` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeControlLink` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeCueMix` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeEventFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeGroove` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeMacro` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeMacroTarget` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeMarker` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeMasterEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeNoteFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeSamplerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeSend` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeSignature` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.removeTempoEvent` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.renameCueMix` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.renameMacro` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.renameScratchPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.reorderEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.reorderMasterEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.resizeClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.rippleDeleteClips` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.saveGroove` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setAutomationCurve` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setAutomationLane` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setAutomationMode` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setBpm` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setChord` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setClipFades` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setClipGain` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setClipView` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setCompRange` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setCueMix` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setCueSend` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setEffectBypass` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setEffectParam` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setEffectShape` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setEventFxBypass` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setEventFxParam` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setFadeShape` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setFolderFor` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setInstrument` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setLoop` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setMacroTargetRange` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setMacroValue` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setMarker` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setMaster` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setMasterEffectBypass` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setMasterEffectParam` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setMasterVolume` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setMetronome` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setNoteFxBypass` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setNoteFxList` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setNoteFxParam` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setParamNorm` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setProject` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setSamplerParams` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setSend` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setSignature` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setSoloTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setSynthParams` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setTakeMuted` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setTempoEvent` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setTimeSig` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setTrack` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.setZoneSlices` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.sliceToMidiClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.sliceToPads` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.slipClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.splitClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.swapScratchPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.transformNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.trimAutomationAt` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.trimClipEnd` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.trimClipStart` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.undo` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.ungroupFolder` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.update` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.updateAutomationPoints` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.updateControlLink` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.updateNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.updateSamplerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:projectStore.writeAutomationAt` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:routeStore.go` | src/state/routeStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:routeStore.setRoute` | src/state/routeStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:transportStore.set` | src/state/transportStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.action` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.closeDialog` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.closeMenu` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.dismissToast` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.onSubmit` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.openEditorFor` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.selectClip` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.selectClips` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.set` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.showDialog` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.showMenu` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.toast` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:uiStore.toggleClipSelection` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:workspaceStore.reset` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:workspaceStore.reveal` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:workspaceStore.setMaximized` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:workspaceStore.setSizes` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `store:workspaceStore.toggle` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:combo-mixer` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:combo-piano` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:combo-synth` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:drawer-browser` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:drawer-inspector` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:editor-tab-audio` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:editor-tab-chords` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:editor-tab-diagnostics` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:editor-tab-drums` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:editor-tab-mixer` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:editor-tab-piano` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:editor-tab-score` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:editor-tab-synth` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:nav-arrange` | src/components/shell/PhoneLayout.tsx | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:nav-browse` | src/components/shell/PhoneLayout.tsx | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:nav-edit` | src/components/shell/PhoneLayout.tsx | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:nav-mix` | src/components/shell/PhoneLayout.tsx | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:nav-perform` | src/components/shell/PhoneLayout.tsx | surface | ? | ? | ? | none | FAIL | ? | ? |
-| `surface:nav-record` | src/components/shell/PhoneLayout.tsx | surface | ? | ? | ? | none | FAIL | ? | ? |
+| id | surface | kind | desktop | tablet | phone | keyboard | tested | evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `action:audioEditActions.analyzeClip` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:audioEditActions.clipBufferReady` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:audioEditActions.crossfadeSelection` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:audioEditActions.ensureClipDecoded` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:audioEditActions.healSelection` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:audioEditActions.maxSlipOffset` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:audioEditActions.mediaDurationSec` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:audioEditActions.normalizeClip` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:audioEditActions.packSelectionIntoTakes` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:audioEditActions.rippleDeleteSelection` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:audioEditActions.zoomToSelection` | src/app/audioEditActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:automationActions.activeCaptureCount` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:automationActions.captureParamChange` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:automationActions.captureParamRelease` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:automationActions.copyAutomationSelection` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:automationActions.deleteAutomationSelection` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:automationActions.duplicateAutomationSelection` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:automationActions.hasAutomationClipboard` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:automationActions.pasteAutomation` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:automationActions.startAutomationRunners` | src/app/automationActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:chainActions.applyChainSteps` | src/app/chainActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:chainActions.captureChain` | src/app/chainActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:clipboardActions.clipboardCount` | src/app/clipboardActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:clipboardActions.copySelection` | src/app/clipboardActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:clipboardActions.cutSelection` | src/app/clipboardActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:clipboardActions.duplicateSelection` | src/app/clipboardActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:clipboardActions.pasteAtPlayhead` | src/app/clipboardActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:clipboardActions.resetClipboard` | src/app/clipboardActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:exportActions.cancelExport` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:exportActions.exportLoopRegion` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:exportActions.exportProject` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:exportActions.exportState` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:exportActions.exportWav` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:exportActions.normalizeInPlace` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:exportActions.onExportState` | src/app/exportActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:importActions.dragHasFiles` | src/app/importActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:importActions.importDrop` | src/app/importActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:importActions.importToNewTrack` | src/app/importActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:importActions.isImporting` | src/app/importActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:importActions.pickAndImport` | src/app/importActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:importActions.runImport` | src/app/importActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:midiFileActions.exportMidiFile` | src/app/midiFileActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:midiFileActions.importMidiFile` | src/app/midiFileActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:midiFileActions.isMidiFile` | src/app/midiFileActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:midiFileActions.pickMidiFile` | src/app/midiFileActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:monitorActions.inputDeviceOf` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:monitorActions.inputFormatOf` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:monitorActions.isInputOpen` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:monitorActions.isMonitoring` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:monitorActions.setArmed` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:monitorActions.setTrackInputDevice` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:monitorActions.setTrackInputFormat` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:monitorActions.syncTrackInput` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:monitorActions.toggleMonitoring` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:monitorActions.wantedInput` | src/app/monitorActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:projectActions.bootProject` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:projectActions.deleteById` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:projectActions.duplicateById` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:projectActions.installAutosave` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:projectActions.mergeProjectById` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:projectActions.newProject` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:projectActions.newProjectFromTemplate` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:projectActions.openProject` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:projectActions.renameCurrent` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:projectActions.saveCurrent` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:projectActions.saveCurrentAs` | src/app/projectActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:rangeActions.hasRangeClipboard` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:rangeActions.rangeCopy` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:rangeActions.rangeCrop` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:rangeActions.rangeCut` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:rangeActions.rangeDelete` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:rangeActions.rangeDuplicate` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:rangeActions.rangeFade` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:rangeActions.rangeInsertSilence` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:rangeActions.rangePaste` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:rangeActions.rangeSplit` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:rangeActions.stripSilenceFromClip` | src/app/rangeActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:recoveryActions.describeRecovery` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:recoveryActions.discardAllRecoveries` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:recoveryActions.discardRecovery` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:recoveryActions.recoverTake` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:recoveryActions.scanRecoveries` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `effect:ampsim` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.01e-2 RMS |
+| `effect:analyser` | insert rack | effect | FAIL | ? | ? | none | FAIL | rendered audio is identical to the dry render |
+| `effect:autopan` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.66e-2 RMS |
+| `effect:bitcrusher` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.72e-2 RMS |
+| `effect:chorus` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 3.02e-2 RMS |
+| `effect:compressor` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.95e-3 RMS |
+| `effect:deesser` | insert rack | effect | FAIL | ? | ? | none | FAIL | rendered audio is identical to the dry render |
+| `effect:delay` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.14e-2 RMS |
+| `effect:distortion` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.11e-1 RMS |
+| `effect:eq3` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.13e-3 RMS |
+| `effect:eq8` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.84e-2 RMS |
+| `effect:filter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 4.24e-2 RMS |
+| `effect:flanger` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.96e-2 RMS |
+| `effect:gainMatch` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.95e-3 RMS |
+| `effect:gate` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.58e-2 RMS |
+| `effect:limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 6.62e-2 RMS |
+| `effect:multiband` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 8.12e-2 RMS |
+| `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 4.93e-2 RMS |
+| `effect:mw-fet-limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 3.88e-2 RMS |
+| `effect:mw-granular-reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.14e-3 RMS |
+| `effect:mw-motion-shaper` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 7.21e-2 RMS |
+| `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 4.33e-2 RMS |
+| `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 4.41e-2 RMS |
+| `effect:mw-variable-mu` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 3.59e-2 RMS |
+| `effect:phaser` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.82e-2 RMS |
+| `effect:pingpong` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.27e-2 RMS |
+| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.01e-2 RMS |
+| `effect:rotary` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.59e-2 RMS |
+| `effect:saturator` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 6.55e-2 RMS |
+| `effect:tremolo` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.06e-3 RMS |
+| `effect:trim` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.95e-3 RMS |
+| `effect:tuner` | insert rack | effect | FAIL | ? | ? | none | FAIL | rendered audio is identical to the dry render |
+| `effect:vocaltune` | insert rack | effect | FAIL | ? | ? | none | FAIL | rendered audio is identical to the dry render |
+| `effect:width` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.06e-2 RMS |
+| `instrument:drum` | instrument | instrument | FAIL | ? | ? | none | FAIL | key 24 of 8 zone(s) produced no source and no held voice |
+| `instrument:multi` | instrument | instrument | FAIL | ? | ? | none | FAIL | no zones are loaded, so there is nothing for a note to play — untested here |
+| `instrument:quick` | instrument | instrument | FAIL | ? | ? | none | FAIL | no zones are loaded, so there is nothing for a note to play — untested here |
+| `instrument:synth` | instrument | instrument | PASS | ? | ? | none | PASS | key 60 gave 1 source(s), 1 voice(s) held |
+| `shortcut:add-to-selection` | keyboard | shortcut | FAIL | FAIL | FAIL | add-to-selection | FAIL | combo "shift+click" has no keyboard spelling |
+| `shortcut:alt-duplicate` | keyboard | shortcut | FAIL | FAIL | FAIL | alt-duplicate | FAIL | combo "alt+drag" has no keyboard spelling |
+| `shortcut:auto-add-at-playhead` | keyboard | shortcut | FAIL | FAIL | FAIL | auto-add-at-playhead | FAIL | combo "enter (automation lane)" has no keyboard spelling |
+| `shortcut:auto-add-point` | keyboard | shortcut | FAIL | FAIL | FAIL | auto-add-point | FAIL | combo "dblclick (automation lane)" has no keyboard spelling |
+| `shortcut:auto-copy` | keyboard | shortcut | FAIL | FAIL | FAIL | auto-copy | FAIL | combo "mod+c (automation)" has no keyboard spelling |
+| `shortcut:auto-delete` | keyboard | shortcut | FAIL | FAIL | FAIL | auto-delete | FAIL | combo "delete (automation)" has no keyboard spelling |
+| `shortcut:auto-delete-point` | keyboard | shortcut | FAIL | FAIL | FAIL | auto-delete-point | FAIL | combo "dblclick (automation point)" has no keyboard spelling |
+| `shortcut:auto-drag` | keyboard | shortcut | FAIL | FAIL | FAIL | auto-drag | FAIL | combo "drag (automation point)" has no keyboard spelling |
+| `shortcut:auto-duplicate` | keyboard | shortcut | FAIL | FAIL | FAIL | auto-duplicate | FAIL | combo "mod+d (automation)" has no keyboard spelling |
+| `shortcut:auto-marquee` | keyboard | shortcut | FAIL | FAIL | FAIL | auto-marquee | FAIL | combo "drag (automation lane)" has no keyboard spelling |
+| `shortcut:auto-paste` | keyboard | shortcut | FAIL | FAIL | FAIL | auto-paste | FAIL | combo "mod+v (automation)" has no keyboard spelling |
+| `shortcut:auto-point-keys` | keyboard | shortcut | FAIL | FAIL | FAIL | auto-point-keys | FAIL | combo "arrows (automation point)" has no keyboard spelling |
+| `shortcut:auto-point-select` | keyboard | shortcut | FAIL | FAIL | FAIL | auto-point-select | FAIL | combo "enter (automation point)" has no keyboard spelling |
+| `shortcut:clip-fade-in` | keyboard | shortcut | FAIL | FAIL | FAIL | clip-fade-in | FAIL | combo ",/. (clip)" has no keyboard spelling |
+| `shortcut:clip-fade-out` | keyboard | shortcut | FAIL | FAIL | FAIL | clip-fade-out | FAIL | combo "shift+,/. (clip)" has no keyboard spelling |
+| `shortcut:clip-nudge` | keyboard | shortcut | FAIL | FAIL | FAIL | clip-nudge | FAIL | combo "arrowleft/right (clips)" has no keyboard spelling |
+| `shortcut:clip-select` | keyboard | shortcut | FAIL | FAIL | FAIL | clip-select | FAIL | combo "enter (clip)" has no keyboard spelling |
+| `shortcut:clip-trim-end` | keyboard | shortcut | FAIL | FAIL | FAIL | clip-trim-end | FAIL | combo "shift+[/] (clip)" has no keyboard spelling |
+| `shortcut:clip-trim-start` | keyboard | shortcut | FAIL | FAIL | FAIL | clip-trim-start | FAIL | combo "[/] (clip)" has no keyboard spelling |
+| `shortcut:context-menu` | keyboard | shortcut | FAIL | FAIL | FAIL | context-menu | FAIL | combo "contextmenu" has no keyboard spelling |
+| `shortcut:copy` | keyboard | shortcut | FAIL | FAIL | FAIL | copy | FAIL | Control+C changed nothing |
+| `shortcut:crossfade` | keyboard | shortcut | FAIL | FAIL | FAIL | crossfade | FAIL | combo "menu (two audio clips)" has no keyboard spelling |
+| `shortcut:cut` | keyboard | shortcut | FAIL | FAIL | FAIL | cut | FAIL | Control+X changed nothing |
+| `shortcut:delete` | keyboard | shortcut | FAIL | FAIL | FAIL | delete | FAIL | Delete changed nothing |
+| `shortcut:duplicate` | keyboard | shortcut | FAIL | FAIL | FAIL | duplicate | FAIL | Control+D changed nothing |
+| `shortcut:escape` | keyboard | shortcut | FAIL | FAIL | FAIL | escape | FAIL | Escape changed nothing |
+| `shortcut:export` | keyboard | shortcut | PASS | PASS | PASS | export | PASS | surfaces changed |
+| `shortcut:help` | keyboard | shortcut | PASS | PASS | PASS | help | PASS | surfaces changed |
+| `shortcut:marquee` | keyboard | shortcut | FAIL | FAIL | FAIL | marquee | FAIL | combo "drag" has no keyboard spelling |
+| `shortcut:maximize-arrange` | keyboard | shortcut | PASS | PASS | FAIL | maximize-arrange | PASS | surfaces changed |
+| `shortcut:octave-down` | keyboard | shortcut | FAIL | FAIL | FAIL | octave-down | FAIL | Z changed nothing |
+| `shortcut:octave-up` | keyboard | shortcut | FAIL | FAIL | FAIL | octave-up | FAIL | X changed nothing |
+| `shortcut:pages` | keyboard | shortcut | FAIL | FAIL | FAIL | pages | FAIL | combo "mod+1-4" has no keyboard spelling |
+| `shortcut:panel-browser` | keyboard | shortcut | FAIL | FAIL | FAIL | panel-browser | FAIL | combo "f5" has no keyboard spelling |
+| `shortcut:panel-editor` | keyboard | shortcut | FAIL | FAIL | FAIL | panel-editor | FAIL | combo "f2" has no keyboard spelling |
+| `shortcut:panel-effects` | keyboard | shortcut | FAIL | FAIL | FAIL | panel-effects | FAIL | combo "f7" has no keyboard spelling |
+| `shortcut:panel-inspector` | keyboard | shortcut | FAIL | FAIL | FAIL | panel-inspector | FAIL | combo "f4" has no keyboard spelling |
+| `shortcut:panel-instruments` | keyboard | shortcut | FAIL | FAIL | FAIL | panel-instruments | FAIL | combo "f6" has no keyboard spelling |
+| `shortcut:panel-loops` | keyboard | shortcut | FAIL | FAIL | FAIL | panel-loops | FAIL | combo "f8" has no keyboard spelling |
+| `shortcut:panel-mixer` | keyboard | shortcut | FAIL | FAIL | FAIL | panel-mixer | FAIL | combo "f3" has no keyboard spelling |
+| `shortcut:panel-pool` | keyboard | shortcut | FAIL | FAIL | FAIL | panel-pool | FAIL | combo "f10" has no keyboard spelling |
+| `shortcut:panel-samples` | keyboard | shortcut | FAIL | FAIL | FAIL | panel-samples | FAIL | combo "f9" has no keyboard spelling |
+| `shortcut:paste` | keyboard | shortcut | FAIL | FAIL | FAIL | paste | FAIL | Control+V changed nothing |
+| `shortcut:play` | keyboard | shortcut | PASS | PASS | PASS | play | PASS | transport changed |
+| `shortcut:pr-alt-mute` | keyboard | shortcut | FAIL | FAIL | FAIL | pr-alt-mute | FAIL | combo "alt+click" has no keyboard spelling |
+| `shortcut:pr-duplicate` | keyboard | shortcut | FAIL | FAIL | FAIL | pr-duplicate | FAIL | combo "mod+d (piano roll)" has no keyboard spelling |
+| `shortcut:pr-grid-add` | keyboard | shortcut | FAIL | FAIL | FAIL | pr-grid-add | FAIL | combo "enter (note grid)" has no keyboard spelling |
+| `shortcut:pr-grid-cursor` | keyboard | shortcut | FAIL | FAIL | FAIL | pr-grid-cursor | FAIL | combo "arrows (note grid)" has no keyboard spelling |
+| `shortcut:pr-mute` | keyboard | shortcut | FAIL | FAIL | FAIL | pr-mute | FAIL | M changed nothing (notes selected) |
+| `shortcut:pr-note-resize` | keyboard | shortcut | FAIL | FAIL | FAIL | pr-note-resize | FAIL | combo "alt+arrowleft/right (note)" has no keyboard spelling |
+| `shortcut:pr-note-select` | keyboard | shortcut | FAIL | FAIL | FAIL | pr-note-select | FAIL | combo "enter (note)" has no keyboard spelling |
+| `shortcut:pr-nudge` | keyboard | shortcut | FAIL | FAIL | FAIL | pr-nudge | FAIL | combo "arrowleft/right" has no keyboard spelling |
+| `shortcut:pr-select-all` | keyboard | shortcut | FAIL | FAIL | FAIL | pr-select-all | FAIL | combo "mod+a (piano roll)" has no keyboard spelling |
+| `shortcut:pr-transpose` | keyboard | shortcut | FAIL | FAIL | FAIL | pr-transpose | FAIL | combo "arrowup/down" has no keyboard spelling |
+| `shortcut:pr-velocity` | keyboard | shortcut | FAIL | FAIL | FAIL | pr-velocity | FAIL | combo "arrowup/down (velocity lane)" has no keyboard spelling |
+| `shortcut:preferences` | keyboard | shortcut | PASS | PASS | PASS | preferences | PASS | surfaces changed |
+| `shortcut:record` | keyboard | shortcut | FAIL | FAIL | FAIL | record | FAIL | R changed nothing |
+| `shortcut:redo` | keyboard | shortcut | FAIL | FAIL | FAIL | redo | FAIL | Control+Shift+Z changed nothing |
+| `shortcut:return` | keyboard | shortcut | FAIL | FAIL | FAIL | return | FAIL | Enter changed nothing |
+| `shortcut:return-home` | keyboard | shortcut | FAIL | FAIL | FAIL | return-home | FAIL | Home changed nothing |
+| `shortcut:save` | keyboard | shortcut | FAIL | FAIL | FAIL | save | FAIL | Control+S changed nothing |
+| `shortcut:select-all` | keyboard | shortcut | PASS | PASS | PASS | select-all | PASS | ui changed |
+| `shortcut:snap-bypass` | keyboard | shortcut | FAIL | FAIL | FAIL | snap-bypass | FAIL | combo "shift+drag" has no keyboard spelling |
+| `shortcut:split` | keyboard | shortcut | FAIL | FAIL | FAIL | split | FAIL | Control+E changed nothing |
+| `shortcut:take-swipe` | keyboard | shortcut | FAIL | FAIL | FAIL | take-swipe | FAIL | combo "drag (take lane)" has no keyboard spelling |
+| `shortcut:tool-listen` | keyboard | shortcut | PASS | PASS | PASS | tool-listen | PASS | ui changed |
+| `shortcut:tool-paint` | keyboard | shortcut | PASS | PASS | PASS | tool-paint | PASS | ui changed |
+| `shortcut:tool-slip` | keyboard | shortcut | PASS | PASS | PASS | tool-slip | PASS | ui changed |
+| `shortcut:tool-zoom` | keyboard | shortcut | PASS | PASS | PASS | tool-zoom | PASS | ui changed |
+| `shortcut:tools` | keyboard | shortcut | FAIL | FAIL | FAIL | tools | FAIL | combo "1-9" has no keyboard spelling |
+| `shortcut:undo` | keyboard | shortcut | PASS | PASS | PASS | undo | PASS | project, undo, redo changed |
+| `store:chainStore.remove` | src/state/chainStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:chainStore.reset` | src/state/chainStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:chainStore.save` | src/state/chainStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:inputStore.set` | src/state/inputStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:keymapStore.clearBinding` | src/state/keymapStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:keymapStore.resetAll` | src/state/keymapStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:keymapStore.setBinding` | src/state/keymapStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:prefsStore.reset` | src/state/prefsStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:prefsStore.set` | src/state/prefsStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addAudioClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addAutomationLane` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 0 -> 1 lanes |
+| `store:projectStore.addAutomationPoint` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 0 -> 1 points |
+| `store:projectStore.addControlLink` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addCueMix` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addEffect` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 1 -> 2 inserts |
+| `store:projectStore.addEventFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addMacro` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addMarker` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addMasterEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addMidiClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 clips |
+| `store:projectStore.addNote` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addNoteFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addRecordedClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addSamplerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmt8wlpp50e716l |
+| `store:projectStore.addVca` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.applyGrooveToClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.applyPreset` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.applySamplerPreset` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.assignMacroTarget` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.assignPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.assignVca` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.beginGesture` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.clearChords` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.clearControlLinks` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.copyEffectTo` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.createCrossfade` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.createScratchPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.deleteAutomationPoints` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.deleteClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 12 clips |
+| `store:projectStore.deleteClips` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 12 clips |
+| `store:projectStore.deleteNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.deleteScratchPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.deleteTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.deleteTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 12 tracks |
+| `store:projectStore.duplicateClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 clips |
+| `store:projectStore.duplicateClips` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.duplicateTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks |
+| `store:projectStore.endGesture` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.flushGestures` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.groupTracks` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.healClips` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.insertAutomationPoints` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.insertClips` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.markSaved` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.matchCueToMain` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.moveClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project changed — start 0 -> 4 |
+| `store:projectStore.moveClipsBy` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — start 0 -> 2 |
+| `store:projectStore.moveEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.moveEventFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.moveMasterEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.moveNoteFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.moveSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.moveTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.moveTempoEvent` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmt8wliz306vhic,tmt8wliz306wfw0,tmt8wliz306x03d,tmt8wliz306yt4y,tmt8wliz306zvu8,tmt8wliz307087w,tmt8wlj380dpaur,tmt8wlj390drg3q,tmt8wlj390e0wse,tmt8wlj3a0e170c,tmt8wliz30715ld,tmt8wliz3072fni,tmt8wlj3a0e2z9q -> tmt8wliz306wfw0,tmt8wliz306x03d,tmt8wliz306vhic,tmt8wliz306yt4y,tmt8wliz306zvu8,tmt8wliz307087w,tmt8wlj380dpaur,tmt8wlj390drg3q,tmt8wlj390e0wse,tmt8wlj3a0e170c,tmt8wliz30715ld,tmt8wliz3072fni,tmt8wlj3a0e2z9q |
+| `store:projectStore.packTakes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.promoteTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.rackAddItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.rackMoveItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.rackRemoveItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.rackUpdateItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.redo` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks after redo |
+| `store:projectStore.registerMedia` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeAutomationLane` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeChord` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeControlLink` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeCueMix` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeEffect` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 1 -> 0 |
+| `store:projectStore.removeEventFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeGroove` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeMacro` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeMacroTarget` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeMarker` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeMasterEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeNoteFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeSamplerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeSend` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeSignature` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeTempoEvent` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.renameCueMix` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.renameMacro` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.renameScratchPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.reorderEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.reorderMasterEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.resizeClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project changed — length 7 |
+| `store:projectStore.rippleDeleteClips` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.saveGroove` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setAutomationCurve` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setAutomationLane` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setAutomationMode` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setBpm` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setChord` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — name Soak clip |
+| `store:projectStore.setClipFades` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setClipGain` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setClipView` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setCompRange` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setCueMix` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setCueSend` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setEffectBypass` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — bypass false -> true |
+| `store:projectStore.setEffectParam` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project changed — threshold: -22 -> -10.9 |
+| `store:projectStore.setEffectShape` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setEventFxBypass` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setEventFxParam` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setFadeShape` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setFolderFor` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setInstrument` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — instrument now undefined |
+| `store:projectStore.setLoop` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setMacroTargetRange` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setMacroValue` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setMarker` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setMaster` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setMasterEffectBypass` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setMasterEffectParam` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setMasterVolume` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setMetronome` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setNoteFxBypass` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setNoteFxList` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setNoteFxParam` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setParamNorm` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setProject` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setSamplerParams` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setSend` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setSignature` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setSoloTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setSynthParams` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — cutoff 0.31 |
+| `store:projectStore.setTakeMuted` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setTempoEvent` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setTimeSig` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — name "Soak renamed", volume 0.42 |
+| `store:projectStore.setZoneSlices` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.sliceToMidiClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.sliceToPads` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.slipClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.splitClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 clips |
+| `store:projectStore.swapScratchPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.transformNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.trimAutomationAt` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.trimClipEnd` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.trimClipStart` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.undo` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | redo changed — 13 -> 14 -> 13 tracks |
+| `store:projectStore.ungroupFolder` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.update` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — bpm 137 |
+| `store:projectStore.updateAutomationPoints` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.updateControlLink` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.updateNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.updateSamplerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.writeAutomationAt` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:routeStore.go` | src/state/routeStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:routeStore.setRoute` | src/state/routeStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:transportStore.set` | src/state/transportStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:uiStore.action` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:uiStore.closeDialog` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:uiStore.closeMenu` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:uiStore.dismissToast` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:uiStore.onSubmit` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:uiStore.openEditorFor` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:uiStore.selectClip` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:uiStore.selectClips` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmt8wlj380dpaur -> tmt8wliz306wfw0 |
+| `store:uiStore.set` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — editorTab mixer -> piano |
+| `store:uiStore.showDialog` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:uiStore.showMenu` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:uiStore.toast` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:uiStore.toggleClipSelection` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:workspaceStore.reset` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:workspaceStore.reveal` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:workspaceStore.setMaximized` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:workspaceStore.setSizes` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:workspaceStore.toggle` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `surface:combo-mixer` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:combo-piano` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:combo-synth` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:drawer-browser` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:drawer-inspector` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:editor-tab-audio` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:editor-tab-chords` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:editor-tab-diagnostics` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:editor-tab-drums` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:editor-tab-mixer` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:editor-tab-piano` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:editor-tab-score` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:editor-tab-synth` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:nav-arrange` | src/components/shell/PhoneLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:nav-browse` | src/components/shell/PhoneLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:nav-edit` | src/components/shell/PhoneLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:nav-mix` | src/components/shell/PhoneLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:nav-perform` | src/components/shell/PhoneLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:nav-record` | src/components/shell/PhoneLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |

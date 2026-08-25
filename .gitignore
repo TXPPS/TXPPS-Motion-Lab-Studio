@@ -78,3 +78,6 @@ stress-out.json
 # Written by `npm run reachability` on every run; the matrix in
 # docs/audit/REACHABILITY.md is the checked-in form.
 reachability-out.json
+reachability-probe.json
+soak-out.json
+.soaktmp/

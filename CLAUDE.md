@@ -109,6 +109,18 @@ writing those files — not whether to widen the scope until it goes quiet.
   style and a generic comment reads as foreign here.
 - **Every behavioural change arrives with a test that fails without it.** Where
   a fix is subtle, mutation-test it: revert the fix and confirm the test fails.
+- **A probe that has been corrected is mutation-tested before the correction is
+  believed.** Twenty probe defects have been found across the stress harness and
+  the reachability sweep, and every one was diagnosed properly — which is the
+  problem. "Suspect the probe first" decays into "assume the probe", and once it
+  has, a correction that quietly *widens* a check is indistinguishable from one
+  that fixes it: both make the red go away. So each correction keeps the defect
+  it replaced executable beside it, via `unless()` from `scripts/probe-mutant.mjs`,
+  and `npm run probe:mutations` restores each one and requires the measurement
+  to get worse. `--check` runs in the build: a registry entry with no call site,
+  or a call site with no entry, fails. **BLOCKED is not DECAYED** — a correction
+  whose branch this host never entered has not stopped mattering, and the
+  registry's `exercisedBy` names the row that tells them apart.
 - **No file over ~400 lines.** A longer file is describing more than one thing.
 - **A picture is drawn from the same evaluation the audio uses.** Never a second
   opinion. This is why `src/model/synthFace.ts` and the `*Of()` descriptors in

@@ -11,20 +11,273 @@ Bundle verified: every deploy is checked by fetching the live bundle and
                  This line names the tip at the moment it was written, so the
                  commit that edits it is by construction one ahead of what it
                  describes. Said plainly rather than left to be noticed.
-Current section: D11 §1 COMPLETE (all three P0s), §2 Function Ledger COMPLETE,
-                 §5 Reachability Matrix COMPLETE at 0 defects.
-Next action:     §3 - the four testing layers, wired into `npm run soak`.
-                 Then §8 V27 for the remaining six panels, then §4 FSP8 parity.
-Function Ledger: 396 functions, 0 tested, 0 unreachable.
+Current section: D11 §1, §2 and §5 COMPLETE. §3 COMPLETE - `npm run soak` runs
+                 four layers; `npm run probe:mutations` mutation-tests all
+                 twenty recorded probe corrections.
+Next action:     §8 V27 for the remaining six panels, then §4 FSP8 parity,
+                 then §6 arrangement/MIDI flow, then §7 instruments 9-14.
+Function Ledger: 396 functions, 69 with a state-asserting test, 0 unreachable.
+Open P1s:        A bypassed insert is not always a wire - 15 of 34 kinds change
+                 the render by exactly 1.6478e-2 RMS while bypassed. Measured
+                 precisely, root cause NOT found; see the section below for what
+                 is ruled out. No speculative fix is in the tree.
 Open deviations: F11 is left to the browser's fullscreen — the one place the
                  reference's panel map is not matched.
                  §2.5's monitoring modes and latency compensation are
                  DIVERGENT-BY-DESIGN; §3.1 reopens the take-alignment half,
                  which is a different problem and is not divergent.
                  recordingController.ts is 630 lines against the ~400 rule.
+                 scripts/reachability.mjs is 887 and scripts/stress.mjs 640,
+                 both against the same rule and both made worse this session.
+                 Splitting them is mechanical and is deliberately not being done
+                 in the same commit as the corrections they carry, so that
+                 `npm run probe:mutations` can prove the split changed nothing.
 Ledger:          **1 of 14 SHIPPING** - Program EQ, all 27 cells PASS. The
                  other six built units are FAIL at V27 only.
 ```
+
+## Every corrected probe, mutation-tested
+
+Twenty probe corrections are recorded across the stress harness and the
+reachability sweep, and every one had been diagnosed properly and none verified.
+Those are different things. "Suspect the probe first" decays into "assume the
+probe", and once it has, a correction that quietly *widens* a check is
+indistinguishable from one that fixes it — both make the red go away.
+
+Each correction now keeps the defect it replaced executable beside it, through
+`unless()` from `scripts/probe-mutant.mjs`. `npm run probe:mutations` restores
+each one and requires the measurement to get worse; `--check` runs in the build
+and fails on a registry entry with no call site, or a call site with no entry.
+
+Three verdicts, because two of them look identical in a column and mean opposite
+things:
+
+| | |
+| --- | --- |
+| **HELD** | the defect changes the measurement, so the correction is load-bearing |
+| **BLOCKED** | this host never entered the branch, so it was not tried |
+| **KEPT** | exercised, does not change the measurement, and kept anyway with a reason printed every run |
+
+### Stress harness — 6 of 6 held
+
+| correction | baseline | with the defect restored |
+| --- | --- | --- |
+| operations awaited, one per frame | 361 ops | 10,236,132 ops |
+| three collections before the heap is read | +447 KB | −6,470 KB |
+| wait for quiescence, do not sleep on a guess | 1390 ms | 509 ms and a false leak reported |
+| two consecutive over-budget samples | 364 tracks | 84 tracks |
+| loop bound 400, not 64 | 408 tracks | 72 tracks |
+| the DrumKit branch is built | 5 classes | 4 classes |
+
+The ceiling's confirmation could not be exercised at the real budget — this
+machine carries four hundred tracks inside two refreshes, so the branch never
+runs. It is measured at an 18 ms budget, which is just above the frame loop's
+own floor and therefore in the band where consecutive samples disagree. That is
+what the registry's `frameBudgetMs` is for, and `ceiling candidates rejected` is
+the row that says whether it did anything on a given run.
+
+### Reachability sweep — 9 held, 3 blocked, 1 kept, 1 fixed
+
+| correction | baseline | with the defect restored |
+| --- | --- | --- |
+| routes discovered from naming conventions | 18 reachable | 9 |
+| named sheet openers count as routes | 3 | 1 |
+| routes walked per track kind, selection held | 4 | 1 |
+| headers found by name, not by id | 3 | 1 |
+| header tapped at its corner, not its centre | 3 | 1 |
+| Escape twice before hunting for a header | 2 | 0 |
+| back to the Song page first | 3 | 1 |
+| routes re-discovered after arriving | 4 | 0 |
+| menu entries walked, not just opened | 3 | 1 |
+| long press dispatched as a touch pointer | 1 | 0 |
+
+Three are **BLOCKED** and say so with a number: `tapFailures = 0` (every track
+could be selected by tapping, so the store route reaches nothing extra),
+`scrolls = 0` (every header this sweep looks for is on screen when it looks),
+and no target reached via the MIDI-clip pass. One is **KEPT**: re-asserting the
+selection before each route fires seven times in the widest phone scope and does
+not move the count, because the menu walks added later select a track on their
+way in. The behaviour is right and the claim that it is load-bearing is not.
+
+**Two of the fourteen were my own defects, found by this.** The `select-track`
+mutation skipped only the per-track walk while the menu walkers still selected
+one, so it restored a world that never existed. And the long-press walk pressed
+once and iterated: the first entry closed the menu and every later entry was
+invisible, so exactly one command in a seventeen-item track menu was ever
+invoked.
+
+### The automation lane was never reached, and F1 read as if it had been
+
+`docs/audit/REACHABILITY.md` recorded the automation lane as `NOT REACHED` on
+every form factor including desktop, and F1 described the long-press correction
+as the one that settled the question. It settled the *false defect* — the
+`auto-toggle-*` target is a desktop widget and reported a phone failure that was
+not there. It left the real question unmeasured, and moving the target to
+`auto-lane-*` moved it to a state the sweep never creates: showing automation
+lanes on a track that has none shows nothing, and the lane only exists after
+"Add automation lane…" and a parameter are both chosen.
+
+Both menu walks complete the submenu now, and a desktop right-click walk was
+added because `longPress` returns immediately on a desktop and those commands
+were therefore never invoked on the one form factor a defect is measured
+against. **The automation lane is now reached on a phone and on a desktop.**
+
+## The reachability matrix moved from 0 defects to 4, and 0 was the wrong number
+
+The sweep that produced "0 defects" pressed a track header once and then
+iterated its menu: the first entry closed the menu and every later entry was
+invisible, so exactly one command in a seventeen-item menu was ever invoked. It
+also never reached the automation lane on any form factor, desktop included,
+and F1 described that correction as the one that settled the question. It
+settled a false defect and left the real one unmeasured.
+
+With both menu walks completing their submenus, and a desktop right-click walk
+added because `longPress` returns immediately there:
+
+| | before | after |
+| --- | --- | --- |
+| defects | 0 | 4 |
+| not reached anywhere | 5 | 3 |
+| automation lane | not reached on any form factor | reached on every one |
+
+**The four are candidates, not findings.** Every one of them is
+selection-dependent, and the sweep's own counter says it failed to select a
+track by tapping eight times in this run — so a route it could not take is
+indistinguishable, from the outside, from a route the product does not have.
+The counters are printed in `docs/audit/REACHABILITY.md` above the defect list
+for exactly that reason. What has to happen next is finding out why a tablet
+will not select a track by tapping, and the honest state until then is four
+unconfirmed rows rather than either a zero or a defect.
+
+## Directive 11 §3 — the four soak layers
+
+`npm run soak`, four layers against one running build, writing
+`docs/audit/SOAK.md` and `docs/audit/soak-coverage.json`.
+
+### 1. Functional sweep — 69 of 396 rows have a state-asserting test
+
+A row goes green only when a named part of the state is observed to change: the
+project, the ui, what is on screen, the undo stack, the transport. Not "it did
+not throw" — that is a weaker claim than FAIL and reads as a stronger one.
+
+Coverage is reported as **rows with a state-asserting result**, never as rows
+that are not FAIL. Those are the same number only until somebody is tempted.
+
+Six probe corrections were needed to get there, and each one had been reporting
+the sweep's own gaps as the product's:
+
+| the sweep believed | it was |
+| --- | --- |
+| Eight units are inaudible | a flat EQ and a unity trim are *correctly* transparent as inserted |
+| Three instrument kinds are silent | a drum kit maps its zones low; middle C landed on none of them |
+| Three store cases throw | the fixture appends to the demo project, so the first instrument track has no inserts |
+| `undo` changes nothing | it moves work to the redo stack and leaves the first the length it started at |
+| Half the shortcut registry is dead | opening a panel is a state change neither store holds |
+| Every history shortcut is dead | restoring the fixture leaves nothing on the undo stack to undo |
+
+### 2. Combinatorial fuzz — 10,000 seeded steps
+
+Twenty-eight step kinds, structural invariants after every one, and a shrink to
+the shortest reproducing subsequence. It broke at step 479 and shrank to **one
+step: delete a track**.
+
+Getting a reproduction anyone could read took three corrections, and the first
+two were silent:
+
+- A **shared draw stream** meant a subsequence replayed a different sequence.
+  Each step now draws from a stream indexed by the seed and its own position, so
+  step 7 draws the same numbers whatever came before it.
+- The replay **reset the project and not the ui**, so every candidate began
+  already violating the invariant and every prefix "reproduced". The shrink
+  named `splitClip` once and `setTrackGain` once, and neither can cause what was
+  reported. The empty sequence is now required to pass before any shrink is
+  believed.
+- One-at-a-time removal from the end turned 480 steps into 372, which is the
+  same run with its tail trimmed. **ddmin** turns it into one.
+
+### 3. Properties — 8 of 9 hold
+
+Save round-trips, the loader is idempotent, it does not drop a lane it can read,
+undo inverts, redo inverts undo, automation reads back what was written,
+deleting a track orphans no clip, and the fader is monotone.
+
+The ninth is below.
+
+### 4. Endurance
+
+Ten minutes of playing while tracks and inserts are added and deleted
+continuously, sampled eight times and judged on **slope** rather than on a final
+reading: a heap that ends higher is a busy moment, a heap that rises across
+every sample is a leak.
+
+## A bypassed insert is not always a wire
+
+**22 of 41 inserts change the render while bypassed, all by exactly the same
+amount.** Found by §3's property layer.
+
+| | |
+| --- | --- |
+| two identical renders differ by | 2.3e-7 |
+| a bypassed reverb differs from no insert by | 1.6478e-2 |
+| level | ×1.0331, both channels equally |
+| best integer lag | 0, and the correlation peak is symmetric |
+| two bypassed inserts, or three | the same 1.6478e-2, not double |
+| the same insert on a *different* track | 2.4e-7 |
+
+It is deterministic (two runs of it agree to 1.4e-8), independent of every
+parameter the unit has, identical across fifteen unrelated units, and it is a
+one-time switch rather than a per-node cost. `mix = 0` and `bypass = true`
+produce the same output, so the wet leg is not the cause. The delay, the
+compressor, the EQ and twenty-two others bypass to 2e-7, which is what makes the
+number legible as a fault rather than a noise floor.
+
+**Two hypotheses were tried and both were wrong, and both changes were
+reverted.** `setParam` uses `setTargetAtTime`, which *approaches* from wherever
+the parameter is, and a fresh `GainNode` is at 1 — so the wet leg opens at unity
+and decays. That is true, and fixing it changed the number by nothing. Starting
+the wet leg at zero changed it by nothing either. A fix that does not move the
+measurement is not a fix, and keeping it would have been the re-fit this
+repository's rules are mostly about.
+
+**Left open, root cause not found.** What is ruled out is recorded above.
+
+## The UI pointed at things the project had lost
+
+Found by the fuzz, confirmed by hand, and worse than the fuzzer reported.
+Deleting a track left `editClipId` naming a deleted clip **and**
+`selectedTrackId` naming a deleted track, and both survived a save.
+
+`src/state/reconcileSelection.ts` is a subscription rather than a line in
+`deleteTrack`, because deleting is only one of the ways a thing stops existing:
+undo, redo, loading a project, an import that replaces a track, a lane dropped
+during validation. A rule attached to each of those is a rule the next one will
+miss. Only ids are reconciled — which editor is open is the user's position, and
+closing the piano roll because its clip went away would be the app deciding
+where somebody is looking.
+
+Eight cases in `tests/reconcileSelection.test.ts`; six fail when the predicate is
+made to return nothing.
+
+## The Function Ledger was under-reporting three of its own axes
+
+Caught by the soak naming functions the ledger did not have — which is what the
+orphan check in `generate-functions.mjs` is for, and the first thing it ever
+found was the enumeration it is attached to.
+
+| axis | was | is |
+| --- | --- | --- |
+| shortcuts | 70 | 71 — short entries are written on one line and the pattern demanded a newline, so `undo` was missing |
+| effects | 33 | 34 — a lower-case character class dropped `gainMatch`, and requiring `label:` on the next line dropped `vocaltune`, which carries a paragraph of comment between the two |
+| instruments | 6 | 4 — `SamplerView` gave ids like `sampler-quick` while the store, the engine and the soak all call it `quick` |
+
+The total is still 396. Two axes gained a row and one lost two, which is the
+kind of arithmetic that hides in a total.
+
+**The ledger names the bundle its coverage was measured against rather than
+comparing it.** Comparing was tried and cannot work: the check runs inside the
+build, so any rebuild changes the hash and `--check` fails on a document nobody
+touched. `npm run soak` refuses to write coverage for a bundle it did not
+measure, which is where §10's rule belongs.
 
 ## Directive 11 §1 — the three reported defects
 
