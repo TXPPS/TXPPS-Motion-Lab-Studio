@@ -3,7 +3,11 @@
 ```
 RESUME: Directive 11 — parity, reachability, exhaustive proof.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: see below; updated at every landing.
+Deployed commit: 8471008, bundle index-BVYg0OsW.js. Verified by deleting dist/,
+                 rebuilding on a clean tree and matching the hash against the
+                 live page. The first attempt compared a stale local dist/ and
+                 chased a bundle that was never going to appear; the check is
+                 only worth anything if the local side is rebuilt first.
 Bundle verified: every deploy is checked by fetching the live bundle and
                  matching its hash against a clean-tree build. Cloudflare takes
                  260-280 s to pick one up; a check that does not wait that long
