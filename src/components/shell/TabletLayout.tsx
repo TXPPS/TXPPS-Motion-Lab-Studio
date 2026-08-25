@@ -7,11 +7,11 @@ import { Arrangement } from '../arrangement/Arrangement';
 import { BrowserPanel } from '../browser/BrowserPanel';
 import { Inspector } from '../inspector/Inspector';
 import { Mixer } from '../mixer/Mixer';
-import { PianoRoll } from '../pianoroll/PianoRoll';
 import { SynthPanel } from '../synth/SynthPanel';
 import { TransportBar } from '../transport/TransportBar';
 import { Icon } from '../common/Icon';
 import { MaximizeButton } from './MaximizeButton';
+import { EditorSurface } from './EditorSurface';
 
 type Combo = 'mixer' | 'piano' | 'synth';
 
@@ -110,7 +110,12 @@ export function TabletLayout() {
     <div className="editor-panel" data-testid="bottom-editor">
       <div className="editor-body">
         {combo === 'mixer' && <Mixer touch />}
-        {combo === 'piano' && <PianoRoll />}
+        {/*
+          The editor combo shows whichever editor is selected, not the piano
+          roll alone. Same reason as the phone: eight are declared and five of
+          them were reachable on a desktop and on nothing smaller.
+        */}
+        {combo === 'piano' && <EditorSurface exclude={['mixer', 'synth']} />}
         {combo === 'synth' && <SynthPanel />}
       </div>
     </div>

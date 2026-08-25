@@ -52,8 +52,18 @@ const TARGETS = [
     label: 'add a note FX (arpeggiator)',
     selector: '[data-testid^="notefx-add-"]',
   },
+  /*
+   * The lane, not the button that shows it.
+   *
+   * `auto-toggle-*` was a target and it is a desktop widget: the header's mini
+   * buttons are `display: none` below the desktop breakpoint, so it read as a
+   * phone and tablet defect forever. The function is not missing there — the
+   * track's long-press menu carries "Show automation lanes" and "Add automation
+   * lane…" on every form factor. Targeting the button measured which widget a
+   * layout uses; targeting the lane measures whether a user can get automation
+   * on screen, which is the thing §5 says must not differ.
+   */
   { id: 'automation-lane', label: 'automation lane', selector: '[data-testid^="auto-lane-"]' },
-  { id: 'automation-toggle', label: 'show automation', selector: '[data-testid^="auto-toggle-"]' },
   {
     id: 'sends',
     label: 'sends rack',
@@ -364,11 +374,170 @@ for (const form of FORMS) {
         }
       }
       await sweep(`${route.id}${label}`);
+
+      /*
+       * Routes this route revealed.
+       *
+       * Discovery ran once at start-up, before the phone had ever been in Edit
+       * mode — so the editor tab strip did not exist yet and four editors read
+       * as unreachable while sitting one tap inside a route the sweep had
+       * already taken. A route can carry navigation of its own, and the only
+       * time to find that out is after arriving.
+       */
+      const nested = [];
+      for (const prefix of ROUTE_PREFIXES) {
+        for (const id of await page.$$eval(`[data-testid^="${prefix}"]`, (ns) =>
+          ns.map((n) => n.getAttribute('data-testid')),
+        )) {
+          if (!routes.some((r) => r.id === id) && !nested.includes(id)) nested.push(id);
+        }
+      }
+      for (const id of nested) {
+        if ([...found.values()].every(Boolean)) return;
+        const sub = page.locator(`[data-testid="${id}"]`).first();
+        if (!(await sub.isVisible().catch(() => false))) continue;
+        await sub.click({ timeout: 2000 }).catch(() => {});
+        await page.waitForTimeout(240);
+        await sweep(`${route.id} > ${id}${label}`);
+      }
+
+      // A menu this route opened is itself a set of routes.
+      //
+      // Preferences, Diagnostics and the shortcut sheet live in the overflow
+      // menu on every layout, so clicking the overflow and looking was clicking
+      // a door and not walking through it — all three read as phone defects
+      // when they are one tap further than the sweep went.
+      const items = await page.$$eval('[role="menuitem"]', (ns) =>
+        ns.map((n) => n.textContent?.trim() ?? ''),
+      );
+      for (const item of items) {
+        if ([...found.values()].every(Boolean)) return;
+        const entry = page.locator('[role="menuitem"]', { hasText: item }).first();
+        if (!(await entry.isVisible().catch(() => false))) continue;
+        await entry.click({ timeout: 2000 }).catch(() => {});
+        await page.waitForTimeout(300);
+        await sweep(`${route.id} > "${item}"${label}`);
+        await page.keyboard.press('Escape').catch(() => {});
+        await page.waitForTimeout(140);
+        const control = page.locator(`[data-testid="${route.id}"]`).first();
+        if (await control.isVisible().catch(() => false)) {
+          await control.click({ timeout: 1500 }).catch(() => {});
+          await page.waitForTimeout(200);
+        }
+      }
       if ([...found.values()].every(Boolean)) return;
     }
   };
 
+  /**
+   * Open a MIDI clip, by double-clicking one as a user would.
+   *
+   * Four editors — piano roll, drums, score, audio — declare
+   * `appliesTo: isMidiClipOpen` and say "Open a MIDI clip" when nothing is. With
+   * no clip open they are correctly unavailable, and a sweep that never opened
+   * one would report that as unreachable and send someone looking for a bug in
+   * the navigation.
+   *
+   * Double-clicked rather than assigned: `ClipView` calls `openEditorFor` from
+   * its own handler, and going through the store would once again be measuring
+   * the store.
+   */
+  const openAMidiClip = async () => {
+    const midi = await page.evaluate(() =>
+      window.__ml.projectStore
+        .getState()
+        .project.clips.filter((c) => c.type === 'midi')
+        .map((c) => c.name),
+    );
+    for (const route of routes) {
+      for (const name of midi) {
+        const clip = page.locator(`[data-testid="clip-${name}"]`).first();
+        if ((await clip.count()) === 0) continue;
+        await clip.scrollIntoViewIfNeeded().catch(() => {});
+        if (!(await clip.isVisible().catch(() => false))) continue;
+        await clip.dblclick({ timeout: 2000 }).catch(() => {});
+        await page.waitForTimeout(260);
+        const open = await page.evaluate(() => window.__ml.uiStore.getState().editClipId);
+        if (open) return open;
+      }
+      if (route.kind === 'none') continue;
+      const control = page.locator(`[data-testid="${route.id}"]`).first();
+      if (await control.isVisible().catch(() => false)) {
+        await control.click({ timeout: 2000 }).catch(() => {});
+        await page.waitForTimeout(240);
+      }
+    }
+    return null;
+  };
+
+  /**
+   * The long-press menu, which on a touch device is a route like any other.
+   *
+   * `longPress` returns immediately unless `e.pointerType === 'touch'`, so a
+   * mouse press — which is what Playwright's `mouse.down()` sends even on a
+   * device with `hasTouch` — opens nothing. The automation lanes read as a
+   * phone-and-tablet defect because of it, when in fact the track menu carries
+   * "Show automation lanes" and "Add automation lane…" on every form factor and
+   * a thumb reaches them by holding.
+   *
+   * Dispatched as real pointer events rather than through the mouse API,
+   * because the pointer type is the whole point.
+   */
+  const longPressTrackHeaders = async () => {
+    if (form.kind === 'desktop') return;
+    const ids = await page.$$eval('[data-testid^="track-header-"]', (ns) =>
+      ns.map((n) => n.getAttribute('data-testid')),
+    );
+    for (const id of ids.slice(0, 2)) {
+      await page.evaluate(async (selector) => {
+        const el = document.querySelector(`[data-testid="${selector}"]`);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const opts = {
+          pointerType: 'touch',
+          pointerId: 1,
+          isPrimary: true,
+          bubbles: true,
+          cancelable: true,
+          clientX: r.x + 8,
+          clientY: r.y + 8,
+        };
+        el.dispatchEvent(new PointerEvent('pointerdown', opts));
+        await new Promise((done) => setTimeout(done, 700));
+        el.dispatchEvent(new PointerEvent('pointerup', opts));
+      }, id);
+      await page.waitForTimeout(350);
+      await sweep(`long-press on ${id}`);
+      const items = await page.$$eval('[role="menuitem"]', (ns) =>
+        ns.map((n) => n.textContent?.trim() ?? ''),
+      );
+      for (const item of items) {
+        if ([...found.values()].every(Boolean)) return;
+        const entry = page.locator('[role="menuitem"]', { hasText: item }).first();
+        if (!(await entry.isVisible().catch(() => false))) continue;
+        await entry.click({ timeout: 2000 }).catch(() => {});
+        await page.waitForTimeout(320);
+        await sweep(`long-press on ${id} > "${item}"`);
+        const nested = await page.$$eval('[role="menuitem"]', (ns) => ns.length);
+        if (nested > 0) {
+          await page
+            .locator('[role="menuitem"]')
+            .first()
+            .click({ timeout: 1500 })
+            .catch(() => {});
+          await page.waitForTimeout(400);
+          await sweep(`long-press on ${id} > "${item}" > first entry`);
+        }
+        await page.keyboard.press('Escape').catch(() => {});
+        await page.waitForTimeout(120);
+      }
+    }
+  };
+
   await walkRoutes('');
+  await longPressTrackHeaders();
+  const clipOpen = await openAMidiClip();
+  if (clipOpen) await walkRoutes(' · with a MIDI clip open');
   // One representative per track *type*, not per track.
   //
   // What a surface is conditional on is the kind of track selected — a note FX

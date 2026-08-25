@@ -702,6 +702,27 @@
   box-shadow: var(--ml-seam-b);
   overflow: hidden;
 }
+/*
+ * The same strip on a phone, scrolling sideways.
+ *
+ * Eight editors do not fit across 390 px, and both ways of making them fit are
+ * worse than a scroll: wrapping takes a second row from the editor itself, and
+ * shrinking puts every tab under the 44 px touch minimum. `overflow-x` with
+ * momentum is what a phone does with a row that is longer than the screen, and
+ * `flex: none` on the tabs stops flexbox squeezing them instead of scrolling.
+ */
+.editor-tabs-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.editor-tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+.editor-tabs-scroll .tab {
+  flex: none;
+}
 .editor-tabs .tab {
   padding: 0 13px;
   font-family: var(--font-cond);

@@ -1,9 +1,9 @@
 import { useUiStore, type PhoneMode } from '../../state/uiStore';
+import { EditorSurface } from './EditorSurface';
 import { Arrangement } from '../arrangement/Arrangement';
 import { BrowserPanel } from '../browser/BrowserPanel';
 import { Inspector } from '../inspector/Inspector';
 import { Mixer } from '../mixer/Mixer';
-import { PianoRoll } from '../pianoroll/PianoRoll';
 import { SynthPanel } from '../synth/SynthPanel';
 import { TransportBar } from '../transport/TransportBar';
 import { RecordWorkspace } from '../recording/RecordWorkspace';
@@ -37,7 +37,17 @@ export function PhoneLayout() {
         {mode === 'arrange' && <Arrangement />}
         {mode === 'record' && <RecordWorkspace />}
         {mode === 'perform' && <SynthPanel performMode />}
-        {mode === 'edit' && <PianoRoll />}
+        {/*
+          Every editor, not only the piano roll.
+          
+          `app/editors.ts` declares eight and this mounted one, so the drum
+          editor, the score, the audio editor, the chord assistant and
+          diagnostics were on a desktop and on no phone — which Directive 11 §5
+          calls a missing function rather than a layout difference. The strip is
+          the desktop's own, scrolling sideways under a thumb; the shared thing
+          is the registry rather than the widget.
+        */}
+        {mode === 'edit' && <EditorSurface exclude={['mixer', 'synth']} />}
         {mode === 'mix' && <Mixer touch />}
         {mode === 'browse' && (
           <div className="browse-page">

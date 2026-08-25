@@ -21,40 +21,32 @@ That is the rule the directive sets: layout may differ, capability may not.
 | MIDI/note FX rack | yes | yes | yes | yes | yes |
 | add a note FX (arpeggiator) | yes | yes | yes | yes | yes |
 | automation lane | — | — | — | — | — |
-| show automation | — | — | — | — | yes |
 | sends rack | yes | yes | yes | yes | yes |
 | cue mixes | yes | yes | yes | yes | yes |
 | sampler zone editor | — | — | — | — | — |
-| score view | — | — | — | — | yes |
+| score view | yes | yes | yes | yes | yes |
 | freeze a track | yes | yes | yes | yes | yes |
 | insert rack | yes | yes | yes | yes | yes |
 | a device editor | — | — | — | — | — |
-| drum editor | — | — | — | — | yes |
+| drum editor | yes | yes | yes | yes | yes |
 | sampler | yes | yes | yes | yes | yes |
 | piano roll | yes | yes | yes | yes | yes |
 | mixer | yes | yes | yes | yes | yes |
 | arrangement | yes | yes | yes | yes | yes |
 | browser | yes | yes | yes | yes | yes |
 | inspector | yes | yes | yes | yes | yes |
-| settings | — | — | yes | yes | yes |
-| diagnostics | — | — | yes | yes | yes |
-| export / bounce | — | — | — | — | — |
+| settings | yes | yes | yes | yes | yes |
+| diagnostics | yes | yes | yes | yes | yes |
+| export / bounce | yes | yes | — | — | — |
 | groove panel | — | — | — | — | — |
-| chord assistant | — | — | — | — | yes |
-| audio editor | — | — | — | — | yes |
+| chord assistant | yes | yes | yes | yes | yes |
+| audio editor | yes | yes | yes | yes | yes |
 | take review | — | — | — | — | — |
-| keyboard shortcuts | — | — | yes | yes | yes |
+| keyboard shortcuts | yes | yes | yes | yes | yes |
 
 ## Defects: reachable on desktop, not on a smaller screen
 
-- **show automation** — phone-portrait, phone-landscape, tablet-portrait, tablet-landscape
-- **score view** — phone-portrait, phone-landscape, tablet-portrait, tablet-landscape
-- **drum editor** — phone-portrait, phone-landscape, tablet-portrait, tablet-landscape
-- **settings** — phone-portrait, phone-landscape
-- **diagnostics** — phone-portrait, phone-landscape
-- **chord assistant** — phone-portrait, phone-landscape, tablet-portrait, tablet-landscape
-- **audio editor** — phone-portrait, phone-landscape, tablet-portrait, tablet-landscape
-- **keyboard shortcuts** — phone-portrait, phone-landscape
+None.
 
 ## Not reached anywhere, including desktop
 
@@ -65,7 +57,6 @@ functional sweep rather than evidence of a missing feature.
 - automation lane (`[data-testid^="auto-lane-"]`)
 - sampler zone editor (`[data-testid="zone-map"]`)
 - a device editor (`[data-testid="plugin-window"]`)
-- export / bounce (`[data-testid="export-sheet"], [data-testid="export-run"]`)
 - groove panel (`[data-testid="groove-panel"]`)
 - take review (`[data-testid="take-review"]`)
 
@@ -77,32 +68,50 @@ functional sweep rather than evidence of a missing feature.
 | add a note FX (arpeggiator) | phone-portrait | nav-browse · drum track selected by tapping its header |
 | sends rack | phone-portrait | nav-browse |
 | cue mixes | phone-portrait | nav-mix |
+| score view | phone-portrait | nav-edit > editor-tab-score |
 | freeze a track | phone-portrait | nav-browse · drum track selected by tapping its header |
 | insert rack | phone-portrait | nav-mix |
+| drum editor | phone-portrait | nav-edit > editor-tab-drums |
 | sampler | phone-portrait | nav-perform |
 | piano roll | phone-portrait | nav-edit |
 | mixer | phone-portrait | nav-mix |
 | arrangement | phone-portrait | nav-arrange |
 | browser | phone-portrait | nav-browse |
 | inspector | phone-portrait | nav-browse |
+| settings | phone-portrait | topbar-overflow > "Preferences…" |
+| diagnostics | phone-portrait | nav-edit > editor-tab-diagnostics |
+| export / bounce | phone-portrait | topbar-overflow > "Export…Ctrl+Shift+E" |
+| chord assistant | phone-portrait | nav-edit > editor-tab-chords |
+| audio editor | phone-portrait | nav-edit > editor-tab-audio |
+| keyboard shortcuts | phone-portrait | topbar-overflow > "Keyboard shortcuts…?" |
 | MIDI/note FX rack | phone-landscape | nav-browse · drum track selected by tapping its header |
 | add a note FX (arpeggiator) | phone-landscape | nav-browse · drum track selected by tapping its header |
 | sends rack | phone-landscape | nav-browse |
 | cue mixes | phone-landscape | nav-mix |
+| score view | phone-landscape | nav-edit > editor-tab-score |
 | freeze a track | phone-landscape | nav-browse · drum track selected by tapping its header |
 | insert rack | phone-landscape | nav-mix |
+| drum editor | phone-landscape | nav-edit > editor-tab-drums |
 | sampler | phone-landscape | nav-perform |
 | piano roll | phone-landscape | nav-edit |
 | mixer | phone-landscape | nav-mix |
 | arrangement | phone-landscape | nav-arrange |
 | browser | phone-landscape | nav-browse |
 | inspector | phone-landscape | nav-browse |
+| settings | phone-landscape | topbar-overflow > "Preferences…" |
+| diagnostics | phone-landscape | nav-edit > editor-tab-diagnostics |
+| export / bounce | phone-landscape | topbar-overflow > "Export…Ctrl+Shift+E" |
+| chord assistant | phone-landscape | nav-edit > editor-tab-chords |
+| audio editor | phone-landscape | nav-edit > editor-tab-audio |
+| keyboard shortcuts | phone-landscape | topbar-overflow > "Keyboard shortcuts…?" |
 | MIDI/note FX rack | tablet-portrait | tablet-inspector · drum track selected by tapping its header |
 | add a note FX (arpeggiator) | tablet-portrait | tablet-inspector · drum track selected by tapping its header |
 | sends rack | tablet-portrait | tablet-inspector · drum track selected by tapping its header |
 | cue mixes | tablet-portrait | combo-mixer |
+| score view | tablet-portrait | combo-piano > editor-tab-score |
 | freeze a track | tablet-portrait | tablet-inspector · drum track selected by tapping its header |
 | insert rack | tablet-portrait | combo-mixer |
+| drum editor | tablet-portrait | combo-piano > editor-tab-drums |
 | sampler | tablet-portrait | combo-synth |
 | piano roll | tablet-portrait | combo-piano |
 | mixer | tablet-portrait | combo-mixer |
@@ -111,13 +120,17 @@ functional sweep rather than evidence of a missing feature.
 | inspector | tablet-portrait | tablet-inspector |
 | settings | tablet-portrait | combo-mixer |
 | diagnostics | tablet-portrait | combo-mixer |
+| chord assistant | tablet-portrait | combo-piano > editor-tab-chords |
+| audio editor | tablet-portrait | combo-piano > editor-tab-audio |
 | keyboard shortcuts | tablet-portrait | open-settings |
 | MIDI/note FX rack | tablet-landscape | tablet-inspector · drum track selected by tapping its header |
 | add a note FX (arpeggiator) | tablet-landscape | tablet-inspector · drum track selected by tapping its header |
 | sends rack | tablet-landscape | tablet-inspector · drum track selected by tapping its header |
 | cue mixes | tablet-landscape | combo-mixer |
+| score view | tablet-landscape | combo-piano > editor-tab-score |
 | freeze a track | tablet-landscape | tablet-inspector · drum track selected by tapping its header |
 | insert rack | tablet-landscape | combo-mixer |
+| drum editor | tablet-landscape | combo-piano > editor-tab-drums |
 | sampler | tablet-landscape | combo-synth |
 | piano roll | tablet-landscape | combo-piano |
 | mixer | tablet-landscape | combo-mixer |
@@ -126,10 +139,11 @@ functional sweep rather than evidence of a missing feature.
 | inspector | tablet-landscape | tablet-inspector |
 | settings | tablet-landscape | combo-mixer |
 | diagnostics | tablet-landscape | combo-mixer |
+| chord assistant | tablet-landscape | combo-piano > editor-tab-chords |
+| audio editor | tablet-landscape | combo-piano > editor-tab-audio |
 | keyboard shortcuts | tablet-landscape | open-settings |
 | MIDI/note FX rack | desktop | editor-tab-mixer · drum track selected by tapping its header |
 | add a note FX (arpeggiator) | desktop | editor-tab-mixer · drum track selected by tapping its header |
-| show automation | desktop | editor-tab-mixer |
 | sends rack | desktop | editor-tab-mixer · drum track selected by tapping its header |
 | cue mixes | desktop | editor-tab-mixer |
 | score view | desktop | editor-tab-score |
