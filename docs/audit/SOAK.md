@@ -7,8 +7,8 @@ that asserts a state change per function, a seeded combinatorial fuzz with
 structural invariants after every step, property checks that must hold for
 every input, and an endurance run judged on trends rather than endpoints.
 
-- **Bundle** `index-mykgjkxf.js` (`28d8e3d50ee4859b`)
-- **Seed** `20260825`
+- **Bundle** `index-DzQWmA0T.js` (`83a90cac3cfb00ae`)
+- **Seed** `1787698760`
 
 A report is about the bundle named above and no other. If that hash is not
 the one in `dist/` now, this file describes a product that has moved.
@@ -96,13 +96,13 @@ one.
 | `shortcut:auto-point-keys` | FAIL | FAIL | FAIL | combo "arrows (automation point)" has no keyboard spelling |
 | `shortcut:auto-point-select` | FAIL | FAIL | FAIL | combo "enter (automation point)" has no keyboard spelling |
 | `shortcut:auto-add-at-playhead` | FAIL | FAIL | FAIL | combo "enter (automation lane)" has no keyboard spelling |
-| `store:projectStore.addTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 14 tracks, id tmt8wmfl00e709w |
+| `store:projectStore.addTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 14 tracks, id tmt99pkey0e7rpz |
 | `store:projectStore.duplicateTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 14 tracks |
 | `store:projectStore.deleteTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 12 tracks |
 | `store:projectStore.setTrack` | PASS | PASS | PASS | project, surfaces, undo changed — name "Soak renamed", volume 0.42 |
 | `store:projectStore.setInstrument` | PASS | PASS | PASS | project, undo changed — instrument now undefined |
 | `store:projectStore.setSynthParams` | PASS | PASS | PASS | project, undo changed — cutoff 0.31 |
-| `store:projectStore.moveTrack` | PASS | PASS | PASS | project, undo changed — tmt8wm8iz06vwmo,tmt8wm8iz06wtr8,tmt8wm8iz06xm0c,tmt8wm8iz06ysqk,tmt8wm8iz06z2df,tmt8wm8iz070lm4,tmt8wm8og0dpljs,tmt8wm8oh0drhjc,tmt8wm8oh0e0x88,tmt8wm8oi0e1ooq,tmt8wm8iz07172s,tmt8wm8iz072bam,tmt8wm8oi0e2bgo -> tmt8wm8iz06wtr8,tmt8wm8iz06xm0c,tmt8wm8iz06vwmo,tmt8wm8iz06ysqk,tmt8wm8iz06z2df,tmt8wm8iz070lm4,tmt8wm8og0dpljs,tmt8wm8oh0drhjc,tmt8wm8oh0e0x88,tmt8wm8oi0e1ooq,tmt8wm8iz07172s,tmt8wm8iz072bam,tmt8wm8oi0e2bgo |
+| `store:projectStore.moveTrack` | PASS | PASS | PASS | project, undo changed — tmt99pd9706v0tp,tmt99pd9706wbao,tmt99pd9706x76v,tmt99pd9706yicl,tmt99pd9706zvrq,tmt99pd97070zu3,tmt99pdes0dpd0x,tmt99pdet0drutk,tmt99pdet0e0aqy,tmt99pdeu0e1hma,tmt99pd97071354,tmt99pd970724zb,tmt99pdeu0e26j9 -> tmt99pd9706wbao,tmt99pd9706x76v,tmt99pd9706v0tp,tmt99pd9706yicl,tmt99pd9706zvrq,tmt99pd97070zu3,tmt99pdes0dpd0x,tmt99pdet0drutk,tmt99pdet0e0aqy,tmt99pdeu0e1hma,tmt99pd97071354,tmt99pd970724zb,tmt99pdeu0e26j9 |
 | `store:projectStore.addMidiClip` | PASS | PASS | PASS | project, undo changed — 13 -> 14 clips |
 | `store:projectStore.moveClip` | PASS | PASS | PASS | project changed — start 0 -> 4 |
 | `store:projectStore.resizeClip` | PASS | PASS | PASS | project changed — length 7 |
@@ -122,41 +122,41 @@ one.
 | `store:projectStore.addAutomationLane` | PASS | PASS | PASS | project, undo changed — 0 -> 1 lanes |
 | `store:projectStore.addAutomationPoint` | PASS | PASS | PASS | project, undo changed — 0 -> 1 points |
 | `store:uiStore.set` | PASS | PASS | PASS | ui changed — editorTab mixer -> piano |
-| `store:uiStore.selectTrack` | PASS | PASS | PASS | ui changed — selection tmt8wm8og0dpljs -> tmt8wm8iz06wtr8 |
-| `effect:compressor` | PASS | — | — | rendered audio differs by 2.95e-3 RMS |
-| `effect:gate` | PASS | — | — | rendered audio differs by 2.58e-2 RMS |
-| `effect:limiter` | PASS | — | — | rendered audio differs by 6.62e-2 RMS |
-| `effect:multiband` | PASS | — | — | rendered audio differs by 8.12e-2 RMS |
+| `store:uiStore.selectTrack` | PASS | PASS | PASS | ui changed — selection tmt99pdes0dpd0x -> tmt99pd9706wbao |
+| `effect:compressor` | PASS | — | — | rendered audio differs by 2.94e-3 RMS |
+| `effect:gate` | PASS | — | — | rendered audio differs by 2.52e-2 RMS |
+| `effect:limiter` | PASS | — | — | rendered audio differs by 6.68e-2 RMS |
+| `effect:multiband` | PASS | — | — | rendered audio differs by 8.11e-2 RMS |
 | `effect:deesser` | FAIL | — | — | rendered audio is identical to the dry render |
-| `effect:eq3` | PASS | — | — | rendered audio differs by 2.13e-3 RMS |
-| `effect:eq8` | PASS | — | — | rendered audio differs by 2.84e-2 RMS |
-| `effect:filter` | PASS | — | — | rendered audio differs by 4.24e-2 RMS |
-| `effect:saturator` | PASS | — | — | rendered audio differs by 6.55e-2 RMS |
-| `effect:distortion` | PASS | — | — | rendered audio differs by 1.11e-1 RMS |
+| `effect:eq3` | PASS | — | — | rendered audio differs by 2.10e-3 RMS |
+| `effect:eq8` | PASS | — | — | rendered audio differs by 2.77e-2 RMS |
+| `effect:filter` | PASS | — | — | rendered audio differs by 4.23e-2 RMS |
+| `effect:saturator` | PASS | — | — | rendered audio differs by 6.63e-2 RMS |
+| `effect:distortion` | PASS | — | — | rendered audio differs by 1.12e-1 RMS |
 | `effect:ampsim` | PASS | — | — | rendered audio differs by 5.01e-2 RMS |
 | `effect:bitcrusher` | PASS | — | — | rendered audio differs by 1.72e-2 RMS |
-| `effect:chorus` | PASS | — | — | rendered audio differs by 3.02e-2 RMS |
-| `effect:flanger` | PASS | — | — | rendered audio differs by 2.96e-2 RMS |
-| `effect:phaser` | PASS | — | — | rendered audio differs by 1.82e-2 RMS |
-| `effect:tremolo` | PASS | — | — | rendered audio differs by 9.06e-3 RMS |
-| `effect:rotary` | PASS | — | — | rendered audio differs by 5.59e-2 RMS |
-| `effect:delay` | PASS | — | — | rendered audio differs by 1.14e-2 RMS |
-| `effect:pingpong` | PASS | — | — | rendered audio differs by 1.27e-2 RMS |
+| `effect:chorus` | PASS | — | — | rendered audio differs by 3.03e-2 RMS |
+| `effect:flanger` | PASS | — | — | rendered audio differs by 3.29e-2 RMS |
+| `effect:phaser` | PASS | — | — | rendered audio differs by 1.91e-2 RMS |
+| `effect:tremolo` | PASS | — | — | rendered audio differs by 9.27e-3 RMS |
+| `effect:rotary` | PASS | — | — | rendered audio differs by 5.61e-2 RMS |
+| `effect:delay` | PASS | — | — | rendered audio differs by 1.21e-2 RMS |
+| `effect:pingpong` | PASS | — | — | rendered audio differs by 1.20e-2 RMS |
 | `effect:reverb` | PASS | — | — | rendered audio differs by 1.01e-2 RMS |
 | `effect:width` | PASS | — | — | rendered audio differs by 2.06e-2 RMS |
-| `effect:autopan` | PASS | — | — | rendered audio differs by 2.66e-2 RMS |
-| `effect:trim` | PASS | — | — | rendered audio differs by 2.95e-3 RMS |
-| `effect:gainMatch` | PASS | — | — | rendered audio differs by 2.95e-3 RMS |
+| `effect:autopan` | PASS | — | — | rendered audio differs by 2.40e-2 RMS |
+| `effect:trim` | PASS | — | — | rendered audio differs by 2.94e-3 RMS |
+| `effect:gainMatch` | PASS | — | — | rendered audio differs by 2.94e-3 RMS |
 | `effect:analyser` | FAIL | — | — | rendered audio is identical to the dry render |
 | `effect:tuner` | FAIL | — | — | rendered audio is identical to the dry render |
 | `effect:vocaltune` | FAIL | — | — | rendered audio is identical to the dry render |
-| `effect:mw-motion-shaper` | PASS | — | — | rendered audio differs by 7.21e-2 RMS |
-| `effect:mw-program-eq` | PASS | — | — | rendered audio differs by 4.41e-2 RMS |
-| `effect:mw-optical-leveller` | PASS | — | — | rendered audio differs by 4.33e-2 RMS |
-| `effect:mw-fet-limiter` | PASS | — | — | rendered audio differs by 3.88e-2 RMS |
-| `effect:mw-variable-mu` | PASS | — | — | rendered audio differs by 3.59e-2 RMS |
-| `effect:mw-console-eq` | PASS | — | — | rendered audio differs by 4.93e-2 RMS |
-| `effect:mw-granular-reverb` | PASS | — | — | rendered audio differs by 9.14e-3 RMS |
+| `effect:mw-motion-shaper` | PASS | — | — | rendered audio differs by 7.40e-2 RMS |
+| `effect:mw-program-eq` | PASS | — | — | rendered audio differs by 4.47e-2 RMS |
+| `effect:mw-optical-leveller` | PASS | — | — | rendered audio differs by 4.39e-2 RMS |
+| `effect:mw-fet-limiter` | PASS | — | — | rendered audio differs by 3.94e-2 RMS |
+| `effect:mw-variable-mu` | PASS | — | — | rendered audio differs by 3.60e-2 RMS |
+| `effect:mw-console-eq` | PASS | — | — | rendered audio differs by 4.90e-2 RMS |
+| `effect:mw-granular-reverb` | PASS | — | — | rendered audio differs by 9.12e-3 RMS |
 | `instrument:synth` | PASS | — | — | key 60 gave 1 source(s), 1 voice(s) held |
 | `instrument:quick` | FAIL | — | — | no zones are loaded, so there is nothing for a note to play — untested here |
 | `instrument:drum` | FAIL | — | — | key 24 of 8 zone(s) produced no source and no held voice |
@@ -164,7 +164,7 @@ one.
 
 ## 2. Combinatorial fuzz
 
-10000 steps in 36.4 s, every invariant held after every one.
+10000 steps in 53.0 s, every invariant held after every one.
 
 ## 3. Properties
 
@@ -176,7 +176,7 @@ one.
 | undo restores the state an undoable action was invoked from | PASS |  |
 | redo restores what undo removed | PASS |  |
 | an automation point reads back the value it was written with | PASS |  |
-| every bypassed insert renders exactly what no insert renders | FAIL | 15 of 34 inserts change the render while bypassed (floor 1.0e-6): multiband 1.648e-2, chorus 1.648e-2, tremolo 1.648e-2, rotary 1.648e-2, pingpong 1.648e-2, reverb 1.648e-2, width 1.648e-2, autopan 1.648e-2, mw-motion-shaper 1.648e-2, mw-program-eq 1.648e-2, mw-optical-leveller 1.648e-2, mw-fet-limiter 1.648e-2, mw-variable-mu 1.648e-2, mw-console-eq 1.648e-2, mw-granular-reverb 1.648e-2 |
+| every bypassed insert renders exactly what no insert renders | PASS |  |
 | raising a track fader never lowers the rendered level | PASS |  |
 | deleting a track leaves no clip pointing at it | PASS |  |
 
@@ -187,25 +187,25 @@ inserts added and deleted continuously.
 
 | what | result | measured |
 | --- | --- | --- |
-| heap warm-up | PASS | 6497 KB before the first 3 sample(s) settled |
-| heap slope after warm-up | PASS | 57 KB/min across 6 samples — 27 MB over an eight-hour session |
-| frame time drift | PASS | median 16.5 to 16.6 ms |
-| worst frame | PASS | 31 ms |
+| heap warm-up | PASS | 6519 KB before the first 3 sample(s) settled |
+| heap slope after warm-up | PASS | 35 KB/min across 6 samples — 17 MB over an eight-hour session |
+| frame time drift | PASS | median 16.4 to 16.6 ms |
+| worst frame | PASS | 32 ms |
 | voices retired | PASS | 0 source(s) left after 165 ms |
 | no notes stuck | PASS | 0 voice(s) held at the end |
 | tracks balanced | PASS | 0 track(s) left over from 8 add/delete cycles |
 
 | sample | frame median | p90 | max | heap KB | sources | tracks |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0 | 16.5 | 18.2 | 31 | 15354 | 10 | 13 |
-| 1 | 16.7 | 17.6 | 20 | 19672 | 12 | 13 |
-| 2 | 16.6 | 17.5 | 18 | 21745 | 18 | 13 |
-| 3 | 16.8 | 17.3 | 18 | 21852 | 13 | 13 |
-| 4 | 16.7 | 17.3 | 18 | 21971 | 14 | 13 |
-| 5 | 16.6 | 17.3 | 18 | 21967 | 15 | 13 |
-| 6 | 16.5 | 17.5 | 18 | 22051 | 14 | 13 |
-| 7 | 16.8 | 17.8 | 18 | 22002 | 14 | 13 |
-| 8 | 16.6 | 17.5 | 18 | 22210 | 11 | 13 |
+| 0 | 16.4 | 18.2 | 32 | 15389 | 10 | 13 |
+| 1 | 16.6 | 17.2 | 18 | 19722 | 12 | 13 |
+| 2 | 16.7 | 17.4 | 18 | 21810 | 15 | 13 |
+| 3 | 16.7 | 17.4 | 19 | 21908 | 18 | 13 |
+| 4 | 16.7 | 17.6 | 19 | 21962 | 14 | 13 |
+| 5 | 16.8 | 17.6 | 18 | 21989 | 10 | 13 |
+| 6 | 16.8 | 17.5 | 18 | 22092 | 13 | 13 |
+| 7 | 16.7 | 17.6 | 18 | 22061 | 15 | 13 |
+| 8 | 16.6 | 17.9 | 20 | 22129 | 17 | 13 |
 
 ## Uncaught page errors
 

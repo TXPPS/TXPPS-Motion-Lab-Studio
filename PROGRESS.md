@@ -15,30 +15,149 @@ Bundle verified: every deploy is checked by fetching the live bundle and
                  This line names the tip at the moment it was written, so the
                  commit that edits it is by construction one ahead of what it
                  describes. Said plainly rather than left to be noticed.
-Current section: D11 §1, §2 and §5 COMPLETE. §3 COMPLETE - `npm run soak` runs
-                 four layers; `npm run probe:mutations` mutation-tests all
-                 twenty recorded probe corrections.
-Next action:     §8 V27 for the remaining six panels, then §4 FSP8 parity,
-                 then §6 arrangement/MIDI flow, then §7 instruments 9-14.
+Current section: D11 §1, §2, §3, §5 and §8 COMPLETE. `npm run soak` runs four
+                 layers; `npm run probe:mutations` mutation-tests all twenty-four
+                 recorded probe corrections.
+Next action:     §4 FSP8 parity, then §6 arrangement/MIDI flow, then §7
+                 instruments 9-14. Then the Granular Reverb's V27, which needs
+                 engine state rather than a face - see the Ledger.
 Function Ledger: 396 functions, 69 with a state-asserting test, 0 unreachable.
-Open P1s:        A bypassed insert is not always a wire - 15 of 34 kinds change
-                 the render by exactly 1.6478e-2 RMS while bypassed. Measured
-                 precisely, root cause NOT found; see the section below for what
-                 is ruled out. No speculative fix is in the tree.
+Open P1s:        A device rack at the two narrowest container tiers cannot show
+                 one device. On a 1440x900 desktop the drum rack measures
+                 106x37 px, of which the Insert button is 14, so a device slot
+                 is clipped and its options menu cannot be opened. Found by
+                 `e2e/devicewindow.spec.ts`, which is the one failing case in
+                 the suite. The tiers scale `--dev-rack-h` by 0.6, 0.55, 0.42
+                 and 0.3; the last two are the problem, and those blocks are
+                 source-order dependent.
+                 The bypassed-insert P1 is CLOSED: the difference was a
+                 mono/stereo pan-law change, x1.414214 exactly, and
+                 `InsertChain` routes a bypassed insert around itself now.
+Suites:          typecheck (four projects, e2e among them now), lint, 1980 unit,
+                 351 motionwave, 41 core suites, 326 e2e of which 325 pass.
+                 `npm run soak`: 69/136 functional rows with a state-asserting
+                 result, 10,000 fuzz steps with every invariant holding, 9 of 9
+                 properties, endurance all PASS at 35 KB/min after warm-up.
 Open deviations: F11 is left to the browser's fullscreen — the one place the
                  reference's panel map is not matched.
                  §2.5's monitoring modes and latency compensation are
                  DIVERGENT-BY-DESIGN; §3.1 reopens the take-alignment half,
                  which is a different problem and is not divergent.
                  recordingController.ts is 630 lines against the ~400 rule.
-                 scripts/reachability.mjs is 887 and scripts/stress.mjs 640,
-                 both against the same rule and both made worse this session.
-                 Splitting them is mechanical and is deliberately not being done
-                 in the same commit as the corrections they carry, so that
-                 `npm run probe:mutations` can prove the split changed nothing.
-Ledger:          **1 of 14 SHIPPING** - Program EQ, all 27 cells PASS. The
-                 other six built units are FAIL at V27 only.
+                 src/audio/effectChain.ts is 2790, long-standing.
+Ledger:          **6 of 14 SHIPPING** - Motion Shaper, Program EQ, Optical
+                 Leveller, FET Limiter, Variable-Mu and Console EQ, all 27
+                 cells PASS. Granular Reverb is FAIL at V27 alone and needs a
+                 published field that moves with the music; every one it has
+                 but the two peaks is a function of the controls.
 ```
+
+## A bypassed insert was changing the track's pan law
+
+The soak reported one number: 1.6478e-2 RMS across a render, on fifteen
+unrelated inserts, while bypassed. Two hypotheses were tried against that number
+and both were reverted for moving it by nothing, and that is what guessing looks
+like when the measurement cannot discriminate between the guesses — an RMS over
+a whole render collapses a startup transient, a filter difference and a level
+change into the same figure.
+
+`scripts/bypass-probe.mjs` localises it instead, and answered in one run.
+
+| | |
+| --- | --- |
+| where the difference lives | evenly, the same ratio in every window with signal in it |
+| spread of that ratio | 0.000 |
+| energy in the first millisecond | 0.0 % |
+| first non-zero sample | the first sample of audio |
+| level | x1.414214, both channels equally |
+
+√2 is the step between a `StereoPannerNode`'s two pan laws. Fifteen inserts
+contain a node that emits two channels whatever arrives — a `StereoPannerNode`,
+a `ChannelMergerNode`, a `makeStereoTap`, or the worklet the Motion Wave units
+run in, declared `outputChannelCount: [2]`. **A leg at gain zero still
+contributes its channel count**, so a mono track with a bypassed reverb reached
+its panner as stereo, took the stereo law, and came out 3 dB louder at centre
+and 6 dB louder panned hard over.
+
+`InsertChain` routes a bypassed insert *around* itself now rather than trusting
+it to be transparent. That answers the class rather than the fifteen: bypass is
+also exact for a three-band crossover summed flat and a filter at unity, which
+were never wires either and were the reason the property had been weakened to
+"closer to dry than the active unit is". It asserts the strong form again, at
+full resolution, on the track alone — 0 of 34 change the render.
+
+`e2e/bypasstransparent.spec.ts` has two cases and the second is what stops this
+being the wrong fix: an active ping-pong delay must still widen a mono track.
+Pinning the bypassed leg to one channel would pass the first and take that away.
+Mutation-tested: with the bridge held shut the spec fails naming all fifteen
+kinds at x1.414213.
+
+**22 of 41 was the wrong count and it was mine.** The figure came from a sweep
+run before `effectKinds` was deduplicated, so the seven Motion Wave units were
+each counted twice: 34 + 7 = 41, 15 + 7 = 22. The same fifteen kinds throughout.
+
+### Four probe defects came with it
+
+| the probe did | it should have |
+| --- | --- |
+| passed `range: { startSec, endSec }` to an option that takes beats — silently ignored, so every render was the whole project | give it in beats |
+| compared every eighth sample | compare every sample; a decimation with no anti-alias filter folds anything above 2.7 kHz somewhere it is not |
+| measured across the whole mix | measure the track alone; the mix diluted 1.414214 to 1.0331, which is the number both wrong guesses were aimed at |
+| called `preloadForRender` without the decode context it requires | pass it |
+
+### `tsconfig.e2e.json` existed and nothing ran it
+
+The range defect was in the end-to-end suite too, where excess-property checking
+rejects it on sight. `npm run typecheck` invoked three projects and not that one,
+so thirty-one spec files — the bounce-parity guards among them — were compiled by
+nothing. A configured check nobody invokes is worse than a missing one, because
+the file's existence is what stops anybody asking. It is the root `tsconfig.json`
+gotcha arriving from the other direction. Wired in, mutation-tested, and it
+reports the error on sight.
+
+## Two Motion Wave panels had never painted in the app
+
+`bridge.cpp` packs a frame, `unit_worklet.js` copies that many doubles, and the
+unit's `meters` list names them. Nothing checked the three agreed, and two did
+not: the Variable-Mu and the Console EQ each packed seven doubles and named six —
+`lateralVertical` and `american`, both published and neither declared.
+
+`MotionWaveFace` compares the frame's length against the meter list and refuses
+to paint when they disagree. That is correct: a frame read one slot out would
+mislabel every readout with something plausible. But it logs and returns once per
+animation frame, and a face that draws nothing looks like a face waiting for
+signal. `motionwave/ui/test/frame_packing.test.ts` is the guard, and it is the
+count rather than the names — `gainReductionDb[0]` and `[1]` are one field and
+two channels, and forcing them to match would mean renaming the DSP to suit a
+test.
+
+## §8 — V27, measured on all seven panels
+
+Six pass. The reasons the six were failing were three different things and none
+of them was "the animation has not been built" — see `docs/UNIT_LEDGER.md` for
+the detail, and the two publishing defects it found.
+
+| unit | element | distinct values / 40 frames | while suspended |
+| --- | --- | --- | --- |
+| Motion Shaper | `band-low-gain` | 40 | 1 |
+| Program EQ | `input-core` | 25 | 1 |
+| Optical Leveller | `exposure` | 40 | 1 |
+| FET Limiter | `detector` | 16 | 1 |
+| Variable-Mu | `storage-a` | 40 | 1 |
+| Console EQ | `eq-core` | 40 | 1 |
+| Granular Reverb | `live-grains` | **1** | 1 |
+
+The element is chosen for what it means rather than for what moves most. Every
+one of these panels has an input level meter that would satisfy the motion case,
+and a level is what every box has; `V27`'s third requirement is that the
+animation communicates *this* unit's mechanism.
+
+**The FET Limiter's row is also a probe correction.** Its detector moved 16 times
+in 40 frames and 7 in 20, and the suspended-engine case required more than ten in
+its 20-frame window before it would believe the panel had been moving. That
+figure was borrowed from the 40-frame motion case and assumes every mechanism
+moves at the display's rate; a limiter's detector moves at the programme's. The
+precondition is now separate from the claim, which is the stop.
 
 ## Every corrected probe, mutation-tested
 

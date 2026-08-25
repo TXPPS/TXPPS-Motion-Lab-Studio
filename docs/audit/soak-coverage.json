@@ -1,9 +1,9 @@
 {
   "bundle": {
-    "entry": "index-mykgjkxf.js",
-    "hash": "28d8e3d50ee4859b"
+    "entry": "index-DzQWmA0T.js",
+    "hash": "83a90cac3cfb00ae"
   },
-  "seed": 20260825,
+  "seed": 1787698760,
   "rows": [
     {
       "id": "shortcut:play",
@@ -1288,15 +1288,15 @@
       "forms": {
         "phone": {
           "state": "PASS",
-          "why": "project, undo changed — 13 -> 14 tracks, id tmt8wlpp50e716l"
+          "why": "project, undo changed — 13 -> 14 tracks, id tmt99ou8v0e7h64"
         },
         "tablet": {
           "state": "PASS",
-          "why": "project, undo changed — 13 -> 14 tracks, id tmt8wm2lg0e7clc"
+          "why": "project, undo changed — 13 -> 14 tracks, id tmt99p7a20e70z4"
         },
         "desktop": {
           "state": "PASS",
-          "why": "project, surfaces, undo changed — 13 -> 14 tracks, id tmt8wmfl00e709w"
+          "why": "project, surfaces, undo changed — 13 -> 14 tracks, id tmt99pkey0e7rpz"
         }
       },
       "covered": true
@@ -1396,15 +1396,15 @@
       "forms": {
         "phone": {
           "state": "PASS",
-          "why": "project, undo changed — tmt8wliz306vhic,tmt8wliz306wfw0,tmt8wliz306x03d,tmt8wliz306yt4y,tmt8wliz306zvu8,tmt8wliz307087w,tmt8wlj380dpaur,tmt8wlj390drg3q,tmt8wlj390e0wse,tmt8wlj3a0e170c,tmt8wliz30715ld,tmt8wliz3072fni,tmt8wlj3a0e2z9q -> tmt8wliz306wfw0,tmt8wliz306x03d,tmt8wliz306vhic,tmt8wliz306yt4y,tmt8wliz306zvu8,tmt8wliz307087w,tmt8wlj380dpaur,tmt8wlj390drg3q,tmt8wlj390e0wse,tmt8wlj3a0e170c,tmt8wliz30715ld,tmt8wliz3072fni,tmt8wlj3a0e2z9q"
+          "why": "project, undo changed — tmt99onk606vu2e,tmt99onk606woah,tmt99onk606xde8,tmt99onk606y8yg,tmt99onk606zn3r,tmt99onk6070wg0,tmt99ono70dp7rv,tmt99ono80dr072,tmt99ono80e0rzf,tmt99ono90e1s1n,tmt99onk60714t6,tmt99onk6072809,tmt99ono90e2sc0 -> tmt99onk606woah,tmt99onk606xde8,tmt99onk606vu2e,tmt99onk606y8yg,tmt99onk606zn3r,tmt99onk6070wg0,tmt99ono70dp7rv,tmt99ono80dr072,tmt99ono80e0rzf,tmt99ono90e1s1n,tmt99onk60714t6,tmt99onk6072809,tmt99ono90e2sc0"
         },
         "tablet": {
           "state": "PASS",
-          "why": "project, undo changed — tmt8wlvm806v43u,tmt8wlvm806wvmh,tmt8wlvm806xspb,tmt8wlvm806yvv6,tmt8wlvm806zx0s,tmt8wlvm8070hjx,tmt8wlvrd0dpc7e,tmt8wlvre0dr1qr,tmt8wlvre0e08om,tmt8wlvrg0e1xfd,tmt8wlvm80710rj,tmt8wlvm80721vh,tmt8wlvrg0e2042 -> tmt8wlvm806wvmh,tmt8wlvm806xspb,tmt8wlvm806v43u,tmt8wlvm806yvv6,tmt8wlvm806zx0s,tmt8wlvm8070hjx,tmt8wlvrd0dpc7e,tmt8wlvre0dr1qr,tmt8wlvre0e08om,tmt8wlvrg0e1xfd,tmt8wlvm80710rj,tmt8wlvm80721vh,tmt8wlvrg0e2042"
+          "why": "project, undo changed — tmt99p09a06v1wo,tmt99p09a06wgdi,tmt99p09a06x08t,tmt99p09a06yeg7,tmt99p09a06zujl,tmt99p09a070p1z,tmt99p0eb0dpxx9,tmt99p0ec0drf76,tmt99p0ec0e0vot,tmt99p0ed0e1sl9,tmt99p09a071bk4,tmt99p09a072h4p,tmt99p0ed0e2ayj -> tmt99p09a06wgdi,tmt99p09a06x08t,tmt99p09a06v1wo,tmt99p09a06yeg7,tmt99p09a06zujl,tmt99p09a070p1z,tmt99p0eb0dpxx9,tmt99p0ec0drf76,tmt99p0ec0e0vot,tmt99p0ed0e1sl9,tmt99p09a071bk4,tmt99p09a072h4p,tmt99p0ed0e2ayj"
         },
         "desktop": {
           "state": "PASS",
-          "why": "project, undo changed — tmt8wm8iz06vwmo,tmt8wm8iz06wtr8,tmt8wm8iz06xm0c,tmt8wm8iz06ysqk,tmt8wm8iz06z2df,tmt8wm8iz070lm4,tmt8wm8og0dpljs,tmt8wm8oh0drhjc,tmt8wm8oh0e0x88,tmt8wm8oi0e1ooq,tmt8wm8iz07172s,tmt8wm8iz072bam,tmt8wm8oi0e2bgo -> tmt8wm8iz06wtr8,tmt8wm8iz06xm0c,tmt8wm8iz06vwmo,tmt8wm8iz06ysqk,tmt8wm8iz06z2df,tmt8wm8iz070lm4,tmt8wm8og0dpljs,tmt8wm8oh0drhjc,tmt8wm8oh0e0x88,tmt8wm8oi0e1ooq,tmt8wm8iz07172s,tmt8wm8iz072bam,tmt8wm8oi0e2bgo"
+          "why": "project, undo changed — tmt99pd9706v0tp,tmt99pd9706wbao,tmt99pd9706x76v,tmt99pd9706yicl,tmt99pd9706zvrq,tmt99pd97070zu3,tmt99pdes0dpd0x,tmt99pdet0drutk,tmt99pdet0e0aqy,tmt99pdeu0e1hma,tmt99pd97071354,tmt99pd970724zb,tmt99pdeu0e26j9 -> tmt99pd9706wbao,tmt99pd9706x76v,tmt99pd9706v0tp,tmt99pd9706yicl,tmt99pd9706zvrq,tmt99pd97070zu3,tmt99pdes0dpd0x,tmt99pdet0drutk,tmt99pdet0e0aqy,tmt99pdeu0e1hma,tmt99pd97071354,tmt99pd970724zb,tmt99pdeu0e26j9"
         }
       },
       "covered": true
@@ -1756,15 +1756,15 @@
       "forms": {
         "phone": {
           "state": "PASS",
-          "why": "ui changed — selection tmt8wlj380dpaur -> tmt8wliz306wfw0"
+          "why": "ui changed — selection tmt99ono70dp7rv -> tmt99onk606woah"
         },
         "tablet": {
           "state": "PASS",
-          "why": "ui changed — selection tmt8wlvrd0dpc7e -> tmt8wlvm806wvmh"
+          "why": "ui changed — selection tmt99p0eb0dpxx9 -> tmt99p09a06wgdi"
         },
         "desktop": {
           "state": "PASS",
-          "why": "ui changed — selection tmt8wm8og0dpljs -> tmt8wm8iz06wtr8"
+          "why": "ui changed — selection tmt99pdes0dpd0x -> tmt99pd9706wbao"
         }
       },
       "covered": true
@@ -1774,7 +1774,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 2.95e-3 RMS"
+          "why": "rendered audio differs by 2.94e-3 RMS"
         }
       },
       "covered": true
@@ -1784,7 +1784,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 2.58e-2 RMS"
+          "why": "rendered audio differs by 2.52e-2 RMS"
         }
       },
       "covered": true
@@ -1794,7 +1794,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 6.62e-2 RMS"
+          "why": "rendered audio differs by 6.68e-2 RMS"
         }
       },
       "covered": true
@@ -1804,7 +1804,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 8.12e-2 RMS"
+          "why": "rendered audio differs by 8.11e-2 RMS"
         }
       },
       "covered": true
@@ -1824,7 +1824,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 2.13e-3 RMS"
+          "why": "rendered audio differs by 2.10e-3 RMS"
         }
       },
       "covered": true
@@ -1834,7 +1834,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 2.84e-2 RMS"
+          "why": "rendered audio differs by 2.77e-2 RMS"
         }
       },
       "covered": true
@@ -1844,7 +1844,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 4.24e-2 RMS"
+          "why": "rendered audio differs by 4.23e-2 RMS"
         }
       },
       "covered": true
@@ -1854,7 +1854,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 6.55e-2 RMS"
+          "why": "rendered audio differs by 6.63e-2 RMS"
         }
       },
       "covered": true
@@ -1864,7 +1864,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 1.11e-1 RMS"
+          "why": "rendered audio differs by 1.12e-1 RMS"
         }
       },
       "covered": true
@@ -1894,7 +1894,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 3.02e-2 RMS"
+          "why": "rendered audio differs by 3.03e-2 RMS"
         }
       },
       "covered": true
@@ -1904,7 +1904,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 2.96e-2 RMS"
+          "why": "rendered audio differs by 3.29e-2 RMS"
         }
       },
       "covered": true
@@ -1914,7 +1914,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 1.82e-2 RMS"
+          "why": "rendered audio differs by 1.91e-2 RMS"
         }
       },
       "covered": true
@@ -1924,7 +1924,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 9.06e-3 RMS"
+          "why": "rendered audio differs by 9.27e-3 RMS"
         }
       },
       "covered": true
@@ -1934,7 +1934,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 5.59e-2 RMS"
+          "why": "rendered audio differs by 5.61e-2 RMS"
         }
       },
       "covered": true
@@ -1944,7 +1944,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 1.14e-2 RMS"
+          "why": "rendered audio differs by 1.21e-2 RMS"
         }
       },
       "covered": true
@@ -1954,7 +1954,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 1.27e-2 RMS"
+          "why": "rendered audio differs by 1.20e-2 RMS"
         }
       },
       "covered": true
@@ -1984,7 +1984,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 2.66e-2 RMS"
+          "why": "rendered audio differs by 2.40e-2 RMS"
         }
       },
       "covered": true
@@ -1994,7 +1994,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 2.95e-3 RMS"
+          "why": "rendered audio differs by 2.94e-3 RMS"
         }
       },
       "covered": true
@@ -2004,7 +2004,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 2.95e-3 RMS"
+          "why": "rendered audio differs by 2.94e-3 RMS"
         }
       },
       "covered": true
@@ -2044,7 +2044,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 7.21e-2 RMS"
+          "why": "rendered audio differs by 7.40e-2 RMS"
         }
       },
       "covered": true
@@ -2054,7 +2054,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 4.41e-2 RMS"
+          "why": "rendered audio differs by 4.47e-2 RMS"
         }
       },
       "covered": true
@@ -2064,7 +2064,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 4.33e-2 RMS"
+          "why": "rendered audio differs by 4.39e-2 RMS"
         }
       },
       "covered": true
@@ -2074,7 +2074,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 3.88e-2 RMS"
+          "why": "rendered audio differs by 3.94e-2 RMS"
         }
       },
       "covered": true
@@ -2084,7 +2084,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 3.59e-2 RMS"
+          "why": "rendered audio differs by 3.60e-2 RMS"
         }
       },
       "covered": true
@@ -2094,7 +2094,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 4.93e-2 RMS"
+          "why": "rendered audio differs by 4.90e-2 RMS"
         }
       },
       "covered": true
@@ -2104,7 +2104,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 9.14e-3 RMS"
+          "why": "rendered audio differs by 9.12e-3 RMS"
         }
       },
       "covered": true
