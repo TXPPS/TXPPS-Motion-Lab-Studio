@@ -30,6 +30,8 @@ export const granularReverbMeters: readonly MeterChannel[] = [
   { name: GranularReverbMeter.Rt60At8k, kind: 'raw' },
   { name: GranularReverbMeter.Feedback, kind: 'raw' },
   { name: GranularReverbMeter.LiveGrains, kind: 'raw' },
+  { name: GranularReverbMeter.CloudDepth, kind: 'raw' },
+  { name: GranularReverbMeter.CloudSpread, kind: 'raw' },
 ];
 
 export const granularReverbUnit: UnitUnderTest = {

@@ -58,6 +58,15 @@ export const GranularReverbMeter = {
   Feedback: 'feedback',
   /** Grains sounding now — the true count, not the published subset. */
   LiveGrains: 'live-grains',
+  /**
+   * How far behind the write head the live cloud is reading, in seconds.
+   *
+   * The mechanism, rather than a level or a control read back. See
+   * `GranularReverbFrame` for why the grain *count* could not be this.
+   */
+  CloudDepth: 'cloud-depth',
+  /** Spread across those read heads. Zero when Spray is zero. */
+  CloudSpread: 'cloud-spread',
 } as const;
 
 /**
@@ -140,6 +149,8 @@ export const granularReverbFace: UnitFace = {
     // The readouts §6 and §2.5 ask for by name, which no control states.
     meter('overlap', GranularReverbMeter.Overlap, 'Overlap, grains sounding at once'),
     meter('live-grains', GranularReverbMeter.LiveGrains, 'Grains sounding now'),
+    meter('cloud-depth', GranularReverbMeter.CloudDepth, 'How far back the cloud is reading'),
+    meter('cloud-spread', GranularReverbMeter.CloudSpread, 'Spread across the cloud’s read heads'),
     meter(
       'clamped-density',
       GranularReverbMeter.ClampedDensity,

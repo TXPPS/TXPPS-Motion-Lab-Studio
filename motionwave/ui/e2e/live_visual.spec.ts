@@ -23,6 +23,13 @@
  *    panel has to show is its *time* behaviour, and time behaviour is invisible
  *    under a signal that has none — so the dynamics units are probed with an
  *    envelope, which is the same argument as `dyn-01`'s 40 Hz.
+ *  - **The Granular Reverb published nothing that moved.** Overlap, clamped
+ *    density, RT60 and feedback are all arithmetic on the controls, and
+ *    `liveGrains` settles at `density × length` and then holds at twenty-two
+ *    whatever is playing — honest engine state, and still. It publishes where
+ *    the live grains are reading now, which is the granular mechanism itself:
+ *    the tail is grains cut out of a buffer of what was played, and how far
+ *    back they are cutting is what makes it a reverb rather than a delay.
  *  - **The Console EQ genuinely had nothing to show.** Widths and a working Q
  *    are functions of the controls; peaks are levels. It publishes its EQ
  *    inductor's core flux now, which moves with the music and reads exactly
@@ -45,7 +52,8 @@ const PANELS = [
     unit: 'fx-01',
     name: 'Motion Shaper',
     element: 'band-low-gain',
-    mechanism: 'the gain the low band’s modulator is applying, which is the drawn shape becoming audio',
+    mechanism:
+      'the gain the low band’s modulator is applying, which is the drawn shape becoming audio',
   },
   {
     unit: 'dyn-01',
@@ -57,7 +65,8 @@ const PANELS = [
     unit: 'dyn-02',
     name: 'Optical Leveller',
     element: 'exposure',
-    mechanism: 'the photocell’s accumulated exposure, which is why its release is programme-dependent',
+    mechanism:
+      'the photocell’s accumulated exposure, which is why its release is programme-dependent',
   },
   {
     unit: 'dyn-03',
@@ -80,8 +89,9 @@ const PANELS = [
   {
     unit: 'fx-02',
     name: 'Granular Reverb',
-    element: 'live-grains',
-    mechanism: 'how many grains are alive right now, which is the tail being built rather than modelled',
+    element: 'cloud-depth',
+    mechanism:
+      'how far back in the buffer the live cloud is reading, which is the tail being cut out of what was played rather than modelled',
   },
 ] as const;
 
@@ -161,7 +171,9 @@ for (const panel of PANELS) {
       expect(running, 'the panel was not moving before the engine stopped').toBeGreaterThan(3);
       // The face keeps drawing; it just has nothing new to draw, which is the
       // honest behaviour. A face inventing motion reads in the teens here.
-      expect(stillPainting, 'the face stopped painting, so this proves nothing').toBeGreaterThan(10);
+      expect(stillPainting, 'the face stopped painting, so this proves nothing').toBeGreaterThan(
+        10,
+      );
       expect(stopped).toBe(1);
     });
   });

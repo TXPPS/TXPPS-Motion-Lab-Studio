@@ -388,7 +388,7 @@ EMSCRIPTEN_KEEPALIVE
 const double* mw_granular_reverb_visual() {
   mw::units::GranularReverbFrame frame;
   g_granularReverb.unit().visual().read(frame);
-  std::vector<double>& out = g_granularReverb.visualScratch(7);
+  std::vector<double>& out = g_granularReverb.visualScratch(9);
   out[0] = static_cast<double>(frame.inputPeak);
   out[1] = static_cast<double>(frame.outputPeak);
   out[2] = static_cast<double>(frame.overlap);
@@ -396,6 +396,8 @@ const double* mw_granular_reverb_visual() {
   out[4] = static_cast<double>(frame.rt60At8k);
   out[5] = static_cast<double>(frame.feedback);
   out[6] = static_cast<double>(frame.liveGrains);
+  out[7] = static_cast<double>(frame.cloudDepthSeconds);
+  out[8] = static_cast<double>(frame.cloudSpreadSeconds);
   return out.data();
 }
 

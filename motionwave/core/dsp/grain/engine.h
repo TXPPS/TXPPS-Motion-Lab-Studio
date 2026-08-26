@@ -120,6 +120,8 @@ class GrainEngine {
     dropped_ = 0;
     publishCountdown_ = 0;
     sequence_ = 0;
+    cloudDepth_ = 0.0f;
+    cloudSpread_ = 0.0f;
   }
 
   void setSchedule(std::uint8_t tap, const ScheduleConfig& schedule) noexcept {
@@ -199,6 +201,25 @@ class GrainEngine {
   std::uint64_t spawned() const noexcept { return spawned_; }
   std::uint64_t dropped() const noexcept { return dropped_; }
   const GrainPool& pool() const noexcept { return pool_; }
+
+  /**
+   * Where the live cloud is reading, as a distance behind the write head.
+   *
+   * The mean of it and the spread across it, in seconds, updated whenever the
+   * visualiser frame is. This is the granular mechanism as one number: the tail
+   * is not a filter network, it is grains cut out of a buffer of what was
+   * played, and *how far back* each of them is cutting is the whole of what
+   * makes it a reverb rather than a delay.
+   *
+   * Live grain count cannot say that. At steady state it is `density × length`
+   * and holds still at 22 whatever is playing, which is what left `fx-02` the
+   * one unit failing V27 — a readout that is honest engine state and is a
+   * function of the controls, exactly like the Program EQ's curvature was.
+   * The depth is not: it is drawn per grain, from the same `readPos` the
+   * samples were taken at, and it changes as grains spawn, age and retire.
+   */
+  float cloudDepthSeconds() const noexcept { return cloudDepth_; }
+  float cloudSpreadSeconds() const noexcept { return cloudSpread_; }
 
   /**
    * Consumer side of the visualiser ring, from the UI thread.
@@ -371,6 +392,27 @@ class GrainEngine {
     // The **oldest by id**, deterministically, so particles persist between
     // frames instead of flickering as a random subset reshuffles. §5.7.
     const Grain* grains = pool_.active();
+
+    // The cloud's depth, over *every* live grain rather than the sixty-four the
+    // visualiser has room for. The readout is about the cloud; the subset is
+    // about the drawing, and a mean taken over "the oldest sixty-four" would
+    // drift older than the cloud is exactly when the cloud is busiest.
+    //
+    // Computed here, from the same `readPos` the block's samples came out of,
+    // for the same reason the views are: a second evaluation of where the
+    // grains are is a second thing that can disagree with what was heard.
+    double sum = 0.0;
+    double nearest = 0.0;
+    double furthest = 0.0;
+    for (int i = 0; i < live; ++i) {
+      const double behind =
+          (static_cast<double>(source.writeIndex + frames) - grains[i].readPos) / sampleRate_;
+      sum += behind;
+      if (i == 0 || behind < nearest) nearest = behind;
+      if (i == 0 || behind > furthest) furthest = behind;
+    }
+    cloudDepth_ = live > 0 ? static_cast<float>(sum / static_cast<double>(live)) : 0.0f;
+    cloudSpread_ = live > 0 ? static_cast<float>(furthest - nearest) : 0.0f;
     int published = 0;
     std::uint32_t cutoff = 0xFFFFFFFFu;
     if (live > kPublishedGrains) cutoff = nthOldestId(grains, live, kPublishedGrains);
@@ -431,6 +473,8 @@ class GrainEngine {
   std::uint32_t sequence_ = 0;
   std::uint64_t spawned_ = 0;
   std::uint64_t dropped_ = 0;
+  float cloudDepth_ = 0.0f;
+  float cloudSpread_ = 0.0f;
 };
 
 }  // namespace mw::dsp::grain

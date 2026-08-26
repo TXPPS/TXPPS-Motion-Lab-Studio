@@ -40,6 +40,19 @@ struct GranularReverbFrame {
   /// parameter into a legible one and costs nothing.
   float rt60At8k = 0.0f;
   float feedback = 0.0f;
+  /**
+   * Where the live cloud is reading, behind the write head, in seconds.
+   *
+   * The mechanism as a number, and the one thing this unit publishes that is
+   * neither a level nor a function of the controls. `liveGrains` settles at
+   * `density × length` and then holds still whatever is playing — honest
+   * engine state that says nothing about the moment — which is what left fx-02
+   * the last unit failing V27. These two move as grains spawn, age and retire,
+   * and stop dead when the engine does.
+   */
+  float cloudDepthSeconds = 0.0f;
+  /// Spread across those read heads. Zero when Spray is zero, by construction.
+  float cloudSpreadSeconds = 0.0f;
   std::uint16_t liveGrains = 0;
   bool frozen = false;
 };
@@ -542,6 +555,8 @@ class GranularReverb : public Node {
     frame.clampedDensity = engine_.clampedDensity(0);
     frame.feedback = static_cast<float>(feedback_);
     frame.liveGrains = static_cast<std::uint16_t>(engine_.liveGrains());
+    frame.cloudDepthSeconds = engine_.cloudDepthSeconds();
+    frame.cloudSpreadSeconds = engine_.cloudSpreadSeconds();
     frame.frozen = freezeTarget_ < 0.5f;
     // The loop applies `fb · |H_damp(ω)|` per pass, so the decay at 8 kHz is
     // §2.2's relation evaluated with that product rather than with `fb` alone.

@@ -63,7 +63,7 @@ const UNITS = {
   'dyn-03': { prefix: 'mw_fet_limiter', frame: 4, curve: false, bpm: false },
   'dyn-04': { prefix: 'mw_variable_mu', frame: 7, curve: false, bpm: false },
   'dyn-05': { prefix: 'mw_console_eq', frame: 9, curve: false, bpm: false },
-  'fx-02': { prefix: 'mw_granular_reverb', frame: 7, curve: false, bpm: false },
+  'fx-02': { prefix: 'mw_granular_reverb', frame: 9, curve: false, bpm: false },
 };
 
 /** The widest frame any unit publishes, which is what the shared buffer holds. */
