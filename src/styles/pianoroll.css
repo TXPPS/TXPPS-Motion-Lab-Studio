@@ -134,17 +134,160 @@
   outline: 1px solid var(--solo-hi);
   z-index: calc(var(--z-clip) + 1);
 }
+/*
+ * The one gesture that changes a note's length, drawn rather than merely
+ * present.
+ *
+ * It was a transparent strip: 7px, 14 on touch, with nothing on it. So the
+ * resize gesture existed and was discoverable only by finding it, and on touch
+ * — where there is no cursor to change shape on hover — there was no cue at
+ * all. Two rules, at the right-hand end, is what a grip looks like at this
+ * size; the whole strip lights on hover, which is the desktop's own answer and
+ * costs a touch device nothing.
+ *
+ * Its *width* is computed in `geometry.ts`, not here: below a certain note
+ * width there is no room for both a handle and a body to drag, and the handle
+ * is what gives way. See the short-note rule there.
+ */
 .pr-note .pr-note-edge {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 1px;
+  bottom: 1px;
   right: 0;
-  width: 7px;
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 2px,
+    rgb(0 0 0 / 0.45) 2px 3px,
+    transparent 3px 5px,
+    rgb(255 255 255 / 0.3) 5px 6px
+  );
+  background-position: right center;
+  background-repeat: no-repeat;
+  background-size: 6px 100%;
   cursor: ew-resize;
 }
+.pr-note:hover .pr-note-edge,
+.pr-note.selected .pr-note-edge {
+  background-color: rgb(255 255 255 / 0.16);
+}
+
+/*
+ * What the hand is covering, said where the hand is not.
+ *
+ * `pointer-events: none` is load-bearing: this sits over the grid during a
+ * drag, and a band that intercepted the pointer would end the gesture it exists
+ * to narrate.
+ */
+.pr-readout {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--toolbar-h) + 6px);
+  transform: translateX(-50%);
+  z-index: var(--z-panel-chrome);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-float);
+  box-shadow: var(--sh-3);
+  font-family: var(--font-num);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* The drag is in the top quarter of the roll, so the band goes to the bottom. */
+.pr-readout.low {
+  top: auto;
+  bottom: 10px;
+}
+.pr {
+  position: relative;
+}
+
+/* Two axes, side by side, with the axis each pair moves in front of it. */
+.pr-zoom,
+.pr-nudge {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+.pr-zoom-axis {
+  padding: 0 1px 0 4px;
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+}
+
 @media (pointer: coarse) {
-  .pr-note .pr-note-edge {
-    width: 14px;
+  /*
+   * A nudge pad and a zoom control are the touch routes to edits a desktop
+   * makes with modifier keys, so on a finger they are targets rather than
+   * decorations. Capability parity, affordance divergence: the desktop keeps
+   * hover, thin edges and Alt+arrow, and gets the same four commands in the
+   * same place.
+   */
+  .pr-zoom .icon-btn,
+  .pr-nudge .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  /*
+   * And the bar grows to hold them.
+   *
+   * `--toolbar-h` is 34px, so `min-height: 44px` on a button inside it was
+   * clipped to 34 — measured, every zoom and nudge control came back 44 x 34.
+   * That is the device rack's defect one panel over: a target grown past the
+   * row that holds it is not a bigger target, it is a clipped one, and the
+   * only way to see the difference is to measure what a finger can reach
+   * rather than what the CSS asks for.
+   */
+  .pr-toolbar {
+    height: auto;
+    min-height: 48px;
+  }
+  /*
+   * The touch-only routes come first, because the bar scrolls sideways.
+   *
+   * `.pr-toolbar` is `overflow-x: auto` and holds about twenty controls in
+   * 390px. Measured on a phone: everything from the quantize strength rightward
+   * was off screen, which put the nudge pad and both zoom axes — the controls
+   * that exist *because* a phone has no arrow keys and no modifier — behind
+   * fifteen others and a horizontal flick.
+   *
+   * A control one flick away is not an inoperable control, and this is not a
+   * new pane or a second toolbar. It is an ordering: on a finger, the four
+   * commands a finger cannot otherwise reach are the ones that start on screen,
+   * and the clip name and the snap picker are the ones that scroll. On a
+   * desktop nothing moves, because there the arrow keys and Alt are still the
+   * fast path and the bar fits.
+   */
+  .pr-nudge {
+    order: -2;
+  }
+  .pr-zoom {
+    order: -1;
+  }
+  /*
+   * And everything else on the bar, once the bar is tall enough to hold it.
+   *
+   * Measured on a phone before this: the snap picker was 57 x 23, the key 39 x
+   * 23, the scale 125 x 24, LOCK 36 x 30, Chords 62 x 34. Scale lock and chord
+   * stamping are two of the things §6 asks for by name, and both were targets a
+   * thumb could not reliably hit — which is a feature present and unusable
+   * rather than a feature missing, and harder to notice for exactly that
+   * reason.
+   *
+   * A range input is included on purpose: velocity, quantize strength and swing
+   * are dragged, and a 30px track is a drag a finger starts by missing.
+   */
+  .pr-toolbar button,
+  .pr-toolbar select,
+  .pr-toolbar input {
+    min-height: 44px;
+  }
+  .pr-readout {
+    font-size: var(--fs-md);
+    padding: 6px 14px;
   }
 }
 

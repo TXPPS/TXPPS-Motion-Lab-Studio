@@ -27,13 +27,14 @@ import {
 import { inScale, KEY_NAMES, SCALES, snapToScale, suggestScales } from '../../model/scales';
 import type { MidiClip, Note } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
+import { handleWidth, useRowHeight, zoomRows } from './geometry';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
 
 const PITCH_MAX = 108; // C8 (top row)
 const PITCH_MIN = 21; // A0
 const KEYS_W = 52;
-const ROW_H = 16;
+
 const VEL_H = 56;
 
 /**
@@ -67,9 +68,23 @@ interface NoteViewProps {
   positionLabel: (beat: number) => string;
 }
 
+/**
+ * Is the hand high enough in the roll that a readout at the top would be under
+ * it? A quarter of the viewport is the band's own height plus the width of a
+ * thumb, which is what the readout has to clear to be readable at all.
+ */
+function nearTop(e: { clientY: number }): boolean {
+  const roll = document.querySelector('[data-testid="piano-roll"]')?.getBoundingClientRect();
+  if (!roll) return false;
+  return e.clientY - roll.top < roll.height / 4;
+}
+
 function NoteView({ note, clip, ppb, trackId, positionLabel }: NoteViewProps) {
   const selected = useUiStore((s) => s.selectedNoteIds.includes(note.id));
   const snap = useUiStore((s) => s.prSnap);
+  const rowH = useRowHeight();
+  const noteWidth = Math.max(5, note.length * ppb);
+  const edge = handleWidth(noteWidth);
   const store = useProjectStore;
   const ui = useUiStore;
 
@@ -105,7 +120,7 @@ function NoteView({ note, clip, ppb, trackId, positionLabel }: NoteViewProps) {
     onMove: (dx, dy, e, d) => {
       if (d.ids.length === 0) return;
       const dBeats = dx / ppb;
-      const dPitch = -Math.round(dy / ROW_H);
+      const dPitch = -Math.round(dy / rowH);
       store.getState().updateNotes(clip.id, d.ids, (n) => {
         const o = d.orig.get(n.id);
         if (!o) return {};
@@ -121,6 +136,17 @@ function NoteView({ note, clip, ppb, trackId, positionLabel }: NoteViewProps) {
         d.lastPitch = newPitch;
         previewNote(trackId, newPitch, 70);
       }
+      // What the hand is covering, said somewhere the hand is not.
+      const o = d.orig.get(note.id);
+      if (o) {
+        const at = Math.max(0, e.shiftKey ? o.start + dBeats : snapBeat(o.start + dBeats, snap));
+        ui.getState().set({
+          prDragReadout: {
+            text: `${midiToName(newPitch)} · ${positionLabel(at)}`,
+            nearTop: nearTop(e),
+          },
+        });
+      }
     },
     onEnd: (moved, d) => {
       if (d.ids.length === 0) return;
@@ -133,6 +159,7 @@ function NoteView({ note, clip, ppb, trackId, positionLabel }: NoteViewProps) {
         }));
       }
       store.getState().endGesture();
+      ui.getState().set({ prDragReadout: null });
     },
   });
 
@@ -148,16 +175,28 @@ function NoteView({ note, clip, ppb, trackId, positionLabel }: NoteViewProps) {
     },
     onMove: (dx, _dy, e, d) => {
       const dBeats = dx / ppb;
+      let shown = 0;
       store.getState().updateNotes(clip.id, d.ids, (n) => {
         const o = d.orig.get(n.id);
         if (!o) return {};
         const raw = o.length + dBeats;
-        return {
-          length: Math.max(snap || 0.0625, e.shiftKey ? raw : snapBeat(raw, snap)),
-        };
+        const length = Math.max(snap || 0.0625, e.shiftKey ? raw : snapBeat(raw, snap));
+        if (n.id === note.id) shown = length;
+        return { length };
       });
+      if (shown > 0) {
+        ui.getState().set({
+          prDragReadout: {
+            text: `${midiToName(note.pitch)} · ${shown.toFixed(3).replace(/0+$/, '')} beats`,
+            nearTop: nearTop(e),
+          },
+        });
+      }
     },
-    onEnd: () => store.getState().endGesture(),
+    onEnd: () => {
+      store.getState().endGesture();
+      ui.getState().set({ prDragReadout: null });
+    },
   });
 
   const gesture = (edit: () => void) => {
@@ -242,9 +281,9 @@ function NoteView({ note, clip, ppb, trackId, positionLabel }: NoteViewProps) {
       onKeyDown={onKeyDown}
       style={{
         left: note.start * ppb,
-        width: Math.max(5, note.length * ppb),
-        top: (PITCH_MAX - note.pitch) * ROW_H + 1,
-        height: ROW_H - 2,
+        width: noteWidth,
+        top: (PITCH_MAX - note.pitch) * rowH + 1,
+        height: rowH - 2,
         opacity: note.muted ? 0.3 : 0.45 + (note.velocity / 127) * 0.55,
       }}
       data-testid="pr-note"
@@ -276,8 +315,29 @@ function NoteView({ note, clip, ppb, trackId, positionLabel }: NoteViewProps) {
       title={`${midiToName(note.pitch)} · vel ${note.velocity}${note.muted ? ' · muted' : ''}`}
     >
       {note.length * ppb > 34 && <span className="pr-note-label">{midiToName(note.pitch)}</span>}
-      {/* The edge is a drag handle; its keyboard route is Alt+←/→ on the note. */}
-      <div className="pr-note-edge" onPointerDown={dragResize} aria-hidden="true" />
+      {/*
+        The edge is a drag handle, and it is drawn rather than merely present.
+        It was a transparent 7px strip — 14 on touch — with no mark on it, so
+        the one gesture that changes a note's length was discoverable only by
+        finding it. Its keyboard route is Alt+←/→ on the note, and its touch
+        route is the nudge pad; both stay.
+
+        The **short-note rule** is why the width is computed rather than fixed.
+        A sixteenth at the default zoom is 8px wide and the touch handle is 14,
+        so the handle covered the whole note and every attempt to *move* a short
+        note resized it instead — silently, because both gestures are a drag.
+        There is no width at which both fit, so the shorter one gives up the
+        handle and says so by not drawing a grip it cannot honour.
+      */}
+      {edge > 0 && (
+        <div
+          className="pr-note-edge"
+          style={{ width: edge }}
+          onPointerDown={dragResize}
+          aria-hidden="true"
+          data-testid="pr-note-edge"
+        />
+      )}
     </div>
   );
 }
@@ -371,6 +431,8 @@ export function PianoRoll() {
   const editClipId = useUiStore((s) => s.editClipId);
   const selectedClipId = useUiStore((s) => s.selectedClipId);
   const ppb = useUiStore((s) => s.prPxPerBeat);
+  const rowH = useRowHeight();
+  const dragReadout = useUiStore((s) => s.prDragReadout);
   const snap = useUiStore((s) => s.prSnap);
   const selectedNoteIds = useUiStore((s) => s.selectedNoteIds);
   const prKey = useUiStore((s) => s.prKey);
@@ -427,7 +489,7 @@ export function PianoRoll() {
     ? (drumMap.lanes[0].pitch + drumMap.lanes[drumMap.lanes.length - 1].pitch) / 2
     : 60;
   const rows = PITCH_MAX - PITCH_MIN + 1;
-  const gridH = rows * ROW_H;
+  const gridH = rows * rowH;
   const contentBeats = clip ? Math.max(clip.length + 4, 16) : 16;
   const gridW = contentBeats * ppb;
 
@@ -464,10 +526,10 @@ export function PianoRoll() {
     didInitScroll.current = true;
     const pitches = clip.notes.map((n) => n.pitch);
     const center = pitches.length ? (Math.min(...pitches) + Math.max(...pitches)) / 2 : openAtPitch;
-    sc.scrollTop = Math.max(0, (PITCH_MAX - center) * ROW_H - sc.clientHeight / 2);
+    sc.scrollTop = Math.max(0, (PITCH_MAX - center) * rowH - sc.clientHeight / 2);
     sc.scrollLeft = 0;
     updateWin();
-  }, [clip, openAtPitch, updateWin]);
+  }, [clip, openAtPitch, updateWin, rowH]);
 
   // Keep the keyboard cursor on screen, but only when the cursor itself moves.
   // Focus was in this dependency list, which meant clicking the grid scrolled
@@ -497,7 +559,7 @@ export function PianoRoll() {
    * eliminated in Milestone 3 — and gradients compose on the GPU at any size.
    */
   const gridStyle = useMemo(() => {
-    const cycle = 12 * ROW_H;
+    const cycle = 12 * rowH;
     // Rows are pitches descending from C8, so row i is black when the pitch
     // class of (PITCH_MAX - i) is a black key.
     const blackRows: string[] = [];
@@ -506,14 +568,14 @@ export function PianoRoll() {
       const pitch = PITCH_MAX - i;
       if (isBlack(pitch)) {
         blackRows.push(
-          `rgba(255,255,255,0.028) ${i * ROW_H}px ${(i + 1) * ROW_H}px`,
-          `transparent ${(i + 1) * ROW_H}px`,
+          `rgba(255,255,255,0.028) ${i * rowH}px ${(i + 1) * rowH}px`,
+          `transparent ${(i + 1) * rowH}px`,
         );
       }
       if (prScale !== 'chromatic' && !inScale(pitch, prKey, prScale)) {
         scaleRows.push(
-          `rgba(0,0,0,0.32) ${i * ROW_H}px ${(i + 1) * ROW_H}px`,
-          `transparent ${(i + 1) * ROW_H}px`,
+          `rgba(0,0,0,0.32) ${i * rowH}px ${(i + 1) * rowH}px`,
+          `transparent ${(i + 1) * rowH}px`,
         );
       }
     }
@@ -523,9 +585,9 @@ export function PianoRoll() {
       // beat lines
       `repeating-linear-gradient(90deg, rgba(255,255,255,0.07) 0 1px, transparent 1px ${ppb}px)`,
       // row lines
-      `repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0 1px, transparent 1px ${ROW_H}px)`,
+      `repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0 1px, transparent 1px ${rowH}px)`,
       // C separators every octave
-      `repeating-linear-gradient(180deg, transparent 0 ${ROW_H - 1}px, rgba(255,255,255,0.09) ${ROW_H - 1}px ${ROW_H}px, transparent ${ROW_H}px ${cycle}px)`,
+      `repeating-linear-gradient(180deg, transparent 0 ${rowH - 1}px, rgba(255,255,255,0.09) ${rowH - 1}px ${rowH}px, transparent ${rowH}px ${cycle}px)`,
     ];
     if (snap > 0 && snap < 1 && snap * ppb >= 5) {
       layers.splice(
@@ -545,7 +607,7 @@ export function PianoRoll() {
       );
     }
     return { backgroundImage: layers.join(', ') } as const;
-  }, [ppb, snap, prKey, prScale]);
+  }, [ppb, rowH, snap, prKey, prScale]);
 
   // playback cursor within clip
   useEffect(() => {
@@ -587,8 +649,8 @@ export function PianoRoll() {
       setMarquee({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
       const b0 = x0 / ppb;
       const b1 = x1 / ppb;
-      const pHi = PITCH_MAX - Math.floor(y0 / ROW_H);
-      const pLo = PITCH_MAX - Math.floor(y1 / ROW_H);
+      const pHi = PITCH_MAX - Math.floor(y0 / rowH);
+      const pLo = PITCH_MAX - Math.floor(y1 / rowH);
       const hits = clip.notes
         .filter((n) => n.start < b1 && n.start + n.length > b0 && n.pitch >= pLo && n.pitch <= pHi)
         .map((n) => n.id);
@@ -611,7 +673,7 @@ export function PianoRoll() {
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const start = snapBeatFloor(x / ppb, snap || 0.25);
-      let pitch = PITCH_MAX - Math.floor(y / ROW_H);
+      let pitch = PITCH_MAX - Math.floor(y / rowH);
       if (start >= clip.length || pitch < PITCH_MIN || pitch > PITCH_MAX) return;
       if (prScaleLock && prScale !== 'chromatic') pitch = snapToScale(pitch, prKey, prScale);
       const id = useProjectStore.getState().addNote(clip.id, {
@@ -628,7 +690,7 @@ export function PianoRoll() {
       setGridCursor(at);
       if (track) previewNote(track.id, pitch);
     },
-    [clip, ppb, snap, track, prScaleLock, prScale, prKey],
+    [clip, ppb, rowH, snap, track, prScaleLock, prScale, prKey],
   );
 
   /** Selection, or every note when nothing is selected — what tools act on. */
@@ -732,6 +794,35 @@ export function PianoRoll() {
     if (track) previewNote(track.id, pitch);
   };
 
+  /**
+   * Move every selected note by a pitch and a time step.
+   *
+   * One gesture per press, so a run of nudges is a run of undo steps rather
+   * than one indivisible blur — which is what `beginGesture`/`endGesture`
+   * around a single edit means here. Scale lock applies to the landing pitch
+   * for the same reason it applies at the end of a drag: the note has to be
+   * legal where it stops, not while it is moving.
+   */
+  const nudgeSelection = (dPitch: number, dBeats: number) => {
+    const ids = useUiStore.getState().selectedNoteIds;
+    if (ids.length === 0 || !clip) return;
+    const ui = useUiStore.getState();
+    const lock = ui.prScaleLock && ui.prScale !== 'chromatic';
+    useProjectStore.getState().beginGesture();
+    useProjectStore.getState().updateNotes(clip.id, ids, (nt) => {
+      const pitch = clamp(nt.pitch + dPitch, PITCH_MIN, PITCH_MAX);
+      return {
+        pitch: lock && dPitch !== 0 ? snapToScale(pitch, ui.prKey, ui.prScale) : pitch,
+        start: Math.max(0, nt.start + dBeats),
+      };
+    });
+    useProjectStore.getState().endGesture();
+    if (track && dPitch !== 0) {
+      const first = clip.notes.find((nt) => ids.includes(nt.id));
+      if (first) previewNote(track.id, clamp(first.pitch + dPitch, PITCH_MIN, PITCH_MAX), 70);
+    }
+  };
+
   const onGridKey = (e: React.KeyboardEvent) => {
     // Notes own their own keys and stop them; anything arriving here is the
     // grid's own cursor.
@@ -793,8 +884,8 @@ export function PianoRoll() {
     const x0 = n.start * ppb;
     const x1 = (n.start + n.length) * ppb;
     if (x0 >= win.right || x1 <= win.left) return false;
-    const y = (PITCH_MAX - n.pitch) * ROW_H;
-    return y <= win.bottom && y + ROW_H >= win.top;
+    const y = (PITCH_MAX - n.pitch) * rowH;
+    return y <= win.bottom && y + rowH >= win.top;
   });
   /** The velocity lane windows horizontally only — it has no vertical extent. */
   const velNotes = clip.notes.filter((n) => {
@@ -808,11 +899,11 @@ export function PianoRoll() {
    * cursor that has scrolled away would leave the column unreachable; the
    * topmost mounted row stands in until focus brings the cursor back.
    */
-  const cursorRowTop = (PITCH_MAX - keyCursor) * ROW_H;
+  const cursorRowTop = (PITCH_MAX - keyCursor) * rowH;
   const tabPitch =
-    cursorRowTop <= win.bottom && cursorRowTop + ROW_H >= win.top
+    cursorRowTop <= win.bottom && cursorRowTop + rowH >= win.top
       ? keyCursor
-      : PITCH_MAX - clamp(Math.ceil(win.top / ROW_H), 0, rows - 1);
+      : PITCH_MAX - clamp(Math.ceil(win.top / rowH), 0, rows - 1);
 
   const openToolsMenu = (x: number, y: number) => {
     const clipId = clip.id;
@@ -1109,6 +1200,7 @@ export function PianoRoll() {
         </select>
         <button
           className={`th-mini wide${prScaleLock ? ' on' : ''}`}
+          data-testid="scale-lock"
           title="Snap added and dragged notes to the scale"
           aria-pressed={prScaleLock}
           disabled={prScale === 'chromatic'}
@@ -1144,6 +1236,57 @@ export function PianoRoll() {
         >
           Chords
         </button>
+        {/*
+          Nudge, as a control rather than only as a key.
+          Alt+←/→ and ↑/↓ have moved the selection since the roll was written,
+          which is a complete answer for a desktop and none at all for a phone:
+          the arrow keys a phone does not have were the only way to place a note
+          off the snap grid or to transpose without dragging across the roll. The
+          pad is the same four edits, and `coarsePointer` decides the size rather
+          than the presence — a desktop keeps it as a discoverable second route.
+        */}
+        <div className="pr-nudge" role="group" aria-label="Nudge the selection">
+          <button
+            className="icon-btn"
+            data-testid="pr-nudge-earlier"
+            disabled={selectedNoteIds.length === 0}
+            title={`Earlier by ${snap || 0.25} beat`}
+            aria-label="Nudge earlier"
+            onClick={() => nudgeSelection(0, -(snap || 0.25))}
+          >
+            ◀
+          </button>
+          <button
+            className="icon-btn"
+            data-testid="pr-nudge-down"
+            disabled={selectedNoteIds.length === 0}
+            title="Down a semitone"
+            aria-label="Transpose down"
+            onClick={() => nudgeSelection(-1, 0)}
+          >
+            ▼
+          </button>
+          <button
+            className="icon-btn"
+            data-testid="pr-nudge-up"
+            disabled={selectedNoteIds.length === 0}
+            title="Up a semitone"
+            aria-label="Transpose up"
+            onClick={() => nudgeSelection(1, 0)}
+          >
+            ▲
+          </button>
+          <button
+            className="icon-btn"
+            data-testid="pr-nudge-later"
+            disabled={selectedNoteIds.length === 0}
+            title={`Later by ${snap || 0.25} beat`}
+            aria-label="Nudge later"
+            onClick={() => nudgeSelection(0, snap || 0.25)}
+          >
+            ▶
+          </button>
+        </div>
 
         <span className="spacer" style={{ flex: 1 }} />
         <button
@@ -1157,25 +1300,83 @@ export function PianoRoll() {
         >
           <Icon name="loop" size={12} />
         </button>
-        <button
-          className="icon-btn"
-          onClick={() =>
-            useUiStore.getState().set({ prPxPerBeat: Math.max(12, Math.round(ppb * 0.8)) })
-          }
-          title="Zoom out"
-        >
-          −
-        </button>
-        <button
-          className="icon-btn"
-          onClick={() =>
-            useUiStore.getState().set({ prPxPerBeat: Math.min(96, Math.round(ppb * 1.25)) })
-          }
-          title="Zoom in"
-        >
-          +
-        </button>
+        {/*
+          Two axes, because they answer different questions.
+          The roll had one pair of zoom buttons and a lane height fixed at 16px,
+          so a musician editing a two-octave line and one checking the shape of
+          a whole verse were given the same control. Time and pitch move
+          independently now, and the pitch axis has a floor a finger can use.
+        */}
+        <div className="pr-zoom" role="group" aria-label="Zoom">
+          <span className="pr-zoom-axis" aria-hidden="true">
+            ↔
+          </span>
+          <button
+            className="icon-btn"
+            data-testid="pr-zoom-time-out"
+            onClick={() =>
+              useUiStore.getState().set({ prPxPerBeat: Math.max(12, Math.round(ppb * 0.8)) })
+            }
+            title="Less time on screen per beat"
+            aria-label="Zoom out in time"
+          >
+            −
+          </button>
+          <button
+            className="icon-btn"
+            data-testid="pr-zoom-time-in"
+            onClick={() =>
+              useUiStore.getState().set({ prPxPerBeat: Math.min(96, Math.round(ppb * 1.25)) })
+            }
+            title="More room per beat"
+            aria-label="Zoom in in time"
+          >
+            +
+          </button>
+          <span className="pr-zoom-axis" aria-hidden="true">
+            ↕
+          </span>
+          <button
+            className="icon-btn"
+            data-testid="pr-zoom-pitch-out"
+            onClick={() => useUiStore.getState().set({ prRowH: zoomRows(rowH, 0.8) })}
+            title="Shorter lanes, more pitches on screen"
+            aria-label="Zoom out in pitch"
+          >
+            −
+          </button>
+          <button
+            className="icon-btn"
+            data-testid="pr-zoom-pitch-in"
+            onClick={() => useUiStore.getState().set({ prRowH: zoomRows(rowH, 1.25) })}
+            title="Taller lanes"
+            aria-label="Zoom in in pitch"
+          >
+            +
+          </button>
+        </div>
       </div>
+      {/*
+        What the hand is covering.
+
+        A finger on a note hides the note. A desktop answers that with the
+        note's own label, a `title` tooltip and a pointer that is beside what it
+        is holding; touch has none of the three, so the roll used to give a
+        thumb no way at all to know which pitch it had landed on until it lifted
+        off. The band is `pointer-events: none` and flips to the bottom when the
+        drag is in the top quarter of the roll, because a readout under the hand
+        is the same as no readout.
+      */}
+      {dragReadout && (
+        <div
+          className={`pr-readout${dragReadout.nearTop ? ' low' : ''}`}
+          role="status"
+          aria-live="polite"
+          data-testid="pr-readout"
+        >
+          {dragReadout.text}
+        </div>
+      )}
       <div
         className="pr-scroll"
         ref={scrollRef}
@@ -1200,9 +1401,9 @@ export function PianoRoll() {
           >
             {Array.from({ length: rows }, (_, i) => {
               const pitch = PITCH_MAX - i;
-              const rowTop = i * ROW_H;
-              if (rowTop > win.bottom || rowTop + ROW_H < win.top) {
-                return <div key={pitch} style={{ height: ROW_H }} />;
+              const rowTop = i * rowH;
+              if (rowTop > win.bottom || rowTop + rowH < win.top) {
+                return <div key={pitch} style={{ height: rowH }} />;
               }
               const drumName = drumMap ? laneOf(drumMap, pitch)?.name : undefined;
               const outOfScale = prScale !== 'chromatic' && !inScale(pitch, prKey, prScale);
@@ -1210,8 +1411,9 @@ export function PianoRoll() {
                 <div
                   key={pitch}
                   className={`pr-key${isBlack(pitch) ? ' black' : ''}${pitch % 12 === 0 ? ' c-note' : ''}${outOfScale ? ' oos' : ''}`}
-                  style={{ height: ROW_H }}
+                  style={{ height: rowH }}
                   data-pitch={pitch}
+                  data-testid="pr-key"
                   role="button"
                   tabIndex={pitch === tabPitch ? 0 : -1}
                   aria-label={`Play ${drumName ?? midiToName(pitch)}`}
@@ -1306,9 +1508,9 @@ export function PianoRoll() {
                 style={{
                   position: 'absolute',
                   left: gridCursor.beat * ppb,
-                  top: (PITCH_MAX - gridCursor.pitch) * ROW_H,
+                  top: (PITCH_MAX - gridCursor.pitch) * rowH,
                   width: Math.max(4, (snap || 0.25) * ppb),
-                  height: ROW_H,
+                  height: rowH,
                   border: '1px solid rgba(255, 255, 255, 0.65)',
                   borderRadius: 2,
                   pointerEvents: 'none',

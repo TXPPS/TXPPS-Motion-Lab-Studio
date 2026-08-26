@@ -32,21 +32,29 @@ Bundle verified: every deploy is checked by fetching the live bundle and
                  This line names the tip at the moment it was written, so the
                  commit that edits it is by construction one ahead of what it
                  describes. Said plainly rather than left to be noticed.
-Current section: D11 §1, §2, §3, §5 and §8 COMPLETE; §4 STARTED - the ten
-                 claims the parity documents name themselves are now checked on
-                 every build by `npm run parity-guard`, and five of them had
-                 been closed while the documents still said MISSING.
-Next action:     Finish §4 (535 MISSING and 294 PARTIAL remain across seven
-                 chapters), then §6 arrangement/MIDI flow, then §7 instruments
-                 9-14.
+Current section: D11 §1-§6 and §8 COMPLETE. §4 is now every claim in the
+                 parity corpus rather than thirteen of them: 947 claims,
+                 enumerated from the eight chapters, each settled by its own
+                 citations, by a pinned predicate, or by a recorded judgement
+                 with a reason. Its first run found a P0 that had been built
+                 and never written down.
+Next action:     §7 - the voice substrate, proven through Slipstream, then the
+                 five synths. NOT STARTED.
 Function Ledger: 396 functions, 69 with a state-asserting test, 0 unreachable.
-Open P1s:        The console's per-device controls are 5, 12 and 11 px tall on a
-                 desktop, and `e2e/devicewindow.spec.ts` holds them to the
-                 44 px touch minimum. That is a sizing *policy* decision for the
-                 console - a mouse target of 11 px also fails WCAG 2.2's 24 px
-                 pointer minimum, and growing it grows every device row - so it
-                 is left for a decision rather than settled here. It is the one
-                 failing case in the suite.
+Open P1s:        None. The suite has no failing case.
+                 The console's target-size question is CLOSED, by WCAG 2.5.8's
+                 equivalent-alternative provision rather than by moving a
+                 number: the options menu carries every command the inline
+                 controls offer, its entries are 44 px on a finger, and on
+                 touch the 5 px power lamp is dropped rather than grown. The
+                 inline controls are fine-pointer shortcuts and are exempt
+                 while that stays true, which `tests/deviceMenu.test.ts` is
+                 what keeps.
+                 `devicewindow.spec.ts` was recorded as failing on 11 px
+                 against 44. It was not: Escape closed the window under an open
+                 menu and left the menu covering the button, and a decorative
+                 meter took presses aimed at the rack. Both are fixed and all
+                 42 offered devices pass.
                  The rack P1 it was recorded as is CLOSED, and it was not what
                  it said: pressing a strip mounted the Channel Overview, which
                  took 44% of the mixer pane, and the Insert button moved 107 px
@@ -56,12 +64,16 @@ Open P1s:        The console's per-device controls are 5, 12 and 11 px tall on a
                  The bypassed-insert P1 is CLOSED: the difference was a
                  mono/stereo pan-law change, x1.414214 exactly, and
                  `InsertChain` routes a bypassed insert around itself now.
-Suites:          typecheck (four projects), lint, 1991 unit, 351 motionwave,
-                 42 core suites, 328 e2e of which 327 pass, 34 panel tests.
-                 `npm run check-checks`: 26 declared checks, 22 on every push,
-                 1 documented, 3 manual with a reason; 13 HELD, 2 BLOCKED,
-                 1 KEPT, 0 DECAYED.
-                 `npm run parity-guard`: 13 claims, 9 at parity.
+Suites:          typecheck (four projects), lint, 2005 unit, 351 motionwave,
+                 42 core suites, 358 e2e all passing, 34 panel tests.
+                 `npm run check-checks`: 27 declared checks, 23 on every push,
+                 1 documented, 3 manual with a reason.
+                 `npm run parity-guard`: 947 claims in 427 sections - 806
+                 checked against the audit's own citations, 13 pinned to a
+                 predicate, 141 recorded as needing judgement with a reason.
+                 454 MISSING and 263 PARTIAL still open.
+                 `npm run gesture-guard`: 87 files swept; every scripted press
+                 and every touch context pressed with a mouse has a reason.
                  `npm run soak`: 69/136 functional rows with a state-asserting
                  result, 10,000 fuzz steps with every invariant holding, 10 of
                  10 properties, endurance all PASS at 42 KB/min after warm-up.
@@ -85,6 +97,132 @@ Ledger:          **7 of 14 SHIPPING** - Motion Shaper, Program EQ, Optical
                  cloud is reading now; the grain *count* is a spawn rate times a
                  length and sat at 22 whatever was playing.
 ```
+
+## "No three-dot, remove or move controls on mobile" — four reasons, all true
+
+Reported from use. Four separate causes, none of them visible to a test that
+opens the menu with `el.click()`:
+
+|                                                     |                                                                                                                                                       |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.dev-menu` was `opacity: 0`                        | revealed only by `.dev-slot:hover`, and nothing on a touch device hovers                                                                              |
+| the coarse block gave it `min-height: 44px`         | inside a 16 px row, so it overflowed into the two below and a finger at the centre of the first device's button landed on the **third** device's icon |
+| `.dev-slot` is `flex-wrap: wrap` for the Micro View | at 44 px wide the name's `flex-basis: auto` pushed the button onto a second line, 47 px below its own slot, **on top of the Insert button**           |
+| `.fx-head .dev-menu` matched no reveal rule at all  | the inspector's copy — the rack a phone lands in — has been invisible on every form factor for as long as it has existed                              |
+
+On touch the menu is the route: 44 x 44, visible, and the 5 px power lamp is
+dropped rather than grown. That is WCAG 2.5.8's equivalent-alternative
+provision, which makes two things load-bearing rather than nice — the menu has
+to carry _every_ command the rack offers inline, and its own entries have to be
+big enough. It carried all but one: the **disclosure**, the press that opens a
+device's parameters, was inline-only on both racks, so on touch — where the
+inline controls are hidden — a device's parameters were unreachable.
+
+### Measuring found three more, in the same class
+
+**A press on the first device's power lamp bypassed the second.** `::after` at
+`inset: -19.5px` — 5 + 39 = 44, derived against the touch minimum and never
+measured against a 17 px row pitch. Every lamp's hit area covered its
+neighbour's whole row and the later sibling took the press, so any channel with
+more than one insert had a bypass button that was **off by one**. Not "hard to
+hit": wrong device, silently, with the right one left running.
+
+**Escape closed the window under an open menu and left the menu.**
+`PluginWindow` listens in the capture phase and stops propagation, which is
+what makes it beat the app behind — and it was also beating the menus above it
+at `--z-menu` 800 against its own 300. The abandoned menu then covered the
+button that opened it.
+
+**A decorative meter took presses aimed at the rack.** `.smeter-bars` is
+`aria-hidden` and its scale spills past an `overflow: visible` box.
+
+Those last two are why `devicewindow.spec.ts` had been the one failing case in
+the suite. It was recorded as an 11 x 11-against-44 px target failure. It was
+two product defects, and all 42 offered devices pass now.
+
+### The measurement was wrong as well as the code
+
+`hitBox` in `orientation.spec.ts` added a declared `::after` inset to a border
+box — the _intended_ rectangle, not the reachable one. Inside a scroller they
+are nowhere near each other: `.dev-power` declared 44 x 44 and delivered 16 x
+16, then 1 x 1 once a second device was on the channel. It walks outward with
+`elementFromPoint` now, and said so immediately — the device window's bypass
+lamp reached **33 x 44**, and "Compare slot B" reached **39** inside an
+`overflow: hidden` group 3 px narrower than its own buttons. Both fixed.
+
+A declared 44 that delivers 11 is worse than an honest 20, because the number
+goes in a report and the report is what stops anybody measuring. The rack's
+options button is 20 x 16 on a desktop now, and 20 x 16 is what it reaches.
+
+## A reachability claim made without a hand is not a reachability claim
+
+`el.click()` invokes a handler. It does not ask whether anything is on top of
+the element, whether it can be seen, whether it is on screen, or whether the
+gesture a person makes would arrive. Neither does `hasTouch: true` plus
+`click()`, which makes `(pointer: coarse)` match and then sends a **mouse** —
+which is how `longPress` came to be dead in the reachability sweep.
+
+`e2e/pointer.ts` lands a press on coordinates with a declared pointerType and
+says what it hit. `scripts/gesture-guard.mjs` runs in the build and fails on a
+scripted press, or a touch context pressed with a mouse, that has not been
+argued for in writing — 87 files swept, six scripted sites and three
+mouse-on-touch files, each with a reason. The audit found every one of the six
+already carrying a written reason and all six being fixture steps. What was
+missing was not a rule; it was any reachability assertion at all for the
+control that was broken.
+
+## §4 — nine hundred and forty-seven claims, not thirteen
+
+`parity-guard` checked thirteen. The audit makes **947**, enumerated from the
+eight chapters, and 535 MISSING against thirteen checks is thirteen credible
+numbers and 934 unexamined ones.
+
+| how a claim is settled                                                                              | count   |
+| --------------------------------------------------------------------------------------------------- | ------- |
+| its own citations — every cited path and filename resolves, every symbol said to be absent still is | **806** |
+| a pinned predicate that must agree with the verdict in both directions                              | **13**  |
+| a recorded judgement, one of four reasons, across 99 sections                                       | **141** |
+
+Its first full run found three sentences that had stopped being true. **AD-3,
+output device selection, recorded `MISSING` and marked P0, has been built** —
+`outputDeviceId` in `prefsStore`, a control in `AudioSetup.tsx`, applied
+through `AudioContext.setSinkId`, with `canChooseOutput()` reporting whether
+the browser offers it. That is the sixth item closed while the documents went
+on calling it missing, and the first that was a P0. **IO-13** said `audition`
+appeared nowhere in `src/`; `Engine.audition(mediaId)` drives the browser's
+preview. **The fundamentals chapter** said `Float64Array` appeared nowhere; it
+appears three times, none of them a signal path.
+
+Reading the corpus took **eight notations**, every one found by running the
+enumerator and looking at what it could not read. One was worse than a miss: a
+legend heuristic of "three or more verdict words" ate gap paragraphs that
+weighed three outcomes, and three whole sections of the mixing chapter vanished
+behind it. A heuristic that fails by _dropping_ claims leaves something that
+still looks like a complete sweep.
+
+## §6 — the piano roll under a thumb
+
+Capability parity, affordance divergence. Five edits were not possible on a
+phone at all, and `ROW_H = 16` was two of them at once.
+
+|                                 | before                                                                          | after                                                                                       |
+| ------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| zoom axes                       | one — time. Lane height was a module constant                                   | two, independent, each with its own control                                                 |
+| a pitch lane on a phone         | 16 px                                                                           | **56 px floor**, held on read so a stored desktop value never reaches a finger              |
+| the resize handle               | 7 px, 14 on touch, and **transparent**                                          | drawn, and its width computed against the note                                              |
+| a sixteenth at the default zoom | 8 px wide under a 14 px handle — every attempt to _move_ it resized it instead  | the handle gives way below a 24 px body, and says so by not drawing a grip it cannot honour |
+| what a finger covers            | nothing said what was under it: no hover, no tooltip, no cursor beside the note | a readout above the grid, flipping below when the drag is in the top quarter                |
+| nudge                           | Alt+arrows only, which a phone does not have                                    | a four-way pad, 44 px, first on the toolbar on touch                                        |
+
+Two things the measuring turned up. The toolbar is `overflow-x: auto` and holds
+about twenty controls in 390 px: every control from the quantize strength
+rightward was **off screen**, including the pads that exist because a phone has
+no modifier keys. They start on screen now — nudge first, because it is an edit
+a phone cannot otherwise make; zoom second, because it survives being a flick
+away. And `min-height: 44px` on a button inside a 34 px `--toolbar-h` measured
+**44 x 34** — the device rack's defect one panel over.
+
+The desktop keeps hover, thin edges and Alt+arrow, unchanged.
 
 ## PA-010 was fixed on the path you monitor and not on the one you deliver
 

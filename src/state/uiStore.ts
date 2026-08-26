@@ -129,6 +129,26 @@ interface UiState {
    */
   snapMode: SnapMode;
   prPxPerBeat: number;
+  /**
+   * Lane height in the piano roll, in pixels — the roll's *second* zoom axis.
+   *
+   * It was a module constant of 16, which fixed two things at once: a lane was
+   * 16px on a phone as well as a desktop, and the roll had one zoom. Held to a
+   * floor on read rather than on write (`src/components/pianoroll/geometry.ts`),
+   * because the floor is a property of the hand in use and the hand can change
+   * after the value was stored.
+   */
+  prRowH: number;
+  /**
+   * What is under the finger right now, for the roll to show somewhere else.
+   *
+   * A hand editing a note covers it. On a desktop that is what the note's own
+   * label and the pointer's tooltip are for; on touch there is no hover, no
+   * tooltip, and the thing being edited is behind a thumb — so the roll reads
+   * the value out in a band above the grid instead. Null when nothing is being
+   * dragged; the band is not drawn at all rather than drawn empty.
+   */
+  prDragReadout: { text: string; nearTop: boolean } | null;
   prSnap: number;
   /** Piano roll key (tonic pitch class 0-11) and scale id; 'chromatic' = off */
   prKey: number;
@@ -188,6 +208,10 @@ export const useUiStore = create<UiState>((set, get) => ({
   snap: 0.25,
   snapMode: 'grid',
   prPxPerBeat: 32,
+  // 16 is the desktop lane the roll has always drawn; `useRowHeight` raises it
+  // to 56 on a touch device, so a finger never meets the desktop default.
+  prRowH: 16,
+  prDragReadout: null,
   prSnap: 0.25,
   prKey: 0,
   prScale: 'chromatic',

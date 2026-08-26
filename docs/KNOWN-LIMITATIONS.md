@@ -203,3 +203,35 @@ Measured on this project's CI hardware — see
   end trims it, as any other trim would.
 - Crossfades require real trim headroom on both clips (the app checks and
   says so).
+- **A short note cannot be resized by dragging its edge.** The handle gives way
+  below a body of 24 px so the note stays draggable, because both gestures are
+  a drag and the handle is on top — a handle wider than the note it sits on
+  does not make resizing easier, it makes moving impossible. Zoom in, or use
+  Alt+←/→. `src/components/pianoroll/geometry.ts` states the rule and
+  `tests/pianoRollGeometry.test.ts` holds it.
+- **The piano roll's toolbar scrolls sideways on a phone.** About twenty
+  controls in 390 px. The nudge pad starts on screen because it is an edit a
+  phone cannot otherwise make; on a 360 px screen the zoom pair is one
+  horizontal flick away. Every one of them is 44 px and reachable — measured,
+  not assumed — but "reachable after a flick" is not "in front of you".
+
+## Targets that are smaller than the minimum, and why they conform
+
+- **The console's per-device controls are 5 px (power), 12 px (name) and
+  20 x 16 (options) on a desktop.** That is what a rack showing four devices in
+  88 px can be, and WCAG 2.5.8 permits it only through its equivalent
+  alternative: the options menu carries every command the inline controls
+  offer, and its entries are 44 px on a finger and 28 on a pointer. On touch
+  the inline controls are dropped rather than grown, so nothing undersized is
+  the only route to anything. `tests/deviceMenu.test.ts` fails if a command
+  exists inline and not in the menu, which is the moment the exception lapses.
+
+- **An `::after` hit area is clipped by any scroller above it.** This codebase's
+  answer for a control that must stay small — `.resize-handle`, `.dev-power`,
+  `.pw-power` — is a negative-inset pseudo-element, and inside `overflow: auto`
+  it does not deliver what it declares. Measured: `.dev-power` declared 44 x 44
+  and reached 16 x 16 in the device rack, and 1 x 1 once a second device was on
+  the channel, because the neighbouring row's hit area covered it and painted
+  later. Two consequences, both live: a declared inset is not a measurement,
+  and a hit area must be bounded by the row that holds it. `reachableBox` in
+  `e2e/pointer.ts` is the only honest way to ask.
