@@ -39,7 +39,7 @@
  *                would say about a check they had broken.
  */
 
-import { accepting } from './edits.mjs';
+import { accepting, editing } from './edits.mjs';
 import { GATES } from './gate-cases.mjs';
 
 export { DIRECT } from './gate-cases.mjs';
@@ -64,6 +64,12 @@ export const CHECKS = {
     kind: 'tool',
     why: 'copies the core into public/; `check-core-in-bundle` is the check',
   },
+  'build-tree': {
+    kind: 'tool',
+    why: 'records what the build read; `push-guard` is the check, and the build runs this itself',
+  },
+  'hooks:install': { kind: 'tool', why: 'points git at .githooks; `prepare` runs it' },
+  prepare: { kind: 'tool', why: 'npm lifecycle; installs the hooks after an install' },
 
   // ---------------------------------------------------------------- suites
   //
@@ -157,6 +163,31 @@ export const CHECKS = {
     provenBy: 'probe:mutations',
     manual: 'walks every menu in a live browser; run per directive',
     satisfiedBy: 'same as `soak`: satisfied on every directive run, against a live browser',
+  },
+
+  // ------------------------------------------------------------- ordering
+  //
+  // Not a gate over a file's contents but over *when* a check ran, which is the
+  // one thing none of the others can see. A commit was pushed that could not
+  // have built, and lint, format and `check-checks --check` all passed on it.
+  'push-guard': {
+    kind: 'gate',
+    // One recorded blob corrupted, which is "the build read something else"
+    // written down. The record is gitignored, so this mutates a local artefact
+    // rather than the tree — and `restore` cannot put it back, which is why the
+    // gate re-records afterwards.
+    mutate: editing('.build-tree.json', '"package.json": "', '"package.json": "0'),
+    needs: 'committed',
+    restores: [],
+    // The strong form, and the honest one: the error message says to run the
+    // build, so the case runs the build. Re-recording alone would be cheaper by
+    // minutes and would be a lie — the record would then claim a build happened
+    // that had not, which is the exact class of thing this guard exists to stop.
+    satisfy: {
+      name: '`npm run build` re-records the tree it read',
+      repairing: '.build-tree.json',
+      repair: 'npm run build',
+    },
   },
 
   // ------------------------------------------------------------- composite

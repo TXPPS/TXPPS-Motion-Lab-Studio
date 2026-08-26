@@ -28,6 +28,7 @@ npm run e2e              # playwright, uses the preview build
 npm run build
 npm run docs-guard:release   # before a deploy — see "Documents that record state"
 node scripts/check-checks.mjs # every gate mutated, and every check satisfied
+npm run push-guard       # what the pre-push hook asks: is this the tree the build read?
 
 # Motion Wave (core)
 cd motionwave
@@ -239,6 +240,40 @@ writing those files — not whether to widen the scope until it goes quiet.
   satisfiability case is the proof, and it clones this repository `--depth 1` to
   get it.
 
+- **Currency is not completeness.** A generated document can be _current_ and
+  _empty_ at the same time: `docs/audit/SOAK.md` was overwritten with three
+  lines by fifty-four scoped probe runs and `docs-guard` stayed green, because a
+  partial run copies the source fingerprint forward correctly and the header is
+  written before there is anything to render. **Everything that says a generated
+  document can be trusted is written before it has any content in it.** So every
+  GENERATED entry in `scripts/docs/registry.mjs` carries a `must`: the sections
+  it has to contain, the shape of each, and a minimum it cannot be below. A
+  report with no fuzz section, or a table with zero rows, fails whatever its
+  fingerprint says. **A floor is derived or it is one** — the soak's property
+  table is checked against the harness's own list and the Function Ledger's
+  table against the total the ledger itself states, because a minimum chosen to
+  sit under today's measurement is a constant fitted to the thing it checks.
+  `docs-guard` truncates every generated document to the stub its own generator
+  would write and requires all five to be rejected, on every build.
+
+- **The build goes after the last edit, and git enforces it.** A commit was
+  pushed that could not have built: a file split moved a string past an
+  exemption, `npm run build` exited, and lint, `format:check` and
+  `check-checks --check` all passed on that tree afterwards — none of them is
+  the build. So the build's last step records what it read
+  (`scripts/checks/build-tree.mjs --record`, into the gitignored
+  `.build-tree.json`) and `.githooks/pre-push` refuses a push whose commit is
+  not that tree. The comparison is a manifest rather than a tree hash, so an
+  untracked scratch file is in neither side of it; `BUILD_OK_ANYWAY='reason'`
+  is the override and it takes a reason for the same reason `MW_SCOPE_ALSO`
+  does. `npm run hooks:install` points git at `.githooks`, and `prepare` runs it.
+
+- **A gate may need more than one mutation.** `mutate` takes a list, and every
+  edit in it has to turn the check red. A guard that enforces four unrelated
+  rules is load-bearing in four ways, and one edit can only ever speak for one
+  of them — `docs-guard`'s completeness rule would have been proved by nothing
+  while the entry read HELD.
+
 - **Every guard must be provably _satisfiable_, not only falsifiable.** A
   mutation says a check is load-bearing. It says nothing about whether the state
   the check demands can ever be reached, and `docs-guard`'s currency rule was
@@ -269,6 +304,18 @@ writing those files — not whether to widen the scope until it goes quiet.
   filename, type, symbol, preset name or comment. Reference names live only in
   `docs/reference/`. See `LEGAL_NOTES.md`; this is a commercial-safety
   requirement.
+- **A spec that names its own mutation has to be able to catch it.** VS-02 said
+  "replace the partition with a boolean flag per voice and this case must fail",
+  and its three stated criteria all _hold_ under that mutation: the array is
+  never reordered, so it stays a permutation. What breaks is disjointness of
+  ownership, and nothing was asking. Two more of the same shape were found by
+  sweeping the document — VS-23's criteria are satisfied by a receiver that
+  ignores the zone message its own prose says must not be ignored, and §5.2's
+  exponential formula reaches its target at `x = 1` while starting 3 % away from
+  where the previous segment ended. This is the cell-title failure at spec
+  level: a row that tests what its title implies rather than what its criteria
+  say. When you correct one, keep the version it replaces on the page.
+
 - **A value marked `[I]` in a spec sheet is quarantined.** It came from an
   emulator implementation rather than from a measurement or a manual, which
   makes it somebody's design decision rather than a fact about the hardware.

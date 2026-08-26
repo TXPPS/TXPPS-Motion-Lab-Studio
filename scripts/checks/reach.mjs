@@ -80,6 +80,40 @@ export function documentedCommands() {
 }
 
 /**
+ * The commands git runs on its own, from the hooks this repository ships.
+ *
+ * A third route, and it is not `documented`: a hook runs without anybody
+ * choosing to, which is the same property CI has and the whole reason the
+ * pre-push guard exists. Calling it documented would say the ordering rule is
+ * enforced by somebody reading `CLAUDE.md`, and a rule enforced by reading is
+ * the rule that had already failed.
+ *
+ * Read from `.githooks/` rather than from `.git/hooks/`, which is not tracked:
+ * the question is what this repository installs, not what one checkout happens
+ * to have.
+ */
+export function hookCommands() {
+  const dir = join(ROOT, '.githooks');
+  const out = [];
+  let entries = [];
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return out;
+  }
+  for (const entry of entries) {
+    for (const line of readLines(join(dir, entry)).split('\n')) {
+      const command = line
+        .replace(/#.*$/, '')
+        .replace(/^\s*exec\s+/, '')
+        .trim();
+      if (command && !command.startsWith('!')) out.push({ hook: entry, command });
+    }
+  }
+  return out;
+}
+
+/**
  * Expand one command into every npm script it transitively runs.
  *
  * `npm run build` runs eleven checks in a chain and each of them is reached by
@@ -115,13 +149,19 @@ export const signature = (command) => command.replace(/\s+/g, ' ').trim();
 /**
  * Everything reached, by route.
  *
- * Two routes rather than one union, because they answer different questions: a
- * check reached only by `CLAUDE.md` does not run on a push, and a reviewer
+ * Three routes rather than one union, because they answer different questions:
+ * a check reached only by `CLAUDE.md` does not run on a push, and a reviewer
  * needs to be told which of those they are looking at.
  */
 export function reachability(scripts) {
   const byCi = new Set();
   const byDocs = new Set();
+  const byHook = new Set();
+  const hookText = [];
+  for (const { command } of hookCommands()) {
+    hookText.push(command);
+    for (const name of expand(command, scripts, new Set())) byHook.add(name);
+  }
   const ciText = [];
   for (const { command } of ciCommands()) {
     ciText.push(command);
@@ -136,14 +176,16 @@ export function reachability(scripts) {
   // scripts: a tsconfig is reached by being named (`tsc -p tsconfig.e2e.json`)
   // and so is a guard invoked as `node scripts/check-bundle.mjs` with no script
   // wrapping it.
-  const bodies = [...byCi, ...byDocs].map((name) => scripts.get(name) ?? '');
+  const bodies = [...byCi, ...byDocs, ...byHook].map((name) => scripts.get(name) ?? '');
   const ciAll = signature([...ciText, ...[...byCi].map((n) => scripts.get(n) ?? '')].join(' ; '));
-  const all = signature([...ciText, ...docText, ...bodies].join(' ; '));
+  const hookAll = signature(hookText.join(' ; '));
+  const all = signature([...ciText, ...docText, ...hookText, ...bodies].join(' ; '));
   for (const [name, command] of scripts) {
     const body = signature(command);
     if (!body || byCi.has(name)) continue;
     if (ciAll.includes(body)) byCi.add(name);
+    else if (hookAll.includes(body)) byHook.add(name);
     else if (all.includes(body)) byDocs.add(name);
   }
-  return { byCi, byDocs, ciText: ciAll, allText: all };
+  return { byCi, byDocs, byHook, ciText: ciAll, allText: all };
 }

@@ -41,7 +41,7 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ROOT } from './inventory.mjs';
-import { apply, hasCompiler, indexIsEmpty, restore, run } from './gates.mjs';
+import { apply, committedCleanly, hasCompiler, indexIsEmpty, restore, run } from './gates.mjs';
 import { emsdkToolchain } from '../emcxx.mjs';
 
 /** Why this host cannot answer at all, or null. */
@@ -52,6 +52,12 @@ function blockedBecause(entry) {
   if (entry.needs === 'g++' && !hasCompiler()) return 'no C++ compiler on this host';
   if (entry.needs === 'dist' && !existsSync(join(ROOT, 'dist'))) {
     return 'no dist/ — run `npm run build` first';
+  }
+  if (entry.needs === 'committed') {
+    if (!existsSync(join(ROOT, '.build-tree.json'))) {
+      return 'no build has been recorded — run `npm run build`';
+    }
+    if (!committedCleanly()) return 'the working tree differs from HEAD; this asks about a commit';
   }
   if (entry.satisfy?.stages && !indexIsEmpty()) {
     return 'the git index is not empty and this case stages a file';
@@ -181,7 +187,19 @@ function runCase(command, entry, spec) {
   // state passes" — the tree we started from already passes — but "the state
   // this check demands is reachable from a broken one by running what it tells
   // you to run", which is precisely what the currency rule could not do.
-  const edits = spec.repair ? [entry.mutate] : (spec.edits ?? []);
+  //
+  // A gate with several mutations needs to say which one it is repairing, since
+  // no single writer puts back a narrative document *and* a generated one.
+  // `repairing` names the file, and the mutation still comes from the gate —
+  // letting a case supply its own edit would quietly turn `repair` into
+  // `edits`, and the whole force of this form is that the broken state is the
+  // one the gate itself constructs.
+  const mutations = [entry.mutate ?? []].flat();
+  const chosen = spec.repairing ? mutations.filter((m) => m.file === spec.repairing) : mutations;
+  if (spec.repair && chosen.length === 0) {
+    return { verdict: 'BROKEN', why: `no mutation of this gate touches ${spec.repairing}` };
+  }
+  const edits = spec.repair ? chosen : (spec.edits ?? []);
   const undos = [];
   try {
     // Applied one at a time, and a thunk is resolved after the edits before it

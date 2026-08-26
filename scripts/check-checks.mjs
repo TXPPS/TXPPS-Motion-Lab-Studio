@@ -63,7 +63,8 @@ for (const name of Object.keys(CHECKS)) {
 for (const [name, entry] of Object.entries(CHECKS)) {
   if (entry.kind === 'tool' && !entry.why)
     problems.push(`"${name}" is marked a tool with no reason.`);
-  if (entry.kind === 'gate' && !entry.mutate && entry.expect !== 'unfalsifiable') {
+  const mutations = [entry.mutate ?? []].flat();
+  if (entry.kind === 'gate' && mutations.length === 0 && entry.expect !== 'unfalsifiable') {
     problems.push(`"${name}" is a gate with no mutation.`);
   }
   // And how it can pass. A mutation says a check is load-bearing; it says
@@ -114,15 +115,17 @@ for (const claim of cloneClaims()) {
 
 // --------------------------------------------------------- and is reached
 
-/** Runs on a push, runs when documented, or runs when somebody remembers. */
+/** Runs on a push, runs from a git hook, runs when documented, or when remembered. */
 const routeOf = (name) =>
   reach.byCi.has(name)
     ? 'ci'
-    : reach.byDocs.has(name)
-      ? 'documented'
-      : CHECKS[name]?.manual
-        ? 'manual'
-        : 'orphan';
+    : reach.byHook.has(name)
+      ? 'hook'
+      : reach.byDocs.has(name)
+        ? 'documented'
+        : CHECKS[name]?.manual
+          ? 'manual'
+          : 'orphan';
 
 const checkNames = Object.entries(CHECKS)
   .filter(([, e]) => e.kind !== 'tool')
@@ -188,12 +191,12 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-const byRoute = { ci: 0, documented: 0, manual: 0, orphan: 0 };
+const byRoute = { ci: 0, hook: 0, documented: 0, manual: 0, orphan: 0 };
 for (const name of checkNames) byRoute[routeOf(name)] += 1;
 console.log(
   `check-checks --check: ${checkNames.length} declared check(s) — ` +
-    `${byRoute.ci} on every push, ${byRoute.documented} documented, ` +
-    `${byRoute.manual} manual with a reason; ` +
+    `${byRoute.ci} on every push, ${byRoute.hook} from a git hook, ` +
+    `${byRoute.documented} documented, ${byRoute.manual} manual with a reason; ` +
     `${projects.size} TypeScript project(s) compiled; ` +
     `${SUITES.reduce((n, s) => n + specFiles(s).length, 0)} spec file(s), each declaring tests.`,
 );

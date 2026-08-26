@@ -1,0 +1,11 @@
+#!/bin/sh
+# Refuse a push of a tree no successful build has read.
+#
+# Installed by `npm run hooks:install`, which `prepare` runs on `npm install`.
+# `.git/hooks` is not tracked, so the hook has to live somewhere git can be
+# pointed at — `core.hooksPath` is that pointer, and the install is what makes
+# the ordering unforgettable rather than memorable.
+#
+# `exec` so the hook's exit status is the guard's, and so stdin — the refs being
+# pushed — reaches it unread.
+exec node scripts/checks/build-tree.mjs --verify --from-stdin

@@ -84,3 +84,8 @@ soak-out.json
 
 # Written by `node scripts/bypass-probe.mjs --json`; read by probe:mutations.
 bypass-out.json
+
+# What the last successful `npm run build` read, written by its own last step
+# and compared by the pre-push hook. Local by construction: it is a claim about
+# this checkout, and a committed copy would be a claim about somebody else's.
+.build-tree.json

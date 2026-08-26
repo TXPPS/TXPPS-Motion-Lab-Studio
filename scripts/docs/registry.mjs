@@ -37,9 +37,48 @@
 // the commit is in this repository. A report that names no commit is claiming to
 // describe the present, and the present is what goes wrong.
 
-/** @typedef {{ kind: 'GENERATED', by: string, declares?: 'source', why: string }} Generated */
+// And currency is not completeness. `SOAK.md` was overwritten with three lines
+// by a scoped probe run and stayed green here, because a partial run copies the
+// fingerprint forward correctly — the document was current and empty at once.
+// Everything that says a generated document is trustworthy is written *before*
+// it has any content in it, so `must` says what has to be in it: the sections,
+// the shape of each, and a minimum it cannot be below. See `completeness.mjs`
+// for why every one of those minima is either derived or one.
+import { readFileSync } from 'node:fs';
+import { PROPERTIES } from '../soak/properties.mjs';
+import { asManyAs, atLeast, keys, records, rows, saying, section } from './completeness.mjs';
+
+/** @typedef {{ kind: 'GENERATED', by: string, declares?: 'source', must: object[], why: string }} Generated */
 /** @typedef {{ kind: 'GUARDED', by: string, why: string }} Guarded */
 /** @typedef {{ kind: 'NARRATIVE', why: string }} Narrative */
+
+/**
+ * How many rows the functional sweep says it attempted, read from `SOAK.md`.
+ *
+ * The two soak artefacts are written by one run from one set of measurements,
+ * so this catches one of them being written without the other rather than a run
+ * that truncated both — that second case is what `IS_REPORT` in `soak.mjs` is
+ * for, and neither mechanism covers the other's ground. Returning null when the
+ * sentence is absent makes the requirement report that it could not be
+ * derived, which is a failure: a check that cannot ask its question must say so
+ * rather than pass.
+ */
+const attemptedBySoak = () => {
+  const soak = readIfPresent('docs/audit/SOAK.md');
+  return soak === null ? null : Number(/attempted \*\*(\d+)\*\*/.exec(soak)?.[1]) || null;
+};
+
+/** How many rows the Function Ledger's own kind table says the ledger has. */
+const ledgerTotal = (doc) =>
+  Number(/\|\s*\*\*total\*\*\s*\|\s*\*\*(\d+)\*\*\s*\|/.exec(doc.text)?.[1]) || null;
+
+const readIfPresent = (path) => {
+  try {
+    return readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+  } catch {
+    return null;
+  }
+};
 
 const parity = (name) => [
   `docs/reference/fsp8-parity-${name}.md`,
@@ -59,6 +98,30 @@ export const DOCS = Object.fromEntries([
       kind: 'GENERATED',
       by: 'soak',
       declares: 'source',
+      // Four layers, and the report has to carry all four. This is the document
+      // that was reduced to three lines and stayed green: the stamps below are
+      // exactly what survived, so requiring them alone would still accept the
+      // truncation that made this necessary.
+      must: [
+        saying(/- \*\*Seed\*\* `\d+`/, 'the seed the run used'),
+        saying(/- \*\*Bundle\*\* `[^`]+`/, 'which bundle it measured'),
+        section('## 1. Functional sweep', rows(atLeast(1, 'one row per case the sweep ran'))),
+        section('## 2. Combinatorial fuzz', saying(/\d+ steps/, 'how many fuzz steps ran')),
+        // One row per property the harness defines, read from the harness. A
+        // property that stops being rendered is a property nobody would miss:
+        // the table still looks like a table, and every row in it says PASS.
+        section(
+          '## 3. Properties',
+          rows(
+            asManyAs(
+              'one row per property `scripts/soak/properties.mjs` defines',
+              () => PROPERTIES.length,
+            ),
+          ),
+        ),
+        section('## 4. Endurance', rows(atLeast(1, 'one row per endurance judgement'))),
+        section('## Uncaught page errors'),
+      ],
       why: 'four soak layers against one running build; the bundle it names is the only one it describes',
     },
   ],
@@ -67,6 +130,14 @@ export const DOCS = Object.fromEntries([
     {
       kind: 'GENERATED',
       by: 'soak',
+      must: [
+        keys('bundle', 'srcFingerprint', 'seed'),
+        records(asManyAs('the count `SOAK.md` says the sweep attempted', attemptedBySoak), [
+          'id',
+          'forms',
+          'covered',
+        ]),
+      ],
       why: 'the coverage arithmetic behind SOAK.md, written by the same run',
     },
   ],
@@ -75,6 +146,15 @@ export const DOCS = Object.fromEntries([
     {
       kind: 'GENERATED',
       by: 'test',
+      // Nothing outside this file states how many rows the sweep has — the
+      // Function Ledger's figure is read *from* this file, so comparing them
+      // would be comparing a number with itself. The floor is one, and the
+      // sweep's own completeness test in `tests/storeSweep.test.ts` is what
+      // says every store row has a recipe.
+      must: [
+        keys('instrument'),
+        records(atLeast(1, 'one row per store mutator swept'), ['id', 'covered', 'note']),
+      ],
       why: 'the store sweep records what it observed per row; `npm test` rewrites it, so it is current on every push rather than as of the last soak',
     },
   ],
@@ -83,6 +163,21 @@ export const DOCS = Object.fromEntries([
     {
       kind: 'GENERATED',
       by: 'functions',
+      // The strongest of the five, and it needs no constant: the ledger states
+      // its own total in the kind table, and the row table has to be that long.
+      // A truncated ledger keeps the total — it is arithmetic over the
+      // enumeration, computed before a single row is rendered — so the two
+      // halves disagreeing is exactly the shape of the failure.
+      must: [
+        saying(/Coverage: \*\*\d+ of \d+ ledger rows\*\*/, 'what fraction of its rows are covered'),
+        rows(
+          asManyAs('as many rows as the kind table says the ledger has', ledgerTotal),
+          // The row table, not the kind table above it or the undriven table
+          // between them: only a ledger row leads with a backticked id.
+          /^\|\s*`/,
+        ),
+        section('## Never driven'),
+      ],
       why: 'derived from the source: every action module, store contract, shortcut, effect kind and surface. A function without a row fails the build',
     },
   ],
@@ -91,6 +186,16 @@ export const DOCS = Object.fromEntries([
     {
       kind: 'GENERATED',
       by: 'reachability',
+      // The matrix and both verdict sections. The two `##` sections are where a
+      // defect is reported, and a sweep that measured nothing would render them
+      // empty and read as "no defects" — the failure this whole class describes,
+      // in the one document whose subject is defects.
+      must: [
+        rows(atLeast(1, 'one row per surface, per form factor')),
+        section('## Defects: reachable on desktop, not on a smaller screen'),
+        section('## Not reached anywhere, including desktop'),
+        section('## How each was reached', rows(atLeast(1, 'one row per surface reached'))),
+      ],
       why: 'every surface on every form factor, reached through the shell’s own controls',
     },
   ],

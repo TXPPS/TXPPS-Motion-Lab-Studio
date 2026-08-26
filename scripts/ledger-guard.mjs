@@ -13,7 +13,8 @@
  * trust into a document that has to be re-checked by hand, which is the same as
  * not having it.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // See scripts/licence-guard.mjs: `.pathname` is not a filesystem path on
@@ -103,6 +104,47 @@ for (let i = headerIndex + 2; i < lines.length; i++) {
   }
 }
 
+/*
+ * The substrate's progress count, checked against the tree rather than trusted.
+ *
+ * "Ten of the twelve files remain. The next is `voice_set.h`" was true when it
+ * was written and false one directive later, with `voice_set.h` in the tree and
+ * the sentence still naming it as the next thing to build. That is a document
+ * recording product state by hand, which is the failure the whole `docs-guard`
+ * apparatus exists for — and it happened inside a GUARDED document, because the
+ * guard was only reading the table above it.
+ *
+ * The number is derivable, so it is derived: the design's own file table says
+ * how many there are, and the filesystem says how many exist.
+ */
+{
+  const spec = readFileSync(
+    fileURLToPath(new URL('../docs/design/lib-voice-substrate.md', import.meta.url)),
+    'utf8',
+  );
+  const planned = [...spec.matchAll(/^\| `voice\/([a-z_]+\.h)`/gm)].map((m) => m[1]);
+  const dir = fileURLToPath(new URL('../motionwave/core/dsp/voice/', import.meta.url));
+  const built = planned.filter((name) => existsSync(join(dir, name)));
+  const claim = /\*\*(\d+) of the (\d+)\*\* files in the substrate's table exist/.exec(text);
+  if (planned.length === 0) {
+    problems.push(
+      'the voice substrate design lists no files, so the progress sentence could not be ' +
+        'checked. That is this guard going quiet, not the ledger being right.',
+    );
+  } else if (!claim) {
+    problems.push(
+      'the voice-substrate section does not say how many of its files exist. It must read ' +
+        `"**${built.length} of the ${planned.length}** files in the substrate's table exist" — ` +
+        'a count kept by hand is a count that was already wrong once.',
+    );
+  } else if (Number(claim[1]) !== built.length || Number(claim[2]) !== planned.length) {
+    problems.push(
+      `the ledger says ${claim[1]} of ${claim[2]} voice-substrate files exist; the tree has ` +
+        `${built.length} of ${planned.length} (${built.join(', ')}).`,
+    );
+  }
+}
+
 if (problems.length > 0) {
   console.error('ledger-guard: docs/UNIT_LEDGER.md does not support its own claims.\n');
   for (const p of problems) console.error(`  ${p}`);
@@ -115,5 +157,5 @@ if (problems.length > 0) {
 
 console.log(
   `ledger-guard: ${units} units, ${shipping} shipping, ${columns.length - 3} cells each, ` +
-    'every claim supported',
+    'every claim supported, and the substrate progress count derived from the tree',
 );

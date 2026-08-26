@@ -1408,9 +1408,43 @@ reading it, a repeated press that mints a second id, a swap-with-last erase that
 silently reorders the held list, a `reset` that rewinds the id counter, and a
 slot index that drops the channel and collapses an MPE chord to one note.
 
-Ten of the twelve files remain, and with them VS-01, 02, 03, 05 to 30 and 32.
-The next is `voice_set.h`: VS-01 and VS-02 are PA-003 made executable, and they
-cannot be written until there is a partition to walk.
+`voice_set.h` follows, and it is PA-003 made unrepeatable: a voice's membership
+is its position in a permutation rather than a flag, and `stealOne` returns
+nothing at all, so the loop that produced the defect cannot be written against
+the interface. `voice_set_tests.cpp` runs eleven cases, closing **VS-01** (60
+note-ons against a cap of 24 give 24 live and 36 steals, exactly; 80 against 48
+give 48 and 32), **VS-02**, **VS-05** and **VS-30**. Writing them found a defect
+in the implementation — a victim handed straight to `allocate`, so the allocated
+span ended one short of the voices sounding — and the spec's own named mutation
+found one in the tests, which is recorded in §8 of the design: replacing the
+partition with a flag per voice leaves the array a permutation, so what actually
+breaks is disjointness of ownership and nothing was asking about it.
+
+`trigger_bus.h` is next after it and comes before every generator, because every
+envelope, ramp and LFO subscribes to it. `trigger_bus_tests.cpp` runs twelve
+cases: the single/multi/gate rules, that a pulse is broadcast rather than
+consumed by its first reader, that `endStep` clears pulses and leaves levels, and
+the legato statement all of it adds up to — four keys into one voice give one
+`single` and four `multi`. Mutation-tested: raising the gate before deciding
+`single` fails two cases by name and nothing else, which is why it would have
+shipped.
+
+`envelope.h` is the fifth, and it is one position advanced two ways with the
+curve a pure function of that position — four recursions would be four places to
+forget that a segment has to _arrive_, and a segment that never arrives never
+advances, so the voice never retires. `envelope_tests.cpp` runs eighteen cases,
+closing the envelope's halves of **VS-07**, **VS-08**, **VS-09**, **VS-11** and
+**VS-12**. Writing it found a defect in the design's own maths: formula (3) is 1
+at `x = 1`, which is what its paragraph claims, and −3.1 % at `x = 0`, so every
+segment boundary was a click. Corrected in §5.2 with the old form kept beside it,
+and mutation-tested — the design's version fails the continuity case and only the
+continuity case.
+
+**5 of the 12** files in the substrate's table exist, and with the remaining
+seven go VS-03, VS-06, VS-10, VS-13 to VS-29 and VS-32. `ledger-guard` derives that count from
+the design's own file table and the tree, because the sentence it replaced —
+"ten of the twelve remain, and the next is `voice_set.h`" — was true when it was
+written and false one directive later, with `voice_set.h` in the tree.
 
 Built and shipping already, ahead of their specs because Motion Shaper needed
 them: `core/dsp/biquad.h`, `crossover.h`, `curve.h`, `lfo_phase.h`,

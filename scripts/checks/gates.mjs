@@ -109,6 +109,30 @@ export function indexIsEmpty() {
 }
 
 /**
+ * Whether the tracked tree is exactly `HEAD`, which `push-guard`'s subject is.
+ *
+ * `push-guard` compares a *commit* against what the last build read, so on a
+ * working tree with edits in it the check is correctly red before anything has
+ * been done to it — and `runGate` would read that as BROKEN and say the check is
+ * failing, which is a claim about the check rather than about the tree. BLOCKED
+ * is the right verdict and it is the same distinction the compiler cases draw:
+ * a check that cannot be asked here has not stopped mattering.
+ *
+ * Untracked files are not part of a commit and are not part of the question.
+ */
+export function committedCleanly() {
+  try {
+    const dirty = execSync('git status --porcelain --untracked-files=no', {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim();
+    return dirty === '';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * One gate: clean must pass, mutated must fail.
  *
  * Four verdicts, and they are not interchangeable. `HELD` is the check working.
@@ -133,6 +157,17 @@ export function runGate(name, command, entry) {
   if (entry.needs === 'dist' && !existsSync(join(ROOT, 'dist'))) {
     return { verdict: 'BLOCKED', why: 'no dist/ — run `npm run build` first' };
   }
+  if (entry.needs === 'committed') {
+    if (!existsSync(join(ROOT, '.build-tree.json'))) {
+      return { verdict: 'BLOCKED', why: 'no build has been recorded — run `npm run build`' };
+    }
+    if (!committedCleanly()) {
+      return {
+        verdict: 'BLOCKED',
+        why: 'the working tree differs from HEAD; this asks about a commit',
+      };
+    }
+  }
   if (entry.stages && !indexIsEmpty()) {
     return { verdict: 'BLOCKED', why: 'the git index is not empty and this gate stages a file' };
   }
@@ -149,26 +184,50 @@ export function runGate(name, command, entry) {
     };
   }
 
+  /*
+   * A check can be load-bearing in more than one way, and each way is its own
+   * claim.
+   *
+   * `docs-guard` enforces four unrelated rules and one mutation could only ever
+   * speak for one of them. Its completeness rule — added because `SOAK.md` was
+   * truncated to three lines while every other rule stayed green — would have
+   * been proved by nothing at all while the entry read HELD, which is a green
+   * column meaning less than it appears to. So `mutate` may be a list, and
+   * every one of them has to turn the check red for the gate to hold.
+   */
+  const mutations = Array.isArray(entry.mutate) ? entry.mutate : [entry.mutate];
+  for (const mutation of mutations) {
+    const settled = runOneMutation(command, env, entry, mutation);
+    if (settled) return settled;
+  }
+  return {
+    verdict: 'HELD',
+    why: mutations.length > 1 ? `${mutations.length} mutations, each of them caught` : '',
+  };
+}
+
+/** One mutation: a verdict if it settles the gate, null if the check caught it. */
+function runOneMutation(command, env, entry, mutation) {
   let undo = () => {};
   let staged = false;
   try {
-    undo = apply(entry.mutate);
+    undo = apply(mutation);
     if (entry.stages) {
-      execSync(`git add -f -- "${entry.mutate.file}"`, { cwd: ROOT, stdio: 'ignore' });
+      execSync(`git add -f -- "${mutation.file}"`, { cwd: ROOT, stdio: 'ignore' });
       staged = true;
     }
     const mutated = run(command, env);
     return mutated.ok
-      ? { verdict: 'DECAYED', why: 'the mutation went through and the check still passed' }
-      : { verdict: 'HELD', why: '' };
+      ? { verdict: 'DECAYED', why: `the mutation to ${mutation.file} went through and it passed` }
+      : null;
   } catch (e) {
     return { verdict: 'BROKEN', why: `the mutation could not be applied: ${e.message}` };
   } finally {
     if (staged) {
       try {
-        execSync(`git reset -q -- "${entry.mutate.file}"`, { cwd: ROOT, stdio: 'ignore' });
+        execSync(`git reset -q -- "${mutation.file}"`, { cwd: ROOT, stdio: 'ignore' });
       } catch {
-        console.error(`  could not unstage ${entry.mutate.file} — unstage it by hand`);
+        console.error(`  could not unstage ${mutation.file} — unstage it by hand`);
       }
     }
     undo();

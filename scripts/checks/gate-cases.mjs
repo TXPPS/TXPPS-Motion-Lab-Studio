@@ -2,25 +2,24 @@
 // constructed state that must make it pass.
 //
 // Split from `mutants.mjs`, which now says what each declared script *is* and
-// leaves the twenty gates and the two direct guards here. The two files answer
+// leaves the gates and the two direct guards here. The two files answer
 // different questions and the registry had grown past four hundred lines
-// answering both.
+// answering both. It grew past it a second time once a gate could carry a list
+// of mutations, and the four whose subject is a tracked document moved on to
+// `doc-gates.mjs` — code and build artefacts here, documents there.
 //
 // `mutate` is applied by `gates.mjs` and the check must go red. `satisfy` is
 // applied by `satisfy.mjs` and the check must stay green — see that file for
 // why "it can fail" is only half the question, and which deploy the other half
 // cost.
-import {
-  accepting,
-  CLEAN_TS,
-  creating,
-  currentDeclaredSource,
-  editing,
-  repairedBy,
-} from './edits.mjs';
-import { srcFingerprint } from '../srcfingerprint.mjs';
+import { accepting, CLEAN_TS, creating, editing, repairedBy } from './edits.mjs';
+import { DOC_GATES } from './doc-gates.mjs';
 
 export const GATES = {
+  // Four of them live in `doc-gates.mjs`: everything whose subject is a tracked
+  // document rather than code or a build artefact. Spread rather than merged by
+  // hand so a name added there cannot go missing here.
+  ...DOC_GATES,
   typecheck: {
     kind: 'gate',
     // A deliberate type error in a file each of the four projects actually
@@ -156,32 +155,6 @@ export const GATES = {
     // and names a compatible one.
     satisfy: accepting('a permissively licensed source', 'src/__satisfy.ts', CLEAN_TS),
   },
-  'ledger-guard': {
-    kind: 'gate',
-    // A unit claimed as SHIPPING whose cells are all `—`, which is what the
-    // guard exists to refuse: "the Ledger must not be able to lie".
-    //
-    // It used to corrupt a `| FAIL` cell into `| SHIPPING-FAIL`, and there is
-    // no `FAIL` left in the ledger — the Granular Reverb's V27 was the last one
-    // and it closed. So the mutation could not be applied and the gate read
-    // BROKEN, which is the verdict that means the check is unreadable rather
-    // than that it failed. An anchor tied to a value that was always going to
-    // change is an anchor with an expiry date; `NOT STARTED` on `fx-03` is a
-    // row that stays until somebody builds it, and building it is exactly when
-    // this entry should be looked at again.
-    mutate: editing(
-      'docs/UNIT_LEDGER.md',
-      '| Granular Delay      | `fx-03`  | NOT STARTED',
-      '| Granular Delay      | `fx-03`  | SHIPPING   ',
-    ),
-    // A unit renamed. Legal — the guard's subject is whether a status column
-    // can outrun the cells beside it, and a name is neither — and it changes
-    // the file, so it is not the tree we started from.
-    satisfy: {
-      name: 'a renamed unit',
-      edits: [editing('docs/UNIT_LEDGER.md', '| Granular Delay      |', '| Granular Delay X    |')],
-    },
-  },
   'gesture-guard': {
     kind: 'gate',
     // A scripted press in a file with no entry in the guard's own registry.
@@ -202,115 +175,6 @@ export const GATES = {
       'e2e/__satisfy.spec.ts',
       "import { test } from '@playwright/test';\nimport { reach } from './pointer';\n\ntest('presses through a real pointer', async ({ page }) => {\n  await reach(page.locator('body'), 'touch', 'the page body');\n});\n",
     ),
-  },
-  'docs-guard': {
-    kind: 'gate',
-    // A narrative document that starts recording product state.
-    //
-    // `docs/adr/0001` is a decision record: it says what was decided and what
-    // was rejected, and nothing in it can go stale. Adding a verdict table row
-    // to it is exactly how `docs/design/lib-voice-substrate.md` came to claim
-    // "no implementation exists" while two of its files were in the tree — a
-    // sentence about the present, in a file nobody re-reads, checked by no one.
-    mutate: editing(
-      'docs/adr/0001-stack-and-engine-topology.md',
-      '**Status:** Accepted',
-      '| Web Audio engine | SHIPPING |\n\n**Status:** Accepted',
-    ),
-    satisfy: [
-      {
-        // A new document, classified. The classification *is* the contract, so
-        // the case has to add both halves — the file and its registry entry —
-        // and it is exactly what adding a document is supposed to look like.
-        name: 'a new narrative document with a registry entry',
-        edits: [
-          creating(
-            'docs/__satisfy.md',
-            '# Satisfy\n\nA narrative note: it records why a decision was taken and records no\nproduct state, which is what NARRATIVE means.\n',
-          ),
-          editing(
-            'scripts/docs/registry.mjs',
-            'export const DOCS = Object.fromEntries([',
-            "export const DOCS = Object.fromEntries([\n  ['docs/__satisfy.md', { kind: 'NARRATIVE', why: 'the satisfiability case' }],",
-          ),
-        ],
-      },
-      {
-        // The deploy, reproduced. `docs-guard` is the only member of the build
-        // chain that asks git anything, and it asked eleven questions a
-        // `--depth 1` clone cannot answer — which is what Cloudflare's builder
-        // makes and what took the site down for a quarter of an hour.
-        name: 'a shallow clone, which is what the deploy builder makes',
-        shallow: true,
-      },
-    ],
-  },
-  'docs-guard:release': {
-    kind: 'gate',
-    // The currency check, which is the whole reason `--strict` exists.
-    //
-    // `docs/audit/SOAK.md` names the bundle it measured and says in as many
-    // words that a different hash means it describes a product that has moved.
-    // Nothing read that line, and the file carried a FAIL on the bypassed
-    // latency property for a directive after the product fixed it. Renaming
-    // the bundle it declares is that, reproduced.
-    // The declared source fingerprint, corrupted.
-    //
-    // It used to rename the *bundle* the report names, and that mutation went
-    // stale the moment the currency rule stopped reading the bundle — the gate
-    // reported DECAYED on the next run, which is the gate doing its job on the
-    // check that taught this directive its lesson. The anchor is the label
-    // rather than the digest, because a digest changes whenever `src/` does and
-    // an anchor with an expiry date is an anchor that reads BROKEN later.
-    mutate: editing('docs/audit/SOAK.md', '- **Source** `', '- **Source** `0000'),
-    // The case this whole mechanism exists for.
-    //
-    // The rule used to compare the *bundle* `SOAK.md` names against `dist/`,
-    // and it could never pass: `vite.config.ts` compiles the commit date in, so
-    // committing the fresh report invalidated the name the report had just been
-    // made to carry. It would have held its mutation and been unsatisfiable,
-    // and an unsatisfiable check gets turned off.
-    //
-    // So: move `src/`, then write the fingerprint that move produces into the
-    // report, and the check must accept. The second edit is a thunk because the
-    // value it needs does not exist until the first has landed.
-    satisfy: {
-      name: 'a moved source and a report that declares the new fingerprint',
-      edits: [
-        creating('src/__satisfy.ts', CLEAN_TS),
-        () =>
-          editing(
-            'docs/audit/SOAK.md',
-            /* the fingerprint as it stands, which the first edit has just invalidated */
-            currentDeclaredSource(),
-            `- **Source** \`${srcFingerprint()}\``,
-          ),
-      ],
-    },
-  },
-  'parity-guard': {
-    kind: 'gate',
-    // The evidence layer, which is where 806 of the 947 claims are settled.
-    //
-    // The editing chapter states, as its reason for calling the Audio Part
-    // `PARTIAL`, that it grepped `audioPart` and `consolidate` and found no
-    // hits. Putting `audioPart` into the tree makes that sentence false, which
-    // is exactly the drift that let six items — one of them a P0 — be closed
-    // while the documents still called them missing.
-    //
-    // It used to mutate `engine.ts`'s `pdcSamples` publish, which exercised the
-    // thirteen pinned predicates instead. Those still run; this one covers the
-    // layer that covers the corpus.
-    mutate: editing(
-      'src/model/types.ts',
-      'export interface',
-      'export type MutantPart = { audioPart: number };export interface',
-    ),
-    // A source file added that no claim cites. The guard settles 806 claims by
-    // grepping the tree, so what it must tolerate is the tree growing — and it
-    // is the tolerance half that goes wrong when a citation predicate is made
-    // too wide.
-    satisfy: accepting('a source file no claim cites', 'src/__satisfy.ts', CLEAN_TS),
   },
   'scope-guard': {
     kind: 'gate',
