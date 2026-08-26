@@ -111,12 +111,21 @@ function walk(dir) {
  * Two files hold this idiom as *text* rather than running it.
  *
  * This one describes the idioms in order to forbid them, and
- * `scripts/checks/mutants.mjs` holds, as a string literal, the scripted press
+ * `scripts/checks/gate-cases.mjs` holds, as a string literal, the scripted press
  * that proves this guard can fail — so the guard fired on the mutation written
  * to prove it fires. Named rather than pattern-matched: an exemption that
  * matches a pattern is an exemption somebody else can fall into.
+ *
+ * `scripts/checks/mutants.mjs` is still listed because it held that literal
+ * until the registry was split, and an exemption removed the moment its file is
+ * renamed is an exemption that comes back as a build failure on somebody's
+ * deploy — which is exactly what happened here. It costs one line to keep both.
  */
-const NOT_CODE = new Set(['scripts/gesture-guard.mjs', 'scripts/checks/mutants.mjs']);
+const NOT_CODE = new Set([
+  'scripts/gesture-guard.mjs',
+  'scripts/checks/mutants.mjs',
+  'scripts/checks/gate-cases.mjs',
+]);
 
 const FILES = [...walk('e2e'), ...walk('scripts')].filter((f) => !NOT_CODE.has(f));
 
