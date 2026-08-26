@@ -62,7 +62,8 @@ Suites:          typecheck (four projects), lint, 1991 unit, 351 motionwave,
                  `npm run soak`: 69/136 functional rows with a state-asserting
                  result, 10,000 fuzz steps with every invariant holding, 10 of
                  10 properties, endurance all PASS at 42 KB/min after warm-up.
-                 `npm run probe:mutations`: 26 recorded corrections.
+                 `npm run probe:mutations`: 26 corrections —
+                 21 HELD, 3 BLOCKED, 2 KEPT with a reason, 0 DECAYED.
 Open deviations: F11 is left to the browser's fullscreen — the one place the
                  reference's panel map is not matched.
                  §2.5's monitoring modes and latency compensation are
