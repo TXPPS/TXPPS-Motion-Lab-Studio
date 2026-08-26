@@ -70,9 +70,18 @@ and `tests/transportStop.test.ts`.
 most misleading number in the audit: FSP8's are weighted toward windows (13
 detachable, 8 documented for a second monitor, 17 keyboard-addressable),
 MotionLab's toward inline strips and disclosures inside four fixed panes. The
-gap is structural. The cheapest high-value item is that **no keyboard shortcut
-opens any pane**, while `workspaceStore`'s `toggle`/`reveal`/`setMaximized` API
+gap is structural. The cheapest high-value item is that no keyboard shortcut
+opens any pane, while `workspaceStore`'s `toggle`/`reveal`/`setMaximized` API
 already exists and is already correct.
+
+**Closed, and this paragraph was wrong for three directives.** Nine bindings —
+F2 to F10 — open the editor, the mixer, the inspector, the browser and its five
+tabs, and they call exactly the API named above. It is recorded here rather than
+edited away because _how_ it went stale is the finding: an audit taken at one
+moment and never re-run is evidence that stops anybody looking, which is the
+same shape as a configured check nobody invokes. Every claim in these documents
+that can be settled by reading MotionLab's own code is now settled by
+`scripts/parity-guard.mjs`, on every build.
 
 ## §6 — where the manual corrects `docs/REFERENCE-FSP8.md`
 

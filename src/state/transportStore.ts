@@ -16,6 +16,17 @@ interface TransportStoreState {
   audioState: AudioLifecycle;
   audioError: string | null;
   sampleRate: number | null;
+  /**
+   * Delay compensation this session is costing, in samples.
+   *
+   * Written by `AudioEngine.applyPdc` — the same call that sets the delay
+   * lines, so the readout and the delay cannot disagree. FSP8 shows this in the
+   * transport under the sample rate and `fsp8-parity-fundamentals.md` calls
+   * surfacing it "the single cheapest parity win in this chapter": a session
+   * silently running seven milliseconds late is a thing an engineer needs told,
+   * and the engine already knew.
+   */
+  pdcSamples: number;
   activeSources: number;
   midiSupported: boolean;
   midiEnabled: boolean;
@@ -34,6 +45,7 @@ export const useTransportStore = create<TransportStoreState>((set) => ({
   audioState: 'uninitialized',
   audioError: null,
   sampleRate: null,
+  pdcSamples: 0,
   activeSources: 0,
   midiSupported: false,
   midiEnabled: false,

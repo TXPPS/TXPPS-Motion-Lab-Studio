@@ -10,7 +10,7 @@ Monitoring" (pp. 14–17, lines 753–931), "Advanced / Console options" (p. 41,
 **IP boundary.** This is a reference document only. The competitor product is named
 here because provenance has to be citable; no name, symbol, filename, preset name or
 UI string proposed for MotionLab or Motion Wave anywhere below is drawn from it. Where
-FSP8's own term is load-bearing (e.g. "Layer", "Precount") it is quoted as *their*
+FSP8's own term is load-bearing (e.g. "Layer", "Precount") it is quoted as _their_
 term and a neutral MotionLab term is proposed alongside.
 
 Legend: **PARITY** · **PARTIAL** · **MISSING** · **DIVERGENT-BY-DESIGN**.
@@ -62,18 +62,18 @@ in which case "the playback cursor returns to the position from which it started
 return-to-zero, commented "second stop press: return to start (common DAW convention)".
 Button title says so: `"Stop (Space) — press twice to return to start"`.
 
-**Gap: PARTIAL.** Stop-in-place matches. "Return to Start on Stop" as a *persistent
-option* is **MISSING** — MotionLab hard-codes the double-press gesture instead and has
+**Gap: PARTIAL.** Stop-in-place matches. "Return to Start on Stop" as a _persistent
+option_ is **MISSING** — MotionLab hard-codes the double-press gesture instead and has
 no preference for it (grepped `src/state/prefsStore.ts` for `returnToStart|onStop`: no
 hits). MotionLab also has no separate "position playback started from"; the second press
 always goes to beat 0, not to the play-start position. FSP8's option returns to the
-*start position*, which is not necessarily zero.
+_start position_, which is not necessarily zero.
 
 ### 1.3 Stop mid-record, and what happens to a partial take — **P0**
 
 **FSP8 does:** Recording ends only through a record-stopping action. Every recording
-recipe in the chapter terminates the same way: *"Recording continues until you manually
-stop it by pressing [Space Bar] on the keyboard or clicking Stop in the Transport"*
+recipe in the chapter terminates the same way: _"Recording continues until you manually
+stop it by pressing [Space Bar] on the keyboard or clicking Stop in the Transport"_
 (manual pp. 83, 84, 89, and again for Precount/Preroll and Loop Recording). So in FSP8,
 **Stop is Stop for the recorder as well as for the transport** — spacebar and the Stop
 button both end the take, and the audio captured so far becomes a normal Audio Event on
@@ -81,7 +81,7 @@ the record-enabled Track (crossfaded into any pre-existing Event at its edges wh
 take was a punch-in, manual or Auto Punch: "the newly recorded audio is automatically
 crossfaded at its edges with the existing Audio Event… The crossfade time is very small
 and not audible; however, you can edit the crossfade manually"). Auto Punch is the one
-case where the *recorder* stops without the *transport* stopping: "Recording
+case where the _recorder_ stops without the _transport_ stopping: "Recording
 automatically stops at the Right Locator position. However, playback continues beyond
 the Right Locator position until you manually stop it."
 
@@ -90,7 +90,7 @@ the Right Locator position until you manually stop it."
 - `recording.stop()` (`recordingController.ts:376`) is the take-ending path. It clears
   the tick timer, sets `phase: 'finalizing'`, awaits `TakeRecorder.stop()`, releases the
   input, calls `engine.stop()`, then `commitTake(...)` → decode → peaks → `putMediaBlob`
-  → `putPeaks` → `addRecordedClip` → `selectClip`. A partial take is a *complete* take:
+  → `putPeaks` → `addRecordedClip` → `selectClip`. A partial take is a _complete_ take:
   whatever was captured is decoded and lands as a clip. `MediaRecorder` is started with
   `rec.start(1000)` so a timeslice chunk exists every second — commented "Periodic chunks
   mean an interrupted take still has recoverable data."
@@ -178,7 +178,7 @@ a voice per lap) and `scheduleSounding(loop.start, …)` re-enters mid-clip mate
 
 **Gap: PARITY** for loop playback. **MISSING:** Set-Loop-Start / Set-Loop-End commands,
 Shift Loop / Shift Loop Backwards, and Loop Follows Selection (grepped `shortcuts.ts`
-and `useKeyboard.ts` — no bindings). See §10 for the much larger gap: loop *recording*.
+and `useKeyboard.ts` — no bindings). See §10 for the much larger gap: loop _recording_.
 
 ### 1.7 Record
 
@@ -246,7 +246,7 @@ Shortcuts: Track/Add Audio Track (mono or stereo); right-click blank Track Colum
 Audio Track (Mono)" or "Add Audio Track (Stereo)"; right-click → "Add Tracks For All
 Inputs" creates one Track per configured input.
 
-Channel Format is *live*: in the Inspector, "A Track's Channel Format (mono or stereo)
+Channel Format is _live_: in the Inspector, "A Track's Channel Format (mono or stereo)
 can be switched with a single click of the single-circle (mono) or double-circle (stereo)
 icon. You can toggle many Tracks' Channel Format simultaneously by selecting multiple
 Tracks before clicking this icon." Multichannel surround formats come from the drop-down
@@ -266,7 +266,7 @@ Deleting an Audio Track: select it with no Audio Events selected and press [Dele
 no `channelFormat`, `channels` or `format` field; grepped `types.ts`, `projectStore.ts`
 and `projectRepo.ts` for `mono|stereo|channelFormat`: the only hits are
 `Track.monoSum?: boolean` ("sum the channel to mono at the input", `types.ts:611` region)
-and `Clip.monoSum`, both of which are *mono-compatibility checks*, not a track format.
+and `Clip.monoSum`, both of which are _mono-compatibility checks_, not a track format.
 `addTrack('audio')` (`projectStore.ts:640`) creates one shape with no format choice.
 Every channel is built stereo-capable: `engine.buildChannel` wires
 `input → trim → inserts → mute → volume → pan(StereoPannerNode) → analyser → destination`
@@ -283,7 +283,7 @@ What a mono input actually produces, end to end:
    channel count, through `MediaRecorder`.
 3. `commitTake` decodes with `ctx.decodeAudioData` and records the truth it finds:
    `mediaRef.channels = buffer.numberOfChannels`, `mediaRef.sampleRate = buffer.sampleRate`
-   (`recorder.ts`). So the *file* is mono if the device gave mono, stereo if it gave
+   (`recorder.ts`). So the _file_ is mono if the device gave mono, stereo if it gave
    stereo — and the user is never told which.
 4. Playback: `AudioBufferSourceNode → GainNode → … → StereoPannerNode`. A 1-channel
    buffer is up-mixed by Web Audio's default rules and lands centred; pan works normally.
@@ -319,7 +319,7 @@ belongs to Motion Wave.
 
 Choices are the Input Channels configured in Audio I/O Setup, not raw hardware ports.
 **Re-recording**: Instrument Output and Bus channels also appear as inputs to any
-*stereo* Audio Track, grouped in branches in the input menu — this is how you "print"
+_stereo_ Audio Track, grouped in branches in the input menu — this is how you "print"
 the live output of a virtual instrument or a hybrid analog mix to audio.
 
 Instrument Tracks select a **Keyboard** (FSP8's term for a MIDI controller) as input,
@@ -432,7 +432,7 @@ unless monitoring is on.
 - Exclusive arm ([Alt]-click) and multi-select arm: **MISSING**.
 - Input clip indicator: **MISSING** (`engine.ts` tracks `clipped` per meter but only on
   the post-fader channel analyser; `resetClipIndicators` exists at `engine.ts:2147`).
-- Recording onto an *unarmed* selected track: **DIVERGENT**. FSP8 requires arm. The
+- Recording onto an _unarmed_ selected track: **DIVERGENT**. FSP8 requires arm. The
   fallback is convenient on a phone but means the record button's target is not the
   thing the arm lamp shows. At minimum the record banner should name the track it chose;
   it already does (`RecordingBanner` prints `trackName`).
@@ -512,13 +512,15 @@ both call sites. Monitoring is a separate button with a separate code path
 (`armed.*monitor|monitor.*armed|MonitoringFollows|followsRecord|inputFollows`): nothing.
 Grepped `src/state/prefsStore.ts` for any monitoring preference: nothing.
 
-**Gap: MISSING (P0).** Three distinct absences:
+**Gap: was MISSING (P0); now PARITY on two of three.**
 
-1. No monitoring-follows-arm behaviour.
-2. No preference to control it (FSP8 has one per track type).
-3. No input-follows-selection.
+1. monitoring-follows-arm behaviour — **PARITY**. `src/app/monitorActions.ts`
+   opens the monitor when a track is armed.
+2. A preference to control it — **PARITY**. `prefs.monitorFollowsArm`, with
+   `openInputOnArm` beside it in `SettingsSheet`.
+3. input-follows-selection — **MISSING**.
 
-This compounds §4: arm does not meter *and* arm does not monitor, so arming a track has
+This compounds §4: arm does not meter _and_ arm does not monitor, so arming a track has
 no audible or visible consequence whatsoever until the user finds a second button. Fix
 shape: a `prefsStore` pair (`audioMonitorFollowsRecord`, `instrumentMonitorFollowsRecord`,
 both defaulting **on**, matching FSP8), applied in one place — the arm action should
@@ -540,7 +542,7 @@ hardware mixer. The user can still enable direct monitoring on their interface
 independently; MotionLab simply cannot know or control it.
 
 **Gap: DIVERGENT-BY-DESIGN.** No web API exposes interface DSP monitoring. What
-MotionLab *should* do and does not: tell the user this is an option. A line in the record
+MotionLab _should_ do and does not: tell the user this is an option. A line in the record
 panel ("If your interface has direct monitoring, use it and leave Monitor off here") would
 cost nothing and would prevent the double-monitoring flam. Belongs to Motion Wave's native
 shells as a real feature.
@@ -555,7 +557,7 @@ plus the per-track Monitor button, plus (for Instrument tracks) Replace mode whi
 the existing Part while recording over it (§11).
 
 FSP8 therefore documents **no** off/auto/input/repro enum. The modes it does name are the
-*latency* modes in the Monitoring Mode Attributes table (§5.5), which are a different axis
+_latency_ modes in the Monitoring Mode Attributes table (§5.5), which are a different axis
 entirely.
 
 **MotionLab does:** Absent. Monitoring adds the live input to the channel; existing clips
@@ -571,12 +573,12 @@ about what is audible, and a tape-style mute must go through the same resolution
 
 **FSP8 does:** Four modes, tabulated on manual p. 16:
 
-| Type | Direct Input | Necessary conditions | Monitoring | Insert FX | Send FX |
-|---|---|---|---|---|---|
-| Standard Software Monitoring | Disabled | Large Device Buffer Size, low Process Buffer Size (Dropout Protection) | Standard latency | All function | All function |
-| Native Direct Monitoring | Enabled | Process Buffer Size must exceed Device Buffer Size | Native low-latency | Plug-ins ≤3 ms latency function normally, all others disabled | All function |
-| Virtual Instrument Direct Monitoring | Enabled | Process Buffer Size must exceed Device Buffer Size | Native low-latency | Plug-ins ≤3 ms function normally, all others disabled | All function |
-| Hardware Direct Monitoring | Enabled | "Use Native Direct Monitoring instead of Hardware Direct Monitoring" must be **disabled** | Hardware low-latency | **No Insert FX function** | All function |
+| Type                                 | Direct Input | Necessary conditions                                                                      | Monitoring           | Insert FX                                                     | Send FX      |
+| ------------------------------------ | ------------ | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------- | ------------ |
+| Standard Software Monitoring         | Disabled     | Large Device Buffer Size, low Process Buffer Size (Dropout Protection)                    | Standard latency     | All function                                                  | All function |
+| Native Direct Monitoring             | Enabled      | Process Buffer Size must exceed Device Buffer Size                                        | Native low-latency   | Plug-ins ≤3 ms latency function normally, all others disabled | All function |
+| Virtual Instrument Direct Monitoring | Enabled      | Process Buffer Size must exceed Device Buffer Size                                        | Native low-latency   | Plug-ins ≤3 ms function normally, all others disabled         | All function |
+| Hardware Direct Monitoring           | Enabled      | "Use Native Direct Monitoring instead of Hardware Direct Monitoring" must be **disabled** | Hardware low-latency | **No Insert FX function**                                     | All function |
 
 Mechanism: playback/processing and input monitoring are split into separate processes with
 separate buffers. **Device Buffer Size** (Options/Audio Setup/Audio Device) sets what you
@@ -610,11 +612,11 @@ gain → analyser → channel input → the full insert chain → fader → pan 
 FSP8's "Standard Software Monitoring" row, with FSP8's Native low-latency behaviour
 unavailable.
 
-Delay compensation does exist for *playback*: `engine.ts:544` computes per-channel PDC
+Delay compensation does exist for _playback_: `engine.ts:544` computes per-channel PDC
 against `MAX_PDC_SEC * ctx.sampleRate` and writes `ch.pdc.delayTime`. It is not
 subtracted from, or bypassed for, the monitor path — a monitored track's live input goes
 through the same channel and therefore through the same PDC delay as its recorded
-material, which is correct for alignment and wrong for latency (it *adds* to what the
+material, which is correct for alignment and wrong for latency (it _adds_ to what the
 performer hears).
 
 Nothing at all measures round-trip: `src/audio/latencyProbe.ts` exists — worth checking
@@ -748,7 +750,7 @@ is done once as pure data. `Track.soloSafe` exists for "reverb returns, talkback
 
 **Gap: PARTIAL.** The data model and the solo semantics are right and match FSP8's design.
 What is **MISSING** is the hardware reality — a browser has one output device, so a cue mix
-can only be *auditioned* on the main output, never sent to a second physical pair
+can only be _auditioned_ on the main output, never sent to a second physical pair
 simultaneously with the main mix. That is **DIVERGENT-BY-DESIGN** and cannot be fixed on
 the web; it is a genuine Motion Wave native-shell requirement. Also **MISSING**: cue-mix
 sends on FX channels and the external-cue-system mode.
@@ -829,8 +831,8 @@ count-in calls `recording.stop()` which routes to `cancel()` for the `countIn` p
 **FSP8 does:** "When you click Record with Preroll enabled, Fender Studio Pro starts
 playback behind where the cursor is placed, by a number of bars specified by the Bars
 parameter. When playback passes the cursor position, recording starts." Keyboard **[O]**.
-Bars typed into a box in the Record Panel. Distinct from Precount: Preroll plays *the
-Session*; Precount plays *clicks*.
+Bars typed into a box in the Record Panel. Distinct from Precount: Preroll plays _the
+Session_; Precount plays _clicks_.
 
 **MotionLab does:** `ProjectData.preRoll?: number` — "pre-roll in bars before the punch
 point", `clampNum(raw.preRoll, 0, 8, 0)` — **default 0**. Handled in `captureWindow`
@@ -935,7 +937,7 @@ count-in in `TrackInputControls`, pre-roll and punch in the transport overflow m
 level and click-record-only in the same menu, nothing at all for record mode / takes /
 input quantize (none of which exist — §10, §11).
 
-**Gap: PARTIAL.** The *settings* that exist are all reachable; the organising surface is
+**Gap: PARTIAL.** The _settings_ that exist are all reachable; the organising surface is
 **MISSING**, and it is the natural home for most of the gaps in §8, §10 and §11. Worth
 proposing as one piece of work rather than a dozen scattered controls.
 
@@ -945,16 +947,16 @@ proposing as one piece of work rather than a dozen scattered controls.
 
 **FSP8 does:**
 
-*Global on/off.* "In the Transport, the Metronome button is to the left of the Master
+_Global on/off._ "In the Transport, the Metronome button is to the left of the Master
 Volume fader and meter… Click on the Metronome button, **or press [C]**, to globally engage
 and disengage the metronome. **The metronome is globally disengaged by default.**"
 
-*Per-output.* "the metronome can be engaged and disengaged both globally and for each
+_Per-output._ "the metronome can be engaged and disengaged both globally and for each
 hardware output in the Console, including the Main Out and any Sub Outs. The Output
 Channels in the Console also feature Metronome buttons and level controls above the volume
 fader."
 
-*Setup window.* Right-click or long-press the Metronome button for a context menu carrying
+_Setup window._ Right-click or long-press the Metronome button for a context menu carrying
 the Metronome Setup window, Precount enable, and a Click/Drum metronome toggle. In Setup you
 choose "an individual sample and volume level for **Beats, Accents, and Subdivisions**.
 Accents play on the downbeat, or first beat, of each new bar. Subdivisions play in the space
@@ -963,7 +965,7 @@ Click, Clave, Rim Shot, and Tambourine. **By default, the Accent Level setting i
 than the Beat Level setting**, as most musicians like to have the downbeat of each bar
 emphasized." Presets are saved/recalled with **[Store]** and **[Load]**.
 
-*Time signature and beat duration.* Beat duration divides a measure into "musically
+_Time signature and beat duration._ Beat duration divides a measure into "musically
 meaningful divisions"; four options — **half, quarter, eighth, sixteenth** — chosen when
 editing/inserting a time signature, or from the beat-duration indicator beside the tempo in
 the transport bar. "By default, the beat duration is set to a quarter note for simple time
@@ -971,18 +973,18 @@ signatures, and a dotted quarter note for compound time signatures." Compound si
 (12/8) can be felt as 12 eighths, 6 quarters or 4 dotted quarters; click the dot beside the
 beat duration to make it dotted. Subdivision volume has its own slider in Metronome Setup.
 
-*When it plays.* **Click in Playback** (Metronome Setup) — "allows you to enable/disable
+_When it plays._ **Click in Playback** (Metronome Setup) — "allows you to enable/disable
 the Metronome during playback, as opposed to while recording. Disabling Click in Play allows
 you to leave the Metronome engaged in the Transport at all times, so that if you are
 recording, you hear a click, but if you are playing back, you do not hear the click.
 **Click in Play is engaged by default.**" Plus **Click Only in Precount** (§8.2),
 **disengaged by default**.
 
-*Render Metronome.* A [Render] button in the top-right of Metronome Setup creates an Audio
+_Render Metronome._ A [Render] button in the top-right of Metronome Setup creates an Audio
 Track of the metronome, either the full Session length or a looped range within it (4, 8 or
 16 bars).
 
-*Drum Metronome.* An alternative to the click, "**75 pattern presets** from various
+_Drum Metronome._ An alternative to the click, "**75 pattern presets** from various
 styles/genres, combined with matching drum samples. Users can choose between normal, double,
 or half tempo playback." Enabled from Metronome Setup or the context menu. Also renderable.
 Any drum pattern can be converted to an editable Instrument Pattern Part ("Create Music Part
@@ -994,24 +996,24 @@ signature at the current transport position.
 
 **MotionLab does:**
 
-*Global on/off.* `ProjectData.metronome: boolean`, validated `raw.metronome === true`
+_Global on/off._ `ProjectData.metronome: boolean`, validated `raw.metronome === true`
 (`projectRepo.ts:622`) — **off by default**, matching FSP8. `btn-metronome` in the
 transport; also in the overflow menu. **No [C] shortcut** (grepped `shortcuts.ts`:
 absent). Right-clicking the metronome button cycles the count-in instead of opening a
 setup menu.
 
-*Scheduling.* `src/audio/scheduler.ts:94–104`: when `project.metronome`, one
+_Scheduling._ `src/audio/scheduler.ts:94–104`: when `project.metronome`, one
 `{kind:'metronome', beat, accent}` event per beat, "The click counts the signature's
 denominator, not quarter notes: 6/8 clicks six times a bar, 3/4 three times, and the
 downbeat is accented." Dispatched via `deps.scheduleMetronome(when, accent)` →
 `engine.scheduleTransportClick`.
 
-*Sound.* `engine.scheduleMetronomeClick` (`engine.ts:1791`): a single square oscillator,
+_Sound._ `engine.scheduleMetronomeClick` (`engine.ts:1791`): a single square oscillator,
 **1760 Hz accented / 1175 Hz normal**, gain ramped to 0.5/0.32 over 2 ms then decayed with
 `setTargetAtTime(0, when+0.015, 0.012)`, stopped at `when+0.12`. Accent is louder than beat
 — matching FSP8's default relationship. **One sound, no samples, no subdivisions.**
 
-*Routing.* `metroGain` joins **after** the master analyser, straight at the destination
+_Routing._ `metroGain` joins **after** the master analyser, straight at the destination
 (`engine.ts:396`: "The click joins AFTER the analyser, straight at the destination: it is a
 cue, never part of the mix"). So the click is excluded from meters and from the bounce.
 Level: `clickGain(project)` = `clamp(project.clickLevel, 0, 2)` default **0.7**
@@ -1020,7 +1022,7 @@ The menu's comment argues the level belongs in the song, not in preferences: "it
 in the song, it is decided while tracking, and it is a different number for a loud drummer
 than for a quiet vocal."
 
-*When it plays.* `clickSounds(p, phase)` (`engine.ts:85`): with
+_When it plays._ `clickSounds(p, phase)` (`engine.ts:85`): with
 `clickRecordOnly !== true` (the default) the click always sounds; with it on, only when
 `phase === 'recording' || 'countIn'`. This is exactly FSP8's Click-in-Play, with the same
 default (on). Toggled by the overflow menu ("Click: while recording only" /
@@ -1028,10 +1030,10 @@ default (on). Toggled by the overflow menu ("Click: while recording only" /
 deliberately bypasses this test — `playMetronomeClick` is called directly, commented
 "a count-in with no click is not a count-in."
 
-*Loop wrap.* `retireSoundingAt` skips metronome handles (`engine.ts:1311`: "The metronome
+_Loop wrap._ `retireSoundingAt` skips metronome handles (`engine.ts:1311`: "The metronome
 is left alone: its clicks are scheduled one at a time").
 
-*Time signature.* `timeSig` is a transport dropdown offering 2/4 3/4 4/4 5/4 6/4 7/4 5/8
+_Time signature._ `timeSig` is a transport dropdown offering 2/4 3/4 4/4 5/4 6/4 7/4 5/8
 6/8 7/8 9/8 12/8; `tempoMap` supports signature changes over time and the scheduler follows
 it. There is no beat-duration/dotted-beat concept.
 
@@ -1057,7 +1059,7 @@ it. There is no beat-duration/dotted-beat concept.
 
 **FSP8 does:**
 
-*Loop recording (audio).* Set Left/Right Locators, engage Loop ([NumPad /]), activate
+_Loop recording (audio)._ Set Left/Right Locators, engage Loop ([NumPad /]), activate
 recording manually or via Pre-Roll or Auto Punch; "When the playback cursor reaches the
 Right Locator position, it loops back to the Left Locator Position. Recording continues
 until you manually stop it." Result: "**multiple Takes are created. These Takes represent
@@ -1065,7 +1067,7 @@ each recorded pass over the looped region.** If **Record Takes to Layers** is en
 the Record panel ([Shift]+[Alt]+[R]), the takes are automatically placed in separate layers
 which are expanded when recording is stopped."
 
-*Selecting takes.* "When there are multiple Takes available for an Audio Event, the Take
+_Selecting takes._ "When there are multiple Takes available for an Audio Event, the Take
 icon appears in the lower left corner of the Event… **By default, the last recorded Take is
 selected.** To select any other take, [Right]/[Ctrl]-click on the Audio Event to expose a
 list of Takes." Crucially: "**Takes are edited as a single Audio Event, so sizing or
@@ -1074,11 +1076,11 @@ the comping idiom: "if you recorded three Takes for a vocal verse, you could spl
 Audio Event in between each vocal phrase, and then, for each phrase, select the best of the
 three Takes."
 
-*Unpack Takes.* Right-click an Event → Unpack Takes → **to Tracks** (each Take at the right
+_Unpack Takes._ Right-click an Event → Unpack Takes → **to Tracks** (each Take at the right
 time on its own new Track; "the settings of the originating Track are not duplicated"),
 **to New Layers**, or **to Existing Layers**.
 
-*Track Layers.* "both audio and instrument Tracks have optional layers that can be used to
+_Track Layers._ "both audio and instrument Tracks have optional layers that can be used to
 record multiple different ideas to a single Track… The new layer is effectively like having
 a whole new Track without duplicating Inserts, Sends, and I/O setup." Add Layer / Duplicate
 Layer from the track context menu or the Inspector's Layer selection box. Remove by
@@ -1093,20 +1095,20 @@ Activate, Duplicate and Remove. **Layers Follow Events** in the Inspector makes 
 the parent Event when it is moved or duplicated. Events dragged into a layer cannot be moved
 or copied out again. Rename an Event in a layer to label a take ("great", "not good").
 
-*Comping entry points* (Editing chapter, p. 131): with Record Takes To Layers engaged,
+_Comping entry points_ (Editing chapter, p. 131): with Record Takes To Layers engaged,
 "all subsequent recordings are placed on layers, with one layer per take, and the layers are
 shown as soon as recording is stopped. **The last recorded take is placed on the Track
 automatically. If only one take is recorded, no Layers will be created.**" The Listen tool
 auditions takes; with the Arrow tool, hovering a layer switches to a comping cursor; there
 is also comping with the Range Tool and keyboard navigation.
 
-*Set/Shift Loop.* `Set Loop Start` / `Set Loop End` (locators to the cursor) and
+_Set/Shift Loop._ `Set Loop Start` / `Set Loop End` (locators to the cursor) and
 `Shift Loop` / `Shift Loop Backwards` (move the range by its own length) exist in Keyboard
 Shortcuts with **no default key assigned**.
 
 **MotionLab does:**
 
-*Loop recording:* **not implemented, and unguarded.** `recordingController` never reads
+_Loop recording:_ **not implemented, and unguarded.** `recordingController` never reads
 `project.loop`; grepping the file for `loop` returns nothing. The transport does honour the
 loop while recording (the scheduler wraps regardless of `phase`), so what actually happens
 is: the transport wraps back to `loop.start`, the recorder keeps capturing linearly,
@@ -1118,7 +1120,7 @@ bug rather than a missing feature: recording with loop enabled silently produces
 result, and either loop should be honoured properly or record should temporarily suspend it
 and say so.
 
-*Takes:* the **data model is present and good**. `Clip.takes?: Take[]` ("alternative
+_Takes:_ the **data model is present and good**. `Clip.takes?: Take[]` ("alternative
 takes; when present, `comp` decides what sounds"), `Clip.comp?: CompSegment[]` ("ordered
 comp segments over the takes"), `Clip.takesOpen`, `Clip.soloTakeId`; `Take` carries
 `offsetSec` ("seconds into the take's media that aligns with the clip's start") and a
@@ -1133,7 +1135,7 @@ operation. Grepped the whole tree for any recording-time take creation
 (`takes: [`, `addTake`, `takes.push`): no hits. So the comping system exists but the
 recording flow never feeds it.
 
-*Layers:* absent as a concept. There is no `Track.layers`, no per-track lane stack beyond
+_Layers:_ absent as a concept. There is no `Track.layers`, no per-track lane stack beyond
 take lanes and automation lanes. Take lanes under a clip are the nearest analogue and are
 narrower (they belong to one clip, not to the track).
 
@@ -1162,7 +1164,7 @@ narrower (they belong to one clip, not to the track).
 
 **FSP8 does:** All in the Record Panel ([Shift]+[Alt]+[R]).
 
-*Replace / Overdub.* "When in the **Replace** recording mode, recording over any existing
+_Replace / Overdub._ "When in the **Replace** recording mode, recording over any existing
 Instrument Part results in the new material being recorded to a new Event, which replaces
 that portion of the original Event. **While recording, you do not hear the previously
 recorded Event playing back**, as the purpose of this mode is to replace the existing
@@ -1171,20 +1173,20 @@ the newly recorded material [is] overdubbed, or added to, the existing material.
 recording, you hear the previously recorded Event playing, along with the material
 currently being recorded, assuming that you are monitoring the Instrument Track."
 
-*Takes to Layers.* "move[s] the contents of each Take created while recording in loop mode
+_Takes to Layers._ "move[s] the contents of each Take created while recording in loop mode
 to its own Layer below the current Track. If you engage this option while **Record Takes**
 is enabled, the notes from each run-through of the loop are moved to their own new Layer.
 Engaged while **Record Mix** is enabled, a new Layer is created each time recording is
 started and stopped, containing all notes from the entirety of the most recent recording
 pass."
 
-*Input Quantize.* "Engage Input Quantize to snap recorded notes to the rhythmic value set by
+_Input Quantize._ "Engage Input Quantize to snap recorded notes to the rhythmic value set by
 the Quantize parameter. When recording parts that are destined to be heavily quantized (such
 as synth arpeggios or drum-machine-style beats), this saves you the step of later Quantizing
 the contents of your loop." (Elsewhere, p. 133: input quantization can be undone if you want
 the performance as played.)
 
-*Loop record modes.* "If Loop is engaged in the Transport while recording, the recording
+_Loop record modes._ "If Loop is engaged in the Transport while recording, the recording
 mode changes either to **Loop Record Takes** or **Loop Record Mix**… functionally similar to
 the regular Record Mode Overdub and Record Mode Replace. When Loop Record Takes is selected,
 each pass through the looped region is recorded to a new Take within a single new Instrument
@@ -1193,12 +1195,12 @@ Mix is selected, each pass through the looped region is added to the existing ma
 within a single new Instrument Part. For instance, if you loop a four-bar region to record a
 new drum part, this would allow you to play one piece of the drum kit during each pass."
 
-*Undo Last Loop / Undo All Loops.* "The standard Fender Studio Pro Undo/Redo functions do
+_Undo Last Loop / Undo All Loops._ "The standard Fender Studio Pro Undo/Redo functions do
 not apply to individual record passes in Loop mode. Instead, use these two special Undo
 buttons… Undo Last Loop to erase only the notes added in the most recent run-through of the
 loop. Click Undo All Loops to erase all notes in the current loop."
 
-*Note Repeat.* "any notes played retrigger according to the current Rate setting… set to QT
+_Note Repeat._ "any notes played retrigger according to the current Rate setting… set to QT
 (to follow the current quantize value) or to any specific rhythmic value." Options window
 (wrench icon, or via Key Remote): **Active**, **Rate**, **Gate** (note length), **Quantize**
 (snap repeats to the grid; disable for free play), **Aftertouch** (key or poly pressure
@@ -1207,11 +1209,11 @@ rates; **Base** moves the octave, **Pitch** changes the note), **Key Remote** (M
 of rate, active state, Note Erase, gate, Single Mode, quantize and aftertouch; **Base** and
 **Range** set the control key range). Cannot be combined with Note Erase.
 
-*Note Erase.* "any notes played during the current recording pass erase existing notes of
+_Note Erase._ "any notes played during the current recording pass erase existing notes of
 the same note value… It is only possible to engage this mode if Record Mix is engaged and
 Note Repeat is disengaged."
 
-*Rendering Note FX.* Event/Render Instrument Tracks, or right-click a Part →
+_Rendering Note FX._ Event/Render Instrument Tracks, or right-click a Part →
 Instrument Parts/Render Instrument Tracks, makes Note FX processing (plus Inspector
 transposition and velocity changes) permanent in the note data.
 
@@ -1277,7 +1279,7 @@ note-on/note-off handler that writes to the selected clip instead of the synth.
 or controller… even without hitting Record. Even when the transport is stopped! It works
 invisibly in the background on a track-by-track basis. Controller activity is captured as
 well. The moment something brilliant happens, all you have to do is press
-**[Shift]+[NumPad*]** and the last performance will turn into an Instrument Part on the
+_*[Shift]+[NumPad*]_* and the last performance will turn into an Instrument Part on the
 respective Track."
 
 **Enabled by default**; disable at Studio Pro/Options/Advanced/MIDI/"Enable retrospective
@@ -1354,20 +1356,20 @@ available disk space.
 
 - **Container/codec is negotiated, not chosen.** `pickMimeType()` (`recorder.ts:36`) walks
   `['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus',
-  'audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/aac']` through
+'audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/aac']` through
   `MediaRecorder.isTypeSupported`, falling back to the browser default. The module docstring
   explains: "Its container differs per browser (Opus/WebM on Chromium and Firefox, AAC/MP4
   on Safari), so the format is negotiated below and reported in diagnostics rather than
   assumed." **So takes are lossy-compressed, and the codec depends on the browser.**
 - **Sample rate** is the `AudioContext`'s (logged at creation, `engine.ts:318`; published
-  to `transportStore.sampleRate`); on commit the *decoded* rate is stored as
+  to `transportStore.sampleRate`); on commit the _decoded_ rate is stored as
   `mediaRef.sampleRate`. Not user-selectable. **Bit depth** is not a concept — Web Audio is
   float32 throughout, and the stored artefact is a compressed blob.
 - **Where files go:** IndexedDB, not the filesystem. `commitTake` calls
   `putMediaBlob(mediaId, take.blob, take.mimeType)` and `putPeaks(mediaId, peaks)`
   (`src/persistence/mediaStore.ts`), then `cacheBuffer` for the decoded buffer, **before**
   touching the project — "Persist bytes before touching the project so a failed write cannot
-  leave a clip pointing at media that does not exist."  `MediaRef` records `id`, `name`
+  leave a clip pointing at media that does not exist." `MediaRef` records `id`, `name`
   (`"<track name> take"`), `kind: 'recording'`, `mimeType`, `duration`, `sampleRate`,
   `channels`, `byteSize`, `createdAt`, `source: 'microphone'`, `peaksVersion`.
 - **Timestamps:** the clip's timeline position is carried by `Clip.start` (beats) plus
@@ -1422,7 +1424,7 @@ through the inserts and recorded without them.
 There is no input-channel concept at all (§3), so there is nowhere to put a printing insert
 even in principle.
 
-**Gap: MISSING**, but the *default* matches FSP8's own recommendation ("placing effects on
+**Gap: MISSING**, but the _default_ matches FSP8's own recommendation ("placing effects on
 the Audio Channels to which you are recording for monitoring purposes only"), so the
 practical harm is small and the current behaviour is arguably the safer one.
 
@@ -1455,56 +1457,56 @@ still sounds); audio-track insert unloading is **MISSING**.
 
 ## 17. Summary table
 
-| # | Behaviour | Gap |
-|---|---|---|
-| 1.1 | Play / Space | PARITY |
-| 1.2 | Stop in place; Return-to-Start-on-Stop option | PARTIAL (option MISSING) |
-| **1.3** | **Stop mid-record ends the take (Space / Stop button)** | **MISSING — P0** |
-| 1.4 | Return to zero | PARITY (key differs; button tooltip wrong) |
-| 1.5 | Rewind / FF / marker shuttle | PARITY |
-| 1.6 | Loop playback | PARITY |
-| 1.6 | Set/Shift Loop, Loop Follows Selection | MISSING |
-| 1.7 | Record button / key | PARITY |
-| 1.7 | Multitrack simultaneous record | MISSING (DIVERGENT-BY-DESIGN on web) |
-| 1.8 | Play Start Marker, Locate to Mouse | MISSING |
-| 1.9 | Bars + Seconds display | PARTIAL (Samples/Frames, remaining time MISSING) |
-| **2** | **Track channel format (mono/stereo), format toggle, mono-input rule** | **MISSING — P0** |
-| **2** | **What a mono input produces** | **UNDEFINED — device decides, user not told — P0** |
-| **3** | **Per-track input selection** | **PARTIAL — one surface only — P0** |
-| 3 | Software I/O channel layer, re-recording, per-track MIDI input | MISSING |
-| 4 | Record arm exists and persists | PARITY |
-| 4 | Arm implies input metering | MISSING |
-| 4 | Exclusive arm ([Alt]-click), multi-select arm, input clip indicator | MISSING |
-| 4 | Record onto unarmed selected audio track | DIVERGENT |
-| 5.1 | Software monitoring through the channel | PARITY |
-| **5.2** | **Monitoring follows record-arm (+ its preference)** | **MISSING — P0** |
-| 5.2 | Input follows selection | MISSING |
-| 5.3 | Hardware direct monitoring | DIVERGENT-BY-DESIGN (no web API) |
-| 5.4 | Tape-style (monitoring mutes playback) | MISSING |
-| 5.5 | Low-latency monitoring modes, buffer settings, latency readout | MISSING / DIVERGENT |
-| 5.6 | Instrument monitoring | PARTIAL (always live — simpler, defensible) |
-| 6 | Input trim + polarity + mono-sum | Richer than FSP8 |
-| 6 | Pre-fader input meter; post-fader channel meter | PARITY |
-| 6 | Input clip indicator | MISSING |
-| 7 | Cue mixes (model, solo semantics) | PARTIAL (single output device) |
-| 8.1 | Manual record from playhead | PARITY |
-| 8.2 | Count-in (bars, accent, shown in record button) | PARTIAL (wall-clock timing; ranges disagree) |
-| 8.3 | Pre-roll (run-up kept in media) | PARITY |
-| 8.4 | Punch in / punch out | PARTIAL (transport stops at punch-out; no crossfade) |
-| 8.5 | Post-roll | MISSING |
-| 8.6 | Record Panel as a surface | PARTIAL |
-| 9 | Metronome on/off, default off, accent, signature-following, click-in-play | PARITY |
-| 9 | Sounds, subdivisions, beat duration, per-output, presets, render, drum metronome | MISSING |
-| **10** | **Loop recording** | **MISSING — and produces a wrong take today** |
-| 10 | Takes / comping model | PARITY |
-| 10 | Takes created by recording | MISSING |
-| 10 | Track Layers, Unpack Takes | MISSING |
-| 11 | Replace / Overdub | MISSING (two stacked clips both sound) |
-| 11 | Input Quantize | PARTIAL (plumbed, hard-coded off) |
-| 11 | Note Repeat, Note Erase, Undo Last/All Loops, Render Note FX | MISSING |
-| 12 | Step Record | MISSING |
-| 13 | Retrospective recording; Record Offset | MISSING |
-| 14 | Recording format / location | DIVERGENT-BY-DESIGN (lossy, IndexedDB) |
-| 14 | Format/rate/channels shown to the user | MISSING |
-| 15 | Print effects while recording | MISSING (default matches FSP8's own advice) |
-| 16 | Disable track | PARTIAL (freeze covers instruments) |
+| #       | Behaviour                                                                        | Gap                                                         |
+| ------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| 1.1     | Play / Space                                                                     | PARITY                                                      |
+| 1.2     | Stop in place; Return-to-Start-on-Stop option                                    | PARTIAL (option MISSING)                                    |
+| **1.3** | **Stop mid-record ends the take (Space / Stop button)**                          | **MISSING — P0**                                            |
+| 1.4     | Return to zero                                                                   | PARITY (key differs; button tooltip wrong)                  |
+| 1.5     | Rewind / FF / marker shuttle                                                     | PARITY                                                      |
+| 1.6     | Loop playback                                                                    | PARITY                                                      |
+| 1.6     | Set/Shift Loop, Loop Follows Selection                                           | MISSING                                                     |
+| 1.7     | Record button / key                                                              | PARITY                                                      |
+| 1.7     | Multitrack simultaneous record                                                   | MISSING (DIVERGENT-BY-DESIGN on web)                        |
+| 1.8     | Play Start Marker, Locate to Mouse                                               | MISSING                                                     |
+| 1.9     | Bars + Seconds display                                                           | PARTIAL (Samples/Frames, remaining time MISSING)            |
+| **2**   | **Track channel format (mono/stereo), format toggle, mono-input rule**           | **MISSING — P0**                                            |
+| **2**   | **What a mono input produces**                                                   | **UNDEFINED — device decides, user not told — P0**          |
+| **3**   | **Per-track input selection**                                                    | **PARTIAL — one surface only — P0**                         |
+| 3       | Software I/O channel layer, re-recording, per-track MIDI input                   | MISSING                                                     |
+| 4       | Record arm exists and persists                                                   | PARITY                                                      |
+| 4       | Arm implies input metering                                                       | MISSING                                                     |
+| 4       | Exclusive arm ([Alt]-click), multi-select arm, input clip indicator              | MISSING                                                     |
+| 4       | Record onto unarmed selected audio track                                         | DIVERGENT                                                   |
+| 5.1     | Software monitoring through the channel                                          | PARITY                                                      |
+| **5.2** | **Monitoring follows record-arm (+ its preference)**                             | **PARITY** — `monitorActions.ts`, `prefs.monitorFollowsArm` |
+| 5.2     | Input follows selection                                                          | MISSING                                                     |
+| 5.3     | Hardware direct monitoring                                                       | DIVERGENT-BY-DESIGN (no web API)                            |
+| 5.4     | Tape-style (monitoring mutes playback)                                           | MISSING                                                     |
+| 5.5     | Low-latency monitoring modes, buffer settings, latency readout                   | MISSING / DIVERGENT                                         |
+| 5.6     | Instrument monitoring                                                            | PARTIAL (always live — simpler, defensible)                 |
+| 6       | Input trim + polarity + mono-sum                                                 | Richer than FSP8                                            |
+| 6       | Pre-fader input meter; post-fader channel meter                                  | PARITY                                                      |
+| 6       | Input clip indicator                                                             | MISSING                                                     |
+| 7       | Cue mixes (model, solo semantics)                                                | PARTIAL (single output device)                              |
+| 8.1     | Manual record from playhead                                                      | PARITY                                                      |
+| 8.2     | Count-in (bars, accent, shown in record button)                                  | PARTIAL (wall-clock timing; ranges disagree)                |
+| 8.3     | Pre-roll (run-up kept in media)                                                  | PARITY                                                      |
+| 8.4     | Punch in / punch out                                                             | PARTIAL (transport stops at punch-out; no crossfade)        |
+| 8.5     | Post-roll                                                                        | MISSING                                                     |
+| 8.6     | Record Panel as a surface                                                        | PARTIAL                                                     |
+| 9       | Metronome on/off, default off, accent, signature-following, click-in-play        | PARITY                                                      |
+| 9       | Sounds, subdivisions, beat duration, per-output, presets, render, drum metronome | MISSING                                                     |
+| **10**  | **Loop recording**                                                               | **MISSING — and produces a wrong take today**               |
+| 10      | Takes / comping model                                                            | PARITY                                                      |
+| 10      | Takes created by recording                                                       | MISSING                                                     |
+| 10      | Track Layers, Unpack Takes                                                       | MISSING                                                     |
+| 11      | Replace / Overdub                                                                | MISSING (two stacked clips both sound)                      |
+| 11      | Input Quantize                                                                   | PARTIAL (plumbed, hard-coded off)                           |
+| 11      | Note Repeat, Note Erase, Undo Last/All Loops, Render Note FX                     | MISSING                                                     |
+| 12      | Step Record                                                                      | MISSING                                                     |
+| 13      | Retrospective recording; Record Offset                                           | MISSING                                                     |
+| 14      | Recording format / location                                                      | DIVERGENT-BY-DESIGN (lossy, IndexedDB)                      |
+| 14      | Format/rate/channels shown to the user                                           | MISSING                                                     |
+| 15      | Print effects while recording                                                    | MISSING (default matches FSP8's own advice)                 |
+| 16      | Disable track                                                                    | PARTIAL (freeze covers instruments)                         |

@@ -14,6 +14,7 @@ import { RecordButton } from '../recording/RecordControls';
 export function AudioStatusChip({ compact }: { compact?: boolean }) {
   const audioState = useTransportStore((s) => s.audioState);
   const sampleRate = useTransportStore((s) => s.sampleRate);
+  const pdcSamples = useTransportStore((s) => s.pdcSamples);
   const cls =
     audioState === 'running'
       ? 'ok'
@@ -22,9 +23,25 @@ export function AudioStatusChip({ compact }: { compact?: boolean }) {
         : audioState === 'uninitialized'
           ? ''
           : 'warn';
+  /**
+   * Latency, shown only when there is some.
+   *
+   * In milliseconds rather than samples: it is a number a musician judges
+   * against their own playing, and 4 ms means something where 192 samples means
+   * something only once you have divided it by a rate you would then have to go
+   * and read. The sample count is in the tooltip for whoever wants it.
+   *
+   * Zero is not displayed. A permanent "0 ms" is a light that is always on,
+   * which is a light nobody reads — and this one has to be noticed on the day
+   * it stops saying zero.
+   */
+  const latency =
+    pdcSamples > 0 && sampleRate ? `${((pdcSamples / sampleRate) * 1000).toFixed(1)} ms` : null;
   const full =
     audioState === 'running'
-      ? `Audio Running${sampleRate ? ` · ${(sampleRate / 1000).toFixed(1)}k` : ''}`
+      ? `Audio Running${sampleRate ? ` · ${(sampleRate / 1000).toFixed(1)}k` : ''}${
+          latency ? ` · ${latency}` : ''
+        }`
       : audioState === 'uninitialized'
         ? 'Start Audio'
         : audioState === 'starting'
@@ -52,10 +69,15 @@ export function AudioStatusChip({ compact }: { compact?: boolean }) {
     <button
       className={`chip audio-chip ${cls}`}
       onClick={() => void engine.start()}
-      title={full}
+      title={
+        latency
+          ? `${full} — ${pdcSamples} samples of plug-in delay compensation on every channel`
+          : full
+      }
       aria-label={full}
       data-testid="audio-chip"
       data-audio-state={audioState}
+      data-pdc-samples={pdcSamples}
     >
       <span className="dot" />
       {label && <span className="chip-label">{label}</span>}
