@@ -7,6 +7,11 @@ export default tseslint.config(
   {
     ignores: [
       'dist',
+      // Local QA output, and the throwaway measurement scripts that write it.
+      // `.gitignore` already treats this directory as scratch; linting it would
+      // make a one-off probe as expensive to write as a source file, which is
+      // how measuring stops happening.
+      'audit-out',
       'dev-dist',
       'coverage',
       'playwright-report',

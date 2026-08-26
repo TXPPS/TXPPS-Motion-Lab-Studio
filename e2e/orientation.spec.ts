@@ -260,19 +260,43 @@ test.describe('a plugin editor opens where it can be used', () => {
       const win = document.querySelector('[data-testid="plugin-window"]');
       if (!win) return { small: ['no plugin window'], overlaps: [] as string[] };
 
-      /** The box a finger actually has to hit: the element, plus its ::after. */
+      /**
+       * The box a finger actually has to hit — found by pressing, not by
+       * reading the declared inset.
+       *
+       * This used to add `::after`'s computed inset to the border box, which
+       * is the *intended* rectangle. It is not the reachable one. Inside a
+       * scroller the pseudo-element is clipped by the ancestor's overflow, and
+       * where two of them overlap the later sibling takes the press — so the
+       * intended rectangle can be four times the real one, or the real one can
+       * be a single pixel. Both were measured in the device rack, where
+       * `.dev-power` declared 44 x 44 through this exact pattern and delivered
+       * 16 x 16, then 1 x 1 with a second device on the channel. A pointer
+       * aimed at the first device's lamp bypassed the second.
+       *
+       * Walking outward from the centre and asking `elementFromPoint` where
+       * the control stops answering costs a few hundred hit tests and cannot
+       * be wrong about clipping, stacking or a neighbour on top.
+       */
       const hitBox = (el: Element) => {
         const r = el.getBoundingClientRect();
-        const after = getComputedStyle(el, '::after');
-        if (!after.content || after.content === 'none') return r;
-        const px = (v: string) => (v.endsWith('px') ? parseFloat(v) : 0);
-        // A negative inset grows the box; `getComputedStyle` reports it as a
-        // negative length on each side.
-        const t = px(after.top);
-        const rt = px(after.right);
-        const b = px(after.bottom);
-        const l = px(after.left);
-        return new DOMRect(r.x + l, r.y + t, r.width - l - rt, r.height - t - b);
+        const cx = r.x + r.width / 2;
+        const cy = r.y + r.height / 2;
+        const mine = (x: number, y: number) => {
+          const at = document.elementFromPoint(x, y);
+          return at !== null && (at === el || el.contains(at));
+        };
+        if (!mine(cx, cy)) return new DOMRect(cx, cy, 0, 0);
+        const walk = (dx: number, dy: number) => {
+          let d = 0;
+          while (d < 60 && mine(cx + dx * (d + 1), cy + dy * (d + 1))) d++;
+          return d;
+        };
+        const l = walk(-1, 0);
+        const rt = walk(1, 0);
+        const t = walk(0, -1);
+        const b = walk(0, 1);
+        return new DOMRect(cx - l, cy - t, l + rt + 1, t + b + 1);
       };
 
       const controls = [...win.querySelectorAll('header button, header select')];

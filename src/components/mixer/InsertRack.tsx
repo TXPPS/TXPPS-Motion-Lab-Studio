@@ -96,7 +96,10 @@ function InsertSlot({
           onClick={(e) => {
             e.stopPropagation();
             const box = e.currentTarget.getBoundingClientRect();
-            deviceMenu(chain, effect, index, total, box.left, box.bottom);
+            deviceMenu(chain, effect, index, total, box.left, box.bottom, {
+              shown: open,
+              toggle: () => setOpen((o) => !o),
+            });
           }}
         >
           <Icon name="dots-v" size={11} />

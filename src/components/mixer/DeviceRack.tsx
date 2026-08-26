@@ -165,14 +165,35 @@ export interface DeviceMenuHost {
   remove: (effectId: string) => void;
 }
 
-/** The menu every device slot answers to, on right-click and from its caret. */
-export function deviceMenu(
+/**
+ * The device's own disclosure, so the menu can offer it too.
+ *
+ * Both racks put a device's parameters behind a press on something small — the
+ * console's 12px name, the inspector's title row — and neither had a menu
+ * entry for it. That is the one command the options menu did not carry, and
+ * under WCAG 2.5.8 an inline control is only exempt from the target minimum
+ * while an equivalent one is not: a disclosure with no equivalent made the
+ * name a 12px target with no alternative rather than a shortcut to one.
+ */
+export interface DeviceDisclosure {
+  shown: boolean;
+  toggle: () => void;
+}
+
+/**
+ * Every command a device offers, wherever it is being offered from.
+ *
+ * Split out from `deviceMenu` so it can be *read* rather than only shown.
+ * `tests/deviceMenu.test.ts` enumerates this against the inline controls each
+ * rack draws, which is what turns "the menu is the equivalent alternative"
+ * from a claim in a comment into something that fails when it stops being true.
+ */
+export function deviceCommands(
   rack: DeviceMenuHost,
   effect: Effect,
   index: number,
   total: number,
-  x: number,
-  y: number,
+  disclosure?: DeviceDisclosure,
 ) {
   const store = useProjectStore.getState();
   const ui = useUiStore.getState();
@@ -185,38 +206,57 @@ export function deviceMenu(
         t.type === 'bus' ||
         t.type === 'fx'),
   );
-  ui.showMenu({
-    x,
-    y,
-    items: [
-      {
-        label: 'Open',
-        action: () => ui.set({ openDevice: { trackId: rack.id, effectId: effect.id } }),
-      },
-      {
-        label: effect.bypass ? 'Enable' : 'Bypass',
-        action: () => rack.setBypass(effect.id, !effect.bypass),
-      },
-      { label: 'Move up', disabled: index === 0, action: () => rack.move(effect.id, -1) },
-      {
-        label: 'Move down',
-        disabled: index >= total - 1,
-        action: () => rack.move(effect.id, 1),
-      },
-      // Copying to another channel only makes sense from a track's chain; the
-      // master's devices have nowhere else of the same kind to go.
-      ...(rack.id === 'master'
-        ? []
-        : others.slice(0, 8).map((t) => ({
-            label: `Copy to ${t.name}`,
-            action: () => {
-              const id = useProjectStore.getState().copyEffectTo(rack.id, effect.id, t.id);
-              if (!id) ui.toast('error', `${t.name} has no free insert slot.`);
-            },
-          }))),
-      { label: 'Remove', danger: true, action: () => rack.remove(effect.id) },
-    ],
-  });
+  return [
+    {
+      label: 'Open',
+      action: () => ui.set({ openDevice: { trackId: rack.id, effectId: effect.id } }),
+    },
+    ...(disclosure
+      ? [
+          {
+            label: disclosure.shown ? 'Hide controls' : 'Show controls',
+            action: disclosure.toggle,
+          },
+        ]
+      : []),
+    {
+      label: effect.bypass ? 'Enable' : 'Bypass',
+      action: () => rack.setBypass(effect.id, !effect.bypass),
+    },
+    { label: 'Move up', disabled: index === 0, action: () => rack.move(effect.id, -1) },
+    {
+      label: 'Move down',
+      disabled: index >= total - 1,
+      action: () => rack.move(effect.id, 1),
+    },
+    // Copying to another channel only makes sense from a track's chain; the
+    // master's devices have nowhere else of the same kind to go.
+    ...(rack.id === 'master'
+      ? []
+      : others.slice(0, 8).map((t) => ({
+          label: `Copy to ${t.name}`,
+          action: () => {
+            const id = useProjectStore.getState().copyEffectTo(rack.id, effect.id, t.id);
+            if (!id) ui.toast('error', `${t.name} has no free insert slot.`);
+          },
+        }))),
+    { label: 'Remove', danger: true, action: () => rack.remove(effect.id) },
+  ];
+}
+
+/** The menu every device slot answers to, on right-click and from its caret. */
+export function deviceMenu(
+  rack: DeviceMenuHost,
+  effect: Effect,
+  index: number,
+  total: number,
+  x: number,
+  y: number,
+  disclosure?: DeviceDisclosure,
+) {
+  useUiStore
+    .getState()
+    .showMenu({ x, y, items: deviceCommands(rack, effect, index, total, disclosure) });
 }
 
 /**
@@ -342,7 +382,10 @@ function DeviceSlot({
       }}
       onContextMenu={(e) => {
         e.preventDefault();
-        deviceMenu(rack, effect, index, total, e.clientX, e.clientY);
+        deviceMenu(rack, effect, index, total, e.clientX, e.clientY, {
+          shown: micro,
+          toggle: () => setMicro((m) => !m),
+        });
       }}
     >
       <button
@@ -369,11 +412,15 @@ function DeviceSlot({
       </button>
       <button
         className="dev-menu"
+        data-testid={`device-menu-${rack.name}-${index + 1}`}
         aria-label={`${label} options`}
         onClick={(e) => {
           e.stopPropagation();
           const box = e.currentTarget.getBoundingClientRect();
-          deviceMenu(rack, effect, index, total, box.left, box.bottom);
+          deviceMenu(rack, effect, index, total, box.left, box.bottom, {
+            shown: micro,
+            toggle: () => setMicro((m) => !m),
+          });
         }}
       >
         <Icon name="dots-v" size={11} />

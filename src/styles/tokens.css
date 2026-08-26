@@ -221,6 +221,20 @@
     --fader-track-w: calc(9px * var(--ui-scale));
     --fader-fill-w: calc(5px * var(--ui-scale));
     --fader-cap-h: calc(20px * var(--ui-scale));
+
+    /* A device row is a touch target on a touch device, and the rack's floor
+       is derived from these — so raising the parts raises the floor with them,
+       which is the whole reason they are tokens.
+
+       `mixer.css` used to give the options button `min-height: 44px` inside a
+       16px row instead. It overflowed by 28px into the two rows below it, and
+       three of them stacked in a 16px pitch meant the topmost won every hit
+       test: measured on a phone, a finger at the centre of the first device's
+       options button landed on the *third* device's icon. A target grown past
+       the row that holds it is not a bigger target, it is a target pointing at
+       something else. */
+    --dev-slot-h: 44px;
+    --dev-add-h: 44px;
   }
 }
 

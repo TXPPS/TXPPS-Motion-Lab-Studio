@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/licence-guard.mjs && node scripts/ledger-guard.mjs && node scripts/parity-guard.mjs && node scripts/generate-params.mjs --check && node scripts/generate-functions.mjs --check && node scripts/probe-mutations.mjs --check && node scripts/check-checks.mjs --check && node scripts/generate-sinc-table.mjs --check && node scripts/generate-window-tables.mjs --check && node scripts/generate-accent.mjs --check && vitest run tests/contrast.test.ts && node scripts/generate-icons.mjs --check && node scripts/check-wasm-current.mjs && node scripts/sync-motionwave-assets.mjs && tsc -b && vite build && node scripts/check-core-in-bundle.mjs",
+    "build": "node scripts/licence-guard.mjs && node scripts/ledger-guard.mjs && node scripts/parity-guard.mjs && node scripts/gesture-guard.mjs && node scripts/generate-params.mjs --check && node scripts/generate-functions.mjs --check && node scripts/probe-mutations.mjs --check && node scripts/check-checks.mjs --check && node scripts/generate-sinc-table.mjs --check && node scripts/generate-window-tables.mjs --check && node scripts/generate-accent.mjs --check && vitest run tests/contrast.test.ts && node scripts/generate-icons.mjs --check && node scripts/check-wasm-current.mjs && node scripts/sync-motionwave-assets.mjs && tsc -b && vite build && node scripts/check-core-in-bundle.mjs",
     "preview": "vite preview --port 4173 --strictPort",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -28,6 +28,7 @@
     "licence-guard": "node scripts/licence-guard.mjs",
     "ledger-guard": "node scripts/ledger-guard.mjs",
     "parity-guard": "node scripts/parity-guard.mjs",
+    "gesture-guard": "node scripts/gesture-guard.mjs",
     "params": "node scripts/generate-params.mjs",
     "params:check": "node scripts/generate-params.mjs --check",
     "motionwave:assets": "node scripts/sync-motionwave-assets.mjs",

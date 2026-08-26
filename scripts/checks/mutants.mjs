@@ -186,6 +186,18 @@ export const CHECKS = {
     kind: 'gate',
     mutate: editing('docs/UNIT_LEDGER.md', '| FAIL', '| SHIPPING-FAIL'),
   },
+  'gesture-guard': {
+    kind: 'gate',
+    // A scripted press in a file with no entry in the guard's own registry.
+    // `console.spec.ts` presses through Playwright today, so the mutation is
+    // exactly what the guard exists to notice: somebody reaching for
+    // `el.click()` in a new place because it was quicker.
+    mutate: editing(
+      'e2e/console.spec.ts',
+      "from '@playwright/test';",
+      "from '@playwright/test'; const m = (l) => l.evaluate((n) => n.click());",
+    ),
+  },
   'parity-guard': {
     kind: 'gate',
     // Delete the code a claim rests on and the verdict recorded for it becomes

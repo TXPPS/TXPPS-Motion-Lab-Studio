@@ -921,6 +921,29 @@
   font-size: var(--fs-md);
   white-space: nowrap;
 }
+/*
+ * A menu entry is a target, and on a finger it is *the* target.
+ *
+ * The console's per-device controls are 5px (power), 12px (name) and 11px
+ * (options). WCAG 2.5.8 exempts a small target when the same function is
+ * reachable through a control that meets the minimum, and this menu is that
+ * control — every one of those commands is an entry here, so the entries are
+ * what has to be big enough. They were 160 x 28 on every form factor,
+ * measured, which meant the exception the console depends on was not actually
+ * being granted by anything: 28 is under the 44 a finger needs, and a route
+ * that is itself too small is not a route.
+ *
+ * 28 stays on a fine pointer. That is the 24 x 24 WCAG 2.5.8 asks of a mouse
+ * with 4px to spare, and a desktop menu with 44px rows is a phone menu on a
+ * desk. Geometry only in the coarse block, which is this codebase's rule for
+ * every other control that has two sizes.
+ */
+@media (pointer: coarse) {
+  .ctx-menu button {
+    min-height: 44px;
+    align-items: center;
+  }
+}
 .ctx-menu .mi-label {
   flex: 1 1 auto;
 }

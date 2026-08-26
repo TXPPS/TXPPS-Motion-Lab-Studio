@@ -147,12 +147,30 @@ export function PluginWindow() {
 
   const close = useCallback(() => useUiStore.getState().set({ openDevice: null }), []);
 
-  // Escape closes the window rather than reaching the app behind it — a window
-  // in front of the console owns the key while it is there.
+  /*
+   * Escape closes the window rather than reaching the app behind it — a window
+   * in front of the console owns the key while it is there.
+   *
+   * Unless something is in front of the *window*. This listens on `window` in
+   * the capture phase and calls `stopPropagation`, which is what makes it win
+   * against the app behind — and it was also winning against the menus above
+   * it. A device's own options menu sits at `--z-menu` (800) over the window's
+   * `--z-plugin` (300), so pressing Escape on an open menu closed the window
+   * underneath and left the menu standing: measured, and it is why the next
+   * press on that device's options button was intercepted by the menu that
+   * should already have gone. `devicewindow.spec.ts` had been failing on it
+   * for as long as anyone had looked, described as a target-size failure.
+   *
+   * Read from the store rather than from `e.target`, because a menu can be
+   * open with focus anywhere — what decides ownership is which overlay is on
+   * top, not where the keyboard happens to be.
+   */
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      const ui = useUiStore.getState();
+      if (ui.contextMenu || ui.dialog) return;
       e.stopPropagation();
       close();
     };

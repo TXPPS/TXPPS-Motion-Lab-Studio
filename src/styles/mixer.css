@@ -814,12 +814,26 @@
   flex: none;
   border-radius: var(--radius-xs);
 }
+/*
+ * Everything the meter draws, and nothing it answers to.
+ *
+ * `.smeter-bars` is `aria-hidden="true"` by its own declaration — the one real
+ * control in a meter is `.smeter-over`, which is a sibling outside it. Its
+ * labels are absolutely positioned inside an `overflow: visible` scale, so they
+ * spill past the box they are measured in, and Playwright reported this subtree
+ * intercepting presses aimed at a device slot's options button in the rack.
+ *
+ * A decoration taking a press meant for a control is the worst kind of miss:
+ * nothing happens, and nothing says why. If it is hidden from a screen reader
+ * it should be hidden from a finger.
+ */
 .smeter-bars {
   position: relative;
   display: flex;
   gap: 1px;
   flex: 1 1 auto;
   min-height: 0;
+  pointer-events: none;
 }
 .smeter-ch {
   position: relative;
@@ -1659,18 +1673,35 @@
   background: var(--accent-lamp);
   box-shadow: 0 0 5px -1px color-mix(in srgb, var(--accent-lamp) 60%, transparent);
 }
-/* The lamp is 5px because a lamp that size is what a console rack looks like;
-   a 5px *target* is not something a finger can hit. The hit area grows around
-   it without moving anything, the way `.resize-handle` already does.
-
-   -19.5px, not -12px: 5 + 39 = 44, which is the minimum. At -12px the hit area
-   was 29px — bigger than the lamp, and still under the number the rule exists
-   to meet. A hit area that is merely generous is not a hit area that passes. */
+/*
+ * The lamp is 5px because a lamp that size is what a console rack looks like;
+ * a 5px *target* is not something a pointer can hit. The hit area grows around
+ * it without moving anything, the way `.resize-handle` already does.
+ *
+ * It was `inset: -19.5px`, derived as 5 + 39 = 44 — the touch minimum, chosen
+ * by arithmetic and never measured against the row it lives in. Device rows
+ * are 17px apart, so a 44px circle centred on one lamp covers the whole of the
+ * lamp above and the lamp below, and the later sibling paints on top.
+ *
+ * Measured, with three devices on a channel: a pointer aimed at the *first*
+ * device's lamp bypassed the **second**. Not "was hard to hit" — bypassed the
+ * wrong device, silently, and left the right one running. Any channel with
+ * more than one insert had a bypass button that was off by one, and the
+ * console has shipped that way for as long as the hit area has existed.
+ *
+ * Bounded by the row now: 16px tall, which is the row exactly, and 12px wide —
+ * the 4px of slot padding to its left, the lamp, and the 3px gap before the
+ * name, all of which belong to no other control. Smaller than 44 and smaller
+ * than 24, and that is the honest number: nothing bigger fits in a rack that
+ * shows four devices in 88px, and the options menu beside it is what WCAG
+ * 2.5.8's equivalent-alternative provision needs. A target that is bigger than
+ * its row is not a bigger target.
+ */
 .dev-power::after {
   content: '';
   position: absolute;
-  inset: -19.5px;
-  border-radius: 50%;
+  inset: -5.5px -3px -5.5px -4px;
+  border-radius: var(--radius-xs);
 }
 .dev-slot.bypassed .dev-power {
   background: color-mix(in srgb, var(--text-faint) 35%, transparent);
@@ -1682,8 +1713,21 @@
     0 0 0 2px color-mix(in srgb, var(--edge-hi) 80%, transparent),
     0 0 5px -1px color-mix(in srgb, var(--accent-lamp) 60%, transparent);
 }
+/* `flex: 1 1 0`, not `1 1 auto`, because this row wraps.
+
+   `.dev-slot` is `flex-wrap: wrap` so the Micro View's parameter block can take
+   a line of its own. With a basis of `auto` the name's base size is its text,
+   and a flex line wraps before it shrinks — so a device called "Compressor"
+   claimed the whole row and pushed the options button onto a second line that
+   the slot's fixed height does not contain. Measured on a phone: the button
+   landed 47px below its own slot, on top of the Insert button, and a finger
+   aimed at it inserted a device instead. A basis of 0 means the name asks for
+   nothing and grows into what is left, which looks identical and cannot wrap.
+
+   This was reachable on a desktop too — a long enough name at a narrow enough
+   tier is the same sum — and only touch made it certain. */
 .dev-name {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -1721,17 +1765,63 @@
   letter-spacing: 0;
   text-transform: none;
 }
+/*
+ * The route to every per-device command, and the reason the controls beside it
+ * are allowed to be small.
+ *
+ * WCAG 2.5.8 exempts an undersized target when the same function is reachable
+ * through a control that does meet the minimum. The power lamp is 5px and the
+ * name is 12px because that is what a console rack looks like; this button is
+ * what makes that exception apply rather than merely being asserted, so it
+ * carries the whole command set — open, show controls, bypass, reorder, copy,
+ * remove. If a command exists inline and not here, the exception lapses and
+ * they go back to being undersized targets with no alternative.
+ * `tests/deviceMenu.test.ts` is what keeps that true.
+ *
+ * The target is the row, and only the row. The obvious move was `.dev-power`'s
+ * — an `::after` at `inset: -16.5px`, giving 11 + 33 = 44 — and it does not
+ * work here, which only measuring finds out. `.dev-list` is `overflow-y: auto`
+ * and `.dev-rack` is `hidden auto`, so a pseudo-element reaching past its row
+ * is **clipped by the scroller around it**: measured on a desktop, an
+ * `::after` at -16.5px had a reachable area of 11 x 11, exactly the border
+ * box, and `.dev-power`'s declared 44 x 44 measured 16 x 16 in the same rack.
+ * So this stretches to the row instead — 16px tall, 20px wide, all of it real.
+ * A declared 44 that delivers 11 is worse than an honest 20, because the
+ * number goes in a report and the report is what stops anybody measuring.
+ */
 .dev-menu {
+  position: relative;
   flex: 0 0 auto;
+  align-self: stretch;
+  min-width: 20px;
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 0;
   border: 0;
   background: none;
   color: var(--text-faint);
   opacity: 0;
 }
+/*
+ * Revealed by hovering the row it belongs to — on either rack.
+ *
+ * This was `.dev-slot:hover .dev-menu`, and the inspector's copy of the same
+ * button lives in a `.fx-head` with no `.dev-slot` anywhere above it. So the
+ * one rack a phone actually lands in had an options button that no rule ever
+ * made visible, on every form factor, and it had it for as long as the button
+ * has existed. Matching the button's own `:hover` as well as its row's is what
+ * makes the reveal a property of the button rather than of one rack's markup.
+ *
+ * An open device keeps its button showing: the row is the subject of whatever
+ * window is on screen, and hiding the way back to its commands while it is
+ * being edited is the moment it is least welcome.
+ */
 .dev-slot:hover .dev-menu,
+.fx-head:hover .dev-menu,
+.dev-slot.open .dev-menu,
+.fx-slot.open .dev-menu,
+.dev-menu:hover,
 .dev-menu:focus-visible {
   opacity: 1;
 }
@@ -1976,6 +2066,32 @@
     height: auto;
     min-height: 48px;
   }
+  /*
+   * Room around the lamp, because a hit area has to have somewhere to go.
+   *
+   * `.pw-power::after` declares 10 + 34 = 44 and was measured as passing on
+   * that arithmetic. It never delivered it: the lamp sat 6px from the window's
+   * left edge, so half its hit area was outside the window and the reachable
+   * target was **33 x 44**. The declared number was right and the control was
+   * not, which is the whole reason `hitBox` in `orientation.spec.ts` now walks
+   * outward with `elementFromPoint` instead of adding up an inset.
+   *
+   * 12px of margin puts 22px of window on the lamp's left, which is what 44
+   * around a 10px dot actually costs.
+   *
+   * The A/B group is the other half. `.pw-ab` is `overflow: hidden` and a flex
+   * item that may shrink, so on a phone it was 3px narrower than the two 44px
+   * buttons inside it — and "Compare slot B" reported a 44 x 44 border box
+   * while **reaching 39**, because the group was clipping its right edge. A
+   * button that is the right size inside a container that is not is a button
+   * of the wrong size, and only a hit test can see the difference.
+   */
+  .pw-power {
+    margin-left: 12px;
+  }
+  .pw-ab {
+    flex: none;
+  }
 
   /* The only way to add a device, at 15 px tall.
 
@@ -1985,18 +2101,58 @@
      that could least afford to be the smallest. The rack grows to hold it,
      rather than the button overflowing a row sized for 15 px. */
   .dev-add {
-    min-height: 44px;
-    height: auto;
+    height: var(--dev-add-h);
     padding: 0 8px;
   }
   .dev-rack {
     max-height: none;
   }
-  /* The per-device options button beside it, for the same reason: a device you
-     cannot open is a device you cannot bypass, rename or remove. */
+  /*
+   * On a finger, the menu is not the fallback — it is the route.
+   *
+   * The button was `min-height: 44px` and `opacity: 0`, which is two separate
+   * ways of not being there: nothing on a touch device ever hovers, so the
+   * only rule that revealed it could not fire, and the 44px it grew to
+   * overflowed a 16px row into the two below it. Measured on a phone, a finger
+   * at the centre of the first device's options button landed on the third
+   * device's icon — so the reported symptom, "no three-dot, remove or move
+   * controls for a plugin on an insert on mobile", was exactly right.
+   *
+   * It is sized by the row now (`--dev-slot-h` is 44px here), so it cannot
+   * overflow what holds it, and it is visible without being hovered.
+   */
   .dev-menu {
-    min-width: 44px;
-    min-height: 44px;
+    opacity: 1;
+    /* Both dimensions, stated. `align-self: stretch` reads as if it would do
+       the second one and does not: measured, a stretched `<button>` in this
+       row came back 21px — its own line box — and a 44 x 21 target is a target
+       that fails the axis nobody checked. */
+    width: var(--dev-slot-h);
+    height: var(--dev-slot-h);
+  }
+  /*
+   * The inline controls go away rather than growing.
+   *
+   * 2.5.8's exception is what lets a 5px lamp and a 12px name exist at all,
+   * and it is satisfied by the menu above carrying the same commands. On a
+   * desktop that is a fair trade: the lamp is a glance-and-click for a mouse
+   * that can hit it, and the menu is there for anything else. On a finger
+   * neither is reachable at that size, and growing them to 44px would put
+   * three touch targets in one 44px row. So the shortcuts drop and the route
+   * stays: Bypass and Enable are menu commands, and "Show controls" is how the
+   * micro parameters open.
+   */
+  .dev-power {
+    display: none;
+  }
+  /* What is left is the name, and it takes the height of the row it is in — a
+     12px target with the whole width of the strip beside it was the other half
+     of the same defect. It is narrower than 44px on a phone's 98px strip, and
+     that is the exception doing its job rather than a miss: "Open" and "Show
+     controls" are both in the menu beside it, which is what makes this a
+     shortcut instead of the only way in. */
+  .dev-name {
+    height: 100%;
   }
 }
 .pw-close:hover {
