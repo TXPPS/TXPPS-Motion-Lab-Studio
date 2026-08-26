@@ -3,15 +3,25 @@
 ```
 RESUME: Directive 11 — parity, reachability, exhaustive proof.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: 832280a, bundle index-C97NCQEs.js. Verified by deleting dist/,
-                 rebuilding on a clean tree and matching the hash against the
-                 live page. Two things the check has now failed on and neither
+Deployed commit: 0650777, bundle index-orQk2sIC.js, sha256 489e0ed9e6b7177b
+                 over 445174 bytes — fetched from the live page and matched
+                 against a clean-tree rebuild, not just by name.
+                 A note on "clean": `git status --porcelain` reported 576
+                 modified files after the working tree was normalised to LF,
+                 while `git diff` reported none — a stale index stat cache,
+                 which `git add --renormalize .` clears. Until it was cleared
+                 every local build compiled in the wall clock and no two of
+                 them hashed alike, so the check below could not have passed.
+                 Three things the check has now failed on and none of them
                  was the deploy: a stale local dist/, chasing a bundle that was
-                 never going to appear; and a *dirty* tree, which makes the
+                 never going to appear; a *dirty* tree, which makes the
                  build non-reproducible by design — `vite.config.ts` compiles in
                  the commit's date for a clean tree and the wall clock for a
                  dirty one, so two builds a minute apart hashed differently.
-                 Clean means committed, not merely rebuilt.
+                 Clean means committed, not merely rebuilt — and, as above, not
+                 merely believed: `git status` and `git diff` disagreed for
+                 five hundred and seventy-six files and only one of them is
+                 what the build reads.
 Bundle verified: every deploy is checked by fetching the live bundle and
                  matching its hash against a clean-tree build. Cloudflare takes
                  260-280 s to pick one up; a check that does not wait that long
