@@ -20,7 +20,7 @@ import { useUiStore } from '../../state/uiStore';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
 import { Icon } from '../common/Icon';
 import { EffectVisual, FxKnob } from './PluginFace';
-import { MotionWaveFace } from './MotionWaveFace';
+import { MotionWaveFaceLazy } from './MotionWaveFaceLazy';
 import { isMotionWaveKind } from '../../audio/motionwave/registry';
 import { channelRack, type RackHost } from './DeviceRack';
 import { clampToViewport, placeWindow } from './windowPlace';
@@ -90,7 +90,7 @@ function EffectBody({ rack, effect }: { rack: RackHost; effect: Effect }) {
   if (isMotionWaveKind(effect.kind)) {
     return (
       <div className="pw-body pw-body-mw">
-        <MotionWaveFace trackId={rack.id} effect={effect} />
+        <MotionWaveFaceLazy trackId={rack.id} effect={effect} />
       </div>
     );
   }

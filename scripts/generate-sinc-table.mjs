@@ -20,8 +20,8 @@
 // this table is a single curve rather than one per interval.
 import { writeFileSync, readFileSync } from 'node:fs';
 
-const HALF_WIDTH = 8;      // lobes either side; sets the stopband depth
-const STEPS = 512;         // samples of the prototype per unit of x
+const HALF_WIDTH = 8; // lobes either side; sets the stopband depth
+const STEPS = 512; // samples of the prototype per unit of x
 const COUNT = HALF_WIDTH * STEPS + 1;
 
 // Blackman-Harris over the kernel's support, for the same reason the analysis
@@ -29,7 +29,7 @@ const COUNT = HALF_WIDTH * STEPS + 1;
 function prototype(x) {
   if (x >= HALF_WIDTH) return 0;
   const sinc = x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x);
-  const t = (x / HALF_WIDTH + 1) * 0.5;           // 0.5 at the centre, 1 at the edge
+  const t = (x / HALF_WIDTH + 1) * 0.5; // 0.5 at the centre, 1 at the edge
   const w =
     0.35875 -
     0.48829 * Math.cos(2 * Math.PI * t) +
@@ -64,7 +64,14 @@ lines.push('/// One guard entry is unnecessary here because the prototype is exa
 lines.push('/// at its edge, so an interpolation that runs off the end reads a true zero.');
 lines.push(`inline constexpr float kSincPrototype[kSincTablePoints] = {`);
 for (let i = 0; i < COUNT; i += 8) {
-  lines.push('    ' + samples.slice(i, i + 8).map((v) => `${v.toPrecision(9)}f`).join(', ') + ',');
+  lines.push(
+    '    ' +
+      samples
+        .slice(i, i + 8)
+        .map((v) => `${v.toPrecision(9)}f`)
+        .join(', ') +
+      ',',
+  );
 }
 lines.push('};');
 lines.push('');
@@ -73,9 +80,22 @@ lines.push('');
 
 const text = lines.join('\n');
 const target = 'motionwave/core/dsp/grain/sinc_table.gen.h';
+/**
+ * Compared with line endings normalised.
+ *
+ * `.gitattributes` sets `eol=lf` for exactly this reason, and it is not enough:
+ * a working tree checked out before that line was added keeps its carriage
+ * returns, and then a generated file differs from its own generator by nothing
+ * at all and the check calls it stale. That happened here, to both grain
+ * tables, and it went unnoticed for as long as it did because nothing ran
+ * either check. A guarantee that a generated file matches its source cannot
+ * depend on which platform is asking.
+ */
+const sameContent = (a, b) => a.split('\r\n').join('\n') === b.split('\r\n').join('\n');
+
 if (process.argv.includes('--check')) {
   const have = readFileSync(target, 'utf8');
-  if (have !== text) {
+  if (!sameContent(have, text)) {
     console.error(`${target} is out of date — run: npm run sinc`);
     process.exit(1);
   }

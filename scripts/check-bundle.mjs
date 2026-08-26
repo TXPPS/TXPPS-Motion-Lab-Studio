@@ -25,6 +25,31 @@ const BUDGETS = {
 const files = readdirSync(DIST).filter((f) => !f.endsWith('.map'));
 const gz = (name) => gzipSync(readFileSync(join(DIST, name))).length;
 
+/**
+ * Which file the browser actually loads first — read out of `index.html`.
+ *
+ * This used to be `/^index-[^.]+\.js$/`, on the reasoning that Vite names the
+ * entry chunk after the entry module. It does, and so does every other chunk
+ * whose module happens to be called `index` — the WebAudioModules SDK is one,
+ * and it lands in `dist/assets` as `index-C_4W6HTb.js`. Two files matched, the
+ * loop assigned rather than accumulated, and the reported figure was whichever
+ * `readdirSync` returned last. That is filesystem order: on this NTFS tree it
+ * picked the real entry and read 148 kB against a 140 kB budget; on an ext4 CI
+ * runner it can as easily pick the 3 kB one and pass.
+ *
+ * So a check that had never been anything but a coin toss reported green for
+ * as long as the coin fell that way, and nothing was watching it closely enough
+ * to notice — `check-bundle.mjs` is invoked by CI and by nothing else.
+ * `index.html` names one file, and it is the one the musician waits for.
+ */
+const entryName = (readFileSync('dist/index.html', 'utf8').match(
+  /<script[^>]+src="\/assets\/([^"]+\.js)"/,
+) ?? [])[1];
+if (!entryName) {
+  console.error('check-bundle: dist/index.html names no module script — is this a real build?');
+  process.exit(1);
+}
+
 let entryJs = 0;
 let css = 0;
 let totalJs = 0;
@@ -35,8 +60,7 @@ for (const f of files) {
   if (f.endsWith('.css')) css += size;
   else if (f.endsWith('.js')) {
     totalJs += size;
-    // Vite names the entry chunk after the entry module.
-    if (/^index-[^.]+\.js$/.test(f)) entryJs = size;
+    if (f === entryName) entryJs = size;
   }
   rows.push([f, size]);
 }

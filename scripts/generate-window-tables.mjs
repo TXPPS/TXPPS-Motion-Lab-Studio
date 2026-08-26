@@ -123,6 +123,19 @@ inline constexpr float kGaussianMeanSquare = ${gaussianMoments.meanSquare.toPrec
 }  // namespace mw::dsp::grain
 `;
 
+/**
+ * Compared with line endings normalised.
+ *
+ * `.gitattributes` sets `eol=lf` for exactly this reason, and it is not enough:
+ * a working tree checked out before that line was added keeps its carriage
+ * returns, and then a generated file differs from its own generator by nothing
+ * at all and the check calls it stale. That happened here, to both grain
+ * tables, and it went unnoticed for as long as it did because nothing ran
+ * either check. A guarantee that a generated file matches its source cannot
+ * depend on which platform is asking.
+ */
+const sameContent = (a, b) => a.split('\r\n').join('\n') === b.split('\r\n').join('\n');
+
 const check = process.argv.includes('--check');
 let existing = null;
 try {
@@ -131,7 +144,7 @@ try {
   existing = null;
 }
 if (check) {
-  if (existing !== header) {
+  if (existing === null || !sameContent(existing, header)) {
     console.error(`window tables: ${target} is stale — run \`npm run windows\``);
     process.exit(1);
   }

@@ -71,12 +71,51 @@ const dir = mkdtempSync(join(tmpdir(), 'mw-curve-'));
 const cpp = join(dir, 'emit.cpp');
 const bin = join(dir, 'emit');
 writeFileSync(cpp, source);
-execFileSync('g++', ['-std=c++17', '-O2', '-I', join(ROOT, 'motionwave/core'), cpp, '-o', bin]);
-const emitted = execFileSync(bin, { encoding: 'utf8', maxBuffer: 1 << 28 });
+/**
+ * Say so where there is no compiler, rather than dying with a stack trace.
+ *
+ * `--check` compiles the C++ curve law and compares its output against the
+ * tracked golden table, so a host with no C++ toolchain cannot answer the
+ * question at all. It used to throw `spawnSync g++ ENOENT` from the middle of
+ * this file, which reads as the check being broken rather than as the host
+ * being unable to run it — and a check that looks broken is a check somebody
+ * eventually deletes.
+ *
+ * Exits 2, not 0. `check-wasm-current.mjs` makes the same argument and exits 0,
+ * because it is reached by a build that has to run where there is no toolchain
+ * at all; this one is reached only by CI, where `g++` is always present, so a
+ * skip here is a skip that should stop something.
+ */
+let emitted;
+try {
+  execFileSync('g++', ['-std=c++17', '-O2', '-I', join(ROOT, 'motionwave/core'), cpp, '-o', bin]);
+  emitted = execFileSync(bin, { encoding: 'utf8', maxBuffer: 1 << 28 });
+} catch (e) {
+  if (e?.code === 'ENOENT') {
+    console.error('generate-curve-golden: SKIPPED — no C++ compiler on this host, so the golden');
+    console.error('  table could not be checked against the law it is supposed to mirror.');
+    console.error('  This is not a pass. CI has g++ and runs this check for real.');
+    process.exit(2);
+  }
+  throw e;
+}
+
+/**
+ * Compared with line endings normalised.
+ *
+ * `.gitattributes` sets `eol=lf` for exactly this reason, and it is not enough:
+ * a working tree checked out before that line was added keeps its carriage
+ * returns, and then a generated file differs from its own generator by nothing
+ * at all and the check calls it stale. That happened here, to both grain
+ * tables, and it went unnoticed for as long as it did because nothing ran
+ * either check. A guarantee that a generated file matches its source cannot
+ * depend on which platform is asking.
+ */
+const sameContent = (a, b) => a.split('\r\n').join('\n') === b.split('\r\n').join('\n');
 
 if (process.argv.includes('--check')) {
   const existing = readFileSync(OUT, 'utf8');
-  if (existing !== emitted) {
+  if (!sameContent(existing, emitted)) {
     console.error(
       'generate-curve-golden: motionwave/ui/test/curve_golden.json is stale.\n' +
         'The C++ curve law changed and the golden table did not. Re-run ' +

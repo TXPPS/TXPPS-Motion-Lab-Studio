@@ -1,0 +1,263 @@
+/**
+ * How each declared check is known to be able to fail.
+ *
+ * Three findings made this necessary and they are three different shapes of the
+ * same thing. `tsconfig.e2e.json` was correct and invoked by nothing. The panel
+ * spec ran and could not fail, because the worklet it needed had been renamed
+ * and it passed anyway. `wasm:check` compared a file against itself. In all
+ * three the check existed, and its existence is what stopped anybody asking.
+ *
+ * So every npm script needs an entry here, and the entry has to say one of two
+ * things: this is not a check and here is why, or this is a check and here is
+ * the edit that makes it go red. A script with no entry fails `--check`, which
+ * is what turns "somebody should verify that" into "the build will not go
+ * without it" — the same mechanism `probe-mutations.mjs` uses, applied one
+ * level up.
+ *
+ * `kind` says what the proof is:
+ *
+ *  - `gate`    — a mutation, applied to the thing the check reads. The strong
+ *                form: the check is run clean, run mutated, and must disagree.
+ *  - `suite`   — a test runner. Its falsifiability is not in question; what is
+ *                in question is whether every spec on disk is in it, which is
+ *                what the enumeration in `check-checks.mjs --run` proves.
+ *  - `probe`   — a measurement harness whose corrections are mutation-tested by
+ *                `npm run probe:mutations`. Not re-proved here; named, so the
+ *                chain from this file to that one is on the page.
+ *  - `composite` — runs other checks and adds none of its own.
+ *  - `tool`    — not a check. A generator, a server, a formatter. Needs a
+ *                reason, because "it is not a check" is exactly what somebody
+ *                would say about a check they had broken.
+ */
+
+/** A file created from nothing, and deleted again afterwards. */
+const creating = (file, content) => ({ file, content });
+/** An edit to a tracked file. The driver restores the original either way. */
+const editing = (file, from, to) => ({ file, from, to });
+
+export const CHECKS = {
+  // ---------------------------------------------------------------- tools
+  dev: { kind: 'tool', why: 'the dev server' },
+  preview: { kind: 'tool', why: 'the preview server the browser suites run against' },
+  'test:watch': { kind: 'tool', why: 'the interactive form of `test`' },
+  format: { kind: 'tool', why: 'writes; `format:check` is the check' },
+  icons: { kind: 'tool', why: 'writes; `icons:check` is the check' },
+  accent: { kind: 'tool', why: 'writes; `accent:check` is the check' },
+  params: { kind: 'tool', why: 'writes; `params:check` is the check' },
+  sinc: { kind: 'tool', why: 'writes; `sinc:check` is the check' },
+  windows: { kind: 'tool', why: 'writes; `windows:check` is the check' },
+  'curve:golden': { kind: 'tool', why: 'writes; `curve:check` is the check' },
+  functions: { kind: 'tool', why: 'writes the Function Ledger; the build runs it with --check' },
+  shot: { kind: 'tool', why: 'takes screenshots' },
+  'build:wasm': { kind: 'tool', why: 'compiles the core; `wasm:check` is the check' },
+  'build:panel': { kind: 'tool', why: 'builds the panel harness `e2e:mw` runs against' },
+  'motionwave:assets': {
+    kind: 'tool',
+    why: 'copies the core into public/; `check-core-in-bundle` is the check',
+  },
+
+  // ---------------------------------------------------------------- suites
+  test: { kind: 'suite' },
+  'test:mw': { kind: 'suite' },
+  'test:core': { kind: 'suite' },
+  e2e: { kind: 'suite' },
+  'e2e:mw': { kind: 'suite' },
+
+  // ---------------------------------------------------------------- probes
+  //
+  // `manual` is the one escape hatch here, and it takes a reason for the same
+  // reason `licence-guard`'s self-exemption is one obvious line: an exemption
+  // that can be granted silently is how the orphans got to be orphans. These
+  // three take tens of minutes against a live browser and are run per directive
+  // rather than per push. They are still listed on every run, so "we do not run
+  // that on a push" stays a decision somebody made rather than a fact nobody
+  // noticed.
+  soak: {
+    kind: 'probe',
+    provenBy: 'probe:mutations',
+    manual: 'four layers against a live preview; tens of minutes, run per directive',
+  },
+  stress: {
+    kind: 'probe',
+    provenBy: 'probe:mutations',
+    manual: 'endurance layer runs for minutes of wall clock by construction',
+  },
+  reachability: {
+    kind: 'probe',
+    provenBy: 'probe:mutations',
+    manual: 'walks every menu in a live browser; run per directive',
+  },
+
+  // ------------------------------------------------------------- composite
+  build: { kind: 'composite', why: 'eleven checks in a chain, each with its own entry' },
+
+  // ------------------------------------------------------------------ gates
+  typecheck: {
+    kind: 'gate',
+    // A deliberate type error in a file each of the four projects actually
+    // includes. `tsconfig.app.json` is the one `npx tsc --noEmit` compiles
+    // nothing of, which is the gotcha at the top of CLAUDE.md.
+    mutate: editing(
+      'src/audio/pdc.ts',
+      'export const MAX_PDC_SEC = 0.5;',
+      'export const MAX_PDC_SEC: number = "half a second";',
+    ),
+  },
+  'typecheck:e2e': {
+    kind: 'gate',
+    // The project that existed and was invoked by nothing. Its mutation has to
+    // land in `e2e/`, because that is the only thing it includes — a type error
+    // in `src/` would be caught by `typecheck` and prove nothing about this.
+    mutate: editing('e2e/bouncealignment.spec.ts', 'const WINDOW = {', 'const WINDOW: number = {'),
+  },
+  lint: {
+    kind: 'gate',
+    mutate: creating('src/__mutant.ts', 'export const x = 1;\nconst unusedOnPurpose = 2;\n'),
+  },
+  'format:check': {
+    kind: 'gate',
+    mutate: creating('src/__mutant.ts', 'export const x   =    1\n'),
+  },
+  'params:check': {
+    kind: 'gate',
+    // A generated parameter table, hand-edited. The manifest is the source of
+    // both sides of the parity, so an edit here is exactly the drift the check
+    // is for.
+    mutate: editing(
+      'motionwave/ui/units/program_eq/params.gen.ts',
+      'export const',
+      'export /* mutant */ const',
+    ),
+  },
+  'accent:check': {
+    kind: 'gate',
+    mutate: editing('src/styles/tokens.css', '--accent:', '--accent: #ff00ff; --accent-was:'),
+  },
+  'contrast:check': {
+    kind: 'gate',
+    // Contrast is asserted against the tokens, so the mutation is a token that
+    // cannot carry text. Distinct from `accent:check`'s: that one asks whether
+    // the accent was derived, this one asks whether it is legible.
+    mutate: editing('src/styles/tokens.css', '--accent:', '--accent: #2a2a2a; --accent-was:'),
+  },
+  'icons:check': {
+    kind: 'gate',
+    mutate: editing('public/icons/icon-192.png', 'PNG', 'PnG'),
+  },
+  'curve:check': {
+    kind: 'gate',
+    needs: 'g++',
+    mutate: editing('motionwave/ui/test/curve_golden.json', '[', '[0.5,'),
+  },
+  'sinc:check': {
+    kind: 'gate',
+    mutate: editing(
+      'motionwave/core/dsp/grain/sinc_table.gen.h',
+      'kSincHalfWidth = 8',
+      'kSincHalfWidth = 9',
+    ),
+  },
+  'windows:check': {
+    kind: 'gate',
+    mutate: editing('motionwave/core/dsp/grain/window_tables.gen.h', '0.0', '0.5'),
+  },
+  'wasm:check': {
+    kind: 'gate',
+    // The tracked core against a fresh compile. It needs emsdk, and says so
+    // itself where there is none — which is why the driver reports BLOCKED
+    // here rather than green: a check that reports SKIPPED is not a check that
+    // passed, and this one has already been wrong once by comparing a file
+    // against itself.
+    mutate: editing(
+      'motionwave/core/units/console_eq.h',
+      'namespace mw',
+      'namespace /* mutant */ mw',
+    ),
+    needs: 'emsdk',
+  },
+  'licence-guard': {
+    kind: 'gate',
+    mutate: creating(
+      'src/__mutant.ts',
+      '// SPDX-License-Identifier: GPL-3.0-only\nexport const x = 1;\n',
+    ),
+  },
+  'ledger-guard': {
+    kind: 'gate',
+    mutate: editing('docs/UNIT_LEDGER.md', '| FAIL', '| SHIPPING-FAIL'),
+  },
+  'parity-guard': {
+    kind: 'gate',
+    // Delete the code a claim rests on and the verdict recorded for it becomes
+    // a lie. This is the direction that has never happened; the one that has —
+    // a MISSING quietly becoming true — is what the guard was written for, and
+    // it caught five on its first run.
+    // The engine's publish, not the store's field: the field name appears twice
+    // in that file and renaming one left the other for the predicate to find,
+    // which read as DECAYED and was the mutation being too small to matter.
+    mutate: editing(
+      'src/audio/engine.ts',
+      'pdcSamples: plan.commonSamples',
+      'pdcSamplesNotPublished: plan.commonSamples',
+    ),
+  },
+  'scope-guard': {
+    kind: 'gate',
+    // The only entry that needs the git index, so the driver stages the file it
+    // creates and unstages it afterwards — and refuses to run at all if the
+    // index was not already empty. A sweep that quietly reset somebody's
+    // staged work to check a guard would be a worse defect than the one it is
+    // checking for.
+    mutate: creating('src/__mutant.ts', 'export const x = 1;\n'),
+    stages: true,
+    env: { MW_SCOPE: 'docs' },
+  },
+  'probe:mutations': {
+    kind: 'gate',
+    command: 'node scripts/probe-mutations.mjs --check',
+    // `--check` matches the registry against the call sites. Renaming a planted
+    // id breaks the match in both directions at once, which is what the two
+    // halves of that check are for.
+    mutate: editing(
+      'scripts/bypass-probe.mjs',
+      "unless('bypass/full-resolution'",
+      "unless('bypass/full-resolution-renamed'",
+    ),
+  },
+};
+
+/**
+ * Checks that are not npm scripts: a guard invoked directly by a build step or
+ * a CI step. They are reached by their path rather than by a name, so they are
+ * declared here and matched against the same command text.
+ */
+export const DIRECT = {
+  'scripts/check-bundle.mjs': {
+    kind: 'gate',
+    // A chunk in `dist/` big enough to break the total-JS budget. Random hex
+    // rather than repeated text, because the budget is on the *gzipped* size
+    // and a megabyte of one character compresses to nothing.
+    mutate: {
+      // `dist/assets`, not `dist`: the budget reads the assets directory, and a
+      // file dropped one level up is a mutation the check never sees — which
+      // read as DECAYED and was the sweep mis-measuring itself.
+      file: 'dist/assets/index-mutant.js',
+      content: Array.from({ length: 40000 }, (_, i) => ((i * 2654435761) >>> 0).toString(36)).join(
+        '',
+      ),
+    },
+    needs: 'dist',
+  },
+  'scripts/check-core-in-bundle.mjs': {
+    kind: 'gate',
+    mutate: { file: 'dist/worklets/__mutant.txt', content: 'x' },
+    expect: 'unfalsifiable',
+    unfalsifiableBecause:
+      'it asserts two files are present and large enough, and adding a third does not make that false. ' +
+      'Removing one would, and deleting a build artefact to prove a check works is a worse trade than ' +
+      'recording that this one is only proved by the build that produces them.',
+    needs: 'dist',
+  },
+};
+
+export const CHECK_NAMES = Object.keys(CHECKS);

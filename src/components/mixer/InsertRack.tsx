@@ -20,7 +20,7 @@ import { useUiStore } from '../../state/uiStore';
 import { deviceMenu } from './DeviceRack';
 import { Icon } from '../common/Icon';
 import { EffectVisual, FxKnob, faceKindOf } from './PluginFace';
-import { MotionWaveFace } from './MotionWaveFace';
+import { MotionWaveFaceLazy } from './MotionWaveFaceLazy';
 import { isMotionWaveKind } from '../../audio/motionwave/registry';
 import { SHELF, addShelfPlugin } from '../../audio/wam/shelf';
 
@@ -114,7 +114,7 @@ function InsertSlot({
          * declaration is its parameters; these units declare a face.
          */
         <div className="fx-body fx-body-mw">
-          <MotionWaveFace trackId={chain.id} effect={effect} />
+          <MotionWaveFaceLazy trackId={chain.id} effect={effect} />
         </div>
       )}
 
