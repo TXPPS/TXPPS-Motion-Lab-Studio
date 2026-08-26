@@ -32,15 +32,27 @@ Bundle verified: every deploy is checked by fetching the live bundle and
                  This line names the tip at the moment it was written, so the
                  commit that edits it is by construction one ahead of what it
                  describes. Said plainly rather than left to be noticed.
-Current section: D11 §1-§6 and §8 COMPLETE. §4 is now every claim in the
-                 parity corpus rather than thirteen of them: 947 claims,
-                 enumerated from the eight chapters, each settled by its own
-                 citations, by a pinned predicate, or by a recorded judgement
-                 with a reason. Its first run found a P0 that had been built
-                 and never written down.
-Next action:     §7 - the voice substrate, proven through Slipstream, then the
-                 five synths. NOT STARTED.
-Function Ledger: 396 functions, 69 with a state-asserting test, 0 unreachable.
+Current section: F6 §1-§3 COMPLETE. A P0 closed - the sampler had no route to
+                 a user's own audio on any form factor. Every document under
+                 docs/ is now GENERATED, GUARDED or NARRATIVE and a guard
+                 enforces what each means. The coverage arithmetic is reported
+                 against the ledger rather than against the sweep's own scope.
+Next action:     §7 continues. `voice/note_id.h` and `voice/note_registry.h`
+                 are built and VS-04 is closed - the row the spec calls
+                 "BUG-005 made executable". `voice_set.h` is next: VS-01 and
+                 VS-02 are PA-003 made executable and need a partition to
+                 walk. Ten of the substrate's twelve files remain, then the
+                 Slipstream Sampler, then the five synths.
+                 Also open: SA-001, the analysing importer smp-01 §3 specifies.
+                 The load route exists now; nothing analyses what it loads.
+Function Ledger: 403 functions, **69 with a state-asserting test - 17.1%**.
+                 The sweep drives 136 of the 403 and 69 of those change
+                 something; 267 rows have no case at all and are named, by
+                 kind, under "Never driven". F3 reported 69/396 and the last
+                 report said 69/136 - the same numerator against the sweep's
+                 own scope, which reads as coverage tripling. Both numbers are
+                 printed now, by `scripts/functions/enumerate.mjs`, which the
+                 ledger and the soak both read so they cannot disagree.
 Open P1s:        None. The suite has no failing case.
                  The console's target-size question is CLOSED, by WCAG 2.5.8's
                  equivalent-alternative provision rather than by moving a
@@ -64,27 +76,45 @@ Open P1s:        None. The suite has no failing case.
                  The bypassed-insert P1 is CLOSED: the difference was a
                  mono/stereo pan-law change, x1.414214 exactly, and
                  `InsertChain` routes a bypassed insert around itself now.
-Suites:          typecheck (four projects), lint, 2005 unit, 351 motionwave,
-                 42 core suites, 358 e2e all passing, 34 panel tests.
-                 `npm run check-checks`: 27 declared checks, 23 on every push,
-                 1 documented, 3 manual with a reason.
+Suites:          typecheck (four projects), lint, format, 2018 unit,
+                 351 motionwave, 43 core suites, 367 e2e all passing,
+                 34 panel tests.
+                 `npm run check-checks`: 29 declared checks, 24 on every push,
+                 2 documented, 3 manual with a reason. 20 gates: 19 HELD,
+                 1 KEPT with a reason, **0 BLOCKED**, 0 DECAYED, 0 BROKEN.
+                 It was 2 BLOCKED for three directives, on a host that could
+                 run both - see the section below.
                  `npm run parity-guard`: 947 claims in 427 sections - 806
                  checked against the audit's own citations, 13 pinned to a
                  predicate, 141 recorded as needing judgement with a reason.
                  454 MISSING and 263 PARTIAL still open.
-                 `npm run gesture-guard`: 87 files swept; every scripted press
+                 `npm run docs-guard`: 70 documents - 4 generated, 13 guarded,
+                 53 narrative. None records unchecked state.
+                 `npm run gesture-guard`: 93 files swept; every scripted press
                  and every touch context pressed with a mouse has a reason.
                  `npm run soak`: 69/136 functional rows with a state-asserting
                  result, 10,000 fuzz steps with every invariant holding, 10 of
-                 10 properties, endurance all PASS at 42 KB/min after warm-up.
-                 `npm run probe:mutations`: 26 corrections —
-                 21 HELD, 3 BLOCKED, 2 KEPT with a reason, 0 DECAYED.
+                 10 properties, endurance all PASS at 37 KB/min after warm-up -
+                 18 MB over an eight-hour session. `docs/audit/SOAK.md` had been
+                 tracking a FAIL on the bounce-alignment property since before
+                 it was fixed; it is regenerated against the bundle named above.
+                 `npm run test:core`: 43 suites, 0 failures.
+                 `npm run probe:mutations`: 26 corrections -
+                 **20 HELD, 4 BLOCKED, 2 KEPT with a reason, 0 DECAYED**. The
+                 four BLOCKED are branches this host's scope did not enter -
+                 tapFailures, scrolls and confirmations all zero on this run -
+                 and BLOCKED is not DECAYED: the registry's `exercisedBy` names
+                 the row that tells them apart.
 Open deviations: F11 is left to the browser's fullscreen — the one place the
                  reference's panel map is not matched.
                  §2.5's monitoring modes and latency compensation are
                  DIVERGENT-BY-DESIGN; §3.1 reopens the take-alignment half,
                  which is a different problem and is not divergent.
                  recordingController.ts is 630 lines against the ~400 rule.
+                 src/components/sampler/SamplerPanel.tsx is 1804, and grew by
+                 ~120 this session. It is four instruments over one zone model
+                 and each view owns its top half, so it is describing four
+                 things - the split is real work and was not this directive.
                  src/audio/effectChain.ts is 2790, long-standing.
                  scripts/soak/properties.mjs is 425 against the same rule, and
                  grew there this session.
@@ -97,6 +127,189 @@ Ledger:          **7 of 14 SHIPPING** - Motion Shaper, Program EQ, Optical
                  cloud is reading now; the grain *count* is a spawn rate times a
                  length and sat at 22 whatever was playing.
 ```
+
+## The sampler had no way to load a sample
+
+Not a partially-working feature. Four things looked like routes and none of them
+could put _your_ audio into an instrument:
+
+|                                                |                                                                                                                                                                                                                               |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the drop targets                               | `text/x-ml-media` on the quick sampler, the pads and the zone rows. HTML5 drag-and-drop is a **mouse protocol** — a finger never produces `dragstart` — so on a phone and a tablet this was not a hard route, it was no route |
+| "Load demo loop", "+ Zone", "Load 808-ish kit" | all three loaded a **fixed procedural sample**. They put a sample in. None of them could put yours in                                                                                                                         |
+| Browser → Pool → Import audio                  | imports into the project and stops. Nothing carried the result to an instrument                                                                                                                                               |
+| Browser → Samples, tapping a row               | works — and loads into whichever track `useSynthTarget` picks rather than the one on screen, from a panel the sampler never mentions                                                                                          |
+
+The fix is one control, `SampleSourceButton`, on five surfaces, opening one
+menu: **Import audio file…**, the project's own media newest first, and **Browse
+all samples…** for the long tail. A menu rather than a row of small buttons for
+the reason the device rack settled on one — it is the single target that can be
+44 pt on every form factor, and every command inside it is a full-width row that
+can be too. Measured on a phone, by pressing: **113 × 44**.
+
+Two more of the same class fell out of sweeping for it:
+
+- **`+ Sampler layer` made a layer that could never sound.** `rackAddItem`
+  created `zones: []`; `engine.ts` played `item.sampler` and `exportMix`
+  rendered it, and no control in the product could write to it. Permanently
+  silent, for the life of the project.
+- **An empty drum pad was a drop target and nothing else.** Its own tooltip said
+  "Drop a sample here", which on touch meant nothing at all; the only touch
+  route was the tools button, which always picks the _first_ free pad. It opens
+  the load menu for its own index now, and is in the tab order because it is
+  actionable.
+
+`tests/assetSupply.test.ts` is what stops the next one. Two mechanical rules
+over the component tree — a component that **creates** an empty asset slot draws
+a control that **fills** it, and a component that accepts a **drop** offers a
+route needing no pointer — and anything that needs neither is registered with a
+reason. Its first version worked per _file_ and was mutation-tested DECAYED
+within the hour: `SamplerPanel.tsx` holds five surfaces in 1700 lines, so once
+any of them drew a load control the whole file counted as supplied, and deleting
+the rack layer's — the exact defect it was written for — left it green. It works
+per component now, and the limit that remains is stated where it lives.
+
+`e2e/samplerload.spec.ts`: **14 cases**, phone, tablet and desktop, every one
+ending at `mediaId` — the one piece of state that decides what an instrument
+plays — reached through a real pointer sequence with the pointerType of the form
+factor it claims. Mutation-tested by painting a neighbour over the control: it
+goes red naming what the press landed on.
+
+What smp-01 §3 specifies and this does **not** build: decode at the file's native
+rate, trim the head against the noise floor, transient detection on the import
+path, pitch detection, loop detection, auto-zoning, and multi-file multisample.
+Of those seven, one exists — `detectTransients` — and it is a button pressed
+after the sample is already loaded. Filed as **SA-001**; the resampling
+divergence is **SA-002**.
+
+## No document records state that nothing checks
+
+Four instances now, one cause: `SOAK.md` carried a FAIL a directive after the
+product fixed it, the parity chapters marked five closed items MISSING, the RA
+backlog held three closed tickets, and `DEVICE-PARITY.md` had never been told
+about seven shipped devices. A document that records state and is not verified
+_will_ be wrong, and nothing about reading it tells you.
+
+Every file under `docs/` is classified in `scripts/docs/registry.mjs`, and
+`npm run docs-guard` enforces what the classification means:
+
+|                    |                                                                                                                                                                                          |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **GENERATED** (4)  | names the script that writes it, says "do not edit by hand" in its first lines, and — where it declares the artefact it describes — is compared against that artefact                    |
+| **GUARDED** (13)   | names the guard, which must exist _and_ run in `npm run build`                                                                                                                           |
+| **NARRATIVE** (53) | contains no record of this product's state, in any of the shapes state takes: a bare verdict in a table cell, a ticked checklist box, a status line claiming what does or does not exist |
+
+Unclassified fails the build. So does a registry entry for a file that is gone —
+the same rule from both ends, because a registry that goes stale is this exact
+failure one level up.
+
+Eleven audits and milestone reports were **converted rather than deleted**: each
+names the commit it describes, and the guard checks that commit exists. A
+measurement of a named tree is history and cannot go stale; unstamped, every one
+of them was claiming to describe the present.
+
+What the first run found:
+
+- `docs/design/lib-voice-substrate.md` said **"No implementation exists and none
+  may be written"** while `note_id.h` and `note_registry.h` were in the tree,
+  built against it last directive. Two sibling design documents said the same,
+  and `DESIGN-DIRECTION.md` and `THIRD-PARTY-PLUGINS.md` carried the same shape
+  of sentence. All five point at the guarded ledger now instead of freezing an
+  answer.
+- `docs/DEVICE-PARITY.md` opened with "our catalogue is **27 effect kinds**"
+  and the product had thirty-four. The seven Motion Wave units were in the picker
+  and in no row of the gap list — and **a gap list that has not been told about a
+  device cannot have a gap for it, so its silence reads as parity.** §1.6 is
+  written; `unlistedDevices()` fails the build on the next one.
+- `docs/PARITY.md` and `docs/DEVICE-PARITY.md` were recording state and checked
+  by nothing at all. They are inside `parity-guard` now: 53 workflow rows
+  against the three verdicts the document's own key declares, and 53 device rows
+  with every named kind installed and every installed kind named.
+
+Five mutations, five red: a shipped device dropped from the gap list, a fourth
+verdict spelling, an ADR growing a verdict table, a closed ticket back in the
+open list, and a new document nobody classified.
+
+The bundle-currency check is a note in the build and a **failure** in
+`npm run docs-guard:release`, and the reason is ordering rather than severity:
+`vite.config.ts` compiles the commit date in, so re-running the soak changes the
+commit, which changes the hash the fresh report has just been made to name. It
+can only be satisfied against the artefact actually being deployed. Declared in
+`check-checks` and in CLAUDE.md's command block, so it is not a side door.
+
+## The coverage arithmetic, and the denominator that moved
+
+F3 reported **69 of 396**. The last report said **69 of 136**. Same numerator;
+the denominator had moved, and read in sequence it looks like coverage tripled.
+Nothing had improved.
+
+136 is the functional sweep's **scope**, not a denominator. The honest set:
+
+|              |                                                                                         |
+| ------------ | --------------------------------------------------------------------------------------- |
+| **69 / 403** | ledger rows with a state-asserting result — **17.1%**                                   |
+| 69 / 136     | hit rate _inside the sweep's own scope_, 50.7% — a different question, and not this one |
+| **267**      | rows with no case at all: 87 action, 19 surface, 161 store                              |
+
+Every one of the 267 is **named**, by kind, under "Never driven" in
+`docs/FUNCTION_LEDGER.md`, with why each kind goes undriven: `action` and
+`surface` because no case exists for any of them, `store` because the 27 with a
+one-line state assertion are driven and the other 161 need a fixture built
+first. A count reads as an oversight to be tidied later; a list of a hundred and
+sixty-one ids reads as the work it is.
+
+The enumeration moved to `scripts/functions/enumerate.mjs`, which the ledger and
+the soak both import. Two things were counting different lists, which is how the
+two figures came to be reported as though they were one.
+
+## Two checks were BLOCKED on a host that could run both
+
+`curve:check` asked for `g++` and reported "no C++ compiler on this host".
+`wasm:check`'s gate looked for emsdk at `/home/user/emsdk`. Neither is where
+this machine keeps its toolchain, and forty-two core suites had been compiling
+through emsdk's clang since `run-core-tests.mjs` was written — three scripts
+asking the same question of the same machine and getting three answers.
+
+**BLOCKED is a claim about the host, and a claim about the host can be wrong.**
+It is also the one verdict that reads as an environment fact rather than as
+something to look at, which is why it survived three summaries.
+
+The compiler lives in `scripts/emcxx.mjs` now, once. Unblocking the two found
+two more:
+
+|                           |                                                                                                                                                                                                                              |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `wasm:check`'s mutation   | `namespace mw` → `namespace /* mutant */ mw` changes no compiled byte. The check reported a match and the gate correctly called it DECAYED — which nobody had seen, because the gate had been saying BLOCKED                 |
+| `wasm:check`'s comparison | line-ending sensitive. 21 bytes in 307,735, and it told the reader to commit a file whose content had not changed. That is the grain tables' defect, fixed for the generators and never applied here because nobody ran this |
+
+A passing check now puts the tracked bytes back, because `npm run build` runs it
+and `vite.config.ts` compiles the wall clock into a dirty tree — 21 carriage
+returns are enough to make a bundle nobody can reproduce, and the deploy
+verification that hashes it could not have passed. And the gate restores what
+the _check_ rewrote, not only what the mutation edited: `build.sh` copies its
+output over the tracked core, so the mutated run had been leaving a mutant DSP
+in git for whoever committed next.
+
+## §7 — the voice substrate starts
+
+`note_id.h` and `note_registry.h`: the two files everything else in the
+substrate's twelve depends on, and which depend on nothing.
+
+**VS-04 is closed**, and the spec calls it "BUG-005 made executable" — a
+thousand presses, each with the key-to-pitch mapping moved underneath it, and
+the release names the press in a thousand of a thousand. An instrument that
+recomputes identity at release time disagrees with itself whenever a transpose
+has happened in between, and the symptom arrives minutes later as a note that
+will not stop. Also the registry's half of **VS-31**: `RtGuard` over press,
+release, releaseAll and reset, zero allocations — with the negative kept
+executable beside it, so a guard that had stopped watching would say so.
+
+Five mutations, five red: a `release` that recomputes rather than reads, a
+repeated press that mints a second id, a swap-with-last erase that silently
+reorders the held list, a `reset` that rewinds the id counter, and a slot index
+that drops the channel and collapses an MPE chord to one note.
+
+Ten files remain, then VS-01 through 03, 05 through 30 and 32.
 
 ## "No three-dot, remove or move controls on mobile" — four reasons, all true
 

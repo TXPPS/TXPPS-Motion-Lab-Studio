@@ -1,9 +1,10 @@
 # Design — the voice substrate
 
-**Status:** design only. No implementation exists and none may be written against
-this document until the audio substrate it compiles against
-(`motionwave/core/render/`, `motionwave/core/dsp/`) lands. Every signature below
-is a declaration.
+**Scope:** a design. Every signature below is a declaration, and this document
+never says which of them exist — `docs/UNIT_LEDGER.md` does, and a guard checks
+it. It said "no implementation exists" for a directive after two of these files
+were in the tree, which is exactly the failure a status line frozen into a
+narrative document produces.
 
 **Home:** `motionwave/core/dsp/voice/`
 **Namespace:** `mw::dsp::voice`

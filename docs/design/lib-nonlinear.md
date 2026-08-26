@@ -1,8 +1,9 @@
 # Design — the nonlinear stage library
 
-**Status:** design only. No implementation exists and none may be written against
-this document until the audio substrate it compiles against (`motionwave/core/render/`,
-`motionwave/core/dsp/`) lands. Every signature below is a declaration.
+**Scope:** a design. Every signature below is a declaration, and what exists is
+recorded in `docs/UNIT_LEDGER.md`, which `npm run ledger-guard` checks against
+named tests. A status sentence here would be a second copy of that, checked by
+nobody.
 
 **Home:** `motionwave/core/dsp/nonlinear/`
 **Namespace:** `mw::dsp::nl`

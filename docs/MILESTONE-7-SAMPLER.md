@@ -1,5 +1,8 @@
 # Milestone 7 — Sampler, Drum Rack & Instrument Workstation
 
+**Describes commit `00024d9f14`.** History — a record of one tree at one
+moment, which cannot go stale because it was never a claim about now.
+
 Baseline commit: `cfe238c558` (Milestone 6 complete).
 
 ## Architecture

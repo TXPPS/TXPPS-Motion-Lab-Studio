@@ -235,3 +235,28 @@ Measured on this project's CI hardware — see
   later. Two consequences, both live: a declared inset is not a measurement,
   and a hit area must be bounded by the row that holds it. `reachableBox` in
   `e2e/pointer.ts` is the only honest way to ask.
+
+## Assets, and the routes that supply them
+
+- **Drag-and-drop is a desktop convenience and never the only route.** Dropping
+  a sample from Browser → Samples onto a pad, a zone row or the quick sampler
+  works with a mouse and cannot work with a finger: HTML5 drag-and-drop is a
+  mouse protocol and a touch gesture produces no `dragstart`. Every surface that
+  needs an asset therefore draws a **Load sample** control that opens a menu —
+  a file picker, the project's own media, and the sample browser — and
+  `tests/assetSupply.test.ts` fails the build if a surface that can make an
+  empty asset slot draws no control that fills it.
+
+- **The sampler places a sample; it does not analyse one.** `docs/reference/`'s
+  SMP-01 §3 specifies an analysing importer: decode at the file's native rate,
+  trim the head against the noise floor, transient and pitch and loop detection,
+  auto-zoning, and multi-file multisample mapping. None of that is built. A
+  loaded sample gets `startSec: 0`, the whole file, and root note 60, and
+  transient detection is a button you press afterwards rather than a step of the
+  import. Tracked as SA-001.
+
+- **Imported audio is decoded at the engine's sample rate, not the file's.**
+  SMP-01 §3.1 says not to resample on import, and the Web Audio API offers no
+  native-rate decode — `decodeAudioData` resamples to the context. For MotionLab
+  this is a divergence rather than a defect; Motion Wave's own importer must not
+  inherit it. Tracked as SA-002.

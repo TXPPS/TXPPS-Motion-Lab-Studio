@@ -1,5 +1,8 @@
 # Responsive overflow audit — what is cut off, and why
 
+**Describes commit `d6bf69bc55`.** History — a record of one tree at one
+moment, which cannot go stale because it was never a claim about now. Superseded by [`audit/RESPONSIVE_AUDIT.md`](audit/RESPONSIVE_AUDIT.md), which re-ran it across nineteen form factors.
+
 A user reported from a phone that "tracks are having UI issues cutting off certain
 portions", with one screenshot of one panel. Rather than hunt the rest of that class of bug
 by eye, every surface of the app was measured at six viewports and asked four questions

@@ -40,6 +40,7 @@ import { runFunctional } from './soak/functional.mjs';
 import { replay, shrink, DEFAULT_STEPS } from './soak/fuzz.mjs';
 import { runProperties } from './soak/properties.mjs';
 import { runEndurance } from './soak/endurance.mjs';
+import { enumerate, undrivenBy } from './functions/enumerate.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const arg = (name, fallback) => {
@@ -219,10 +220,40 @@ function markdown(r) {
     const rows = r.layers.functional;
     const ids = [...new Set(rows.map((x) => x.id))];
     const covered = ids.filter((id) => rows.some((x) => x.id === id && x.state === 'PASS'));
+    /*
+     * Both denominators, because reporting one of them hid the other.
+     *
+     * This line used to read "69 of 136 attempted rows asserted a state
+     * change". True, and a hit rate inside the sweep's own scope. The report
+     * before it said "69 of 396" — the same numerator against the whole
+     * ledger. Nothing had improved; the denominator had moved, and read in
+     * sequence it looks like coverage tripled.
+     */
+    const ledger = enumerate();
+    const undriven = undrivenBy(new Set(ids));
+    const holes = ledger.length - ids.length;
     lines.push(
       '## 1. Functional sweep',
       '',
-      `**${covered.length} of ${ids.length} attempted rows asserted a state change.**`,
+      `**${covered.length} of ${ledger.length} ledger rows** ` +
+        `(${((covered.length / ledger.length) * 100).toFixed(1)}%) asserted a state change.`,
+      '',
+      `The sweep attempted **${ids.length}** of them, and ${covered.length} of those changed ` +
+        `something — a hit rate of ${((covered.length / ids.length) * 100).toFixed(1)}% ` +
+        `**inside the sweep's own scope**, which is not the same figure and must not be ` +
+        `reported as if it were. **${holes} rows have no case at all**:`,
+      '',
+      '| kind | never driven | of |',
+      '| --- | --- | --- |',
+      ...[...undriven.keys()]
+        .sort()
+        .map(
+          (k) =>
+            `| ${k} | ${undriven.get(k).length} | ` +
+            `${ledger.filter((row) => row.kind === k).length} |`,
+        ),
+      '',
+      'They are named row by row in `docs/FUNCTION_LEDGER.md` under "Never driven".',
       '',
       'A row is green here only when a named part of the state — the project, the',
       'ui, the undo stack, the transport — was observed to differ either side of',

@@ -1,6 +1,7 @@
 # Third-Party Plugins
 
-**Status:** research + implementation plan. Nothing here is built yet.
+**Scope:** research and an implementation plan. What of it exists is the Unit
+Ledger's business, not this document's.
 **Date:** 2026-08-22
 **Scope:** what "support third-party plugins" can mean for a browser DAW, what we
 should build, and in what order.

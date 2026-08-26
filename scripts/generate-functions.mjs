@@ -34,50 +34,13 @@
  * failure Directive 11 §10 names, and it matters more here than anywhere else:
  * this table is what somebody would point at to say the product is tested.
  */
-import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
-import { join, resolve, basename } from 'node:path';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { enumerate, undrivenBy } from './functions/enumerate.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const OUT = join(ROOT, 'docs', 'FUNCTION_LEDGER.md');
 const CHECK = process.argv.includes('--check');
-
-const read = (p) => readFileSync(join(ROOT, p), 'utf8');
-
-/**
- * Exported functions in an actions module.
- *
- * Matched on `export function name(` and `export const name = (`, which is how
- * every one of them is written. A module that starts exporting them some third
- * way will under-report, and the count printed at the end is what makes that
- * visible rather than silent.
- */
-function actionsIn(file) {
-  const src = read(join('src/app', file));
-  const found = [];
-  for (const m of src.matchAll(/export\s+(?:async\s+)?function\s+(\w+)\s*\(/g)) found.push(m[1]);
-  for (const m of src.matchAll(/export\s+const\s+(\w+)\s*(?::[^=]+)?=\s*(?:async\s*)?\(/g)) {
-    found.push(m[1]);
-  }
-  return [...new Set(found)].filter((n) => !/^[A-Z_]+$/.test(n));
-}
-
-/**
- * Actions on a store, taken from its state interface rather than its body.
- *
- * The interface is the contract a component calls through, and it lists methods
- * one per line as `name: (args) => ret;`. Reading the implementation instead
- * would pick up private helpers that no user can invoke.
- */
-function storeActionsIn(file) {
-  const src = read(join('src/state', file));
-  const found = [];
-  for (const m of src.matchAll(/^\s{2}(\w+)\s*(?:\?)?:\s*\((?![^)]*\)\s*=>\s*void\s*\|)/gm)) {
-    found.push(m[1]);
-  }
-  // Only those whose type is a function, which the pattern above already
-  // requires by demanding an opening paren after the colon.
-  return [...new Set(found)];
-}
 
 /**
  * The soak's coverage, and the bundle it was measured against.
@@ -93,128 +56,85 @@ function storeActionsIn(file) {
  * coverage for a bundle it did not measure, which is where that belongs; this
  * file records what the soak said and whose build it said it about.
  */
-function soakCoverage() {
+function soakCoverage(total) {
   const file = join(ROOT, 'docs', 'audit', 'soak-coverage.json');
-  if (!existsSync(file)) return { rows: new Map(), why: 'no soak has been run' };
+  if (!existsSync(file)) return { rows: new Map(), why: 'no soak has been run', undriven: null };
   const data = JSON.parse(readFileSync(file, 'utf8'));
   const covered = data.rows.filter((r) => r.covered).length;
   const attempted = data.rows.length;
+  const pct = (n) => `${((n / total) * 100).toFixed(1)}%`;
   return {
     rows: new Map(data.rows.map((r) => [r.id, r])),
+    undriven: undrivenBy(new Set(data.rows.map((r) => r.id))),
+    /*
+     * Three numbers, because two of them were being reported as one.
+     *
+     * The previous line read "69 of 136 attempted rows asserted a state
+     * change", which is true and is a hit rate *inside the sweep's own scope*.
+     * The report before it said "69 of 396". Same numerator, different
+     * denominator, and read together it looks like coverage tripled. It is
+     * the arithmetic that hides in a total: 136 is what the sweep drives, not
+     * what there is.
+     */
     why:
-      `${covered} of ${attempted} attempted rows asserted a state change, measured against ` +
+      `**${covered} of ${total} ledger rows** (${pct(covered)}) have a state-asserting ` +
+      `result. The sweep attempted ${attempted} of them and ${covered} of those changed ` +
+      `something; **${total - attempted} rows have no case at all** and are named under ` +
+      `"Never driven" below. Measured against ` +
       `\`${data.bundle?.entry ?? 'an unnamed bundle'}\` (\`${data.bundle?.hash || 'unhashed'}\`)`,
   };
 }
 
-const coverage = soakCoverage();
-
-const rows = [];
-const push = (row) => {
-  if (rows.some((r) => r.id === row.id)) return;
-  rows.push(row);
+/**
+ * Why a whole kind goes undriven, where the reason is structural.
+ *
+ * A count on its own reads as an oversight to be fixed later. These are not
+ * all the same shape: `action` and `surface` have no cases written, which is
+ * work; `store` has 27 of 188 because the sweep drives the ones with a
+ * one-line state assertion and the rest need a fixture. Saying which is which
+ * is the difference between a backlog and a number.
+ */
+const WHY_UNDRIVEN = {
+  action:
+    'no case exists for any of them. `scripts/soak/cases.mjs` covers stores directly and reaches actions only where a shortcut happens to call one',
+  surface:
+    'the functional sweep asserts state changes; reaching a surface is `npm run reachability`’s subject, and that sweep reports separately',
+  store: 'the 27 with a one-line state assertion are driven; the rest need a fixture built first',
+  shortcut: 'driven — any listed here failed to resolve a binding',
+  effect: 'driven — any listed here failed to instantiate',
+  instrument: 'driven — any listed here failed to sound',
 };
 
-// ----------------------------------------------------------------- actions
-for (const file of readdirSync(join(ROOT, 'src/app')).filter((f) => f.endsWith('Actions.ts'))) {
-  const surface = basename(file, '.ts');
-  for (const name of actionsIn(file)) {
-    push({ id: `action:${surface}.${name}`, surface: `src/app/${file}`, kind: 'action' });
+/** The undriven rows, by kind, named rather than counted. */
+function undrivenSection(undriven, byKind) {
+  if (!undriven) return '_No soak has been run, so nothing is known about what is driven._';
+  const kinds = [...undriven.keys()].sort();
+  if (kinds.length === 0) return '_Every ledger row is driven by the sweep._';
+  const out = ['| kind | undriven | of | why |', '| --- | --- | --- | --- |'];
+  for (const k of kinds) {
+    out.push(
+      `| ${k} | ${undriven.get(k).length} | ${byKind[k]} | ${WHY_UNDRIVEN[k] ?? 'unclassified'} |`,
+    );
   }
+  out.push('');
+  for (const k of kinds) {
+    // Named, not summarised. A list of 161 ids is long and that is the point:
+    // the length is the finding.
+    out.push(`<details><summary>${k} — ${undriven.get(k).length} rows</summary>`, '');
+    out.push(
+      undriven
+        .get(k)
+        .map((id) => `\`${id}\``)
+        .join(', '),
+      '',
+    );
+    out.push('</details>', '');
+  }
+  return out.join('\n');
 }
 
-// ------------------------------------------------------------------ stores
-for (const file of readdirSync(join(ROOT, 'src/state')).filter((f) => f.endsWith('Store.ts'))) {
-  const surface = basename(file, '.ts');
-  for (const name of storeActionsIn(file)) {
-    push({ id: `store:${surface}.${name}`, surface: `src/state/${file}`, kind: 'store' });
-  }
-}
-
-// --------------------------------------------------------------- shortcuts
-{
-  const src = read('src/app/shortcuts.ts');
-  // One line or several. The registry writes short entries on a single line and
-  // long ones across four, and a pattern that demanded the newline missed every
-  // short one — `undo` among them, which is not an obscure shortcut. Found by
-  // the soak naming a function the ledger did not have, which is what the
-  // orphan check at the bottom of this file is for.
-  for (const m of src.matchAll(/\bid:\s*'([^']+)',\s*(?:\n\s*)?combo:\s*/g)) {
-    push({ id: `shortcut:${m[1]}`, surface: 'keyboard', kind: 'shortcut', key: m[1] });
-  }
-}
-
-// ------------------------------------------------------- effects and kinds
-{
-  const src = read('src/model/effects.ts');
-  // Every entry in EFFECT_SPECS opens with its kind, so the array is sliced and
-  // the kinds read off it.
-  //
-  // Two narrower patterns were tried and both under-reported in silence: a
-  // lower-case character class dropped `gainMatch`, and requiring `label:` on
-  // the next line dropped `vocaltune`, which carries a paragraph of comment
-  // between the two. Anchoring on the entry indentation inside the array is the
-  // thing that cannot be fooled by what somebody writes in between.
-  const specsStart = src.indexOf('export const EFFECT_SPECS');
-  const specsEnd = src.indexOf('\n];', specsStart);
-  const specs = src.slice(specsStart, specsEnd === -1 ? src.length : specsEnd);
-  for (const m of specs.matchAll(/^ {4}kind:\s*'([A-Za-z0-9-]+)',/gm)) {
-    push({ id: `effect:${m[1]}`, surface: 'insert rack', kind: 'effect' });
-  }
-  const reg = read('src/audio/motionwave/registry.ts');
-  for (const m of reg.matchAll(/kind:\s*'(mw-[a-z-]+)'/g)) {
-    push({ id: `effect:${m[1]}`, surface: 'insert rack', kind: 'effect' });
-  }
-  // The instrument kinds the store's own contract accepts.
-  //
-  // Read from `setInstrument`'s union rather than from `SamplerView`, which
-  // gave ids like `instrument:sampler-quick` while the store, the engine and
-  // the soak all call it `quick`. The ledger was enumerating an axis nothing
-  // else in the product could name.
-  const store = read('src/state/projectStore.ts');
-  const setter = store.match(/setInstrument:\s*\(trackId:\s*string,\s*kind:\s*([^)]+)\)/);
-  if (setter) {
-    for (const m of setter[1].matchAll(/'([a-z]+)'/g)) {
-      push({ id: `instrument:${m[1]}`, surface: 'instrument', kind: 'instrument' });
-    }
-  }
-}
-
-// ------------------------------------------------------- navigable surfaces
-{
-  // Read from the arrays that declare them, not from the JSX.
-  //
-  // Every one of these surfaces is rendered from a `.map()` over a const array,
-  // so the test ids in the markup are templates — `nav-${n.id}` — and matching
-  // the markup found the prefix and nothing after it. The array is the
-  // declaration; the JSX is one consumer of it.
-  const listed = [
-    { file: 'src/components/shell/PhoneLayout.tsx', name: 'NAV', prefix: 'nav' },
-    { file: 'src/components/shell/TabletLayout.tsx', name: 'COMBOS', prefix: 'combo' },
-    { file: 'src/app/editors.ts', name: 'EDITORS', prefix: 'editor-tab' },
-  ];
-  for (const { file, name, prefix } of listed) {
-    if (!existsSync(join(ROOT, file))) continue;
-    const src = read(file);
-    const start = src.indexOf(`const ${name}`);
-    if (start === -1) continue;
-    const end = src.indexOf('];', start);
-    const block = src.slice(start, end === -1 ? src.length : end);
-    for (const m of block.matchAll(/id:\s*'([\w-]+)'/g)) {
-      push({ id: `surface:${prefix}-${m[1]}`, surface: file, kind: 'surface' });
-    }
-  }
-  // The two drawers a tablet carries, which are buttons rather than a list.
-  for (const side of ['browser', 'inspector']) {
-    push({
-      id: `surface:drawer-${side}`,
-      surface: 'src/components/shell/TabletLayout.tsx',
-      kind: 'surface',
-    });
-  }
-}
-
-rows.sort((a, b) => a.id.localeCompare(b.id));
+const rows = enumerate();
+const coverage = soakCoverage(rows.length);
 
 const byKind = rows.reduce((acc, r) => ({ ...acc, [r.kind]: (acc[r.kind] ?? 0) + 1 }), {});
 
@@ -248,6 +168,14 @@ ${Object.entries(byKind)
   .map(([k, n]) => `| ${k} | ${n} |`)
   .join('\n')}
 | **total** | **${rows.length}** |
+
+## Never driven
+
+Rows the functional sweep does not attempt at all. Not failures — holes, and a
+different thing from a row that was invoked and changed nothing. Folding the two
+together is what let the coverage figure read as half rather than a sixth.
+
+${undrivenSection(coverage.undriven, byKind)}
 
 | id | surface | kind | desktop | tablet | phone | keyboard | tested | evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

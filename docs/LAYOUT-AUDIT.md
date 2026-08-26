@@ -1,5 +1,8 @@
 # MotionLab Studio — UI Architecture Audit (pre-repair)
 
+**Describes commit `66bea096d8`.** History — a record of one tree at one
+moment, which cannot go stale because it was never a claim about now. Superseded by [`audit/RESPONSIVE_AUDIT.md`](audit/RESPONSIVE_AUDIT.md).
+
 Measured with `scripts/audit-layout.mjs` and `scripts/audit-detail.mjs` against the
 production build at commit `26d8b85`, in real Chromium at all six QA viewports.
 Screenshots in `audit-out/`. Findings are measurements, not source inspection.

@@ -1,5 +1,8 @@
 # Milestone 2 — Recording, Media and Mixer Processing
 
+**Describes commit `4b169156e0`.** History — a record of one tree at one
+moment, which cannot go stale because it was never a claim about now.
+
 Milestone 2 adds the first complete professional audio workflow: choose an input,
 monitor it, arm a track, record with a count-in, get a real clip with a real
 waveform, edit it nondestructively, process it through the mixer, save, reload,

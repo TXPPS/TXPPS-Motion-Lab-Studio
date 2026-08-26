@@ -258,6 +258,12 @@ export interface ProjectStore {
     patch: (z: SampleZone) => Partial<SampleZone>,
   ) => void;
   removeSamplerZones: (trackId: string, ids: string[]) => void;
+  /**
+   * Point a zone at different audio. Undoable, unlike `updateSamplerZones` —
+   * loading a sample is one decision, not a drag, and it is the one sampler
+   * edit a user is most likely to want back.
+   */
+  setZoneSample: (trackId: string, zoneId: string, mediaId: string, name?: string) => void;
   /** Assign media to a drum pad (creates or replaces that pad's zone). */
   assignPad: (trackId: string, padIndex: number, mediaId: string, name?: string) => void;
   setZoneSlices: (trackId: string, zoneId: string, slices: number[]) => void;
@@ -268,6 +274,15 @@ export interface ProjectStore {
   applySamplerPreset: (trackId: string, preset: SamplerParams) => void;
   rackAddItem: (trackId: string, kind: 'synth' | 'sampler') => string | null;
   rackUpdateItem: (trackId: string, itemId: string, patch: Partial<RackItem>) => void;
+  /**
+   * The zones a rack's sampler layer plays.
+   *
+   * `rackAddItem(_, 'sampler')` has always created a layer with `zones: []`,
+   * the engine has always played `item.sampler` (engine.ts, and `exportMix`),
+   * and nothing in the UI could ever write to it — so "+ Sampler layer" added
+   * a layer that could not make a sound, permanently. This is the write side.
+   */
+  rackSetLayerZones: (trackId: string, itemId: string, zones: SampleZone[]) => void;
   rackRemoveItem: (trackId: string, itemId: string) => void;
   rackMoveItem: (trackId: string, itemId: string, delta: number) => void;
 
@@ -1589,6 +1604,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         t.sampler.zones = t.sampler.zones.filter((z) => !ids.includes(z.id));
       }),
 
+    setZoneSample: (trackId, zoneId, mediaId, name) =>
+      update((d) => {
+        const z = trackById(d, trackId)?.sampler?.zones.find((x) => x.id === zoneId);
+        if (!z) return;
+        z.mediaId = mediaId;
+        if (name) z.name = name;
+        // The window, the loop and the slices all described the *previous*
+        // audio. Carried over to a shorter file they point past its end, and a
+        // zone whose window starts past its source plays silence — which reads
+        // as a broken import rather than as a stale marker.
+        z.startSec = 0;
+        delete z.endSec;
+        delete z.loopStartSec;
+        delete z.loopEndSec;
+        delete z.slices;
+      }),
+
     assignPad: (trackId, padIndex, mediaId, name) =>
       update((d) => {
         const t = trackById(d, trackId);
@@ -1710,6 +1742,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       update((d) => {
         const it = trackById(d, trackId)?.rack?.items.find((x) => x.id === itemId);
         if (it) Object.assign(it, patch);
+      }),
+
+    rackSetLayerZones: (trackId, itemId, zones) =>
+      update((d) => {
+        const it = trackById(d, trackId)?.rack?.items.find((x) => x.id === itemId);
+        // A synth layer has no zones and never will; writing a sampler's state
+        // onto it would leave a layer the validator drops on the next load.
+        if (!it || it.kind !== 'sampler' || !it.sampler) return;
+        it.sampler.zones = structuredClone(zones);
       }),
 
     rackRemoveItem: (trackId, itemId) =>

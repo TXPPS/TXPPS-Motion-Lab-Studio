@@ -587,3 +587,45 @@ button.chip.on {
 .smp-wave-axis {
   padding: 0 var(--sp-1);
 }
+
+/* The control that puts a sample in. It is the one thing on these surfaces
+   that has to be found by someone who has not used the app before, so it does
+   not look like the row of secondary buttons beside it. */
+.smp-load {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.smp-source-row {
+  justify-content: center;
+  gap: var(--sp-2);
+}
+
+/* Touch, and the reason this block exists at all.
+   `sampler.css` had no coarse-pointer rules of any kind, which is how a panel
+   whose only load route was an HTML5 drag — a protocol a finger never speaks —
+   went out looking finished. Every control that supplies an asset is sized for
+   a finger here, and the rows that hold them wrap rather than clip, so a target
+   that needs 44 pt grows its row instead of overhanging the next one. */
+@media (pointer: coarse) {
+  .smp-load,
+  .pad-bank-tools .btn,
+  .smp-source-row .btn {
+    min-height: 44px;
+    padding-inline: 14px;
+  }
+  .zone-row {
+    /* The row already wraps; this stops the mini controls at its end from
+       being 18 px tall between two 44 px neighbours. */
+    row-gap: var(--sp-2);
+  }
+  .zone-row .th-mini,
+  .zone-row .smp-load {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .smp-drop {
+    min-height: calc(150px * var(--ui-scale));
+  }
+}

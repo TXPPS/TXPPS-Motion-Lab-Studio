@@ -1,5 +1,8 @@
 # Milestone 4 — Professional MIDI Composition, Piano Roll & Creative Workflow
 
+**Describes commit `4b169156e0`.** History — a record of one tree at one
+moment, which cannot go stale because it was never a claim about now.
+
 Milestone 4 rebuilt the piano roll into a professional editing surface and gave
 it the tool set MIDI composition actually needs: quantize with strength and
 swing, seeded humanization, chord and voicing tools, a scale system, note-level

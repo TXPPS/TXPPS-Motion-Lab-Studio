@@ -56,6 +56,8 @@ import {
   PadWave,
 } from '../instrument/displays';
 import { InstrumentFrame } from '../instrument/InstrumentFrame';
+import { openSampleSourceMenu } from '../../app/samplerImportActions';
+import { SampleSourceButton } from './SampleSource';
 import { Waveform } from '../arrangement/Waveform';
 import { Keyboard } from '../synth/Keyboard';
 import { ZoneMap } from './ZoneMap';
@@ -313,19 +315,28 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
             store.getState().addSamplerZones(track.id, [makeZone({ mediaId: id, name: id })]);
           }}
         >
-          Drag a sample here from the Browser → Samples tab
-          <button
-            className="btn"
-            onClick={() =>
-              store
-                .getState()
-                .addSamplerZones(track.id, [
-                  makeZone({ mediaId: PROCEDURAL_MEDIA_IDS[0], name: 'Perc Loop' }),
-                ])
-            }
-          >
-            Load demo loop
-          </button>
+          Load a sample to play. A file, or anything already in this project — and on a desktop you
+          can drag one in from Browser → Samples.
+          <div className="smp-row smp-source-row">
+            <SampleSourceButton
+              trackId={track.id}
+              dest={{ kind: 'quick' }}
+              testId="smp-load-quick"
+              primary
+            />
+            <button
+              className="btn"
+              onClick={() =>
+                store
+                  .getState()
+                  .addSamplerZones(track.id, [
+                    makeZone({ mediaId: PROCEDURAL_MEDIA_IDS[0], name: 'Perc Loop' }),
+                  ])
+              }
+            >
+              Load demo loop
+            </button>
+          </div>
         </div>
       </InstrumentSection>
     );
@@ -343,6 +354,12 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
     >
       <ZoneWaveEditor track={track} zone={zone} />
       <div className="smp-row">
+        <SampleSourceButton
+          trackId={track.id}
+          dest={{ kind: 'replace', zoneId: zone.id }}
+          label="Load sample"
+          testId="smp-load-quick"
+        />
         <button
           className="btn"
           onClick={() => preview(track.id, zone.rootNote)}
@@ -605,6 +622,19 @@ interface PadProps {
 const Pad = memo(
   function Pad({ index, trackId, zone, silenced, selected, over, onSelect, onOver }: PadProps) {
     const key = DRUM_PAD_BASE + index;
+    /**
+     * An empty pad opens the load menu, which is what its own tooltip has
+     * always promised. Before this it said "Drop a sample here" and meant
+     * it literally: the pad was a drop target and nothing else, so on a
+     * phone or a tablet — where there is no drag — an empty pad did nothing
+     * at all, and the only touch route to one was the tools button, which
+     * always picks the *first* free pad.
+     */
+    const load = (e: React.MouseEvent<HTMLElement>) => {
+      const box = e.currentTarget.getBoundingClientRect();
+      openSampleSourceMenu(trackId, { kind: 'pad', index }, box.left, box.bottom);
+    };
+
     const strike = (velocity: number) => {
       if (!zone) return;
       // Striking a pad is also how it is chosen: the editor below follows the
@@ -627,13 +657,13 @@ const Pad = memo(
             : undefined
         }
         data-testid={`pad-${index}`}
-        // An empty pad is a drop target and nothing else; tabbing through a
-        // rack should stop on the pads that make a sound.
-        tabIndex={zone ? 0 : -1}
+        // Every pad is actionable now — a loaded one plays, an empty one
+        // offers to be filled — so every pad is in the tab order.
+        tabIndex={0}
         aria-label={
           zone
             ? `Pad ${index + 1}: ${zone.name} (${midiToName(key)})${silenced ? ', silent' : ''}`
-            : `Empty pad ${index + 1}`
+            : `Empty pad ${index + 1}: load a sample`
         }
         // Which pad the editor below is pointed at. `aria-pressed` would say
         // this is a switch, and a pad is not switched — it is struck.
@@ -641,16 +671,17 @@ const Pad = memo(
         title={
           zone
             ? `${zone.name} — strike low for soft, high for hard; drop a sample to replace`
-            : 'Drop a sample here'
+            : 'Load a sample into this pad'
         }
-        onClick={(e) => strike(padVelocity(e))}
+        onClick={(e) => (zone ? strike(padVelocity(e)) : load(e))}
         onKeyDown={(e) => {
           if (e.key !== 'Enter' && e.key !== ' ') return;
           // Without this the browser synthesises a click at (0, 0), which the
           // strike-position reading takes for the very top of the pad — every
           // keyboard hit would come out at full velocity.
           e.preventDefault();
-          strike(PAD_KEY_VELOCITY);
+          if (zone) strike(PAD_KEY_VELOCITY);
+          else load(e as unknown as React.MouseEvent<HTMLElement>);
         }}
         onDragOver={(e) => {
           if (!e.dataTransfer.types.includes('text/x-ml-media')) return;
@@ -760,6 +791,11 @@ function PadEditor({
     <>
       <ZoneWaveEditor track={track} zone={zone} />
       <div className="smp-row">
+        <SampleSourceButton
+          trackId={track.id}
+          dest={{ kind: 'replace', zoneId: zone.id }}
+          testId="smp-load-pad-editor"
+        />
         <input
           type="text"
           value={zone.name}
@@ -945,6 +981,18 @@ function PadEditor({
  * whichever pad was last struck, so a rack of a hundred pads still has exactly
  * one set of controls.
  */
+/**
+ * The first pad with nothing on it, or the one past the end of the bank.
+ *
+ * Falling off the end is the right answer rather than a failure: `assignPad`
+ * creates the zone, and `count` grows to cover the highest index in use, so
+ * loading into a full bank of sixteen adds a seventeenth pad and shows it.
+ */
+function firstFreePad(byIndex: Map<number, SampleZone>, count: number): number {
+  for (let i = 0; i < count; i++) if (!byIndex.has(i)) return i;
+  return Math.min(count, MAX_DRUM_PADS - 1);
+}
+
 function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
   const store = useProjectStore;
   const [selected, setSelected] = useState<string | null>(null);
@@ -1006,6 +1054,19 @@ function DrumView({ track, params }: { track: Track; params: SamplerParams }) {
             })}
           </div>
           <div className="smp-row pad-bank-tools">
+            <SampleSourceButton
+              trackId={track.id}
+              // The selected pad if there is one, because a person who tapped a
+              // pad and then asked to load a sample means that pad. Otherwise
+              // the first empty one, which is where loading a kit one hit at a
+              // time goes without having to aim.
+              dest={{
+                kind: 'pad',
+                index: sel ? sel.keyLo - DRUM_PAD_BASE : firstFreePad(byIndex, count),
+              }}
+              testId="smp-load-pad"
+              primary
+            />
             <button
               className="btn"
               onClick={() => setPadCount((c) => Math.min(MAX_DRUM_PADS, c + 8))}
@@ -1174,6 +1235,17 @@ const ZoneRow = memo(
             }}
           />
         </div>
+        {/* Per-zone rather than only in the section's tools: "load a sample"
+            and "load a sample into *this* zone" are different commands, and
+            the second is the one a multisample is built out of. `.zone-row`
+            wraps and has no fixed height, so a target that needs 44 pt on a
+            coarse pointer grows the row instead of overhanging the next one. */}
+        <SampleSourceButton
+          trackId={trackId}
+          dest={{ kind: 'replace', zoneId: z.id }}
+          label="Load"
+          testId={`zone-load-${z.id}`}
+        />
         <button
           className="th-mini"
           title="Remove zone"
@@ -1223,6 +1295,13 @@ function MultiView({ track, params }: { track: Track; params: SamplerParams }) {
           ))}
         </div>
         <div className="smp-row">
+          <SampleSourceButton
+            trackId={track.id}
+            dest={{ kind: 'zone' }}
+            label="Load zone"
+            testId="smp-load-zone"
+            primary
+          />
           <button
             className="btn"
             data-testid="add-zone"
@@ -1235,10 +1314,11 @@ function MultiView({ track, params }: { track: Track; params: SamplerParams }) {
               ])
             }
           >
-            + Zone
+            + Demo zone
           </button>
           <span className="hint">
-            Overlapping key ranges crossfade; drop samples from the browser onto rows to replace.
+            Overlapping key ranges crossfade. Load picks a file or anything already in the project;
+            on a desktop you can also drag samples from the browser onto rows.
           </span>
         </div>
       </InstrumentSection>
@@ -1294,6 +1374,24 @@ function RackSection({ track }: { track: Track }) {
             style={{ width: 90 }}
           />
           <span className="hint">{it.kind}</span>
+          {/* A sampler layer with no zones is silent, and until this existed
+              there was no control anywhere that could give it one — the engine
+              read `item.sampler`, `exportMix` read it, and nothing wrote it.
+              The count is beside the button because a layer playing nothing
+              looks exactly like a layer whose key range misses. */}
+          {it.kind === 'sampler' && (
+            <>
+              <SampleSourceButton
+                trackId={track.id}
+                dest={{ kind: 'layer', itemId: it.id }}
+                label="Load"
+                testId={`layer-load-${it.id}`}
+              />
+              <span className="hint t-num" title="Samples on this layer">
+                {it.sampler?.zones.length ?? 0}
+              </span>
+            </>
+          )}
           <label>
             Key
             <input

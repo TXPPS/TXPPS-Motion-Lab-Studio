@@ -1,6 +1,7 @@
 # Design Direction — TXPPS MotionLab Studio
 
-**Status:** direction, not yet implemented. Written to be built from.
+**Kind:** direction, written to be built from. It argues for a look; it does not
+report how much of that look the product currently has.
 **Scope:** the product's visual identity — colour, material, type, controls.
 **Non-scope:** layout, information architecture, feature set. Those are settled and good.
 

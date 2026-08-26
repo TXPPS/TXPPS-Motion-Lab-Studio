@@ -1,5 +1,8 @@
 # Plugin audit — every stock device and instrument against the fifteen-point matrix
 
+**Describes commit `f1841963d1`.** History — a record of one tree at one
+moment, which cannot go stale because it was never a claim about now. Its open findings are tracked in [`BACKLOG_MOTIONLAB.md`](../BACKLOG_MOTIONLAB.md), which a guard checks.
+
 Scope: the twenty-seven kinds in `EFFECT_SPECS` (`src/model/effects.ts`) and the four
 instruments the engine can build — `PolySynth`, `SamplerInstrument`, `DrumKit` and
 `RackInstrument` — plus the automation, preset, sample-rate, channel-configuration and

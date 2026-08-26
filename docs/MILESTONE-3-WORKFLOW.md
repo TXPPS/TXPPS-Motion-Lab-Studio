@@ -1,5 +1,8 @@
 # Milestone 3 — Professional Workflow, Mixing, Arrangement & Polish
 
+**Describes commit `4b169156e0`.** History — a record of one tree at one
+moment, which cannot go stale because it was never a claim about now.
+
 Milestone 3 changed no audio capability. It changed how fast and how pleasantly
 the existing capabilities operate. Every item below exists because the opening
 UX audit found the friction, not to lengthen a feature list.

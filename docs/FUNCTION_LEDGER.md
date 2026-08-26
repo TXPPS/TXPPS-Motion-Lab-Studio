@@ -19,17 +19,48 @@ Coverage is counted as **rows with a state-asserting result**, never as rows
 that are not FAIL. Those are the same number only until somebody is tempted to
 make the column green.
 
-Soak coverage: 69 of 136 attempted rows asserted a state change, measured against `index-BGv7sw5s.js` (`ebd521b88866454f`).
+Soak coverage: **69 of 403 ledger rows** (17.1%) have a state-asserting result. The sweep attempted 136 of them and 69 of those changed something; **267 rows have no case at all** and are named under "Never driven" below. Measured against `index-Bm1Nlvxd.js` (`5a8571257574042c`).
 
 | kind | count |
 | --- | --- |
-| action | 82 |
+| action | 87 |
 | effect | 34 |
 | instrument | 4 |
 | shortcut | 71 |
-| store | 186 |
+| store | 188 |
 | surface | 19 |
-| **total** | **396** |
+| **total** | **403** |
+
+## Never driven
+
+Rows the functional sweep does not attempt at all. Not failures — holes, and a
+different thing from a row that was invoked and changed nothing. Folding the two
+together is what let the coverage figure read as half rather than a sixth.
+
+| kind | undriven | of | why |
+| --- | --- | --- | --- |
+| action | 87 | 87 | no case exists for any of them. `scripts/soak/cases.mjs` covers stores directly and reaches actions only where a shortcut happens to call one |
+| store | 161 | 188 | the 27 with a one-line state assertion are driven; the rest need a fixture built first |
+| surface | 19 | 19 | the functional sweep asserts state changes; reaching a surface is `npm run reachability`’s subject, and that sweep reports separately |
+
+<details><summary>action — 87 rows</summary>
+
+`action:audioEditActions.analyzeClip`, `action:audioEditActions.clipBufferReady`, `action:audioEditActions.crossfadeSelection`, `action:audioEditActions.ensureClipDecoded`, `action:audioEditActions.healSelection`, `action:audioEditActions.maxSlipOffset`, `action:audioEditActions.mediaDurationSec`, `action:audioEditActions.normalizeClip`, `action:audioEditActions.packSelectionIntoTakes`, `action:audioEditActions.rippleDeleteSelection`, `action:audioEditActions.zoomToSelection`, `action:automationActions.activeCaptureCount`, `action:automationActions.captureParamChange`, `action:automationActions.captureParamRelease`, `action:automationActions.copyAutomationSelection`, `action:automationActions.deleteAutomationSelection`, `action:automationActions.duplicateAutomationSelection`, `action:automationActions.hasAutomationClipboard`, `action:automationActions.pasteAutomation`, `action:automationActions.startAutomationRunners`, `action:chainActions.applyChainSteps`, `action:chainActions.captureChain`, `action:clipboardActions.clipboardCount`, `action:clipboardActions.copySelection`, `action:clipboardActions.cutSelection`, `action:clipboardActions.duplicateSelection`, `action:clipboardActions.pasteAtPlayhead`, `action:clipboardActions.resetClipboard`, `action:exportActions.cancelExport`, `action:exportActions.exportLoopRegion`, `action:exportActions.exportProject`, `action:exportActions.exportState`, `action:exportActions.exportWav`, `action:exportActions.normalizeInPlace`, `action:exportActions.onExportState`, `action:importActions.dragHasFiles`, `action:importActions.importDrop`, `action:importActions.importToNewTrack`, `action:importActions.isImporting`, `action:importActions.pickAndImport`, `action:importActions.runImport`, `action:midiFileActions.exportMidiFile`, `action:midiFileActions.importMidiFile`, `action:midiFileActions.isMidiFile`, `action:midiFileActions.pickMidiFile`, `action:monitorActions.inputDeviceOf`, `action:monitorActions.inputFormatOf`, `action:monitorActions.isInputOpen`, `action:monitorActions.isMonitoring`, `action:monitorActions.setArmed`, `action:monitorActions.setTrackInputDevice`, `action:monitorActions.setTrackInputFormat`, `action:monitorActions.syncTrackInput`, `action:monitorActions.toggleMonitoring`, `action:monitorActions.wantedInput`, `action:projectActions.bootProject`, `action:projectActions.deleteById`, `action:projectActions.duplicateById`, `action:projectActions.installAutosave`, `action:projectActions.mergeProjectById`, `action:projectActions.newProject`, `action:projectActions.newProjectFromTemplate`, `action:projectActions.openProject`, `action:projectActions.renameCurrent`, `action:projectActions.saveCurrent`, `action:projectActions.saveCurrentAs`, `action:rangeActions.hasRangeClipboard`, `action:rangeActions.rangeCopy`, `action:rangeActions.rangeCrop`, `action:rangeActions.rangeCut`, `action:rangeActions.rangeDelete`, `action:rangeActions.rangeDuplicate`, `action:rangeActions.rangeFade`, `action:rangeActions.rangeInsertSilence`, `action:rangeActions.rangePaste`, `action:rangeActions.rangeSplit`, `action:rangeActions.stripSilenceFromClip`, `action:recoveryActions.describeRecovery`, `action:recoveryActions.discardAllRecoveries`, `action:recoveryActions.discardRecovery`, `action:recoveryActions.recoverTake`, `action:recoveryActions.scanRecoveries`, `action:samplerImportActions.openSampleSourceMenu`, `action:samplerImportActions.pickSamplesInto`, `action:samplerImportActions.placeSamples`, `action:samplerImportActions.projectSamples`, `action:samplerImportActions.sampleSourceItems`
+
+</details>
+
+<details><summary>store — 161 rows</summary>
+
+`store:chainStore.remove`, `store:chainStore.reset`, `store:chainStore.save`, `store:inputStore.set`, `store:keymapStore.clearBinding`, `store:keymapStore.resetAll`, `store:keymapStore.setBinding`, `store:prefsStore.reset`, `store:prefsStore.set`, `store:projectStore.addAudioClip`, `store:projectStore.addControlLink`, `store:projectStore.addCueMix`, `store:projectStore.addEventFx`, `store:projectStore.addMacro`, `store:projectStore.addMarker`, `store:projectStore.addMasterEffect`, `store:projectStore.addNote`, `store:projectStore.addNoteFx`, `store:projectStore.addNotes`, `store:projectStore.addRecordedClip`, `store:projectStore.addSamplerZones`, `store:projectStore.addSection`, `store:projectStore.addVca`, `store:projectStore.applyGrooveToClip`, `store:projectStore.applyPreset`, `store:projectStore.applySamplerPreset`, `store:projectStore.assignMacroTarget`, `store:projectStore.assignPad`, `store:projectStore.assignVca`, `store:projectStore.beginGesture`, `store:projectStore.clearChords`, `store:projectStore.clearControlLinks`, `store:projectStore.copyEffectTo`, `store:projectStore.createCrossfade`, `store:projectStore.createScratchPad`, `store:projectStore.deleteAutomationPoints`, `store:projectStore.deleteNotes`, `store:projectStore.deleteScratchPad`, `store:projectStore.deleteTake`, `store:projectStore.duplicateClips`, `store:projectStore.endGesture`, `store:projectStore.flushGestures`, `store:projectStore.groupTracks`, `store:projectStore.healClips`, `store:projectStore.insertAutomationPoints`, `store:projectStore.insertClips`, `store:projectStore.markSaved`, `store:projectStore.matchCueToMain`, `store:projectStore.moveEffect`, `store:projectStore.moveEventFx`, `store:projectStore.moveMasterEffect`, `store:projectStore.moveNoteFx`, `store:projectStore.moveSection`, `store:projectStore.moveTake`, `store:projectStore.moveTempoEvent`, `store:projectStore.packTakes`, `store:projectStore.promoteTake`, `store:projectStore.rackAddItem`, `store:projectStore.rackMoveItem`, `store:projectStore.rackRemoveItem`, `store:projectStore.rackSetLayerZones`, `store:projectStore.rackUpdateItem`, `store:projectStore.registerMedia`, `store:projectStore.removeAutomationLane`, `store:projectStore.removeChord`, `store:projectStore.removeControlLink`, `store:projectStore.removeCueMix`, `store:projectStore.removeEventFx`, `store:projectStore.removeGroove`, `store:projectStore.removeMacro`, `store:projectStore.removeMacroTarget`, `store:projectStore.removeMarker`, `store:projectStore.removeMasterEffect`, `store:projectStore.removeNoteFx`, `store:projectStore.removeSamplerZones`, `store:projectStore.removeSection`, `store:projectStore.removeSend`, `store:projectStore.removeSignature`, `store:projectStore.removeTempoEvent`, `store:projectStore.renameCueMix`, `store:projectStore.renameMacro`, `store:projectStore.renameScratchPad`, `store:projectStore.reorderEffect`, `store:projectStore.reorderMasterEffect`, `store:projectStore.rippleDeleteClips`, `store:projectStore.saveGroove`, `store:projectStore.setAutomationCurve`, `store:projectStore.setAutomationLane`, `store:projectStore.setAutomationMode`, `store:projectStore.setBpm`, `store:projectStore.setChord`, `store:projectStore.setClipFades`, `store:projectStore.setClipGain`, `store:projectStore.setClipView`, `store:projectStore.setCompRange`, `store:projectStore.setCueMix`, `store:projectStore.setCueSend`, `store:projectStore.setEffectShape`, `store:projectStore.setEventFxBypass`, `store:projectStore.setEventFxParam`, `store:projectStore.setFadeShape`, `store:projectStore.setFolderFor`, `store:projectStore.setLoop`, `store:projectStore.setMacroTargetRange`, `store:projectStore.setMacroValue`, `store:projectStore.setMarker`, `store:projectStore.setMaster`, `store:projectStore.setMasterEffectBypass`, `store:projectStore.setMasterEffectParam`, `store:projectStore.setMasterVolume`, `store:projectStore.setMetronome`, `store:projectStore.setNoteFxBypass`, `store:projectStore.setNoteFxList`, `store:projectStore.setNoteFxParam`, `store:projectStore.setNotes`, `store:projectStore.setParamNorm`, `store:projectStore.setProject`, `store:projectStore.setSamplerParams`, `store:projectStore.setSection`, `store:projectStore.setSend`, `store:projectStore.setSignature`, `store:projectStore.setSoloTake`, `store:projectStore.setTakeMuted`, `store:projectStore.setTempoEvent`, `store:projectStore.setTimeSig`, `store:projectStore.setZoneSample`, `store:projectStore.setZoneSlices`, `store:projectStore.sliceToMidiClip`, `store:projectStore.sliceToPads`, `store:projectStore.slipClip`, `store:projectStore.swapScratchPad`, `store:projectStore.transformNotes`, `store:projectStore.trimAutomationAt`, `store:projectStore.trimClipEnd`, `store:projectStore.trimClipStart`, `store:projectStore.ungroupFolder`, `store:projectStore.updateAutomationPoints`, `store:projectStore.updateControlLink`, `store:projectStore.updateNotes`, `store:projectStore.updateSamplerZones`, `store:projectStore.writeAutomationAt`, `store:routeStore.go`, `store:routeStore.setRoute`, `store:transportStore.set`, `store:uiStore.action`, `store:uiStore.closeDialog`, `store:uiStore.closeMenu`, `store:uiStore.dismissToast`, `store:uiStore.onSubmit`, `store:uiStore.openEditorFor`, `store:uiStore.selectClip`, `store:uiStore.selectClips`, `store:uiStore.showDialog`, `store:uiStore.showMenu`, `store:uiStore.toast`, `store:uiStore.toggleClipSelection`, `store:workspaceStore.reset`, `store:workspaceStore.reveal`, `store:workspaceStore.setMaximized`, `store:workspaceStore.setSizes`, `store:workspaceStore.toggle`
+
+</details>
+
+<details><summary>surface — 19 rows</summary>
+
+`surface:combo-mixer`, `surface:combo-piano`, `surface:combo-synth`, `surface:drawer-browser`, `surface:drawer-inspector`, `surface:editor-tab-audio`, `surface:editor-tab-chords`, `surface:editor-tab-diagnostics`, `surface:editor-tab-drums`, `surface:editor-tab-mixer`, `surface:editor-tab-piano`, `surface:editor-tab-score`, `surface:editor-tab-synth`, `surface:nav-arrange`, `surface:nav-browse`, `surface:nav-edit`, `surface:nav-mix`, `surface:nav-perform`, `surface:nav-record`
+
+</details>
+
 
 | id | surface | kind | desktop | tablet | phone | keyboard | tested | evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -115,6 +146,11 @@ Soak coverage: 69 of 136 attempted rows asserted a state change, measured agains
 | `action:recoveryActions.discardRecovery` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
 | `action:recoveryActions.recoverTake` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
 | `action:recoveryActions.scanRecoveries` | src/app/recoveryActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:samplerImportActions.openSampleSourceMenu` | src/app/samplerImportActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:samplerImportActions.pickSamplesInto` | src/app/samplerImportActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:samplerImportActions.placeSamples` | src/app/samplerImportActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:samplerImportActions.projectSamples` | src/app/samplerImportActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
+| `action:samplerImportActions.sampleSourceItems` | src/app/samplerImportActions.ts | action | ? | ? | ? | none | FAIL | not attempted |
 | `effect:ampsim` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.01e-2 RMS |
 | `effect:analyser` | insert rack | effect | FAIL | ? | ? | none | FAIL | rendered audio is identical to the dry render |
 | `effect:autopan` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.40e-2 RMS |
@@ -123,7 +159,7 @@ Soak coverage: 69 of 136 attempted rows asserted a state change, measured agains
 | `effect:compressor` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.94e-3 RMS |
 | `effect:deesser` | insert rack | effect | FAIL | ? | ? | none | FAIL | rendered audio is identical to the dry render |
 | `effect:delay` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.21e-2 RMS |
-| `effect:distortion` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.01e-1 RMS |
+| `effect:distortion` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.00e-1 RMS |
 | `effect:eq3` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.10e-3 RMS |
 | `effect:eq8` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.77e-2 RMS |
 | `effect:filter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.97e-1 RMS |
@@ -131,17 +167,17 @@ Soak coverage: 69 of 136 attempted rows asserted a state change, measured agains
 | `effect:gainMatch` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.94e-3 RMS |
 | `effect:gate` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.52e-2 RMS |
 | `effect:limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.73e-1 RMS |
-| `effect:multiband` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.90e-1 RMS |
-| `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.18e-1 RMS |
-| `effect:mw-fet-limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.13e-1 RMS |
+| `effect:multiband` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.89e-1 RMS |
+| `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.16e-1 RMS |
+| `effect:mw-fet-limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.11e-1 RMS |
 | `effect:mw-granular-reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.12e-3 RMS |
 | `effect:mw-motion-shaper` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 7.40e-2 RMS |
-| `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.06e-1 RMS |
-| `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.06e-1 RMS |
-| `effect:mw-variable-mu` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.10e-1 RMS |
+| `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.05e-1 RMS |
+| `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.05e-1 RMS |
+| `effect:mw-variable-mu` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.09e-1 RMS |
 | `effect:phaser` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.91e-2 RMS |
 | `effect:pingpong` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.25e-2 RMS |
-| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.82e-3 RMS |
+| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 6.71e-3 RMS |
 | `effect:rotary` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.61e-2 RMS |
 | `effect:saturator` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.92e-1 RMS |
 | `effect:tremolo` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.27e-3 RMS |
@@ -250,7 +286,7 @@ Soak coverage: 69 of 136 attempted rows asserted a state change, measured agains
 | `store:projectStore.addRecordedClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.addSamplerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.addSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmt9iyj9i0e7ayw |
+| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmtadpr0e0e7fwa |
 | `store:projectStore.addVca` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.applyGrooveToClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.applyPreset` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
@@ -291,12 +327,13 @@ Soak coverage: 69 of 136 attempted rows asserted a state change, measured agains
 | `store:projectStore.moveSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.moveTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.moveTempoEvent` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmt9iychb06vkjv,tmt9iychb06wpvo,tmt9iychb06xkb5,tmt9iychb06ys7k,tmt9iychb06zfmn,tmt9iychb070xa4,tmt9iyclf0dp2g7,tmt9iyclf0dro8d,tmt9iyclg0e0mbc,tmt9iyclg0e1bp3,tmt9iychb071y71,tmt9iychb072jx4,tmt9iyclh0e2l44 -> tmt9iychb06wpvo,tmt9iychb06xkb5,tmt9iychb06vkjv,tmt9iychb06ys7k,tmt9iychb06zfmn,tmt9iychb070xa4,tmt9iyclf0dp2g7,tmt9iyclf0dro8d,tmt9iyclg0e0mbc,tmt9iyclg0e1bp3,tmt9iychb071y71,tmt9iychb072jx4,tmt9iyclh0e2l44 |
+| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmtadpk9f06v43n,tmtadpk9f06w7b8,tmtadpk9f06xy95,tmtadpk9f06ydoc,tmtadpk9f06zdep,tmtadpk9f0708ia,tmtadpkdu0dpdxf,tmtadpkdv0drrhs,tmtadpkdw0e0pr3,tmtadpkdw0e1e5z,tmtadpk9f071lii,tmtadpk9f072n8x,tmtadpkdw0e2efq -> tmtadpk9f06w7b8,tmtadpk9f06xy95,tmtadpk9f06v43n,tmtadpk9f06ydoc,tmtadpk9f06zdep,tmtadpk9f0708ia,tmtadpkdu0dpdxf,tmtadpkdv0drrhs,tmtadpkdw0e0pr3,tmtadpkdw0e1e5z,tmtadpk9f071lii,tmtadpk9f072n8x,tmtadpkdw0e2efq |
 | `store:projectStore.packTakes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.promoteTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.rackAddItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.rackMoveItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.rackRemoveItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.rackSetLayerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.rackUpdateItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.redo` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks after redo |
 | `store:projectStore.registerMedia` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
@@ -370,6 +407,7 @@ Soak coverage: 69 of 136 attempted rows asserted a state change, measured agains
 | `store:projectStore.setTempoEvent` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.setTimeSig` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.setTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — name "Soak renamed", volume 0.42 |
+| `store:projectStore.setZoneSample` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.setZoneSlices` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.sliceToMidiClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.sliceToPads` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
@@ -399,7 +437,7 @@ Soak coverage: 69 of 136 attempted rows asserted a state change, measured agains
 | `store:uiStore.openEditorFor` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:uiStore.selectClip` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:uiStore.selectClips` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmt9iyclf0dp2g7 -> tmt9iychb06wpvo |
+| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmtadpkdu0dpdxf -> tmtadpk9f06w7b8 |
 | `store:uiStore.set` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — editorTab mixer -> piano |
 | `store:uiStore.showDialog` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:uiStore.showMenu` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |

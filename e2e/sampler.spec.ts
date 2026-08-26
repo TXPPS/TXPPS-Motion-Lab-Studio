@@ -143,7 +143,12 @@ test.describe('drum rack', () => {
       .poll(() => page.evaluate(() => (window as unknown as MlWindow).__ml.isRunning()))
       .toBe(true);
 
-    await page.locator('[data-testid="pad-detail"] button', { hasText: 'M' }).first().click();
+    // By its accessible name, not by `hasText: 'M'`. That matched any button
+    // whose text contains an m — case-insensitively, so "Load sample" did too —
+    // and `.first()` then pressed whichever came earliest in the row. Adding a
+    // load control to the pad editor moved that, and the test went red on a
+    // control it was never about.
+    await page.locator('[data-testid="pad-detail"] button[aria-label="Mute pad"]').click();
     const t = await trackByName(page, 'Drum Rack');
     const kick = t!.sampler!.zones.find((z) => z.name === 'Kick')!;
     expect(kick.muted).toBe(true);

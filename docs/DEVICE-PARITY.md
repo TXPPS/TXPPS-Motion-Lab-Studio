@@ -13,7 +13,7 @@ Read against `src/model/effects.ts` (the `EFFECTS` array and `WAM_SPEC`),
 `src/components/mixer/PluginFace.tsx` (`faceKindOf`, `EffectVisual` and the face
 components), `src/components/synth/SynthPanel.tsx`, `src/components/sampler/SamplerPanel.tsx`.
 
-Our catalogue is **27 effect kinds plus a third-party `wam` placeholder**, and **three
+Our catalogue is **34 effect kinds including a third-party `wam` placeholder**, and **three
 instruments** (MotionSynth, the sampler in its four views, and the classic TX Drum Kit).
 
 ---
@@ -87,6 +87,29 @@ instruments** (MotionSynth, the sampler in its four views, and the classic TX Dr
 | —                        | **Console Shaper** (Mix Engine FX)            | —                                                                                                                                       | Not applicable as designed — it is a fourth device location (on the summing engine, neither insert nor send nor instrument) and our model has no concept of one                                                                                                                                                                                                                                                                                                      |
 | —                        | **Voice FX** (Pro 8)                          | —                                                                                                                                       | Candidate: one device holding De-Tuner, Delay, Transformer, Filters, Ring Modulator and Vocoder. Face unconfirmed                                                                                                                                                                                                                                                                                                                                                    |
 | `wam` — Plugin           | third-party VST/AU hosting                    | —                                                                                                                                       | Out of scope by §10; the reference's _presentation_ and degradation behaviour are §7                                                                                                                                                                                                                                                                                                                                                                                 |
+
+---
+
+### 1.6 Motion Wave units
+
+Seven of them, and every one shipped into the picker while this document still said the
+catalogue was twenty-seven. That is what `unlistedDevices()` in `scripts/parity/workflow.mjs`
+now fails on: a gap list that has not been told about a device cannot have a gap for it, and
+its silence reads as parity.
+
+These are modelled from Reference Spec Sheets rather than from FSP8, so the comparison is not
+device-against-device — the reference has no counterpart for most of them, and where it does,
+the sheet rather than this table is the authority.
+
+| Ours                                     | FSP8 counterpart                                     | What our face draws now                                                   | Gap to parity                                                                                                                                |
+| ---------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mw-motion-shaper` — Motion Shaper       | _none_                                               | The transfer curve the audio is filled from, drawn by the same evaluation | No counterpart to compare against; `docs/reference/fx-01-motion-shaper.md` is the authority                                                  |
+| `mw-program-eq` — Program EQ             | **Channel EQ** (broadly)                             | Its own curve, from the same coefficient evaluation the audio uses        | Not a copy of Channel EQ and not measured against it; `docs/reference/dyn-01-program-eq.md` holds the acceptance rows                        |
+| `mw-optical-leveller` — Optical Leveller | **Compressor** (Opto mode)                           | Transfer curve plus gain reduction                                        | The reference’s Opto mode is one mode of one device; this is a modelled unit with its own sheet, `docs/reference/dyn-02-optical-leveller.md` |
+| `mw-fet-limiter` — FET Limiter           | **Compressor** (FET mode)                            | Transfer curve plus gain reduction                                        | As above; `docs/reference/dyn-03-fet-limiter.md`                                                                                             |
+| `mw-variable-mu` — Variable-Mu Limiter   | **Compressor** (Vintage VCA / tube modes)            | Transfer curve plus gain reduction                                        | As above; `docs/reference/dyn-04-variable-mu.md`                                                                                             |
+| `mw-console-eq` — Console EQ             | **Vintage EQ Collection** (broadly)                  | Its own curve, same evaluation as the audio                               | As above; `docs/reference/dyn-05-console-eq.md`                                                                                              |
+| `mw-granular-reverb` — Granular Reverb   | **Mixverb** / **Space Designer** (neither confirmed) | Decay envelope and grain field                                            | `docs/reference/fx-02-granular-reverb.md` is the authority; the reference’s reverb displays are unconfirmed (§16)                            |
 
 ---
 

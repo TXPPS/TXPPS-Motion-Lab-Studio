@@ -7,26 +7,216 @@ that asserts a state change per function, a seeded combinatorial fuzz with
 structural invariants after every step, property checks that must hold for
 every input, and an endurance run judged on trends rather than endpoints.
 
-- **Bundle** `index-BGv7sw5s.js` (`ebd521b88866454f`)
-- **Seed** `1787713439`
+- **Bundle** `index-Bm1Nlvxd.js` (`5a8571257574042c`)
+- **Seed** `1787765987`
 
 A report is about the bundle named above and no other. If that hash is not
 the one in `dist/` now, this file describes a product that has moved.
 
+## 1. Functional sweep
+
+**69 of 403 ledger rows** (17.1%) asserted a state change.
+
+The sweep attempted **136** of them, and 69 of those changed something — a hit rate of 50.7% **inside the sweep's own scope**, which is not the same figure and must not be reported as if it were. **267 rows have no case at all**:
+
+| kind | never driven | of |
+| --- | --- | --- |
+| action | 87 | 87 |
+| store | 161 | 188 |
+| surface | 19 | 19 |
+
+They are named row by row in `docs/FUNCTION_LEDGER.md` under "Never driven".
+
+A row is green here only when a named part of the state — the project, the
+ui, the undo stack, the transport — was observed to differ either side of
+the invocation. A row whose test proves only that nothing threw is not
+counted, because that is a weaker claim than FAIL and reads as a stronger
+one.
+
+| id | desktop | tablet | phone | evidence |
+| --- | --- | --- | --- | --- |
+| `shortcut:play` | PASS | PASS | PASS | transport changed |
+| `shortcut:return` | FAIL | FAIL | FAIL | Enter changed nothing |
+| `shortcut:return-home` | FAIL | FAIL | FAIL | Home changed nothing |
+| `shortcut:record` | FAIL | FAIL | FAIL | R changed nothing |
+| `shortcut:escape` | FAIL | FAIL | FAIL | Escape changed nothing |
+| `shortcut:save` | FAIL | FAIL | FAIL | Control+S changed nothing |
+| `shortcut:export` | PASS | PASS | PASS | surfaces changed |
+| `shortcut:preferences` | PASS | PASS | PASS | surfaces changed |
+| `shortcut:undo` | PASS | PASS | PASS | project, surfaces, undo, redo changed |
+| `shortcut:redo` | FAIL | FAIL | FAIL | Control+Shift+Z changed nothing |
+| `shortcut:select-all` | PASS | PASS | PASS | ui, surfaces changed |
+| `shortcut:add-to-selection` | FAIL | FAIL | FAIL | combo "shift+click" has no keyboard spelling |
+| `shortcut:marquee` | FAIL | FAIL | FAIL | combo "drag" has no keyboard spelling |
+| `shortcut:context-menu` | FAIL | FAIL | FAIL | combo "contextmenu" has no keyboard spelling |
+| `shortcut:copy` | FAIL | FAIL | FAIL | Control+C changed nothing |
+| `shortcut:cut` | FAIL | FAIL | FAIL | Control+X changed nothing |
+| `shortcut:paste` | FAIL | FAIL | FAIL | Control+V changed nothing |
+| `shortcut:duplicate` | FAIL | FAIL | FAIL | Control+D changed nothing |
+| `shortcut:delete` | FAIL | FAIL | FAIL | Delete changed nothing |
+| `shortcut:split` | FAIL | FAIL | FAIL | Control+E changed nothing |
+| `shortcut:snap-bypass` | FAIL | FAIL | FAIL | combo "shift+drag" has no keyboard spelling |
+| `shortcut:alt-duplicate` | FAIL | FAIL | FAIL | combo "alt+drag" has no keyboard spelling |
+| `shortcut:pr-nudge` | FAIL | FAIL | FAIL | combo "arrowleft/right" has no keyboard spelling |
+| `shortcut:pr-transpose` | FAIL | FAIL | FAIL | combo "arrowup/down" has no keyboard spelling |
+| `shortcut:pr-mute` | FAIL | FAIL | FAIL | M changed nothing (notes selected) |
+| `shortcut:pr-alt-mute` | FAIL | FAIL | FAIL | combo "alt+click" has no keyboard spelling |
+| `shortcut:pr-select-all` | FAIL | FAIL | FAIL | combo "mod+a (piano roll)" has no keyboard spelling |
+| `shortcut:pr-duplicate` | FAIL | FAIL | FAIL | combo "mod+d (piano roll)" has no keyboard spelling |
+| `shortcut:tools` | FAIL | FAIL | FAIL | combo "1-9" has no keyboard spelling |
+| `shortcut:octave-down` | FAIL | FAIL | FAIL | Z changed nothing |
+| `shortcut:octave-up` | FAIL | FAIL | FAIL | X changed nothing |
+| `shortcut:panel-editor` | FAIL | FAIL | FAIL | combo "f2" has no keyboard spelling |
+| `shortcut:panel-mixer` | FAIL | FAIL | FAIL | combo "f3" has no keyboard spelling |
+| `shortcut:panel-inspector` | FAIL | FAIL | FAIL | combo "f4" has no keyboard spelling |
+| `shortcut:panel-browser` | FAIL | FAIL | FAIL | combo "f5" has no keyboard spelling |
+| `shortcut:panel-instruments` | FAIL | FAIL | FAIL | combo "f6" has no keyboard spelling |
+| `shortcut:panel-effects` | FAIL | FAIL | FAIL | combo "f7" has no keyboard spelling |
+| `shortcut:panel-loops` | FAIL | FAIL | FAIL | combo "f8" has no keyboard spelling |
+| `shortcut:panel-samples` | FAIL | FAIL | FAIL | combo "f9" has no keyboard spelling |
+| `shortcut:panel-pool` | FAIL | FAIL | FAIL | combo "f10" has no keyboard spelling |
+| `shortcut:maximize-arrange` | PASS | PASS | FAIL | surfaces changed |
+| `shortcut:pages` | FAIL | FAIL | FAIL | combo "mod+1-4" has no keyboard spelling |
+| `shortcut:help` | PASS | PASS | PASS | surfaces changed |
+| `shortcut:tool-slip` | PASS | PASS | PASS | ui changed |
+| `shortcut:tool-paint` | PASS | PASS | PASS | ui changed |
+| `shortcut:tool-listen` | PASS | PASS | PASS | ui changed |
+| `shortcut:tool-zoom` | PASS | PASS | PASS | ui changed |
+| `shortcut:clip-nudge` | FAIL | FAIL | FAIL | combo "arrowleft/right (clips)" has no keyboard spelling |
+| `shortcut:crossfade` | FAIL | FAIL | FAIL | combo "menu (two audio clips)" has no keyboard spelling |
+| `shortcut:take-swipe` | FAIL | FAIL | FAIL | combo "drag (take lane)" has no keyboard spelling |
+| `shortcut:auto-add-point` | FAIL | FAIL | FAIL | combo "dblclick (automation lane)" has no keyboard spelling |
+| `shortcut:auto-delete-point` | FAIL | FAIL | FAIL | combo "dblclick (automation point)" has no keyboard spelling |
+| `shortcut:auto-marquee` | FAIL | FAIL | FAIL | combo "drag (automation lane)" has no keyboard spelling |
+| `shortcut:auto-drag` | FAIL | FAIL | FAIL | combo "drag (automation point)" has no keyboard spelling |
+| `shortcut:auto-delete` | FAIL | FAIL | FAIL | combo "delete (automation)" has no keyboard spelling |
+| `shortcut:auto-copy` | FAIL | FAIL | FAIL | combo "mod+c (automation)" has no keyboard spelling |
+| `shortcut:auto-paste` | FAIL | FAIL | FAIL | combo "mod+v (automation)" has no keyboard spelling |
+| `shortcut:auto-duplicate` | FAIL | FAIL | FAIL | combo "mod+d (automation)" has no keyboard spelling |
+| `shortcut:clip-select` | FAIL | FAIL | FAIL | combo "enter (clip)" has no keyboard spelling |
+| `shortcut:clip-trim-start` | FAIL | FAIL | FAIL | combo "[/] (clip)" has no keyboard spelling |
+| `shortcut:clip-trim-end` | FAIL | FAIL | FAIL | combo "shift+[/] (clip)" has no keyboard spelling |
+| `shortcut:clip-fade-in` | FAIL | FAIL | FAIL | combo ",/. (clip)" has no keyboard spelling |
+| `shortcut:clip-fade-out` | FAIL | FAIL | FAIL | combo "shift+,/. (clip)" has no keyboard spelling |
+| `shortcut:pr-note-select` | FAIL | FAIL | FAIL | combo "enter (note)" has no keyboard spelling |
+| `shortcut:pr-note-resize` | FAIL | FAIL | FAIL | combo "alt+arrowleft/right (note)" has no keyboard spelling |
+| `shortcut:pr-grid-cursor` | FAIL | FAIL | FAIL | combo "arrows (note grid)" has no keyboard spelling |
+| `shortcut:pr-grid-add` | FAIL | FAIL | FAIL | combo "enter (note grid)" has no keyboard spelling |
+| `shortcut:pr-velocity` | FAIL | FAIL | FAIL | combo "arrowup/down (velocity lane)" has no keyboard spelling |
+| `shortcut:auto-point-keys` | FAIL | FAIL | FAIL | combo "arrows (automation point)" has no keyboard spelling |
+| `shortcut:auto-point-select` | FAIL | FAIL | FAIL | combo "enter (automation point)" has no keyboard spelling |
+| `shortcut:auto-add-at-playhead` | FAIL | FAIL | FAIL | combo "enter (automation lane)" has no keyboard spelling |
+| `store:projectStore.addTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 14 tracks, id tmtadqh8b0e7x6d |
+| `store:projectStore.duplicateTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 14 tracks |
+| `store:projectStore.deleteTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 12 tracks |
+| `store:projectStore.setTrack` | PASS | PASS | PASS | project, surfaces, undo changed — name "Soak renamed", volume 0.42 |
+| `store:projectStore.setInstrument` | PASS | PASS | PASS | project, undo changed — instrument now undefined |
+| `store:projectStore.setSynthParams` | PASS | PASS | PASS | project, undo changed — cutoff 0.31 |
+| `store:projectStore.moveTrack` | PASS | PASS | PASS | project, undo changed — tmtadqa4306v3dl,tmtadqa4306wqo2,tmtadqa4306xq0z,tmtadqa4306yrqt,tmtadqa4306z072,tmtadqa43070gxy,tmtadqaa50dp6wh,tmtadqaa60drvk3,tmtadqaa70e00cj,tmtadqaa70e1ocd,tmtadqa43071aqb,tmtadqa43072m7f,tmtadqaa70e26pd -> tmtadqa4306wqo2,tmtadqa4306xq0z,tmtadqa4306v3dl,tmtadqa4306yrqt,tmtadqa4306z072,tmtadqa43070gxy,tmtadqaa50dp6wh,tmtadqaa60drvk3,tmtadqaa70e00cj,tmtadqaa70e1ocd,tmtadqa43071aqb,tmtadqa43072m7f,tmtadqaa70e26pd |
+| `store:projectStore.addMidiClip` | PASS | PASS | PASS | project, undo changed — 13 -> 14 clips |
+| `store:projectStore.moveClip` | PASS | PASS | PASS | project changed — start 0 -> 4 |
+| `store:projectStore.resizeClip` | PASS | PASS | PASS | project changed — length 7 |
+| `store:projectStore.duplicateClip` | PASS | PASS | PASS | project, undo changed — 13 -> 14 clips |
+| `store:projectStore.deleteClip` | PASS | PASS | PASS | project, undo changed — 13 -> 12 clips |
+| `store:projectStore.splitClip` | PASS | PASS | PASS | project, undo changed — 13 -> 14 clips |
+| `store:projectStore.setClip` | PASS | PASS | PASS | project, undo changed — name Soak clip |
+| `store:projectStore.deleteClips` | PASS | PASS | PASS | project, undo changed — 13 -> 12 clips |
+| `store:projectStore.moveClipsBy` | PASS | PASS | PASS | project, undo changed — start 0 -> 2 |
+| `store:projectStore.addEffect` | PASS | PASS | PASS | project, undo changed — 1 -> 2 inserts |
+| `store:projectStore.removeEffect` | PASS | PASS | PASS | project, undo changed — 1 -> 0 |
+| `store:projectStore.setEffectParam` | PASS | PASS | PASS | project changed — threshold: -22 -> -10.9 |
+| `store:projectStore.setEffectBypass` | PASS | PASS | PASS | project, undo changed — bypass false -> true |
+| `store:projectStore.undo` | PASS | PASS | PASS | redo changed — 13 -> 14 -> 13 tracks |
+| `store:projectStore.redo` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 14 tracks after redo |
+| `store:projectStore.update` | PASS | PASS | PASS | project, undo changed — bpm 137 |
+| `store:projectStore.addAutomationLane` | PASS | PASS | PASS | project, undo changed — 0 -> 1 lanes |
+| `store:projectStore.addAutomationPoint` | PASS | PASS | PASS | project, undo changed — 0 -> 1 points |
+| `store:uiStore.set` | PASS | PASS | PASS | ui changed — editorTab mixer -> piano |
+| `store:uiStore.selectTrack` | PASS | PASS | PASS | ui changed — selection tmtadqaa50dp6wh -> tmtadqa4306wqo2 |
+| `effect:compressor` | PASS | — | — | rendered audio differs by 2.94e-3 RMS |
+| `effect:gate` | PASS | — | — | rendered audio differs by 2.52e-2 RMS |
+| `effect:limiter` | PASS | — | — | rendered audio differs by 1.73e-1 RMS |
+| `effect:multiband` | PASS | — | — | rendered audio differs by 1.89e-1 RMS |
+| `effect:deesser` | FAIL | — | — | rendered audio is identical to the dry render |
+| `effect:eq3` | PASS | — | — | rendered audio differs by 2.10e-3 RMS |
+| `effect:eq8` | PASS | — | — | rendered audio differs by 2.77e-2 RMS |
+| `effect:filter` | PASS | — | — | rendered audio differs by 1.97e-1 RMS |
+| `effect:saturator` | PASS | — | — | rendered audio differs by 1.92e-1 RMS |
+| `effect:distortion` | PASS | — | — | rendered audio differs by 2.00e-1 RMS |
+| `effect:ampsim` | PASS | — | — | rendered audio differs by 5.01e-2 RMS |
+| `effect:bitcrusher` | PASS | — | — | rendered audio differs by 1.72e-2 RMS |
+| `effect:chorus` | PASS | — | — | rendered audio differs by 3.03e-2 RMS |
+| `effect:flanger` | PASS | — | — | rendered audio differs by 3.29e-2 RMS |
+| `effect:phaser` | PASS | — | — | rendered audio differs by 1.91e-2 RMS |
+| `effect:tremolo` | PASS | — | — | rendered audio differs by 9.27e-3 RMS |
+| `effect:rotary` | PASS | — | — | rendered audio differs by 5.61e-2 RMS |
+| `effect:delay` | PASS | — | — | rendered audio differs by 1.21e-2 RMS |
+| `effect:pingpong` | PASS | — | — | rendered audio differs by 1.25e-2 RMS |
+| `effect:reverb` | PASS | — | — | rendered audio differs by 6.71e-3 RMS |
+| `effect:width` | PASS | — | — | rendered audio differs by 2.06e-2 RMS |
+| `effect:autopan` | PASS | — | — | rendered audio differs by 2.40e-2 RMS |
+| `effect:trim` | PASS | — | — | rendered audio differs by 2.94e-3 RMS |
+| `effect:gainMatch` | PASS | — | — | rendered audio differs by 2.94e-3 RMS |
+| `effect:analyser` | FAIL | — | — | rendered audio is identical to the dry render |
+| `effect:tuner` | FAIL | — | — | rendered audio is identical to the dry render |
+| `effect:vocaltune` | FAIL | — | — | rendered audio is identical to the dry render |
+| `effect:mw-motion-shaper` | PASS | — | — | rendered audio differs by 7.40e-2 RMS |
+| `effect:mw-program-eq` | PASS | — | — | rendered audio differs by 1.05e-1 RMS |
+| `effect:mw-optical-leveller` | PASS | — | — | rendered audio differs by 1.05e-1 RMS |
+| `effect:mw-fet-limiter` | PASS | — | — | rendered audio differs by 1.11e-1 RMS |
+| `effect:mw-variable-mu` | PASS | — | — | rendered audio differs by 1.09e-1 RMS |
+| `effect:mw-console-eq` | PASS | — | — | rendered audio differs by 1.16e-1 RMS |
+| `effect:mw-granular-reverb` | PASS | — | — | rendered audio differs by 9.12e-3 RMS |
+| `instrument:synth` | PASS | — | — | key 60 gave 1 source(s), 1 voice(s) held |
+| `instrument:quick` | FAIL | — | — | no zones are loaded, so there is nothing for a note to play — untested here |
+| `instrument:drum` | FAIL | — | — | key 24 of 8 zone(s) produced no source and no held voice |
+| `instrument:multi` | FAIL | — | — | no zones are loaded, so there is nothing for a note to play — untested here |
+
+## 2. Combinatorial fuzz
+
+10000 steps in 51.8 s, every invariant held after every one.
+
 ## 3. Properties
 
-| property                                                                  | result | detail                                                         |
-| ------------------------------------------------------------------------- | ------ | -------------------------------------------------------------- |
-| a project saved and reloaded is the same project                          | PASS   |                                                                |
-| opening a project the loader has already opened changes nothing further   | PASS   |                                                                |
-| opening a project does not drop an automation lane it can read            | PASS   |                                                                |
-| undo restores the state an undoable action was invoked from               | PASS   |                                                                |
-| redo restores what undo removed                                           | PASS   |                                                                |
-| an automation point reads back the value it was written with              | PASS   |                                                                |
-| every bypassed insert renders exactly what no insert renders              | PASS   |                                                                |
-| raising a track fader never lowers the rendered level                     | PASS   |                                                                |
-| a latency-declaring insert moves nothing in the bounce, wherever it lands | FAIL   | a render is silent (0.00e+0, 0.00e+0), so nothing was measured |
-| deleting a track leaves no clip pointing at it                            | PASS   |                                                                |
+| property | result | detail |
+| --- | --- | --- |
+| a project saved and reloaded is the same project | PASS |  |
+| opening a project the loader has already opened changes nothing further | PASS |  |
+| opening a project does not drop an automation lane it can read | PASS |  |
+| undo restores the state an undoable action was invoked from | PASS |  |
+| redo restores what undo removed | PASS |  |
+| an automation point reads back the value it was written with | PASS |  |
+| every bypassed insert renders exactly what no insert renders | PASS |  |
+| raising a track fader never lowers the rendered level | PASS |  |
+| a latency-declaring insert moves nothing in the bounce, wherever it lands | PASS |  |
+| deleting a track leaves no clip pointing at it | PASS |  |
+
+## 4. Endurance
+
+10 minute(s), 9 samples, playing throughout with tracks and
+inserts added and deleted continuously.
+
+| what | result | measured |
+| --- | --- | --- |
+| heap warm-up | PASS | 6581 KB before the first 3 sample(s) settled |
+| heap slope after warm-up | PASS | 37 KB/min across 6 samples — 17 MB over an eight-hour session |
+| frame time drift | PASS | median 16.6 to 16.6 ms |
+| worst frame | PASS | 36 ms |
+| voices retired | PASS | 0 source(s) left after 167 ms |
+| no notes stuck | PASS | 0 voice(s) held at the end |
+| tracks balanced | PASS | 0 track(s) left over from 8 add/delete cycles |
+
+| sample | frame median | p90 | max | heap KB | sources | tracks |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | 16.6 | 17.7 | 36 | 15244 | 11 | 13 |
+| 1 | 16.8 | 17.8 | 19 | 19587 | 12 | 13 |
+| 2 | 16.6 | 17.8 | 19 | 21699 | 18 | 13 |
+| 3 | 16.8 | 17.6 | 18 | 21825 | 13 | 13 |
+| 4 | 16.8 | 17.4 | 18 | 21917 | 14 | 13 |
+| 5 | 16.6 | 17.9 | 19 | 21946 | 10 | 13 |
+| 6 | 16.7 | 17.8 | 18 | 22032 | 13 | 13 |
+| 7 | 16.6 | 17.7 | 21 | 21975 | 15 | 13 |
+| 8 | 16.6 | 18.1 | 21 | 22057 | 16 | 13 |
 
 ## Uncaught page errors
 

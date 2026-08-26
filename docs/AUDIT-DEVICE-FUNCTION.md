@@ -1,5 +1,8 @@
 # Device function audit — does each device do what it shows?
 
+**Describes commit `566e083e8f`.** History — a record of one tree at one
+moment, which cannot go stale because it was never a claim about now. Superseded by [`audit/PLUGIN_AUDIT.md`](audit/PLUGIN_AUDIT.md), which covers what this did not.
+
 Every stock device checked against its own audio: each declared parameter traced to the
 line that reads it, each unit and range checked against what the DSP does with the number,
 each face checked against the graph it claims to draw, each bypass checked for

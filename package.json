@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/licence-guard.mjs && node scripts/ledger-guard.mjs && node scripts/parity-guard.mjs && node scripts/gesture-guard.mjs && node scripts/generate-params.mjs --check && node scripts/generate-functions.mjs --check && node scripts/probe-mutations.mjs --check && node scripts/check-checks.mjs --check && node scripts/generate-sinc-table.mjs --check && node scripts/generate-window-tables.mjs --check && node scripts/generate-accent.mjs --check && vitest run tests/contrast.test.ts && node scripts/generate-icons.mjs --check && node scripts/check-wasm-current.mjs && node scripts/sync-motionwave-assets.mjs && tsc -b && vite build && node scripts/check-core-in-bundle.mjs",
+    "build": "node scripts/licence-guard.mjs && node scripts/ledger-guard.mjs && node scripts/parity-guard.mjs && node scripts/gesture-guard.mjs && node scripts/docs-guard.mjs && node scripts/generate-params.mjs --check && node scripts/generate-functions.mjs --check && node scripts/probe-mutations.mjs --check && node scripts/check-checks.mjs --check && node scripts/generate-sinc-table.mjs --check && node scripts/generate-window-tables.mjs --check && node scripts/generate-accent.mjs --check && vitest run tests/contrast.test.ts && node scripts/generate-icons.mjs --check && node scripts/check-wasm-current.mjs && node scripts/sync-motionwave-assets.mjs && tsc -b && vite build && node scripts/check-core-in-bundle.mjs",
     "preview": "vite preview --port 4173 --strictPort",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -46,7 +46,9 @@
     "reachability": "node scripts/reachability.mjs",
     "functions": "node scripts/generate-functions.mjs",
     "probe:mutations": "node scripts/probe-mutations.mjs",
-    "soak": "node scripts/soak.mjs"
+    "soak": "node scripts/soak.mjs",
+    "docs-guard": "node scripts/docs-guard.mjs",
+    "docs-guard:release": "node scripts/docs-guard.mjs --strict"
   },
   "dependencies": {
     "@webaudiomodules/api": "2.0.0-alpha.6",

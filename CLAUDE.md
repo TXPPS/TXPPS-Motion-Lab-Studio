@@ -26,6 +26,7 @@ npm run lint
 npm test                 # vitest
 npm run e2e              # playwright, uses the preview build
 npm run build
+npm run docs-guard:release   # before a deploy — see "Documents that record state"
 
 # Motion Wave (core)
 cd motionwave
@@ -180,6 +181,39 @@ writing those files — not whether to widen the scope until it goes quiet.
   Where the row cannot hold the minimum, the row grows or the control goes —
   WCAG 2.5.8's equivalent-alternative provision is the route, and it obliges the
   alternative to carry _every_ command the small control offers.
+
+- **A surface that needs an asset has a control that supplies one, and drag is
+  never that control.** HTML5 drag-and-drop is a mouse protocol — a finger does
+  not produce `dragstart` — so a drop-only surface has no route at all on a
+  phone or a tablet. The sampler shipped that way: three buttons that said
+  "load" all loaded a fixed procedural sample, and the only route to your own
+  audio was a drag from a panel the sampler never mentions. One panel over,
+  `rackAddItem(_, 'sampler')` made a layer the engine played and nothing could
+  ever fill. `tests/assetSupply.test.ts` sweeps the component tree for both
+  shapes: a component that _creates_ an empty asset slot must draw a control
+  that fills it, and a component that accepts a drop must offer a route that
+  needs no pointer. A surface that needs neither is registered with the reason.
+
+## Documents that record state
+
+- **No tracked document records product state unless it is generated from a run
+  or machine-checked in both directions.** Four have gone stale this way:
+  `SOAK.md` carried a FAIL a directive after the product fixed it, the parity
+  chapters marked five closed items MISSING, the RA backlog held three closed
+  tickets, and `DEVICE-PARITY.md` had never been told about seven shipped
+  devices. A wrong document is worse than a missing one, for the same reason
+  `tsconfig.e2e.json`'s existence stopped anybody asking.
+- Every file under `docs/` is **GENERATED**, **GUARDED** or **NARRATIVE** in
+  `scripts/docs/registry.mjs`, and `npm run docs-guard` enforces what each
+  means. Unclassified fails the build; so does a registry entry for a file that
+  is gone. A NARRATIVE document may carry `historical: true` and name the commit
+  it describes — that is the conversion for an audit, because a measurement of a
+  named tree is history and cannot go stale.
+- **`npm run docs-guard:release` before a deploy.** The bundle-currency check is
+  a note in the build and a failure there, because `vite.config.ts` compiles the
+  commit date in: re-running the soak changes the commit, which changes the hash
+  the fresh report has just been made to name. It can only be satisfied against
+  the artefact actually being deployed.
 
 ## Motion Wave core: the rules that are not negotiable
 

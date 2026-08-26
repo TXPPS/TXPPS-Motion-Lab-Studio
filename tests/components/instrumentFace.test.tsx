@@ -421,9 +421,20 @@ describe('the drum rack', () => {
     // shape, and a rack that has grown past one bank gives it up.
     expect(within(grid).getAllByRole('button')).toHaveLength(16);
     expect(grid).toHaveClass('square');
-    // Tabbing through a rack stops on the pads that make a sound.
+    /*
+     * Every pad is in the tab order, loaded or not.
+     *
+     * This asserted `tabindex="-1"` on an empty pad, because an empty pad used
+     * to be a drop target and nothing else — its own tooltip said "Drop a
+     * sample here", and on a phone or a tablet that meant nothing at all,
+     * since a finger never produces `dragstart`. An empty pad now opens the
+     * load menu for its own index, so it is actionable, so it is tabbable.
+     * Skipping it would put the only route to that pad out of reach of a
+     * keyboard as well.
+     */
     expect(screen.getByTestId('pad-0')).toHaveAttribute('tabindex', '0');
-    expect(screen.getByTestId('pad-12')).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByTestId('pad-12')).toHaveAttribute('tabindex', '0');
+    expect(screen.getByTestId('pad-12')).toHaveAccessibleName(/load a sample/i);
 
     fireEvent.click(screen.getByText('+ 8 pads'));
     expect(within(screen.getByTestId('pad-grid')).getAllByRole('button')).toHaveLength(24);

@@ -45,6 +45,12 @@ import { readClaims, tally } from './parity/claims.mjs';
 import { evidenceIn, pathExists, fileExists, stillAbsent } from './parity/evidence.mjs';
 import { JUDGEMENT, REASONS, NARRATIVE, PROPOSED } from './parity/judgement.mjs';
 import { PINNED, expected, read } from './parity/pinned.mjs';
+import {
+  workflowClaims,
+  deviceClaims,
+  unlistedDevices,
+  brokenCitations,
+} from './parity/workflow.mjs';
 
 const LIST = process.argv.includes('--list');
 const problems = [];
@@ -165,6 +171,24 @@ for (const claim of PINNED) {
   );
 }
 
+// --------------------------------------------- the two non-chapter documents
+/*
+ * `docs/PARITY.md` and `docs/DEVICE-PARITY.md` record product state and were
+ * checked by nothing at all — the same position the chapters were in, one
+ * directory up and with a different notation. Their first run found seven
+ * shipped devices the gap list had never been told about.
+ */
+const workflow = workflowClaims();
+const devices = deviceClaims();
+problems.push(...workflow.problems, ...devices.problems, ...brokenCitations());
+for (const kind of unlistedDevices()) {
+  problems.push(
+    `docs/DEVICE-PARITY.md: \`${kind}\` is in the picker and in no row of the gap list. ` +
+      'A gap list that does not know about a device cannot have a gap for it, and its ' +
+      'silence reads as parity.',
+  );
+}
+
 // ------------------------------------------------------------------ report
 const counts = tally(claims);
 const byEvidence = claims.filter((c) => checkable(c.section)).length;
@@ -199,4 +223,9 @@ console.log(
     `${byEvidence} checked against the audit's own citations, ${PINNED.length} pinned to a ` +
     `predicate (${parity} at parity), ${claims.length - byEvidence} recorded as needing ` +
     `judgement with a reason. ${counts.MISSING} MISSING, ${counts.PARTIAL} PARTIAL still open.`,
+);
+console.log(
+  `parity-guard: docs/PARITY.md ${workflow.claims.length} row(s), all three verdicts declared; ` +
+    `docs/DEVICE-PARITY.md ${devices.claims.length} row(s), every named kind installed and ` +
+    `every installed kind named.`,
 );

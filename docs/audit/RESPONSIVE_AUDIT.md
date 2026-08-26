@@ -1,5 +1,8 @@
 # Responsive and orientation audit — Directive 02 §4
 
+**Describes commit `46071e45ef`.** History — a record of one tree at one
+moment, which cannot go stale because it was never a claim about now. Its open findings are tracked in [`BACKLOG_MOTIONLAB.md`](../BACKLOG_MOTIONLAB.md), which a guard checks.
+
 Nineteen form factors, both orientations where a device has two, both themes, three text
 scales, and device safe-area insets. 982 surface probes, of which 570 are plugin editors —
 every device in the picker opened on every cell.

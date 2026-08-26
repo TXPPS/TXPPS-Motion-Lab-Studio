@@ -1,5 +1,8 @@
 # Milestone 5 — Automation, Modulation, Mixing & Professional Production
 
+**Describes commit `6506e91d2e`.** History — a record of one tree at one
+moment, which cannot go stale because it was never a claim about now.
+
 One automation system for every parameter: track volume, pan, mute, sends,
 insert-effect parameters and synth parameters all move through the same lane
 model, the same editing surface, the same playback applier and the same

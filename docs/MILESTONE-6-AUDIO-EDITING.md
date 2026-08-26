@@ -1,5 +1,8 @@
 # Milestone 6 — Professional Audio Editing, Comping & Multitrack Workflow
 
+**Describes commit `4b169156e0`.** History — a record of one tree at one
+moment, which cannot go stale because it was never a claim about now.
+
 The editing surface grew the tools engineers actually reach for: shaped
 crossfades, take lanes with swipe comping, split/heal/slip/ripple, cleanup
 analysis, and locks/groups for multitrack safety — all non-destructive, all

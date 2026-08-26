@@ -230,6 +230,32 @@ export const CHECKS = {
       "from '@playwright/test'; const m = (l) => l.evaluate((n) => n.click());",
     ),
   },
+  'docs-guard': {
+    kind: 'gate',
+    // A narrative document that starts recording product state.
+    //
+    // `docs/adr/0001` is a decision record: it says what was decided and what
+    // was rejected, and nothing in it can go stale. Adding a verdict table row
+    // to it is exactly how `docs/design/lib-voice-substrate.md` came to claim
+    // "no implementation exists" while two of its files were in the tree — a
+    // sentence about the present, in a file nobody re-reads, checked by no one.
+    mutate: editing(
+      'docs/adr/0001-stack-and-engine-topology.md',
+      '**Status:** Accepted',
+      '| Web Audio engine | SHIPPING |\n\n**Status:** Accepted',
+    ),
+  },
+  'docs-guard:release': {
+    kind: 'gate',
+    // The currency check, which is the whole reason `--strict` exists.
+    //
+    // `docs/audit/SOAK.md` names the bundle it measured and says in as many
+    // words that a different hash means it describes a product that has moved.
+    // Nothing read that line, and the file carried a FAIL on the bypassed
+    // latency property for a directive after the product fixed it. Renaming
+    // the bundle it declares is that, reproduced.
+    mutate: editing('docs/audit/SOAK.md', '`index-', '`index-notthisone.js` `index-'),
+  },
   'parity-guard': {
     kind: 'gate',
     // The evidence layer, which is where 806 of the 947 claims are settled.
