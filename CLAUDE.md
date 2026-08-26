@@ -45,10 +45,22 @@ C++ core compiled to WebAssembly, so without a WASM toolchain there is no
 product on the web platform — not "no verification", no build. Fourteen units
 could be finished and none of them would run in the app.
 
-- Pinned to **4.0.7**, installed at `/home/user/emsdk`. Override with `EMSDK_DIR`.
+- Pinned to **4.0.7**. `EMSDK_DIR` names it; `scripts/emcxx.mjs` is the one place
+  that looks, and everything else asks that. Two checks spent three directives
+  reporting BLOCKED because they each looked somewhere different — `curve:check`
+  asked only for `g++`, and `wasm:check`'s gate tested a path this host does not
+  use, while forty-two core suites had been compiling through emsdk's clang all
+  along. **BLOCKED is a claim about the host, and a claim about the host can be
+  wrong.** If a check says it cannot run here, check that before believing it.
 - `git clone https://github.com/emscripten-core/emsdk.git && cd emsdk && ./emsdk install 4.0.7 && ./emsdk activate 4.0.7`
 - `motionwave/wasm/build.sh` sources `emsdk_env.sh` itself, so no shell setup is
   needed to build.
+- **There is no `g++` on the Windows host and there does not need to be.** The
+  core has no dependencies (ADR-0003), so every suite compiles to WebAssembly
+  through `npm run test:core` and runs under Node. It is the same compiler and
+  the same source the shipping browser target is built from — a real pass, on a
+  target that is not the host, which is why it supplements the CMake build
+  rather than replacing it.
 
 **The WASM build is `-O2` and `-fno-fast-math`, deliberately.** The boundary test
 asserts a bit-for-bit match against the native golden render, and the more
@@ -144,6 +156,30 @@ writing those files — not whether to widen the scope until it goes quiet.
 - **A control that does nothing is a bug of the same class as a wrong number.**
   Static guards enforce it: `tests/schemaWired.test.ts`, `tests/laneWired.test.ts`,
   `tests/prefs.test.ts`. Add to them rather than around them.
+
+- **A reachability claim made with `el.click()` is not a reachability claim.**
+  It invokes a handler; it does not ask whether anything is on top of the
+  element, whether it can be seen, whether it is on screen, or whether the
+  gesture a person makes would arrive. Neither does `hasTouch: true` plus
+  `click()`, which makes `(pointer: coarse)` match and then sends a **mouse**.
+  Any test asserting a control is reachable drives a real pointer sequence with
+  the pointerType of the form factor it claims, through `e2e/pointer.ts`;
+  `scripts/gesture-guard.mjs` runs in the build and fails on a scripted press,
+  or a touch context pressed with a mouse, that has not been argued for in
+  writing. Four defects reached users behind tests that used it, and the fifth
+  was the _measurement_: `hitBox` added a declared `::after` inset to a border
+  box, which is the intended rectangle and not the reachable one. Inside a
+  scroller they are nowhere near each other — `.dev-power` declared 44 x 44 and
+  delivered 1 x 1. **Measure a target with `reachableBox`, never with an inset
+  you can read off the stylesheet.**
+
+- **A target grown past the row that holds it is a target pointing at
+  something else.** Three times now: a 44 px options button in a 16 px rack row
+  landed on the third device's icon; a 44 px hit area on a 5 px lamp bypassed
+  the _next_ device; `min-height: 44px` inside a 34 px toolbar measured 44 x 34.
+  Where the row cannot hold the minimum, the row grows or the control goes —
+  WCAG 2.5.8's equivalent-alternative provision is the route, and it obliges the
+  alternative to carry _every_ command the small control offers.
 
 ## Motion Wave core: the rules that are not negotiable
 
