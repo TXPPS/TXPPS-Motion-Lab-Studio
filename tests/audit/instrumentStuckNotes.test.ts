@@ -65,7 +65,6 @@ interface Subject {
   probe: ReturnType<typeof createProbeContext>;
 }
 
-
 /**
  * Every instrument the engine can build, each with whatever it needs to
  * actually make voices, and each able to say how many it holds. Built fresh per
@@ -102,7 +101,10 @@ function subjects(): Subject[] {
 
 beforeEach(() => {
   resetMediaCaches();
-  cacheBuffer('m-stuck', new AudioBuffer({ numberOfChannels: 2, length: 48000, sampleRate: 48000 }));
+  cacheBuffer(
+    'm-stuck',
+    new AudioBuffer({ numberOfChannels: 2, length: 48000, sampleRate: 48000 }),
+  );
 });
 
 describe('BUG-005 · no instrument keeps a voice after its note-off', () => {

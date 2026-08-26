@@ -8,12 +8,22 @@
  * ramp, which is the shape of PA-001. So both are pinned here.
  */
 import { describe, expect, it } from 'vitest';
-import { TEMPO_SYNC_EPS, hasTempoSyncedInsert, shouldRetempo, tempoVaries } from '../src/audio/tempoSync';
+import {
+  TEMPO_SYNC_EPS,
+  hasTempoSyncedInsert,
+  shouldRetempo,
+  tempoVaries,
+} from '../src/audio/tempoSync';
 import { defaultParams } from '../src/model/effects';
 import type { Effect, EffectKind } from '../src/model/types';
 
 function fx(kind: EffectKind, overrides: Record<string, number> = {}): Effect {
-  return { id: `fx-${kind}`, kind, bypass: false, params: { ...defaultParams(kind), ...overrides } };
+  return {
+    id: `fx-${kind}`,
+    kind,
+    bypass: false,
+    params: { ...defaultParams(kind), ...overrides },
+  };
 }
 
 describe('when to re-drive a tempo-synced chain', () => {
