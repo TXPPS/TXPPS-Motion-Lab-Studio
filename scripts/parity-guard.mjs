@@ -148,6 +148,34 @@ const CLAIMS = [
     verdict: 'MISSING',
     holds: () => has('src/state/projectStore.ts', /undoLabels|undoStack:\s*\{\s*label/),
   },
+  // ---- and the MotionLab backlog, which had gone stale the same way ----
+  {
+    id: 'backlog/ra-006-insert-button',
+    doc: 'docs/BACKLOG_MOTIONLAB.md',
+    anchor: 'RA-006',
+    what: 'a press on a strip does not move the console under the pointer',
+    verdict: 'PARITY',
+    holds: () => has('src/components/mixer/ChannelOverview.tsx', 'useSettledSelection'),
+  },
+  {
+    id: 'backlog/pa-012-filter-drive',
+    doc: 'docs/BACKLOG_MOTIONLAB.md',
+    anchor: 'PA-012',
+    what: "the Filter's Drive aligns its own dry leg",
+    verdict: 'PARITY',
+    holds: () => has('src/audio/effectChain.ts', /this.align.delayTime/),
+  },
+  {
+    id: 'backlog/pa-009-bypassed-limiter',
+    doc: 'docs/BACKLOG_MOTIONLAB.md',
+    anchor: 'PA-009',
+    what: 'a bypassed limiter declares no latency',
+    verdict: 'PARITY',
+    // A plain substring, not a regex: the declaration is formatted across
+    // lines and a pattern that tries to match the whitespace between them is a
+    // pattern that breaks the next time prettier reflows it.
+    holds: () => has('src/audio/effectChain.ts', 'lastBypass'),
+  },
   {
     id: 'fundamentals/per-track-delay',
     doc: 'docs/reference/fsp8-parity-fundamentals.md',

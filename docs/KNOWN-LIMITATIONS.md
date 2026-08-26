@@ -69,9 +69,16 @@ where a capability is missing the UI says so.
     possible and is not done yet.
 
   - **The limiter insert costs 192 samples (4.35 ms)** in its oversampled
-    brickwall stage — present even when the insert is bypassed — and its
-    lookahead adds to that rather than being compensated away: the 3 ms default
-    takes it to 324 samples (7.35 ms).
+    brickwall stage, and its lookahead adds to that: the 3 ms default takes it
+    to 324 samples (7.35 ms). Both are compensated on both render paths, and
+    the transport shows the total.
+
+    "Present even when the insert is bypassed" was true when it was written and
+    is not now (PA-009). A bypassed limiter declares zero and `InsertChain`
+    routes the signal around it, which is what makes the strong form of the
+    bypass property — every bypassed insert renders exactly what no insert
+    renders — hold for all thirty-four kinds.
+
   - **The multiband costs 270 samples (6.1 ms)**: it is the last processor
     still built on the browser's own `DynamicsCompressorNode`. Bypassing it
     takes that back out, because its bypass crossfades to a dry path.
