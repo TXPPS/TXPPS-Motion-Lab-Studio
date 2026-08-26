@@ -246,7 +246,7 @@ export const ChannelOverview = memo(function ChannelOverview({ track }: { track:
  * waits is the *layout*. The band appears when the hand comes off, by which
  * time the gesture it would have broken has been delivered.
  */
-function settledSelection(): string | null {
+function useSettledSelection(): string | null {
   const live = useUiStore((s) => s.selectedTrackId);
   const [settled, setSettled] = useState(live);
   const [pressed, setPressed] = useState(false);
@@ -270,7 +270,7 @@ function settledSelection(): string | null {
 
 /** Renders the overview for whatever channel is selected, or a prompt. */
 export function ChannelOverviewHost() {
-  const id = settledSelection();
+  const id = useSettledSelection();
   const track = useProjectStore((s) => s.project.tracks.find((t) => t.id === id));
   // Nothing selected: take no room at all. A band of empty console saying
   // "select a channel" was costing a quarter of the mixer's height to tell
