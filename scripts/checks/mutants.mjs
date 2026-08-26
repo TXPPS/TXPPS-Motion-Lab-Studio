@@ -201,7 +201,22 @@ export const CHECKS = {
   },
   'ledger-guard': {
     kind: 'gate',
-    mutate: editing('docs/UNIT_LEDGER.md', '| FAIL', '| SHIPPING-FAIL'),
+    // A unit claimed as SHIPPING whose cells are all `—`, which is what the
+    // guard exists to refuse: "the Ledger must not be able to lie".
+    //
+    // It used to corrupt a `| FAIL` cell into `| SHIPPING-FAIL`, and there is
+    // no `FAIL` left in the ledger — the Granular Reverb's V27 was the last one
+    // and it closed. So the mutation could not be applied and the gate read
+    // BROKEN, which is the verdict that means the check is unreadable rather
+    // than that it failed. An anchor tied to a value that was always going to
+    // change is an anchor with an expiry date; `NOT STARTED` on `fx-03` is a
+    // row that stays until somebody builds it, and building it is exactly when
+    // this entry should be looked at again.
+    mutate: editing(
+      'docs/UNIT_LEDGER.md',
+      '| Granular Delay      | `fx-03`  | NOT STARTED',
+      '| Granular Delay      | `fx-03`  | SHIPPING   ',
+    ),
   },
   'gesture-guard': {
     kind: 'gate',
