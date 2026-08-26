@@ -10,7 +10,7 @@
 // So it is checked wherever the toolchain exists, and skipped honestly where it
 // does not. Skipping is not a pass — it says so.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = process.cwd();
@@ -67,14 +67,56 @@ execFileSync('bash', ['motionwave/wasm/build.sh'], {
 });
 
 const b = readFileSync(fresh);
-if (a.length !== b.length || !a.equals(b)) {
+
+/**
+ * Compared with line endings normalised.
+ *
+ * The same argument the generators make, and it was never applied here because
+ * nobody ran this: `.gitattributes` checks the tracked artefact out as LF, and
+ * a build on a Windows host writes CRLF, so the two differed by 21 bytes in a
+ * 307,735-byte file and by nothing at all. The check then said "the tracked
+ * core is NOT what this source builds" and told the reader to commit a file
+ * whose content had not changed — which is worse than a false red, because
+ * following the instruction commits line-ending churn over an artefact whose
+ * whole purpose is to be bit-identical to its source.
+ *
+ * A `.wasm` cannot be normalised this way and must not be: it is binary, and a
+ * CR inside it is data. Only the JavaScript wrapper is text, and it is the only
+ * one this compares.
+ */
+const CR = String.fromCharCode(13);
+const LF = String.fromCharCode(10);
+const normalised = (buffer) =>
+  buffer
+    .toString('latin1')
+    .split(CR + LF)
+    .join(LF);
+const tracked = normalised(a);
+const built = normalised(b);
+if (tracked !== built) {
   console.error('');
   console.error('wasm:check: the tracked core is NOT what this source builds.');
-  console.error(`  tracked ${a.length} bytes, freshly built ${b.length} bytes`);
+  console.error(`  tracked ${tracked.length} bytes, freshly built ${built.length} bytes`);
+  console.error('  (compared with line endings normalised, so this is a real difference)');
   console.error('');
   console.error('The build script has already refreshed it. Commit the change:');
   console.error('  git add motionwave/wasm/prebuilt/motionwave.worklet.js');
   process.exit(1);
 }
 
-console.log(`wasm:check: the tracked core matches this source (${a.length} bytes).`);
+/*
+ * Put the tracked bytes back, now that they are known to be the right ones.
+ *
+ * `build.sh` copies its output over `prebuilt/` as its last step, so a *passing*
+ * check leaves the working tree dirty by exactly the line endings this
+ * comparison just decided were not a difference. That is not cosmetic here:
+ * `npm run build` runs this check, and `vite.config.ts` compiles in the
+ * commit's date for a clean tree and the wall clock for a dirty one — so a
+ * build whose only dirt is 21 carriage returns produces a bundle nobody can
+ * reproduce, and the deploy verification that hashes it cannot pass.
+ *
+ * Only on a pass. A genuine difference exits above, having said to commit it.
+ */
+if (!a.equals(b)) writeFileSync(prebuilt, a);
+
+console.log(`wasm:check: the tracked core matches this source (${tracked.length} bytes).`);

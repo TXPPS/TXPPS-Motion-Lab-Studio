@@ -13,6 +13,7 @@ import { execSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ROOT } from './inventory.mjs';
+import { emsdkToolchain } from '../emcxx.mjs';
 
 const TIMEOUT_MS = 240_000;
 
@@ -57,13 +58,21 @@ function apply(mutate) {
   };
 }
 
-/** Whether a C++ compiler exists, which `curve:check` needs to answer at all. */
+/**
+ * Whether *any* C++ compiler exists, which `curve:check` needs to answer at all.
+ *
+ * It used to ask only `g++`, and reported BLOCKED — "no C++ compiler on this
+ * host" — on a machine that had been compiling forty-two core suites through
+ * emsdk's clang since `run-core-tests.mjs` was written. Three consecutive
+ * summaries carried that verdict. BLOCKED is not DECAYED and it is not a pass
+ * either; it is a claim about the host, and this one was false.
+ */
 export function hasCompiler() {
   try {
     execSync('g++ --version', { stdio: 'ignore' });
     return true;
   } catch {
-    return false;
+    return emsdkToolchain() !== null;
   }
 }
 
@@ -87,8 +96,13 @@ export function indexIsEmpty() {
  * not `DECAYED`: a check that could not run here has not stopped mattering.
  */
 export function runGate(name, command, entry) {
-  if (entry.needs === 'emsdk' && !existsSync(join(process.env.EMSDK_DIR ?? '/home/user/emsdk'))) {
-    return { verdict: 'BLOCKED', why: 'no activated emsdk on this host' };
+  // Asked of `em++.py` rather than of a directory, and through the one place
+  // that knows where emsdk is. The directory test used a default path this host
+  // does not use, so it answered a question about a machine that is not this
+  // one — and a directory that exists without emscripten in it would have
+  // answered "available" and then failed for a reason nobody could read.
+  if (entry.needs === 'emsdk' && emsdkToolchain() === null) {
+    return { verdict: 'BLOCKED', why: 'no emscripten on this host — set EMSDK_DIR' };
   }
   if (entry.needs === 'g++' && !hasCompiler()) {
     return { verdict: 'BLOCKED', why: 'no C++ compiler on this host' };
@@ -135,5 +149,22 @@ export function runGate(name, command, entry) {
       }
     }
     undo();
+    /*
+     * And anything the *check* rewrote, not just what the mutation edited.
+     *
+     * `wasm:check` runs `build.sh`, which copies its output over the tracked
+     * `prebuilt/` core as its last step. So the mutated run leaves a mutant
+     * artefact in git — a core with a shelf plateau of 2.75 sitting in a
+     * tracked file, correctly reported as not matching its source and then left
+     * there for whoever committed next. The gate has to put back everything it
+     * disturbed, not everything it meant to.
+     */
+    for (const path of entry.restores ?? []) {
+      try {
+        execSync(`git checkout -- "${path}"`, { cwd: ROOT, stdio: 'ignore' });
+      } catch {
+        console.error(`  could not restore ${path} — check it out by hand`);
+      }
+    }
   }
 }

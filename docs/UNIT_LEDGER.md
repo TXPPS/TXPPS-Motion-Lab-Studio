@@ -1396,7 +1396,21 @@ tracked here so those ids have somewhere to live.
 | ---------------- | ------------------------------------ | ---------------- | --------- |
 | Nonlinear stages | `docs/design/lib-nonlinear.md`       | NL-01…18         | SPEC ONLY |
 | Grain engine     | `docs/design/lib-grain-engine.md`    | GE-01…21         | SPEC ONLY |
-| Voice substrate  | `docs/design/lib-voice-substrate.md` | VS-01…32         | SPEC ONLY |
+| Voice substrate  | `docs/design/lib-voice-substrate.md` | VS-01…32         | STARTED   |
+
+**Voice substrate — what is built.** `note_id.h` and `note_registry.h`, the two
+files everything else in §3's table depends on and which depend on nothing.
+`motionwave/core/test/voice_registry_tests.cpp` runs nine cases through
+`npm run test:core`, closing **VS-04** — the one the spec calls "BUG-005 made
+executable" — and the registry's half of **VS-31**, no allocation on the audio
+path. Five mutations, five red: a `release` that recomputes identity rather than
+reading it, a repeated press that mints a second id, a swap-with-last erase that
+silently reorders the held list, a `reset` that rewinds the id counter, and a
+slot index that drops the channel and collapses an MPE chord to one note.
+
+Ten of the twelve files remain, and with them VS-01, 02, 03, 05 to 30 and 32.
+The next is `voice_set.h`: VS-01 and VS-02 are PA-003 made executable, and they
+cannot be written until there is a partition to walk.
 
 Built and shipping already, ahead of their specs because Motion Shaper needed
 them: `core/dsp/biquad.h`, `crossover.h`, `curve.h`, `lfo_phase.h`,

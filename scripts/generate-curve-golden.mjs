@@ -17,6 +17,7 @@
  * Run `npm run curve:golden` to regenerate, `--check` to fail on drift.
  */
 import { execFileSync } from 'node:child_process';
+import { compileAndRun } from './emcxx.mjs';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -72,32 +73,38 @@ const cpp = join(dir, 'emit.cpp');
 const bin = join(dir, 'emit');
 writeFileSync(cpp, source);
 /**
- * Say so where there is no compiler, rather than dying with a stack trace.
+ * The host compiler, and where there is none, the one emsdk ships.
  *
- * `--check` compiles the C++ curve law and compares its output against the
- * tracked golden table, so a host with no C++ toolchain cannot answer the
- * question at all. It used to throw `spawnSync g++ ENOENT` from the middle of
- * this file, which reads as the check being broken rather than as the host
- * being unable to run it — and a check that looks broken is a check somebody
- * eventually deletes.
+ * This used to be `g++` or nothing: on a host without it the check printed
+ * SKIPPED and exited 2, saying the golden table "could not be checked against
+ * the law it is supposed to mirror". That was true of `g++` and false of the
+ * host — the same machine had been compiling forty-two core suites through
+ * emsdk's clang since `run-core-tests.mjs` was written, and this file did not
+ * know. A check that reports SKIPPED on a host that can in fact run it is the
+ * most expensive kind: it looks like an environment problem, so nobody looks
+ * again, and it had been reported as BLOCKED in three consecutive summaries.
  *
- * Exits 2, not 0. `check-wasm-current.mjs` makes the same argument and exits 0,
- * because it is reached by a build that has to run where there is no toolchain
- * at all; this one is reached only by CI, where `g++` is always present, so a
- * skip here is a skip that should stop something.
+ * `g++` stays first because it is the host target and CI has it. The fallback
+ * is a different target — WebAssembly under Node — and it is the target this
+ * table is *for*: `curve_golden.json` is read by the browser panel's tests.
+ *
+ * Exits 2 when neither is available, not 0. `check-wasm-current.mjs` makes the
+ * same argument and exits 0 because a build has to run where there is no
+ * toolchain; this check is reached by CI, so a skip here should stop something.
  */
 let emitted;
 try {
   execFileSync('g++', ['-std=c++17', '-O2', '-I', join(ROOT, 'motionwave/core'), cpp, '-o', bin]);
   emitted = execFileSync(bin, { encoding: 'utf8', maxBuffer: 1 << 28 });
 } catch (e) {
-  if (e?.code === 'ENOENT') {
-    console.error('generate-curve-golden: SKIPPED — no C++ compiler on this host, so the golden');
-    console.error('  table could not be checked against the law it is supposed to mirror.');
-    console.error('  This is not a pass. CI has g++ and runs this check for real.');
+  if (e?.code !== 'ENOENT') throw e;
+  emitted = compileAndRun(cpp, join(ROOT, 'motionwave/core'), join(dir, 'emit.js'));
+  if (emitted === null) {
+    console.error('generate-curve-golden: SKIPPED — no `g++` and no emsdk on this host, so the');
+    console.error('  golden table could not be checked against the law it is supposed to mirror.');
+    console.error('  This is not a pass. Set EMSDK_DIR, or run it where a compiler exists.');
     process.exit(2);
   }
-  throw e;
 }
 
 /**

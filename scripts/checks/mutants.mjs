@@ -168,12 +168,29 @@ export const CHECKS = {
     // here rather than green: a check that reports SKIPPED is not a check that
     // passed, and this one has already been wrong once by comparing a file
     // against itself.
+    // A constant the compiler folds, not a comment.
+    //
+    // This mutation was `namespace mw` -> `namespace /* mutant */ mw`, which
+    // changes no compiled byte at all: the check correctly reported a match and
+    // the gate correctly called it DECAYED. Nobody had seen that, because the
+    // gate's own host test looked for emsdk at a path this machine does not use
+    // and reported BLOCKED for three summaries running. Unblocking it is what
+    // found the weak mutation — which is the argument for BLOCKED never being
+    // treated as a kind of pass.
+    //
+    // `kShelfPlateau` is a `static constexpr double` inside the shelf's own
+    // maths, so moving it changes the emitted WebAssembly and the tracked core
+    // stops matching its source, which is precisely what this check exists for.
     mutate: editing(
       'motionwave/core/units/console_eq.h',
-      'namespace mw',
-      'namespace /* mutant */ mw',
+      'static constexpr double kShelfPlateau = 2.5;',
+      'static constexpr double kShelfPlateau = 2.75;',
     ),
     needs: 'emsdk',
+    // `build.sh` copies its output over the tracked core as its last step, so
+    // the mutated run leaves a mutant artefact in git. Undoing the source edit
+    // is not enough; the artefact has to come back too.
+    restores: ['motionwave/wasm/prebuilt/motionwave.worklet.js'],
   },
   'licence-guard': {
     kind: 'gate',

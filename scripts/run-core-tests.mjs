@@ -29,35 +29,30 @@
  * computes to silence a warning about a cast that is the point.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { join, resolve, basename } from 'node:path';
+import { EMSDK, emsdkToolchain } from './emcxx.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const CORE = join(ROOT, 'motionwave', 'core');
-const EMSDK = process.env.EMSDK_DIR ?? 'C:/Users/txpps/emsdk';
 const OUT = join(ROOT, 'node_modules', '.cache', 'mw-core-tests');
 
-/**
- * `em++.py` through emsdk's own interpreter, rather than `em++.bat`.
+/*
+ * Where emsdk is, and which Python drives it, now live in `scripts/emcxx.mjs`.
  *
- * Node refuses to spawn a `.bat` from `execFile` — it returns `EINVAL` — and
- * the alternative, `shell: true`, would put every argument through `cmd.exe`
- * quoting. This repository lives under a path with a space in it, so that is a
- * quoting bug waiting to happen for no benefit. The `.py` is what the `.bat`
- * runs anyway, and the interpreter to run it with is named in `.emscripten`.
+ * They were worked out here and copied nowhere, which is why
+ * `generate-curve-golden.mjs` went on reporting "no C++ compiler on this host"
+ * on the host that had been compiling these forty-two suites all along. Two
+ * scripts asking the same question of the same machine and getting different
+ * answers is the drift `CLAUDE.md`'s no-duplicate-DSP rule is about, one layer
+ * up from DSP.
  */
-const emxx = join(EMSDK, 'upstream', 'emscripten', 'em++.py');
-const python =
-  [
-    join(EMSDK, 'python', '3.13.3_64bit', 'python.exe'),
-    ...(existsSync(join(EMSDK, 'python'))
-      ? readdirSync(join(EMSDK, 'python')).map((v) => join(EMSDK, 'python', v, 'python.exe'))
-      : []),
-  ].find(existsSync) ?? 'python3';
-if (!existsSync(emxx)) {
+const tools = emsdkToolchain();
+if (!tools) {
   console.error(`test:core: no emscripten at ${EMSDK}. Set EMSDK_DIR, or use the CMake build.`);
   process.exit(1);
 }
+const { emxx, python } = tools;
 
 /** `mw_warnings` from motionwave/CMakeLists.txt, less the flag documented above. */
 const WARNINGS = [
