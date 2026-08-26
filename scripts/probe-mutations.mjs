@@ -58,6 +58,7 @@ const PROBES = {
     'scripts/stress/endurance.mjs',
   ],
   bypass: ['scripts/bypass-probe.mjs'],
+  soak: ['scripts/soak/properties.mjs'],
 };
 
 function plantedIn(files) {
@@ -142,6 +143,29 @@ function run(entry, mutation) {
       exercised,
       why,
     };
+  }
+
+  if (entry.probe === 'soak') {
+    // One layer and one seed. The functional sweep and the endurance run take
+    // minutes each and answer nothing this correction is about; the properties
+    // layer is the one that carries it, and the seed is pinned so baseline and
+    // mutant draw the same track.
+    try {
+      execFileSync(
+        process.execPath,
+        ['scripts/soak.mjs', '--layer=properties', `--seed=${entry.scope.seed}`],
+        { cwd: ROOT, env, stdio: ['ignore', 'ignore', 'inherit'], timeout: 900000 },
+      );
+    } catch {
+      // A failing property exits non-zero, and for a planted defect that is
+      // the whole point. The verdict is read off the report either way.
+    }
+    const report = JSON.parse(readFileSync(join(ROOT, 'soak-out.json'), 'utf8'));
+    const row = (report.layers.properties ?? []).find((r) => r.id === entry.metric);
+    if (!row) throw new Error(`soak reported no property named "${entry.metric}"`);
+    // The verdict itself is the measurement: a correction here is about whether
+    // the property can still tell the truth, and PASS to FAIL is that.
+    return { value: row.state, unit: '', exercised: true, why: '' };
   }
 
   if (entry.probe === 'bypass') {

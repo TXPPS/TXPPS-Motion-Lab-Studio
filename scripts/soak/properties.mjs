@@ -290,7 +290,7 @@ export const PROPERTIES = [
   {
     id: 'a-bounce-is-in-time',
     what: 'a latency-declaring insert moves nothing in the bounce, wherever it lands',
-    body: async ({ seed }) => {
+    body: async ({ seed, active }) => {
       const w = window;
       const { renderProject, preloadForRender } = w.__ml.exportMix;
       const st = () => w.__ml.projectStore.getState();
@@ -308,10 +308,36 @@ export const PROPERTIES = [
       // latency-declaring insert also changes the sound, and then a difference
       // could always be argued to be the sound.
       const pick = w.__soakRnd(seed)();
+      // `probe-mutant.mjs`'s predicate, rebuilt: see `runProperties` for why it
+      // cannot be imported. `npm run probe:mutations --check` matches on the
+      // call sites below, so the name has to be this one.
+      const mutated = (id) => id === active;
       const render = async (withInsert) => {
         st().setProject(structuredClone(w.__soakBaseline));
-        const tracks = st().project.tracks.filter((t) => t.type !== 'bus' && t.type !== 'fx');
+        // A track that will actually sound over the measured bars. Isolating a
+        // channel whose clips all start after bar 4 renders silence, and a
+        // correlation over silence has no peak to find — the guard below says
+        // so rather than passing, and this is what stops it having to.
+        const project = st().project;
+        const sounds = !mutated('soak/bounce-target-has-content');
+        const tracks = project.tracks.filter(
+          (t) =>
+            (t.type === 'instrument' || t.type === 'drum' || t.type === 'audio') &&
+            (!sounds || project.clips.some((c) => c.trackId === t.id && c.start < 4)),
+        );
         const target = tracks[Math.floor(pick * tracks.length)];
+        // The track alone, for the reason the bypass property records: a shift
+        // measured across the mix is diluted by every channel that did not
+        // move, and the correlator then reports a peak somewhere between them.
+        // Measured across the mix this read 4 samples and failed; isolated it
+        // is inside tolerance on every seed tried, including that one. The
+        // bypass property learned the same thing about the same graph — a mix
+        // diluted its x1.414214 to 1.0331.
+        if (!mutated('soak/bounce-isolate-track')) {
+          for (const t of st().project.tracks.slice()) {
+            if (t.id !== target?.id) st().deleteTrack(t.id);
+          }
+        }
         if (withInsert && target) {
           const id = st().addEffect(target.id, 'saturator');
           st().setEffectParam(target.id, id, 'mix', 0);
@@ -398,6 +424,15 @@ export const PROPERTIES = [
 
 /** Run every property against a fresh fixture, returning one row each. */
 export async function runProperties(page, seed) {
+  /**
+   * Which recorded defect, if any, this run is asked to plant.
+   *
+   * The other probes call `mutated()` from `probe-mutant.mjs` directly. These
+   * bodies are serialised into the page by `page.evaluate`, so nothing they
+   * close over exists there — the id crosses as an argument and each body
+   * rebuilds the same predicate from it.
+   */
+  const active = process.env.MW_PROBE_MUTATION ?? '';
   await page.evaluate(() => {
     // Shared by the property bodies so every draw comes from the run's seed.
     window.__soakRnd = (s) => {
@@ -415,7 +450,7 @@ export async function runProperties(page, seed) {
     });
     let why = null;
     try {
-      why = await page.evaluate(property.body, { seed });
+      why = await page.evaluate(property.body, { seed, active });
     } catch (e) {
       why = `threw: ${String(e).slice(0, 200)}`;
     }

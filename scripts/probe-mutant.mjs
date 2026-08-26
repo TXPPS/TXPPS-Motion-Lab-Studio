@@ -67,6 +67,35 @@ export function mutated(id) {
  * over-reporting (reaching a surface through the store, which no thumb can do).
  */
 export const MUTATIONS = [
+  // -------------------------------------------------------------------- soak
+  {
+    id: 'soak/bounce-isolate-track',
+    probe: 'soak',
+    correction: 'The bounce-alignment property renders the target track alone.',
+    defect: 'Render the whole mix and correlate that.',
+    cost:
+      'A shift on one channel is diluted by every channel that did not move, and the ' +
+      'correlator reports a peak between them: 4 samples, which failed a tolerance of 3 and ' +
+      'named no mechanism. The bypass property learned the same thing about the same graph, ' +
+      'where a mix turned x1.414214 into 1.0331.',
+    scope: { seed: 1787713439 },
+    metric: 'a-bounce-is-in-time',
+    expect: 'differs',
+  },
+  {
+    id: 'soak/bounce-target-has-content',
+    probe: 'soak',
+    correction: 'The seed draws from tracks that have a clip inside the measured bars.',
+    defect: 'Draw from any audio, instrument or drum track.',
+    cost:
+      'Isolating a channel whose clips all start later renders silence, and a correlation ' +
+      'over silence has no peak to find. The property said so rather than passing, which is ' +
+      'the guard working — but it failed on a seed for a reason that was not the product.',
+    scope: { seed: 1787713439 },
+    metric: 'a-bounce-is-in-time',
+    expect: 'differs',
+  },
+
   // ------------------------------------------------------------------ bypass
   {
     id: 'bypass/range-in-beats',
