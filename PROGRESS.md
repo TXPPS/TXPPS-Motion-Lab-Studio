@@ -19,29 +19,40 @@ Bundle verified: every deploy is checked by fetching the live bundle and
                  This line names the tip at the moment it was written, so the
                  commit that edits it is by construction one ahead of what it
                  describes. Said plainly rather than left to be noticed.
-Current section: D11 §1, §2, §3, §5 and §8 COMPLETE. `npm run soak` runs four
-                 layers; `npm run probe:mutations` mutation-tests all twenty-four
-                 recorded probe corrections.
-Next action:     §4 FSP8 parity, then §6 arrangement/MIDI flow, then §7
-                 instruments 9-14. Then the Granular Reverb's V27, which needs
-                 engine state rather than a face - see the Ledger.
+Current section: D11 §1, §2, §3, §5 and §8 COMPLETE; §4 STARTED - the ten
+                 claims the parity documents name themselves are now checked on
+                 every build by `npm run parity-guard`, and five of them had
+                 been closed while the documents still said MISSING.
+Next action:     Finish §4 (535 MISSING and 294 PARTIAL remain across seven
+                 chapters), then §6 arrangement/MIDI flow, then §7 instruments
+                 9-14.
 Function Ledger: 396 functions, 69 with a state-asserting test, 0 unreachable.
-Open P1s:        A device rack at the two narrowest container tiers cannot show
-                 one device. On a 1440x900 desktop the drum rack measures
-                 106x37 px, of which the Insert button is 14, so a device slot
-                 is clipped and its options menu cannot be opened. Found by
-                 `e2e/devicewindow.spec.ts`, which is the one failing case in
-                 the suite. The tiers scale `--dev-rack-h` by 0.6, 0.55, 0.42
-                 and 0.3; the last two are the problem, and those blocks are
-                 source-order dependent.
+Open P1s:        The console's per-device controls are 5, 12 and 11 px tall on a
+                 desktop, and `e2e/devicewindow.spec.ts` holds them to the
+                 44 px touch minimum. That is a sizing *policy* decision for the
+                 console - a mouse target of 11 px also fails WCAG 2.2's 24 px
+                 pointer minimum, and growing it grows every device row - so it
+                 is left for a decision rather than settled here. It is the one
+                 failing case in the suite.
+                 The rack P1 it was recorded as is CLOSED, and it was not what
+                 it said: pressing a strip mounted the Channel Overview, which
+                 took 44% of the mixer pane, and the Insert button moved 107 px
+                 between pointerdown and pointerup - so the only way to add a
+                 device to a channel did not work with a mouse. See the section
+                 below for the three measurements.
                  The bypassed-insert P1 is CLOSED: the difference was a
                  mono/stereo pan-law change, x1.414214 exactly, and
                  `InsertChain` routes a bypassed insert around itself now.
-Suites:          typecheck (four projects, e2e among them now), lint, 1980 unit,
-                 351 motionwave, 41 core suites, 326 e2e of which 325 pass.
+Suites:          typecheck (four projects), lint, 1991 unit, 351 motionwave,
+                 42 core suites, 328 e2e of which 327 pass, 34 panel tests.
+                 `npm run check-checks`: 26 declared checks, 22 on every push,
+                 1 documented, 3 manual with a reason; 13 HELD, 2 BLOCKED,
+                 1 KEPT, 0 DECAYED.
+                 `npm run parity-guard`: 13 claims, 9 at parity.
                  `npm run soak`: 69/136 functional rows with a state-asserting
-                 result, 10,000 fuzz steps with every invariant holding, 9 of 9
-                 properties, endurance all PASS at 35 KB/min after warm-up.
+                 result, 10,000 fuzz steps with every invariant holding, 10 of
+                 10 properties, endurance all PASS at 42 KB/min after warm-up.
+                 `npm run probe:mutations`: 26 recorded corrections.
 Open deviations: F11 is left to the browser's fullscreen — the one place the
                  reference's panel map is not matched.
                  §2.5's monitoring modes and latency compensation are
@@ -49,12 +60,185 @@ Open deviations: F11 is left to the browser's fullscreen — the one place the
                  which is a different problem and is not divergent.
                  recordingController.ts is 630 lines against the ~400 rule.
                  src/audio/effectChain.ts is 2790, long-standing.
-Ledger:          **6 of 14 SHIPPING** - Motion Shaper, Program EQ, Optical
-                 Leveller, FET Limiter, Variable-Mu and Console EQ, all 27
-                 cells PASS. Granular Reverb is FAIL at V27 alone and needs a
-                 published field that moves with the music; every one it has
-                 but the two peaks is a function of the controls.
+                 scripts/soak/properties.mjs is 425 against the same rule, and
+                 grew there this session.
+                 A bounce still carries the master safety limiter's 264 samples,
+                 which is a measured Chromium constant rather than a declarable
+                 one - see KNOWN-LIMITATIONS.
+Ledger:          **7 of 14 SHIPPING** - Motion Shaper, Program EQ, Optical
+                 Leveller, FET Limiter, Variable-Mu, Console EQ and Granular
+                 Reverb, all 27 cells PASS. `fx-02` publishes where its grain
+                 cloud is reading now; the grain *count* is a spawn rate times a
+                 length and sat at 22 whatever was playing.
 ```
+
+## PA-010 was fixed on the path you monitor and not on the one you deliver
+
+The live engine has held every channel back to match the deepest since
+Directive 03. `exportMix` builds the same channels out of the same
+`InsertChain` and had no compensating node at all — so the defect the
+declaration exists to fix was alive in the file the engineer actually delivers,
+and nothing said so, because monitoring is exactly where you would have caught
+it.
+
+The arithmetic is `src/audio/pdc.ts` now and neither path may reimplement it.
+Two renderers compensating from two copies of one sum are two renderers that can
+disagree about when the vocal starts, which is `synthFace.ts`'s argument applied
+to time.
+
+**The bounce also takes the common offset off the front**, which is the one
+thing the offline path can do and the live one cannot. Live, every channel ends
+up `commonSamples` late together and there is nothing to notice it against. A
+file has something: the timeline it came from. A bounce that begins 7 ms after
+bar 1 does not line up when it is re-imported, does not loop, and drifts against
+the material it was rendered from.
+
+|                                             |                                                                                                                                |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| measured as                                 | a normalised cross-correlation, not an RMS                                                                                     |
+| the probe insert                            | a saturator at `mix: 0` — its dry leg carries the same delay as its wet one, so it is a pure 192-sample delay and nothing else |
+| reverted, the insert's own track            | +192 samples                                                                                                                   |
+| reverted, the two tracks against each other | 192 samples apart — PA-010 exactly, in the file                                                                                |
+| fixed                                       | 0, and 0 apart                                                                                                                 |
+
+### Two things fell out of it
+
+**A bypassed Motion Wave unit declared latency it was not applying.** Every
+other insert kind returns zero when bypassed; these five did not, and
+`InsertChain` routes a bypassed insert _around_ the node — so five units
+bypassed to silence were compensated against nothing and came out early.
+Invisible until the bounce began removing the common offset: before that the
+error was uniform, and a uniform shift has nothing to be uniform against. The
+strong form of the bypass property is green again — 34 kinds, 0 leaking.
+
+**A bounce renders `MAX_PDC_SEC` extra frames** when a project has inserts,
+because the exact figure is a property of chains that do not exist until the
+context does and a context's length is fixed when it is constructed. The
+alternative is a static per-kind latency table, and `latencyProbe.ts` exists
+because those numbers are not ours to assume.
+
+What is still not compensated is the master safety limiter's 264 samples. That
+is a measurement of a Chromium node at one rate, not a figure any specification
+states, and compensating a bounce by a hard-coded constant would leave every
+other engine wrong by the difference instead of wrong by the whole thing.
+
+## Property 10, and the two corrections it needed before it could be believed
+
+`a-bounce-is-in-time` — a latency-declaring insert moves nothing in the bounce,
+wherever the seed puts it. It failed twice before it was right, and both
+failures are recorded rather than edited away:
+
+| the property did                                         | it should have                                                                                                                                                                                                                                                                                                           |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| correlate the whole mix                                  | correlate the target track alone. A shift on one channel is diluted by every channel that did not move and the correlator reports a peak between them — 4 samples, which failed a tolerance of 3 and named no mechanism. The bypass property learned this about the same graph, where a mix turned ×1.414214 into 1.0331 |
+| draw the target from any audio, instrument or drum track | draw only from tracks with a clip inside the measured bars. Isolating a channel whose clips start later renders silence, and a correlation over silence has no peak to find                                                                                                                                              |
+
+Both are in `probe-mutant.mjs` with the defect they replaced still executable,
+and both come back **HELD** — planted, the property goes PASS to FAIL. The
+second one is worth its own line: the silent render did not pass quietly, it said
+"a render is silent, so nothing was measured", which is the guard doing exactly
+what it is there for. The correction is about the property failing for a reason
+that was not the product, not about it failing at all.
+
+## Every declared check, and whether anything runs it
+
+`scripts/check-checks.mjs --check` runs in the build. It enumerates every npm
+script, every TypeScript project on disk and every spec file under every suite
+root, and fails when any of them is reached by nothing or has no entry in
+`scripts/checks/mutants.mjs` saying how it is known to be able to fail. The full
+run applies each of those mutations and requires the check to go red.
+
+Three findings made it necessary and they are three shapes of one thing.
+`tsconfig.e2e.json` was correct and invoked by nothing. The panel spec ran and
+could not fail. `wasm:check` compared a file against itself. In all three the
+check existed, and its existence is what stopped anybody asking — which is why
+the answer could not be another check somebody has to remember to run.
+
+| what the first run found                     |                                                                                                                         |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| the whole Motion Wave test estate            | 351 unit tests, 41 core suites and the panel browser suite, reached by neither CI nor CLAUDE.md                         |
+| CI's type-check                              | two projects of four; `motionwave/ui` was compiled by nobody on a push                                                  |
+| `curve:check`, `sinc:check`, `windows:check` | run by nothing, and two of the three red                                                                                |
+| both grain tables                            | differed from their own generators by nothing but line endings                                                          |
+| `curve:check` with no compiler               | a stack trace, which reads as broken rather than unrunnable                                                             |
+| `check-bundle.mjs`                           | measured whichever `index-*.js` `readdirSync` returned last — a coin toss between the 148 kB entry and a 3 kB WAM chunk |
+| the entry chunk, read correctly              | genuinely over budget, carrying 44 kB of Motion Wave face renderer                                                      |
+
+All of them are CI steps now. The face is loaded on demand behind its own error
+boundary, and the entry chunk went **148.2 kB → 132.8 kB**.
+
+Verdicts on this host: 13 HELD, 2 BLOCKED (no emsdk, no g++), 1 KEPT with a
+reason, 0 DECAYED. Two of the mutations were themselves too weak and said so —
+one renamed a field that appeared twice in its file, one wrote its mutant to
+`dist/` where the budget reads `dist/assets`.
+
+## §4 — the parity audit had gone stale, and nothing was watching it
+
+Eleven thousand lines of verdicts, taken by reading the reference manual against
+this repository at one moment, and nothing has kept them matching since. **Five
+of the items those documents name as their own priorities had been closed while
+the documents still called them missing.** The headline one — "the cheapest
+high-value item is that no keyboard shortcut opens any pane" — is answered by
+nine bindings that have been in `src/app/shortcuts.ts` for directives.
+
+`npm run parity-guard` settles, on every build, every claim the audit makes about
+MotionLab's own code that can be settled by reading that code. A verdict that has
+moved fails in either direction: a `MISSING` that became true is a claim closed
+and never written down, a `PARITY` that became false is a regression. Anchors are
+the claim's _subject_ rather than its verdict — the guard caught its own first
+anchor going missing when the verdict it was written against was corrected.
+
+One item closed with it, and it is the one that chapter calls the single cheapest
+parity win: **the transport says what delay compensation is costing.** In
+milliseconds, beside the sample rate, and only when it is not zero. Until it
+landed, `pdcSamples()` was a documented test probe with no caller anywhere in the
+repository. `e2e/pdcreadout.spec.ts` reads **324 samples** for a limiter at its
+3 ms default, and watches the figure and the label go away when the insert does.
+
+Ten claims checked, 6 at parity. The gap is far larger — **535 `MISSING` and 294
+`PARTIAL` across seven chapters** — and these ten are the ones those chapters
+name themselves.
+
+## The console re-laid-out under the pointer
+
+The open P1 was recorded as "a device slot is clipped and its options menu cannot
+be opened". It was not clipping, and measuring it found something worse.
+
+Pressing anywhere on a channel strip selects it, and selecting mounts the Channel
+Overview — 116 px, in a mixer pane that had 265. The console loses 44 % of its
+height between `pointerdown` and `pointerup`.
+
+| measured through one press | before it | during it   | after it |
+| -------------------------- | --------- | ----------- | -------- |
+| the Insert button          | y = 696   | **y = 803** | y = 803  |
+| the device rack            | 37 px     | **5 px**    | 5 px     |
+| the console                | 229 px    | 113 px      | 113 px   |
+
+So the release landed on a different element and the click was never delivered:
+**the only way to add a device to a channel did not work with a mouse.** The
+device suite could not see it because it opens that menu with `el.click()`, and
+a synthetic click has no press to move under.
+
+Three fixes. The overview waits for the hand to come off — selection still
+happens on `pointerdown`, because a fader dragged on an unselected strip has to
+select it and there is no click at the end of a drag, but the _layout_ waits.
+The overview is capped at two fifths of the pane and scrolls. And the device
+list, which was being squeezed to **zero height** while its contents went on
+painting, keeps one whole row: a drum channel's rack carries an instrument row,
+a device row and the Insert button — 55 px — and the two shortest tiers scale
+`--dev-rack-h` to 37 and 26. Nothing was clipped and nothing was too small; two
+rows were occupying one row's space, and only the hit test could tell.
+
+Measured after: the button stays at 696 and the rack at 37 for the whole press,
+the overview lands when the hand comes off, and a real mouse click opens the
+Insert menu.
+
+What is left is a policy question rather than a bug. The console's per-device
+controls are 5 px (power), 12 px (name) and 11 px (options) tall on a desktop,
+and `devicewindow.spec.ts` holds them to 44. Eleven pixels also fails WCAG 2.2's
+24 px pointer minimum, so the honest answer is not to lower the assertion; but
+growing the target grows every device row on every channel, and that is a
+decision about how the console looks rather than a defect to fix quietly.
 
 ## A bypassed insert was changing the track's pan law
 
@@ -67,13 +251,13 @@ change into the same figure.
 
 `scripts/bypass-probe.mjs` localises it instead, and answered in one run.
 
-| | |
-| --- | --- |
-| where the difference lives | evenly, the same ratio in every window with signal in it |
-| spread of that ratio | 0.000 |
-| energy in the first millisecond | 0.0 % |
-| first non-zero sample | the first sample of audio |
-| level | x1.414214, both channels equally |
+|                                 |                                                          |
+| ------------------------------- | -------------------------------------------------------- |
+| where the difference lives      | evenly, the same ratio in every window with signal in it |
+| spread of that ratio            | 0.000                                                    |
+| energy in the first millisecond | 0.0 %                                                    |
+| first non-zero sample           | the first sample of audio                                |
+| level                           | x1.414214, both channels equally                         |
 
 √2 is the step between a `StereoPannerNode`'s two pan laws. Fifteen inserts
 contain a node that emits two channels whatever arrives — a `StereoPannerNode`,
@@ -83,7 +267,7 @@ contributes its channel count**, so a mono track with a bypassed reverb reached
 its panner as stereo, took the stereo law, and came out 3 dB louder at centre
 and 6 dB louder panned hard over.
 
-`InsertChain` routes a bypassed insert *around* itself now rather than trusting
+`InsertChain` routes a bypassed insert _around_ itself now rather than trusting
 it to be transparent. That answers the class rather than the fifteen: bypass is
 also exact for a three-band crossover summed flat and a filter at unity, which
 were never wires either and were the reason the property had been weakened to
@@ -102,12 +286,12 @@ each counted twice: 34 + 7 = 41, 15 + 7 = 22. The same fifteen kinds throughout.
 
 ### Four probe defects came with it
 
-| the probe did | it should have |
-| --- | --- |
-| passed `range: { startSec, endSec }` to an option that takes beats — silently ignored, so every render was the whole project | give it in beats |
-| compared every eighth sample | compare every sample; a decimation with no anti-alias filter folds anything above 2.7 kHz somewhere it is not |
-| measured across the whole mix | measure the track alone; the mix diluted 1.414214 to 1.0331, which is the number both wrong guesses were aimed at |
-| called `preloadForRender` without the decode context it requires | pass it |
+| the probe did                                                                                                                | it should have                                                                                                    |
+| ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| passed `range: { startSec, endSec }` to an option that takes beats — silently ignored, so every render was the whole project | give it in beats                                                                                                  |
+| compared every eighth sample                                                                                                 | compare every sample; a decimation with no anti-alias filter folds anything above 2.7 kHz somewhere it is not     |
+| measured across the whole mix                                                                                                | measure the track alone; the mix diluted 1.414214 to 1.0331, which is the number both wrong guesses were aimed at |
+| called `preloadForRender` without the decode context it requires                                                             | pass it                                                                                                           |
 
 ### `tsconfig.e2e.json` existed and nothing ran it
 
@@ -141,20 +325,20 @@ Six pass. The reasons the six were failing were three different things and none
 of them was "the animation has not been built" — see `docs/UNIT_LEDGER.md` for
 the detail, and the two publishing defects it found.
 
-| unit | element | distinct values / 40 frames | while suspended |
-| --- | --- | --- | --- |
-| Motion Shaper | `band-low-gain` | 40 | 1 |
-| Program EQ | `input-core` | 25 | 1 |
-| Optical Leveller | `exposure` | 40 | 1 |
-| FET Limiter | `detector` | 16 | 1 |
-| Variable-Mu | `storage-a` | 40 | 1 |
-| Console EQ | `eq-core` | 40 | 1 |
-| Granular Reverb | `live-grains` | **1** | 1 |
+| unit             | element         | distinct values / 40 frames | while suspended |
+| ---------------- | --------------- | --------------------------- | --------------- |
+| Motion Shaper    | `band-low-gain` | 40                          | 1               |
+| Program EQ       | `input-core`    | 25                          | 1               |
+| Optical Leveller | `exposure`      | 40                          | 1               |
+| FET Limiter      | `detector`      | 16                          | 1               |
+| Variable-Mu      | `storage-a`     | 40                          | 1               |
+| Console EQ       | `eq-core`       | 40                          | 1               |
+| Granular Reverb  | `live-grains`   | **1**                       | 1               |
 
 The element is chosen for what it means rather than for what moves most. Every
 one of these panels has an input level meter that would satisfy the motion case,
 and a level is what every box has; `V27`'s third requirement is that the
-animation communicates *this* unit's mechanism.
+animation communicates _this_ unit's mechanism.
 
 **The FET Limiter's row is also a probe correction.** Its detector moved 16 times
 in 40 frames and 7 in 20, and the suspended-engine case required more than ten in
@@ -168,7 +352,7 @@ precondition is now separate from the claim, which is the stop.
 Twenty probe corrections are recorded across the stress harness and the
 reachability sweep, and every one had been diagnosed properly and none verified.
 Those are different things. "Suspect the probe first" decays into "assume the
-probe", and once it has, a correction that quietly *widens* a check is
+probe", and once it has, a correction that quietly _widens_ a check is
 indistinguishable from one that fixes it — both make the red go away.
 
 Each correction now keeps the defect it replaced executable beside it, through
@@ -179,22 +363,22 @@ and fails on a registry entry with no call site, or a call site with no entry.
 Three verdicts, because two of them look identical in a column and mean opposite
 things:
 
-| | |
-| --- | --- |
-| **HELD** | the defect changes the measurement, so the correction is load-bearing |
-| **BLOCKED** | this host never entered the branch, so it was not tried |
-| **KEPT** | exercised, does not change the measurement, and kept anyway with a reason printed every run |
+|             |                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| **HELD**    | the defect changes the measurement, so the correction is load-bearing                       |
+| **BLOCKED** | this host never entered the branch, so it was not tried                                     |
+| **KEPT**    | exercised, does not change the measurement, and kept anyway with a reason printed every run |
 
 ### Stress harness — 6 of 6 held
 
-| correction | baseline | with the defect restored |
-| --- | --- | --- |
-| operations awaited, one per frame | 361 ops | 10,236,132 ops |
-| three collections before the heap is read | +447 KB | −6,470 KB |
-| wait for quiescence, do not sleep on a guess | 1390 ms | 509 ms and a false leak reported |
-| two consecutive over-budget samples | 364 tracks | 84 tracks |
-| loop bound 400, not 64 | 408 tracks | 72 tracks |
-| the DrumKit branch is built | 5 classes | 4 classes |
+| correction                                   | baseline   | with the defect restored         |
+| -------------------------------------------- | ---------- | -------------------------------- |
+| operations awaited, one per frame            | 361 ops    | 10,236,132 ops                   |
+| three collections before the heap is read    | +447 KB    | −6,470 KB                        |
+| wait for quiescence, do not sleep on a guess | 1390 ms    | 509 ms and a false leak reported |
+| two consecutive over-budget samples          | 364 tracks | 84 tracks                        |
+| loop bound 400, not 64                       | 408 tracks | 72 tracks                        |
+| the DrumKit branch is built                  | 5 classes  | 4 classes                        |
 
 The ceiling's confirmation could not be exercised at the real budget — this
 machine carries four hundred tracks inside two refreshes, so the branch never
@@ -205,18 +389,18 @@ the row that says whether it did anything on a given run.
 
 ### Reachability sweep — 9 held, 3 blocked, 1 kept, 1 fixed
 
-| correction | baseline | with the defect restored |
-| --- | --- | --- |
-| routes discovered from naming conventions | 18 reachable | 9 |
-| named sheet openers count as routes | 3 | 1 |
-| routes walked per track kind, selection held | 4 | 1 |
-| headers found by name, not by id | 3 | 1 |
-| header tapped at its corner, not its centre | 3 | 1 |
-| Escape twice before hunting for a header | 2 | 0 |
-| back to the Song page first | 3 | 1 |
-| routes re-discovered after arriving | 4 | 0 |
-| menu entries walked, not just opened | 3 | 1 |
-| long press dispatched as a touch pointer | 1 | 0 |
+| correction                                   | baseline     | with the defect restored |
+| -------------------------------------------- | ------------ | ------------------------ |
+| routes discovered from naming conventions    | 18 reachable | 9                        |
+| named sheet openers count as routes          | 3            | 1                        |
+| routes walked per track kind, selection held | 4            | 1                        |
+| headers found by name, not by id             | 3            | 1                        |
+| header tapped at its corner, not its centre  | 3            | 1                        |
+| Escape twice before hunting for a header     | 2            | 0                        |
+| back to the Song page first                  | 3            | 1                        |
+| routes re-discovered after arriving          | 4            | 0                        |
+| menu entries walked, not just opened         | 3            | 1                        |
+| long press dispatched as a touch pointer     | 1            | 0                        |
 
 Three are **BLOCKED** and say so with a number: `tapFailures = 0` (every track
 could be selected by tapping, so the store route reaches nothing extra),
@@ -237,7 +421,7 @@ invoked.
 
 `docs/audit/REACHABILITY.md` recorded the automation lane as `NOT REACHED` on
 every form factor including desktop, and F1 described the long-press correction
-as the one that settled the question. It settled the *false defect* — the
+as the one that settled the question. It settled the _false defect_ — the
 `auto-toggle-*` target is a desktop widget and reported a phone failure that was
 not there. It left the real question unmeasured, and moving the target to
 `auto-lane-*` moved it to a state the sweep never creates: showing automation
@@ -261,11 +445,11 @@ settled a false defect and left the real one unmeasured.
 With both menu walks completing their submenus, and a desktop right-click walk
 added because `longPress` returns immediately there:
 
-| | before | after |
-| --- | --- | --- |
-| defects | 0 | 4 |
-| not reached anywhere | 5 | 3 |
-| automation lane | not reached on any form factor | reached on every one |
+|                      | before                         | after                |
+| -------------------- | ------------------------------ | -------------------- |
+| defects              | 0                              | 4                    |
+| not reached anywhere | 5                              | 3                    |
+| automation lane      | not reached on any form factor | reached on every one |
 
 **The four are candidates, not findings.** Every one of them is
 selection-dependent, and the sweep's own counter says it failed to select a
@@ -293,14 +477,14 @@ that are not FAIL. Those are the same number only until somebody is tempted.
 Six probe corrections were needed to get there, and each one had been reporting
 the sweep's own gaps as the product's:
 
-| the sweep believed | it was |
-| --- | --- |
-| Eight units are inaudible | a flat EQ and a unity trim are *correctly* transparent as inserted |
-| Three instrument kinds are silent | a drum kit maps its zones low; middle C landed on none of them |
-| Three store cases throw | the fixture appends to the demo project, so the first instrument track has no inserts |
-| `undo` changes nothing | it moves work to the redo stack and leaves the first the length it started at |
-| Half the shortcut registry is dead | opening a panel is a state change neither store holds |
-| Every history shortcut is dead | restoring the fixture leaves nothing on the undo stack to undo |
+| the sweep believed                 | it was                                                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------- |
+| Eight units are inaudible          | a flat EQ and a unity trim are _correctly_ transparent as inserted                    |
+| Three instrument kinds are silent  | a drum kit maps its zones low; middle C landed on none of them                        |
+| Three store cases throw            | the fixture appends to the demo project, so the first instrument track has no inserts |
+| `undo` changes nothing             | it moves work to the redo stack and leaves the first the length it started at         |
+| Half the shortcut registry is dead | opening a panel is a state change neither store holds                                 |
+| Every history shortcut is dead     | restoring the fixture leaves nothing on the undo stack to undo                        |
 
 ### 2. Combinatorial fuzz — 10,000 seeded steps
 
@@ -342,14 +526,14 @@ every sample is a leak.
 **22 of 41 inserts change the render while bypassed, all by exactly the same
 amount.** Found by §3's property layer.
 
-| | |
-| --- | --- |
-| two identical renders differ by | 2.3e-7 |
-| a bypassed reverb differs from no insert by | 1.6478e-2 |
-| level | ×1.0331, both channels equally |
-| best integer lag | 0, and the correlation peak is symmetric |
-| two bypassed inserts, or three | the same 1.6478e-2, not double |
-| the same insert on a *different* track | 2.4e-7 |
+|                                             |                                          |
+| ------------------------------------------- | ---------------------------------------- |
+| two identical renders differ by             | 2.3e-7                                   |
+| a bypassed reverb differs from no insert by | 1.6478e-2                                |
+| level                                       | ×1.0331, both channels equally           |
+| best integer lag                            | 0, and the correlation peak is symmetric |
+| two bypassed inserts, or three              | the same 1.6478e-2, not double           |
+| the same insert on a _different_ track      | 2.4e-7                                   |
 
 It is deterministic (two runs of it agree to 1.4e-8), independent of every
 parameter the unit has, identical across fifteen unrelated units, and it is a
@@ -359,7 +543,7 @@ compressor, the EQ and twenty-two others bypass to 2e-7, which is what makes the
 number legible as a fault rather than a noise floor.
 
 **Two hypotheses were tried and both were wrong, and both changes were
-reverted.** `setParam` uses `setTargetAtTime`, which *approaches* from wherever
+reverted.** `setParam` uses `setTargetAtTime`, which _approaches_ from wherever
 the parameter is, and a fresh `GainNode` is at 1 — so the wet leg opens at unity
 and decays. That is true, and fixing it changed the number by nothing. Starting
 the wet leg at zero changed it by nothing either. A fix that does not move the
@@ -391,11 +575,11 @@ Caught by the soak naming functions the ledger did not have — which is what th
 orphan check in `generate-functions.mjs` is for, and the first thing it ever
 found was the enumeration it is attached to.
 
-| axis | was | is |
-| --- | --- | --- |
-| shortcuts | 70 | 71 — short entries are written on one line and the pattern demanded a newline, so `undo` was missing |
-| effects | 33 | 34 — a lower-case character class dropped `gainMatch`, and requiring `label:` on the next line dropped `vocaltune`, which carries a paragraph of comment between the two |
-| instruments | 6 | 4 — `SamplerView` gave ids like `sampler-quick` while the store, the engine and the soak all call it `quick` |
+| axis        | was | is                                                                                                                                                                       |
+| ----------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| shortcuts   | 70  | 71 — short entries are written on one line and the pattern demanded a newline, so `undo` was missing                                                                     |
+| effects     | 33  | 34 — a lower-case character class dropped `gainMatch`, and requiring `label:` on the next line dropped `vocaltune`, which carries a paragraph of comment between the two |
+| instruments | 6   | 4 — `SamplerView` gave ids like `sampler-quick` while the store, the engine and the soak all call it `quick`                                                             |
 
 The total is still 396. Two axes gained a row and one lost two, which is the
 kind of arithmetic that hides in a total.
