@@ -203,9 +203,20 @@ export function buildMotionWaveNode(ctx: BaseAudioContext, effect: Effect): Effe
      * number is the unit's own declaration rather than a measurement taken
      * here, and `declareLatency` requires it to have been measured or to be
      * zero by construction.
+     *
+     * **Zero while bypassed**, which every other insert kind has always done
+     * and this one did not. `InsertChain` routes a bypassed insert *around* the
+     * node — the through leg is muted and the signal takes a wire — so a
+     * bypassed unit delays nothing whatever it does internally, and a
+     * declaration it is not applying is a compensation applied against nothing.
+     * Five units bypassed to silence still moved their track by their own
+     * latency, in the direction that makes a bounce *early*. Found by the
+     * strong form of the bypass property once the bounce began taking the
+     * compensation off the front, which is what made the shift observable at
+     * all; before that it was uniform, and a uniform shift is invisible.
      */
     latencySamples() {
-      return entry.unit.declaredLatency.frames;
+      return lastBypass ? 0 : entry.unit.declaredLatency.frames;
     },
     frame: () => latest,
     onFrame(listener) {

@@ -32,9 +32,23 @@ where a capability is missing the UI says so.
   place first if that matters.
 - **Sample-rate follows the device** for playback (typically 44.1/48 kHz);
   export renders at whichever of 44.1–96 kHz you choose.
-- **No plugin latency compensation, and three places that carry latency.**
-  All three are measured rather than reasoned about — the same note bounced
-  with and without each processor, on Chromium at 44.1 kHz:
+- **Third-party plugins declare no latency, so nothing compensates them.**
+  Every built-in insert that delays its channel declares how much, and both
+  render paths hold every other channel back to match the deepest — the live
+  engine since Directive 03, and the bounce since `src/audio/pdc.ts` was made
+  the one place that arithmetic lives. A WAM plugin implements no
+  `latencySamples`, so a plugin with lookahead still puts its channel behind
+  the others and nothing on screen says so. The route out is a freeze, which
+  prints through the same renderer and therefore carries the compensation.
+
+  **A bounce is sample-aligned to the timeline**, to within the master safety
+  limiter below: the compensation's common offset is taken off the front of the
+  file, which is the one thing the offline path can do that the live one cannot.
+  `e2e/bouncealignment.spec.ts` measures it as a lag rather than a level.
+
+- **Four places still carry latency**, all measured rather than reasoned about
+  — the same note bounced with and without each processor, on Chromium at
+  44.1 kHz:
   - **The master safety limiter costs 264 samples (5.99 ms), engaged or not.**
     It is a `DynamicsCompressorNode`, which delays its output even at neutral
     settings, and disengaging the limiter raises its threshold rather than
@@ -45,6 +59,15 @@ where a capability is missing the UI says so.
     it came from, and that the metronome, which is deliberately routed past the
     master, is 6 ms early against the mix. `e2e/masterlatency.spec.ts` measures
     the number, so it cannot quietly rot.
+
+    It is **not** taken off the front of a bounce the way declared insert
+    latency now is, and deliberately: 264 is a measurement of a Chromium node
+    at one rate, not a figure any specification states. Compensating a bounce by
+    a hard-coded constant would leave every other engine wrong by the
+    difference instead of wrong by the whole thing, which is worse — the
+    argument `latencyProbe.ts` exists to make. Measuring it per render is
+    possible and is not done yet.
+
   - **The limiter insert costs 192 samples (4.35 ms)** in its oversampled
     brickwall stage — present even when the insert is bypassed — and its
     lookahead adds to that rather than being compensated away: the 3 ms default
@@ -62,8 +85,12 @@ where a capability is missing the UI says so.
     automating Mix does not sweep it.
 
   Every other insert is sample-aligned, the de-esser's band split and the
-  compressor's detector included. Running any of these on one track of a
-  doubled part will comb against the other.
+  compressor's detector included. Running one of these on one track of a
+  doubled part no longer combs against the other — that is what the
+  compensation is for, and it is now true of the bounce as well as of
+  playback. What still combs is two inserts against each other _within_ one
+  chain where only one of them declares, and a clip-level (event) chain, which
+  neither path compensates.
 
   The saturator's and the distortion's parallel Mix is the one place a comb
   is _not_ compensated: both run their shapers at `oversample: '4x'`, whose

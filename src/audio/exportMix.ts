@@ -30,6 +30,7 @@ import type { AudioClip, Effect, MidiClip, ProjectData, SynthParams, Track } fro
 import { diagLog } from '../state/diagnostics';
 import { applyEnvelope, computeClipSchedule } from './clipSchedule';
 import { InsertChain } from './effectChain';
+import { MAX_PDC_SEC, channelLatencySamples, pdcPlan } from './pdc';
 import { hasTempoSyncedInsert, shouldRetempo, tempoVaries } from './tempoSync';
 import type { ModulationClock } from './effectChain';
 import { getBufferSync, loadBuffer } from './mediaLibrary';
@@ -148,6 +149,15 @@ export interface RenderResult {
    * caller has to say so.
    */
   missingPlugins: string[];
+  /**
+   * Samples of delay compensation this bounce removed from the front.
+   *
+   * Reported because a compensation of zero and a compensation that was never
+   * applied produce the same file, and the second is what `exportMix` did for
+   * three directives. A caller — the soak property, the diagnostics console —
+   * can tell the two apart only if the figure is on the result.
+   */
+  pdcSamples: number;
 }
 
 export class ExportError extends Error {
@@ -236,13 +246,46 @@ export function preRollForProject(project: ProjectData): number {
   return Math.max(DEFAULT_PRE_ROLL_SECONDS, (SETTLE_TIME_CONSTANTS * slowestMs) / 1000);
 }
 
+/**
+ * How much room to leave the render for delay compensation.
+ *
+ * `MAX_PDC_SEC` or nothing, and nothing whenever the project has no inserts at
+ * all — which is most of the fixtures, so they render exactly the frames they
+ * always did. The exact figure cannot be used because it is a property of
+ * insert chains that do not exist until the context does, and an
+ * `OfflineAudioContext`'s length is fixed when it is constructed. The
+ * alternative is a static per-kind latency table, and `latencyProbe.ts` exists
+ * because those numbers are not ours to assume: the oversampled shapers' cost
+ * is an unspecified browser implementation detail that has differed between
+ * engines. Half a second of extra render on a three-minute bounce is 0.3 %.
+ */
+function pdcAllowanceSec(project: ProjectData): number {
+  const anyInserts =
+    (project.master?.effects?.length ?? 0) > 0 ||
+    project.tracks.some((t) => (t.effects?.length ?? 0) > 0);
+  return anyInserts ? MAX_PDC_SEC : 0;
+}
+
 export interface RenderLayout {
-  /** Frames the offline context is asked for, pre-roll included. */
+  /** Frames the offline context is asked for, pre-roll and allowance included. */
   frames: number;
-  /** Leading frames dropped before the buffer is handed back. */
+  /** Leading frames dropped before the buffer is handed back, before PDC. */
   trimFrames: number;
   /** Frames the caller actually receives. */
   keptFrames: number;
+  /**
+   * Extra frames rendered so delay compensation has somewhere to come from.
+   *
+   * The whole mix comes out `commonSamples` late once every channel has been
+   * held back to match the deepest, and a bounce takes that off the front — so
+   * the last `commonSamples` frames of the range would fall off the end unless
+   * the render is that much longer. It cannot be the exact figure because the
+   * figure is a property of insert chains that do not exist until the context
+   * does, and a context's length is fixed when it is constructed. It is the
+   * ceiling instead, and `renderProject` refuses rather than truncates if the
+   * measured offset somehow exceeds it.
+   */
+  allowanceFrames: number;
 }
 
 /**
@@ -256,10 +299,17 @@ export function renderLayout(
   durationSec: number,
   preRollSec: number,
   sampleRate: number,
+  pdcAllowanceSec = 0,
 ): RenderLayout {
   const trimFrames = Math.round(Math.max(0, preRollSec) * sampleRate);
   const keptFrames = Math.ceil(durationSec * sampleRate);
-  return { frames: trimFrames + keptFrames, trimFrames, keptFrames };
+  const allowanceFrames = Math.round(Math.max(0, pdcAllowanceSec) * sampleRate);
+  return {
+    frames: trimFrames + keptFrames + allowanceFrames,
+    trimFrames,
+    keptFrames,
+    allowanceFrames,
+  };
 }
 
 /**
@@ -448,7 +498,7 @@ export async function renderProject(
   }
 
   const sampleRate = opts.sampleRate ?? 44100;
-  const layout = renderLayout(durationSec, preRoll, sampleRate);
+  const layout = renderLayout(durationSec, preRoll, sampleRate, pdcAllowanceSec(project));
   // Song time at the range start: every scheduled time in this render is
   // measured from here, so it must exist before the first insert chain is
   // built and before the first ramp is scheduled.
@@ -538,10 +588,14 @@ export async function renderProject(
   interface OfflineChannel {
     input: GainNode;
     inserts: InsertChain;
+    /** Delay compensation, in the same place on the path the live engine has it. */
+    pdc: DelayNode;
     muteGain: GainNode;
     volGain: GainNode;
     panner: StereoPannerNode;
     out: GainNode;
+    /** Whether this channel's audio goes through its inserts at all. */
+    frozen: boolean;
   }
   const channels = new Map<string, OfflineChannel>();
   // Mute, solo, VCA and folder gain come from the same pure resolver the live
@@ -555,6 +609,7 @@ export async function renderProject(
     const input = ctx.createGain();
     const trim = ctx.createGain();
     const inserts = new InsertChain(ctx, modulation);
+    const pdc = ctx.createDelay(MAX_PDC_SEC);
     const muteGain = ctx.createGain();
     const volGain = ctx.createGain();
     const panner = ctx.createStereoPanner();
@@ -562,7 +617,12 @@ export async function renderProject(
 
     input.connect(trim);
     trim.connect(inserts.entry);
-    inserts.exit.connect(muteGain);
+    // After the inserts and before the fader, which is where `buildChannel`
+    // puts it live — so what is held back is this channel's processed signal
+    // and nothing downstream of a mix decision. A freeze print joins at
+    // `inserts.exit`, ahead of this, exactly as it does live.
+    inserts.exit.connect(pdc);
+    pdc.connect(muteGain);
     muteGain.connect(volGain);
     volGain.connect(panner);
     panner.connect(out);
@@ -577,7 +637,16 @@ export async function renderProject(
     volGain.gain.value = state.gain;
     panner.pan.value = state.pan;
 
-    channels.set(track.id, { input, inserts, muteGain, volGain, panner, out });
+    channels.set(track.id, {
+      input,
+      inserts,
+      pdc,
+      muteGain,
+      volGain,
+      panner,
+      out,
+      frozen: isFrozen(track),
+    });
   }
 
   // ---- routing: outputs then sends (buses exist by now) ----
@@ -629,6 +698,56 @@ export async function renderProject(
       g.connect(bus.input);
       sendGains.set(`${track.id}|${send.busId}`, g);
     }
+  }
+
+  // ---- delay compensation ----
+  /*
+   * PA-010 in the export path. Every insert that delays its channel declares
+   * how much, and the live engine holds every other channel back to match the
+   * deepest so the session stays in phase with itself. This graph is built from
+   * the same `InsertChain` and had no compensating node at all, so a project
+   * with a limiter on the vocal was monitored in phase and bounced 7 ms out of
+   * it — the defect the declaration was added to fix, alive in the file the
+   * engineer actually delivers, and invisible precisely because monitoring is
+   * where you would have caught it.
+   *
+   * The arithmetic is `pdc.ts` and is the same call `applyPdc` makes, so the
+   * two paths cannot drift. Set outright rather than ramped: the live engine
+   * ramps because its value moves while audio is playing, and here it is
+   * decided once before the render starts.
+   *
+   * Held at the chain's state at the range start. A lookahead knob under
+   * automation would move a channel's declared latency mid-render, and the
+   * honest response to that is not to slide a delay line — a moving delay is a
+   * pitch shift — but to compensate for where the chain begins, which is what
+   * the live engine is doing for all but the first block anyway.
+   */
+  const offlineChannels = [...channels.values()];
+  const plan = pdcPlan(
+    offlineChannels.map((ch) => channelLatencySamples(ch.frozen, ch.inserts.latencySamples())),
+    masterChain?.latencySamples() ?? 0,
+    sampleRate,
+  );
+  offlineChannels.forEach((ch, i) => {
+    ch.pdc.delayTime.value = plan.holdSamples[i] / sampleRate;
+  });
+  /*
+   * And then take the common offset off the front, which is the one thing this
+   * path can do that the live one cannot.
+   *
+   * Live, every channel ends up `commonSamples` late together and nobody can
+   * tell — there is no reference. A file has one: the timeline it came from. A
+   * bounce of bars 1-4 that begins 7 ms after bar 1 does not line up when it is
+   * re-imported, does not loop, and drifts against the source it was rendered
+   * from. The pre-roll discard is already a trim, so this is the same cut made
+   * a little deeper.
+   */
+  const pdcTrim = plan.commonSamples;
+  if (pdcTrim > layout.allowanceFrames) {
+    throw new ExportError(
+      `Delay compensation needs ${(pdcTrim / sampleRate).toFixed(3)}s, past the ` +
+        `${MAX_PDC_SEC}s this render allowed for. Reduce an insert's lookahead and export again.`,
+    );
   }
 
   // ---- automation: fader-domain lanes become scheduled (sample-accurate)
@@ -1021,7 +1140,7 @@ export async function renderProject(
   const rendered = await ctx.startRendering();
   // The run-up was only ever for the graph's benefit; the caller gets the range
   // it asked for, starting at its first sample.
-  const output = dropPreRoll(ctx, rendered, layout.trimFrames);
+  const output = dropPreRoll(ctx, rendered, layout.trimFrames + pdcTrim, layout.keptFrames);
 
   // ---- measure ----
   let peak = 0;
@@ -1038,9 +1157,9 @@ export async function renderProject(
 
   diagLog(
     'info',
-    `Bounce rendered: ${output.duration.toFixed(2)}s (+${preRoll.toFixed(1)}s pre-roll), ${
-      output.numberOfChannels
-    }ch @ ${output.sampleRate}Hz, peak ${peak.toFixed(
+    `Bounce rendered: ${output.duration.toFixed(2)}s (+${preRoll.toFixed(1)}s pre-roll${
+      pdcTrim > 0 ? `, ${pdcTrim} sample(s) of delay compensation removed` : ''
+    }), ${output.numberOfChannels}ch @ ${output.sampleRate}Hz, peak ${peak.toFixed(
       3,
     )}, ${scheduledClips} clips, ${scheduledNotes} notes${
       automatedLanes ? `, ${automatedLanes} automation lane${automatedLanes === 1 ? '' : 's'}` : ''
@@ -1054,6 +1173,7 @@ export async function renderProject(
     durationSec: output.duration,
     sampleRate: output.sampleRate,
     channels: output.numberOfChannels,
+    pdcSamples: pdcTrim,
     peak,
     clipped: peak > 1.0001,
     scheduledClips,
@@ -1073,9 +1193,14 @@ function dropPreRoll(
   ctx: BaseAudioContext,
   rendered: AudioBuffer,
   trimFrames: number,
+  keptFrames: number,
 ): AudioBuffer {
-  if (trimFrames <= 0) return rendered;
-  const length = Math.max(1, rendered.length - trimFrames);
+  if (trimFrames <= 0 && rendered.length <= keptFrames) return rendered;
+  // Capped at what the range asked for. The render carries a compensation
+  // allowance on the end that the trim above usually does not consume all of,
+  // and without this cap a bounce would come back longer than the bars it was
+  // asked for by whatever was left over.
+  const length = Math.max(1, Math.min(keptFrames, rendered.length - trimFrames));
   const out = ctx.createBuffer(rendered.numberOfChannels, length, rendered.sampleRate);
   for (let c = 0; c < rendered.numberOfChannels; c++) {
     out.copyToChannel(rendered.getChannelData(c).subarray(trimFrames, trimFrames + length), c);

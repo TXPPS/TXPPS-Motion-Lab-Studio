@@ -288,6 +288,97 @@ export const PROPERTIES = [
     },
   },
   {
+    id: 'a-bounce-is-in-time',
+    what: 'a latency-declaring insert moves nothing in the bounce, wherever it lands',
+    body: async ({ seed }) => {
+      const w = window;
+      const { renderProject, preloadForRender } = w.__ml.exportMix;
+      const st = () => w.__ml.projectStore.getState();
+      // PA-010 was fixed in the live engine and not in `exportMix`, so a project
+      // with a limiter on one track was monitored in phase and bounced out of
+      // it. `e2e/bouncealignment.spec.ts` states that as an example on two
+      // tracks; this states it for whatever the fixture is, with the insert
+      // wherever the seed puts it.
+      //
+      // The probe insert is a saturator at zero mix, and that is what lets this
+      // be a property rather than an example. Its dry leg is delayed by the same
+      // constant as its wet one, so at mix 0 it is a pure 192-sample delay and
+      // nothing else: the render before and the render after are the same audio,
+      // moved or not moved, whatever else the project contains. Every other
+      // latency-declaring insert also changes the sound, and then a difference
+      // could always be argued to be the sound.
+      const pick = w.__soakRnd(seed)();
+      const render = async (withInsert) => {
+        st().setProject(structuredClone(w.__soakBaseline));
+        const tracks = st().project.tracks.filter((t) => t.type !== 'bus' && t.type !== 'fx');
+        const target = tracks[Math.floor(pick * tracks.length)];
+        if (withInsert && target) {
+          const id = st().addEffect(target.id, 'saturator');
+          st().setEffectParam(target.id, id, 'mix', 0);
+          st().setEffectParam(target.id, id, 'drive', 0);
+          st().setEffectParam(target.id, id, 'output', 0);
+        }
+        await preloadForRender(
+          st().project,
+          w.__ml.engine.context ?? new OfflineAudioContext(1, 1, 44100),
+        );
+        return renderProject(st().project, {
+          range: { startBeat: 0, endBeat: 4 },
+          sampleRate: 44100,
+          tailSeconds: 0,
+        });
+      };
+      const before = await render(false);
+      const after = await render(true);
+      if (before.peak < 0.005 || after.peak < 0.005) {
+        return `a render is silent (${before.peak.toExponential(2)}, ${after.peak.toExponential(2)}), so nothing was measured`;
+      }
+      // Not vacuous: the insert has to actually be in a chain that declares.
+      // Without this the property passes when the target track was undefined,
+      // which is exactly the shape a seeded draw fails in.
+      if (after.pdcSamples === 0) {
+        return 'the probe insert declared no latency, so this measured nothing';
+      }
+      // A normalised cross-correlation, argmax over integer lags. Normalised
+      // because an insert may legitimately change the level, and a raw
+      // correlation would then report the louder alignment rather than the
+      // right one.
+      const lagOf = (a, b) => {
+        const from = 4410;
+        const len = 22050;
+        let best = 0;
+        let bestScore = -Infinity;
+        for (let lag = -600; lag <= 600; lag += 1) {
+          let dot = 0;
+          let na = 0;
+          let nb = 0;
+          for (let i = 0; i < len; i += 1) {
+            const x = a[from + i] ?? 0;
+            const y = b[from + i + lag] ?? 0;
+            dot += x * y;
+            na += x * x;
+            nb += y * y;
+          }
+          const score = dot / (Math.sqrt(na * nb) + 1e-12);
+          if (score > bestScore) {
+            bestScore = score;
+            best = lag;
+          }
+        }
+        return -best;
+      };
+      const moved = [];
+      for (let c = 0; c < Math.min(before.channels, after.channels); c += 1) {
+        const lag = lagOf(before.buffer.getChannelData(c), after.buffer.getChannelData(c));
+        if (Math.abs(lag) > 3) moved.push(`channel ${c} by ${lag} sample(s)`);
+      }
+      if (moved.length > 0) {
+        return `the bounce moved: ${moved.join(', ')} (compensation reported ${after.pdcSamples})`;
+      }
+      return null;
+    },
+  },
+  {
     id: 'delete-track-takes-its-clips',
     what: 'deleting a track leaves no clip pointing at it',
     body: async ({ seed }) => {

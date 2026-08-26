@@ -29,6 +29,7 @@ import { RackInstrument, SamplerInstrument, type RackChild } from './samplerInst
 import { defaultSamplerParams, type SamplerParams } from '../model/sampler';
 import type { ModulationClock } from './effectChain';
 import { InsertChain } from './effectChain';
+import { MAX_PDC_SEC, pdcPlan } from './pdc';
 import { onPluginsResolved, preloadPlugins } from './wam/pluginPool';
 import { ensureMotionWaveRuntime, onMotionWaveResolved } from './motionwave/runtime';
 import { useUiStore } from '../state/uiStore';
@@ -41,8 +42,6 @@ import { denormParam, findAutoParam } from '../model/paramRegistry';
 import type { AutoParam } from '../model/paramRegistry';
 
 const MAX_ACTIVE_SOURCES = 128;
-/** Ceiling on delay compensation, and so on a `DelayNode`'s allocation. */
-const MAX_PDC_SEC = 0.5;
 /** Lookahead and tick of the listen preview's note pump, in seconds and ms. */
 const PREVIEW_LOOKAHEAD_SEC = 0.3;
 const PREVIEW_TICK_MS = 60;
@@ -661,24 +660,39 @@ class AudioEngine {
   private applyPdc(): void {
     const ctx = this.ctx;
     if (!ctx) return;
-    let deepest = 0;
-    for (const ch of this.channels.values()) {
-      deepest = Math.max(deepest, ch.inserts.latencySamples());
-    }
-    const cap = MAX_PDC_SEC * ctx.sampleRate;
-    for (const ch of this.channels.values()) {
-      const behind = Math.min(cap, deepest - ch.inserts.latencySamples());
-      safeSet(ch.pdc.delayTime, Math.max(0, behind) / ctx.sampleRate, ctx.currentTime, PARAM_TAU);
-    }
+    const chans = [...this.channels.values()];
+    // `pdc.ts`, not arithmetic in here: `exportMix` compensates the same
+    // channels and used to compensate none of them, and the way that survived
+    // three directives is that there was nothing for it to be inconsistent
+    // with. There is now.
+    const plan = pdcPlan(
+      chans.map((ch) => ch.inserts.latencySamples()),
+      this.masterInserts?.latencySamples() ?? 0,
+      ctx.sampleRate,
+    );
+    chans.forEach((ch, i) => {
+      safeSet(ch.pdc.delayTime, plan.holdSamples[i] / ctx.sampleRate, ctx.currentTime, PARAM_TAU);
+    });
+    // Published from the call that applies it, never recomputed for display.
+    useTransportStore.getState().set({ pdcSamples: plan.commonSamples });
   }
 
-  /** What delay compensation is currently costing, in samples. Test probe. */
+  /**
+   * What delay compensation currently costs this session, in samples.
+   *
+   * Read by the bounce-parity property, which renders the same bars offline and
+   * asserts the file is not late by this. It used to compute `deepest` a third
+   * time and had no caller at all — a probe nobody invokes, which is the shape
+   * `scripts/check-checks.mjs` exists to find.
+   */
   pdcSamples(): number {
-    let deepest = 0;
-    for (const ch of this.channels.values()) {
-      deepest = Math.max(deepest, ch.inserts.latencySamples());
-    }
-    return deepest;
+    const ctx = this.ctx;
+    if (!ctx) return 0;
+    return pdcPlan(
+      [...this.channels.values()].map((ch) => ch.inserts.latencySamples()),
+      this.masterInserts?.latencySamples() ?? 0,
+      ctx.sampleRate,
+    ).commonSamples;
   }
 
   private applyTempoSync(): void {
