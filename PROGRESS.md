@@ -4,10 +4,11 @@
 RESUME: F7 — every store mutator swept by one pattern, every check proved
         satisfiable, and the voice partition PA-003 cannot come back through.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: 6649f6e, bundle index-UnsIXC-T.js, sha256 5ad510ad95fc4d0d
+Deployed commit: ac6bedd, bundle index-CBhjnBJE.js, sha256 93877b2e96aeb956
                  over 449374 bytes - fetched from the live worker and compared
                  byte-for-byte against a clean-tree rebuild, not matched by
-                 name. This line names the tip at the moment it was written,
+                 name. 6649f6e before it was verified the same way
+                 (index-UnsIXC-T.js, 5ad510ad95fc4d0d). This line names the tip at the moment it was written,
                  so the commit that edits it is by construction one ahead of
                  what it describes.
                  The push before it, 5a6f24e, could not have deployed:
