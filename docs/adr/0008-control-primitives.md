@@ -32,10 +32,10 @@ surface anywhere in the product.
 **One.** The control primitives are built once, in `motionwave/ui/render/controls/`,
 and every unit uses them: rotary knob, stepped selector, bat toggle, rocker,
 latching button, fader, VU meter, lamp, bar meter, numeric display, and a curve
-editor surface. Each is a distinct *gesture*, not a distinct drawing.
+editor surface. Each is a distinct _gesture_, not a distinct drawing.
 
 **Two.** Which primitive a parameter may wear is derived from its `ParamSpec` and
-checked; which of the suitable ones it *does* wear is the face's declaration.
+checked; which of the suitable ones it _does_ wear is the face's declaration.
 `render/faceControls.ts` throws at module load when the two disagree.
 
 **Three.** A panel's appearance becomes data. `PanelSkin` carries era, surface,
@@ -49,7 +49,7 @@ colour, and `render/facePanel.ts` interprets it generically.
 The obvious fix is per-unit drawing code: give each face its own renderer and
 stop pretending one file can draw fourteen panels. It would have worked, and it
 would have destroyed the property that makes fourteen faces affordable at all —
-that a face is a *declaration* the harness can check. U20's binding check, U22's
+that a face is a _declaration_ the harness can check. U20's binding check, U22's
 geometry check and U23's contrast check are all checks on a declared set of
 elements. Fourteen hand-built panels have fourteen sets of elements that the
 declaration merely describes, and the first one to drift does so silently.
@@ -73,7 +73,7 @@ two tokens. At lightness 47 % neither black nor white clears 4.5:1, and both
 look perfectly fine to someone who is not measuring — which is how a contrast
 failure ships.
 
-## What is *not* licensed by this
+## What is _not_ licensed by this
 
 Era language is taxonomy, proportion, surface treatment and the colour
 temperature of a period. It is not any manufacturer's product. No skin may name,

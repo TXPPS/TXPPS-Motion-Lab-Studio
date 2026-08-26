@@ -65,7 +65,15 @@ describe('a parameter decides which primitives it can wear', () => {
   it('counts detents from the parameter rather than from its labels', () => {
     // A stepped parameter with no choice strings is exactly the one whose
     // detents matter most: there is no legend to read the position off.
-    const unlabelled = defineParam({ id: 4, name: 'Poles', min: 0, max: 4, def: 0, taper: Taper.Stepped, steps: 5 });
+    const unlabelled = defineParam({
+      id: 4,
+      name: 'Poles',
+      min: 0,
+      max: 4,
+      def: 0,
+      taper: Taper.Stepped,
+      steps: 5,
+    });
     expect(stepCount(unlabelled)).toBe(5);
     expect(stepCount(wafer)).toBe(4);
     expect(stepCount(lever)).toBe(2);

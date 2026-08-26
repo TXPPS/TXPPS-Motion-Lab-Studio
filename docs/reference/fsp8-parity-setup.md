@@ -1,6 +1,6 @@
 # Directive 09 §1 — Parity Analysis: the "Setup" chapter
 
-**Reference document:** *Fender Studio Pro 8 — User Manual* (referred to below as
+**Reference document:** _Fender Studio Pro 8 — User Manual_ (referred to below as
 **FSP8**), chapter **Setup**, manual pages 13–43, extracted text lines 719–2090.
 **Analysed against:** MotionLab Studio, branch `claude/motionlab-studio-poc-3l1gwa`,
 commit `4d3c6f0`.
@@ -12,7 +12,7 @@ Every documented behaviour gets a numbered block with three parts:
 
 - **FSP8 does** — the exact reference behaviour: named control, range, default,
   and the dialog/tab/page path it lives on. Quoted where wording is load-bearing.
-- **MotionLab does** — what the shipping web app does *today*, established by
+- **MotionLab does** — what the shipping web app does _today_, established by
   reading the code. Where a thing is absent, the grep that established it is named.
 - **Gap** — exactly one of `PARITY` · `PARTIAL` · `MISSING` · `DIVERGENT-BY-DESIGN`.
   `DIVERGENT-BY-DESIGN` means the browser platform cannot perform the native
@@ -31,7 +31,7 @@ this file is cleared for `motionwave/`; see `LEGAL_NOTES.md`.
 
 # 1. System Requirements
 
-*(FSP8 manual p. 13; extract lines 764–796)*
+_(FSP8 manual p. 13; extract lines 764–796)_
 
 ## SR-1 · Operating-system floor
 
@@ -72,7 +72,7 @@ diagnostics report carries an `Online` field (`src/diagnostics/report.ts:265`).
 Grepped `activation|licen[cs]e|entitlement` — no hits in `src/`.
 
 **Gap:** `DIVERGENT-BY-DESIGN` — the app is delivered, not installed. Note this is
-a *product-model* divergence and not a feature gap to close.
+a _product-model_ divergence and not a feature gap to close.
 
 ## SR-3 · Display and touch requirements
 
@@ -94,7 +94,7 @@ browser binding. Touch operation itself is present and is a first-class layout.
 ## SR-4 · Content storage minimums
 
 **FSP8 does:** "8 GB RAM minimum" and "40 GB free hard drive space (Fender
-Studio Pro)", stated under *Content storage*.
+Studio Pro)", stated under _Content storage_.
 
 **MotionLab does:** Storage is IndexedDB, not a disk allocation. The product asks
 the browser rather than the OS: `storageEstimate()` in
@@ -107,14 +107,14 @@ logs `Storage quota exceeded while writing …` and
 saving "<name>" — project NOT saved`. No RAM check exists.
 
 **Gap:** `DIVERGENT-BY-DESIGN` for the mechanism (a browser cannot reserve disk),
-but the *reporting* is present and arguably better — the user sees live usage
+but the _reporting_ is present and arguably better — the user sees live usage
 against quota rather than a one-time install figure.
 
 ---
 
 # 2. Set Up Your Audio Device
 
-*(FSP8 manual pp. 13–17; extract lines 798–1015)*
+_(FSP8 manual pp. 13–17; extract lines 798–1015)_
 
 ## AD-1 · Automatic device selection at first run — **P0**
 
@@ -128,7 +128,7 @@ enumeration (ASIO/WASAPI on Windows, Core Audio on macOS).
 whatever `AudioContext`'s `destination` resolves to — see
 `src/audio/engine.ts:290`, `new AudioContext({ latencyHint: 'interactive' })`,
 with the master chain terminating at `ctx.destination`
-(`src/audio/engine.ts:~372`). Input is *per-track*, not global: each audio track
+(`src/audio/engine.ts:~372`). Input is _per-track_, not global: each audio track
 carries `inputDeviceId?: string` (`src/model/types.ts:181`) defaulting to the
 literal `'default'` (`DEFAULT_INPUT` in `src/audio/inputManager.ts:31`). The
 input list is populated by `AudioInputManager.refreshDevices()`
@@ -137,7 +137,7 @@ input list is populated by `AudioInputManager.refreshDevices()`
 recognition (auto-select a known interface) does not exist; grepped
 `preferredDevice|autoSelect|preferDevice` — no hits.
 
-**Gap:** `PARTIAL`. Input enumeration exists and is honest; there is no *global*
+**Gap:** `PARTIAL`. Input enumeration exists and is honest; there is no _global_
 device concept, no output-side selection, and no first-run auto-selection.
 
 ## AD-2 · Where the setting lives — **P0**
@@ -148,9 +148,9 @@ grouping every device decision.
 
 **MotionLab does:** The Preferences sheet
 (`src/components/settings/SettingsSheet.tsx`, opened via `uiStore.settingsOpen`)
-has an **Audio** section containing exactly two rows: a read-only *Engine* row
+has an **Audio** section containing exactly two rows: a read-only _Engine_ row
 showing the context sample rate with the hint "Sample rate is chosen by the
-browser", and a *Workspace* row with a "Reset panel layout" button. **Device
+browser", and a _Workspace_ row with a "Reset panel layout" button. **Device
 selection is not in Preferences.** It lives in `TrackInputControls`
 (`src/components/recording/RecordControls.tsx:172–204`) — a per-track `<select>`
 labelled "Device" in the inspector/record workspace.
@@ -161,8 +161,8 @@ visible information-architecture divergence in the chapter.
 
 ## AD-3 · Separate playback and recording device on macOS — **P0**
 
-**FSP8 does:** On macOS the dialog has **two** menus: *Playback Device* and
-*Recording Device*, selected independently. On Windows a **single** *Audio Device*
+**FSP8 does:** On macOS the dialog has **two** menus: _Playback Device_ and
+_Recording Device_, selected independently. On Windows a **single** _Audio Device_
 menu covers both, because the ASIO/WASAPI driver model binds them.
 
 **MotionLab does:** Only a recording (input) device is selectable. Grepped
@@ -192,7 +192,7 @@ handled OS-side by the user, outside the app.
 
 ## AD-5 · Device Buffer Size — **P0**
 
-**FSP8 does:** A *Device Buffer Size* control in the Audio Device window. "Lower
+**FSP8 does:** A _Device Buffer Size_ control in the Audio Device window. "Lower
 settings minimize latency, which is useful when tracking. Higher settings bring
 more latency, but give you additional processing power for effects and instrument
 plug-ins. Generally, you want to pick the lowest Buffer Size that still lets your
@@ -205,7 +205,7 @@ requiring an app restart.
 (`src/audio/engine.ts:290`) — a hint, not a size, and not user-editable.
 `AudioContext.baseLatency` and `outputLatency` are never read (grepped
 `baseLatency|outputLatency` — no hits), so the current buffer is not even
-*reported*. Grepped `buffersize|buffer size|blocksize|block size` across `src/`:
+_reported_. Grepped `buffersize|buffer size|blocksize|block size` across `src/`:
 the only hits are inside the FLAC encoder (`src/audio/encode/flac.ts`), which is
 unrelated file-format blocking.
 
@@ -222,7 +222,7 @@ current total input and output latency, sample rate, and bit depth are reported
 below the Audio Setup menus." Three live figures, in the same window as the
 controls that change them.
 
-**MotionLab does:** Sample rate only, and in two places. The Preferences *Audio*
+**MotionLab does:** Sample rate only, and in two places. The Preferences _Audio_
 section shows `${(engine.context.sampleRate/1000).toFixed(1)} kHz` or "not
 started". The diagnostics report carries `Sample rate` as `${t.sampleRate} Hz`
 (`src/diagnostics/report.ts:277`) alongside `AudioContext` state
@@ -241,7 +241,7 @@ browser never tells the page the device's converter depth).
 default. When engaged, the current audio device is made available to other
 applications when Fender Studio Pro is minimized."
 
-**MotionLab does:** No preference, but the *behaviour* is implemented
+**MotionLab does:** No preference, but the _behaviour_ is implemented
 unconditionally for **input**: `src/audio/inputManager.ts:305–311` installs a
 `visibilitychange` listener that calls `audioInput.stopAll()` when the document
 hides — but only when `recordingActive` is false. The comment states the reason:
@@ -268,7 +268,7 @@ Full behaviour is documented in IO-9 below.
 
 ## AD-9 · Audio Dropout Protection / Process Buffer Size
 
-**FSP8 does:** A *Dropout Protection* drop-down at `Studio Pro / Options / Audio
+**FSP8 does:** A _Dropout Protection_ drop-down at `Studio Pro / Options / Audio
 Setup / Processing` (macOS `Preferences / Audio Setup / Processing`), with an
 "Off" position and named levels. Its selection determines the **Process Buffer
 Size**, displayed beside it. The architecture: "the tasks of audio playback and
@@ -286,7 +286,7 @@ process/device buffer.
 
 **Gap:** `DIVERGENT-BY-DESIGN` — the two-buffer architecture requires owning both
 the driver callback and a separate processing graph, which a page cannot do. The
-*user-visible goal* (trade latency for headroom) has no equivalent lever at all,
+_user-visible goal_ (trade latency for headroom) has no equivalent lever at all,
 which is worth recording as a follow-on for the WASM core era.
 
 ## AD-10 · Native Low-Latency Monitoring
@@ -295,13 +295,13 @@ which is worth recording as a follow-on for the WASM core era.
 the large process buffer. Availability condition, quoted: "As long as the Process
 Buffer Size is larger than the Device Buffer Size you've specified, you have the
 option to use Native Low-Latency Monitoring." Instrument monitoring is a separate
-toggle: *"Enable low latency monitoring for instruments"* — "If you run into
+toggle: _"Enable low latency monitoring for instruments"_ — "If you run into
 performance issues when using a virtual instrument with particularly high CPU
 usage, you may want to disable this option."
 
 **MotionLab does:** Monitoring exists and is per-track:
 `engine.startMonitoring(trackId, deviceId)` / `engine.stopMonitoring(trackId)`,
-driven from `TrackInputControls`'s *Monitor* button
+driven from `TrackInputControls`'s _Monitor_ button
 (`src/components/recording/RecordControls.tsx:132–158`) and from
 `src/app/monitorActions.ts:51`. It routes the `MediaStreamAudioSourceNode`
 through the track's own channel — same inserts, same fader — so it is a
@@ -321,7 +321,7 @@ latency**. Plug-ins that meet this latency requirement show a green power button
 in the Console (rather than blue or gray). Any inserted plug-ins that introduce
 more than 3 ms of latency are not audible in the monitoring path while a Channel
 is armed for monitoring or recording … They begin functioning again when
-recording/monitoring mode is disengaged." Three plug-in classes are *never*
+recording/monitoring mode is disengaged." Three plug-in classes are _never_
 supported on such channels: external-effect insert routing, analyzer plug-ins,
 and FX Chains containing Splitter devices.
 
@@ -333,12 +333,12 @@ each insert against a dry wire in an `OfflineAudioContext` and returns
 (`measureInsertLatency()`, `latencyProbe.ts:88–119`). Every insert can therefore
 already state its delay. Nothing consumes that number for a monitoring decision.
 
-**Gap:** `MISSING` for the behaviour; the *data* to implement a 3 ms tier is
+**Gap:** `MISSING` for the behaviour; the _data_ to implement a 3 ms tier is
 already in the codebase, which makes this cheaper than it looks.
 
 ## AD-12 · Monitoring Latencies table
 
-**FSP8 does:** A *Monitoring Latencies* display with two columns — "Standard" and
+**FSP8 does:** A _Monitoring Latencies_ display with two columns — "Standard" and
 "Low Latency" — showing round-trip audio-input latency and virtual-instrument
 latency for the current Device Buffer Size and Dropout Protection settings.
 
@@ -351,8 +351,8 @@ effect parameter names (e.g. limiter lookahead).
 ## AD-13 · Hardware (DSP) Direct Monitoring and the "D" button
 
 **FSP8 does:** With a supported DSP-enabled interface, monitoring may run on the
-interface's own DSP. The choice is a checkbox: *"Use native low latency
-monitoring instead of onboard DSP"* — enabled = native, disabled = hardware. When
+interface's own DSP. The choice is a checkbox: _"Use native low latency
+monitoring instead of onboard DSP"_ — enabled = native, disabled = hardware. When
 hardware monitoring is used, "Insert FX do not function on the related Channel,
 since the audio input is being monitored before it reaches Fender Studio Pro."
 In the Console, Direct Monitoring is toggled per output by an **Enable Direct
@@ -374,12 +374,12 @@ software affordance MotionLab could have.
 
 **FSP8 does:** A four-row table naming every monitoring mode and its conditions:
 
-| Mode | Direct Input | Necessary conditions | Monitoring | Insert FX | Send FX |
-|---|---|---|---|---|---|
-| Standard Software Monitoring | Disabled | Large Device Buffer Size, low Process Buffer Size (Dropout Protection) | Standard latency | All function | All function |
-| Native Direct Monitoring | Enabled | Process Buffer Size must exceed Device Buffer Size | Native low-latency | ≤3 ms plug-ins function, others disabled | All function |
-| Virtual Instrument Direct Monitoring | Enabled | Process Buffer Size must exceed Device Buffer Size | Native low-latency | ≤3 ms plug-ins function, others disabled | All function |
-| Hardware Direct Monitoring | Enabled | "Use Native Direct Monitoring instead of Hardware Direct Monitoring" must be **disabled** | Hardware low-latency | No Insert FX function | All function |
+| Mode                                 | Direct Input | Necessary conditions                                                                      | Monitoring           | Insert FX                                | Send FX      |
+| ------------------------------------ | ------------ | ----------------------------------------------------------------------------------------- | -------------------- | ---------------------------------------- | ------------ |
+| Standard Software Monitoring         | Disabled     | Large Device Buffer Size, low Process Buffer Size (Dropout Protection)                    | Standard latency     | All function                             | All function |
+| Native Direct Monitoring             | Enabled      | Process Buffer Size must exceed Device Buffer Size                                        | Native low-latency   | ≤3 ms plug-ins function, others disabled | All function |
+| Virtual Instrument Direct Monitoring | Enabled      | Process Buffer Size must exceed Device Buffer Size                                        | Native low-latency   | ≤3 ms plug-ins function, others disabled | All function |
+| Hardware Direct Monitoring           | Enabled      | "Use Native Direct Monitoring instead of Hardware Direct Monitoring" must be **disabled** | Hardware low-latency | No Insert FX function                    | All function |
 
 **MotionLab does:** Exactly one of these four modes exists — Standard Software
 Monitoring — and it is unnamed in the UI.
@@ -410,7 +410,7 @@ Panel/Hardware and Sound/Sound to configure the options for your WASAPI device."
 **MotionLab does:** No driver model is visible. The nearest observable behaviour
 is the `NotReadableError` branch of `describeGumError()`
 (`src/audio/inputManager.ts:~285`), which reports "The audio input is in use by
-another application." — the same *symptom* a foreign exclusive-mode grab
+another application." — the same _symptom_ a foreign exclusive-mode grab
 produces, correctly explained.
 
 **Gap:** `DIVERGENT-BY-DESIGN`. Driver selection is not reachable from a page;
@@ -428,7 +428,7 @@ be used for processing audio."
 
 ## AD-18 · Performance Monitor
 
-**FSP8 does:** Opened from the *View* menu or the **[Performance]** button in the
+**FSP8 does:** Opened from the _View_ menu or the **[Performance]** button in the
 Transport. Displays "the current relative overall CPU and disk performance, as
 well as the performance of instruments and automation." Guidance: "When these
 meters approach or reach the top of their range, you may need to consider
@@ -464,7 +464,7 @@ the browser's single audio thread; there is no competing scheduler.
 
 # 3. Audio Device Input/Output Setup — **the P0 section**
 
-*(FSP8 manual pp. 18–19; extract lines 1017–1073)*
+_(FSP8 manual pp. 18–19; extract lines 1017–1073)_
 
 This is the section the directive flags as the single most important. It is
 reproduced here in more detail than the rest, with the manual's own wording where
@@ -513,7 +513,7 @@ back to "Default input" without saying so.
 **Gap:** `MISSING`. **The single largest gap in this chapter.** The named-channel
 indirection is a pure software construct with no platform dependency: MotionLab
 could hold a per-project list of named input buses, each mapping to a device id
-*per machine*, and the whole portability story would follow.
+_per machine_, and the whole portability story would follow.
 
 ## IO-2 · Where the setup lives, and its per-Session scope — **P0**
 
@@ -526,7 +526,7 @@ Session**, so that it is possible for each Session to have a separate I/O setup.
 **MotionLab does:** No such page. Grepped `Session Setup|SessionSetup|Audio I/O`
 in `src/components/` and `src/pages/` — no hits. The four pages are
 `StartPage.tsx`, `SongPage.tsx`, `MasteringPage.tsx`, `ShowPage.tsx`; none has an
-I/O tab. Device choice is per-track, and *is* stored per project (in `Track`), so
+I/O tab. Device choice is per-track, and _is_ stored per project (in `Track`), so
 the "per-session" half accidentally holds — but only as a side effect of storing
 the raw device id on the track.
 
@@ -562,7 +562,7 @@ about:
 
 So: mono vs stereo is chosen at creation time by which of two buttons is pressed,
 the tab decides whether it is an input or an output, and hardware assignment is
-automatic and greedy — the next *unassigned* hardware channels.
+automatic and greedy — the next _unassigned_ hardware channels.
 
 **MotionLab does:** There is no channel-creation act at all. A track's input is
 implicitly whatever the chosen device delivers, and the manager **forces mono**.
@@ -570,7 +570,7 @@ implicitly whatever the chosen device delivers, and the manager **forces mono**.
 `MediaTrackConstraints` with `echoCancellation: false`, `noiseSuppression: false`,
 `autoGainControl: false`, and `channelCount: { ideal: 1 }`.
 
-`channelCount: { ideal: 1 }` is a *preference*, not a demand, so a stereo
+`channelCount: { ideal: 1 }` is a _preference_, not a demand, so a stereo
 interface may still deliver two channels — but nothing downstream chooses, names
 or splits them. There is no stereo-input concept, and no way to make a mono input
 from the right channel of a stereo pair.
@@ -655,7 +655,7 @@ And for output:
 > "The Output Channel is labeled **Main Out (stereo)** and is routed by default to
 > the first stereo hardware output pair of your selected audio device."
 
-Note the overlap: the two mono channels are *not* exclusive with the stereo one —
+Note the overlap: the two mono channels are _not_ exclusive with the stereo one —
 all three read the same hardware pair, so a user can record L alone, R alone, or
 the pair, without reconfiguring.
 
@@ -666,10 +666,10 @@ of a stereo route (L or R)."
 **MotionLab does:** Absent. A track has one device and no channel legs. There is
 no "Input L", no "Input R", no "Input L+R", and no "Main Out". The master output
 is a node chain terminating at `ctx.destination` and is never named as a routable
-channel. Related but different: a track can be summed to mono *after* input via
+channel. Related but different: a track can be summed to mono _after_ input via
 `Track.monoSum?: boolean` ("sum the channel to mono at the input") and
 polarity-flipped via `phaseInvert?: boolean` — these are channel processing, not
-channel *mapping*.
+channel _mapping_.
 
 **Gap:** `MISSING`. **P0.** The three-input default is the concrete shape a
 MotionLab equivalent should copy: a generic "Input Bus" list, pre-populated with
@@ -726,7 +726,7 @@ touching the store or the engine. But a template carries **no input assignment**
 
 **Gap:** `MISSING` for I/O defaults; `PARTIAL` for "new sessions start
 pre-configured", which templates do better than the reference in every respect
-*except* I/O.
+_except_ I/O.
 
 ## IO-11 · Meters beside the software I/O channels
 
@@ -735,7 +735,7 @@ meters to the left of the software I/O channels. By displaying signal levels on
 each channel, these meters help you ensure that the appropriate routings have been
 made." — the meter is a routing-verification tool, not a mixing tool.
 
-**MotionLab does:** There *is* an input meter, but it is per-track and only live
+**MotionLab does:** There _is_ an input meter, but it is per-track and only live
 while monitoring: `InputMeter` (`src/components/recording/RecordControls.tsx:17–39`)
 subscribes to `engine.onFrame` and scales a fill bar from
 `engine.inputLevel(trackId)`, with a `data-hot` flag above 0.92. It is rendered
@@ -777,7 +777,7 @@ channel list. Grepped `audition` in `src/` — no hits under that name.
 
 ## IO-14 · What happens when a device disappears — **P0**
 
-**FSP8 does:** Not documented explicitly for *audio* devices in this chapter. The
+**FSP8 does:** Not documented explicitly for _audio_ devices in this chapter. The
 manual's device-loss story is told for **MIDI** devices (see MD-11) and for the
 portability case (IO-1), where a Session opened against a different interface
 resolves through the software I/O layer rather than breaking.
@@ -805,7 +805,7 @@ parity**, and it deserves the detail. Three independent mechanisms:
    application."; `OverconstrainedError` → "The selected input device is no
    longer available."; `AbortError` → "Opening the audio input was aborted."
 
-What is *not* handled: a track whose saved `inputDeviceId` no longer exists shows
+What is _not_ handled: a track whose saved `inputDeviceId` no longer exists shows
 the stored id in the `<select>` with no matching option, which renders as a
 blank/first selection rather than an explicit "this device is gone" state. The
 select is built from the enumerated devices minus `DEFAULT_INPUT`, plus a
@@ -821,7 +821,7 @@ rather than silently showing an unmatched value. **This is a P0 sub-item.**
 
 # 4. Set Up Your MIDI Devices
 
-*(FSP8 manual pp. 20–24; extract lines 1075–1240)*
+_(FSP8 manual pp. 20–24; extract lines 1075–1240)_
 
 ## MD-1 · External Devices as one concept
 
@@ -832,7 +832,7 @@ slightly different way, there is **one menu** to add and configure any External
 Device." Path: `Studio Pro / Options / External Devices / Add Device`
 (macOS `Preferences / External Devices / Add Device`).
 
-**MotionLab does:** One device type only — a MIDI *input*. `MidiManager`
+**MotionLab does:** One device type only — a MIDI _input_. `MidiManager`
 (`src/audio/midi.ts:88–224`) enumerates `access.inputs` and nothing else. There
 is no persisted device record, no manufacturer/name fields, and no device list;
 the selection is transient session state (`transportStore.midiSelectedId`).
@@ -904,7 +904,7 @@ are on every instrument's front panel — the wire's 0..15 is converted once, at
 message."
 
 Routing is `midiTargetTrackIds()` (`src/audio/midi.ts:48–66`), and its rules are
-worth recording because they are a *different* answer to the same problem Split
+worth recording because they are a _different_ answer to the same problem Split
 Channels solves: **every** armed track accepting the channel receives the note,
 not just the first — the comment says layering two instruments under one key is a
 technique and a multi-timbral controller on two channels is the whole reason the
@@ -990,6 +990,7 @@ Track "automatically creates the Instrument Track with the AUX channels already
 mapped."
 
 Additional documented options for an External Instrument:
+
 - **Send MIDI Clock** and **MIDI Clock Start** checkboxes — "You should send MIDI
   Clock to your Instrument if it has a built-in sequencer or components (such as
   LFOs) that need to sync."
@@ -1015,7 +1016,7 @@ engine, asserted by e2e parity tests), so a real-time export mode does not exist
 and has never needed to.
 
 **Gap:** `MISSING`, but note that the whole external-hardware workflow is
-substantially `DIVERGENT-BY-DESIGN` for a browser: MIDI *output* is reachable
+substantially `DIVERGENT-BY-DESIGN` for a browser: MIDI _output_ is reachable
 (MD-6), audio return would ride on the same absent I/O layer as IO-1, and
 real-time bounce contradicts the offline-parity contract in `CLAUDE.md`'s "What
 NOT to refactor". If any of this is ever built, the aux return depends on IO-1
@@ -1041,7 +1042,7 @@ mirroring of Channels across multiple surfaces … (e.g. an A room and B room or
 control room and live room)." Constraint: "Only supported and predefined Control
 Surfaces appear in the Placement window. **User-defined devices do not appear**."
 
-**MotionLab does:** No control-surface *device* class and no Mackie protocol —
+**MotionLab does:** No control-surface _device_ class and no Mackie protocol —
 grepped `Mackie|control surface|ControlSurface`: zero hits. What exists instead is
 **Control Link**: a generic learn-based binding layer.
 `src/audio/controlLink.ts` + `src/components/settings/ControlLinks.tsx`, surfaced
@@ -1060,7 +1061,7 @@ comment on `controlSourceOf()`: "a pedal is the control most players want on
 'start/stop' or a macro, and the instrument path still gets it when nothing is
 bound to it."
 
-**Gap:** `PARTIAL`. Control Link covers the *user goal* (a hardware fader moves a
+**Gap:** `PARTIAL`. Control Link covers the _user goal_ (a hardware fader moves a
 thing) generically and portably, without a device database. It does not cover
 what Mackie Control provides: bank-following, motorised fader feedback, scribble
 strips, transport LEDs, or multi-surface placement — all of which need MIDI
@@ -1110,7 +1111,7 @@ notice.
 
 ## MD-12 · QWERTY keyboard as a MIDI keyboard
 
-**FSP8 does:** A device you *add*: `Studio Pro / Options / External Devices / Add
+**FSP8 does:** A device you _add_: `Studio Pro / Options / External Devices / Add
 Device`, choose the **QWERTY Keyboard** device from the Fender device folder.
 Then "open the interface for the QWERTY Keyboard device by double-clicking on it
 in the External panel of the Console. Any record-enabled Instrument Track then
@@ -1147,7 +1148,7 @@ generic "recognised controller profile" mechanism with no reference names in it.
 
 # 5. Managing Your Content
 
-*(FSP8 manual pp. 24–27; extract lines 1242–1339)*
+_(FSP8 manual pp. 24–27; extract lines 1242–1339)_
 
 Path for this whole section: `Studio Pro / Options / Locations`
 (macOS `Preferences / Locations`).
@@ -1190,7 +1191,7 @@ in the diagnostics log; the flag resets on the next success (`:60`).
 **Gap:** `PARTIAL` — the behaviour is present and stronger (debounced + three
 flush points + explicit failure surfacing), but there is no toggle and no
 user-visible interval. A 1500 ms debounce is a better default than any interval,
-so the gap is the *absence of the control*, not the behaviour.
+so the gap is the _absence of the control_, not the behaviour.
 
 ## MC-3 · Use cached plug-in data on save
 
@@ -1269,7 +1270,7 @@ format, plus Giga, EXS, Kontakt (version 4 and below), and SoundFont (SF2).
 project's own media (`src/audio/samplerInstrument.ts`, `SamplerParams` on the
 track). Grepped `sf2|SoundFont|Kontakt|EXS` — no hits.
 
-**Gap:** `MISSING`. Format support is a separate question from the *locations*
+**Gap:** `MISSING`. Format support is a separate question from the _locations_
 preference; only the former is plausible in-browser (SF2 parsing is feasible).
 
 ## MC-8 · VST plug-in locations, scan at startup, blocklist
@@ -1289,9 +1290,9 @@ iLok) puts it on a **blocklist** and it is ignored thereafter. Reset with
 same page carries a **Scan at startup** tickbox. The manual warns about turning
 scanning off: "it also means that Fender Studio Pro won't know when an existing
 plug-in has been updated or a new plug-in has been installed" (extract 902–907).
-A plug-in that malfunctions without crashing produces: *"The following plug-ins
+A plug-in that malfunctions without crashing produces: _"The following plug-ins
 didn't work as expected: <Plugin_Name.vst3>. Please save your work and restart
-Fender Studio Pro."* with an option to add it to the blocklist.
+Fender Studio Pro."_ with an option to add it to the blocklist.
 "Update Plug-Ins" in the Plug-in Manager forces a full rescan.
 
 **MotionLab does:** Plug-ins are WAM modules loaded over the network, not scanned
@@ -1302,7 +1303,7 @@ no scan, no scan-at-startup toggle, and no blocklist: grepped
 `blocklist|blockList` — zero hits.
 
 **Gap:** `DIVERGENT-BY-DESIGN` for locations and scanning. **`MISSING` for the
-blocklist concept**, which is *not* platform-blocked: a WAM module that throws on
+blocklist concept**, which is _not_ platform-blocked: a WAM module that throws on
 load or that stalls the graph is exactly as capable of ruining a session, and
 there is currently no mechanism to remember "this one is bad, don't load it".
 Worth flagging as a real robustness gap rather than an artefact of the plug-in
@@ -1348,7 +1349,7 @@ Plug-in Manager."
 
 # 6. Creating a New Session
 
-*(FSP8 manual pp. 28–30; extract lines 1341–1444)*
+_(FSP8 manual pp. 28–30; extract lines 1341–1444)_
 
 ## NS-1 · Three ways to create
 
@@ -1359,7 +1360,7 @@ a recording session choose **Record and Mix**.
 **MotionLab does:** Start page template cards create directly —
 `TemplateCard`'s onClick calls `newProjectFromTemplate(template)` then `go('song')`
 (`src/pages/StartPage.tsx:60–78`). There is no intermediate New Document dialog:
-picking a template *is* the creation act. Keyboard shortcuts live in
+picking a template _is_ the creation act. Keyboard shortcuts live in
 `src/app/shortcuts.ts` (`SHORTCUTS` registry, rebindable via
 `src/state/keymapStore.ts`).
 
@@ -1406,16 +1407,16 @@ rate and bit depth."
 the browser gives — `new AudioContext({ latencyHint: 'interactive' })`
 (`src/audio/engine.ts:290`), logged as `AudioContext created (<rate> Hz)`, and
 reflected into `transportStore.sampleRate` by `reflectContextState()`
-(`src/audio/engine.ts:412`). Preferences state the position honestly: the *Engine*
+(`src/audio/engine.ts:412`). Preferences state the position honestly: the _Engine_
 row's hint reads **"Sample rate is chosen by the browser"**.
 
-Where a rate *is* choosable is at **export**: `ExportSettings.sampleRate` defaults
+Where a rate _is_ choosable is at **export**: `ExportSettings.sampleRate` defaults
 to **48000** (`src/app/exportActions.ts:95`) and the Export sheet offers a `RATES`
 segmented control (`src/components/common/ExportSheet.tsx:263–278`).
 
 **Gap:** `DIVERGENT-BY-DESIGN` for the session/device rate (a page cannot set a
 device's clock; `AudioContext({sampleRate})` merely requests a resampled context
-and is not universally honoured). **`MISSING` for the *disclosure*** — nothing
+and is not universally honoured). **`MISSING` for the _disclosure_** — nothing
 tells the user their project is running at, say, 44.1 kHz while they are exporting
 at 48 kHz, which is a real and silent quality decision. **P0-adjacent.**
 
@@ -1432,7 +1433,7 @@ prefers `audio/webm;codecs=opus`, then WebM, Ogg/Opus, `audio/mp4;codecs=mp4a.40
 MP4, AAC; the chosen type is reported in diagnostics rather than assumed
 (`recorder.ts` header comment). The graph itself is float32.
 
-Export bit depth *is* choosable: `ExportSettings.bitDepth` defaults to **24**
+Export bit depth _is_ choosable: `ExportSettings.bitDepth` defaults to **24**
 with `float: false` (`src/app/exportActions.ts:93–94`), and the sheet offers the
 format's own `bitDepths` plus a **32-bit float** button whose tooltip reads "No
 clipping and no dither needed — the right choice for a file that will be
@@ -1452,7 +1453,7 @@ milliseconds), **Samples**, **Bars** (bars and beats), **Frames**.
 
 **MotionLab does:** Two of four. `Prefs.primaryTimeDisplay: 'bbt' | 'clock'`
 (`src/state/prefsStore.ts`), defaulting to `'bbt'`, exposed in Preferences →
-*Metering & time* → "Primary time display" as a two-button segmented control
+_Metering & time_ → "Primary time display" as a two-button segmented control
 labelled **Bars** / **Clock**. Samples and Frames do not exist.
 
 **Gap:** `PARTIAL` (2 of 4). Frames requires a video/SMPTE frame rate the app does
@@ -1565,11 +1566,12 @@ the document was created with) or **Revert** (use your currently selected preset
 
 # 7. Working with the Companion Notation Application
 
-*(FSP8 manual pp. 30–32; extract lines 1446–1520)*
+_(FSP8 manual pp. 30–32; extract lines 1446–1520)_
 
 ## NT-1 · Sending a session to the notation app
 
 **FSP8 does:** `Session / Send to Notion` opens a dialog with:
+
 - **Computer Selector** — "This Computer", or any instance discovered on the local
   network.
 - **Send Note Data of Entire Session** — creates a new Score whose instrument
@@ -1588,7 +1590,7 @@ Global Lyrics Track content does not.
 
 **MotionLab does:** No companion application and no network peer discovery. Score
 rendering exists in-app (`src/components/score/ScoreView.tsx`) — the notation is
-*displayed*, not exchanged. Grepped for any peer/network transfer — none.
+_displayed_, not exchanged. Grepped for any peer/network transfer — none.
 
 **Gap:** `DIVERGENT-BY-DESIGN` — LAN peer discovery is not available to a page.
 The transferable equivalent (MIDI file / MusicXML export) would be the parity
@@ -1601,7 +1603,7 @@ hits, so **`MISSING`** for standards-based score interchange.
 computer, choose **Merge into open document** or new, and pick a **Format** from
 Score Exchange, MIDI, or Wave.
 
-**MotionLab does:** Absent. MIDI *file* import: the app records MIDI
+**MotionLab does:** Absent. MIDI _file_ import: the app records MIDI
 (`src/audio/midiRecorder.ts`) but no `.mid` file import/export path was found.
 
 **Gap:** `MISSING`.
@@ -1620,7 +1622,7 @@ audio files** to match the new information."
 
 # 8. Custom Colors
 
-*(FSP8 manual pp. 32–34; extract lines 1522–1571)*
+_(FSP8 manual pp. 32–34; extract lines 1522–1571)_
 
 ## CC-1 · Where the Color Selector opens from
 
@@ -1659,6 +1661,7 @@ in all three themes is a feature, not a shortfall) but there is no free choice.
 
 **FSP8 does:** Opened by the drop-down arrow at the bottom of the Color Selector.
 Contains:
+
 - **+/−** — add or remove swatches.
 - **Store/Load Preset** — swatch-set presets; "Several custom themes are included;
   you may also create and save your own."
@@ -1694,7 +1697,7 @@ no such component.
 
 # 9. Customization
 
-*(FSP8 manual pp. 34–36; extract lines 1573–1668)*
+_(FSP8 manual pp. 34–36; extract lines 1573–1668)_
 
 ## CU-1 · What Customization is
 
@@ -1706,7 +1709,7 @@ Customization`, or right-click any customisable area (Toolbar, Inspector,
 Transport, Browser) → **"Customize…"**. Constraint: "**Customization is only
 available for the Session Page.**"
 
-**MotionLab does:** No feature-visibility system. What exists is *panel* layout:
+**MotionLab does:** No feature-visibility system. What exists is _panel_ layout:
 `useWorkspaceStore` (`src/state/workspaceStore.ts`) persists
 `browserSize` (default **16**), `inspectorSize` (**17**), `editorSize` (**38**),
 `showBrowser` / `showInspector` / `showEditor` (all **true**), `maximized`
@@ -1717,7 +1720,7 @@ localStorage under `txpps-motionlab-workspace-v1`, with `normalizeLayout()`
 clamping every field so "a layout saved by an older build (or at a very different
 viewport) can never reproduce an unusable workspace."
 
-**Gap:** `PARTIAL` — panel and lane visibility yes; per-*control* visibility no.
+**Gap:** `PARTIAL` — panel and lane visibility yes; per-_control_ visibility no.
 
 ## CU-2 · The Customization tabs
 
@@ -1754,7 +1757,7 @@ Choose **Keep** to use the Preset chosen when the Document was created. Choose
 **Revert** to use the previously selected Preset."
 
 **MotionLab does:** N/A. Note that `ProjectData.workspace: WorkspaceState`
-(`src/model/types.ts:717`) *does* store a per-project workspace, so the collision
+(`src/model/types.ts:717`) _does_ store a per-project workspace, so the collision
 the Keep/Revert dialog resolves is structurally possible here; the app currently
 resolves it silently.
 
@@ -1774,7 +1777,7 @@ the workspace store (with its reset button also surfaced in Preferences).
 
 # 10. General Options
 
-*(FSP8 manual pp. 36–37; extract lines 1670–1740)*
+_(FSP8 manual pp. 36–37; extract lines 1670–1740)_
 Path: `Studio Pro / Options / General` (macOS `Preferences / General`), one tab
 per group.
 
@@ -1791,6 +1794,7 @@ across `src/` — the only hit is `localeCompare` used for sorting in
 ## GO-2 · General ▸ When Studio Pro starts
 
 **FSP8 does:** A list choosing the default startup action, with these options:
+
 - **Do Nothing** — no Session, Mastering Project or Show opens by default.
 - **Open Last Session/Mastering Project/Show** — the most recent opens.
 - **Open Default Session/Mastering Project/Show** — opens the item saved with the
@@ -1814,6 +1818,7 @@ option.
 
 **FSP8 does:** Two platform-specific toggles, both **enabled by default** and both
 accompanied by "We do not recommend disabling this":
+
 - **Enable graphics hardware acceleration** (macOS only) — "unless it is necessary
   to improve downward compatibility between Fender Studio Pro and third-party
   plug-ins."
@@ -1908,16 +1913,16 @@ Recorded for completeness, since the directive asks for the full option set on
 both sides. From `Prefs` (`src/state/prefsStore.ts`), with defaults from
 `DEFAULT_PREFS`:
 
-| Preference | Type / range | Default | Where surfaced |
-|---|---|---|---|
-| `theme` | `system` / `dark` / `light` / `contrast` | `system` | Appearance |
-| `uiScale` | 0.85–1.4, clamped, 2 dp | `1` | Appearance → Interface scale |
-| `meterScale` | `peak` / `rms` | `peak` | Metering & time → Meter reading |
-| `meterFallDbPerSec` | slider 8–60, step 1 | `26` | Metering & time → Meter fall |
-| `followPlayhead` | boolean | `true` | Editing → Follow the playhead |
-| `primaryTimeDisplay` | `bbt` / `clock` | `bbt` | Metering & time |
-| `confirmDestructive` | boolean | `true` | Editing → Confirm before deleting a track |
-| `reduceMotion` | boolean | `false` | Appearance → Reduce motion |
+| Preference           | Type / range                             | Default  | Where surfaced                            |
+| -------------------- | ---------------------------------------- | -------- | ----------------------------------------- |
+| `theme`              | `system` / `dark` / `light` / `contrast` | `system` | Appearance                                |
+| `uiScale`            | 0.85–1.4, clamped, 2 dp                  | `1`      | Appearance → Interface scale              |
+| `meterScale`         | `peak` / `rms`                           | `peak`   | Metering & time → Meter reading           |
+| `meterFallDbPerSec`  | slider 8–60, step 1                      | `26`     | Metering & time → Meter fall              |
+| `followPlayhead`     | boolean                                  | `true`   | Editing → Follow the playhead             |
+| `primaryTimeDisplay` | `bbt` / `clock`                          | `bbt`    | Metering & time                           |
+| `confirmDestructive` | boolean                                  | `true`   | Editing → Confirm before deleting a track |
+| `reduceMotion`       | boolean                                  | `false`  | Appearance → Reduce motion                |
 
 Two design notes that bear on parity reviews. First, `meterScale` is deliberately
 two-valued, and the comment says why a third was refused: "A BS.1770 loudness
@@ -1938,12 +1943,13 @@ visible flash."
 
 # 11. Additional Options
 
-*(FSP8 manual p. 37; extract lines 1742–1748)*
+_(FSP8 manual p. 37; extract lines 1742–1748)_
 
 ## AO-1 · The tab cross-reference
 
 **FSP8 does:** Not a settings group of its own — a signpost listing the remaining
 tabs in the Options dialog and where each is documented:
+
 - **Locations** → Managing Your Content (§5 here)
 - **Audio Setup** → Set Up Your Audio Device (§2 here)
 - **External Devices** → Set Up Your MIDI Devices (§4 here)
@@ -1964,7 +1970,7 @@ MotionLab sections have no reference counterpart (Metering & time, Control Link)
 
 # 12. Recovery Options
 
-*(FSP8 manual pp. 37–39; extract lines 1750–1793)*
+_(FSP8 manual pp. 37–39; extract lines 1750–1793)_
 
 ## RO-1 · The Safety Options dialog
 
@@ -1991,9 +1997,9 @@ auto-save."
 
 1. **Project recovery.** Every save keeps the previous version; an unreadable
    current copy is met with `loadProjectBackup()` and the toast `"<name>" could
-   not be read — restored the previous saved version instead.`
+not be read — restored the previous saved version instead.`
    (`src/app/projectActions.ts:173–181`).
-2. **Take recovery.** Interrupted recordings are stashed *during* capture —
+2. **Take recovery.** Interrupted recordings are stashed _during_ capture —
    `stashRecovery()` / `putRecovery()` in `src/audio/recorder.ts` and
    `src/persistence/mediaStore.ts` — scanned at startup into
    `inputStore.pendingRecoveries`, and surfaced by
@@ -2049,12 +2055,13 @@ to enable or disable any plug-ins that might be causing issues."
 ## RO-5 · Document Profiling
 
 **FSP8 does:** Two commands in the same contextual menu:
+
 - **Profile Document Loading** — "will open the document with safety options and
   provide insights into plug-in load times."
 - **Profile Document Saving** — "will provide similar insights related to the
   document's save."
 
-**MotionLab does:** No load/save profiling. Related timing that *is* logged:
+**MotionLab does:** No load/save profiling. Related timing that _is_ logged:
 `warmMedia()` reports `Preloaded <n> media file(s) for "<name>"`, and the
 autosave/save path logs failures with reasons — but no durations and no
 per-plug-in attribution.
@@ -2065,7 +2072,7 @@ per-plug-in attribution.
 
 # 13. Advanced Options — full enumeration
 
-*(FSP8 manual pp. 40–43; extract lines 1795–2050)*
+_(FSP8 manual pp. 40–43; extract lines 1795–2050)_
 Path: `Studio Pro / Options / Advanced` (macOS `Preferences / Advanced`), eight
 tabs. Note the manual's shortcut: "Many of the following options that pertain to
 editing in Arrange view can be accessed and toggled on or off by clicking the
@@ -2076,92 +2083,92 @@ Every option is listed. Defaults are the manual's own words ("engaged by default
 
 ## 13.1 Advanced ▸ **Editing** tab
 
-| # | FSP8 option | Default | FSP8 behaviour | MotionLab | Gap |
-|---|---|---|---|---|---|
-| AX-E1 | **Enable Crosshair Cursor for Tools** | engaged | "a large, white, vertical-and-horizontal crosshair in the Arrange view that aids in displaying the exact position of the various mouse tools" | Absent. `uiStore.tool: ArrangeTool` exists; no crosshair. Grepped `crosshair` — no hits | `MISSING` |
-| AX-E2 | **Locate When Clicked in Empty Space** | disengaged | "allows the timeline cursor to be located based on clicking in empty space or clicking where there are no Events" | Not exposed as an option; arrangement click behaviour is fixed | `MISSING` |
-| AX-E3 | **Expand Layers After Recording Takes** | engaged | with *Record Takes To Layers*, "the layers of each recording take are shown as soon as recording stops" | Take lanes exist (`src/components/arrangement/TakeLanes.tsx`); no expand-after-record preference | `PARTIAL` |
-| AX-E4 | **Track/Channel names follow active Layer** | disengaged | "the name of the active Layer is displayed instead of the track name in the Track Header and corresponding Channel" | Absent | `MISSING` |
-| AX-E5 | **Apply Folder Track Color to Content** | disengaged | "causes all content contained in a Folder Track to be color-coded with the same color you choose for the Folder Track" | Folder tracks exist (`TrackType` includes `folder`, plus `Track.folderId` and `Track.folded`); no colour propagation option | `MISSING` |
-| AX-E6 | **Colorize Track Controls** | disengaged | default state shows the track colour "in a small area in its controls"; engaged colours the whole control area | Fixed appearance; no toggle | `MISSING` |
-| AX-E7 | **Auto-colorize Tracks and Layers** | engaged | "applies to importing files, when tracks are created without using the 'Add Tracks' dialog" | Templates assign colours (`TemplateTrack.color`); imports pick from `TRACK_COLORS`. Behaviour present, not optional | `PARTIAL` |
-| AX-E8 | **Show Channel Numbers in Tracks** | disengaged | Tracks and Channels are numbered independently and can disagree; this marks each Track with its Channel number | MotionLab has no separate channel numbering — one track is one channel | `DIVERGENT-BY-DESIGN` |
-| AX-E9 | **No Overlap When Editing Events** | disengaged | "moving or pasting an Event over another Event deletes whatever is buried beneath, so there is no overlapping data (only the audio crossfades are preserved)"; a range including data outside an Event is treated as part of the Event and overwrites the identical range at the destination. Depends on *Cut long notes at part end* for note data | Absent as an option | `MISSING` |
-| AX-E10 | **Show Event Names** | not stated | name labels inside each Event; "purely an aesthetic difference and does not change any functions" | Clip names always drawn (`ClipView.tsx`); no toggle | `PARTIAL` |
-| AX-E11 | **Show Envelopes on Instrument Parts** | not stated | "overlays a graphic representation of controller activity (volume, sustain, etc.)"; disengage to display only notes | Absent | `MISSING` |
-| AX-E12 | **Show Chords on Events** | not stated | "adds an overlay to Audio Events in the Arrangement showing detected chords. This requires the track height to be set to Small or higher" | Chord track exists (`ProjectData.chords`, `showChords` lane, default **false**) but no per-event chord overlay and no audio chord detection | `PARTIAL` |
-| AX-E13 | **Show Grid on Events** | disengaged | "enables the Timeline grid in the Arrange and Edit view to be seen on Events" | Grid/snap exists (`uiStore.snap`, `uiStore.snapMode`); no on-event grid toggle | `PARTIAL` |
+| #      | FSP8 option                                 | Default    | FSP8 behaviour                                                                                                                                                                                                                                                                                                                                      | MotionLab                                                                                                                                   | Gap                   |
+| ------ | ------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| AX-E1  | **Enable Crosshair Cursor for Tools**       | engaged    | "a large, white, vertical-and-horizontal crosshair in the Arrange view that aids in displaying the exact position of the various mouse tools"                                                                                                                                                                                                       | Absent. `uiStore.tool: ArrangeTool` exists; no crosshair. Grepped `crosshair` — no hits                                                     | `MISSING`             |
+| AX-E2  | **Locate When Clicked in Empty Space**      | disengaged | "allows the timeline cursor to be located based on clicking in empty space or clicking where there are no Events"                                                                                                                                                                                                                                   | Not exposed as an option; arrangement click behaviour is fixed                                                                              | `MISSING`             |
+| AX-E3  | **Expand Layers After Recording Takes**     | engaged    | with _Record Takes To Layers_, "the layers of each recording take are shown as soon as recording stops"                                                                                                                                                                                                                                             | Take lanes exist (`src/components/arrangement/TakeLanes.tsx`); no expand-after-record preference                                            | `PARTIAL`             |
+| AX-E4  | **Track/Channel names follow active Layer** | disengaged | "the name of the active Layer is displayed instead of the track name in the Track Header and corresponding Channel"                                                                                                                                                                                                                                 | Absent                                                                                                                                      | `MISSING`             |
+| AX-E5  | **Apply Folder Track Color to Content**     | disengaged | "causes all content contained in a Folder Track to be color-coded with the same color you choose for the Folder Track"                                                                                                                                                                                                                              | Folder tracks exist (`TrackType` includes `folder`, plus `Track.folderId` and `Track.folded`); no colour propagation option                 | `MISSING`             |
+| AX-E6  | **Colorize Track Controls**                 | disengaged | default state shows the track colour "in a small area in its controls"; engaged colours the whole control area                                                                                                                                                                                                                                      | Fixed appearance; no toggle                                                                                                                 | `MISSING`             |
+| AX-E7  | **Auto-colorize Tracks and Layers**         | engaged    | "applies to importing files, when tracks are created without using the 'Add Tracks' dialog"                                                                                                                                                                                                                                                         | Templates assign colours (`TemplateTrack.color`); imports pick from `TRACK_COLORS`. Behaviour present, not optional                         | `PARTIAL`             |
+| AX-E8  | **Show Channel Numbers in Tracks**          | disengaged | Tracks and Channels are numbered independently and can disagree; this marks each Track with its Channel number                                                                                                                                                                                                                                      | MotionLab has no separate channel numbering — one track is one channel                                                                      | `DIVERGENT-BY-DESIGN` |
+| AX-E9  | **No Overlap When Editing Events**          | disengaged | "moving or pasting an Event over another Event deletes whatever is buried beneath, so there is no overlapping data (only the audio crossfades are preserved)"; a range including data outside an Event is treated as part of the Event and overwrites the identical range at the destination. Depends on _Cut long notes at part end_ for note data | Absent as an option                                                                                                                         | `MISSING`             |
+| AX-E10 | **Show Event Names**                        | not stated | name labels inside each Event; "purely an aesthetic difference and does not change any functions"                                                                                                                                                                                                                                                   | Clip names always drawn (`ClipView.tsx`); no toggle                                                                                         | `PARTIAL`             |
+| AX-E11 | **Show Envelopes on Instrument Parts**      | not stated | "overlays a graphic representation of controller activity (volume, sustain, etc.)"; disengage to display only notes                                                                                                                                                                                                                                 | Absent                                                                                                                                      | `MISSING`             |
+| AX-E12 | **Show Chords on Events**                   | not stated | "adds an overlay to Audio Events in the Arrangement showing detected chords. This requires the track height to be set to Small or higher"                                                                                                                                                                                                           | Chord track exists (`ProjectData.chords`, `showChords` lane, default **false**) but no per-event chord overlay and no audio chord detection | `PARTIAL`             |
+| AX-E13 | **Show Grid on Events**                     | disengaged | "enables the Timeline grid in the Arrange and Edit view to be seen on Events"                                                                                                                                                                                                                                                                       | Grid/snap exists (`uiStore.snap`, `uiStore.snapMode`); no on-event grid toggle                                                              | `PARTIAL`             |
 
 ## 13.2 Advanced ▸ **Automation** tab
 
-| # | FSP8 option | Default | FSP8 behaviour | MotionLab | Gap |
-|---|---|---|---|---|---|
-| AX-A1 | **Automation Follows Events** | engaged | "automation envelopes lock to Events so that moving an Event with automation 'under' it also moves the automation" | Automation lanes exist (`Track.automation: AutomationLane[]`, `src/model/automation.ts`); no follow-events option found | `MISSING` |
-| AX-A2 | **Disable Events Under Automation Envelopes** | engaged | "makes Events unavailable to the mouse tools while viewing an automation envelope, which helps prevent you from unintentionally editing underlying Events" | Absent; `uiStore.autoSel` selects automation points but events remain live | `MISSING` |
-| AX-A3 | **Automatically Create Automation Tracks for Channels** | disabled | "automatically adds an automation Track for every new FX Channel, Bus, or VCA Channel that you create in the Console" | Absent. All three channel types exist (`fx`, `bus`, `vca`) | `MISSING` |
-| AX-A4 | **Automatically Add Envelopes for all Touched Parameters** | enabled | "adds an automation envelope for any automation-friendly parameter when you touch its control" | Partially: `Track.automationMode` is `read` (default) / `touch` / `latch` / `off`, documented as "read (default) applies lanes; touch/latch also record control moves; off ignores lanes". Lane *creation* on touch is the part not confirmed | `PARTIAL` |
-| AX-A5 | **Reduction Level** | not stated (must be **0%** for MPE fidelity) | "control the density of new automation data as it is written. This helps reduce the CPU load during playback… **this setting has no effect on existing automation envelopes**" | Absent. Grepped `reductionLevel|thinning|decimate` — no hits | `MISSING` |
-| AX-A6 | **Default Envelopes for new Audio Tracks** | not stated | selectors to "enable or disable **Volume**, **Pan**, and **Mute**" envelope creation per new track | Absent | `MISSING` |
+| #     | FSP8 option                                                | Default                                      | FSP8 behaviour                                                                                                                                                                 | MotionLab                                                                                                                                                                                                                                     | Gap       |
+| ----- | ---------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| AX-A1 | **Automation Follows Events**                              | engaged                                      | "automation envelopes lock to Events so that moving an Event with automation 'under' it also moves the automation"                                                             | Automation lanes exist (`Track.automation: AutomationLane[]`, `src/model/automation.ts`); no follow-events option found                                                                                                                       | `MISSING` |
+| AX-A2 | **Disable Events Under Automation Envelopes**              | engaged                                      | "makes Events unavailable to the mouse tools while viewing an automation envelope, which helps prevent you from unintentionally editing underlying Events"                     | Absent; `uiStore.autoSel` selects automation points but events remain live                                                                                                                                                                    | `MISSING` |
+| AX-A3 | **Automatically Create Automation Tracks for Channels**    | disabled                                     | "automatically adds an automation Track for every new FX Channel, Bus, or VCA Channel that you create in the Console"                                                          | Absent. All three channel types exist (`fx`, `bus`, `vca`)                                                                                                                                                                                    | `MISSING` |
+| AX-A4 | **Automatically Add Envelopes for all Touched Parameters** | enabled                                      | "adds an automation envelope for any automation-friendly parameter when you touch its control"                                                                                 | Partially: `Track.automationMode` is `read` (default) / `touch` / `latch` / `off`, documented as "read (default) applies lanes; touch/latch also record control moves; off ignores lanes". Lane _creation_ on touch is the part not confirmed | `PARTIAL` |
+| AX-A5 | **Reduction Level**                                        | not stated (must be **0%** for MPE fidelity) | "control the density of new automation data as it is written. This helps reduce the CPU load during playback… **this setting has no effect on existing automation envelopes**" | Absent. Grepped `reductionLevel                                                                                                                                                                                                               | thinning  | decimate` — no hits | `MISSING` |
+| AX-A6 | **Default Envelopes for new Audio Tracks**                 | not stated                                   | selectors to "enable or disable **Volume**, **Pan**, and **Mute**" envelope creation per new track                                                                             | Absent                                                                                                                                                                                                                                        | `MISSING` |
 
 ## 13.3 Advanced ▸ **Audio** tab
 
-| # | FSP8 option | Default | FSP8 behaviour | MotionLab | Gap |
-|---|---|---|---|---|---|
-| AX-U1 | **Enable "Play Overlaps" for New Audio Tracks** | disengaged | enables *Play Overlaps* automatically on every newly created audio track | Absent as a default-setter | `MISSING` |
-| AX-U2 | **Enable "Layers Follow Events for New Tracks"** | engaged | new tracks default to layer audio following the Event above when moved; "When disabled, moving an Event with one or more Layers beneath it detaches that Event from the layers below, making it a permanent part of the primary Layer". Also per-track via the Inspector | Absent | `MISSING` |
-| AX-U3 | **Use Cache for Timestretched Audio Files** | engaged | caches stretched renders | **Present, unconditional**: `src/audio/stretchCache.ts`, cleared on project open (`clearStretchCache()` in `src/app/projectActions.ts`). No toggle | `PARTIAL` |
-| AX-U4 | **Record Tempo Information to Audio Files** | engaged | "enables tempo tagging for any audio file recorded… The Session tempo at the time position of the recording is saved with the file, so that automatic timestretching can be accomplished. If another application has issues reading audio files from Fender Studio Pro, try disabling this option" | Absent. Recorded takes are Opus/AAC blobs with no tempo tag | `MISSING` |
-| AX-U5 | **Use Dithering for Playback and Audio File Export** | engaged | "triangular dithering is applied when the audio signal's bit depth is reduced from a higher bit depth by a device or during file export. Turn this off if you would like to use a third-party dithering solution" | **Present for export, and richer**: `ExportSettings.dither` is `none` / `tpdf` / `shaped`, default **`tpdf`** (`src/app/exportActions.ts:96`), implemented in `src/audio/encode/dither.ts`, disabled in the UI at 32-bit with the hint "Not needed at 32-bit". No playback-path dither (the graph is float32 to the device) | `PARITY` for export; playback dither `DIVERGENT-BY-DESIGN` |
-| AX-U6 | **Use Realtime Processing to Update Mastering Files** | not stated | "ensures that real-time processing is used when the mastering file for a given Session is automatically updated. This is necessary when Sessions utilize certain devices, such as External Instruments, that require a real-time mixdown" | N/A — no external instruments, and offline bounce parity is a protected invariant (`CLAUDE.md`, "What NOT to refactor": `src/audio/exportMix.ts` and the realtime engine build through the same `InsertChain`) | `DIVERGENT-BY-DESIGN` |
-| AX-U7 | **Pre-record Audio Input** | not stated | "creates a buffer of a length you can specify, which records continuously, even when the transport is stopped… Once recording concludes, the number of seconds of audio you've specified are available before the point at which recording started." Reveal by "pulling the Event-start handle to the left". Data is collected in the Input Channels "as long as physical inputs are connected". On re-record to the same Track, "the Pre-Record data is limited to the last recording's end, so that data is not repeated and a seamless join between the two recordings is possible" | Absent for audio. Grepped `preRecord|pre-record` — no hits (note `ProjectData.preRoll` is a different thing: bars of transport roll before the punch point). **MIDI has an equivalent in the reference only** — see AX-M5 | `MISSING` |
-| AX-U8 | **Record Offset** (samples) | not stated | "input a value, **in samples**, by which any recorded audio should be offset in the arrangement, thereby compensating for device/driver latency" | Absent. Grepped `recordOffset|record offset` — no hits. **This is the manual latency-compensation escape hatch and MotionLab has none**, while also having no automatic compensation and no latency readout (AD-6) | `MISSING` — **P0** |
-| AX-U9 | **Ignore Audio Device Timestamps** (Windows only) | engaged | "uses the system clock by default because some ASIO drivers have incorrect timestamps. This setting can be disengaged, but if you experience erratic behavior such as a jumping playback cursor, re-enable this setting" | N/A — the `AudioContext` clock is the only clock | `DIVERGENT-BY-DESIGN` |
+| #     | FSP8 option                                           | Default    | FSP8 behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | MotionLab                                                                                                                                                                                                                                                                                                                   | Gap                                                                                                                                                                                  |
+| ----- | ----------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| AX-U1 | **Enable "Play Overlaps" for New Audio Tracks**       | disengaged | enables _Play Overlaps_ automatically on every newly created audio track                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Absent as a default-setter                                                                                                                                                                                                                                                                                                  | `MISSING`                                                                                                                                                                            |
+| AX-U2 | **Enable "Layers Follow Events for New Tracks"**      | engaged    | new tracks default to layer audio following the Event above when moved; "When disabled, moving an Event with one or more Layers beneath it detaches that Event from the layers below, making it a permanent part of the primary Layer". Also per-track via the Inspector                                                                                                                                                                                                                                                                                                               | Absent                                                                                                                                                                                                                                                                                                                      | `MISSING`                                                                                                                                                                            |
+| AX-U3 | **Use Cache for Timestretched Audio Files**           | engaged    | caches stretched renders                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | **Present, unconditional**: `src/audio/stretchCache.ts`, cleared on project open (`clearStretchCache()` in `src/app/projectActions.ts`). No toggle                                                                                                                                                                          | `PARTIAL`                                                                                                                                                                            |
+| AX-U4 | **Record Tempo Information to Audio Files**           | engaged    | "enables tempo tagging for any audio file recorded… The Session tempo at the time position of the recording is saved with the file, so that automatic timestretching can be accomplished. If another application has issues reading audio files from Fender Studio Pro, try disabling this option"                                                                                                                                                                                                                                                                                     | Absent. Recorded takes are Opus/AAC blobs with no tempo tag                                                                                                                                                                                                                                                                 | `MISSING`                                                                                                                                                                            |
+| AX-U5 | **Use Dithering for Playback and Audio File Export**  | engaged    | "triangular dithering is applied when the audio signal's bit depth is reduced from a higher bit depth by a device or during file export. Turn this off if you would like to use a third-party dithering solution"                                                                                                                                                                                                                                                                                                                                                                      | **Present for export, and richer**: `ExportSettings.dither` is `none` / `tpdf` / `shaped`, default **`tpdf`** (`src/app/exportActions.ts:96`), implemented in `src/audio/encode/dither.ts`, disabled in the UI at 32-bit with the hint "Not needed at 32-bit". No playback-path dither (the graph is float32 to the device) | `PARITY` for export; playback dither `DIVERGENT-BY-DESIGN`                                                                                                                           |
+| AX-U6 | **Use Realtime Processing to Update Mastering Files** | not stated | "ensures that real-time processing is used when the mastering file for a given Session is automatically updated. This is necessary when Sessions utilize certain devices, such as External Instruments, that require a real-time mixdown"                                                                                                                                                                                                                                                                                                                                              | N/A — no external instruments, and offline bounce parity is a protected invariant (`CLAUDE.md`, "What NOT to refactor": `src/audio/exportMix.ts` and the realtime engine build through the same `InsertChain`)                                                                                                              | `DIVERGENT-BY-DESIGN`                                                                                                                                                                |
+| AX-U7 | **Pre-record Audio Input**                            | not stated | "creates a buffer of a length you can specify, which records continuously, even when the transport is stopped… Once recording concludes, the number of seconds of audio you've specified are available before the point at which recording started." Reveal by "pulling the Event-start handle to the left". Data is collected in the Input Channels "as long as physical inputs are connected". On re-record to the same Track, "the Pre-Record data is limited to the last recording's end, so that data is not repeated and a seamless join between the two recordings is possible" | Absent for audio. Grepped `preRecord                                                                                                                                                                                                                                                                                        | pre-record`— no hits (note`ProjectData.preRoll` is a different thing: bars of transport roll before the punch point). **MIDI has an equivalent in the reference only** — see AX-M5   | `MISSING`          |
+| AX-U8 | **Record Offset** (samples)                           | not stated | "input a value, **in samples**, by which any recorded audio should be offset in the arrangement, thereby compensating for device/driver latency"                                                                                                                                                                                                                                                                                                                                                                                                                                       | Absent. Grepped `recordOffset                                                                                                                                                                                                                                                                                               | record offset` — no hits. **This is the manual latency-compensation escape hatch and MotionLab has none**, while also having no automatic compensation and no latency readout (AD-6) | `MISSING` — **P0** |
+| AX-U9 | **Ignore Audio Device Timestamps** (Windows only)     | engaged    | "uses the system clock by default because some ASIO drivers have incorrect timestamps. This setting can be disengaged, but if you experience erratic behavior such as a jumping playback cursor, re-enable this setting"                                                                                                                                                                                                                                                                                                                                                               | N/A — the `AudioContext` clock is the only clock                                                                                                                                                                                                                                                                            | `DIVERGENT-BY-DESIGN`                                                                                                                                                                |
 
 ## 13.4 Advanced ▸ **MIDI** tab
 
-| # | FSP8 option | Default | FSP8 behaviour | MotionLab | Gap |
-|---|---|---|---|---|---|
-| AX-M1 | **Timecode Follows Loop** | engaged | "allows MIDI Timecode to remain in sync when Loop is active… With this disengaged, MIDI Timecode continues to run linearly (counting up) while the transport is looping" | N/A — no MTC | `DIVERGENT-BY-DESIGN` |
-| AX-M2 | **Reveal Precount Notes** | disengaged | "Engage this option to retain any MIDI notes played during the count-in when Precount is enabled. This can be helpful when playing in parts that start just before the downbeat" | Absent. Count-in exists (see §14) but notes played during it are not retained. Grepped `precount` — no hits | `MISSING` |
-| AX-M3 | **Chase Long Notes** | engaged | "if playback starts after a note start, the note is played as though its start time were at the position at which playback started. For instance, if a synth pad note starts at bar 1 and lasts through bar 8, and playback is started at bar 4, the note plays from bar 4… With this option disengaged… the note would not play at all" | Behaviour not confirmed as an option. `src/audio/heldNotes.ts` and `src/audio/notePipeline.ts` manage held notes; no chase toggle | `PARTIAL` |
-| AX-M4 | **Cut Long Notes at Part End** | not engaged | "notes are cut at the end of a Part where it would otherwise extend beyond the Part end. This effectively places the note-off at the Part End." Also the precondition for AX-E9's note handling | Absent as an option | `MISSING` |
-| AX-M5 | **Enable Retrospective Recording** | engaged | "all incoming MIDI data is captured for each Track, even when not recording. This buffer can be recalled and placed at the desired location." Full behaviour in *Fundamentals* (extract 2054–2090): an independent buffer **per Track**, active when a Track is record-armed or monitored; with the transport **playing** events are stored at the correct Session location with Input Quantize applied, with the transport **stopped** they are stored relative to each other; "the buffer does not combine" the two modes — "As soon as an event is received in one mode, the other mode will always delete the contents of the buffer." Recall via **[Shift]+[NumPad*]**, right-click the Track control area → "Recall Retrospective Recording", or the Inspector button; recalled events use the standard recording options (Replace, Takes to Layers, etc.) and the key command is rebindable | Absent. `src/audio/midiRecorder.ts` records only during an armed take | `MISSING` |
-| AX-M6 | **Record Offset** (milliseconds) | not stated | "input a value, **in milliseconds**, by which any recorded musical performance should be offset in the arrangement, thereby compensating for device/driver latency" | Absent | `MISSING` |
+| #     | FSP8 option                        | Default     | FSP8 behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | MotionLab                                                                                                                         | Gap                   |
+| ----- | ---------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| AX-M1 | **Timecode Follows Loop**          | engaged     | "allows MIDI Timecode to remain in sync when Loop is active… With this disengaged, MIDI Timecode continues to run linearly (counting up) while the transport is looping"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | N/A — no MTC                                                                                                                      | `DIVERGENT-BY-DESIGN` |
+| AX-M2 | **Reveal Precount Notes**          | disengaged  | "Engage this option to retain any MIDI notes played during the count-in when Precount is enabled. This can be helpful when playing in parts that start just before the downbeat"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Absent. Count-in exists (see §14) but notes played during it are not retained. Grepped `precount` — no hits                       | `MISSING`             |
+| AX-M3 | **Chase Long Notes**               | engaged     | "if playback starts after a note start, the note is played as though its start time were at the position at which playback started. For instance, if a synth pad note starts at bar 1 and lasts through bar 8, and playback is started at bar 4, the note plays from bar 4… With this option disengaged… the note would not play at all"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Behaviour not confirmed as an option. `src/audio/heldNotes.ts` and `src/audio/notePipeline.ts` manage held notes; no chase toggle | `PARTIAL`             |
+| AX-M4 | **Cut Long Notes at Part End**     | not engaged | "notes are cut at the end of a Part where it would otherwise extend beyond the Part end. This effectively places the note-off at the Part End." Also the precondition for AX-E9's note handling                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Absent as an option                                                                                                               | `MISSING`             |
+| AX-M5 | **Enable Retrospective Recording** | engaged     | "all incoming MIDI data is captured for each Track, even when not recording. This buffer can be recalled and placed at the desired location." Full behaviour in _Fundamentals_ (extract 2054–2090): an independent buffer **per Track**, active when a Track is record-armed or monitored; with the transport **playing** events are stored at the correct Session location with Input Quantize applied, with the transport **stopped** they are stored relative to each other; "the buffer does not combine" the two modes — "As soon as an event is received in one mode, the other mode will always delete the contents of the buffer." Recall via *_[Shift]+[NumPad_]**, right-click the Track control area → "Recall Retrospective Recording", or the Inspector button; recalled events use the standard recording options (Replace, Takes to Layers, etc.) and the key command is rebindable | Absent. `src/audio/midiRecorder.ts` records only during an armed take                                                             | `MISSING`             |
+| AX-M6 | **Record Offset** (milliseconds)   | not stated  | "input a value, **in milliseconds**, by which any recorded musical performance should be offset in the arrangement, thereby compensating for device/driver latency"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Absent                                                                                                                            | `MISSING`             |
 
 ## 13.5 Advanced ▸ **Console** tab
 
-| # | FSP8 option | Default | FSP8 behaviour | MotionLab | Gap |
-|---|---|---|---|---|---|
-| AX-C1 | **Enable Undo** | not stated | "allow undo for changes in the Console, such as fader moves and channel mutes" | Undo covers mixer changes; not optional. `Prefs.confirmDestructive` (default **true**) is a different guard, hinted "Clip edits are not asked about — undo covers those" | `PARTIAL` |
-| AX-C2 | **Colorize Channel Strips** | not stated | "apply channel color coding to full channel strips… Normally the color only shows on the channel labels" | Fixed. `ChannelStrip.tsx` uses `track.color`; no toggle | `MISSING` |
-| AX-C3 | **Colorize Plug-in Header** | not stated | "apply channel color coding to the open editor window of a plug-in. This is handy when the same plug-in is being used for several Console Channels" | Absent; `PluginWindow.tsx` / `PluginFace.tsx` do not tint by channel | `MISSING` |
-| AX-C4 | **Auto-expand Selected Channel** | not stated | "Double-click the first Channel to expand it, and when the next Channel is selected… The currently selected channel auto-expands, and the previously selected channel collapses. If you hold [Alt]/[Option] and click the second Channel, the previous Channel does not collapse" | `uiStore.channelOverview` toggles an overview; no auto-expand-on-select | `MISSING` |
-| AX-C5 | **Automatically create buses for multi-out instruments** | enabled | "an Instrument Bus is created automatically when [multi-out] instruments are inserted to a Session" | N/A — no multi-out instruments; the drum rack sums to one channel | `DIVERGENT-BY-DESIGN` |
-| AX-C6 | **Fader Mode** | not stated | mouse behaviour for channel faders: **Touch** = "require clicking on the fader handle itself before dragging"; **Jump** = "allow clicking anywhere on the travel of the fader to set its position" | Fixed behaviour in `src/components/common/widgets.tsx`; no mode preference | `MISSING` |
-| AX-C7 | **Plug-In Menu** | not stated | style of local plug-in menus in Console, Inspector and Channel Editor: **Basic** = "a simplified list of Plug-Ins sorted by folder (including custom user folders)"; **Advanced** = "an expanded browser-style view with search and sort options". "Changing this option changes the appearance of all local Plug-In menus throughout the Console" | One menu style | `MISSING` |
-| AX-C8 | **Audio Input follows Selection** | not stated | "automatically engage Record and Monitor mode for any Audio Track you select" | Absent; arm and monitor are explicit per track | `MISSING` |
-| AX-C9 | **Instrument Input follows Selection** | not stated | same for Instrument Tracks | Absent — **but the routing fallback is equivalent in spirit**: `midiTargetTrackIds()` falls back to the *selected* track when nothing is armed (`src/audio/midi.ts:60–64`), so selecting an instrument track makes it playable without arming it | `PARTIAL` |
-| AX-C10 | **Solo Follows Selection** | not stated | "once a track is soloed, selecting a different track causes the newly selected track to be soloed. When… disabled, tracks stay soloed until solo is disengaged" | Absent (behaviour is the disabled case). Note `Track.soloSafe` exists — "never silenced by another track's solo (reverb returns, talkback)" | `MISSING` |
-| AX-C11 | **Channel Editor follows Selection** | engaged | "causes currently viewable channel devices, such as virtual effects or instruments, to automatically switch when a Channel is selected. This ensures you are only viewing the devices related to the selected Channel" | Behaviour is present and unconditional — `uiStore.openDevice` and the inspector follow `selectedTrackId` | `PARTIAL` (right behaviour, no toggle) |
-| AX-C12 | **Audio Track Monitoring Follows Record** | not stated | monitoring enables automatically when record is enabled on an audio track | Absent — `armed` and `monitoring` are independent booleans on `Track` and independent buttons in `TrackInputControls` | `MISSING` |
-| AX-C13 | **Instrument Track Monitoring Follows Record** | not stated | same for instrument tracks | Absent (instrument tracks always sound when targeted) | `PARTIAL` |
-| AX-C14 | **Audio Track Monitoring Mutes Playback (Tape Style)** | not stated | "mutes playback of any pre-existing audio on Audio Tracks that have monitoring enabled" | Absent | `MISSING` |
-| AX-C15 | **Cue Mix Mute Follows Channel** | not stated | "mute all other tracks within a Cue Mix when a channel in that mix is soloed. Disable this option to cause other channels in the Cue Mix to continue playing when a channel within that mix is soloed." Consequence when disabled: "Cue Mix sends are not available in buses and FX channels. In this state, Cue Mix sends on channels are routed directly to the Cue Mix output" | Related but not equivalent: `CueMix.ignoreSolo: boolean` (`src/model/types.ts:385`), commented "a cue is a monitor path: solo on the main mix should not silence it". That is the *disabled* case, made per-cue rather than global | `PARTIAL` |
+| #      | FSP8 option                                              | Default    | FSP8 behaviour                                                                                                                                                                                                                                                                                                                                                                    | MotionLab                                                                                                                                                                                                                                        | Gap                                    |
+| ------ | -------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
+| AX-C1  | **Enable Undo**                                          | not stated | "allow undo for changes in the Console, such as fader moves and channel mutes"                                                                                                                                                                                                                                                                                                    | Undo covers mixer changes; not optional. `Prefs.confirmDestructive` (default **true**) is a different guard, hinted "Clip edits are not asked about — undo covers those"                                                                         | `PARTIAL`                              |
+| AX-C2  | **Colorize Channel Strips**                              | not stated | "apply channel color coding to full channel strips… Normally the color only shows on the channel labels"                                                                                                                                                                                                                                                                          | Fixed. `ChannelStrip.tsx` uses `track.color`; no toggle                                                                                                                                                                                          | `MISSING`                              |
+| AX-C3  | **Colorize Plug-in Header**                              | not stated | "apply channel color coding to the open editor window of a plug-in. This is handy when the same plug-in is being used for several Console Channels"                                                                                                                                                                                                                               | Absent; `PluginWindow.tsx` / `PluginFace.tsx` do not tint by channel                                                                                                                                                                             | `MISSING`                              |
+| AX-C4  | **Auto-expand Selected Channel**                         | not stated | "Double-click the first Channel to expand it, and when the next Channel is selected… The currently selected channel auto-expands, and the previously selected channel collapses. If you hold [Alt]/[Option] and click the second Channel, the previous Channel does not collapse"                                                                                                 | `uiStore.channelOverview` toggles an overview; no auto-expand-on-select                                                                                                                                                                          | `MISSING`                              |
+| AX-C5  | **Automatically create buses for multi-out instruments** | enabled    | "an Instrument Bus is created automatically when [multi-out] instruments are inserted to a Session"                                                                                                                                                                                                                                                                               | N/A — no multi-out instruments; the drum rack sums to one channel                                                                                                                                                                                | `DIVERGENT-BY-DESIGN`                  |
+| AX-C6  | **Fader Mode**                                           | not stated | mouse behaviour for channel faders: **Touch** = "require clicking on the fader handle itself before dragging"; **Jump** = "allow clicking anywhere on the travel of the fader to set its position"                                                                                                                                                                                | Fixed behaviour in `src/components/common/widgets.tsx`; no mode preference                                                                                                                                                                       | `MISSING`                              |
+| AX-C7  | **Plug-In Menu**                                         | not stated | style of local plug-in menus in Console, Inspector and Channel Editor: **Basic** = "a simplified list of Plug-Ins sorted by folder (including custom user folders)"; **Advanced** = "an expanded browser-style view with search and sort options". "Changing this option changes the appearance of all local Plug-In menus throughout the Console"                                | One menu style                                                                                                                                                                                                                                   | `MISSING`                              |
+| AX-C8  | **Audio Input follows Selection**                        | not stated | "automatically engage Record and Monitor mode for any Audio Track you select"                                                                                                                                                                                                                                                                                                     | Absent; arm and monitor are explicit per track                                                                                                                                                                                                   | `MISSING`                              |
+| AX-C9  | **Instrument Input follows Selection**                   | not stated | same for Instrument Tracks                                                                                                                                                                                                                                                                                                                                                        | Absent — **but the routing fallback is equivalent in spirit**: `midiTargetTrackIds()` falls back to the _selected_ track when nothing is armed (`src/audio/midi.ts:60–64`), so selecting an instrument track makes it playable without arming it | `PARTIAL`                              |
+| AX-C10 | **Solo Follows Selection**                               | not stated | "once a track is soloed, selecting a different track causes the newly selected track to be soloed. When… disabled, tracks stay soloed until solo is disengaged"                                                                                                                                                                                                                   | Absent (behaviour is the disabled case). Note `Track.soloSafe` exists — "never silenced by another track's solo (reverb returns, talkback)"                                                                                                      | `MISSING`                              |
+| AX-C11 | **Channel Editor follows Selection**                     | engaged    | "causes currently viewable channel devices, such as virtual effects or instruments, to automatically switch when a Channel is selected. This ensures you are only viewing the devices related to the selected Channel"                                                                                                                                                            | Behaviour is present and unconditional — `uiStore.openDevice` and the inspector follow `selectedTrackId`                                                                                                                                         | `PARTIAL` (right behaviour, no toggle) |
+| AX-C12 | **Audio Track Monitoring Follows Record**                | not stated | monitoring enables automatically when record is enabled on an audio track                                                                                                                                                                                                                                                                                                         | Absent — `armed` and `monitoring` are independent booleans on `Track` and independent buttons in `TrackInputControls`                                                                                                                            | `MISSING`                              |
+| AX-C13 | **Instrument Track Monitoring Follows Record**           | not stated | same for instrument tracks                                                                                                                                                                                                                                                                                                                                                        | Absent (instrument tracks always sound when targeted)                                                                                                                                                                                            | `PARTIAL`                              |
+| AX-C14 | **Audio Track Monitoring Mutes Playback (Tape Style)**   | not stated | "mutes playback of any pre-existing audio on Audio Tracks that have monitoring enabled"                                                                                                                                                                                                                                                                                           | Absent                                                                                                                                                                                                                                           | `MISSING`                              |
+| AX-C15 | **Cue Mix Mute Follows Channel**                         | not stated | "mute all other tracks within a Cue Mix when a channel in that mix is soloed. Disable this option to cause other channels in the Cue Mix to continue playing when a channel within that mix is soloed." Consequence when disabled: "Cue Mix sends are not available in buses and FX channels. In this state, Cue Mix sends on channels are routed directly to the Cue Mix output" | Related but not equivalent: `CueMix.ignoreSolo: boolean` (`src/model/types.ts:385`), commented "a cue is a monitor path: solo on the main mix should not silence it". That is the _disabled_ case, made per-cue rather than global               | `PARTIAL`                              |
 
 ## 13.6 Advanced ▸ **Synchronization** tab
 
-| # | FSP8 option | Default | FSP8 behaviour | MotionLab | Gap |
-|---|---|---|---|---|---|
-| AX-S1 | **Sync to External Devices** | not stated | "make Fender Studio Pro follow incoming MIDI Time Code (MTC). Note that some MIDI devices only transmit MIDI clock data, not MTC. Fender Studio Pro requires a greater degree of accuracy than a simple MIDI clock can provide. For conversion from SMPTE, an outboard synchronizer is required. For additional accuracy, using an external word clock (master) is recommended" | Absent. Grepped `MTC|MIDI Time Code` — zero hits | `MISSING` |
-| AX-S2 | **MIDI Time Code** (device selector) | not stated | "Select the device that will receive MIDI Time Code (MTC). The gray field to the right of the device name indicates the current status of MTC transmission" | Absent (needs MIDI output, MD-6) | `MISSING` |
-| AX-S3 | **MIDI Machine Control** (device selector) | not stated | "Select the device that will receive MIDI Machine Control (MMC)" | Absent | `MISSING` |
-| AX-S4 | **Activate Ableton Link** | off | "synchronizes musical beat, tempo, and phase across multiple applications running on one or more devices… When starting playback from a Link peer's device (not Fender Studio Pro), tempo… is synchronized to other peers, **and the tempo track is disabled**" | Absent. Grepped `Ableton|Link peer` — zero hits | `DIVERGENT-BY-DESIGN` (the protocol is UDP multicast on the LAN; a page cannot join it) |
-| AX-S5 | **Synchronize Start/Stop** | off | "synchronize start or stop transport with other peers who also have the feature enabled. Start/stop state changes only follow user actions." Indicator: "a blue circle spinning around the On/Off button within the Transport Controls" | Absent | `DIVERGENT-BY-DESIGN` |
+| #     | FSP8 option                                | Default    | FSP8 behaviour                                                                                                                                                                                                                                                                                                                                                                  | MotionLab                        | Gap                         |
+| ----- | ------------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | --------------------------- |
+| AX-S1 | **Sync to External Devices**               | not stated | "make Fender Studio Pro follow incoming MIDI Time Code (MTC). Note that some MIDI devices only transmit MIDI clock data, not MTC. Fender Studio Pro requires a greater degree of accuracy than a simple MIDI clock can provide. For conversion from SMPTE, an outboard synchronizer is required. For additional accuracy, using an external word clock (master) is recommended" | Absent. Grepped `MTC             | MIDI Time Code` — zero hits | `MISSING`                                                                               |
+| AX-S2 | **MIDI Time Code** (device selector)       | not stated | "Select the device that will receive MIDI Time Code (MTC). The gray field to the right of the device name indicates the current status of MTC transmission"                                                                                                                                                                                                                     | Absent (needs MIDI output, MD-6) | `MISSING`                   |
+| AX-S3 | **MIDI Machine Control** (device selector) | not stated | "Select the device that will receive MIDI Machine Control (MMC)"                                                                                                                                                                                                                                                                                                                | Absent                           | `MISSING`                   |
+| AX-S4 | **Activate Ableton Link**                  | off        | "synchronizes musical beat, tempo, and phase across multiple applications running on one or more devices… When starting playback from a Link peer's device (not Fender Studio Pro), tempo… is synchronized to other peers, **and the tempo track is disabled**"                                                                                                                 | Absent. Grepped `Ableton         | Link peer` — zero hits      | `DIVERGENT-BY-DESIGN` (the protocol is UDP multicast on the LAN; a page cannot join it) |
+| AX-S5 | **Synchronize Start/Stop**                 | off        | "synchronize start or stop transport with other peers who also have the feature enabled. Start/stop state changes only follow user actions." Indicator: "a blue circle spinning around the On/Off button within the Transport Controls"                                                                                                                                         | Absent                           | `DIVERGENT-BY-DESIGN`       |
 
 ## 13.7 Advanced ▸ **Services** tab
 
-| # | FSP8 option | Default | FSP8 behaviour | MotionLab | Gap |
-|---|---|---|---|---|---|
+| #     | FSP8 option                              | Default     | FSP8 behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | MotionLab                                                                                                                                       | Gap       |
+| ----- | ---------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
 | AX-V1 | **Services** (per-module enable/disable) | all enabled | "selectively enable and disable particular services, or modules, that enable specific features. This may be helpful when troubleshooting. For instance, if an ARA plug-in seems to be causing a problem, you can disable the ARA service." Procedure: Services tab → click the confirmation button, "paying special attention to the disclaimer message" → select a service → **Disable**. "**You must restart Fender Studio Pro for these changes to take effect.**" Re-enabling is symmetric and also needs a restart | Absent. The nearest thing is the diagnostics command surface (`src/diagnostics/commands.ts`) which can exercise subsystems but not disable them | `MISSING` |
 
 Note the restart requirement — this and AX-V1 are the **only** settings in the
@@ -2175,10 +2182,10 @@ constraint rather than a restart).
 
 ## 13.8 Advanced ▸ **Video** tab
 
-| # | FSP8 option | Default | FSP8 behaviour | MotionLab | Gap |
-|---|---|---|---|---|---|
-| AX-W1 | **Set Session frame rate to video frame rate when importing video file** | not stated | "an especially helpful option when you want to compose a soundtrack while viewing the video" | Absent — no video support at all | `MISSING` |
-| AX-W2 | **Automatically create audio track for sound from video** | not stated | "gives you the option to edit the video audio like any other audio event in the arranger window. Otherwise, the video's audio file is restricted within the Audio Sub-Track" | Absent | `MISSING` |
+| #     | FSP8 option                                                              | Default    | FSP8 behaviour                                                                                                                                                               | MotionLab                        | Gap       |
+| ----- | ------------------------------------------------------------------------ | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | --------- |
+| AX-W1 | **Set Session frame rate to video frame rate when importing video file** | not stated | "an especially helpful option when you want to compose a soundtrack while viewing the video"                                                                                 | Absent — no video support at all | `MISSING` |
+| AX-W2 | **Automatically create audio track for sound from video**                | not stated | "gives you the option to edit the video audio like any other audio event in the arranger window. Otherwise, the video's audio file is restricted within the Audio Sub-Track" | Absent                           | `MISSING` |
 
 ---
 
@@ -2194,16 +2201,16 @@ in this chapter, so no parity claim is made for them here.
 For the record, MotionLab's metronome/count-in surface, so the next analyst does
 not re-derive it:
 
-| Item | MotionLab | Where |
-|---|---|---|
-| Metronome on/off | `ProjectData.metronome: boolean` | `src/model/types.ts:713` |
-| Click level | `ProjectData.clickLevel?: number` (linear) | `src/model/types.ts:752` |
-| Click only while recording | `ProjectData.clickRecordOnly?: boolean` | `src/model/types.ts:754` |
-| Count-in bars | `ProjectData.countIn?: number`, clamped **0–8**; UI offers Off / 1 bar / 2 bars | `setCountInBars()` / `getCountInBars()`, `src/audio/recordingController.ts:39–48`; select in `RecordControls.tsx:216–228` |
-| Pre-roll | `ProjectData.preRoll?: number` (bars before the punch point) | `src/model/types.ts` |
-| Punch region | `ProjectData.punch?: { enabled, start, end }` | `src/model/types.ts` |
-| Click scheduling | Counts the signature's **denominator**, not quarter notes — 6/8 is called out in the comment; accent on the bar line | `src/audio/scheduler.ts:94–104` |
-| Click routing | Joins **after** the master analyser, straight at `ctx.destination`, "so it is never compressed, never metered as programme, and never present in a bounce" | `src/audio/engine.ts` `buildMasterChain()` |
+| Item                       | MotionLab                                                                                                                                                  | Where                                                                                                                     |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Metronome on/off           | `ProjectData.metronome: boolean`                                                                                                                           | `src/model/types.ts:713`                                                                                                  |
+| Click level                | `ProjectData.clickLevel?: number` (linear)                                                                                                                 | `src/model/types.ts:752`                                                                                                  |
+| Click only while recording | `ProjectData.clickRecordOnly?: boolean`                                                                                                                    | `src/model/types.ts:754`                                                                                                  |
+| Count-in bars              | `ProjectData.countIn?: number`, clamped **0–8**; UI offers Off / 1 bar / 2 bars                                                                            | `setCountInBars()` / `getCountInBars()`, `src/audio/recordingController.ts:39–48`; select in `RecordControls.tsx:216–228` |
+| Pre-roll                   | `ProjectData.preRoll?: number` (bars before the punch point)                                                                                               | `src/model/types.ts`                                                                                                      |
+| Punch region               | `ProjectData.punch?: { enabled, start, end }`                                                                                                              | `src/model/types.ts`                                                                                                      |
+| Click scheduling           | Counts the signature's **denominator**, not quarter notes — 6/8 is called out in the comment; accent on the bar line                                       | `src/audio/scheduler.ts:94–104`                                                                                           |
+| Click routing              | Joins **after** the master analyser, straight at `ctx.destination`, "so it is never compressed, never metered as programme, and never present in a bounce" | `src/audio/engine.ts` `buildMasterChain()`                                                                                |
 
 One parity-relevant note from the code: `setCountInBars` carries a comment
 recording a bug of exactly the class `CLAUDE.md` warns about — the count-in was
@@ -2217,23 +2224,23 @@ Single source of truth is now the project.
 
 Ordered by consequence, not by section number.
 
-| Rank | Gap | Class | Where a fix would start |
-|---|---|---|---|
-| 1 | **No software-I/O channel layer** (IO-1 … IO-8). No named input channels, no mono/stereo channel creation, no hardware→software matrix, no `Input L+R` / `Input L` / `Input R` / `Main Out` defaults | `MISSING` | New model type (generic "Input Bus"), per-machine device binding, a setup surface. Pure software; no platform blocker |
-| 2 | **Track input is a raw browser `deviceId`** — origin-scoped, machine-specific, rotates on site-data clear; saved into the project and silently unresolvable elsewhere | `MISSING` | `Track.inputDeviceId` (`src/model/types.ts:181`) should reference a named bus, not a device |
-| 3 | **No output device selection** (AD-3) | `MISSING` | `AudioContext({ sinkId })` / `setSinkId`, feature-detected, in a device section of Preferences |
-| 4 | **No latency figure anywhere** (AD-6, AD-12) — the app cannot tell a user what latency they are tracking at | `MISSING` | `ctx.baseLatency + ctx.outputLatency`, displayed in Preferences and diagnostics |
-| 5 | **No record offset / latency compensation** (AX-U8, AX-M6) — no automatic compensation *and* no manual escape hatch | `MISSING` | Samples-or-ms offset applied at `captureWindow()` in `src/audio/recordingController.ts` |
-| 6 | **Stale saved input device is silent** (IO-14) — a project opened elsewhere shows an unmatched `<select>` value with no explanation | `PARTIAL` | `RecordControls.tsx:180–188`: detect an id absent from `devices` and render an explicit "device not present" state |
-| 7 | **Recording is lossy-compressed with no disclosure** (NS-4) — `MediaRecorder` Opus/AAC, while export offers 24-bit and 32-bit float | `DIVERGENT-BY-DESIGN`, undisclosed | Say so in the record UI; investigate an `AudioWorklet` + WAV capture path for a lossless option |
-| 8 | **Session sample rate is invisible** (NS-3) — the engine rate is browser-chosen and is never compared to the export rate | `MISSING` (disclosure) | Preferences already shows the rate; surface the mismatch at export |
-| 9 | **No I/O configuration import/export** (AD-8, IO-9), incl. the replace-vs-add distinction | `MISSING` | Follows item 1 |
-| 10 | **No MIDI output** (MD-6) — blocks MTC, MMC, MIDI clock, control-surface feedback | `MISSING` | `access.outputs` in `src/audio/midi.ts`; nothing else is needed to start |
-| 11 | **No plug-in blocklist / safe mode** (MC-8, RO-1, RO-4) — a bad WAM module has no quarantine | `MISSING` | A boot-completed flag plus a per-plug-in disable list |
-| 12 | **No retrospective MIDI recording** (AX-M5) and **no audio pre-record** (AX-U7) | `MISSING` | Both are ring buffers; the MIDI one is cheap and `src/audio/midiRecorder.ts` already sees every event |
-| 13 | **No monitoring modes** (AD-10, AD-11, AD-14) — one software path, and the per-insert latency the 3 ms rule needs is already measured by `src/audio/latencyProbe.ts` but unused | `PARTIAL` | Consume `latencySamples()` to decide what stays in the monitor path |
-| 14 | **MIDI device selection is not persisted** (MD-7) and there is no device identity (MD-11) | `PARTIAL` | `transportStore.midiSelectedId` is session-only; persist by port name, not by id |
-| 15 | **Device setup is not in Preferences** (AD-2, MD-2) — audio device is in the track inspector, MIDI is in the instrument panel | `PARTIAL` | A "Device Setup" section in `SettingsSheet.tsx`, without removing the in-context controls |
+| Rank | Gap                                                                                                                                                                                                  | Class                              | Where a fix would start                                                                                               |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 1    | **No software-I/O channel layer** (IO-1 … IO-8). No named input channels, no mono/stereo channel creation, no hardware→software matrix, no `Input L+R` / `Input L` / `Input R` / `Main Out` defaults | `MISSING`                          | New model type (generic "Input Bus"), per-machine device binding, a setup surface. Pure software; no platform blocker |
+| 2    | **Track input is a raw browser `deviceId`** — origin-scoped, machine-specific, rotates on site-data clear; saved into the project and silently unresolvable elsewhere                                | `MISSING`                          | `Track.inputDeviceId` (`src/model/types.ts:181`) should reference a named bus, not a device                           |
+| 3    | **No output device selection** (AD-3)                                                                                                                                                                | `MISSING`                          | `AudioContext({ sinkId })` / `setSinkId`, feature-detected, in a device section of Preferences                        |
+| 4    | **No latency figure anywhere** (AD-6, AD-12) — the app cannot tell a user what latency they are tracking at                                                                                          | `MISSING`                          | `ctx.baseLatency + ctx.outputLatency`, displayed in Preferences and diagnostics                                       |
+| 5    | **No record offset / latency compensation** (AX-U8, AX-M6) — no automatic compensation _and_ no manual escape hatch                                                                                  | `MISSING`                          | Samples-or-ms offset applied at `captureWindow()` in `src/audio/recordingController.ts`                               |
+| 6    | **Stale saved input device is silent** (IO-14) — a project opened elsewhere shows an unmatched `<select>` value with no explanation                                                                  | `PARTIAL`                          | `RecordControls.tsx:180–188`: detect an id absent from `devices` and render an explicit "device not present" state    |
+| 7    | **Recording is lossy-compressed with no disclosure** (NS-4) — `MediaRecorder` Opus/AAC, while export offers 24-bit and 32-bit float                                                                  | `DIVERGENT-BY-DESIGN`, undisclosed | Say so in the record UI; investigate an `AudioWorklet` + WAV capture path for a lossless option                       |
+| 8    | **Session sample rate is invisible** (NS-3) — the engine rate is browser-chosen and is never compared to the export rate                                                                             | `MISSING` (disclosure)             | Preferences already shows the rate; surface the mismatch at export                                                    |
+| 9    | **No I/O configuration import/export** (AD-8, IO-9), incl. the replace-vs-add distinction                                                                                                            | `MISSING`                          | Follows item 1                                                                                                        |
+| 10   | **No MIDI output** (MD-6) — blocks MTC, MMC, MIDI clock, control-surface feedback                                                                                                                    | `MISSING`                          | `access.outputs` in `src/audio/midi.ts`; nothing else is needed to start                                              |
+| 11   | **No plug-in blocklist / safe mode** (MC-8, RO-1, RO-4) — a bad WAM module has no quarantine                                                                                                         | `MISSING`                          | A boot-completed flag plus a per-plug-in disable list                                                                 |
+| 12   | **No retrospective MIDI recording** (AX-M5) and **no audio pre-record** (AX-U7)                                                                                                                      | `MISSING`                          | Both are ring buffers; the MIDI one is cheap and `src/audio/midiRecorder.ts` already sees every event                 |
+| 13   | **No monitoring modes** (AD-10, AD-11, AD-14) — one software path, and the per-insert latency the 3 ms rule needs is already measured by `src/audio/latencyProbe.ts` but unused                      | `PARTIAL`                          | Consume `latencySamples()` to decide what stays in the monitor path                                                   |
+| 14   | **MIDI device selection is not persisted** (MD-7) and there is no device identity (MD-11)                                                                                                            | `PARTIAL`                          | `transportStore.midiSelectedId` is session-only; persist by port name, not by id                                      |
+| 15   | **Device setup is not in Preferences** (AD-2, MD-2) — audio device is in the track inspector, MIDI is in the instrument panel                                                                        | `PARTIAL`                          | A "Device Setup" section in `SettingsSheet.tsx`, without removing the in-context controls                             |
 
 ---
 
@@ -2241,22 +2248,22 @@ Ordered by consequence, not by section number.
 
 Recorded so a remediation plan does not accidentally regress these.
 
-| Area | MotionLab behaviour |
-|---|---|
-| Input device hot-unplug (IO-14) | `devicechange` re-enumeration plus per-lease release plus per-track `ended` handling; the reference documents no audio-side equivalent |
-| Input failure messages (AD-16, IO-14) | `describeGumError()` names six distinct `DOMException` cases in plain language |
-| MIDI hot reconnect (MD-11) | Automatic on `onstatechange`; the reference needs an explicit **Reconnect** command |
-| Take recovery (RO-2) | Per-take stash during capture, scanned at boot, with Recover / Discard / Discard all; not in the reference |
-| Project backup on every save (RO-2) | Previous version retained and offered when the current copy will not parse |
-| Diagnostics report (RO-3) | ~40 enumerated fields plus a smoke test and layout report |
-| Autosave (MC-2) | Debounced 1500 ms plus three flush points plus loud failure reporting |
-| Key commands (GO-5) | Overrides-only store, steal-and-clear conflict resolution, defaults that can move between releases |
-| Interface scale (GO-3) | 0.85–1.4 continuous UI scaling; no counterpart in the reference |
-| Contrast theme and Reduce motion (GO-4) | Two accessibility affordances the reference's Appearance tab does not have |
-| Templates (IO-10, NS-1) | Starting sessions with tracks, routing, inserts, sends and arm state — richer than the reference's New Document dialog, except for I/O |
-| Insert latency measurement (AD-11) | `latencyProbe.ts` measures rather than assumes; the data a 3 ms monitoring tier needs already exists |
-| Export options (NS-4, AX-U5) | Format, bit depth incl. 32-bit float, sample rate, three dither modes, normalisation to dBTP, trim, tail, stems/tracks scope, cue-mix render |
+| Area                                    | MotionLab behaviour                                                                                                                          |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Input device hot-unplug (IO-14)         | `devicechange` re-enumeration plus per-lease release plus per-track `ended` handling; the reference documents no audio-side equivalent       |
+| Input failure messages (AD-16, IO-14)   | `describeGumError()` names six distinct `DOMException` cases in plain language                                                               |
+| MIDI hot reconnect (MD-11)              | Automatic on `onstatechange`; the reference needs an explicit **Reconnect** command                                                          |
+| Take recovery (RO-2)                    | Per-take stash during capture, scanned at boot, with Recover / Discard / Discard all; not in the reference                                   |
+| Project backup on every save (RO-2)     | Previous version retained and offered when the current copy will not parse                                                                   |
+| Diagnostics report (RO-3)               | ~40 enumerated fields plus a smoke test and layout report                                                                                    |
+| Autosave (MC-2)                         | Debounced 1500 ms plus three flush points plus loud failure reporting                                                                        |
+| Key commands (GO-5)                     | Overrides-only store, steal-and-clear conflict resolution, defaults that can move between releases                                           |
+| Interface scale (GO-3)                  | 0.85–1.4 continuous UI scaling; no counterpart in the reference                                                                              |
+| Contrast theme and Reduce motion (GO-4) | Two accessibility affordances the reference's Appearance tab does not have                                                                   |
+| Templates (IO-10, NS-1)                 | Starting sessions with tracks, routing, inserts, sends and arm state — richer than the reference's New Document dialog, except for I/O       |
+| Insert latency measurement (AD-11)      | `latencyProbe.ts` measures rather than assumes; the data a 3 ms monitoring tier needs already exists                                         |
+| Export options (NS-4, AX-U5)            | Format, bit depth incl. 32-bit float, sample rate, three dither modes, normalisation to dBTP, trim, tail, stems/tracks scope, cue-mix render |
 
 ---
 
-*End of parity analysis — Setup chapter, extract lines 719–2090, read in full.*
+_End of parity analysis — Setup chapter, extract lines 719–2090, read in full._

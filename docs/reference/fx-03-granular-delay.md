@@ -43,7 +43,7 @@ it should set the default: **4 taps.**
 
 **Ping-pong.** "Separate mono delay lines for left and right, each with its own delay time,
 each feeding the input of the other." The input enters one channel, is delayed, and goes in
-parallel to the output *and* to the opposite delay line, where it is delayed again. **[C]**
+parallel to the output _and_ to the opposite delay line, where it is delayed again. **[C]**
 
 The documented feedback-routing variants are worth enumerating because they are all
 musically distinct and cheap to offer: **a single feedback path shared by both delays;
@@ -87,12 +87,12 @@ structure with a different routing matrix:
 
 The 2×2 feedback routing matrix `M` selects the topology:
 
-| Mode | `M` | Behaviour |
-| --- | --- | --- |
-| Mono / dual | `[[1,0],[0,1]]` | Two independent lines. |
-| Ping-pong | `[[0,1],[1,0]]` | Full cross — repeats alternate sides. |
-| Blend | `[[1−c, c],[c, 1−c]]` | `c` is the Cross control, 0–100%. `c = 0.5` gives the "one feedback time for both taps" behaviour **[C]**. |
-| Mono-summed feedback | `[[.5,.5],[.5,.5]]` | Repeats collapse to centre as they decay. |
+| Mode                 | `M`                   | Behaviour                                                                                                  |
+| -------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Mono / dual          | `[[1,0],[0,1]]`       | Two independent lines.                                                                                     |
+| Ping-pong            | `[[0,1],[1,0]]`       | Full cross — repeats alternate sides.                                                                      |
+| Blend                | `[[1−c, c],[c, 1−c]]` | `c` is the Cross control, 0–100%. `c = 0.5` gives the "one feedback time for both taps" behaviour **[C]**. |
+| Mono-summed feedback | `[[.5,.5],[.5,.5]]`   | Repeats collapse to centre as they decay.                                                                  |
 
 **This matrix is also where the stability condition lives** — see §3.2. Do not implement
 ping-pong as a special case; implement `M` and let the mode selector set it.
@@ -103,7 +103,7 @@ ping-pong as a special case; implement `M` and let the mode selector set it.
 
 Every tap owns its own processing, applied in this fixed order. The order matters and is
 not user-configurable, because reversing it breaks the granular read (pitch is a property
-of how the grain is *read*, so it must precede everything).
+of how the grain is _read_, so it must precede everything).
 
 ```
     buffer ──► grain read (pitch, reverse) ──► filter ──► level ──► pan ──► wet bus
@@ -171,7 +171,7 @@ Three conditions that are routinely got wrong and each of which must be asserted
 
 **(a) Loop filter gain.** The condition for decay is `fb · max_ω |H_loop(ω)| < 1`, not
 `fb < 1`. A resonant loop filter with `Q = 4` has ~12 dB of peak gain, so `fb = 0.5` with
-that filter is *unstable*. **Normalise the loop filter to unity peak gain**, or scale `fb`
+that filter is _unstable_. **Normalise the loop filter to unity peak gain**, or scale `fb`
 by `1/max|H|`. Our SVF must therefore be run in a resonance-compensated form in the loop.
 
 **(b) The cross-feedback sum.** For the routing matrix `M = [[a,b],[b,a]]`, the eigenvalues
@@ -216,13 +216,13 @@ grains "smear out across the stereo field, overlap, and become a boiling swarm".
 
 **Our Smear control**, 0–100%, drives four things at once [I]:
 
-| Smear | Grains per tap | Position spray | Onset jitter | Grain length |
-| --- | --- | --- | --- | --- |
-| 0% | 1 | 0 | 0 | (window bypassed) |
-| 25% | 3 | ±15 ms | 10% | 120 ms |
-| 50% | 8 | ±60 ms | 35% | 80 ms |
-| 75% | 16 | ±150 ms | 60% | 55 ms |
-| 100% | 32 | ±400 ms | 100% | 35 ms |
+| Smear | Grains per tap | Position spray | Onset jitter | Grain length      |
+| ----- | -------------- | -------------- | ------------ | ----------------- |
+| 0%    | 1              | 0              | 0            | (window bypassed) |
+| 25%   | 3              | ±15 ms         | 10%          | 120 ms            |
+| 50%   | 8              | ±60 ms         | 35%          | 80 ms             |
+| 75%   | 16             | ±150 ms        | 60%          | 55 ms             |
+| 100%  | 32             | ±400 ms        | 100%         | 35 ms             |
 
 Note the direction: **as smear rises, grains get shorter and more numerous.** That is what
 takes the tap across the 50 ms fusion threshold documented in FX-02 §1.1 **[C]** — above
@@ -287,30 +287,30 @@ DIN and CCIR favour **peak-to-peak ±x%**. **[C]**
 
 Calibration anchors for our depth control:
 
-| Machine class | Weighted W&F | Audibility |
-| --- | --- | --- |
-| Professional tape machine | **0.02%** | Considered inaudible **[C]** |
-| High-end cassette deck | **0.08%** | Still audible under some conditions **[C]** |
-| Our "Clean" setting | 0.00% | — |
-| Our "Studio" setting | 0.05% | Barely there [I] |
-| Our "Vintage" setting | 0.35% | Obvious, musical [I] |
-| Our "Worn" setting | 1.5% | Seasick [I] |
+| Machine class             | Weighted W&F | Audibility                                  |
+| ------------------------- | ------------ | ------------------------------------------- |
+| Professional tape machine | **0.02%**    | Considered inaudible **[C]**                |
+| High-end cassette deck    | **0.08%**    | Still audible under some conditions **[C]** |
+| Our "Clean" setting       | 0.00%        | —                                           |
+| Our "Studio" setting      | 0.05%        | Barely there [I]                            |
+| Our "Vintage" setting     | 0.35%        | Obvious, musical [I]                        |
+| Our "Worn" setting        | 1.5%         | Seasick [I]                                 |
 
 Rates. Sources conflict, and the conflict is worth stating. A tape-emulation practitioner
 source gives **wow around 3–4 Hz and flutter around 16 Hz** **[R]**. The measurement
-literature places wow at the *slow* end of the spectrum (motor and reel rotation — typically
+literature places wow at the _slow_ end of the spectrum (motor and reel rotation — typically
 well under a few Hz) and flutter above it. I take the measurement literature as better
 documented and reconcile as follows [I]: the practitioner's "3–4 Hz for wow" is almost
 certainly chosen because **4 Hz is where the ear is most sensitive** **[C]** — it is a
 tuning-for-effect choice, not a description of a real transport. **Spec both bands and let
 the preset choose**:
 
-| Component | Rate | Waveform | Notes |
-| --- | --- | --- | --- |
-| Drift | 0.05 – 0.5 Hz | filtered noise | Slow detune; excluded from weighted measurements **[C]** but audible over long tails. |
-| Wow | 0.3 – 6 Hz | sine + noise | Default 1.2 Hz sine plus 30% band-limited noise. |
-| Flutter | 6 – 30 Hz | sine + noise | Default 16 Hz **[R]** plus noise. |
-| Scrape | 500 Hz – 3 kHz | band-passed noise | Modelled as amplitude/phase noise, not delay modulation — at these rates delay modulation would alias. Depth ≤ 0.01%. |
+| Component | Rate           | Waveform          | Notes                                                                                                                 |
+| --------- | -------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Drift     | 0.05 – 0.5 Hz  | filtered noise    | Slow detune; excluded from weighted measurements **[C]** but audible over long tails.                                 |
+| Wow       | 0.3 – 6 Hz     | sine + noise      | Default 1.2 Hz sine plus 30% band-limited noise.                                                                      |
+| Flutter   | 6 – 30 Hz      | sine + noise      | Default 16 Hz **[R]** plus noise.                                                                                     |
+| Scrape    | 500 Hz – 3 kHz | band-passed noise | Modelled as amplitude/phase noise, not delay modulation — at these rates delay modulation would alias. Depth ≤ 0.01%. |
 
 Sum the components as a fractional **speed** deviation `ε(t)`, not as a delay-time
 deviation — that distinction is the whole of §6.2.
@@ -327,17 +327,17 @@ For `y(t) = x(t − D(t))`, the instantaneous time-warp rate is `d/dt[t − D(t)
         pitch ratio  =  1 − D′(t)
 ```
 
-**[C, derived]** — a delay time that is *shrinking* (`D′ < 0`) shifts **up**; growing shifts
+**[C, derived]** — a delay time that is _shrinking_ (`D′ < 0`) shifts **up**; growing shifts
 **down**. Semitones = `12·log₂(1 − D′)`.
 
 Now the tape case, which is different and better. On a tape transport the delay is a fixed
-**distance** `L` between record and playback heads, so the delay *time* satisfies
+**distance** `L` between record and playback heads, so the delay _time_ satisfies
 
 ```
         ∫_{t−D(t)}^{t}  v(τ) dτ  =  L
 ```
 
-Differentiating with respect to `t`:  `v(t) − v(t−D)·(1 − D′(t)) = 0`, hence
+Differentiating with respect to `t`: `v(t) − v(t−D)·(1 − D′(t)) = 0`, hence
 
 ```
         1 − D′(t)  =  v(t) / v(t − D)          i.e.    pitch ratio = v(t) / v(t − D)
@@ -381,11 +381,11 @@ time-varying delay is not a linear operator **[C]**.
 
 **Delay-time change mode** is therefore a user-facing character control with three settings:
 
-| Mode | Behaviour | Implementation |
-| --- | --- | --- |
-| **Tape** | Pitch bends as the time changes; the classic sound. | Slew the target delay time (default 250 ms slew) and let §6.2 produce the pitch bend naturally. |
-| **Digital** | No pitch bend; the delay crossfades to the new time. | 20 ms equal-power crossfade between two read pointers. |
-| **Instant** | Hard jump, glitchy. | No smoothing. Documented as a glitch effect. |
+| Mode        | Behaviour                                            | Implementation                                                                                  |
+| ----------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Tape**    | Pitch bends as the time changes; the classic sound.  | Slew the target delay time (default 250 ms slew) and let §6.2 produce the pitch bend naturally. |
+| **Digital** | No pitch bend; the delay crossfades to the new time. | 20 ms equal-power crossfade between two read pointers.                                          |
+| **Instant** | Hard jump, glitchy.                                  | No smoothing. Documented as a glitch effect.                                                    |
 
 ### 6.3 Tape character
 
@@ -424,6 +424,7 @@ The physical elements worth modelling, with what the literature actually says:
   delay moves the null down and darkens the repeats.** Bandwidth is coupled to delay time.
   This is the same coupling BBDs have (§6.4) and it is the single most recognisable
   "analogue delay" behaviour.
+
 - **Tape bandwidth and alignment.** The repeats' frequency response is set by tape
   bandwidth, system filtering and head-tape alignment; **older tape has lower bandwidth and
   a warmer top end.** **[C]** Model as a one-pole lowpass in the loop with the corner tied
@@ -445,12 +446,13 @@ BBDs are analogue **sampled** delay lines, and the sampling is the character.
   1024-stage parts.** **[C]** Checking the arithmetic against those numbers:
   `4096/(2·f_clk) = 0.3 s` gives `f_clk ≈ 6.8 kHz` — so at maximum delay the **effective
   sample rate is under 7 kHz and the Nyquist limit is about 3.4 kHz.** [C, computed]
+
 - **Aliasing and the filters.** BBDs "sample the incoming signal at audio rates, which
   causes audible aliasing unless the input is sufficiently bandlimited; nearly all
   bucket-brigade circuits are preceded and followed by low-pass filters", and the rule of
   thumb given is that **the lowpass cutoff should be about 1/3 of the lowest clock speed.**
   **[C]** At 6.8 kHz clock that is a **2.3 kHz** lowpass — which is exactly why long analogue
-  delays sound so dark, and it is a *derived* number, not a taste decision.
+  delays sound so dark, and it is a _derived_ number, not a taste decision.
 - **The bandwidth/delay-time coupling.** "The bandwidth of charge-transfer delay lines is
   proportional to the clock frequency; bandwidth is reduced as the clock frequency is
   reduced." **[C]** So, as with tape: **longer delay ⇒ darker repeats**, and the
@@ -461,7 +463,7 @@ BBDs are analogue **sampled** delay lines, and the sampling is the character.
 - **Companding.** "Compander circuits typically accompany BBDs to prevent overloading and
   reduce noise, allowing a wider dynamic range at the cost of altering the signal's
   dynamics"; the common parts are **NE570, NE571, SA571.** **[C]** Model as a 2:1
-  compressor before the line and a 1:2 expander after, with matched but *not identical*
+  compressor before the line and a 1:2 expander after, with matched but _not identical_
   time constants — the mismatch is what produces the characteristic **breathing on the noise
   floor and transient overshoot** before the compressor settles. Model the noise floor
   explicitly (the compander exists to hide it) at around **−72 dBFS** shaped by the output
@@ -484,42 +486,42 @@ All ranges are our spec [I] unless a source is cited.
 
 ### 7.1 Global
 
-| Control | Range | Unit | Taper | Default | Interactions |
-| --- | --- | --- | --- | --- | --- |
-| Mix | 0–100 | % | linear (equal-power > 50) | 30 | 0% must null exactly (V1). |
-| Topology | {Dual, Ping-pong, Blend, Mono-fb} | enum | — | Dual | Sets matrix `M` (§1.2). |
-| Cross | 0–100 | % | linear | 50 in Blend | `c` in `M`; 50% gives one shared feedback time **[C]**. |
-| Tap count | 1–8 | — | — | **4** | 3–4 is the tape-head-emulating value **[C]**. |
-| Sync | on/off | — | — | on | Selects division vs ms per tap. |
-| Feedback | 0–130 | % | linear | 35 | > 100% is safe **only** with the saturator floored (§3.2). |
-| Feedback source | {Tap N, Longest tap, Dedicated} | enum | — | Dedicated | "Longest tap" matches a documented variant **[C]**. |
-| Loop LP | 200–20000 | Hz | log | 6000 | Must be unity-peak-gain normalised (§3.2a). |
-| Loop HP | 20–2000 | Hz | log | 90 | |
-| Drive | 0–100 | % → tanh drive 1–12 | linear | 20 | Floored when Feedback > 100%. |
-| Character | {Clean, Tape, BBD} | enum | — | Clean | Selects §6 block. |
-| Time-change mode | {Tape, Digital, Instant} | enum | — | Digital | §6.2. |
-| Smear | 0–100 | % | linear | 0 | §4. **0 must null against a plain delay (V2).** |
-| Ducking | 0–100 | % | linear | 0 | Input-triggered gain reduction on the wet bus. |
-| Width | 0–200 | % | linear | 100 | Wet bus M/S. |
-| Output trim | −24 … +24 | dB | linear in dB | 0 | |
-| Quality | {Eco, Normal, High} | enum | — | Normal | §9.3. |
+| Control          | Range                             | Unit                | Taper                     | Default     | Interactions                                               |
+| ---------------- | --------------------------------- | ------------------- | ------------------------- | ----------- | ---------------------------------------------------------- |
+| Mix              | 0–100                             | %                   | linear (equal-power > 50) | 30          | 0% must null exactly (V1).                                 |
+| Topology         | {Dual, Ping-pong, Blend, Mono-fb} | enum                | —                         | Dual        | Sets matrix `M` (§1.2).                                    |
+| Cross            | 0–100                             | %                   | linear                    | 50 in Blend | `c` in `M`; 50% gives one shared feedback time **[C]**.    |
+| Tap count        | 1–8                               | —                   | —                         | **4**       | 3–4 is the tape-head-emulating value **[C]**.              |
+| Sync             | on/off                            | —                   | —                         | on          | Selects division vs ms per tap.                            |
+| Feedback         | 0–130                             | %                   | linear                    | 35          | > 100% is safe **only** with the saturator floored (§3.2). |
+| Feedback source  | {Tap N, Longest tap, Dedicated}   | enum                | —                         | Dedicated   | "Longest tap" matches a documented variant **[C]**.        |
+| Loop LP          | 200–20000                         | Hz                  | log                       | 6000        | Must be unity-peak-gain normalised (§3.2a).                |
+| Loop HP          | 20–2000                           | Hz                  | log                       | 90          |                                                            |
+| Drive            | 0–100                             | % → tanh drive 1–12 | linear                    | 20          | Floored when Feedback > 100%.                              |
+| Character        | {Clean, Tape, BBD}                | enum                | —                         | Clean       | Selects §6 block.                                          |
+| Time-change mode | {Tape, Digital, Instant}          | enum                | —                         | Digital     | §6.2.                                                      |
+| Smear            | 0–100                             | %                   | linear                    | 0           | §4. **0 must null against a plain delay (V2).**            |
+| Ducking          | 0–100                             | %                   | linear                    | 0           | Input-triggered gain reduction on the wet bus.             |
+| Width            | 0–200                             | %                   | linear                    | 100         | Wet bus M/S.                                               |
+| Output trim      | −24 … +24                         | dB                  | linear in dB              | 0           |                                                            |
+| Quality          | {Eco, Normal, High}               | enum                | —                         | Normal      | §9.3.                                                      |
 
 ### 7.2 Per tap (×N)
 
-| Control | Range | Unit | Taper | Default | Interactions |
-| --- | --- | --- | --- | --- | --- |
-| Time (free) | 1–8000 | ms | log | — | Clamped to buffer length (§9.2). |
-| Division | 1/64 … 8/1 | note | discrete | 1/8 | ×1 / ×1.5 / ×⅔ modifier. §5. |
-| Ratio (relative mode) | ×0.25 … ×8 | — | discrete | ×n | Head-spacing presets in §5. |
-| Level | −∞ … +6 | dB | dB, −∞ at 0 | 0 | Does **not** set feedback (§3.2c). |
-| Pan | −100 … +100 | % | linear | spread | Equal-power. |
-| Pitch | −24 … +24 | semitones | discrete | 0 | Octaves/4ths/5ths are the musical set **[C]**. |
-| Fine | −50 … +50 | cents | linear | 0 | |
-| Filter type | {Off, LP, HP, BP} | enum | — | Off | 12 dB/oct SVF. |
-| Filter cutoff | 20–20000 | Hz | log | 20000 | |
-| Filter Q | 0.5–8 | — | log | 0.707 | Per-tap only; not in the loop, so no stability constraint. |
-| Reverse | on/off | — | — | off | Forces grain length ≥ 30 ms (§2). |
-| Mute / Solo | — | — | — | — | Crossfade 4 ms. |
+| Control               | Range             | Unit      | Taper       | Default | Interactions                                               |
+| --------------------- | ----------------- | --------- | ----------- | ------- | ---------------------------------------------------------- |
+| Time (free)           | 1–8000            | ms        | log         | —       | Clamped to buffer length (§9.2).                           |
+| Division              | 1/64 … 8/1        | note      | discrete    | 1/8     | ×1 / ×1.5 / ×⅔ modifier. §5.                               |
+| Ratio (relative mode) | ×0.25 … ×8        | —         | discrete    | ×n      | Head-spacing presets in §5.                                |
+| Level                 | −∞ … +6           | dB        | dB, −∞ at 0 | 0       | Does **not** set feedback (§3.2c).                         |
+| Pan                   | −100 … +100       | %         | linear      | spread  | Equal-power.                                               |
+| Pitch                 | −24 … +24         | semitones | discrete    | 0       | Octaves/4ths/5ths are the musical set **[C]**.             |
+| Fine                  | −50 … +50         | cents     | linear      | 0       |                                                            |
+| Filter type           | {Off, LP, HP, BP} | enum      | —           | Off     | 12 dB/oct SVF.                                             |
+| Filter cutoff         | 20–20000          | Hz        | log         | 20000   |                                                            |
+| Filter Q              | 0.5–8             | —         | log         | 0.707   | Per-tap only; not in the loop, so no stability constraint. |
+| Reverse               | on/off            | —         | —           | off     | Forces grain length ≥ 30 ms (§2).                          |
+| Mute / Solo           | —                 | —         | —           | —       | Crossfade 4 ms.                                            |
 
 ---
 
@@ -534,7 +536,7 @@ All ranges are our spec [I] unless a source is cited.
    repeats have a slight "swell" on the noise floor after a transient.
 5. **Clock whine** at long BBD delays (§6.4).
 6. **Self-oscillation that sits at a level** rather than exploding (§3.2), which is a
-   *feature* and the reason feedback goes past 100%.
+   _feature_ and the reason feedback goes past 100%.
 7. **Difference tones under modulation.** A time-varying delay is non-linear, so non-periodic
    input produces difference tones even with perfectly smooth time changes. **[C]** Do not
    try to remove these; they are the sound.
@@ -550,26 +552,26 @@ core per instance**.
 
 Per sample, stereo, `T` taps, `G` grains per tap:
 
-| Item | Flops |
-| --- | --- |
-| Buffer write ×2 | 4 |
+| Item                                                                           | Flops          |
+| ------------------------------------------------------------------------------ | -------------- |
+| Buffer write ×2                                                                | 4              |
 | Per grain: read advance + cubic Hermite + window + pan-accumulate (FX-02 §7.1) | **24 × T × G** |
-| Per tap: SVF filter ×2 ch | 30 × T |
-| Wow/flutter transport recursion (§6.2) | 12 |
-| Feedback chain: DC block, loop LP, loop HP, tanh, matrix, ×fb (×2 ch) | 60 |
-| Character block — Tape (sigmoid + gap-loss LPF + shelf) ×2 | 40 |
-| Character block — BBD (2 LPFs + compander + expander + noise) ×2 | 110 |
-| Mix, width, trim | 14 |
+| Per tap: SVF filter ×2 ch                                                      | 30 × T         |
+| Wow/flutter transport recursion (§6.2)                                         | 12             |
+| Feedback chain: DC block, loop LP, loop HP, tanh, matrix, ×fb (×2 ch)          | 60             |
+| Character block — Tape (sigmoid + gap-loss LPF + shelf) ×2                     | 40             |
+| Character block — BBD (2 LPFs + compander + expander + noise) ×2               | 110            |
+| Mix, width, trim                                                               | 14             |
 
 Worked cases:
 
-| Setting | `T` | `G` | flops/sample | Mflop/s @48k | ×12 |
-| --- | --- | --- | --- | --- | --- |
-| Clean, 4 taps, Smear 0 | 4 | 1 | 306 | 14.7 | 176 Mflop/s |
-| **Default: Tape, 4 taps, Smear 0** | 4 | 1 | 346 | 16.6 | **199 Mflop/s** |
-| BBD, 4 taps, Smear 0 | 4 | 1 | 416 | 20.0 | 240 Mflop/s |
-| Tape, 4 taps, Smear 50% | 4 | 8 | 1 042 | 50.0 | 600 Mflop/s |
-| Tape, 8 taps, Smear 100% | 8 | 32 | 6 550 | 314 | **3.8 Gflop/s** |
+| Setting                            | `T` | `G` | flops/sample | Mflop/s @48k | ×12             |
+| ---------------------------------- | --- | --- | ------------ | ------------ | --------------- |
+| Clean, 4 taps, Smear 0             | 4   | 1   | 306          | 14.7         | 176 Mflop/s     |
+| **Default: Tape, 4 taps, Smear 0** | 4   | 1   | 346          | 16.6         | **199 Mflop/s** |
+| BBD, 4 taps, Smear 0               | 4   | 1   | 416          | 20.0         | 240 Mflop/s     |
+| Tape, 4 taps, Smear 50%            | 4   | 8   | 1 042        | 50.0         | 600 Mflop/s     |
+| Tape, 8 taps, Smear 100%           | 8   | 32  | 6 550        | 314          | **3.8 Gflop/s** |
 
 The last row is out of budget on a phone. As in FX-02, the fix is the Quality tier, and the
 cap must be applied by **reducing `G`, never by dropping grains mid-flight**.
@@ -586,12 +588,12 @@ Allocate to the **configured** maximum, not the theoretical one — a user with 
 slapback should not pay for 8 seconds. Reallocate off the audio thread on a tempo or time
 change, with the old buffer kept alive until the crossfade completes.
 
-| Case | Stereo float32 |
-| --- | --- |
-| 0.5 s minimum | 192 KB |
-| 2 s typical | 768 KB |
-| 8 s maximum | **3.07 MB** |
-| 12 instances at 2 s | 9.2 MB |
+| Case                | Stereo float32                              |
+| ------------------- | ------------------------------------------- |
+| 0.5 s minimum       | 192 KB                                      |
+| 2 s typical         | 768 KB                                      |
+| 8 s maximum         | **3.07 MB**                                 |
+| 12 instances at 2 s | 9.2 MB                                      |
 | 12 instances at 8 s | **37 MB** — allowed but flagged to the host |
 
 Plus per instance: grain pool 256 × 64 B = 16 KB; per-tap filter state < 1 KB; speed-history
@@ -601,32 +603,32 @@ decimation is lossless here). Window tables are shared with FX-02.
 
 ### 9.3 Quality tiers
 
-| Tier | Interpolation | Max `T × G` | Tape model | BBD model |
-| --- | --- | --- | --- | --- |
-| Eco | linear (static taps), Hermite (modulated) | 8 | static sigmoid | filters + compander, no clock whine |
-| Normal | cubic Hermite | 32 | static sigmoid | full |
-| High | cubic Hermite + anti-alias on pitched reads | 128 | hysteresis model | full + oversampled compander |
+| Tier   | Interpolation                               | Max `T × G` | Tape model       | BBD model                           |
+| ------ | ------------------------------------------- | ----------- | ---------------- | ----------------------------------- |
+| Eco    | linear (static taps), Hermite (modulated)   | 8           | static sigmoid   | filters + compander, no clock whine |
+| Normal | cubic Hermite                               | 32          | static sigmoid   | full                                |
+| High   | cubic Hermite + anti-alias on pitched reads | 128         | hysteresis model | full + oversampled compander        |
 
 ### 9.4 Verification — measurements QA must run
 
-| ID | Measurement | Method | Target | Tolerance |
-| --- | --- | --- | --- | --- |
-| V1 | **Dry null.** Mix = 0%. | Null against input, 60 s pink noise + drums. | ≤ **−140 dBFS** residual. | None. |
-| V2 | **Smear-zero null.** Smear = 0, Character = Clean, Feedback = 0, 1 tap at 500 ms, Time-change = Digital. | Null against a reference plain interpolated delay at the same time. | ≤ **−140 dBFS** residual. | None. This proves the granular path collapses exactly to a plain tap (§4). |
-| V3 | **Delay-time accuracy.** Each division from 1/64 to 8/1, each modifier, at 60/120/174 BPM. | Impulse in, measure the sample index of the peak. | **0 samples** error. | ±1 sample (fractional-interpolation peak location only). |
-| V4 | **Feedback stability sweep.** Feedback 0→130% in 1% steps, all topologies, Cross 0→100%, loop filter Q at max, 60 s each with programme then silence. | Peak and RMS of the loop signal. | With `fb ≤ 100%`: RMS decays after input stops. With `fb > 100%`: RMS converges to a **bounded** value and peak stays **≤ −0.1 dBFS**. **No NaN or inf ever.** | None. Tests §3.2 (a) and (b). Explicitly include self-fb 0.8 + cross-fb 0.8 as a named case. |
-| V5 | **DC accumulation.** +0.5 DC in, Feedback 95%, 120 s. | Output DC. | ≤ **−80 dBFS**. | +3 dB. |
-| V6 | **Smear level and decay independence.** Fixed Feedback 60%; sweep Smear 0→100%. | Wet-bus RMS on steady pink noise; and RT60 of the repeat train. | RMS varies ≤ **1.0 dB**; repeat-train decay time varies ≤ **5%**. | As stated. Failure = FX-02 §1.3 normalisation missing or outside the loop. |
-| V7 | **Click on delay-time change.** Time-change mode = Digital; step the delay time between every pair of divisions, 500 times, over a 1 kHz sine. | Per-sample first difference; flag any sample exceeding the un-modulated sine's max `\|Δy\|` by > 12 dB. | **Zero flagged samples.** | Zero. |
-| V8 | **Pitch bend on time change.** Time-change mode = Tape; ramp delay from 500 ms to 250 ms over 1 s, with a 1 kHz sine. | Track the instantaneous output frequency. | Matches `1000 · (1 − D′(t))` (§6.2). | **±2 cents.** |
-| V9 | **Wow/flutter depth calibration.** Character = Tape, each depth preset. | 3.15 kHz test tone **[C]**; demodulate the instantaneous frequency; apply the **CCIR/IEC 386 weighting (4 Hz peak, 6 dB/oct skirts)** **[C]**; report WRMS %. | Measured WRMS within **±15%** of the preset's nominal (0.05 / 0.35 / 1.5%). | ±15%. Reporting in the standard unit is what makes this comparable to real machines. |
-| V10 | **Wow-depth vs delay time.** Wow at 1 Hz, fixed depth; sweep delay time 0.1 s → 2.0 s. | Measure pitch-deviation amplitude at each. | Follows **`2a·sin(πfD)`** — nulls at `D = 1.0 s` and `2.0 s`, maximum at `D = 0.5 s` and `1.5 s`. | ±10% of the predicted curve. This is the test that the transport model (§6.2) was implemented and not a delay-time LFO. |
-| V11 | **BBD bandwidth coupling.** Character = BBD, Stages = 4096; delay 50 ms, 150 ms, 300 ms. | Measure the −3 dB point of the wet path. | Tracks `f_clk/3` where `f_clk = N/(2D)` — i.e. ≈ 13.7 kHz, 4.6 kHz, **2.3 kHz**. | ±15%. |
-| V12 | **BBD alias floor.** Character = BBD, 300 ms, 5 kHz sine at −6 dBFS. | FFT the wet path. | Alias products ≤ **−60 dBFS**. | +3 dB. The input filter must be doing its job before the sampled line. |
-| V13 | **Ping-pong symmetry.** Ping-pong topology, mono input, Cross 100%. | Compare L and R repeat trains. | Repeats alternate exactly; L at odd taps and R at even taps match to **≤ 0.1 dB** and **0 samples**. | As stated. |
-| V14 | **Grain accounting.** As FX-02 V8, per tap. | Count spawned / rendered / dropped over 60 s at Smear = 25/50/75/100%. | Spawn rate within **±1%** of predicted; **dropped = 0**. | 1%; zero drops. |
-| V15 | **CPU linearity in `T×G`.** Profile at `T×G` = 4, 8, 16, 32, 64, 128. | Per-block time. | Linear fit, **R² ≥ 0.98**. | As stated. |
-| V16 | **Allocation on the audio thread.** Run a 10-minute session automating every control including tap count, division, tempo and Character. | Instrument `malloc`/`free` on the audio thread. | **Zero** allocations. | Zero. |
+| ID  | Measurement                                                                                                                                           | Method                                                                                                                                                        | Target                                                                                                                                                         | Tolerance                                                                                                               |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| V1  | **Dry null.** Mix = 0%.                                                                                                                               | Null against input, 60 s pink noise + drums.                                                                                                                  | ≤ **−140 dBFS** residual.                                                                                                                                      | None.                                                                                                                   |
+| V2  | **Smear-zero null.** Smear = 0, Character = Clean, Feedback = 0, 1 tap at 500 ms, Time-change = Digital.                                              | Null against a reference plain interpolated delay at the same time.                                                                                           | ≤ **−140 dBFS** residual.                                                                                                                                      | None. This proves the granular path collapses exactly to a plain tap (§4).                                              |
+| V3  | **Delay-time accuracy.** Each division from 1/64 to 8/1, each modifier, at 60/120/174 BPM.                                                            | Impulse in, measure the sample index of the peak.                                                                                                             | **0 samples** error.                                                                                                                                           | ±1 sample (fractional-interpolation peak location only).                                                                |
+| V4  | **Feedback stability sweep.** Feedback 0→130% in 1% steps, all topologies, Cross 0→100%, loop filter Q at max, 60 s each with programme then silence. | Peak and RMS of the loop signal.                                                                                                                              | With `fb ≤ 100%`: RMS decays after input stops. With `fb > 100%`: RMS converges to a **bounded** value and peak stays **≤ −0.1 dBFS**. **No NaN or inf ever.** | None. Tests §3.2 (a) and (b). Explicitly include self-fb 0.8 + cross-fb 0.8 as a named case.                            |
+| V5  | **DC accumulation.** +0.5 DC in, Feedback 95%, 120 s.                                                                                                 | Output DC.                                                                                                                                                    | ≤ **−80 dBFS**.                                                                                                                                                | +3 dB.                                                                                                                  |
+| V6  | **Smear level and decay independence.** Fixed Feedback 60%; sweep Smear 0→100%.                                                                       | Wet-bus RMS on steady pink noise; and RT60 of the repeat train.                                                                                               | RMS varies ≤ **1.0 dB**; repeat-train decay time varies ≤ **5%**.                                                                                              | As stated. Failure = FX-02 §1.3 normalisation missing or outside the loop.                                              |
+| V7  | **Click on delay-time change.** Time-change mode = Digital; step the delay time between every pair of divisions, 500 times, over a 1 kHz sine.        | Per-sample first difference; flag any sample exceeding the un-modulated sine's max `\|Δy\|` by > 12 dB.                                                       | **Zero flagged samples.**                                                                                                                                      | Zero.                                                                                                                   |
+| V8  | **Pitch bend on time change.** Time-change mode = Tape; ramp delay from 500 ms to 250 ms over 1 s, with a 1 kHz sine.                                 | Track the instantaneous output frequency.                                                                                                                     | Matches `1000 · (1 − D′(t))` (§6.2).                                                                                                                           | **±2 cents.**                                                                                                           |
+| V9  | **Wow/flutter depth calibration.** Character = Tape, each depth preset.                                                                               | 3.15 kHz test tone **[C]**; demodulate the instantaneous frequency; apply the **CCIR/IEC 386 weighting (4 Hz peak, 6 dB/oct skirts)** **[C]**; report WRMS %. | Measured WRMS within **±15%** of the preset's nominal (0.05 / 0.35 / 1.5%).                                                                                    | ±15%. Reporting in the standard unit is what makes this comparable to real machines.                                    |
+| V10 | **Wow-depth vs delay time.** Wow at 1 Hz, fixed depth; sweep delay time 0.1 s → 2.0 s.                                                                | Measure pitch-deviation amplitude at each.                                                                                                                    | Follows **`2a·sin(πfD)`** — nulls at `D = 1.0 s` and `2.0 s`, maximum at `D = 0.5 s` and `1.5 s`.                                                              | ±10% of the predicted curve. This is the test that the transport model (§6.2) was implemented and not a delay-time LFO. |
+| V11 | **BBD bandwidth coupling.** Character = BBD, Stages = 4096; delay 50 ms, 150 ms, 300 ms.                                                              | Measure the −3 dB point of the wet path.                                                                                                                      | Tracks `f_clk/3` where `f_clk = N/(2D)` — i.e. ≈ 13.7 kHz, 4.6 kHz, **2.3 kHz**.                                                                               | ±15%.                                                                                                                   |
+| V12 | **BBD alias floor.** Character = BBD, 300 ms, 5 kHz sine at −6 dBFS.                                                                                  | FFT the wet path.                                                                                                                                             | Alias products ≤ **−60 dBFS**.                                                                                                                                 | +3 dB. The input filter must be doing its job before the sampled line.                                                  |
+| V13 | **Ping-pong symmetry.** Ping-pong topology, mono input, Cross 100%.                                                                                   | Compare L and R repeat trains.                                                                                                                                | Repeats alternate exactly; L at odd taps and R at even taps match to **≤ 0.1 dB** and **0 samples**.                                                           | As stated.                                                                                                              |
+| V14 | **Grain accounting.** As FX-02 V8, per tap.                                                                                                           | Count spawned / rendered / dropped over 60 s at Smear = 25/50/75/100%.                                                                                        | Spawn rate within **±1%** of predicted; **dropped = 0**.                                                                                                       | 1%; zero drops.                                                                                                         |
+| V15 | **CPU linearity in `T×G`.** Profile at `T×G` = 4, 8, 16, 32, 64, 128.                                                                                 | Per-block time.                                                                                                                                               | Linear fit, **R² ≥ 0.98**.                                                                                                                                     | As stated.                                                                                                              |
+| V16 | **Allocation on the audio thread.** Run a 10-minute session automating every control including tap count, division, tempo and Character.              | Instrument `malloc`/`free` on the audio thread.                                                                                                               | **Zero** allocations.                                                                                                                                          | Zero.                                                                                                                   |
 
 ---
 
@@ -644,10 +646,10 @@ Delay topology and behaviour:
 
 Delay-line interpolation and time-varying delay:
 
-- [Julius O. Smith, *Physical Audio Signal Processing* — Delay-Line and Signal Interpolation](https://www.dsprelated.com/freebooks/pasp/Delay_Line_Signal_Interpolation.html)
-- [Miller Puckette, *Theory and Technique of Electronic Music* — Variable and fractional shifts](https://msp.ucsd.edu/techniques/v0.11/book-html/node113.html) — artefacts of varying delay time, non-linearity, difference tones
+- [Julius O. Smith, _Physical Audio Signal Processing_ — Delay-Line and Signal Interpolation](https://www.dsprelated.com/freebooks/pasp/Delay_Line_Signal_Interpolation.html)
+- [Miller Puckette, _Theory and Technique of Electronic Music_ — Variable and fractional shifts](https://msp.ucsd.edu/techniques/v0.11/book-html/node113.html) — artefacts of varying delay time, non-linearity, difference tones
 - [Miller Puckette — Pitch shifting](https://msp.ucsd.edu/techniques/latest/book-html/node115.html)
-- [*Fractionally addressed delay lines* (IEEE TSAP)](https://www.researchgate.net/publication/3333741_Fractionally_addressed_delay_lines)
+- [_Fractionally addressed delay lines_ (IEEE TSAP)](https://www.researchgate.net/publication/3333741_Fractionally_addressed_delay_lines)
 - [New Music USA — Delays, Feedback, and Filters](https://newmusicusa.org/nmbx/delays-feedback-and-filters-a-trifecta/) — the Doppler-like pitch shift of interpolating delays
 
 Wow, flutter and measurement:
@@ -660,7 +662,7 @@ Wow, flutter and measurement:
 
 Tape:
 
-- [Chowdhury et al., *Real-time Physical Modelling for Analog Tape Machines*, DAFx-2019 (PDF)](https://ccrma.stanford.edu/~jatin/420/tape/TapeModel_DAFx.pdf) — the physical-model reference; hysteresis, head geometry
+- [Chowdhury et al., _Real-time Physical Modelling for Analog Tape Machines_, DAFx-2019 (PDF)](https://ccrma.stanford.edu/~jatin/420/tape/TapeModel_DAFx.pdf) — the physical-model reference; hysteresis, head geometry
 - [KVR — Tape emulation explained?](https://www.kvraudio.com/forum/viewtopic.php?t=499395) — bias 40–150 kHz, bias raising reduces headroom and repeat level; sigmoid/double-sigmoid saturation; hysteresis and particle quantisation; finite head size filtering dependent on speed; per-generation saturation accumulation
 - [Tonalux — Why Tape Saturation Is Not Waveshaping](https://tonalux.org/blog/tape-saturation-hysteresis-magnetic-memory) — history dependence [R]
 - [Strymon dTape technology white paper](https://www.strymon.net/strymon-dtape-technology-white-paper/) [R]
@@ -668,8 +670,8 @@ Tape:
 
 BBD:
 
-- [Raffel & Smith, *Practical Modeling of Bucket-Brigade Device Circuits*, DAFx-10 (PDF)](https://dafx10.iem.at/proceedings/papers/RaffelSmith_DAFx10_P42.pdf) — the modelling reference; companding, pre/post lowpass, aliasing
-- [Holters & Parker, *A Combined Model for a Bucket Brigade Device and Its Input and Output Filters*, DAFx-2018 (PDF)](https://www.hsu-hh.de/ant/wp-content/uploads/sites/699/2018/09/Holters-Parker-2018-A-Combined-Model-for-a-Bucket-Brigade-Device-and-its-Input-and-Output-Filters.pdf)
+- [Raffel & Smith, _Practical Modeling of Bucket-Brigade Device Circuits_, DAFx-10 (PDF)](https://dafx10.iem.at/proceedings/papers/RaffelSmith_DAFx10_P42.pdf) — the modelling reference; companding, pre/post lowpass, aliasing
+- [Holters & Parker, _A Combined Model for a Bucket Brigade Device and Its Input and Output Filters_, DAFx-2018 (PDF)](https://www.hsu-hh.de/ant/wp-content/uploads/sites/699/2018/09/Holters-Parker-2018-A-Combined-Model-for-a-Bucket-Brigade-Device-and-its-Input-and-Output-Filters.pdf)
 - [EffDub Audio — How BBDs Work in Analog Delay Pedals](https://effdubaudio.com/how-bbds-work/) — MN3005 = 4096 stages ≈ 300 ms; MN3007/MN3205/MN3207; NE570/571/SA571 companders; lowpass at 1/3 of the lowest clock; bandwidth proportional to clock frequency
 - [General Guitar Gadgets — PT-80 technical info (PDF)](https://generalguitargadgets.com/wp-content/uploads/pt80techinfo.pdf) — pre/post filtering practice
 
@@ -691,7 +693,7 @@ BBD:
    The 2:1 / 1:2 ratios are standard for those parts but are **[U]** as stated here.
 4. **BBD noise-floor level and clock-feedthrough level.** My −72 dBFS and −78 dBFS are
    engineering placeholders [I], not measurements.
-5. **Whether `fb` above 100% is safe with the *hysteresis* tape model.** §3.2's fixed-point
+5. **Whether `fb` above 100% is safe with the _hysteresis_ tape model.** §3.2's fixed-point
    argument assumes a memoryless compressive nonlinearity. A hysteresis model has memory and
    the fixed-point argument does not straightforwardly apply. **Until someone proves
    otherwise, cap `fb` at 100% when the High-quality hysteresis tape model is active.** [I]

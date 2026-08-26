@@ -64,7 +64,15 @@ function loadProcessor(): Harness {
     _mw_shaper_set_curve: (band: number, _ptr: number, count: number) =>
       applied.push({ kind: 'curve', band, count }),
   };
-  for (const name of ['prepare', 'set_param', 'input', 'output', 'process', 'visual', 'set_bypass']) {
+  for (const name of [
+    'prepare',
+    'set_param',
+    'input',
+    'output',
+    'process',
+    'visual',
+    'set_bypass',
+  ]) {
     core[`_mw_shaper_${name}`] =
       name === 'set_param'
         ? (id: number, value: number) => applied.push({ kind: 'param', id, value })
@@ -82,9 +90,8 @@ function loadProcessor(): Harness {
     readonly port = port;
   }
 
-  let registered: (new (options: {
-    processorOptions: Record<string, unknown>;
-  }) => unknown) | null = null;
+  let registered: (new (options: { processorOptions: Record<string, unknown> }) => unknown) | null =
+    null;
 
   const scope = {
     AudioWorkletProcessor: StubProcessor,
@@ -125,7 +132,14 @@ describe('a processor takes commands from the moment it exists', () => {
 
   it('applies a curve written before the core resolved', async () => {
     const worklet = loadProcessor();
-    worklet.post({ kind: 'curve', band: 1, nodes: [[0, 1, 0, 0], [0.5, 0, 0, 0]] });
+    worklet.post({
+      kind: 'curve',
+      band: 1,
+      nodes: [
+        [0, 1, 0, 0],
+        [0.5, 0, 0, 0],
+      ],
+    });
     expect(worklet.applied, 'a curve reached a core that does not exist yet').toEqual([]);
 
     await worklet.resolveCore();

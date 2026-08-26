@@ -80,6 +80,7 @@ and is reached by driving the INPUT control harder.
 ## 3. Controls
 
 ### 3.1 INPUT
+
 Continuous rotary attenuator ahead of the gain-reduction stage. Because the threshold is internal and
 fixed, INPUT is functionally the threshold control: turning it up pushes more of the signal above the
 fixed threshold and produces more gain reduction. It also sets how hard the FET and the preamp are
@@ -87,15 +88,17 @@ driven, so it is simultaneously the drive control for the unit's nonlinearity. D
 whatever produces no gain reduction on the intended source.
 
 ### 3.2 OUTPUT
+
 Continuous rotary attenuator after the gain-reduction stage, before the output amplifier. Make-up
 gain. Outside the detector loop, so it does not change the amount of gain reduction.
 
 **Interaction:** INPUT and OUTPUT together set both the compression depth and the drive on the output
 stage and output transformer. Two settings that produce the same gain reduction and the same output
-level do *not* produce the same distortion, because the split of gain between the two stages differs.
+level do _not_ produce the same distortion, because the split of gain between the two stages differs.
 This is the unit's most-used "trick" after the four-button mode, and the model must reproduce it.
 
 ### 3.3 RATIO buttons — 4:1, 8:1, 12:1, 20:1
+
 Four interlocked pushbuttons. Nominally exclusive: pressing one releases the others. Default 4:1.
 
 Each button changes two things at once, and this is the fact implementers most often miss:
@@ -108,26 +111,27 @@ Each button changes two things at once, and this is the fact implementers most o
    span as the target and the absolute values as provisional.
 
 The consequence, which QA must check for, is counter-intuitive: **switching from 4:1 to 20:1 at a
-fixed INPUT setting usually produces *less* gain reduction on the meter**, not more, because the
+fixed INPUT setting usually produces _less_ gain reduction on the meter**, not more, because the
 threshold rose faster than the ratio steepened. A model in which higher ratios always give more gain
 reduction is wrong.
 
 The knee also changes with the button: harder at high ratios, softer at low ones.
 
 ### 3.4 ALL BUTTONS IN
+
 Mechanically possible because the interlock can be defeated by pressing several buttons together. It
 is not a documented mode; it is an out-of-specification state, and the model should treat it as one.
 
 What is established about it:
 
-* **The ratio lands somewhere between 12:1 and 20:1** and is described consistently as an unstable,
+- **The ratio lands somewhere between 12:1 and 20:1** and is described consistently as an unstable,
   non-monotonic curve rather than a straight line — "more like a severe plateau" than a slope.
-* **The bias points change throughout the circuit**, not just in the ratio network, because several
+- **The bias points change throughout the circuit**, not just in the ratio network, because several
   ratio resistors are placed in parallel rather than one being selected.
-* **The attack and release times change**, and specifically there is a **lag on the attack of initial
+- **The attack and release times change**, and specifically there is a **lag on the attack of initial
   transients**, described in the trade press as behaving like a "reverse look-ahead": the first part
   of a transient gets through before the gain reduction arrives.
-* **Distortion increases substantially**, and this is a direct consequence of the attack lag: the FET
+- **Distortion increases substantially**, and this is a direct consequence of the attack lag: the FET
   is being asked to move a long way, quickly, from a shifted operating point.
 
 **Implementer rule.** Do not model this as "ratio = 16:1". Model it as a distinct state in which
@@ -141,6 +145,7 @@ published figure. **Unknown.** Start at 3–8 ms and tune by ear against publish
 flag the value as untested.
 
 ### 3.5 ATTACK
+
 Continuous rotary, panel scale 1 to 7. **Reversed relative to modern convention: fully clockwise is
 the fastest attack, fully counter-clockwise the slowest.** Published range: **20 µs (fastest, fully
 clockwise) to 800 µs (slowest, fully counter-clockwise)**. Default: mid-travel.
@@ -152,10 +157,12 @@ colour without its dynamics — and Motion Wave should expose it, because otherw
 the amplifier's character without compression.
 
 ### 3.6 RELEASE
+
 Continuous rotary, panel scale 1 to 7, same reversed sense: clockwise is faster. Published range:
 **50 ms (fastest) to 1100 ms (slowest)**. Default: mid-travel.
 
 ### 3.7 METER selector
+
 Pushbuttons: **GR**, **+4**, **+8**, and **OFF**. In GR the meter reads gain reduction in dB and rests
 at 0 dB with no signal or no compression. In +4 or +8 it reads output level, with 0 VU corresponding
 to +4 dBm or +8 dBm at the rear-panel output. OFF also powers the unit down — the unit is on whenever
@@ -163,13 +170,14 @@ any button other than OFF is selected. That coupling is a quirk of the hardware;
 keep the metering choices and drop the power coupling.
 
 ### 3.8 Internal trims — Q BIAS and DIST TRIM
+
 Not user controls on the hardware, but both are directly relevant to the model's nonlinearity.
 
-* **Q BIAS** sets the FET's starting point at the beginning of its conducting range. The documented
+- **Q BIAS** sets the FET's starting point at the beginning of its conducting range. The documented
   calibration procedure is to pass a signal at unity with the unit not limiting and adjust the trimmer
   until the output drops by 1 dB — i.e. the FET is biased just into conduction, at the very edge of
   gain reduction.
-* **DIST TRIM** is adjusted with a roughly 1 kHz signal at unity gain for minimum distortion, i.e. it
+- **DIST TRIM** is adjusted with a roughly 1 kHz signal at unity gain for minimum distortion, i.e. it
   nulls the FET's own distortion at one operating point. It cannot null it everywhere.
 
 **Implementer rule:** these two trims are why two units of the same revision sound different, and why
@@ -179,10 +187,10 @@ correctly calibrated unit.
 
 ## 4. Time constants
 
-| Control | Fastest (fully CW) | Slowest (fully CCW) | Law |
-|---|---|---|---|
-| ATTACK | 20 µs | 800 µs | continuous, scale 1–7, **unknown** taper |
-| RELEASE | 50 ms | 1100 ms | continuous, scale 1–7, **unknown** taper |
+| Control | Fastest (fully CW) | Slowest (fully CCW) | Law                                      |
+| ------- | ------------------ | ------------------- | ---------------------------------------- |
+| ATTACK  | 20 µs              | 800 µs              | continuous, scale 1–7, **unknown** taper |
+| RELEASE | 50 ms              | 1100 ms             | continuous, scale 1–7, **unknown** taper |
 
 Neither taper is published. **Marked as inference:** a logarithmic mapping from the 1–7 scale to the
 published endpoints is the reasonable default (20 µs × (40)^((7-p)/6) for attack, 50 ms ×
@@ -192,7 +200,7 @@ published endpoints is the reasonable default (20 µs × (40)^((7-p)/6) for atta
 arrives through the loop rather than through a dual-slope element as in DYN-02. Two rules an
 implementer can code:
 
-1. Because the detector sees the *compressed* output, the control signal shrinks as gain reduction
+1. Because the detector sees the _compressed_ output, the control signal shrinks as gain reduction
    deepens, so the effective attack slows and the effective ratio softens as reduction increases. Do
    not compensate for this; it is the character.
 2. Because the timing network's charge state persists between events, closely spaced transients hold
@@ -200,7 +208,7 @@ implementer can code:
    not as an envelope-follower reset per transient.
 
 The 20 µs attack is faster than one period of any audio frequency below 50 kHz. **This is the origin
-of the unit's low-frequency behaviour:** at the fastest attack settings the detector tracks *within*
+of the unit's low-frequency behaviour:** at the fastest attack settings the detector tracks _within_
 the cycle of a bass note, so the gain is modulated at the signal frequency and the result is
 harmonic distortion generated by the detector itself, not by any amplifier stage. The effect grows as
 frequency falls and as attack is made faster. QA test 9 exists to confirm it is present.
@@ -209,13 +217,13 @@ frequency falls and as attack is made faster. QA test 9 exists to confirm it is 
 
 There is no user-facing filter. The relevant "filter" behaviour is:
 
-* **The sidechain has no high-pass filter** in the original design, which is why low-frequency energy
+- **The sidechain has no high-pass filter** in the original design, which is why low-frequency energy
   dominates the detector and why the unit ducks on bass content. Motion Wave may offer a sidechain
   high-pass as a clearly-labelled modern addition; it must default to off.
-* **The compression curve is soft-kneed at 4:1 and progressively harder toward 20:1.** No published
+- **The compression curve is soft-kneed at 4:1 and progressively harder toward 20:1.** No published
   knee-width figures were found; **unknown**. Model the knee as emerging from the ratio network rather
   than as a separate parameter.
-* **The static curve above threshold is not straight**, because the FET's transfer characteristic is
+- **The static curve above threshold is not straight**, because the FET's transfer characteristic is
   not linear in dB. Departure from an ideal compressor is greatest at high gain reduction and at high
   ratios.
 
@@ -230,7 +238,7 @@ There is no user-facing filter. The relevant "filter" behaviour is:
    itself, the channel resistance varies within each cycle, producing **gain compression on one
    polarity and gain expansion on the other**. That asymmetry generates **second-order harmonic
    distortion**. This is the technically important statement in the whole sheet: the FET's distortion
-   is *asymmetric*, so the unit's harmonic signature is second-harmonic-led, and it rises with gain
+   is _asymmetric_, so the unit's harmonic signature is second-harmonic-led, and it rises with gain
    reduction because deeper reduction moves the FET further along its curve. DIST TRIM nulls it at
    one point only.
 3. **The 1108-type preamp**, bipolar with a Darlington input pair. Contributes at high drive.
@@ -248,32 +256,32 @@ There is no user-facing filter. The relevant "filter" behaviour is:
 
 ## 7. Character artefacts a user notices
 
-* **Transients are caught and held.** At 20 µs nothing gets past the detector except by the deliberate
+- **Transients are caught and held.** At 20 µs nothing gets past the detector except by the deliberate
   lag of the four-button state.
-* **Low-frequency distortion that increases as attack is made faster**, from detector ripple.
-* **Second-harmonic-led grit that grows with gain reduction**, from the FET.
-* **Audible pumping at slow release with dense material**, because the timing network is a single
+- **Low-frequency distortion that increases as attack is made faster**, from detector ripple.
+- **Second-harmonic-led grit that grows with gain reduction**, from the FET.
+- **Audible pumping at slow release with dense material**, because the timing network is a single
   state shared by all events.
-* **The all-buttons state**: a distinctly audible transient escaping ahead of the clamp, an aggressive
+- **The all-buttons state**: a distinctly audible transient escaping ahead of the clamp, an aggressive
   plateau rather than a slope, and a large step up in harmonic content.
-* **Line-amplifier mode** (attack fully counter-clockwise, OFF detent): up to 45 dB of gain with all
+- **Line-amplifier mode** (attack fully counter-clockwise, OFF detent): up to 45 dB of gain with all
   the transformer and amplifier character and none of the dynamics.
-* **Noise floor**: signal-to-noise better than 81 dB referred to the threshold of limiting, 30 Hz to
+- **Noise floor**: signal-to-noise better than 81 dB referred to the threshold of limiting, 30 Hz to
   15 kHz.
-* **Unit-to-unit variance** from Q BIAS and DIST TRIM drift.
+- **Unit-to-unit variance** from Q BIAS and DIST TRIM drift.
 
 ## 8. Published measurements
 
-| Quantity | Value | Conditions |
-|---|---|---|
-| Attack time | 20 µs to 800 µs | continuously variable |
-| Release time | 50 ms to 1100 ms | continuously variable |
-| Ratios | 4:1, 8:1, 12:1, 20:1 | switched |
-| Internal threshold | approx. -32 dBm at 4:1 to -25 dBm at 20:1 | conditions not stated |
-| Signal-to-noise | > 81 dB | at threshold of limiting, 30 Hz–15 kHz |
-| Distortion | < 0.5 % THD | 50 Hz to 15 kHz, with limiting |
-| Line-amp gain | up to 45 dB | attack OFF, no gain reduction |
-| Meter | GR / +4 / +8 / OFF | 0 VU = +4 or +8 dBm at output |
+| Quantity           | Value                                     | Conditions                             |
+| ------------------ | ----------------------------------------- | -------------------------------------- |
+| Attack time        | 20 µs to 800 µs                           | continuously variable                  |
+| Release time       | 50 ms to 1100 ms                          | continuously variable                  |
+| Ratios             | 4:1, 8:1, 12:1, 20:1                      | switched                               |
+| Internal threshold | approx. -32 dBm at 4:1 to -25 dBm at 20:1 | conditions not stated                  |
+| Signal-to-noise    | > 81 dB                                   | at threshold of limiting, 30 Hz–15 kHz |
+| Distortion         | < 0.5 % THD                               | 50 Hz to 15 kHz, with limiting         |
+| Line-amp gain      | up to 45 dB                               | attack OFF, no gain reduction          |
+| Meter              | GR / +4 / +8 / OFF                        | 0 VU = +4 or +8 dBm at output          |
 
 No published family of static transfer curves, no published knee widths, no published harmonic
 spectra at stated gain reduction, and no published measurement of the four-button state were located.
@@ -290,8 +298,8 @@ with the least published support.
 2. **Release time endpoints.** After 500 ms at 10 dB of gain reduction, remove the signal. Measure time
    to recover to 1 dB remaining, RELEASE fully clockwise and fully counter-clockwise. Targets 50 ms
    and 1100 ms, tolerance ±25 % relative.
-3. **Control sense.** Assert that increasing the ATTACK control value makes attack *faster* and
-   increasing RELEASE makes release *faster*. A model with conventional sense has inverted the panel.
+3. **Control sense.** Assert that increasing the ATTACK control value makes attack _faster_ and
+   increasing RELEASE makes release _faster_. A model with conventional sense has inverted the panel.
 4. **Ratio slopes.** For each of the four buttons, sweep input and measure the local slope 20 dB above
    threshold. Targets 4:1, 8:1, 12:1, 20:1, tolerance ±20 % relative.
 5. **Threshold movement — the critical ratio test.** Fix INPUT at a level producing 10 dB of gain
@@ -302,7 +310,7 @@ with the least published support.
    ratio, at 4:1 and at 20:1. Assert the 4:1 knee is at least 1.5× wider than the 20:1 knee. No
    absolute target exists; record for regression.
 7. **Four-button state, ratio.** Assert the local slope 20 dB above threshold is between 10:1 and 25:1
-   and that the curve is *not* straight — assert the slope measured at 10 dB above threshold differs
+   and that the curve is _not_ straight — assert the slope measured at 10 dB above threshold differs
    from the slope at 25 dB above threshold by at least 20 % relative.
 8. **Four-button state, attack lag.** Apply a fast-rise burst with ATTACK fully clockwise. Measure the
    delay from burst onset to the point where gain reduction reaches 50 % of final, in the four-button
@@ -331,50 +339,50 @@ with the least published support.
 
 ## 10. Sources, and where they conflict
 
-* UREI 1176LN owner's manual, Internet Archive full text (archive.org/details/Urei_1176LN_owners_manual)
+- UREI 1176LN owner's manual, Internet Archive full text (archive.org/details/Urei_1176LN_owners_manual)
   and Universal Audio's reissue manual (media.uaudio.com/assetlibrary/1/1/1176ln_manual.pdf) —
   attack and release ranges, ratios, signal-to-noise, distortion, meter functions, OFF/power coupling.
-* Universal Audio 1176LN manual via ManualsLib (manualslib.com/manual/828073, meter and control pages)
+- Universal Audio 1176LN manual via ManualsLib (manualslib.com/manual/828073, meter and control pages)
   — meter positions GR/+4/+8/OFF and their calibration.
-* Sound On Sound, "Universal Appeal" — internal threshold approximately -25 dBm at 20:1 and -32 dBm at
+- Sound On Sound, "Universal Appeal" — internal threshold approximately -25 dBm at 20:1 and -32 dBm at
   4:1.
-* Universal Audio, "1176 Classic Limiter Collection: Tips & Tricks" — higher ratios raise the
+- Universal Audio, "1176 Classic Limiter Collection: Tips & Tricks" — higher ratios raise the
   threshold and harden the knee.
-* Inside Blackbird, "The 1176 Compressor", and Mix Online, "1176 Revision History" — R5/Q1 divider,
+- Inside Blackbird, "The 1176 Compressor", and Mix Online, "1176 Revision History" — R5/Q1 divider,
   T-pad input attenuator, 1108 preamp with Darlington pair, 2N3053 Class A output, UA-5002/5002A
   output transformer with split secondary, tertiary feedback winding and emitter winding, Peerless
   then UTC input transformer, revision F push-pull output derived from the 1109, revision G removing
   the input transformer for a differential amplifier.
-* Black Ghost Audio, "The History of the 1176 Compressor: Revisions A to H" — revision naming and the
+- Black Ghost Audio, "The History of the 1176 Compressor: Revisions A to H" — revision naming and the
   LN module's introduction at revision C.
-* Pulsar Audio, "The History of All-buttons-in Mode", MusicRadar's all-buttons feature, Sweetwater
+- Pulsar Audio, "The History of All-buttons-in Mode", MusicRadar's all-buttons feature, Sweetwater
   InSync "All-Button Mode", and the Journal on the Art of Record Production article "All Buttons In"
   — ratio landing between 12:1 and 20:1, bias points changing throughout the circuit, altered attack
   and release, the transient lag described as reverse look-ahead, and the substantial distortion
   increase.
-* Mouser / EDN, "A Guide to Using FETs for Voltage Controlled Circuits, Part 1" — the mechanism by
+- Mouser / EDN, "A Guide to Using FETs for Voltage Controlled Circuits, Part 1" — the mechanism by
   which a signal-modulated gate-source voltage produces compression on one polarity and expansion on
   the other, and hence second-order harmonic distortion.
-* GroupDIY, "Hairball Audio Rev D 1176 Q-Bias calibration", and Gearspace "setting the bias on an
+- GroupDIY, "Hairball Audio Rev D 1176 Q-Bias calibration", and Gearspace "setting the bias on an
   1176" — the Q BIAS 1 dB-drop procedure and the DIST TRIM minimum-distortion procedure.
-* Whitlock, "Audio Transformers" (Jensen) — transformer nonlinearity mechanisms.
-* Elliott Sound Products, "Valves — Distortion + Intermod", and diyAudio/patent literature on
+- Whitlock, "Audio Transformers" (Jensen) — transformer nonlinearity mechanisms.
+- Elliott Sound Products, "Valves — Distortion + Intermod", and diyAudio/patent literature on
   push-pull even-order cancellation — the Class A versus push-pull harmonic difference.
 
 **Conflicts and resolutions.**
 
-*Attack and release ranges.* The manufacturer's manual gives 20 µs–800 µs attack and 50 ms–1100 ms
+_Attack and release ranges._ The manufacturer's manual gives 20 µs–800 µs attack and 50 ms–1100 ms
 release. A widely distributed plug-in emulation's documentation gives "1 ms to less than 50 µs" for
 attack and "1 s to 50 ms" for release. The emulation's numbers are a plug-in's own specification and
 its attack figures are inconsistent with the hardware manual at both ends. **This sheet uses the
 hardware manual.**
 
-*Four-button ratio.* Sources give "between 12:1 and 20:1", "somewhere around 12:1 to 20:1", and
+_Four-button ratio._ Sources give "between 12:1 and 20:1", "somewhere around 12:1 to 20:1", and
 "a strange, unstable curve". No source gives a single number, and the ones that describe it in detail
 all say it is not a straight line. **This sheet treats the ratio as a range and requires the model to
 be non-linear across level** rather than picking a value, which is why QA test 7 checks slope
-*variation* rather than slope equality.
+_variation_ rather than slope equality.
 
-*Whether the four-button state is a "mode".* It is not documented by the manufacturer as a mode. It is
+_Whether the four-button state is a "mode"._ It is not documented by the manufacturer as a mode. It is
 an out-of-specification state that became a technique. Motion Wave should implement it and should not
 name it after the reference unit or its nickname.

@@ -9,7 +9,7 @@ touches them. The native `motionwave/` core has no processors and is out of scop
 
 **Status: the three P1s are fixed and the probes that found them are now the regression
 tests for them.** The audit itself changed nothing under `src/`; the fixes landed
-afterwards, in `704d18d`, and each finding below carries a *Fixed* note with the
+afterwards, in `704d18d`, and each finding below carries a _Fixed_ note with the
 re-measured number. The ten P2s remain open. Everything measured here is reproducible with
 `npx vitest run tests/audit/` — seven files, fifty-seven cases, all passing against the tree
 as audited. Every number below came out of one of them or out of `grep` over the named
@@ -20,11 +20,11 @@ automation re-renders an impulse response ninety times over one sweep, tempo-syn
 inserts that ignore the tempo map, and a voice cap that is not enforced for notes sharing
 a start time. All three are closed:
 
-| ID     | Was                                                  | Is now                                              |
-| ------ | ---------------------------------------------------- | --------------------------------------------------- |
-| PA-001 | 90 re-renders / 27.1 M samples / 2396 ms per Size sweep | 30 / 5.1 M / 192 ms — and 180 → 26 for Damping       |
-| PA-002 | 6/16 delay at 0.7500 s where the bar wants 0.5625 s   | 0.5625 s, sampled from the map at the playhead       |
-| PA-003 | 60 simultaneous notes → 60 voices, 1 steal            | 24 live, 36 steals on 36 distinct voices             |
+| ID     | Was                                                     | Is now                                         |
+| ------ | ------------------------------------------------------- | ---------------------------------------------- |
+| PA-001 | 90 re-renders / 27.1 M samples / 2396 ms per Size sweep | 30 / 5.1 M / 192 ms — and 180 → 26 for Damping |
+| PA-002 | 6/16 delay at 0.7500 s where the bar wants 0.5625 s     | 0.5625 s, sampled from the map at the playhead |
+| PA-003 | 60 simultaneous notes → 60 voices, 1 steal              | 24 live, 36 steals on 36 distinct voices       |
 
 ---
 
@@ -71,21 +71,21 @@ connected to. It proves nothing about what the resulting audio sounds like.
 
 ## Findings
 
-| #      | Sev | Device(s)                                                                       | Finding                                                                                                                                                                         |
-| ------ | --- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #      | Sev   | Device(s)                                                                       | Finding                                                                                                                                                                         |
+| ------ | ----- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | PA-001 | P1 ✅ | Reverb                                                                          | Automating Size or Damping re-renders the impulse response and hot-swaps the convolver buffer, tens of times per sweep, synchronously on the main thread                        |
 | PA-002 | P1 ✅ | Delay, Ping-Pong, Tremolo, Auto Pan                                             | Tempo-synced divisions resolve at the tempo of beat 0, not at the tempo in force                                                                                                |
 | PA-003 | P1 ✅ | MotionSynth, Sampler, Drum Rack                                                 | The voice cap is not enforced for notes that share a start time; one voice is stolen repeatedly while the rest all sound                                                        |
-| PA-004 | P2  | Compressor, Gate, Limiter, De-esser, Saturator, Distortion, Amp Sim, Bitcrusher | Eighteen controls rebuild and swap a WaveShaper table on every automation frame instead of ramping                                                                              |
-| PA-005 | P2  | Vocal Tune                                                                      | Six automation lanes are offered against a node that is a declared pass-through                                                                                                 |
-| PA-006 | P2  | all twenty-seven                                                                | Insert automation renders on a 25 ms offline grid that widens to 375 ms on a long bounce, while playback applies it at 60–100 Hz; `KNOWN-LIMITATIONS.md` calls the bounce exact |
-| PA-007 | P2  | MotionSynth, Sampler, Classic Kit                                               | A non-finite instrument parameter is guarded at neither end: it survives the load path and reaches the node                                                                     |
-| PA-008 | P2  | Multiband                                                                       | A bypassed Multiband keeps publishing gain reduction, and the face keeps drawing it                                                                                             |
-| PA-009 | P2  | Limiter (documentation)                                                         | `KNOWN-LIMITATIONS.md` says the limiter's clipper latency is present when bypassed; since the `clipperDry` leg landed it is not                                                 |
-| PA-010 | P2  | Limiter, Multiband, Bitcrusher, Saturator, Distortion, Amp Sim, Filter          | No insert declares a latency and there is no compensation, so seven of them shift their channel against the rest of the session                                                 |
-| PA-011 | P2  | Ping-Pong, Tremolo, Auto Pan                                                    | The division knob prints the straight name whatever the Feel control is set to, while the slot summary and the audio apply the Feel                                             |
-| PA-012 | P2  | Filter                                                                          | Drive is a second uncompensated parallel blend of an oversampled shaper against a dry wire; the documentation says the saturator and distortion are the only one                |
-| PA-013 | P2  | Compressor, Gate, Limiter, De-esser                                             | `Smoother` places its pole from a hard-coded 128-frame render quantum; correct today, silently wrong if a render size is ever hinted                                            |
+| PA-004 | P2    | Compressor, Gate, Limiter, De-esser, Saturator, Distortion, Amp Sim, Bitcrusher | Eighteen controls rebuild and swap a WaveShaper table on every automation frame instead of ramping                                                                              |
+| PA-005 | P2    | Vocal Tune                                                                      | Six automation lanes are offered against a node that is a declared pass-through                                                                                                 |
+| PA-006 | P2    | all twenty-seven                                                                | Insert automation renders on a 25 ms offline grid that widens to 375 ms on a long bounce, while playback applies it at 60–100 Hz; `KNOWN-LIMITATIONS.md` calls the bounce exact |
+| PA-007 | P2    | MotionSynth, Sampler, Classic Kit                                               | A non-finite instrument parameter is guarded at neither end: it survives the load path and reaches the node                                                                     |
+| PA-008 | P2    | Multiband                                                                       | A bypassed Multiband keeps publishing gain reduction, and the face keeps drawing it                                                                                             |
+| PA-009 | P2    | Limiter (documentation)                                                         | `KNOWN-LIMITATIONS.md` says the limiter's clipper latency is present when bypassed; since the `clipperDry` leg landed it is not                                                 |
+| PA-010 | P2    | Limiter, Multiband, Bitcrusher, Saturator, Distortion, Amp Sim, Filter          | No insert declares a latency and there is no compensation, so seven of them shift their channel against the rest of the session                                                 |
+| PA-011 | P2    | Ping-Pong, Tremolo, Auto Pan                                                    | The division knob prints the straight name whatever the Feel control is set to, while the slot summary and the audio apply the Feel                                             |
+| PA-012 | P2    | Filter                                                                          | Drive is a second uncompensated parallel blend of an oversampled shaper against a dry wire; the documentation says the saturator and distortion are the only one                |
+| PA-013 | P2    | Compressor, Gate, Limiter, De-esser                                             | `Smoother` places its pole from a hard-coded 128-frame render quantum; correct today, silently wrong if a render size is ever hinted                                            |
 
 ### PA-001 (P1) — Reverb: automating Size or Damping re-renders the impulse response
 
@@ -130,8 +130,8 @@ flat 0.05 s / 50 Hz threshold. The flat one was a quarter of the shortest tail t
 offers and under one per cent of the longest, which is why it fired constantly at the low
 end. Decay time and damping frequency are both heard proportionally, so the grid is too.
 
-| Sweep                  | Re-renders | Samples generated | Synchronous work |
-| ---------------------- | ---------- | ----------------- | ---------------- |
+| Sweep                  | Re-renders   | Samples generated          | Synchronous work     |
+| ---------------------- | ------------ | -------------------------- | -------------------- |
 | Size 0.2 → 6.0 s       | 90 → **30**  | 27,062,336 → **5,132,460** | 2396 ms → **192 ms** |
 | Damping 800 → 16000 Hz | 180 → **26** | 31,104,000 → **4,492,800** | 2525 ms → **158 ms** |
 
@@ -172,13 +172,13 @@ row reads "correct" rather than "untested".
 the beat being rendered in `exportMix` — including the per-clip event chain, which gets the
 tempo at the clip's own start. The scalar stays pinned to beat 0, which is what it is for.
 
-The second half is *how often* to re-read it. A tempo ramp moves continuously, so
+The second half is _how often_ to re-read it. A tempo ramp moves continuously, so
 re-driving a chain per frame would put a full insert update pass — including the
 waveshaper rebuilds of PA-004 — on the frame loop for the ramp's whole length, which is
 the shape of PA-001. `src/audio/tempoSync.ts` gates it on a relative move of half a per
 cent: on a half-second delay that tolerance is 2.5 ms, and a 120→160 ramp costs **55
 insert passes over 480 frames** instead of 480, with the held tempo landing inside the gate
-of the real one. The offline renderer only buys tracking when the map actually moves *and*
+of the real one. The offline renderer only buys tracking when the map actually moves _and_
 something reads it, so a bounce of a project with no synced insert pays nothing.
 
 A 6/16 delay at bar 9 of the 120→160 song is now 0.5625 s, which is what the bar wants.
@@ -235,7 +235,7 @@ deliberately unchanged — oldest first, ties to whichever was inserted first �
 finding is that the ceiling did not hold, not that the wrong voice was chosen. Preferring
 voices already in their release phase would be less audible still and is a separate change.
 
-Sixty oscillators are still *created* for a sixty-note instant; 36 are cut at their own
+Sixty oscillators are still _created_ for a sixty-note instant; 36 are cut at their own
 start time and produce about 30 ms each. That is what a hard voice cap does, and refusing
 to spawn instead would mean the newest note never sounds, which is the wrong end to drop.
 

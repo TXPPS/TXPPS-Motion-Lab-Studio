@@ -42,7 +42,7 @@ Nothing here was obtained by decompilation or asset extraction.
 ## 1. Why this architecture is worth modelling
 
 The instrument's historical importance is that it was the first fully programmable
-polyphonic synthesiser, but its *musical* importance is one feature: **poly-mod**. A global
+polyphonic synthesiser, but its _musical_ importance is one feature: **poly-mod**. A global
 LFO modulating all voices identically is a chorus effect. A modulation matrix that runs
 **independently inside every voice**, sourced from that voice's own filter envelope and its
 own second oscillator, is a different instrument — it makes each note in a chord evolve on
@@ -121,20 +121,20 @@ does. [R]
   OSC B ─▶ SYNC to OSC A (switch on OSC A)
 ```
 
-**Two modulation systems, deliberately different.** *Wheel-mod* is global, played from the
-wheel, and its five destinations are the ones you want to move by hand. *Poly-mod* is
+**Two modulation systems, deliberately different.** _Wheel-mod_ is global, played from the
+wheel, and its five destinations are the ones you want to move by hand. _Poly-mod_ is
 per-voice, always on, and its three destinations are the ones you want to move
 automatically and independently. They are not variants of one matrix and must not be merged
 in our implementation. [C]
 
 **Part complement** (Rev 1/2 → Rev 3), useful as a structural cross-check: [R]
 
-| Function | Rev 1 / 2 | Rev 3 | Count |
-| --- | --- | --- | --- |
-| VCO | SSM2030 | CEM3340 | **11** (10 voice + 1 for the LFO) |
-| VCF | SSM2040 | CEM3320 | 5 |
-| Envelope | SSM2050 | CEM3310 | **10** (2 per voice) |
-| VCA | SSM2020 | (CEM3360, 2 per package) | 21 |
+| Function | Rev 1 / 2 | Rev 3                    | Count                             |
+| -------- | --------- | ------------------------ | --------------------------------- |
+| VCO      | SSM2030   | CEM3340                  | **11** (10 voice + 1 for the LFO) |
+| VCF      | SSM2040   | CEM3320                  | 5                                 |
+| Envelope | SSM2050   | CEM3310                  | **10** (2 per voice)              |
+| VCA      | SSM2020   | (CEM3360, 2 per package) | 21                                |
 
 Eleven oscillators for five voices confirms that the **LFO is itself a VCO** — one more of
 the same part running slowly. That is worth copying: the LFO's waveforms are the
@@ -147,13 +147,13 @@ modulation source's.
 
 ### 3.1 Oscillator A
 
-| Control | Type | Range | Default | Notes |
-| --- | --- | --- | --- | --- |
-| Frequency | knob | **4 octaves**, stepped in **semitones** | centre | [R] |
-| Sawtooth | switch | off / on | on | Waveforms are switches, and they **sum** — saw and pulse can both be on |
-| Pulse | switch | off / on | off | |
-| Pulse width | knob | 0…10 | 5 (=50 %) | Endpoints **[U]** |
-| Sync | switch | off / on | off | Hard sync, **B syncs A** |
+| Control     | Type   | Range                                   | Default   | Notes                                                                   |
+| ----------- | ------ | --------------------------------------- | --------- | ----------------------------------------------------------------------- |
+| Frequency   | knob   | **4 octaves**, stepped in **semitones** | centre    | [R]                                                                     |
+| Sawtooth    | switch | off / on                                | on        | Waveforms are switches, and they **sum** — saw and pulse can both be on |
+| Pulse       | switch | off / on                                | off       |                                                                         |
+| Pulse width | knob   | 0…10                                    | 5 (=50 %) | Endpoints **[U]**                                                       |
+| Sync        | switch | off / on                                | off       | Hard sync, **B syncs A**                                                |
 
 Two things are load-bearing:
 
@@ -171,14 +171,14 @@ frequency knob. It is the simpler of the two by design.
 
 ### 3.2 Oscillator B
 
-| Control | Type | Range | Default | Notes |
-| --- | --- | --- | --- | --- |
-| Frequency | knob | 4 octaves, semitone steps | centre | [R] |
-| Fine | knob | approx. ±1 semitone (**[U]**, endpoints unconfirmed) | centre | The detune control |
-| Sawtooth / Triangle / Pulse | switches | off / on each | saw on | Three waveforms, summable |
-| Pulse width | knob | 0…10 | 5 | Independent of A's |
-| **LO FREQ** | switch | off / on | off | Drops B into the sub-audio range |
-| **KEYBOARD** | switch | off / on | **on** | When off, B ignores the keyboard and holds a fixed pitch |
+| Control                     | Type     | Range                                                | Default | Notes                                                    |
+| --------------------------- | -------- | ---------------------------------------------------- | ------- | -------------------------------------------------------- |
+| Frequency                   | knob     | 4 octaves, semitone steps                            | centre  | [R]                                                      |
+| Fine                        | knob     | approx. ±1 semitone (**[U]**, endpoints unconfirmed) | centre  | The detune control                                       |
+| Sawtooth / Triangle / Pulse | switches | off / on each                                        | saw on  | Three waveforms, summable                                |
+| Pulse width                 | knob     | 0…10                                                 | 5       | Independent of A's                                       |
+| **LO FREQ**                 | switch   | off / on                                             | off     | Drops B into the sub-audio range                         |
+| **KEYBOARD**                | switch   | off / on                                             | **on**  | When off, B ignores the keyboard and holds a fixed pitch |
 
 The last two switches are the instrument's cleverest economy and the thing most often
 missed:
@@ -215,15 +215,15 @@ a limiter. [I]
 The modulation matrix that defines the instrument. Two sources, two amount knobs, three
 destination switches, **entirely per-voice**. [C]
 
-| Element | Detail |
-| --- | --- |
-| Source 1 | **Filter envelope** — the same ADSR that drives the filter, tapped before the filter's own amount knob |
-| Source 1 amount | knob, 0…10, **unipolar** [U] |
-| Source 2 | **Oscillator B** — the audio (or sub-audio) signal itself, **bipolar** |
-| Source 2 amount | knob, 0…10 |
-| Destination A | `FREQ A` switch — oscillator A frequency |
-| Destination B | `PW A` switch — oscillator A pulse width |
-| Destination C | `FILTER` switch — filter cutoff |
+| Element         | Detail                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------ |
+| Source 1        | **Filter envelope** — the same ADSR that drives the filter, tapped before the filter's own amount knob |
+| Source 1 amount | knob, 0…10, **unipolar** [U]                                                                           |
+| Source 2        | **Oscillator B** — the audio (or sub-audio) signal itself, **bipolar**                                 |
+| Source 2 amount | knob, 0…10                                                                                             |
+| Destination A   | `FREQ A` switch — oscillator A frequency                                                               |
+| Destination B   | `PW A` switch — oscillator A pulse width                                                               |
+| Destination C   | `FILTER` switch — filter cutoff                                                                        |
 
 **Both sources are routed by the same three switches.** There is no per-source destination
 matrix. If `FREQ A` is on, both the filter envelope (scaled by its amount) and oscillator B
@@ -253,14 +253,14 @@ width range; the `FILTER` depth is at least comparable to the filter envelope's 
 
 **[I] starting values, to be bracketed by measurement (§10, tests V-5 to V-7):**
 
-| Path | Suggested full-amount depth |
-| --- | --- |
-| Filter env → Freq A | +5 octaves, unipolar |
-| Filter env → PW A | full width range, unipolar |
-| Filter env → Filter | +8 octaves, unipolar |
-| Osc B → Freq A | ±5 octaves, bipolar |
-| Osc B → PW A | ±full width range, bipolar |
-| Osc B → Filter | ±8 octaves, bipolar |
+| Path                | Suggested full-amount depth |
+| ------------------- | --------------------------- |
+| Filter env → Freq A | +5 octaves, unipolar        |
+| Filter env → PW A   | full width range, unipolar  |
+| Filter env → Filter | +8 octaves, unipolar        |
+| Osc B → Freq A      | ±5 octaves, bipolar         |
+| Osc B → PW A        | ±full width range, bipolar  |
+| Osc B → Filter      | ±8 octaves, bipolar         |
 
 Flag these prominently in the code as provisional. They are the values most likely to be
 wrong in the first build.
@@ -271,10 +271,10 @@ wrong in the first build.
 
 Global, wheel-played, five destinations. [C]
 
-| Element | Detail |
-| --- | --- |
-| Source | A **mix knob** blending **LFO ↔ noise** continuously |
-| Depth | Modulation wheel position, scaled by the source amount |
+| Element      | Detail                                                       |
+| ------------ | ------------------------------------------------------------ |
+| Source       | A **mix knob** blending **LFO ↔ noise** continuously         |
+| Depth        | Modulation wheel position, scaled by the source amount       |
 | Destinations | `FREQ A`, `FREQ B`, `PW A`, `PW B`, `FILTER` — five switches |
 
 The source mix is a genuine crossfade, not a selector: at intermediate positions the
@@ -283,11 +283,11 @@ and breathy filter movement. [C]
 
 The LFO itself: [C] for the structure, [R] for the range.
 
-| Control | Range | Notes |
-| --- | --- | --- |
-| Frequency | approx. **0.03 – 27.5 Hz** [R] | Figure is from a circuit-modelled emulation of this instrument, not from the manual |
-| Waveforms | sawtooth, triangle, square — **switches, combinable** | Summing saw + square gives shapes neither produces alone |
-| Amount | knob | Sets the ceiling that the wheel scales |
+| Control   | Range                                                 | Notes                                                                               |
+| --------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Frequency | approx. **0.03 – 27.5 Hz** [R]                        | Figure is from a circuit-modelled emulation of this instrument, not from the manual |
+| Waveforms | sawtooth, triangle, square — **switches, combinable** | Summing saw + square gives shapes neither produces alone                            |
+| Amount    | knob                                                  | Sets the ceiling that the wheel scales                                              |
 
 The LFO's waveform switches summing rather than selecting is the same idiom as the
 oscillators' waveform switches, and it is consistent with the LFO being a VCO (§2.2).
@@ -302,12 +302,12 @@ Four-pole, **24 dB/octave**, resonant low-pass, one per voice, **capable of self
 at high resonance. [C] Keyboard tracking is **three-state — off / half / full** — implemented
 as two switches rather than a knob, so the tracking amounts are exact and repeatable. [C]
 
-| Control | Range | Default | Notes |
-| --- | --- | --- | --- |
-| Cutoff | knob 0…10 | 10 | Endpoints in Hz **[U]** |
-| Resonance | knob 0…10 | 0 | Self-oscillates at roughly 60 % of travel [R] |
-| Envelope amount | knob 0…10 | 0 | Unipolar; polarity is not switchable |
-| Keyboard tracking | off / half / full | off | Two switches |
+| Control           | Range             | Default | Notes                                         |
+| ----------------- | ----------------- | ------- | --------------------------------------------- |
+| Cutoff            | knob 0…10         | 10      | Endpoints in Hz **[U]**                       |
+| Resonance         | knob 0…10         | 0       | Self-oscillates at roughly 60 % of travel [R] |
+| Envelope amount   | knob 0…10         | 0       | Unipolar; polarity is not switchable          |
+| Keyboard tracking | off / half / full | off     | Two switches                                  |
 
 A circuit-modelled emulation of this instrument places the onset of self-oscillation at
 **60.00 on a 0–100 cutoff-normalised resonance scale** [R], i.e. around 6/10 of the knob —
@@ -321,14 +321,14 @@ following is **[R]** — it is consistently reported across independent sources 
 is a measurement, and this is exactly the kind of claim that accumulates as folklore. Treat
 it as a **description of the target, to be confirmed by our own measurement**, not as spec.
 
-| Property | Early revisions (SSM-based) | Later revisions (Curtis-based) |
-| --- | --- | --- |
-| Overall | Darker, more "organic", looser | Cleaner, tighter, more focused, "drier" |
-| Low end | Fuller, more weight | Slightly leaner |
-| Resonance | More liquid, more vocal, less predictable | More controlled, more consistent |
-| Drive | Soft distortion when overdriven adds harmonics — reported as a large part of the chip's reputation | Less pronounced |
-| Top end | "Silky" once the cutoff is open | Cleaner but flatter |
-| Consistency | Varies noticeably unit to unit and voice to voice | Consistent |
+| Property    | Early revisions (SSM-based)                                                                        | Later revisions (Curtis-based)          |
+| ----------- | -------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Overall     | Darker, more "organic", looser                                                                     | Cleaner, tighter, more focused, "drier" |
+| Low end     | Fuller, more weight                                                                                | Slightly leaner                         |
+| Resonance   | More liquid, more vocal, less predictable                                                          | More controlled, more consistent        |
+| Drive       | Soft distortion when overdriven adds harmonics — reported as a large part of the chip's reputation | Less pronounced                         |
+| Top end     | "Silky" once the cutoff is open                                                                    | Cleaner but flatter                     |
+| Consistency | Varies noticeably unit to unit and voice to voice                                                  | Consistent                              |
 
 One structural difference is **[C]** and explains part of the above: the later filter chip
 integrates a **resonance VCA** on-die, whereas the earlier one does not and requires an
@@ -362,14 +362,14 @@ overdriven adds harmonics to the original signal" is an input-stage description.
 Two per voice — **filter envelope** and **amplifier envelope** — each a conventional
 four-stage ADSR with knobs marked 0…10. [C]
 
-| Property | Value |
-| --- | --- |
-| Stages | Attack, Decay, Sustain, Release |
-| Time range | approx. **2 ms – 55 s** [R] — from a circuit-modelled emulation, not the manual |
-| Sustain | 0…10, a level |
-| Shape, early revisions | Very flat, close to **linear** [R] |
-| Shape, later revisions | More curved (exponential-family) [R] |
-| Release switch | A panel switch disables the release stage globally [C] |
+| Property               | Value                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| Stages                 | Attack, Decay, Sustain, Release                                                 |
+| Time range             | approx. **2 ms – 55 s** [R] — from a circuit-modelled emulation, not the manual |
+| Sustain                | 0…10, a level                                                                   |
+| Shape, early revisions | Very flat, close to **linear** [R]                                              |
+| Shape, later revisions | More curved (exponential-family) [R]                                            |
+| Release switch         | A panel switch disables the release stage globally [C]                          |
 
 The **release switch** is not a modulation feature, it is a performance control: with
 release off, notes stop at key-up regardless of the release setting, which lets a player
@@ -414,8 +414,8 @@ Pressing the `TUNE` button runs a microprocessor calibration. Documented behavio
 
 - **Tuning accuracy is not uniform across the keyboard.** The bottom three octaves are
   extrapolated, not measured, so error is systematically larger there. A model that applies
-  uniform random detune misses this: the correct shape is *small, structured error in the
-  measured range and larger, monotonic error below C3*. [I]
+  uniform random detune misses this: the correct shape is _small, structured error in the
+  measured range and larger, monotonic error below C3_. [I]
 - **Tuning is quantised to a 14-bit control value.** The correction can only ever be as fine
   as one LSB of that converter, so a residual error floor exists even immediately after
   tuning. Its size is **[U]** but its existence is [R].
@@ -439,14 +439,14 @@ hardware the deviations are correlated — an early unit is loose in every respe
 
 **[I] suggested deviation set, scaled by one control:**
 
-| Parameter | Deviation at "vintage = max" |
-| --- | --- |
-| VCO pitch, per oscillator, slow random walk | ±6 cents, correlation time ~30 s |
-| VCO pitch, per oscillator, fixed offset from last tune | ±3 cents, ±10 cents below C3 |
-| Filter cutoff, per voice | ±4 % |
-| Envelope times, per voice | ±5 % |
-| VCA gain, per voice | ±0.4 dB |
-| Pulse width, per oscillator | ±2 % |
+| Parameter                                              | Deviation at "vintage = max"     |
+| ------------------------------------------------------ | -------------------------------- |
+| VCO pitch, per oscillator, slow random walk            | ±6 cents, correlation time ~30 s |
+| VCO pitch, per oscillator, fixed offset from last tune | ±3 cents, ±10 cents below C3     |
+| Filter cutoff, per voice                               | ±4 %                             |
+| Envelope times, per voice                              | ±5 %                             |
+| VCA gain, per voice                                    | ±0.4 dB                          |
+| Pulse width, per oscillator                            | ±2 %                             |
 
 At "vintage = min" all of these go to zero except a small residual, which corresponds to the
 most stable revision.
@@ -471,41 +471,41 @@ must be the default, because it is the one that responds to `TUNE`.
 
 ## 9. Control inventory
 
-| Section | Control | Type | Range | Default |
-| --- | --- | --- | --- | --- |
-| Osc A | Frequency | knob | 4 oct, semitone steps | centre |
-| Osc A | Sawtooth / Pulse | sw ×2 | off/on each | saw on |
-| Osc A | Pulse width | knob | 0…10 | 5 |
-| Osc A | Sync | sw | off/on | off |
-| Osc B | Frequency | knob | 4 oct, semitone steps | centre |
-| Osc B | Fine | knob | ≈ ±1 semitone [U] | centre |
-| Osc B | Saw / Tri / Pulse | sw ×3 | off/on each | saw on |
-| Osc B | Pulse width | knob | 0…10 | 5 |
-| Osc B | LO FREQ | sw | off/on | off |
-| Osc B | Keyboard | sw | off/on | **on** |
-| Mixer | Osc A / Osc B / Noise | knob ×3 | 0…10 | 8 / 0 / 0 |
-| Filter | Cutoff | knob | 0…10 | 10 |
-| Filter | Resonance | knob | 0…10 | 0 |
-| Filter | Env amount | knob | 0…10 | 0 |
-| Filter | Keyboard | sw ×2 | off / half / full | off |
-| Filter env | A / D / S / R | knob ×4 | 0…10 | 0/5/10/2 |
-| Amp env | A / D / S / R | knob ×4 | 0…10 | 0/5/10/2 |
-| Poly-mod | Filter env amount | knob | 0…10 | 0 |
-| Poly-mod | Osc B amount | knob | 0…10 | 0 |
-| Poly-mod | Freq A / PW A / Filter | sw ×3 | off/on each | all off |
-| LFO | Frequency | knob | ≈0.03…27.5 Hz [R] | mid |
-| LFO | Saw / Tri / Square | sw ×3 | off/on each | tri on |
-| Wheel-mod | Source mix | knob | LFO ↔ noise | LFO |
-| Wheel-mod | Freq A / Freq B / PW A / PW B / Filter | sw ×5 | off/on each | all off |
-| Global | Glide (portamento) | knob | 0…10 | 0 |
-| Global | Unison | sw | off/on | off |
-| Global | Release | sw | off/on | on |
-| Global | Hold | sw | off/on | off |
-| Global | Master tune | knob | ± | centre |
-| Global | Master volume | knob | 0…10 | 8 |
-| Global | A-440 reference | sw | momentary | — |
-| Global | Tune (auto-tune) | button | momentary | — |
-| Global | Vintage / drift amount | knob | 0…10 | modern-era default [I] |
+| Section    | Control                                | Type    | Range                 | Default                |
+| ---------- | -------------------------------------- | ------- | --------------------- | ---------------------- |
+| Osc A      | Frequency                              | knob    | 4 oct, semitone steps | centre                 |
+| Osc A      | Sawtooth / Pulse                       | sw ×2   | off/on each           | saw on                 |
+| Osc A      | Pulse width                            | knob    | 0…10                  | 5                      |
+| Osc A      | Sync                                   | sw      | off/on                | off                    |
+| Osc B      | Frequency                              | knob    | 4 oct, semitone steps | centre                 |
+| Osc B      | Fine                                   | knob    | ≈ ±1 semitone [U]     | centre                 |
+| Osc B      | Saw / Tri / Pulse                      | sw ×3   | off/on each           | saw on                 |
+| Osc B      | Pulse width                            | knob    | 0…10                  | 5                      |
+| Osc B      | LO FREQ                                | sw      | off/on                | off                    |
+| Osc B      | Keyboard                               | sw      | off/on                | **on**                 |
+| Mixer      | Osc A / Osc B / Noise                  | knob ×3 | 0…10                  | 8 / 0 / 0              |
+| Filter     | Cutoff                                 | knob    | 0…10                  | 10                     |
+| Filter     | Resonance                              | knob    | 0…10                  | 0                      |
+| Filter     | Env amount                             | knob    | 0…10                  | 0                      |
+| Filter     | Keyboard                               | sw ×2   | off / half / full     | off                    |
+| Filter env | A / D / S / R                          | knob ×4 | 0…10                  | 0/5/10/2               |
+| Amp env    | A / D / S / R                          | knob ×4 | 0…10                  | 0/5/10/2               |
+| Poly-mod   | Filter env amount                      | knob    | 0…10                  | 0                      |
+| Poly-mod   | Osc B amount                           | knob    | 0…10                  | 0                      |
+| Poly-mod   | Freq A / PW A / Filter                 | sw ×3   | off/on each           | all off                |
+| LFO        | Frequency                              | knob    | ≈0.03…27.5 Hz [R]     | mid                    |
+| LFO        | Saw / Tri / Square                     | sw ×3   | off/on each           | tri on                 |
+| Wheel-mod  | Source mix                             | knob    | LFO ↔ noise           | LFO                    |
+| Wheel-mod  | Freq A / Freq B / PW A / PW B / Filter | sw ×5   | off/on each           | all off                |
+| Global     | Glide (portamento)                     | knob    | 0…10                  | 0                      |
+| Global     | Unison                                 | sw      | off/on                | off                    |
+| Global     | Release                                | sw      | off/on                | on                     |
+| Global     | Hold                                   | sw      | off/on                | off                    |
+| Global     | Master tune                            | knob    | ±                     | centre                 |
+| Global     | Master volume                          | knob    | 0…10                  | 8                      |
+| Global     | A-440 reference                        | sw      | momentary             | —                      |
+| Global     | Tune (auto-tune)                       | button  | momentary             | —                      |
+| Global     | Vintage / drift amount                 | knob    | 0…10                  | modern-era default [I] |
 
 Program memory: **40 patches** on the early revisions; **120** on the later ones (a Rev 3.2
 could be upgraded to 120, which is the only difference from a Rev 3.3 besides
@@ -515,28 +515,28 @@ factory-fitted MIDI on some late units). [R]
 
 ## 10. Verification — what QA must measure
 
-| ID | Test | Method | Target | Tolerance |
-| --- | --- | --- | --- | --- |
-| **V-1** | Sync direction | Sync on, sweep Osc B frequency while holding Osc A. Then the reverse. | Sweeping **B** must change the *pitch*; sweeping **A** must change the *timbre* | Direction must be correct — this is pass/fail, not tolerance |
-| **V-2** | Osc A frequency quantisation | Sweep the Osc A frequency knob, measure output pitch. | Exactly 49 discrete semitone steps over 4 octaves | Exact step count |
-| **V-3** | Waveform switches sum | Osc A saw + pulse both on. FFT. | Spectrum is the sum of the two, not a crossfade | Level within 0.5 dB of the analytic sum |
-| **V-4** | Poly-mod is per-voice | Osc B as LO FREQ modulator → Filter. Play a 5-note chord, hold. Analyse each voice's filter movement. | Five **uncorrelated** modulation phases | Pairwise correlation < 0.3 |
-| **V-5** | Poly-mod Osc B → Freq A depth | Amount at max, Osc B at 1 Hz. Measure peak pitch deviation of Osc A. | Provisional ±5 octaves [I] | **±2 octaves** — the test exists to bracket the value, not confirm it |
-| **V-6** | Poly-mod filter env → Freq A depth | Amount at max, filter env full. Measure pitch at envelope peak. | Provisional +5 octaves [I] | ±2 octaves, same caveat |
-| **V-7** | Poly-mod shared destinations | Both amounts non-zero, `FREQ A` on only. | **Both** sources must affect Freq A; neither may affect PW A or filter | Exact routing |
-| **V-8** | Filter self-oscillation onset | Mixer at zero, sweep resonance. | First sustained output at ≈6/10 of travel | ±1.0 knob unit |
-| **V-9** | Revision A/B — resonance | Same patch, resonance 8, both filter models. Measure passband loss and resonant-peak level. | Early model: more passband loss, higher and less stable peak. Later: less loss, tighter peak | Qualitative but must differ measurably in both dimensions |
-| **V-10** | Revision A/B — drive | Mixer at 10, cutoff mid, both models. Measure THD and harmonic profile. | Early model: higher THD, more even-order content | Must differ by >3 dB THD |
-| **V-11** | Revision A/B — envelope shape | Attack at 5, capture the envelope. | Early: near-linear ramp. Later: visibly curved | Early model's max deviation from a straight line < 5 % |
-| **V-12** | Keyboard tracking states | Tracking off / half / full, play C2 and C5. Measure cutoff shift. | 0 / 1.5 / 3 octaves across the 3-octave span | ±5 % |
-| **V-13** | Envelope range | Attack, decay, release at 0 and 10. | ≈2 ms and ≈55 s | ±20 % — the source figure is [R] |
-| **V-14** | Auto-tune convergence | Randomise all voice detune, press TUNE. | All voices within a tight band of the reference within simulated 10 s | ±3 cents C3–C7; ±10 cents below C3 (extrapolation error is intentional) |
-| **V-15** | Drift accumulates after tune | Press TUNE, then measure voice spread at t = 0, 60 s, 600 s (accelerated). | Monotonically increasing spread | Must increase |
-| **V-16** | Unison responds to TUNE | Unison on, no explicit detune. Measure spectral width immediately after TUNE and after simulated drift. | Narrower after TUNE, wider after drift | Must differ by >4 cents |
-| **V-17** | Wheel-mod source is a crossfade | Source mix at centre, wheel full, destination FILTER. | Filter movement contains **both** periodic (LFO) and stochastic (noise) components | Both detectable |
-| **V-18** | Release switch | Release knob at 10, release switch off. Key up. | Note stops within the VCA's click-suppression time | < 20 ms |
-| **V-19** | Voice count | Play 6 notes. | 5 sounding, oldest stolen | Exact |
-| **V-20** | Aliasing | Both oscillators saw, sync on, chromatic sweep C1→C7, filter open. | Non-harmonic energy < −60 dBFS. Sync is the worst case — test it specifically | Hard limit |
+| ID       | Test                               | Method                                                                                                  | Target                                                                                       | Tolerance                                                               |
+| -------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **V-1**  | Sync direction                     | Sync on, sweep Osc B frequency while holding Osc A. Then the reverse.                                   | Sweeping **B** must change the _pitch_; sweeping **A** must change the _timbre_              | Direction must be correct — this is pass/fail, not tolerance            |
+| **V-2**  | Osc A frequency quantisation       | Sweep the Osc A frequency knob, measure output pitch.                                                   | Exactly 49 discrete semitone steps over 4 octaves                                            | Exact step count                                                        |
+| **V-3**  | Waveform switches sum              | Osc A saw + pulse both on. FFT.                                                                         | Spectrum is the sum of the two, not a crossfade                                              | Level within 0.5 dB of the analytic sum                                 |
+| **V-4**  | Poly-mod is per-voice              | Osc B as LO FREQ modulator → Filter. Play a 5-note chord, hold. Analyse each voice's filter movement.   | Five **uncorrelated** modulation phases                                                      | Pairwise correlation < 0.3                                              |
+| **V-5**  | Poly-mod Osc B → Freq A depth      | Amount at max, Osc B at 1 Hz. Measure peak pitch deviation of Osc A.                                    | Provisional ±5 octaves [I]                                                                   | **±2 octaves** — the test exists to bracket the value, not confirm it   |
+| **V-6**  | Poly-mod filter env → Freq A depth | Amount at max, filter env full. Measure pitch at envelope peak.                                         | Provisional +5 octaves [I]                                                                   | ±2 octaves, same caveat                                                 |
+| **V-7**  | Poly-mod shared destinations       | Both amounts non-zero, `FREQ A` on only.                                                                | **Both** sources must affect Freq A; neither may affect PW A or filter                       | Exact routing                                                           |
+| **V-8**  | Filter self-oscillation onset      | Mixer at zero, sweep resonance.                                                                         | First sustained output at ≈6/10 of travel                                                    | ±1.0 knob unit                                                          |
+| **V-9**  | Revision A/B — resonance           | Same patch, resonance 8, both filter models. Measure passband loss and resonant-peak level.             | Early model: more passband loss, higher and less stable peak. Later: less loss, tighter peak | Qualitative but must differ measurably in both dimensions               |
+| **V-10** | Revision A/B — drive               | Mixer at 10, cutoff mid, both models. Measure THD and harmonic profile.                                 | Early model: higher THD, more even-order content                                             | Must differ by >3 dB THD                                                |
+| **V-11** | Revision A/B — envelope shape      | Attack at 5, capture the envelope.                                                                      | Early: near-linear ramp. Later: visibly curved                                               | Early model's max deviation from a straight line < 5 %                  |
+| **V-12** | Keyboard tracking states           | Tracking off / half / full, play C2 and C5. Measure cutoff shift.                                       | 0 / 1.5 / 3 octaves across the 3-octave span                                                 | ±5 %                                                                    |
+| **V-13** | Envelope range                     | Attack, decay, release at 0 and 10.                                                                     | ≈2 ms and ≈55 s                                                                              | ±20 % — the source figure is [R]                                        |
+| **V-14** | Auto-tune convergence              | Randomise all voice detune, press TUNE.                                                                 | All voices within a tight band of the reference within simulated 10 s                        | ±3 cents C3–C7; ±10 cents below C3 (extrapolation error is intentional) |
+| **V-15** | Drift accumulates after tune       | Press TUNE, then measure voice spread at t = 0, 60 s, 600 s (accelerated).                              | Monotonically increasing spread                                                              | Must increase                                                           |
+| **V-16** | Unison responds to TUNE            | Unison on, no explicit detune. Measure spectral width immediately after TUNE and after simulated drift. | Narrower after TUNE, wider after drift                                                       | Must differ by >4 cents                                                 |
+| **V-17** | Wheel-mod source is a crossfade    | Source mix at centre, wheel full, destination FILTER.                                                   | Filter movement contains **both** periodic (LFO) and stochastic (noise) components           | Both detectable                                                         |
+| **V-18** | Release switch                     | Release knob at 10, release switch off. Key up.                                                         | Note stops within the VCA's click-suppression time                                           | < 20 ms                                                                 |
+| **V-19** | Voice count                        | Play 6 notes.                                                                                           | 5 sounding, oldest stolen                                                                    | Exact                                                                   |
+| **V-20** | Aliasing                           | Both oscillators saw, sync on, chromatic sweep C1→C7, filter open.                                      | Non-harmonic energy < −60 dBFS. Sync is the worst case — test it specifically                | Hard limit                                                              |
 
 ---
 
@@ -554,8 +554,8 @@ pointer line and no skirt**, arranged in a dense grid. Switches are **rocker or 
 membrane** with an integral indicator.
 
 The interaction claim being made by that panel is worth stating because we should make the
-same claim: *the whole instrument is in front of you, and nothing is more than one gesture
-away*. For a screen implementation this means **no tabs, no accordions, no
+same claim: _the whole instrument is in front of you, and nothing is more than one gesture
+away_. For a screen implementation this means **no tabs, no accordions, no
 progressive disclosure of the synthesis parameters**. If a control exists it is on the
 surface. That is expensive in screen area and is the right trade.
 
@@ -564,8 +564,8 @@ audio path rather than sitting inside it: modulation matrix at the far left, the
 oscillators, mixer, filter, envelopes, then performance and memory at the right. Sections
 are separated by **printed rules and a section title in a heavier weight**, and each section
 is a **tight cluster with generous space between clusters** — the grouping is done by
-whitespace, not by boxes. That is the most transferable single idea in this sheet: *dense
-inside a group, loose between groups*, which lets the eye parse forty controls at a glance.
+whitespace, not by boxes. That is the most transferable single idea in this sheet: _dense
+inside a group, loose between groups_, which lets the eye parse forty controls at a glance.
 
 **A specific, borrowable convention: the switch-bank as a matrix.** Both modulation systems
 present as a small grid of labelled switches — sources down one axis, destinations along
@@ -611,54 +611,54 @@ is a functional or compositional decision rather than trade dress.
 
 **Manufacturer and quasi-manufacturer:**
 
-1. Sequential, *Prophet-5 User's Guide 1.3* (via search extraction; the PDF is not
+1. Sequential, _Prophet-5 User's Guide 1.3_ (via search extraction; the PDF is not
    fetchable) — poly-mod sources and destinations, wheel-mod destinations, filter keyboard
    tracking off/half/full, unison with configurable voice count and detune on the reissue,
    the "vintage" control's function, pitch-wheel range 1–12 semitones per program,
    four-octave oscillator frequency range with semitone steps, polyphonic glide.
-2. Sequential, *Prophet-5 / Prophet-10 (classics reissued)* product documentation —
+2. Sequential, _Prophet-5 / Prophet-10 (classics reissued)_ product documentation —
    switchable filter revisions in the current product, and the statement of which chip each
    corresponds to.
-3. Sequential Circuits, *Prophet-5 Owner's Manual* and *Prophet-5 Service Manual*, both
+3. Sequential Circuits, _Prophet-5 Owner's Manual_ and _Prophet-5 Service Manual_, both
    present on archive.org as full text. **Not readable from this environment.** Named here
    because they are where every remaining [U] in §13 would be resolved.
 
 **Circuit and revision documentation:**
 
-4. Synth DIY Wiki, *Sequential Circuits Prophet-5* — revision history and the SSM → CEM
+4. Synth DIY Wiki, _Sequential Circuits Prophet-5_ — revision history and the SSM → CEM
    chipset transition.
-5. Electric Druid, *CEM3320 Filter designs* and *CEM3340 VCO designs* — the integrated
+5. Electric Druid, _CEM3320 Filter designs_ and _CEM3340 VCO designs_ — the integrated
    resonance VCA in the later filter chip versus the external VCA required by the earlier
    one; the unused high-frequency trim on the later oscillator and the auto-tune's
    compensation for it.
 6. SDIY / SSM2040 wiki page — the earlier filter's reputation for soft distortion when
    overdriven adding harmonics.
-7. Mod Wiggler thread *Prophet 5 Rev3 tune circuit question*, and 9bit.se
-   *Prophet-5 Rev 2 tuning* — the auto-tune routine: two stages, under ten seconds,
+7. Mod Wiggler thread _Prophet 5 Rev3 tune circuit question_, and 9bit.se
+   _Prophet-5 Rev 2 tuning_ — the auto-tune routine: two stages, under ten seconds,
    period measurement by counting a 2.5 MHz CPU clock, successive approximation to a 14-bit
    CV, C3–C9 measured and C0–C2 extrapolated.
-8. Sounddoctorin, *SCI Prophet 5 technical assistance* — service-level notes on the
+8. Sounddoctorin, _SCI Prophet 5 technical assistance_ — service-level notes on the
    revisions.
 
 **Emulation documentation, used only where it states a number the hardware documentation
 does not, and always marked [R]:**
 
-9. u-he *Repro-5 User Guide* — envelope range ≈2 ms to ≈55 s; LFO ≈0.03–27.5 Hz; filter
+9. u-he _Repro-5 User Guide_ — envelope range ≈2 ms to ≈55 s; LFO ≈0.03–27.5 Hz; filter
    self-oscillation above cutoff-normalised resonance 60.00; confirmation that the modelled
    chipset is the later (Curtis) one. This is a circuit-level model with published
    methodology, which is why its numbers are used at all; they are still not measurements of
    hardware.
-10. u-he, *RePro Filters Unveiled* — filter modelling methodology.
-11. Arturia *Prophet V* manual — used only as a cross-check on the poly-mod and wheel-mod
+10. u-he, _RePro Filters Unveiled_ — filter modelling methodology.
+11. Arturia _Prophet V_ manual — used only as a cross-check on the poly-mod and wheel-mod
     control inventory.
 
 **Secondary / reported:**
 
-12. Wikipedia, *Prophet-5* — revision history, program counts, chipsets.
-13. Equipboard, *The Sequential Prophet Guide* — per-voice nature of poly-mod, the
+12. Wikipedia, _Prophet-5_ — revision history, program counts, chipsets.
+13. Equipboard, _The Sequential Prophet Guide_ — per-voice nature of poly-mod, the
     revisions' sonic reputations, the envelope-chip difference between revisions.
-14. Sound on Sound, *Sequential Prophet-5 & Prophet-10* review — reissue behaviour.
-15. Kenton, *Prophet 5 rev 3.2 and 3.3* — the 40 → 120 program upgrade and what actually
+14. Sound on Sound, _Sequential Prophet-5 & Prophet-10_ review — reissue behaviour.
+15. Kenton, _Prophet 5 rev 3.2 and 3.3_ — the 40 → 120 program upgrade and what actually
     separates 3.2 from 3.3.
 16. Vintage Synth Explorer and Gearspace revision threads — the SSM/CEM part complement
     counts (11 VCO / 5 VCF / 10 EG / 21 VCA) and the reported sonic differences.

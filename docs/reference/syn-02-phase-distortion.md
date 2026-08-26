@@ -137,12 +137,12 @@ keyboard does not send velocity; note velocity is always transmitted and receive
 
 Stored as a 2-bit field. [C]
 
-| Code | Mode | What sounds | Polyphony |
-| --- | --- | --- | --- |
-| `00` | **1** | Line 1 only | 8 voices |
-| `01` | **2** | Line 2 only | 8 voices |
-| `10` | **1 + 1′** | Line 1, plus a **detuned copy of line 1** | 4 voices |
-| `11` | **1 + 2′** | Line 1, plus a **detuned line 2** | 4 voices |
+| Code | Mode       | What sounds                               | Polyphony |
+| ---- | ---------- | ----------------------------------------- | --------- |
+| `00` | **1**      | Line 1 only                               | 8 voices  |
+| `01` | **2**      | Line 2 only                               | 8 voices  |
+| `10` | **1 + 1′** | Line 1, plus a **detuned copy of line 1** | 4 voices  |
+| `11` | **1 + 2′** | Line 1, plus a **detuned line 2**         | 4 voices  |
 
 The primed member of a pair is the one the **detune** parameter offsets; the unprimed one
 plays at the nominal pitch. Both members of a pair consume a voice, so the stacked modes
@@ -326,10 +326,10 @@ instrument (§11, test V-9).
 
 ### 3.3 DCW range and mapping
 
-| Waveform group | DCW 0…99 means | At DCW = 0 | At DCW = 99 |
-| --- | --- | --- | --- |
-| 1–5 (phase distortion) | Depth of the phase warp | Pure cosine at the fundamental (waveform 4: at 2×) | Fully-formed named shape |
-| 6–8 (resonant) | Resonant frequency as a multiple `r` of the fundamental | `r = 1` — resonator at the fundamental, minimal effect | `r = r_max` |
+| Waveform group         | DCW 0…99 means                                          | At DCW = 0                                             | At DCW = 99              |
+| ---------------------- | ------------------------------------------------------- | ------------------------------------------------------ | ------------------------ |
+| 1–5 (phase distortion) | Depth of the phase warp                                 | Pure cosine at the fundamental (waveform 4: at 2×)     | Fully-formed named shape |
+| 6–8 (resonant)         | Resonant frequency as a multiple `r` of the fundamental | `r = 1` — resonator at the fundamental, minimal effect | `r = r_max`              |
 
 `r_max` is **unknown**. The Faust implementation takes `r` as a free parameter with no
 documented ceiling. For a first implementation use `r = 1 + 31·(DCW/99)`, i.e. up to 32×,
@@ -352,12 +352,12 @@ sustain level extremely easy to reach, because that level is what a player think
 An envelope is **eight (rate, level) pairs plus an end-step pointer**, with per-step flags.
 [C] Read from the published patch dump format:
 
-| Field | Size | Meaning |
-| --- | --- | --- |
-| End step | 1 byte, values 0–7 | Which of the eight steps is the **last**. Steps beyond it are unused. |
-| Steps | 8 × (rate, level) | The envelope proper |
-| Direction flag | bit 0x80 on the **rate** byte | Set if the level **falls** during this step |
-| Sustain flag | bit 0x80 on the **level** byte | This step is the sustain point |
+| Field          | Size                           | Meaning                                                               |
+| -------------- | ------------------------------ | --------------------------------------------------------------------- |
+| End step       | 1 byte, values 0–7             | Which of the eight steps is the **last**. Steps beyond it are unused. |
+| Steps          | 8 × (rate, level)              | The envelope proper                                                   |
+| Direction flag | bit 0x80 on the **rate** byte  | Set if the level **falls** during this step                           |
+| Sustain flag   | bit 0x80 on the **level** byte | This step is the sustain point                                        |
 
 Semantics:
 
@@ -376,7 +376,7 @@ Semantics:
   the remaining steps up to the end step and then stops. [C]
 - **No looping.** The published format contains no loop-point field and no repeat flag. The
   brief asks "how they loop" — on the CZ-101/1000/5000 patch structure, **they do not**.
-  A patch can be made to *appear* to loop by placing sustain late and giving the DCA
+  A patch can be made to _appear_ to loop by placing sustain late and giving the DCA
   envelope a cyclical shape before it, but there is no loop mechanism. [C], stated as an
   absence — the format was read in full and no such field exists. If the CZ-1 has one, that
   is [U].
@@ -396,11 +396,11 @@ This is a real quirk of the format and is worth reproducing exactly if we ever i
 patches, and worth knowing about regardless because it reveals the hardware's internal
 resolution. [C]
 
-| Envelope | Rate encoding (byte from parameter) | Level encoding |
-| --- | --- | --- |
-| **DCA** | `byte = 119·r/99` | `byte = 127·L/99` |
-| **DCW** | `byte = 119·L/99 + 8` (the format's own text; the `+8` offset is real, byte 8 ⇒ 0, byte 77 ⇒ 99) | as DCA |
-| **DCO** | `byte = 127·r/99` | levels 0–63 → bytes 0x00–0x3F; levels 64–99 → bytes **0x44–0x67** |
+| Envelope | Rate encoding (byte from parameter)                                                              | Level encoding                                                    |
+| -------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| **DCA**  | `byte = 119·r/99`                                                                                | `byte = 127·L/99`                                                 |
+| **DCW**  | `byte = 119·L/99 + 8` (the format's own text; the `+8` offset is real, byte 8 ⇒ 0, byte 77 ⇒ 99) | as DCA                                                            |
+| **DCO**  | `byte = 127·r/99`                                                                                | levels 0–63 → bytes 0x00–0x3F; levels 64–99 → bytes **0x44–0x67** |
 
 Three observations. First, the internal resolution is **7-bit at best** and in the DCW case
 effectively `119 − 8 = 111` steps for 100 parameter values, so adjacent parameter values can
@@ -476,17 +476,17 @@ listening comparison is done (§11, test V-11).
 
 ## 6. Pitch: octave, detune, portamento, bend, vibrato
 
-| Parameter | Range | Encoding | Notes |
-| --- | --- | --- | --- |
-| **Octave** | −1 / 0 / +1 | 2-bit field | Per-patch, whole-instrument [C] |
-| **Detune sign** | + / − | 1 byte | [C] |
-| **Detune, octave** | 0…3 | packed | [C] |
-| **Detune, note** | 0…11 semitones | packed with the above | [C] |
-| **Detune, fine** | 0…60 | 1 byte, 4 sub-ranges | [C] |
-| **Portamento time** | 0…99 | MIDI CC 5 | [C] |
-| **Bend range** | 0…12 semitones | sysex 0x40 | [C] |
-| **Master tune** | 0…127 | MIDI CC 6 | [C] |
-| **Key transpose** | 12 semitone positions | sysex 0x41 | [C] |
+| Parameter           | Range                 | Encoding              | Notes                           |
+| ------------------- | --------------------- | --------------------- | ------------------------------- |
+| **Octave**          | −1 / 0 / +1           | 2-bit field           | Per-patch, whole-instrument [C] |
+| **Detune sign**     | + / −                 | 1 byte                | [C]                             |
+| **Detune, octave**  | 0…3                   | packed                | [C]                             |
+| **Detune, note**    | 0…11 semitones        | packed with the above | [C]                             |
+| **Detune, fine**    | 0…60                  | 1 byte, 4 sub-ranges  | [C]                             |
+| **Portamento time** | 0…99                  | MIDI CC 5             | [C]                             |
+| **Bend range**      | 0…12 semitones        | sysex 0x40            | [C]                             |
+| **Master tune**     | 0…127                 | MIDI CC 6             | [C]                             |
+| **Key transpose**   | 12 semitone positions | sysex 0x41            | [C]                             |
 
 **Detune total range** is therefore **±(3 octaves + 11 semitones + 60 fine units)**, which
 is just under ±4 octaves — consistent with a secondary source's "±4 octaves" description
@@ -501,13 +501,13 @@ single-line modes. [I]
 
 **Vibrato** is a single global LFO with four waveforms and three parameters: [C]
 
-| Parameter | Range | Notes |
-| --- | --- | --- |
-| Wave | 1 = triangle, 2 = saw up, 3 = saw down, 4 = square | [C] |
-| Rate | 0…99 | Higher = faster. Absolute Hz **unknown** [U] |
-| Depth | 0…99 | Absolute cents **unknown** [U] |
-| Delay | 0…99 | "The larger the value, the later vibrato is applied" [C] |
-| On/off | MIDI CC 1 on the small models (a switch, not a continuous wheel) | [C] |
+| Parameter | Range                                                            | Notes                                                    |
+| --------- | ---------------------------------------------------------------- | -------------------------------------------------------- |
+| Wave      | 1 = triangle, 2 = saw up, 3 = saw down, 4 = square               | [C]                                                      |
+| Rate      | 0…99                                                             | Higher = faster. Absolute Hz **unknown** [U]             |
+| Depth     | 0…99                                                             | Absolute cents **unknown** [U]                           |
+| Delay     | 0…99                                                             | "The larger the value, the later vibrato is applied" [C] |
+| On/off    | MIDI CC 1 on the small models (a switch, not a continuous wheel) | [C]                                                      |
 
 On the smallest models CC 1 is a **binary vibrato on/off**, not a modulation wheel; only the
 largest model treats CC 1 as a continuous wheel. [C] That is a real behavioural difference
@@ -524,16 +524,16 @@ in seconds are [U].
 
 ## 7. Voices, memory and the rest of the system
 
-| Property | Value |
-| --- | --- |
-| Voices | **8** in line modes 1 and 2; **4** in 1+1′ and 1+2′ [C] |
-| Velocity | None. Always sent and received as 64 [C] |
-| Aftertouch | None [C] |
-| Memory (small models) | 16 preset + 16 user + 16 cartridge [C] |
-| Memory (largest model) | 32 preset + 32 user, in four banks of eight [C] |
-| Patch size | **256 bytes**, transmitted as nibbles (low nibble first) [C] |
-| Tone mix | A level 1…9, or off — mixes two patches [C] |
-| System CPU | 8-bit microcontroller (µPD7811G-120 class) [R] |
+| Property               | Value                                                        |
+| ---------------------- | ------------------------------------------------------------ |
+| Voices                 | **8** in line modes 1 and 2; **4** in 1+1′ and 1+2′ [C]      |
+| Velocity               | None. Always sent and received as 64 [C]                     |
+| Aftertouch             | None [C]                                                     |
+| Memory (small models)  | 16 preset + 16 user + 16 cartridge [C]                       |
+| Memory (largest model) | 32 preset + 32 user, in four banks of eight [C]              |
+| Patch size             | **256 bytes**, transmitted as nibbles (low nibble first) [C] |
+| Tone mix               | A level 1…9, or off — mixes two patches [C]                  |
+| System CPU             | 8-bit microcontroller (µPD7811G-120 class) [R]               |
 
 Voice assignment behaviour (rotation order, stealing policy) is **[U]** — nothing found.
 
@@ -584,18 +584,18 @@ and the CPU class. [I]
 
 ### 8.3 Artefact inventory
 
-| Artefact | Confidence | Note |
-| --- | --- | --- |
-| Aliasing rising with pitch and DCW | [C] | Deliberate; reproduce, do not fix |
-| Slope-discontinuity brightness | [C] | Inherent to piecewise-linear phase maps |
-| Parameter grid quantisation (0…99, non-uniform internal tables) | [C] | Audible zipper on slow envelope moves; do **not** smooth |
-| DCO level encoding discontinuity at 64 | [C] | Reproduce only in patch import, not in the UI |
-| Level-dependent quantisation noise from the output stage | [R] | Model as a noise floor that scales with signal |
-| Every waveform starts at **+1** (cosine convention) | [C] | Note-on click is real; the DCA envelope's first step is what suppresses it |
-| Waveform 8 starts at 0 (sine convention) | [U] | Inconsistent with 6 and 7 in the source implementation; verify |
-| Waveform pairs alternate per cycle, adding f/2 content | [R] | Not a crossfade |
-| No pitch drift, no analogue instability | [C] | Crystal-derived. Adding drift would be wrong |
-| No velocity, no aftertouch | [C] | Any velocity response we add is a modern extension and must be switchable |
+| Artefact                                                        | Confidence | Note                                                                       |
+| --------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------- |
+| Aliasing rising with pitch and DCW                              | [C]        | Deliberate; reproduce, do not fix                                          |
+| Slope-discontinuity brightness                                  | [C]        | Inherent to piecewise-linear phase maps                                    |
+| Parameter grid quantisation (0…99, non-uniform internal tables) | [C]        | Audible zipper on slow envelope moves; do **not** smooth                   |
+| DCO level encoding discontinuity at 64                          | [C]        | Reproduce only in patch import, not in the UI                              |
+| Level-dependent quantisation noise from the output stage        | [R]        | Model as a noise floor that scales with signal                             |
+| Every waveform starts at **+1** (cosine convention)             | [C]        | Note-on click is real; the DCA envelope's first step is what suppresses it |
+| Waveform 8 starts at 0 (sine convention)                        | [U]        | Inconsistent with 6 and 7 in the source implementation; verify             |
+| Waveform pairs alternate per cycle, adding f/2 content          | [R]        | Not a crossfade                                                            |
+| No pitch drift, no analogue instability                         | [C]        | Crystal-derived. Adding drift would be wrong                               |
+| No velocity, no aftertouch                                      | [C]        | Any velocity response we add is a modern extension and must be switchable  |
 
 ---
 
@@ -604,26 +604,26 @@ and the CPU class. [I]
 Every stored parameter, for parameter-ID assignment. Six envelopes are listed once and
 instantiated six times.
 
-| Section | Control | Range | Default |
-| --- | --- | --- | --- |
-| Global | Line select | 1 / 2 / 1+1′ / 1+2′ | 1 |
-| Global | Octave | −1 / 0 / +1 | 0 |
-| Global | Detune sign | + / − | + |
-| Global | Detune octave | 0…3 | 0 |
-| Global | Detune note | 0…11 | 0 |
-| Global | Detune fine | 0…60 | 0 |
-| Global | Modulation | none / ring / noise | none |
-| Global | Portamento on/off, time | off; 0…99 | off, 0 |
-| Global | Bend range | 0…12 semitones | 2 |
-| Vibrato | Wave | 1…4 | 1 |
-| Vibrato | Rate / Depth / Delay | 0…99 each | 40 / 0 / 0 |
-| Line *n* | Waveform 1 | 1…8 | 1 |
-| Line *n* | Waveform 2 | 1…8, or none | none |
-| Line *n* | DCA key follow | 0…9 | 0 |
-| Line *n* | DCW key follow | 0…9 | 0 |
-| Line *n* | DCO envelope | 8 × (rate 0…99, level 0…99), sustain step, end step | flat |
-| Line *n* | DCW envelope | as above | see note |
-| Line *n* | DCA envelope | as above | see note |
+| Section  | Control                 | Range                                               | Default    |
+| -------- | ----------------------- | --------------------------------------------------- | ---------- |
+| Global   | Line select             | 1 / 2 / 1+1′ / 1+2′                                 | 1          |
+| Global   | Octave                  | −1 / 0 / +1                                         | 0          |
+| Global   | Detune sign             | + / −                                               | +          |
+| Global   | Detune octave           | 0…3                                                 | 0          |
+| Global   | Detune note             | 0…11                                                | 0          |
+| Global   | Detune fine             | 0…60                                                | 0          |
+| Global   | Modulation              | none / ring / noise                                 | none       |
+| Global   | Portamento on/off, time | off; 0…99                                           | off, 0     |
+| Global   | Bend range              | 0…12 semitones                                      | 2          |
+| Vibrato  | Wave                    | 1…4                                                 | 1          |
+| Vibrato  | Rate / Depth / Delay    | 0…99 each                                           | 40 / 0 / 0 |
+| Line _n_ | Waveform 1              | 1…8                                                 | 1          |
+| Line _n_ | Waveform 2              | 1…8, or none                                        | none       |
+| Line _n_ | DCA key follow          | 0…9                                                 | 0          |
+| Line _n_ | DCW key follow          | 0…9                                                 | 0          |
+| Line _n_ | DCO envelope            | 8 × (rate 0…99, level 0…99), sustain step, end step | flat       |
+| Line _n_ | DCW envelope            | as above                                            | see note   |
+| Line _n_ | DCA envelope            | as above                                            | see note   |
 
 Sensible defaults for a new patch [I]: DCO envelope flat at the neutral pitch level with end
 step 1; DCW envelope rising to 99 fast then sustaining at 60; DCA envelope attack to 99 at
@@ -648,23 +648,23 @@ rate 99, sustain at 80, release at rate 60.
 
 ## 11. Verification — what QA must measure
 
-| ID | Test | Method | Target | Tolerance |
-| --- | --- | --- | --- | --- |
-| **V-1** | DCW = 0 is a pure cosine | Each of waveforms 1, 2, 3, 5 at DCW 0, note A4. FFT. | Only the fundamental; every harmonic below −80 dBFS | −80 dBFS |
-| **V-2** | Waveform 4 at DCW 0 | Same, waveform 4. | Only **2 × fundamental**; the fundamental itself below −60 dBFS | −60 dBFS |
-| **V-3** | Resonant peak tracks DCW | Waveform 6, note A2, sweep DCW 0→99. Track the spectral centroid peak. | Peak moves monotonically from 1× to `r_max` × fundamental | Monotonic; endpoint per §3.3 [I] |
-| **V-4** | Rate is speed, not time | Two steps with identical rate but level distances of 20 and 80. | The 80-distance step takes **4×** as long | ±5 % |
-| **V-5** | Sustain and end steps | Envelope with sustain on step 3 and end on step 6. Hold 5 s, release. | Holds at step 3's level; on release runs steps 4→6 and stops | Exact |
-| **V-6** | DCW envelope is the only brightness control | Sweep the DCW envelope's sustain level 0→99 at fixed pitch. Measure spectral centroid. | Monotonic rise | Monotonic |
-| **V-7** | DCW key follow table | Key follow 8 and 9, sweep pitch. Measure effective DCW. | Reproduces the 0x92 / 0xFF step, not a smooth curve | Table values exactly |
-| **V-8** | Aliasing signature | Waveform 1 at DCW 99, chromatic sweep C2→C7, no envelope. Measure non-harmonic energy vs. pitch. | Rises monotonically with pitch; **must not change** when the host sample rate changes from 44.1 to 96 kHz | Difference between host rates < 1 dB |
-| **V-9** | Waveform 8 start phase | Waveform 8, DCW 50, single cycle capture. | First sample is 0 (sine) or +1 (cosine) — record which | Report, then decide |
-| **V-10** | Detune fine resolution | Mode 1+1′, detune fine 0 → 60. Measure beat frequency. | One fine unit ≈ 1.64 cents; 60 units ≈ 1 semitone | ±10 % on the semitone total |
-| **V-11** | Noise modulation hypothesis | Build both hypotheses from §5, render the same percussion-style patch. | Blind A/B against reference material | Qualitative; must be settled before ship |
-| **V-12** | Polyphony halving | Line mode 1 vs. 1+1′, play 8 notes. | 8 sounding vs. 4 sounding | Exact |
-| **V-13** | Waveform pair alternation | Waveform 1 + waveform 3 as a pair, note A2. FFT. | Energy present at **f/2** | > −40 dBFS relative to fundamental |
-| **V-14** | Parameter quantisation | Sweep any 0…99 parameter continuously via automation. | 100 discrete steps, no interpolation | Exact step count |
-| **V-15** | No velocity | Send note-ons at velocity 1 and 127. | Identical output (in period-correct mode) | Bit-identical |
+| ID       | Test                                        | Method                                                                                           | Target                                                                                                    | Tolerance                                |
+| -------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| **V-1**  | DCW = 0 is a pure cosine                    | Each of waveforms 1, 2, 3, 5 at DCW 0, note A4. FFT.                                             | Only the fundamental; every harmonic below −80 dBFS                                                       | −80 dBFS                                 |
+| **V-2**  | Waveform 4 at DCW 0                         | Same, waveform 4.                                                                                | Only **2 × fundamental**; the fundamental itself below −60 dBFS                                           | −60 dBFS                                 |
+| **V-3**  | Resonant peak tracks DCW                    | Waveform 6, note A2, sweep DCW 0→99. Track the spectral centroid peak.                           | Peak moves monotonically from 1× to `r_max` × fundamental                                                 | Monotonic; endpoint per §3.3 [I]         |
+| **V-4**  | Rate is speed, not time                     | Two steps with identical rate but level distances of 20 and 80.                                  | The 80-distance step takes **4×** as long                                                                 | ±5 %                                     |
+| **V-5**  | Sustain and end steps                       | Envelope with sustain on step 3 and end on step 6. Hold 5 s, release.                            | Holds at step 3's level; on release runs steps 4→6 and stops                                              | Exact                                    |
+| **V-6**  | DCW envelope is the only brightness control | Sweep the DCW envelope's sustain level 0→99 at fixed pitch. Measure spectral centroid.           | Monotonic rise                                                                                            | Monotonic                                |
+| **V-7**  | DCW key follow table                        | Key follow 8 and 9, sweep pitch. Measure effective DCW.                                          | Reproduces the 0x92 / 0xFF step, not a smooth curve                                                       | Table values exactly                     |
+| **V-8**  | Aliasing signature                          | Waveform 1 at DCW 99, chromatic sweep C2→C7, no envelope. Measure non-harmonic energy vs. pitch. | Rises monotonically with pitch; **must not change** when the host sample rate changes from 44.1 to 96 kHz | Difference between host rates < 1 dB     |
+| **V-9**  | Waveform 8 start phase                      | Waveform 8, DCW 50, single cycle capture.                                                        | First sample is 0 (sine) or +1 (cosine) — record which                                                    | Report, then decide                      |
+| **V-10** | Detune fine resolution                      | Mode 1+1′, detune fine 0 → 60. Measure beat frequency.                                           | One fine unit ≈ 1.64 cents; 60 units ≈ 1 semitone                                                         | ±10 % on the semitone total              |
+| **V-11** | Noise modulation hypothesis                 | Build both hypotheses from §5, render the same percussion-style patch.                           | Blind A/B against reference material                                                                      | Qualitative; must be settled before ship |
+| **V-12** | Polyphony halving                           | Line mode 1 vs. 1+1′, play 8 notes.                                                              | 8 sounding vs. 4 sounding                                                                                 | Exact                                    |
+| **V-13** | Waveform pair alternation                   | Waveform 1 + waveform 3 as a pair, note A2. FFT.                                                 | Energy present at **f/2**                                                                                 | > −40 dBFS relative to fundamental       |
+| **V-14** | Parameter quantisation                      | Sweep any 0…99 parameter continuously via automation.                                            | 100 discrete steps, no interpolation                                                                      | Exact step count                         |
+| **V-15** | No velocity                                 | Send note-ons at velocity 1 and 127.                                                             | Identical output (in period-correct mode)                                                                 | Bit-identical                            |
 
 ---
 
@@ -678,7 +678,7 @@ badge and nothing may be traced from a photograph.
 abandoned one-control-per-parameter. A patch here has roughly 130 stored values and a panel
 with roughly a dozen buttons. The interaction model that replaced knob-per-function is:
 
-1. A **parameter-select stage** — a small number of buttons that name *sections* (the
+1. A **parameter-select stage** — a small number of buttons that name _sections_ (the
    equivalent of "DCO 1", "DCW 2", "DCA 1"), pressed to enter that part of the patch.
 2. A **cursor pair** — left/right buttons that step through the parameters within the
    selected section.
@@ -704,7 +704,7 @@ stores.
 16 characters, dark grey segments on a yellow-green or grey-green field, usually
 **unlit** — read by ambient light, not backlit. Character shapes are 5×7 dot matrix. There
 are no graphics, no proportional text, no more than one line. If we evoke this, evoke the
-*constraint* — a narrow, single-line status strip with monospaced text and a hard character
+_constraint_ — a narrow, single-line status strip with monospaced text and a hard character
 limit — rather than simulating LCD pixels. A faked dot-matrix font is skeuomorphism; a
 genuinely terse one-line readout is era language.
 
@@ -763,34 +763,34 @@ panel and the cool dark palette** — all functional decisions, none of them tra
    to collapse to a pure cosine at DCW 0.
 3. **`github.com/thorinside/czd_osc`** — a Faust CZ-style oscillator using the above
    library; used only to confirm the library's calling convention (`CZsaw(lf_sawpos(f),
-   index)`), i.e. that `index` is the DCW analogue.
+index)`), i.e. that `index` is the DCW analogue.
 
 **Secondary, via search extraction:**
 
-4. Wikipedia, *Phase distortion synthesis* and *Casio CZ synthesizers* — the technique's
+4. Wikipedia, _Phase distortion synthesis_ and _Casio CZ synthesizers_ — the technique's
    definition, its origin as a route around a competitor's FM patents, the eight-waveform
    inventory (five conventional plus three resonant: sawtooth, triangle, trapezoidal), the
    two-waveforms-per-DCO-in-alternation behaviour, and the prohibition on pairing two
    resonant waveforms.
-5. Tonalux, *Phase Distortion Synthesis: How Casio Bent Sine Waves Into Complex Spectra* —
+5. Tonalux, _Phase Distortion Synthesis: How Casio Bent Sine Waves Into Complex Spectra_ —
    the `Φ = φ + Δ(φ)` phase-transfer formulation, and DCW's behaviour differing between
    resonant and non-resonant waveforms.
-6. Perfect Circuit, *Casio CZ Series History* and *The Basics of Phase Distortion and
-   Frequency Modulation* — DDS framing, DCW as morphing control, resonant waveforms
+6. Perfect Circuit, _Casio CZ Series History_ and _The Basics of Phase Distortion and
+   Frequency Modulation_ — DDS framing, DCW as morphing control, resonant waveforms
    repositioning the peak above the fundamental.
-7. Nathan Ho, *A Survey of Nonstandard Oscillators* — the clearest statement of the
+7. Nathan Ho, _A Survey of Nonstandard Oscillators_ — the clearest statement of the
    windowed-hard-sync mechanism behind the resonant waveforms.
-8. kasploosh.com, *About Casio CZ Envelopes* — rate 99 = fastest / 0 = slowest, sustain and
+8. kasploosh.com, _About Casio CZ Envelopes_ — rate 99 = fastest / 0 = slowest, sustain and
    end assignable to any step, segment durations from ~1 ms to ~1 minute.
-9. HandWiki, *Engineering: Casio CZ synthesizers* — waveform names, one-or-two waveforms per
+9. HandWiki, _Engineering: Casio CZ synthesizers_ — waveform names, one-or-two waveforms per
    oscillator, series rather than parallel combination.
-10. Polynominal, *Casio CZ-101 (1984)* — line modes and their polyphony cost, ring and noise
+10. Polynominal, _Casio CZ-101 (1984)_ — line modes and their polyphony cost, ring and noise
     modulation as fixed-depth options, 8-bit system CPU.
-11. ajxs.me, *Casio CZ-101 Review* — output-stage description (floating-point arrangement
+11. ajxs.me, _Casio CZ-101 Review_ — output-stage description (floating-point arrangement
     with resistor-ladder mantissa) and its difference from the larger models.
-12. Casio *CZ-1 Operation Manual*, DCW section (via ManualsLib extraction) — DCW as the
+12. Casio _CZ-1 Operation Manual_, DCW section (via ManualsLib extraction) — DCW as the
     waveshaping control operated by envelope.
-13. Casio *CZ-101 Operation Manual* (via extraction) — detune range description, octave
+13. Casio _CZ-101 Operation Manual_ (via extraction) — detune range description, octave
     parameter, vibrato waveform list, delay parameter semantics.
 
 ---

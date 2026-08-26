@@ -14,28 +14,28 @@ reverb and a granular delay whose ranges reach grain overlaps of 200 and an
 eight-tap delay at full smear. The Research Analyst costed both against the
 alternatives:
 
-| Configuration | Mflop/s, one instance | × 12 |
-| --- | --- | --- |
-| Motion Shaper, 3 bands, 1 module | 13.4 | 161 Mflop/s |
-| Motion Shaper, 3 bands, 8 modules | 96 | 1.15 Gflop/s |
-| Granular reverb, default (350 grains/s, 60 ms, overlap 21) | 31.0 | 372 Mflop/s |
-| Granular reverb, literature maximum (overlap 200) | 237 | **2.85 Gflop/s** |
-| Granular delay, tape, 4 taps, no smear | 16.6 | 199 Mflop/s |
-| Granular delay, tape, 8 taps, full smear | 314 | **3.8 Gflop/s** |
+| Configuration                                              | Mflop/s, one instance | × 12             |
+| ---------------------------------------------------------- | --------------------- | ---------------- |
+| Motion Shaper, 3 bands, 1 module                           | 13.4                  | 161 Mflop/s      |
+| Motion Shaper, 3 bands, 8 modules                          | 96                    | 1.15 Gflop/s     |
+| Granular reverb, default (350 grains/s, 60 ms, overlap 21) | 31.0                  | 372 Mflop/s      |
+| Granular reverb, literature maximum (overlap 200)          | 237                   | **2.85 Gflop/s** |
+| Granular delay, tape, 4 taps, no smear                     | 16.6                  | 199 Mflop/s      |
+| Granular delay, tape, 8 taps, full smear                   | 314                   | **3.8 Gflop/s**  |
 
 For calibration, the same analysis puts a Dattorro plate at ~80 flops/sample and
 a 16×16 feedback delay network with a fast Walsh–Hadamard transform at ~130 —
 so **an FDN is cheaper than our granular reverb**, and partitioned convolution
-for a two-second stereo impulse is ~610 Mflop/s for *one* instance, 7.3 Gflop/s
+for a two-second stereo impulse is ~610 Mflop/s for _one_ instance, 7.3 Gflop/s
 for twelve.
 
 Memory turns out to be the harder wall than arithmetic. Honouring the reference
 product's 32-bar modulation length at 60 BPM in the Motion Shaper's time module
 would need **147 MB per instance and 1.76 GB for twelve**.
 
-The analyst's conclusion, which this ADR accepts: *"at the granular reverb's
+The analyst's conclusion, which this ADR accepts: _"at the granular reverb's
 dense settings or the granular delay's maximum smear, twelve simultaneous
-instances is not achievable on any phone."*
+instances is not achievable on any phone."_
 
 ## Decision
 
@@ -52,7 +52,7 @@ suggested.**
 
 Three rules make the tiers honest rather than cosmetic:
 
-1. **A tier reduces the grain *rate*, never drops grains mid-flight.** Dropping
+1. **A tier reduces the grain _rate_, never drops grains mid-flight.** Dropping
    a sounding grain modulates loudness with CPU load, which turns a performance
    problem into an audible one and makes it the user's problem to explain.
 2. **Memory is allocated to the configured maximum, never the theoretical one.**

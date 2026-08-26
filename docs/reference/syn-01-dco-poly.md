@@ -36,8 +36,8 @@ constant that sounds right is not a measurement.
 **Intellectual-property rule for this file.** Manufacturer and model names appear here
 because this is an internal research note and naming the object of study is how research
 works. They must **never** appear in shipped UI strings, code identifiers, filenames,
-preset names, or marketing copy. What we are permitted to learn from is *circuit behaviour
-and sonic targets*. No panel artwork, logo, typeface or badge is described in this file,
+preset names, or marketing copy. What we are permitted to learn from is _circuit behaviour
+and sonic targets_. No panel artwork, logo, typeface or badge is described in this file,
 and none may be traced, imitated or reproduced. Section 18 describes the **era's** design
 language — the vocabulary of controls and materials common to early-1980s Japanese
 polysynths — which is what the UI team may evoke. Nothing here was obtained by
@@ -140,7 +140,7 @@ model must expose them as enumerations, not as continuous mix controls. [C]
 
 This is the part most often modelled wrongly, so it is worth being exact. The oscillator is
 **not** a digital wavetable and its output is **not** a staircase. It is an analogue ramp
-generator whose *reset* is digital. [C]
+generator whose _reset_ is digital. [C]
 
 1. A single high-frequency master clock is shared by the whole instrument. [C]
 2. Each voice has a programmable counter (divider) loaded by the CPU with a value derived
@@ -155,7 +155,7 @@ generator whose *reset* is digital. [C]
    across the keyboard. [C]
 
 The consequence for us: pitch accuracy is set by a crystal-derived divider, so it is exact
-and drift-free, while the *waveform* is analogue and inherits the imperfections of an
+and drift-free, while the _waveform_ is analogue and inherits the imperfections of an
 integrator — a very slightly curved ramp rather than a mathematically straight one, and a
 reset that is fast but not instantaneous. Pitch stability and analogue waveshape are
 therefore independent properties, which is precisely the combination a pure digital or a
@@ -193,12 +193,12 @@ off is a bug, not authenticity. [I]
 Four sources arrive at one summing point. On the reference panel, saw and pulse are
 **on/off switches** while sub and noise are **continuous level sliders**. [C]
 
-| Source | Control | Range | Taper | Default | Notes |
-| --- | --- | --- | --- | --- | --- |
-| Sawtooth | switch | off / on | — | on | Full-amplitude ramp, falling or rising is a sign convention only |
-| Pulse | switch | off / on | — | off | Width set by the PWM section, never fixed at 50 % — see §5 |
-| Sub-oscillator | slider | 0…10 | approx. linear in level [U] | 0 | Square at **f/2**, one octave below |
-| Noise | slider | 0…10 | approx. linear in level [U] | 0 | White source, low-pass filtered at **≈5 kHz** [C] |
+| Source         | Control | Range    | Taper                       | Default | Notes                                                            |
+| -------------- | ------- | -------- | --------------------------- | ------- | ---------------------------------------------------------------- |
+| Sawtooth       | switch  | off / on | —                           | on      | Full-amplitude ramp, falling or rising is a sign convention only |
+| Pulse          | switch  | off / on | —                           | off     | Width set by the PWM section, never fixed at 50 % — see §5       |
+| Sub-oscillator | slider  | 0…10     | approx. linear in level [U] | 0       | Square at **f/2**, one octave below                              |
+| Noise          | slider  | 0…10     | approx. linear in level [U] | 0       | White source, low-pass filtered at **≈5 kHz** [C]                |
 
 The sub-oscillator is a **flip-flop toggled by the main oscillator's period**, so it is
 phase-locked to the DCO by construction, one octave down, always a square. It cannot be
@@ -226,10 +226,10 @@ the saw.
 
 Controls:
 
-| Control | Type | Positions / range | Default | Interaction |
-| --- | --- | --- | --- | --- |
-| PWM source | 3-way switch | `MANUAL` / `LFO` / `ENV` | `MANUAL` | Selects what drives the comparator CV |
-| PWM depth | slider | 0…10 | 0 | In `MANUAL` this **is** the width; in `LFO`/`ENV` it is the modulation depth |
+| Control    | Type         | Positions / range        | Default  | Interaction                                                                  |
+| ---------- | ------------ | ------------------------ | -------- | ---------------------------------------------------------------------------- |
+| PWM source | 3-way switch | `MANUAL` / `LFO` / `ENV` | `MANUAL` | Selects what drives the comparator CV                                        |
+| PWM depth  | slider       | 0…10                     | 0        | In `MANUAL` this **is** the width; in `LFO`/`ENV` it is the modulation depth |
 
 The single slider serves two semantically different jobs depending on the switch. That is
 not an accident to be tidied up — it is the interaction the player expects, and our UI must
@@ -263,22 +263,22 @@ four-position slider. [C]
 
 **1982 model** [C]:
 
-| Position | Behaviour |
-| --- | --- |
-| 0 | No filtering |
-| 1 | −6 dB/oct below **154 Hz** |
-| 2 | −6 dB/oct below **339 Hz** |
-| 3 | −6 dB/oct below **720 Hz** |
+| Position | Behaviour                  |
+| -------- | -------------------------- |
+| 0        | No filtering               |
+| 1        | −6 dB/oct below **154 Hz** |
+| 2        | −6 dB/oct below **339 Hz** |
+| 3        | −6 dB/oct below **720 Hz** |
 
-**1984 model** [C] — note that the positions are *not* the same, and position 0 is a bass
+**1984 model** [C] — note that the positions are _not_ the same, and position 0 is a bass
 **boost**, not a bypass:
 
-| Position | Behaviour |
-| --- | --- |
-| 0 | **+6 dB low shelf below 65 Hz** |
-| 1 | No filtering |
-| 2 | −6 dB/oct below **225 Hz** |
-| 3 | −6 dB/oct below **720 Hz** |
+| Position | Behaviour                       |
+| -------- | ------------------------------- |
+| 0        | **+6 dB low shelf below 65 Hz** |
+| 1        | No filtering                    |
+| 2        | −6 dB/oct below **225 Hz**      |
+| 3        | −6 dB/oct below **720 Hz**      |
 
 The corner frequencies for the 1982 model were derived from the component values in the
 schematic via `f = 1/(2πRC)`; the 1984 figures come from a separate community measurement.
@@ -294,7 +294,7 @@ for the whole instrument, operating on the **summed** output of all six voices, 
 the VCF and VCA. [R] A separate summary of the same instrument's signal flow states the
 per-voice order as mixer → HPF → VCF. [R] Both cannot be true.
 
-**Resolution, with reasoning.** Take the *post-sum, post-VCF* placement. Three arguments:
+**Resolution, with reasoning.** Take the _post-sum, post-VCF_ placement. Three arguments:
 (a) the specific claim is the more detailed one and is made from the schematic, describing
 the mechanism (all voice chips routed to one op-amp, HPF after it) rather than restating
 the panel layout; (b) it is consistent with the part count — six voice filter/amplifier
@@ -353,20 +353,20 @@ engaged. [R]
   transient passes through. The 1982 model is consistently reported as more pronounced here
   than the 1984 model. [R]
 
-Do not place saturation on the filter *output*; that produces a filter that distorts
+Do not place saturation on the filter _output_; that produces a filter that distorts
 brightly rather than one that distorts and then filters the distortion, which is the wrong
 character.
 
 ### 7.1 Filter control set
 
-| Control | Range | Unit | Taper | Default | Interaction |
-| --- | --- | --- | --- | --- | --- |
-| Cutoff (`FREQ`) | 0…10 | slider units → Hz | exponential, ≈constant octaves/unit | 10 | Sums in the octave domain with every other cutoff modulator |
-| Resonance (`RES`) | 0…10 | — | approx. linear in feedback `k` [I] | 0 | Raises cutoff slightly; reduces passband gain; self-oscillates ≈9+ [R] |
-| Envelope amount | 0…10 | octaves | linear in octaves [I] | 0 | Multiplied by the ENV polarity switch |
-| Envelope polarity | switch | `+` / `−` | — | `+` | Inverts the envelope's contribution only |
-| LFO amount | 0…10 | octaves | linear in octaves [I] | 0 | Global LFO, so all voices move together |
-| Key follow (`KYBD`) | 0…10 | 0…100 % | linear [C] | 0 | 100 % ≈ 1 octave of cutoff per octave of keyboard |
+| Control             | Range  | Unit              | Taper                               | Default | Interaction                                                            |
+| ------------------- | ------ | ----------------- | ----------------------------------- | ------- | ---------------------------------------------------------------------- |
+| Cutoff (`FREQ`)     | 0…10   | slider units → Hz | exponential, ≈constant octaves/unit | 10      | Sums in the octave domain with every other cutoff modulator            |
+| Resonance (`RES`)   | 0…10   | —                 | approx. linear in feedback `k` [I]  | 0       | Raises cutoff slightly; reduces passband gain; self-oscillates ≈9+ [R] |
+| Envelope amount     | 0…10   | octaves           | linear in octaves [I]               | 0       | Multiplied by the ENV polarity switch                                  |
+| Envelope polarity   | switch | `+` / `−`         | —                                   | `+`     | Inverts the envelope's contribution only                               |
+| LFO amount          | 0…10   | octaves           | linear in octaves [I]               | 0       | Global LFO, so all voices move together                                |
+| Key follow (`KYBD`) | 0…10   | 0…100 %           | linear [C]                          | 0       | 100 % ≈ 1 octave of cutoff per octave of keyboard                      |
 
 **Modulation summing is in the octave (exponential) domain**, not in Hz. Every contributor
 adds an octave offset to the base cutoff and the sum is then exponentiated once. [I] This
@@ -376,11 +376,11 @@ depths stay musically constant across the keyboard.
 **Depths in real units** — from the studied emulator's constants, therefore [I], and the
 single largest gap in this sheet:
 
-| Path | Depth at full |
-| --- | --- |
-| Envelope → cutoff | ±12 octaves [I] |
-| LFO → cutoff | ±3 octaves [I] |
-| Bend lever → cutoff | ±4 octaves [I] |
+| Path                | Depth at full                                                         |
+| ------------------- | --------------------------------------------------------------------- |
+| Envelope → cutoff   | ±12 octaves [I]                                                       |
+| LFO → cutoff        | ±3 octaves [I]                                                        |
+| Bend lever → cutoff | ±4 octaves [I]                                                        |
 | Key follow → cutoff | ±5 octaves across the 5 octaves either side of middle C, i.e. 1:1 [I] |
 
 ±12 octaves is very large and is almost certainly the emulator author's choice rather than a
@@ -394,7 +394,7 @@ have QA bracket it (§17, test V-4).
 One switch selects what drives the amplifier: [C]
 
 - **`ENV`** — the ADSR drives the VCA. Normal behaviour.
-- **`GATE`** — the VCA is driven by the key gate directly. The envelope is *still running*
+- **`GATE`** — the VCA is driven by the key gate directly. The envelope is _still running_
   and still available to the filter and to PWM; it simply no longer controls level.
 
 `GATE` is not a hard on/off. The reference applies a very short ramp on each edge to
@@ -429,13 +429,13 @@ Direct measurement of the 1982 instrument disagrees with the published decay/rel
 maximum by a large factor, and the measurement is the better number because its method is
 published [C]:
 
-| Slider (0…10) | Attack (s) | Decay (s) | Release (s) |
-| --- | --- | --- | --- |
-| 0 | 0.001 | 0.002 | 0.002 |
-| 2.5 | 0.03 | 0.096 | 0.096 |
-| 5 | 0.24 | 0.984 | 0.984 |
-| 7.5 | 0.65 | 4.449 | 4.449 |
-| 10 | **3.25** | **19.783** | **19.783** |
+| Slider (0…10) | Attack (s) | Decay (s)  | Release (s) |
+| ------------- | ---------- | ---------- | ----------- |
+| 0             | 0.001      | 0.002      | 0.002       |
+| 2.5           | 0.03       | 0.096      | 0.096       |
+| 5             | 0.24       | 0.984      | 0.984       |
+| 7.5           | 0.65       | 4.449      | 4.449       |
+| 10            | **3.25**   | **19.783** | **19.783**  |
 
 Decay and release measured **identical**, which is consistent with one timing circuit
 serving both. Build them from one shared curve. [C]
@@ -444,7 +444,7 @@ serving both. Build them from one shared curve. [C]
 the measurement: it states its instrument, its method (waveform analysis in Sonic
 Visualiser) and its slider positions, whereas the manual figure is a round marketing-grade
 number and the manual itself warns that its envelope diagrams are not to scale. Note also
-that the measured decay is the time to reach *silence*, while a manufacturer may quote a
+that the measured decay is the time to reach _silence_, while a manufacturer may quote a
 time constant or a time to −60 dB; that alone could account for the factor. Implement
 19.8 s and expose the curve as data so it can be retuned. [C]/[I]
 
@@ -458,7 +458,7 @@ simpler and more faithful than the fit; that is what the reference emulator does
 - **Attack: inverted exponential, one time constant per segment.** Measured normalised
   levels at slider 10 fit `L(x) = (1 − e^(−x)) / 0.632` where `x` is the fraction of the
   attack duration elapsed. [C] The `0.632` denominator is exactly `1 − e⁻¹`, i.e. the
-  segment ends at exactly one RC time constant. This is a *fast-then-slow* curve, not
+  segment ends at exactly one RC time constant. This is a _fast-then-slow_ curve, not
   linear, and not the "3–5 time constants" that a generic analogue-envelope model assumes.
   Getting this wrong makes short attacks sound soft.
 - **Decay and release: exponential decay over ≈3.5 time constants.** Fit
@@ -483,15 +483,15 @@ gets wrong by being reasonable.
 therefore modulated in phase — this is a defining characteristic, and per-voice LFOs would
 change the instrument. [C]
 
-| Property | Value |
-| --- | --- |
-| Waveform | Triangle [C] |
-| Rate, specified | **0.3 Hz – 20 Hz** [C] |
-| Rate, measured | slider 0 / 2.5 / 5 / 7.5 / 10 → **0.30 / 0.85 / 3.39 / 11.49 / 22.22 Hz** [I] |
-| Rate taper | Logarithmic; interpolate the five points above |
-| Delay, measured | slider 0 / 2.5 / 5 / 7.5 / 10 → **0 / 0.064 / 0.85 / 1.20 / 2.79 s** [C] |
-| Fade-in after delay | **0 / 0.053 / 0.188 / 0.348 / 1.15 s** [C] |
-| Trigger | Key-on, when no other voice is already sounding [I] |
+| Property            | Value                                                                         |
+| ------------------- | ----------------------------------------------------------------------------- |
+| Waveform            | Triangle [C]                                                                  |
+| Rate, specified     | **0.3 Hz – 20 Hz** [C]                                                        |
+| Rate, measured      | slider 0 / 2.5 / 5 / 7.5 / 10 → **0.30 / 0.85 / 3.39 / 11.49 / 22.22 Hz** [I] |
+| Rate taper          | Logarithmic; interpolate the five points above                                |
+| Delay, measured     | slider 0 / 2.5 / 5 / 7.5 / 10 → **0 / 0.064 / 0.85 / 1.20 / 2.79 s** [C]      |
+| Fade-in after delay | **0 / 0.053 / 0.188 / 0.348 / 1.15 s** [C]                                    |
+| Trigger             | Key-on, when no other voice is already sounding [I]                           |
 
 The **delay control is two-stage**: a period of complete silence, then a fade-in ramp to
 full depth. Both stages were measured separately (table above) and both scale with the one
@@ -500,11 +500,11 @@ vibrato patches. [C]
 
 Modulation depths from the LFO, in real units:
 
-| Destination | Depth at full slider |
-| --- | --- |
+| Destination         | Depth at full slider                                                   |
+| ------------------- | ---------------------------------------------------------------------- |
 | DCO pitch (vibrato) | **±300 cents** [I] — the emulator's comment cites the manual's page 14 |
-| VCF cutoff | **±3 octaves** [I] |
-| Pulse width | full width range (see §5) |
+| VCF cutoff          | **±3 octaves** [I]                                                     |
+| Pulse width         | full width range (see §5)                                              |
 
 The bend lever's pitch axis is **±700 cents** at full depth. [I]
 
@@ -524,7 +524,7 @@ is mixed with wet in both channels. [C]
 
 Signal conditioning around the delay lines, from the reference emulator [I]:
 
-- A one-pole low-pass at **≈7.2 kHz** *before* the delay line (an anti-alias filter for the
+- A one-pole low-pass at **≈7.2 kHz** _before_ the delay line (an anti-alias filter for the
   BBD's sampling; community analysis of the schematic reports a 12 dB/oct low-pass in this
   position, so a one-pole is a simplification [R]).
 - A one-pole low-pass at **≈10.6 kHz** on each delayed output.
@@ -545,18 +545,18 @@ commented out (`tanh(x·0.6)·1.862`), so the exact amount is [U] — but its pr
 Measured from the 1982 instrument by waveform analysis; the I+II rate was independently
 confirmed by a second author's analysis tool. [C]
 
-| Mode | LFO rate | Delay, left | Delay, right | Image | Character |
-| --- | --- | --- | --- | --- | --- |
-| **I** | **0.513 Hz** | 1.54 – 5.15 ms | 1.51 – 5.40 ms (inverted mod) | Stereo | Mild |
-| **II** | **0.863 Hz** | 1.54 – 5.15 ms | 1.51 – 5.40 ms (inverted mod) | Stereo | Deeper, richer |
-| **I + II** | **9.75 Hz** | 3.22 – 3.56 ms | 3.28 – 3.65 ms (**in phase**) | Effectively mono | Fast wobble, rotary-like |
+| Mode       | LFO rate     | Delay, left    | Delay, right                  | Image            | Character                |
+| ---------- | ------------ | -------------- | ----------------------------- | ---------------- | ------------------------ |
+| **I**      | **0.513 Hz** | 1.54 – 5.15 ms | 1.51 – 5.40 ms (inverted mod) | Stereo           | Mild                     |
+| **II**     | **0.863 Hz** | 1.54 – 5.15 ms | 1.51 – 5.40 ms (inverted mod) | Stereo           | Deeper, richer           |
+| **I + II** | **9.75 Hz**  | 3.22 – 3.56 ms | 3.28 – 3.65 ms (**in phase**) | Effectively mono | Fast wobble, rotary-like |
 
 Three things in that table are the whole point and are easy to get wrong:
 
 1. **Modes I and II differ only in rate.** Same delay range, same depth. Anyone who
    implements mode II as "deeper" is modelling the description rather than the circuit.
    The perceived extra depth comes entirely from the faster sweep. [C]
-2. **I+II is not the two modes summed.** It is a *third* setting: rate jumps by more than
+2. **I+II is not the two modes summed.** It is a _third_ setting: rate jumps by more than
    10×, the delay range collapses to a narrow ±0.17 ms around 3.4 ms, and the right
    channel's modulation stops being inverted. It is a vibrato, not a chorus. [C]
 3. **The delay times are far shorter than a conventional chorus.** Standard chorus practice
@@ -583,12 +583,12 @@ should move.
 
 Present on the 1982 model, absent from the 1984 model (which has MIDI instead). [C]
 
-| Control | Positions / range | Notes |
-| --- | --- | --- |
-| Mode | `UP` / `UP & DOWN` / `DOWN` | [R] |
-| Range | 1 / 2 / 3 octaves | [R] |
-| Rate | **1.5 – 50 Hz** | [R] — steps per second, i.e. 90 – 3000 steps/min |
-| Clock source | Internal, or external trigger | External is **one pulse per note at +5 V**, *not* 24 ppqn DIN sync [C] |
+| Control      | Positions / range             | Notes                                                                  |
+| ------------ | ----------------------------- | ---------------------------------------------------------------------- |
+| Mode         | `UP` / `UP & DOWN` / `DOWN`   | [R]                                                                    |
+| Range        | 1 / 2 / 3 octaves             | [R]                                                                    |
+| Rate         | **1.5 – 50 Hz**               | [R] — steps per second, i.e. 90 – 3000 steps/min                       |
+| Clock source | Internal, or external trigger | External is **one pulse per note at +5 V**, _not_ 24 ppqn DIN sync [C] |
 
 The rate range is worth noting: 1.5 Hz is very slow and 50 Hz is well past the point where
 individual steps fuse into a tone. Both extremes are used musically.
@@ -627,21 +627,21 @@ unison will sound like a 15 dB level boost and nothing else. [I]
 
 ## 14. Character artefacts worth modelling
 
-| Artefact | Magnitude | Confidence | Why it matters |
-| --- | --- | --- | --- |
-| Pitch is drift-free | Exact; divider-derived | [C] | Do **not** add oscillator drift. This instrument's identity is partly that it never goes out of tune. Adding vintage-analogue drift here is a category error. |
-| Reference pitch A=442 Hz | +7.85 cents vs. 440 | [C] | Default on, user-defeatable |
-| Ramp amplitude compensation | Peak held constant across keyboard by the DCO CV | [C] | Imperfect compensation means slight level tilt across the keyboard; magnitude **unknown** |
-| Noise source band-limited | 1-pole LPF at ≈5 kHz | [C] | Flat white noise is too bright |
-| Mixer soft compression | Above ≈0.26 of full scale | [I] | Prevents hard clipping with all sources up |
-| BBD path distortion | Delayed copy rounds off vs. dry; no compander | [C] | Amount [U] |
-| BBD sampling | ≈70 kHz, 256 stages | [C] | Minor; do not model as bit-crushing |
-| Chorus hiss | Present, model-dependent; 1984 unit much quieter | [R] | The one place a "noise" control belongs |
-| Filter passband loss with resonance | Present, uncompensated | [C] | Do not add make-up gain |
-| Cutoff rises with resonance | ≈ +0.5 octave at full | [I] | Small but characteristic |
-| Voice-to-voice variation | Present; magnitude **unknown** | [U] | Required for unison to work at all. Suggest per-voice fixed random offsets: cutoff ±2 %, VCA gain ±0.3 dB, envelope times ±3 % [I] |
-| PWM at extreme width | DC offset removed by AC coupling | [I] | Modelled as a 0.998/sample leak |
-| Note-on phase | Not reset to zero | [I] | Fast attacks on low notes stay audible |
+| Artefact                            | Magnitude                                        | Confidence | Why it matters                                                                                                                                                |
+| ----------------------------------- | ------------------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pitch is drift-free                 | Exact; divider-derived                           | [C]        | Do **not** add oscillator drift. This instrument's identity is partly that it never goes out of tune. Adding vintage-analogue drift here is a category error. |
+| Reference pitch A=442 Hz            | +7.85 cents vs. 440                              | [C]        | Default on, user-defeatable                                                                                                                                   |
+| Ramp amplitude compensation         | Peak held constant across keyboard by the DCO CV | [C]        | Imperfect compensation means slight level tilt across the keyboard; magnitude **unknown**                                                                     |
+| Noise source band-limited           | 1-pole LPF at ≈5 kHz                             | [C]        | Flat white noise is too bright                                                                                                                                |
+| Mixer soft compression              | Above ≈0.26 of full scale                        | [I]        | Prevents hard clipping with all sources up                                                                                                                    |
+| BBD path distortion                 | Delayed copy rounds off vs. dry; no compander    | [C]        | Amount [U]                                                                                                                                                    |
+| BBD sampling                        | ≈70 kHz, 256 stages                              | [C]        | Minor; do not model as bit-crushing                                                                                                                           |
+| Chorus hiss                         | Present, model-dependent; 1984 unit much quieter | [R]        | The one place a "noise" control belongs                                                                                                                       |
+| Filter passband loss with resonance | Present, uncompensated                           | [C]        | Do not add make-up gain                                                                                                                                       |
+| Cutoff rises with resonance         | ≈ +0.5 octave at full                            | [I]        | Small but characteristic                                                                                                                                      |
+| Voice-to-voice variation            | Present; magnitude **unknown**                   | [U]        | Required for unison to work at all. Suggest per-voice fixed random offsets: cutoff ±2 %, VCA gain ±0.3 dB, envelope times ±3 % [I]                            |
+| PWM at extreme width                | DC offset removed by AC coupling                 | [I]        | Modelled as a 0.998/sample leak                                                                                                                               |
+| Note-on phase                       | Not reset to zero                                | [I]        | Fast attacks on low notes stay audible                                                                                                                        |
 
 ---
 
@@ -650,26 +650,26 @@ unison will sound like a 15 dB level boost and nothing else. [I]
 Each test states a stimulus, a measurement, a target and a tolerance. Tolerances are wide
 where the source figure is [I] or [R] and tight where it is [C].
 
-| ID | Test | Method | Target | Tolerance |
-| --- | --- | --- | --- | --- |
-| **V-1** | Tuning reference | Saw only, note A4, no modulation. FFT peak. | 442.0 Hz (default) / 440.0 Hz (defeated) | ±0.5 cent |
-| **V-2** | Envelope times | VCA=ENV, sustain 0, decay slider at 0 / 2.5 / 5 / 7.5 / 10. Measure time from peak to −60 dBFS. | 0.002 / 0.096 / 0.984 / 4.449 / 19.783 s | ±5 % |
-| **V-3** | Attack shape | Attack slider 10, sample the envelope at 0.5 s intervals. | 0.224 / 0.410 / 0.580 / 0.716 / 0.847 / 0.956 at 0.5–3.0 s | ±0.02 absolute |
-| **V-4** | Filter env depth | Cutoff at minimum, env amount full, sustain 1. Measure cutoff at envelope peak. | 12 octaves above base | **±3 octaves** — this figure is [I]; the test exists to bracket it, not to confirm it |
-| **V-5** | Self-oscillation onset | No sources enabled, sweep resonance. Find first slider value producing sustained output >−40 dBFS. | Slider ≈9.0 / 10 | ±1.0 slider unit |
-| **V-6** | HPF placement | Bass patch, resonance 10, HPF position 3. Compare spectrum against the same patch with HPF placed pre-filter. | Post-VCF placement must show measurably **more** energy in 200 Hz–2 kHz intermodulation products | Qualitative; both variants must be renderable for A/B |
-| **V-7** | HPF corners (1984 map) | White noise through each position, measure −3 dB point. | pos 0: +6 dB shelf below 65 Hz; pos 1: flat ±0.2 dB; pos 2: 225 Hz; pos 3: 720 Hz | ±5 % on corners, ±0.5 dB on the shelf |
-| **V-8** | Chorus rates | Sine input, chorus I / II / I+II. Measure the modulation period from the delay-induced pitch wobble. | 0.513 / 0.863 / 9.75 Hz | ±2 % |
-| **V-9** | Chorus delay range | Impulse train, measure min and max delay of the wet copy per channel, mode I. | L 1.54–5.15 ms, R 1.51–5.40 ms | ±0.1 ms |
-| **V-10** | Chorus stereo phase | Mode I vs. mode I+II. Cross-correlate L and R modulation. | Modes I/II: correlation ≈ −1. Mode I+II: ≈ +1 | sign must be correct; magnitude >0.8 |
-| **V-11** | Noise spectrum | Noise slider only, full. Measure −3 dB point. | 5 kHz, −6 dB/oct above | ±15 % |
-| **V-12** | Gate mode click | VCA=GATE, note on/off. Measure peak sample-to-sample delta at each edge. | Attack ≈3 ms, release ≈6 ms ramps present | No delta implying a rise time <1 ms |
-| **V-13** | Aliasing | Saw only, chromatic sweep C1→C8, no filter. Measure worst-case non-harmonic energy. | < −60 dBFS relative to fundamental | Hard limit |
-| **V-14** | Mixer headroom | Saw + pulse + sub + noise all at maximum, filter wide open. | No sample exceeds 0 dBFS; THD rises smoothly, no hard-clip discontinuity | Visual/harmonic-continuity check |
-| **V-15** | Voice rotation | Play the same note 7 times, monitor voice IDs. | 0,1,2,3,4,5,0 | Exact |
-| **V-16** | Unison spread | Unison, one key, no chorus. Measure spectral width of the fundamental. | Non-zero spread from voice variation alone | Must be >2 cents total spread |
-| **V-17** | PWM edge integrity | PWM=LFO, LFO at 20 Hz, note C2. | No extra pulse edges within any single oscillator period | Zero violations |
-| **V-18** | LFO delay two-stage | Delay slider 10, note on, measure LFO output envelope. | Silence 0–2.79 s, then ramp to full over 1.15 s | ±10 % |
+| ID       | Test                   | Method                                                                                                        | Target                                                                                           | Tolerance                                                                             |
+| -------- | ---------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| **V-1**  | Tuning reference       | Saw only, note A4, no modulation. FFT peak.                                                                   | 442.0 Hz (default) / 440.0 Hz (defeated)                                                         | ±0.5 cent                                                                             |
+| **V-2**  | Envelope times         | VCA=ENV, sustain 0, decay slider at 0 / 2.5 / 5 / 7.5 / 10. Measure time from peak to −60 dBFS.               | 0.002 / 0.096 / 0.984 / 4.449 / 19.783 s                                                         | ±5 %                                                                                  |
+| **V-3**  | Attack shape           | Attack slider 10, sample the envelope at 0.5 s intervals.                                                     | 0.224 / 0.410 / 0.580 / 0.716 / 0.847 / 0.956 at 0.5–3.0 s                                       | ±0.02 absolute                                                                        |
+| **V-4**  | Filter env depth       | Cutoff at minimum, env amount full, sustain 1. Measure cutoff at envelope peak.                               | 12 octaves above base                                                                            | **±3 octaves** — this figure is [I]; the test exists to bracket it, not to confirm it |
+| **V-5**  | Self-oscillation onset | No sources enabled, sweep resonance. Find first slider value producing sustained output >−40 dBFS.            | Slider ≈9.0 / 10                                                                                 | ±1.0 slider unit                                                                      |
+| **V-6**  | HPF placement          | Bass patch, resonance 10, HPF position 3. Compare spectrum against the same patch with HPF placed pre-filter. | Post-VCF placement must show measurably **more** energy in 200 Hz–2 kHz intermodulation products | Qualitative; both variants must be renderable for A/B                                 |
+| **V-7**  | HPF corners (1984 map) | White noise through each position, measure −3 dB point.                                                       | pos 0: +6 dB shelf below 65 Hz; pos 1: flat ±0.2 dB; pos 2: 225 Hz; pos 3: 720 Hz                | ±5 % on corners, ±0.5 dB on the shelf                                                 |
+| **V-8**  | Chorus rates           | Sine input, chorus I / II / I+II. Measure the modulation period from the delay-induced pitch wobble.          | 0.513 / 0.863 / 9.75 Hz                                                                          | ±2 %                                                                                  |
+| **V-9**  | Chorus delay range     | Impulse train, measure min and max delay of the wet copy per channel, mode I.                                 | L 1.54–5.15 ms, R 1.51–5.40 ms                                                                   | ±0.1 ms                                                                               |
+| **V-10** | Chorus stereo phase    | Mode I vs. mode I+II. Cross-correlate L and R modulation.                                                     | Modes I/II: correlation ≈ −1. Mode I+II: ≈ +1                                                    | sign must be correct; magnitude >0.8                                                  |
+| **V-11** | Noise spectrum         | Noise slider only, full. Measure −3 dB point.                                                                 | 5 kHz, −6 dB/oct above                                                                           | ±15 %                                                                                 |
+| **V-12** | Gate mode click        | VCA=GATE, note on/off. Measure peak sample-to-sample delta at each edge.                                      | Attack ≈3 ms, release ≈6 ms ramps present                                                        | No delta implying a rise time <1 ms                                                   |
+| **V-13** | Aliasing               | Saw only, chromatic sweep C1→C8, no filter. Measure worst-case non-harmonic energy.                           | < −60 dBFS relative to fundamental                                                               | Hard limit                                                                            |
+| **V-14** | Mixer headroom         | Saw + pulse + sub + noise all at maximum, filter wide open.                                                   | No sample exceeds 0 dBFS; THD rises smoothly, no hard-clip discontinuity                         | Visual/harmonic-continuity check                                                      |
+| **V-15** | Voice rotation         | Play the same note 7 times, monitor voice IDs.                                                                | 0,1,2,3,4,5,0                                                                                    | Exact                                                                                 |
+| **V-16** | Unison spread          | Unison, one key, no chorus. Measure spectral width of the fundamental.                                        | Non-zero spread from voice variation alone                                                       | Must be >2 cents total spread                                                         |
+| **V-17** | PWM edge integrity     | PWM=LFO, LFO at 20 Hz, note C2.                                                                               | No extra pulse edges within any single oscillator period                                         | Zero violations                                                                       |
+| **V-18** | LFO delay two-stage    | Delay slider 10, note on, measure LFO output envelope.                                                        | Silence 0–2.79 s, then ramp to full over 1.15 s                                                  | ±10 %                                                                                 |
 
 ---
 
@@ -678,34 +678,34 @@ where the source figure is [I] or [R] and tight where it is [C].
 Complete list, for the UI team's layout work and for parameter-ID assignment. `sl` = slider
 0…10, `sw` = switch.
 
-| Section | Control | Type | Range | Default |
-| --- | --- | --- | --- | --- |
-| DCO | LFO depth (vibrato) | sl | 0…10 → 0…±300 ¢ | 0 |
-| DCO | PWM depth | sl | 0…10 | 0 |
-| DCO | PWM source | sw3 | MAN / LFO / ENV | MAN |
-| DCO | Range | sw3 | 16′ / 8′ / 4′ | 8′ |
-| DCO | Saw | sw2 | off / on | on |
-| DCO | Pulse | sw2 | off / on | off |
-| DCO | Sub level | sl | 0…10 | 0 |
-| DCO | Noise level | sl | 0…10 | 0 |
-| HPF | Cutoff | sw4 | 4 detents (see §6) | pos 1 (flat, 1984 map) |
-| VCF | Cutoff | sl | 0…10 | 10 |
-| VCF | Resonance | sl | 0…10 | 0 |
-| VCF | Env polarity | sw2 | + / − | + |
-| VCF | Env amount | sl | 0…10 | 0 |
-| VCF | LFO amount | sl | 0…10 | 0 |
-| VCF | Key follow | sl | 0…10 → 0…100 % | 0 |
-| VCA | Source | sw2 | ENV / GATE | ENV |
-| VCA | Level | sl | 0…10 → −20…0 dB | 8 |
-| ENV | A / D / S / R | sl ×4 | see §9.1 | 0 / 5 / 10 / 2 |
-| LFO | Rate | sl | 0…10 → 0.3…22 Hz | 5 |
-| LFO | Delay | sl | 0…10 → 0…2.79 s + fade | 0 |
-| Chorus | Mode | sw4 | off / I / II / I+II | off |
-| Arp | Mode | sw3 | UP / UP&DOWN / DOWN | UP |
-| Arp | Range | sw3 | 1 / 2 / 3 oct | 1 |
-| Arp | Rate | sl | 1.5…50 Hz | mid |
-| Global | Bend → DCO depth | sl | 0…10 → 0…±700 ¢ | mid |
-| Global | Bend → VCF depth | sl | 0…10 → 0…±4 oct | 0 |
+| Section | Control             | Type  | Range                  | Default                |
+| ------- | ------------------- | ----- | ---------------------- | ---------------------- |
+| DCO     | LFO depth (vibrato) | sl    | 0…10 → 0…±300 ¢        | 0                      |
+| DCO     | PWM depth           | sl    | 0…10                   | 0                      |
+| DCO     | PWM source          | sw3   | MAN / LFO / ENV        | MAN                    |
+| DCO     | Range               | sw3   | 16′ / 8′ / 4′          | 8′                     |
+| DCO     | Saw                 | sw2   | off / on               | on                     |
+| DCO     | Pulse               | sw2   | off / on               | off                    |
+| DCO     | Sub level           | sl    | 0…10                   | 0                      |
+| DCO     | Noise level         | sl    | 0…10                   | 0                      |
+| HPF     | Cutoff              | sw4   | 4 detents (see §6)     | pos 1 (flat, 1984 map) |
+| VCF     | Cutoff              | sl    | 0…10                   | 10                     |
+| VCF     | Resonance           | sl    | 0…10                   | 0                      |
+| VCF     | Env polarity        | sw2   | + / −                  | +                      |
+| VCF     | Env amount          | sl    | 0…10                   | 0                      |
+| VCF     | LFO amount          | sl    | 0…10                   | 0                      |
+| VCF     | Key follow          | sl    | 0…10 → 0…100 %         | 0                      |
+| VCA     | Source              | sw2   | ENV / GATE             | ENV                    |
+| VCA     | Level               | sl    | 0…10 → −20…0 dB        | 8                      |
+| ENV     | A / D / S / R       | sl ×4 | see §9.1               | 0 / 5 / 10 / 2         |
+| LFO     | Rate                | sl    | 0…10 → 0.3…22 Hz       | 5                      |
+| LFO     | Delay               | sl    | 0…10 → 0…2.79 s + fade | 0                      |
+| Chorus  | Mode                | sw4   | off / I / II / I+II    | off                    |
+| Arp     | Mode                | sw3   | UP / UP&DOWN / DOWN    | UP                     |
+| Arp     | Range               | sw3   | 1 / 2 / 3 oct          | 1                      |
+| Arp     | Rate                | sl    | 1.5…50 Hz              | mid                    |
+| Global  | Bend → DCO depth    | sl    | 0…10 → 0…±700 ¢        | mid                    |
+| Global  | Bend → VCF depth    | sl    | 0…10 → 0…±4 oct        | 0                      |
 
 ---
 
@@ -813,43 +813,43 @@ conflict is stated in the body and the choice is reasoned there.
 
 **Manufacturer documentation (via search extraction; not directly fetchable):**
 
-3. Roland, *Juno-60 Technical Specifications* (support.roland.com) — voice count, LFO rate
+3. Roland, _Juno-60 Technical Specifications_ (support.roland.com) — voice count, LFO rate
    0.3–20 Hz, envelope ranges, resonance to self-oscillation, key follow 0–100 %,
    arpeggiator mode/range switches.
-4. Roland, *Juno-6 Technical Specifications* (support.roland.com) — PWM switch positions
+4. Roland, _Juno-6 Technical Specifications_ (support.roland.com) — PWM switch positions
    ENV/MANUAL/LFO and their meaning.
-5. Roland, *Juno-106 Owner's Manual* / *Juno-106 Service Notes* — DCO waveform inventory,
+5. Roland, _Juno-106 Owner's Manual_ / _Juno-106 Service Notes_ — DCO waveform inventory,
    sub-oscillator and noise as sound sources, voice-assignment modes.
 
 **Circuit analysis and community measurement:**
 
-6. Electric Druid, *Roland Juno DCOs* — master clock, per-voice programmable counter,
+6. Electric Druid, _Roland Juno DCOs_ — master clock, per-voice programmable counter,
    integrator reset by the counter's rising edge, DCO CV amplitude compensation, pulse by
    comparator. The clearest published account of the mechanism.
-7. Stargirl Flowers, *The Design of the Roland Juno oscillators* (blog.thea.codes) —
+7. Stargirl Flowers, _The Design of the Roland Juno oscillators_ (blog.thea.codes) —
    corroborates 6 independently.
-8. Sequence 15, *Analyzing the Juno-106 DCO circuit* and *Why does the Juno-60 sound
-   different from the Juno-106?* (sequence15.blogspot.com) — the HPF-position claim in
+8. Sequence 15, _Analyzing the Juno-106 DCO circuit_ and _Why does the Juno-60 sound
+   different from the Juno-106?_ (sequence15.blogspot.com) — the HPF-position claim in
    §6.1, and the voice-summing arrangement.
 9. KVR Audio forum thread 313797 — 1984-model high-pass corner frequencies and the 12 dB/oct
    pre-BBD low-pass. Cited by source 1 rather than used directly.
-10. AMSynths, *All about the IR3109 chip*, and Electric Druid, *Roland filter designs with
-    the IR3109 or AS3109* — four-OTA filter array, and the potted voice module in the 1984
+10. AMSynths, _All about the IR3109 chip_, and Electric Druid, _Roland filter designs with
+    the IR3109 or AS3109_ — four-OTA filter array, and the potted voice module in the 1984
     model.
 11. Analogue Renaissance filter-clone documentation — noise source low-pass at 5 kHz.
     Cited by source 1.
-12. Florian Anwander, *Roland Choruses and Ensemble Effects* — BBD part complement
+12. Florian Anwander, _Roland Choruses and Ensemble Effects_ — BBD part complement
     (2 × clock driver + 2 × 256-stage delay).
 
 **Secondary / reported:**
 
-13. Wikipedia, *Roland Juno-60* and *Roland Juno-106* — model differences, MIDI vs.
+13. Wikipedia, _Roland Juno-60_ and _Roland Juno-106_ — model differences, MIDI vs.
     arpeggiator, chorus noise floor.
 14. Cherry Audio DCO-106 documentation — the 20 Hz–24 kHz cutoff range figure, used only as
     a cross-check on a modern emulation and marked [R].
-15. Kenton, *Instructions for arpeggio clock, Roland Juno 60* — external clock is one pulse
+15. Kenton, _Instructions for arpeggio clock, Roland Juno 60_ — external clock is one pulse
     per note at +5 V, not DIN sync.
-16. Syntaur forum, *Juno-106 PWM duty cycle calibration* — the 50 %→25 % calibration range.
+16. Syntaur forum, _Juno-106 PWM duty cycle calibration_ — the 50 %→25 % calibration range.
 
 ---
 

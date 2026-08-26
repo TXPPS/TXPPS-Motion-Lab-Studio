@@ -13,3 +13,14 @@ package-lock.json
 # Formatting it here would make the generator and the formatter disagree, and
 # the check would then fail after every `prettier --write`.
 docs/FUNCTION_LEDGER.md
+
+# The compiled core and its worklet shim. Emitted by `motionwave/wasm/build.sh`
+# and compared against a fresh compile by `npm run wasm:check`, so reformatting
+# them makes the formatter and that check disagree — the same argument the
+# Function Ledger is here for, and the reason both are one line rather than an
+# exemption somewhere clever.
+motionwave/wasm/prebuilt/
+
+# Emitted by `npm run curve:golden` from the C++ curve law and compared against
+# a fresh emit by `npm run curve:check`.
+motionwave/ui/test/curve_golden.json

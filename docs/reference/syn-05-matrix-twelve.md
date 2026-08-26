@@ -11,8 +11,8 @@ Same rules and confidence markers as `syn-04-six-op-fm.md`:
   specification (see §0.1 for why a GPL mirror of it still counts as documentation).
 - **[R]** reported by a reputable secondary source, not cross-checked against a primary one.
 - **[U]** unconfirmed or inferred. **Do not build to a [U] value without checking it.**
-- **[I]** **implementation-derived** — the value's only source is a third-party *editor
-  application*, not the manufacturer's specification and not a measurement. **Re-derive or
+- **[I]** **implementation-derived** — the value's only source is a third-party _editor
+  application_, not the manufacturer's specification and not a measurement. **Re-derive or
   re-confirm before writing it into `src/`.**
 - **[X]** explicitly unknown. Listed in §14.
 - **[derived]** computed by me from a primary source; the derivation is shown.
@@ -20,7 +20,7 @@ Same rules and confidence markers as `syn-04-six-op-fm.md`:
 **Intellectual-property rule.** Reference manufacturer and model names appear here because
 engineering discussion requires them. They must not appear in shipped UI strings, code
 identifiers, filenames, preset names, or marketing copy. No panel artwork, logotype, typeface or
-badge may be reproduced or traced. §13 describes the *era's* design language only.
+badge may be reproduced or traced. §13 describes the _era's_ design language only.
 
 Sourcing note: the egress proxy on this machine blocks manufacturer sites, archive.org and
 manual hosts. `github.com` is reachable, and the manufacturer's own **Matrix-12/Xpander MIDI
@@ -28,14 +28,14 @@ Specification** is mirrored in a public repository, which I cloned and read. See
 
 ### 0.1 Provenance and licence — read before using any value here
 
-| Class | What it is | Sources used here | May a value be written into `src/`? |
-|---|---|---|---|
-| **Documentation** | The manufacturer's own specification | The **Matrix-12/Xpander MIDI Specification** and its accompanying reference C header, both authored by the manufacturer | Yes |
-| **Measurement** | Instrumented observation of hardware | *None.* I obtained no measurements of this instrument. | n/a |
-| **Implementation** | A third-party editor application | **Xplorer** (`xplorer2716/XplorerEditor`), licence **AGPL-3.0** | **No — re-confirm first** |
+| Class              | What it is                           | Sources used here                                                                                                       | May a value be written into `src/`? |
+| ------------------ | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| **Documentation**  | The manufacturer's own specification | The **Matrix-12/Xpander MIDI Specification** and its accompanying reference C header, both authored by the manufacturer | Yes                                 |
+| **Measurement**    | Instrumented observation of hardware | _None._ I obtained no measurements of this instrument.                                                                  | n/a                                 |
+| **Implementation** | A third-party editor application     | **Xplorer** (`xplorer2716/XplorerEditor`), licence **AGPL-3.0**                                                         | **No — re-confirm first**           |
 
 **Why the GPL mirror of the specification is still documentation.** The repository
-`xplorer2716/OberheimXpanderMidiSpec` is licensed GPL-3.0, but what it *contains* is a rework of
+`xplorer2716/OberheimXpanderMidiSpec` is licensed GPL-3.0, but what it _contains_ is a rework of
 three original plain-text files published by the manufacturer, and its reference header
 `XpanderSysEx.h` states in terms that the code below a certain point is "as is from the original
 MIDI spec". The **facts** it carries — the 27-entry modulation source enumeration, the 47-entry
@@ -66,7 +66,7 @@ targets and the era-language notes. **What is not:** any range marked [I], until
 
 **A correction to the brief.** The brief asked for "the dual multimode filters". The primary
 source shows **one multimode VCF per voice, with fifteen modes, flanked by two VCAs** (VCA 1
-before the filter, VCA 2 after it). There is no second filter. What *is* dual is the instrument
+before the filter, VCA 2 after it). There is no second filter. What _is_ dual is the instrument
 itself: the twelve-voice keyboard model is two six-voice expander boards in one chassis, with two
 voice banks in the multi-patch structure. **[C]** for the single filter (patch struct has one
 `vcf` with one `fmode`); **[R]** for the two-board construction. §14.1.
@@ -147,21 +147,21 @@ design, and it is why the matrix editor is the product.
 
 ## 2. Voice count, patches and modes
 
-| Property | Value | Confidence |
-|---|---|---|
-| Voices (keyboard model) | 12, arranged as two banks of 6 | [C] for two banks (`bankM12[2]`), [R] for construction |
-| Voices (expander model) | 6 | [C] |
-| Single patches | 100 | [C] |
-| Multi patches | 100 | [C] |
-| Single-patch SysEx dump | 399 bytes: 6 intro + 188 double-byte values + 8 double-byte name + 1 EOX | [C] |
-| Editable parameters per voice | ~1200 controls across the paged front panel **[C]**; 226 in a full third-party editor's parameter map **[I]** | |
-| Zones (keyboard model) | 6 | [C] |
-| Zones (expander model) | 3 | [C] |
+| Property                      | Value                                                                                                         | Confidence                                             |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Voices (keyboard model)       | 12, arranged as two banks of 6                                                                                | [C] for two banks (`bankM12[2]`), [R] for construction |
+| Voices (expander model)       | 6                                                                                                             | [C]                                                    |
+| Single patches                | 100                                                                                                           | [C]                                                    |
+| Multi patches                 | 100                                                                                                           | [C]                                                    |
+| Single-patch SysEx dump       | 399 bytes: 6 intro + 188 double-byte values + 8 double-byte name + 1 EOX                                      | [C]                                                    |
+| Editable parameters per voice | ~1200 controls across the paged front panel **[C]**; 226 in a full third-party editor's parameter map **[I]** |                                                        |
+| Zones (keyboard model)        | 6                                                                                                             | [C]                                                    |
+| Zones (expander model)        | 3                                                                                                             | [C]                                                    |
 
 **Single patch mode** copies one voice program to all voices — a conventional homogeneous
 polysynth. **Multi patch mode** assigns a different single patch to each voice and additionally
 stores per-voice transpose, volume, pan, detune and control source; a multi patch stores the
-*assignment*, not the sounds. **Patch edit mode** is a submode of multi where the panel edits one
+_assignment_, not the sounds. **Patch edit mode** is a submode of multi where the panel edits one
 or more selected voices in the context of the whole multi. **[C]**
 
 This three-mode structure is worth reproducing exactly: it is the reason the instrument is
@@ -176,15 +176,15 @@ Per voice, two VCOs. All parameters below are stored per single patch. Structure
 table below **[I]** (third-party editor parameter map, AGPL-3.0 — confirm against the owner's
 manual).
 
-| Parameter | Range | Unit | Notes |
-|---|---|---|---|
-| VCO 1 / 2 FREQ | 0..63 | table index | pitch, see below |
-| VCO 1 / 2 DETUNE | **−31..+31** | signed | fine detune |
-| VCO 1 / 2 PW | 0..63 | — | pulse width; only meaningful with the PULSE wave enabled |
-| VCO 1 / 2 VOL | 0..63 | — | mixer level into VCA 1 |
-| VCO 1 WAVE | bitfield | TRI / SAW / PULSE | **no noise on VCO 1** |
-| VCO 2 WAVE | bitfield | TRI / SAW / PULSE / **NOISE** / **SYNC** | noise and sync are VCO 2 only |
-| VCO 1 / 2 fixed mods | bitfield | KEYB / LAG / LEV1 / VIB | per-oscillator enables for the four fixed paths |
+| Parameter            | Range        | Unit                                     | Notes                                                    |
+| -------------------- | ------------ | ---------------------------------------- | -------------------------------------------------------- |
+| VCO 1 / 2 FREQ       | 0..63        | table index                              | pitch, see below                                         |
+| VCO 1 / 2 DETUNE     | **−31..+31** | signed                                   | fine detune                                              |
+| VCO 1 / 2 PW         | 0..63        | —                                        | pulse width; only meaningful with the PULSE wave enabled |
+| VCO 1 / 2 VOL        | 0..63        | —                                        | mixer level into VCA 1                                   |
+| VCO 1 WAVE           | bitfield     | TRI / SAW / PULSE                        | **no noise on VCO 1**                                    |
+| VCO 2 WAVE           | bitfield     | TRI / SAW / PULSE / **NOISE** / **SYNC** | noise and sync are VCO 2 only                            |
+| VCO 1 / 2 fixed mods | bitfield     | KEYB / LAG / LEV1 / VIB                  | per-oscillator enables for the four fixed paths          |
 
 Waveforms are **bit flags, not an enum** — TRI, SAW and PULSE can be enabled simultaneously and
 are summed. **[C]** (`VCOWaveFlags` is a bitfield: TRI 0x01, SAW 0x02, PULSE 0x04, SYNC 0x08,
@@ -195,10 +195,10 @@ in the MIDI specification; the flag living on VCO 2 implies VCO 2 is reset by VC
 
 **FM** is a separate section, not a matrix routing:
 
-| Parameter | Range | Notes |
-|---|---|---|
-| FM AMP | 0..63 | also a matrix **destination** (`FM_AMP`) |
-| FM DEST | 0..1 | 0 = VCO1_FREQ, 1 = VCF_FREQ |
+| Parameter | Range | Notes                                    |
+| --------- | ----- | ---------------------------------------- |
+| FM AMP    | 0..63 | also a matrix **destination** (`FM_AMP`) |
+| FM DEST   | 0..1  | 0 = VCO1_FREQ, 1 = VCF_FREQ              |
 
 **[C]** — `FMDestinationTypes` / `FMDestinationTypesNames`. The modulator is VCO 2. **[R]** The FM
 path is audio-rate and separate from the matrix, so it survives even when all 20 matrix slots are
@@ -213,14 +213,14 @@ is **[X]**. See §11.3 and §14.2.
 
 One multimode VCF per voice.
 
-| Parameter | Range | Notes |
-|---|---|---|
-| VCF FREQ | **0..127** | note the 7-bit resolution — twice that of every other continuous control |
-| VCF RES | 0..63 | |
-| VCF MODE | 0..14 | the fifteen modes below |
-| VCA 1 VOL | 0..63 | pre-filter |
-| VCA 2 VOL | 0..63 | post-filter |
-| VCF fixed mods | bitfield | KEYB / LAG / LEV1 / VIB |
+| Parameter      | Range      | Notes                                                                    |
+| -------------- | ---------- | ------------------------------------------------------------------------ |
+| VCF FREQ       | **0..127** | note the 7-bit resolution — twice that of every other continuous control |
+| VCF RES        | 0..63      |                                                                          |
+| VCF MODE       | 0..14      | the fifteen modes below                                                  |
+| VCA 1 VOL      | 0..63      | pre-filter                                                               |
+| VCA 2 VOL      | 0..63      | post-filter                                                              |
+| VCF fixed mods | bitfield   | KEYB / LAG / LEV1 / VIB                                                  |
 
 Field names and the mode enumeration **[C]** (manufacturer specification); the numeric ranges,
 including the 0..127 on VCF FREQ, **[I]** (third-party editor parameter map). The
@@ -232,23 +232,23 @@ we build the parameter model around it.
 Mode codes are the enum ordinals, which is the order they appear in the patch byte. **[C]** —
 `VCFFilterTypes` / `VCFFilterTypesNames` in the manufacturer specification's reference source.
 
-| Code | Name | Type | Slope | Notes |
-|---:|---|---|---|---|
-| 0 | LOW 1 | lowpass | 1-pole, 6 dB/oct | |
-| 1 | LOW 2 | lowpass | 2-pole, 12 dB/oct | |
-| 2 | LOW 3 | lowpass | 3-pole, 18 dB/oct | |
-| 3 | LOW 4 | lowpass | 4-pole, 24 dB/oct | the conventional "analogue" voice |
-| 4 | HIGH 1 | highpass | 1-pole, 6 dB/oct | |
-| 5 | HIGH 2 | highpass | 2-pole, 12 dB/oct | |
-| 6 | HIGH 3 | highpass | 3-pole, 18 dB/oct | |
-| 7 | BAND 2 | bandpass | 2-pole, 6 dB/oct per side | |
-| 8 | BAND 4 | bandpass | 4-pole, 12 dB/oct per side | |
-| 9 | NOTCH 2 | band-reject | 2-pole | |
-| 10 | PHASE 3 | allpass / phase shift | 3-pole | 3 poles of phase rotation, no magnitude change |
-| 11 | HIGH 2 + LOW 1 | highpass 2-pole **plus** lowpass 1-pole in series | 12 dB/oct HP, 6 dB/oct LP | a wide bandpass with asymmetric skirts |
-| 12 | HIGH 3 + LOW 1 | highpass 3-pole **plus** lowpass 1-pole | 18 / 6 | |
-| 13 | NOTCH 2 + LOW 1 | 2-pole notch **plus** 1-pole lowpass | | |
-| 14 | PHASE 3 + LOW 1 | 3-pole allpass **plus** 1-pole lowpass | | the "vocal"/comb-like mode |
+| Code | Name            | Type                                              | Slope                      | Notes                                          |
+| ---: | --------------- | ------------------------------------------------- | -------------------------- | ---------------------------------------------- |
+|    0 | LOW 1           | lowpass                                           | 1-pole, 6 dB/oct           |                                                |
+|    1 | LOW 2           | lowpass                                           | 2-pole, 12 dB/oct          |                                                |
+|    2 | LOW 3           | lowpass                                           | 3-pole, 18 dB/oct          |                                                |
+|    3 | LOW 4           | lowpass                                           | 4-pole, 24 dB/oct          | the conventional "analogue" voice              |
+|    4 | HIGH 1          | highpass                                          | 1-pole, 6 dB/oct           |                                                |
+|    5 | HIGH 2          | highpass                                          | 2-pole, 12 dB/oct          |                                                |
+|    6 | HIGH 3          | highpass                                          | 3-pole, 18 dB/oct          |                                                |
+|    7 | BAND 2          | bandpass                                          | 2-pole, 6 dB/oct per side  |                                                |
+|    8 | BAND 4          | bandpass                                          | 4-pole, 12 dB/oct per side |                                                |
+|    9 | NOTCH 2         | band-reject                                       | 2-pole                     |                                                |
+|   10 | PHASE 3         | allpass / phase shift                             | 3-pole                     | 3 poles of phase rotation, no magnitude change |
+|   11 | HIGH 2 + LOW 1  | highpass 2-pole **plus** lowpass 1-pole in series | 12 dB/oct HP, 6 dB/oct LP  | a wide bandpass with asymmetric skirts         |
+|   12 | HIGH 3 + LOW 1  | highpass 3-pole **plus** lowpass 1-pole           | 18 / 6                     |                                                |
+|   13 | NOTCH 2 + LOW 1 | 2-pole notch **plus** 1-pole lowpass              |                            |                                                |
+|   14 | PHASE 3 + LOW 1 | 3-pole allpass **plus** 1-pole lowpass            |                            | the "vocal"/comb-like mode                     |
 
 **[C]** for the mode list and ordering; **[R]** for the slope figures, which come from the
 secondary description of the same list ("one-, two-, three- and four-pole low pass; one-, two- and
@@ -265,7 +265,7 @@ phase shift plus one-pole low pass").
   modes (11–14) exist at all — they are the cheap sums the topology allows.
 - **Resonance behaviour differs per mode.** With fewer poles in the loop, the same RES value gives
   less peaking and the filter cannot self-oscillate in the 1- and 2-pole modes. Model the feedback
-  around the *whole* cascade, not around the tap, and this falls out.
+  around the _whole_ cascade, not around the tap, and this falls out.
 - **The allpass modes (10, 14) must not change magnitude.** If your tap-mixing produces a magnitude
   ripple in PHASE 3, the coefficients are wrong. The audible signature is a static, resonant
   colouration when combined with the dry signal elsewhere in the chain.
@@ -280,15 +280,15 @@ phase shift plus one-pole low pass").
 
 ## 5. Envelopes — five per voice
 
-| Parameter | Range | Unit | Notes |
-|---|---|---|---|
-| DELAY | 0..63 | time | pre-attack delay |
-| ATTACK | 0..63 | time | |
-| DECAY | 0..63 | time | |
-| SUSTAIN | 0..63 | level | |
-| RELEASE | 0..63 | time | |
+| Parameter       | Range | Unit  | Notes                                                       |
+| --------------- | ----- | ----- | ----------------------------------------------------------- |
+| DELAY           | 0..63 | time  | pre-attack delay                                            |
+| ATTACK          | 0..63 | time  |                                                             |
+| DECAY           | 0..63 | time  |                                                             |
+| SUSTAIN         | 0..63 | level |                                                             |
+| RELEASE         | 0..63 | time  |                                                             |
 | AMP (amplitude) | 0..63 | level | overall envelope output scaling — also a matrix destination |
-| LFO TRIG SOURCE | 0..5 | enum | LFO1..LFO5, VIB |
+| LFO TRIG SOURCE | 0..5  | enum  | LFO1..LFO5, VIB                                             |
 
 Field names and the five-segment-plus-amplitude shape **[C]** (manufacturer patch struct); the
 0..63 ranges **[I]** (third-party editor parameter map). So the shape is **DADSR**, five segments,
@@ -296,16 +296,16 @@ with a separate output amplitude.
 
 ### 5.1 Modes and triggering — bit flags
 
-| Bit | Name | Meaning |
-|---:|---|---|
-| 0x01 | RESET | envelope restarts from zero on trigger rather than from its current level |
-| 0x02 | — | unused; present in the byte but not documented in the original specification |
-| 0x04 | MULTI | multi trigger; when clear, single trigger |
-| 0x08 | GATED | envelope follows the gate rather than running to completion |
-| 0x10 | EXTRIG | triggered by the external trigger input |
-| 0x20 | LFOTRIG | triggered by the LFO named in LFO TRIG SOURCE |
-| 0x40 | DADR | **DADR mode** — no sustain segment; delay/attack/decay/release runs through |
-| 0x80 | FREERUN | envelope runs to completion regardless of the gate |
+|  Bit | Name    | Meaning                                                                      |
+| ---: | ------- | ---------------------------------------------------------------------------- |
+| 0x01 | RESET   | envelope restarts from zero on trigger rather than from its current level    |
+| 0x02 | —       | unused; present in the byte but not documented in the original specification |
+| 0x04 | MULTI   | multi trigger; when clear, single trigger                                    |
+| 0x08 | GATED   | envelope follows the gate rather than running to completion                  |
+| 0x10 | EXTRIG  | triggered by the external trigger input                                      |
+| 0x20 | LFOTRIG | triggered by the LFO named in LFO TRIG SOURCE                                |
+| 0x40 | DADR    | **DADR mode** — no sustain segment; delay/attack/decay/release runs through  |
+| 0x80 | FREERUN | envelope runs to completion regardless of the gate                           |
 
 **[C]** — `EnveloppeModeFlags`. Note bit 0x02 is flagged in the reference source as
 "original MIDI SPEC did not mention this unused bit". Treat writing it as undefined.
@@ -336,35 +336,35 @@ The **real-world time units** of the 0..63 time parameters are **[X]** — see �
 
 ## 6. LFOs — five per voice
 
-| Parameter | Range | Notes |
-|---|---|---|
-| SPEED | 0..63 | also a matrix destination |
-| WAVE | 0..6 | see below |
-| SAMPLE INPUT | 0..26 | any modulation source, used by the SAMPLE waveform |
-| RETRIG POINT | 0..63 | the phase the LFO resets to when retriggered |
-| AMP (amplitude) | 0..63 | also a matrix destination |
-| LAG | 0/1 | routes the LFO output through the lag processor |
-| RETRIG MODE | 0..3 | OFF / SINGLE / MULTI / EXTRIG |
+| Parameter       | Range | Notes                                              |
+| --------------- | ----- | -------------------------------------------------- |
+| SPEED           | 0..63 | also a matrix destination                          |
+| WAVE            | 0..6  | see below                                          |
+| SAMPLE INPUT    | 0..26 | any modulation source, used by the SAMPLE waveform |
+| RETRIG POINT    | 0..63 | the phase the LFO resets to when retriggered       |
+| AMP (amplitude) | 0..63 | also a matrix destination                          |
+| LAG             | 0/1   | routes the LFO output through the lag processor    |
+| RETRIG MODE     | 0..3  | OFF / SINGLE / MULTI / EXTRIG                      |
 
 Field names **[C]** (manufacturer patch struct `lfo[5]`); ranges **[I]** (third-party editor
 parameter map).
 
 ### 6.1 Waveforms
 
-| Code | Name | Notes |
-|---:|---|---|
-| 0 | TRIANGLE | |
-| 1 | UP SAW | |
-| 2 | DOWN SAW | |
-| 3 | SQUARE | |
-| 4 | RANDOM | stepped random, new value each cycle |
-| 5 | NOISE | continuous noise, not stepped |
-| 6 | **SAMPLE** | samples the source named in SAMPLE INPUT, at the LFO rate |
+| Code | Name       | Notes                                                     |
+| ---: | ---------- | --------------------------------------------------------- |
+|    0 | TRIANGLE   |                                                           |
+|    1 | UP SAW     |                                                           |
+|    2 | DOWN SAW   |                                                           |
+|    3 | SQUARE     |                                                           |
+|    4 | RANDOM     | stepped random, new value each cycle                      |
+|    5 | NOISE      | continuous noise, not stepped                             |
+|    6 | **SAMPLE** | samples the source named in SAMPLE INPUT, at the LFO rate |
 
 **[C]** — `WaveTypes`. Seven waveforms, not six.
 
 **SAMPLE is the important one.** It turns the LFO into a general-purpose sample-and-hold clocked
-at the LFO rate, whose input is *any of the 27 modulation sources* — including another LFO, an
+at the LFO rate, whose input is _any of the 27 modulation sources_ — including another LFO, an
 envelope, a ramp, pressure, or a tracking generator. Sampling a triangle LFO gives stepped
 vibrato; sampling pressure gives a "held" expression value; sampling a ramp gives a staircase.
 Build this as a first-class feature of the LFO, not as a separate module.
@@ -382,11 +382,11 @@ becomes a slewed pulse. **[C]**
 
 ### 7.1 Ramps — four per voice
 
-| Parameter | Range | Notes |
-|---|---|---|
-| RATE | 0..63 | time to traverse the ramp |
-| flags | bitfield | GATED 0x01, LFOTRIG 0x02, EXTRIG 0x04, MULTI 0x08 (SINGLE if clear) |
-| LFO TRIG SOURCE | 0..5 | LFO1..LFO5, VIB |
+| Parameter       | Range    | Notes                                                               |
+| --------------- | -------- | ------------------------------------------------------------------- |
+| RATE            | 0..63    | time to traverse the ramp                                           |
+| flags           | bitfield | GATED 0x01, LFOTRIG 0x02, EXTRIG 0x04, MULTI 0x08 (SINGLE if clear) |
+| LFO TRIG SOURCE | 0..5     | LFO1..LFO5, VIB                                                     |
 
 **[C]** — patch struct `ramp[4]`, `RampFlags`.
 
@@ -397,9 +397,9 @@ GATED makes the ramp fall back when the gate releases; MULTI restarts it on ever
 
 ### 7.2 Tracking generators — three per voice
 
-| Parameter | Range | Notes |
-|---|---|---|
-| INPUT | 0..26 | any modulation source |
+| Parameter  | Range      | Notes                                            |
+| ---------- | ---------- | ------------------------------------------------ |
+| INPUT      | 0..26      | any modulation source                            |
 | POINT 1..5 | 0..63 each | output value at five equally spaced input points |
 
 Field names and the five-point structure **[C]** (manufacturer patch struct `track[3]`); the
@@ -423,18 +423,18 @@ matrix itself.
 
 ### 7.3 Lag processor — one per voice
 
-| Parameter | Range | Notes |
-|---|---|---|
-| LAG IN | 0..26 | any modulation source |
-| LAG RATE | 0..63 | slew rate; also a matrix destination (`LAG_SPD`) |
-| LAG MODE | bitfield | LEGATO 0x01, EXPO 0x02, EQUAL TIME 0x04 |
+| Parameter | Range    | Notes                                            |
+| --------- | -------- | ------------------------------------------------ |
+| LAG IN    | 0..26    | any modulation source                            |
+| LAG RATE  | 0..63    | slew rate; also a matrix destination (`LAG_SPD`) |
+| LAG MODE  | bitfield | LEGATO 0x01, EXPO 0x02, EQUAL TIME 0x04          |
 
 Field names and the mode bitfield **[C]** (manufacturer patch struct `fm_lag`, `LagModeFlags`);
 ranges **[I]** (third-party editor parameter map).
 
 - **LEGATO** — lag applies only when notes overlap, i.e. fingered portamento.
 - **EXPO** — exponential slew instead of linear.
-- **EQUAL TIME** — constant *time* rather than constant *rate*: every transition takes the same
+- **EQUAL TIME** — constant _time_ rather than constant _rate_: every transition takes the same
   time regardless of distance. With it clear, a large interval takes proportionally longer.
 
 Its output is the modulation source `LAG`, and `LAG` is also one of the four fixed per-oscillator
@@ -447,16 +447,16 @@ and per-filter enable bits (§3, §4), so lag can reach pitch without spending a
 Stored in the **multi** patch, not the single patch, and gated per single patch by the VIB enable
 bit on VCO 1, VCO 2 and VCF. **[C]**
 
-| Parameter | Range | Notes |
-|---|---|---|
-| SPEED | 0..63 | |
-| LAG | 0/1 | |
-| WAVE | 0..6 | same waveform enum as the per-voice LFOs |
-| AMP | 0..63 | |
-| SPEED MOD SOURCE | OFF / LEV2 / PED2 | a restricted three-way source |
-| AMP MOD SOURCE | OFF / LEV2 / PED2 | |
-| SPEED MOD AMOUNT | −63..+63 | |
-| AMP MOD AMOUNT | −63..+63 | |
+| Parameter        | Range             | Notes                                    |
+| ---------------- | ----------------- | ---------------------------------------- |
+| SPEED            | 0..63             |                                          |
+| LAG              | 0/1               |                                          |
+| WAVE             | 0..6              | same waveform enum as the per-voice LFOs |
+| AMP              | 0..63             |                                          |
+| SPEED MOD SOURCE | OFF / LEV2 / PED2 | a restricted three-way source            |
+| AMP MOD SOURCE   | OFF / LEV2 / PED2 |                                          |
+| SPEED MOD AMOUNT | −63..+63          |                                          |
+| AMP MOD AMOUNT   | −63..+63          |                                          |
 
 **[C]** — `multiXpPatch.vib`, `vmodT`.
 
@@ -474,15 +474,15 @@ This is the instrument's identity. Build the editor from this section.
 
 ### 9.1 Capacity
 
-| Property | Value | Confidence |
-|---|---|---|
-| Modulation sources | **27** | [C] |
-| Modulation destinations | **47** | [C] |
-| Simultaneous routings per patch | **20** | [C] |
-| Maximum sources per single destination | **6** | [C] |
-| Amount magnitude | 0..63 (6 bits) | [C] |
-| Amount sign | separate bit | [C] |
-| Quantise | separate bit, per routing | [C] |
+| Property                               | Value                     | Confidence |
+| -------------------------------------- | ------------------------- | ---------- |
+| Modulation sources                     | **27**                    | [C]        |
+| Modulation destinations                | **47**                    | [C]        |
+| Simultaneous routings per patch        | **20**                    | [C]        |
+| Maximum sources per single destination | **6**                     | [C]        |
+| Amount magnitude                       | 0..63 (6 bits)            | [C]        |
+| Amount sign                            | separate bit              | [C]        |
+| Quantise                               | separate bit, per routing | [C]        |
 
 **[C]** for the first six rows — the counts and the three bit masks are declared as named
 constants in the **manufacturer specification's own reference header**. **[I]** for the
@@ -503,6 +503,7 @@ negative         = byte & 0x40
 quantise         = byte & 0x80
 effective        = negative ? −magnitude : +magnitude       // −63 .. +63
 ```
+
 **[C]**
 
 The scaling is **linear** in the destination's own units: an amount of ±63 is full-scale
@@ -525,35 +526,35 @@ Codes are the enum ordinals, which are the values written in the patch byte and 
 "Add Modulation Source" / "Change Source" SysEx commands (documented range 0–26). **[C]** —
 `ModulationSourcesFlags` / `ModulationSourcesFlagsNames`.
 
-| Code | Name | Meaning | Kind |
-|---:|---|---|---|
-| 0 | KBD | keyboard note number | performance |
-| 1 | LAG | output of the lag processor | processor |
-| 2 | VEL | note-on velocity | performance |
-| 3 | RVEL | release velocity | performance |
-| 4 | PRES | channel pressure / aftertouch | performance |
-| 5 | TRK1 | tracking generator 1 output | processor |
-| 6 | TRK2 | tracking generator 2 output | processor |
-| 7 | TRK3 | tracking generator 3 output | processor |
-| 8 | RMP1 | ramp 1 | generator |
-| 9 | RMP2 | ramp 2 | generator |
-| 10 | RMP3 | ramp 3 | generator |
-| 11 | RMP4 | ramp 4 | generator |
-| 12 | ENV1 | envelope 1 | generator |
-| 13 | ENV2 | envelope 2 | generator |
-| 14 | ENV3 | envelope 3 | generator |
-| 15 | ENV4 | envelope 4 | generator |
-| 16 | ENV5 | envelope 5 | generator |
-| 17 | PED1 | pedal 1 (per-channel) | performance |
-| 18 | PED2 | pedal 2 (broadcast) | performance |
-| 19 | LFO1 | LFO 1 | generator |
-| 20 | LFO2 | LFO 2 | generator |
-| 21 | LFO3 | LFO 3 | generator |
-| 22 | LFO4 | LFO 4 | generator |
-| 23 | LFO5 | LFO 5 | generator |
-| 24 | VIB | the global vibrato LFO | generator |
-| 25 | LEV1 | lever 1 (per-channel; default pitch bend) | performance |
-| 26 | LEV2 | lever 2 (broadcast; default CC 1) | performance |
+| Code | Name | Meaning                                   | Kind        |
+| ---: | ---- | ----------------------------------------- | ----------- |
+|    0 | KBD  | keyboard note number                      | performance |
+|    1 | LAG  | output of the lag processor               | processor   |
+|    2 | VEL  | note-on velocity                          | performance |
+|    3 | RVEL | release velocity                          | performance |
+|    4 | PRES | channel pressure / aftertouch             | performance |
+|    5 | TRK1 | tracking generator 1 output               | processor   |
+|    6 | TRK2 | tracking generator 2 output               | processor   |
+|    7 | TRK3 | tracking generator 3 output               | processor   |
+|    8 | RMP1 | ramp 1                                    | generator   |
+|    9 | RMP2 | ramp 2                                    | generator   |
+|   10 | RMP3 | ramp 3                                    | generator   |
+|   11 | RMP4 | ramp 4                                    | generator   |
+|   12 | ENV1 | envelope 1                                | generator   |
+|   13 | ENV2 | envelope 2                                | generator   |
+|   14 | ENV3 | envelope 3                                | generator   |
+|   15 | ENV4 | envelope 4                                | generator   |
+|   16 | ENV5 | envelope 5                                | generator   |
+|   17 | PED1 | pedal 1 (per-channel)                     | performance |
+|   18 | PED2 | pedal 2 (broadcast)                       | performance |
+|   19 | LFO1 | LFO 1                                     | generator   |
+|   20 | LFO2 | LFO 2                                     | generator   |
+|   21 | LFO3 | LFO 3                                     | generator   |
+|   22 | LFO4 | LFO 4                                     | generator   |
+|   23 | LFO5 | LFO 5                                     | generator   |
+|   24 | VIB  | the global vibrato LFO                    | generator   |
+|   25 | LEV1 | lever 1 (per-channel; default pitch bend) | performance |
+|   26 | LEV2 | lever 2 (broadcast; default CC 1)         | performance |
 
 The same 0..26 enumeration is reused for **LAG IN**, **LFO SAMPLE INPUT** and **TRACK INPUT**.
 The reuse itself is **[C]** by inspection of the manufacturer's patch struct, where each of those
@@ -566,64 +567,64 @@ source-resolution function, used in four places.
 Codes are the enum ordinals. **[C]** — `ModulationDestinationTypes` /
 `ModulationDestinationsTypesNames`.
 
-| Code | Name | Target | Native range |
-|---:|---|---|---|
-| 0 | VCO1 FRQ | oscillator 1 pitch | 0..63 |
-| 1 | VCO1 PW | oscillator 1 pulse width | 0..63 |
-| 2 | VCO1 VOL | oscillator 1 mixer level | 0..63 |
-| 3 | VCO2 FRQ | oscillator 2 pitch | 0..63 |
-| 4 | VCO2 PW | oscillator 2 pulse width | 0..63 |
-| 5 | VCO2 VOL | oscillator 2 mixer level | 0..63 |
-| 6 | VCF FRQ | filter cutoff | **0..127** |
-| 7 | VCF RES | filter resonance | 0..63 |
-| 8 | VCA1 VOL | pre-filter amplifier | 0..63 |
-| 9 | VCA2 VOL | post-filter amplifier | 0..63 |
-| 10 | LFO1 SPD | LFO 1 speed | 0..63 |
-| 11 | LFO1 AMP | LFO 1 amplitude | 0..63 |
-| 12 | LFO2 SPD | | 0..63 |
-| 13 | LFO2 AMP | | 0..63 |
-| 14 | LFO3 SPD | | 0..63 |
-| 15 | LFO3 AMP | | 0..63 |
-| 16 | LFO4 SPD | | 0..63 |
-| 17 | LFO4 AMP | | 0..63 |
-| 18 | LFO5 SPD | | 0..63 |
-| 19 | LFO5 AMP | | 0..63 |
-| 20 | ENV1 DLY | envelope 1 delay | 0..63 |
-| 21 | ENV1 ATK | envelope 1 attack | 0..63 |
-| 22 | ENV1 DCY | envelope 1 decay | 0..63 |
-| 23 | ENV1 REL | envelope 1 release | 0..63 |
-| 24 | ENV1 AMP | envelope 1 amplitude | 0..63 |
-| 25 | ENV2 DLY | | 0..63 |
-| 26 | ENV2 ATK | | 0..63 |
-| 27 | ENV2 DCY | | 0..63 |
-| 28 | ENV2 REL | | 0..63 |
-| 29 | ENV2 AMP | | 0..63 |
-| 30 | ENV3 DLY | | 0..63 |
-| 31 | ENV3 ATK | | 0..63 |
-| 32 | ENV3 DCY | | 0..63 |
-| 33 | ENV3 REL | | 0..63 |
-| 34 | ENV3 AMP | | 0..63 |
-| 35 | ENV4 DLY | | 0..63 |
-| 36 | ENV4 ATK | | 0..63 |
-| 37 | ENV4 DCY | | 0..63 |
-| 38 | ENV4 REL | | 0..63 |
-| 39 | ENV4 AMP | | 0..63 |
-| 40 | ENV5 DLY | | 0..63 |
-| 41 | ENV5 ATK | | 0..63 |
-| 42 | ENV5 DCY | | 0..63 |
-| 43 | ENV5 REL | | 0..63 |
-| 44 | ENV5 AMP | | 0..63 |
-| 45 | FM AMP | audio-rate FM amount | 0..63 |
-| 46 | LAG SPD | lag processor rate | 0..63 |
+| Code | Name     | Target                   | Native range |
+| ---: | -------- | ------------------------ | ------------ |
+|    0 | VCO1 FRQ | oscillator 1 pitch       | 0..63        |
+|    1 | VCO1 PW  | oscillator 1 pulse width | 0..63        |
+|    2 | VCO1 VOL | oscillator 1 mixer level | 0..63        |
+|    3 | VCO2 FRQ | oscillator 2 pitch       | 0..63        |
+|    4 | VCO2 PW  | oscillator 2 pulse width | 0..63        |
+|    5 | VCO2 VOL | oscillator 2 mixer level | 0..63        |
+|    6 | VCF FRQ  | filter cutoff            | **0..127**   |
+|    7 | VCF RES  | filter resonance         | 0..63        |
+|    8 | VCA1 VOL | pre-filter amplifier     | 0..63        |
+|    9 | VCA2 VOL | post-filter amplifier    | 0..63        |
+|   10 | LFO1 SPD | LFO 1 speed              | 0..63        |
+|   11 | LFO1 AMP | LFO 1 amplitude          | 0..63        |
+|   12 | LFO2 SPD |                          | 0..63        |
+|   13 | LFO2 AMP |                          | 0..63        |
+|   14 | LFO3 SPD |                          | 0..63        |
+|   15 | LFO3 AMP |                          | 0..63        |
+|   16 | LFO4 SPD |                          | 0..63        |
+|   17 | LFO4 AMP |                          | 0..63        |
+|   18 | LFO5 SPD |                          | 0..63        |
+|   19 | LFO5 AMP |                          | 0..63        |
+|   20 | ENV1 DLY | envelope 1 delay         | 0..63        |
+|   21 | ENV1 ATK | envelope 1 attack        | 0..63        |
+|   22 | ENV1 DCY | envelope 1 decay         | 0..63        |
+|   23 | ENV1 REL | envelope 1 release       | 0..63        |
+|   24 | ENV1 AMP | envelope 1 amplitude     | 0..63        |
+|   25 | ENV2 DLY |                          | 0..63        |
+|   26 | ENV2 ATK |                          | 0..63        |
+|   27 | ENV2 DCY |                          | 0..63        |
+|   28 | ENV2 REL |                          | 0..63        |
+|   29 | ENV2 AMP |                          | 0..63        |
+|   30 | ENV3 DLY |                          | 0..63        |
+|   31 | ENV3 ATK |                          | 0..63        |
+|   32 | ENV3 DCY |                          | 0..63        |
+|   33 | ENV3 REL |                          | 0..63        |
+|   34 | ENV3 AMP |                          | 0..63        |
+|   35 | ENV4 DLY |                          | 0..63        |
+|   36 | ENV4 ATK |                          | 0..63        |
+|   37 | ENV4 DCY |                          | 0..63        |
+|   38 | ENV4 REL |                          | 0..63        |
+|   39 | ENV4 AMP |                          | 0..63        |
+|   40 | ENV5 DLY |                          | 0..63        |
+|   41 | ENV5 ATK |                          | 0..63        |
+|   42 | ENV5 DCY |                          | 0..63        |
+|   43 | ENV5 REL |                          | 0..63        |
+|   44 | ENV5 AMP |                          | 0..63        |
+|   45 | FM AMP   | audio-rate FM amount     | 0..63        |
+|   46 | LAG SPD  | lag processor rate       | 0..63        |
 
 Things this list tells you that a summary would not:
 
 - **Envelope SUSTAIN is not a destination.** Delay, attack, decay, release and amplitude are;
-  sustain is not. Neither is envelope *mode*. **[C]**
+  sustain is not. Neither is envelope _mode_. **[C]**
 - **Filter mode, oscillator waveform, sync, and every other switch are not destinations.** Only
   continuous parameters can be modulated. **[C]**
-- **Ramp rates are not destinations** even though ramp *outputs* are sources — asymmetric with the
-  LFOs and envelopes, whose rates *are* destinations. **[C]**
+- **Ramp rates are not destinations** even though ramp _outputs_ are sources — asymmetric with the
+  LFOs and envelopes, whose rates _are_ destinations. **[C]**
 - **Pan, voice volume, transpose and detune are multi-patch parameters and are not in the
   per-voice destination list.** **[C]**
 - There is no "matrix amount" destination: the matrix cannot modulate itself. Self-modulating
@@ -633,12 +634,12 @@ Things this list tells you that a summary would not:
 
 Four modulations bypass the matrix entirely and are enabled by bit flags on VCO 1, VCO 2 and VCF:
 
-| Flag | Name | Meaning |
-|---:|---|---|
-| 0x01 | KEYB | keyboard tracking of that parameter |
-| 0x02 | LAG | lag-processor output to that parameter |
+| Flag | Name  | Meaning                                |
+| ---: | ----- | -------------------------------------- |
+| 0x01 | KEYB  | keyboard tracking of that parameter    |
+| 0x02 | LAG   | lag-processor output to that parameter |
 | 0x04 | LEV 1 | lever 1 (pitch bend) to that parameter |
-| 0x08 | VIB | the global vibrato to that parameter |
+| 0x08 | VIB   | the global vibrato to that parameter   |
 
 **[C]** — `ModulationFlags`. These cost no matrix slots, which is why the 20-slot budget is
 workable in practice. An editor must show them, because a patch whose pitch bends "for no reason"
@@ -677,7 +678,7 @@ the editing format.
    in this patch".
 
 All three must enforce the two hard limits (20 total, 6 per destination) at the model layer and
-surface them in the UI *before* the user runs out, because the instrument's own failure mode —
+surface them in the UI _before_ the user runs out, because the instrument's own failure mode —
 silently refusing a new routing — is the single most-complained-about aspect of programming it.
 Show "17 / 20 routings, 4 / 6 on VCF FRQ" permanently.
 
@@ -689,13 +690,13 @@ Show "17 / 20 routings, 4 / 6 on VCF FRQ" permanently.
 
 A **Zone** is a polyphonic note-assignment module. Per zone:
 
-| Parameter | Values | Notes |
-|---|---|---|
-| Control source (channel) | MIDI channels 1..16 or OMNI | keyboard model may also use its own keyboard |
-| Lower note limit | 1..127 | |
-| Upper note limit | 1..127 | |
-| Note assignment mode | ROTATE / REASSIGN / RESET / UNI LOW / UNI HIGH / UNI LAST | |
-| Enables (keyboard model only) | CONTROLLERS, KEYBOARD, VOICE ROB, MIDI OUT, MIDI IN | bit flags |
+| Parameter                     | Values                                                    | Notes                                        |
+| ----------------------------- | --------------------------------------------------------- | -------------------------------------------- |
+| Control source (channel)      | MIDI channels 1..16 or OMNI                               | keyboard model may also use its own keyboard |
+| Lower note limit              | 1..127                                                    |                                              |
+| Upper note limit              | 1..127                                                    |                                              |
+| Note assignment mode          | ROTATE / REASSIGN / RESET / UNI LOW / UNI HIGH / UNI LAST |                                              |
+| Enables (keyboard model only) | CONTROLLERS, KEYBOARD, VOICE ROB, MIDI OUT, MIDI IN       | bit flags                                    |
 
 **[C]** — `zone[6]`, `nassT`, `zonefT`, and the overview text.
 
@@ -720,13 +721,13 @@ handling.
 
 ### 10.2 Per-voice multi-patch parameters
 
-| Parameter | Range | Notes |
-|---|---|---|
-| Transpose | signed | per voice |
-| Volume | 0..63 | per voice |
-| Pan | LEFT, LF2, LF1, MID, RT1, RT2, RIGHT, OFF | **8 stepped positions**, not continuous |
-| Detune | −31..+31 | per voice |
-| Voice assign | ZONE1..ZONE6 or CHAN1..CHAN16 | which zone or raw MIDI channel drives this voice |
+| Parameter    | Range                                     | Notes                                            |
+| ------------ | ----------------------------------------- | ------------------------------------------------ |
+| Transpose    | signed                                    | per voice                                        |
+| Volume       | 0..63                                     | per voice                                        |
+| Pan          | LEFT, LF2, LF1, MID, RT1, RT2, RIGHT, OFF | **8 stepped positions**, not continuous          |
+| Detune       | −31..+31                                  | per voice                                        |
+| Voice assign | ZONE1..ZONE6 or CHAN1..CHAN16             | which zone or raw MIDI channel drives this voice |
 
 **[C]** — `bankM12[2]`, `panT`, `vassT`. The keyboard model stores this as **two banks of six**;
 the expander stores one bank of six with a `cvmidi[6]` control-source array instead.
@@ -766,30 +767,30 @@ Note the internal velocity resolution is **8-bit (0..255)**, not 7-bit. **[C]**
 
 ## 11. Verification — tests QA should run
 
-| # | Test | Method | Target | Tolerance |
-|---|---|---|---|---|
-| 11.1 | **Filter mode inventory** | Sweep VCF MODE 0..14 with a white-noise source, RES 0, measure the magnitude response. | 15 distinct responses matching the type/slope column of §4.1; slopes within 1 dB/oct of nominal over a decade | ±1 dB/oct |
-| 11.2 | **Allpass magnitude flatness** | Modes 10 and 14, white noise, RES 0 and RES 40. | mode 10 flat within ±0.5 dB across 20 Hz–20 kHz; mode 14 shows only the 1-pole LP rolloff | ±0.5 dB |
-| 11.3 | **Resonance per pole count** | Modes 0..3, RES 0..63, measure peak gain at cutoff. | monotone increase with pole count; no self-oscillation in modes 0 and 1 at RES 63 | binary + record |
-| 11.4 | **Filter cutoff resolution** | Step VCF FREQ 0..127 one unit at a time, measure −3 dB point. | 128 distinct cutoffs, monotone | exact count |
-| 11.5 | **Matrix amount law** | One source (a static pedal at full), one destination (VCF FRQ), sweep amount −63..+63, measure cutoff. | monotone, symmetric about 0, and linear in the destination's native units — **this test defines the [U] in §9.2** | ±2 % of full scale from a straight line |
-| 11.6 | **Matrix capacity limits** | Attempt a 21st routing; attempt a 7th source on one destination. | both refused, with a UI message, at the model layer | binary |
-| 11.7 | **Matrix summation** | Route three sources to VCF FRQ at +21 each, all at full. | result equals the single-source +63 case | ±1 % |
-| 11.8 | **Quantise flag** | Sample-and-hold LFO → VCO1 FRQ, amount +63, quantise on and off. | quantise-on output moves in discrete steps; record the step size and **resolve the [U] in §9.2** | n/a — defines the constant |
-| 11.9 | **Tracking generator** | TRACK 1 input = KBD, points 0/63/0/63/0, route TRK1 → VCF FRQ. | cutoff traces the specified zig-zag with linear interpolation between the five points | ±2 % |
-| 11.10 | **LFO SAMPLE waveform** | LFO 1 wave = SAMPLE, sample input = LFO 2 (triangle, slow), LFO 1 speed fast. | LFO 1 output is a staircase following LFO 2 | qualitative + step count |
-| 11.11 | **LFO retrigger phase** | RETRIG MODE = SINGLE, RETRIG POINT = 0, 16, 32, 48; capture the first 100 ms after note-on, ten times. | identical each time; starting phase matches the retrigger point | sample-exact |
-| 11.12 | **Envelope DADR mode** | DADR bit set, hold a key past the decay. | no sustain segment; envelope proceeds to release while the key is held | binary |
-| 11.13 | **Envelope FREERUN** | FREERUN set, release the key during attack. | envelope completes regardless | binary |
-| 11.14 | **LFO-triggered envelope loop** | LFOTRIG + FREERUN + DADR, LFO 1 at 2 Hz. | envelope retriggers at 2 Hz indefinitely | ±1 % on period |
-| 11.15 | **Trigger semantics** | Overlapping notes to one voice; legato and staccato. | single trigger only on the first note of a gate; multi trigger on every note-on and on note-offs while ungated | binary, per §5.2 |
-| 11.16 | **Zone voice stealing** | Two zones, overlapping ranges; play a note already sounding in a zone. | the sounding voice is gated off and re-gated, not layered | binary |
-| 11.17 | **Unison modes** | UNI LOW / UNI HIGH / UNI LAST with a three-note chord held, then released one at a time. | pitch follows lowest / highest / most recently pressed held key | binary |
-| 11.18 | **Pan positions** | Sweep pan through all eight values, measure L/R balance. | 7 discrete positions plus OFF; symmetric about MID | ±0.5 dB |
-| 11.19 | **Lag EQUAL TIME** | LAG MODE with and without EQUAL TIME; glide a semitone and an octave. | with the flag, both take the same time; without, the octave takes ~12× longer | ±5 % |
-| 11.20 | **Velocity curves** | LINEAR / EXPO 1 / EXPO 2, sweep velocity 1..127. | 8-bit internal output; EXPO 1 maps 1→1 and 127→255; EXPO 2 reaches full output at input 120 | ±2 LSB |
-| 11.21 | **Patch import round-trip** | Import a 399-byte single-patch dump, export, compare. | byte-identical | exact |
-| 11.22 | **CPU budget** | 12 voices, 5 envelopes + 5 LFOs + 4 ramps + 3 tracking generators + 20 routings all active. | within the per-instrument budget in `docs/PERFORMANCE.md` | per that document |
+| #     | Test                            | Method                                                                                                 | Target                                                                                                            | Tolerance                               |
+| ----- | ------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| 11.1  | **Filter mode inventory**       | Sweep VCF MODE 0..14 with a white-noise source, RES 0, measure the magnitude response.                 | 15 distinct responses matching the type/slope column of §4.1; slopes within 1 dB/oct of nominal over a decade     | ±1 dB/oct                               |
+| 11.2  | **Allpass magnitude flatness**  | Modes 10 and 14, white noise, RES 0 and RES 40.                                                        | mode 10 flat within ±0.5 dB across 20 Hz–20 kHz; mode 14 shows only the 1-pole LP rolloff                         | ±0.5 dB                                 |
+| 11.3  | **Resonance per pole count**    | Modes 0..3, RES 0..63, measure peak gain at cutoff.                                                    | monotone increase with pole count; no self-oscillation in modes 0 and 1 at RES 63                                 | binary + record                         |
+| 11.4  | **Filter cutoff resolution**    | Step VCF FREQ 0..127 one unit at a time, measure −3 dB point.                                          | 128 distinct cutoffs, monotone                                                                                    | exact count                             |
+| 11.5  | **Matrix amount law**           | One source (a static pedal at full), one destination (VCF FRQ), sweep amount −63..+63, measure cutoff. | monotone, symmetric about 0, and linear in the destination's native units — **this test defines the [U] in §9.2** | ±2 % of full scale from a straight line |
+| 11.6  | **Matrix capacity limits**      | Attempt a 21st routing; attempt a 7th source on one destination.                                       | both refused, with a UI message, at the model layer                                                               | binary                                  |
+| 11.7  | **Matrix summation**            | Route three sources to VCF FRQ at +21 each, all at full.                                               | result equals the single-source +63 case                                                                          | ±1 %                                    |
+| 11.8  | **Quantise flag**               | Sample-and-hold LFO → VCO1 FRQ, amount +63, quantise on and off.                                       | quantise-on output moves in discrete steps; record the step size and **resolve the [U] in §9.2**                  | n/a — defines the constant              |
+| 11.9  | **Tracking generator**          | TRACK 1 input = KBD, points 0/63/0/63/0, route TRK1 → VCF FRQ.                                         | cutoff traces the specified zig-zag with linear interpolation between the five points                             | ±2 %                                    |
+| 11.10 | **LFO SAMPLE waveform**         | LFO 1 wave = SAMPLE, sample input = LFO 2 (triangle, slow), LFO 1 speed fast.                          | LFO 1 output is a staircase following LFO 2                                                                       | qualitative + step count                |
+| 11.11 | **LFO retrigger phase**         | RETRIG MODE = SINGLE, RETRIG POINT = 0, 16, 32, 48; capture the first 100 ms after note-on, ten times. | identical each time; starting phase matches the retrigger point                                                   | sample-exact                            |
+| 11.12 | **Envelope DADR mode**          | DADR bit set, hold a key past the decay.                                                               | no sustain segment; envelope proceeds to release while the key is held                                            | binary                                  |
+| 11.13 | **Envelope FREERUN**            | FREERUN set, release the key during attack.                                                            | envelope completes regardless                                                                                     | binary                                  |
+| 11.14 | **LFO-triggered envelope loop** | LFOTRIG + FREERUN + DADR, LFO 1 at 2 Hz.                                                               | envelope retriggers at 2 Hz indefinitely                                                                          | ±1 % on period                          |
+| 11.15 | **Trigger semantics**           | Overlapping notes to one voice; legato and staccato.                                                   | single trigger only on the first note of a gate; multi trigger on every note-on and on note-offs while ungated    | binary, per §5.2                        |
+| 11.16 | **Zone voice stealing**         | Two zones, overlapping ranges; play a note already sounding in a zone.                                 | the sounding voice is gated off and re-gated, not layered                                                         | binary                                  |
+| 11.17 | **Unison modes**                | UNI LOW / UNI HIGH / UNI LAST with a three-note chord held, then released one at a time.               | pitch follows lowest / highest / most recently pressed held key                                                   | binary                                  |
+| 11.18 | **Pan positions**               | Sweep pan through all eight values, measure L/R balance.                                               | 7 discrete positions plus OFF; symmetric about MID                                                                | ±0.5 dB                                 |
+| 11.19 | **Lag EQUAL TIME**              | LAG MODE with and without EQUAL TIME; glide a semitone and an octave.                                  | with the flag, both take the same time; without, the octave takes ~12× longer                                     | ±5 %                                    |
+| 11.20 | **Velocity curves**             | LINEAR / EXPO 1 / EXPO 2, sweep velocity 1..127.                                                       | 8-bit internal output; EXPO 1 maps 1→1 and 127→255; EXPO 2 reaches full output at input 120                       | ±2 LSB                                  |
+| 11.21 | **Patch import round-trip**     | Import a 399-byte single-patch dump, export, compare.                                                  | byte-identical                                                                                                    | exact                                   |
+| 11.22 | **CPU budget**                  | 12 voices, 5 envelopes + 5 LFOs + 4 ramps + 3 tracking generators + 20 routings all active.            | within the per-instrument budget in `docs/PERFORMANCE.md`                                                         | per that document                       |
 
 Test 11.5 and 11.8 are the two that convert [U] values in this sheet into [C] values. Run them
 first; several other tests' expected results depend on their outcome.
@@ -807,6 +808,7 @@ first; several other tests' expected results depend on their outcome.
   LFO flag bitfields, the multi-patch and zone structures, and the modulation-edit SysEx protocol.
   Cloned from <https://github.com/xplorer2716/OberheimXpanderMidiSpec>. This is the source of
   every [C] in §§2–10 unless another is named.
+
 ### Implementation (**[I]** — re-confirm before use)
 
 - **Xplorer**, an **AGPL-3.0** real-time editor built against that specification, cloned from
@@ -842,10 +844,10 @@ first; several other tests' expected results depend on their outcome.
 
 ## 13. UI era language (1984–1986 analogue-digital hybrid workstation)
 
-For the UI team. This describes the *period vocabulary*, not any specific product's trade dress.
+For the UI team. This describes the _period vocabulary_, not any specific product's trade dress.
 Nothing here licenses copying a panel layout, a logotype, a typeface, or a badge.
 
-**Control taxonomy.** This is the *paged soft-control* idiom, and it is a different design
+**Control taxonomy.** This is the _paged soft-control_ idiom, and it is a different design
 language from the membrane-and-slider digital instruments of the same years (compare
 `syn-04-six-op-fm.md` §14):
 
@@ -891,8 +893,8 @@ on dark. The display itself is a 5×7 or 5×8 character matrix; use real charact
 families rather than a uniform key grid; a dark panel with a bright emissive strip; a "modulation
 present" indicator on every modulatable parameter (the hardware's "mod dot", which is how a player
 discovers what is already routed); and a matrix editor that is destination-centric with a running
-budget readout. The matrix grid visualisation itself should be our own design — the *data* is in
-§9, the *drawing* must be ours.
+budget readout. The matrix grid visualisation itself should be our own design — the _data_ is in
+§9, the _drawing_ must be ours.
 
 ---
 

@@ -77,7 +77,8 @@ export function danglingSelection(
   if (ui.range) {
     const kept = ui.range.trackIds.filter((id) => tracks.has(id));
     if (kept.length === 0) patch.range = null;
-    else if (kept.length !== ui.range.trackIds.length) patch.range = { ...ui.range, trackIds: kept };
+    else if (kept.length !== ui.range.trackIds.length)
+      patch.range = { ...ui.range, trackIds: kept };
   }
 
   return Object.keys(patch).length > 0 ? (patch as Partial<typeof ui>) : null;

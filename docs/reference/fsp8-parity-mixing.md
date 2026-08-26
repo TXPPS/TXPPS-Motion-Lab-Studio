@@ -2,8 +2,8 @@
 
 **Directive 09 §1 · Research Analyst · MotionLab Studio**
 
-**Reference source:** Fender Studio Pro 8 user manual, chapters *Mixing* (pp. 299–356)
-and *Automation* (pp. 403–412), read cover to cover from the extracted text at
+**Reference source:** Fender Studio Pro 8 user manual, chapters _Mixing_ (pp. 299–356)
+and _Automation_ (pp. 403–412), read cover to cover from the extracted text at
 `scratchpad/fsp8.txt` lines 11793–14093 and 15544–15957.
 
 **MotionLab source:** read directly, at the paths cited per row.
@@ -26,31 +26,31 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 ### 1.1 Strip element order, top to bottom
 
 1. **FSP8 does.** The manual states the order positionally rather than as a list, so the
-   order below is assembled from its own sentences (*The Console › Channel Features*, and
-   *Console Options › Channel Components*):
+   order below is assembled from its own sentences (_The Console › Channel Features_, and
+   _Console Options › Channel Components_):
 
-   | # | Element | Manual's own words on its position |
-   | - | ------- | ---------------------------------- |
-   | 1 | **Input / Output display** | "At the top of each Channel is a display of its configured Input and Output, with the Input shown at the top and the Output below it." |
-   | 2 | **Input controls** — Input Gain, Polarity Invert (Ø) | "display the Input Gain and Polarity Invert controls **at the top of each Channel**"; present on every channel type "except Output Channels and VCA Channels" |
-   | 3 | **Insert Device Rack** | "Each Channel in the Console can have its own set of Device Racks… the Insert Device Racks are hidden in Small Console mode" |
-   | 4 | **Send Device Rack** | Sends/Cue mix: "show the Sends **above the fader** on each Channel" |
-   | 5 | **I/O connections** (optional duplicate row) | "display Input / Output routings **above the fader**" |
-   | 6 | **Panner** (horizontal) | "All Channels feature a horizontal panner and vertical volume fader **below the I/O-selection display**" |
-   | 7 | **Volume fader** (vertical) + **level meter** | as above; "Each Channel has a level meter" |
-   | 8 | **Mute / Solo** (+ Record Enable / Monitor Enable on Audio Channels) | Audio Channels have "corresponding Record Enable, Monitor Enable, Solo, and Mute controls" |
-   | 9 | **VCA connections** | "display VCA Channel connections **beneath the meter**" |
-   | 10 | **Group assignment** | "display Group assignments **above the labels**" |
-   | 11 | **Automation Mode** | "displayed **at the bottom of the Channel**. By default, this mode is set to Off." |
-   | 12 | **Name** | "Channel names are shown **at the bottom** of each Channel" |
-   | 13 | **Channel Notes** | "**beneath the faders** on each Channel" |
-   | 14 | **Channel Icons** | "**beneath the faders** on each Channel" |
+   | #   | Element                                                              | Manual's own words on its position                                                                                                                            |
+   | --- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | 1   | **Input / Output display**                                           | "At the top of each Channel is a display of its configured Input and Output, with the Input shown at the top and the Output below it."                        |
+   | 2   | **Input controls** — Input Gain, Polarity Invert (Ø)                 | "display the Input Gain and Polarity Invert controls **at the top of each Channel**"; present on every channel type "except Output Channels and VCA Channels" |
+   | 3   | **Insert Device Rack**                                               | "Each Channel in the Console can have its own set of Device Racks… the Insert Device Racks are hidden in Small Console mode"                                  |
+   | 4   | **Send Device Rack**                                                 | Sends/Cue mix: "show the Sends **above the fader** on each Channel"                                                                                           |
+   | 5   | **I/O connections** (optional duplicate row)                         | "display Input / Output routings **above the fader**"                                                                                                         |
+   | 6   | **Panner** (horizontal)                                              | "All Channels feature a horizontal panner and vertical volume fader **below the I/O-selection display**"                                                      |
+   | 7   | **Volume fader** (vertical) + **level meter**                        | as above; "Each Channel has a level meter"                                                                                                                    |
+   | 8   | **Mute / Solo** (+ Record Enable / Monitor Enable on Audio Channels) | Audio Channels have "corresponding Record Enable, Monitor Enable, Solo, and Mute controls"                                                                    |
+   | 9   | **VCA connections**                                                  | "display VCA Channel connections **beneath the meter**"                                                                                                       |
+   | 10  | **Group assignment**                                                 | "display Group assignments **above the labels**"                                                                                                              |
+   | 11  | **Automation Mode**                                                  | "displayed **at the bottom of the Channel**. By default, this mode is set to Off."                                                                            |
+   | 12  | **Name**                                                             | "Channel names are shown **at the bottom** of each Channel"                                                                                                   |
+   | 13  | **Channel Notes**                                                    | "**beneath the faders** on each Channel"                                                                                                                      |
+   | 14  | **Channel Icons**                                                    | "**beneath the faders** on each Channel"                                                                                                                      |
 
    Rows 2, 4, 5, 9, 10, 13, 14 are individually hideable from **Console Options (wrench) →
    Channel Components**. The Group icon "appears inside the Channel above the level meter"
    and "is not visible when the Console view is in Narrow mode".
 
-   Two corroborating orders the manual gives explicitly, for the *horizontal* layouts:
+   Two corroborating orders the manual gives explicitly, for the _horizontal_ layouts:
 
    - **Channel Overview** (left to right): channel name · audio device controls · input
      gain & polarity · input/output routing · pan mode · pan · track notes · track icon ·
@@ -79,7 +79,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    mode row** (an "A" badge in the name row stands in), **no notes row**, **no icon row**;
    and the **name is at the top**, not the bottom.
 
-3. **Gap — `PARTIAL`.** The element *set* is roughly two-thirds present; the *order* is
+3. **Gap — `PARTIAL`.** The element _set_ is roughly two-thirds present; the _order_ is
    materially different at both ends of the strip. Two specific divergences are worth
    deciding deliberately rather than drifting into:
    - **Routing position.** The reference puts input **and** output at the top; MotionLab
@@ -125,12 +125,12 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    bottom to hide/show whole classes, a Group column showing each channel's group, and a
    **Remote Bank** (a special Scene governing which channels a control surface sees).
 
-   **Console Options (wrench)** groups: *Grouping* (keep FX / bus / VCA channels to the
-   right; preserve order of channels with folder track), *Visibility* (link Track List and
+   **Console Options (wrench)** groups: _Grouping_ (keep FX / bus / VCA channels to the
+   right; preserve order of channels with folder track), _Visibility_ (link Track List and
    Console; link expansion and visibility of Folder Tracks; Auto-expand Selected Channel;
-   Colorize Channel Strips; Colorize Plug-in Header), *Channel Components* (audio device
+   Colorize Channel Strips; Colorize Plug-in Header), _Channel Components_ (audio device
    controls, input controls, sends/cue mix, I/O connections, VCA connections, group
-   assignment, channel notes, channel icons), *Bus Settings* (Enable Listen Bus; Solo
+   assignment, channel notes, channel icons), _Bus Settings_ (Enable Listen Bus; Solo
    through Listen Bus; Automatically Create Instrument Busses), and Restore Audio Device
    Settings.
 
@@ -138,9 +138,9 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    is visible or not".
 
 2. **MotionLab does.** `Mixer.tsx` has one piece of chrome: a `+` button whose menu offers
-   *Add bus*, *Add FX channel*, *Add VCA fader*. Ordering is hard-coded (channels, then
+   _Add bus_, _Add FX channel_, _Add VCA fader_. Ordering is hard-coded (channels, then
    buses, then FX, then VCAs, then master) — which happens to match the reference's
-   *keep-to-the-right* options, but as a fixed rule rather than a setting. No channel list,
+   _keep-to-the-right_ options, but as a fixed rule rather than a setting. No channel list,
    no filter, no per-type visibility, no options menu, no find-by-name.
 
 3. **Gap — `MISSING`** for the navigation column, Channel List, filter and options menu.
@@ -149,8 +149,8 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 ### 1.4 Channel types
 
 1. **FSP8 does.** **Input** (hardware inputs, mono or stereo, for metering or processing an
-   input), **Audio** (one per Audio Track), **Instrument** (the *audio output of a virtual
-   instrument* — Instrument Tracks have no direct console representation, and a multi-out
+   input), **Audio** (one per Audio Track), **Instrument** (the _audio output of a virtual
+   instrument_ — Instrument Tracks have no direct console representation, and a multi-out
    instrument gets one channel per output), **Aux** (an external audio source controlled by
    the console with no associated track), **Bus** (summing; mono or stereo via a Channel
    Mode button), **FX** (an effects return fed by Sends), **Output** (Main Out, always
@@ -193,10 +193,10 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    The Listen Bus has a Channel Mode button too.
 
 2. **MotionLab does.** Per-channel `monoSum` (an `M` button in the strip's input row) sets
-   `trim.channelCount = 1` / `channelCountMode = 'explicit'` at the *input* of the channel
+   `trim.channelCount = 1` / `channelCountMode = 'explicit'` at the _input_ of the channel
    (`engine.ts` in `syncGraph`). The master has `monoCheck` doing the same on `masterMono`,
    explicitly documented as monitoring-only and never printed to a bounce. No mono/stereo
-   mode on buses as a *format* decision.
+   mode on buses as a _format_ decision.
 
 3. **Gap — `PARTIAL`.** Mono summing exists and is arguably better placed (per channel, not
    just per bus); a bus **format** (mono vs stereo bus) does not exist. The master mono
@@ -211,7 +211,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    Listen Bus." Also in the channel context menu.
 
 2. **MotionLab does.** `projectStore.copyEffectTo(fromTrackId, effectId, toTrackId)` copies
-   **one device**. `DeviceRack.tsx` exposes it as *Copy to…*. Nothing copies a channel's
+   **one device**. `DeviceRack.tsx` exposes it as _Copy to…_. Nothing copies a channel's
    level, pan, whole insert chain or send set.
 
 3. **Gap — `MISSING`** for whole-channel settings; `PARTIAL` for chain copying (one device
@@ -223,7 +223,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 
 ### 2.1 Pan law
 
-1. **FSP8 does.** Quoting the manual directly (*The Console › Volume and Pan settings*):
+1. **FSP8 does.** Quoting the manual directly (_The Console › Volume and Pan settings_):
 
    > "Fender Studio Pro uses a **-3 dB pan law** for all channel panning. On stereo
    > channels, the panner adjusts the balance of left and right signal levels."
@@ -235,7 +235,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 
 2. **MotionLab does.** Every channel panner and the master panner are Web Audio
    `StereoPannerNode`s — `engine.ts:942` (`buildChannel`: `const panner =
-   ctx.createStereoPanner()`) and `engine.ts:361` (`masterPan`). The offline bounce builds
+ctx.createStereoPanner()`) and `engine.ts:361` (`masterPan`). The offline bounce builds
    the same nodes (`src/audio/exportMix.ts:521`, `:560`), which is what keeps bounce parity
    (`CLAUDE.md`'s do-not-refactor rule).
 
@@ -264,7 +264,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
      perceived width of stereo signals, from mono to double the normal width."
 
    "Note that Dual and Binaural pans don't apply to Mono channels." A preference,
-   *Use Binaural/Dual for New Channels*, sets the default for new channels.
+   _Use Binaural/Dual for New Channels_, sets the default for new channels.
 
    **Dual gestures:** drag the middle for joint balance (or mousewheel); drag an endpoint to
    balance one side; drag up/down to widen or narrow (or Ctrl+mousewheel). Width can be
@@ -315,7 +315,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    against the rest of the mix.
 
 2. **MotionLab does.** SIP, resolved as pure data in `src/model/mixerGraph.ts`
-   `resolveChannels()`. Its solo model is materially *richer* than the reference's:
+   `resolveChannels()`. Its solo model is materially _richer_ than the reference's:
    - solo expands through **folders** and **VCAs** to their members;
    - solo is **transitive downstream** (a soloed track keeps whatever it feeds audible) and
      **upstream** (a soloed bus keeps its feeders audible);
@@ -344,18 +344,18 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    Solo button**… The Solo button is **green** when Solo Safe is engaged."
 
    "**FX Channels have Solo Safe engaged by default** because effects may be critical to how
-   soloed Channels sound in the mix." (Stated twice — once in *The Console*, again in
-   *Effects Signal Routing › The FX and Solo Safe*.)
+   soloed Channels sound in the mix." (Stated twice — once in _The Console_, again in
+   _Effects Signal Routing › The FX and Solo Safe_.)
 
 2. **MotionLab does.** `Track.soloSafe` is honoured by `resolveChannels` (`soloOk = !soloActive
-   || audibleBySolo.has(t.id) || t.soloSafe === true`). Engaged by **right-click** on the Solo
+|| audibleBySolo.has(t.id) || t.soloSafe === true`). Engaged by **right-click** on the Solo
    button (`ChannelStrip.tsx` `onContextMenu`), indicated by the button reading `S!` instead
    of `S`.
 
    `MISSING`: FX channels are **not** solo-safe by default — `projectStore.addTrack` sets no
    `soloSafe` for any type. Because MotionLab's solo is transitive downstream, a soloed track
-   *does* keep its send destinations audible, which covers the common case by accident; but
-   an FX return fed only by a *different*, non-soloed track goes silent, which is exactly
+   _does_ keep its send destinations audible, which covers the common case by accident; but
+   an FX return fed only by a _different_, non-soloed track goes silent, which is exactly
    what the reference's default prevents.
 
 3. **Gap — `PARTIAL`.**
@@ -370,7 +370,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 
 ### 3.3 Implicit mute — how a silenced channel is shown
 
-1. **FSP8 does.** The Mixing chapter describes the *behaviour* ("Soloing silences all except
+1. **FSP8 does.** The Mixing chapter describes the _behaviour_ ("Soloing silences all except
    the audio for the soloed Channel") but **never states how an implicitly-muted channel is
    indicated**. There is no sentence in either chapter about a dimmed strip, a flashing mute
    button, or a distinct implicit-mute colour. This is a genuine silence in the source, not
@@ -387,12 +387,12 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    both the name row and the Mute button, plus a `.silent` class on the strip that drops the
    name and fader rows to `opacity: 0.55` (`src/styles/mixer.css:216`).
 
-3. **Gap — `DIVERGENT-BY-DESIGN`, in MotionLab's favour.** MotionLab distinguishes *two
-   kinds* of implicit mute and says which in words; the reference documents neither. Keep
+3. **Gap — `DIVERGENT-BY-DESIGN`, in MotionLab's favour.** MotionLab distinguishes _two
+   kinds_ of implicit mute and says which in words; the reference documents neither. Keep
    it. Two improvements worth noting anyway:
    - the indication is **opacity plus a tooltip** — a tooltip is invisible on touch and to a
      screen reader on the fader; the Mute button's `aria-pressed` still reads `false` when
-     the channel is implicitly silent, which is correct but leaves the *reason* unspoken.
+     the channel is implicitly silent, which is correct but leaves the _reason_ unspoken.
    - `mutedByGroup` covers folder and VCA mutes only. A channel silenced because its
      **output bus** is muted is not flagged (the graph walk in `resolveChannels` does not
      propagate a bus's mute down to its feeders' `ChannelState`). Worth a test.
@@ -408,7 +408,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    the Pre-Fader Metering setting is applied globally to all meters, including the Output
    Channels. Changing that setting in one menu will change it automatically in the other."
 
-   - **Normal channels:** choose **Peak** *or* **Peak/RMS** (mutually exclusive). The choice
+   - **Normal channels:** choose **Peak** _or_ **Peak/RMS** (mutually exclusive). The choice
      "will be applied to all Channels in the Console except the Output Channels" — i.e. it is
      a **global** choice for that class, not per-channel.
    - **Output channels:** "**Peak meters are not available for the Output Channels**, which
@@ -427,11 +427,11 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    RMS body, peak-hold marker, no fast peak bar.
 
    `MeterData` (`engine.ts:102`) carries `peak`, `rms`, `hold`, `clipped`, and per-channel
-   `peakL/R`, `rmsL/R`, `holdL/R` — so the *data* for a true peak-over-RMS display already
+   `peakL/R`, `rmsL/R`, `holdL/R` — so the _data_ for a true peak-over-RMS display already
    exists; only the widget does not draw it.
 
    The single-bar `SignalMeter` variant does offer a peak-or-RMS choice (`byPeak ? m.peak :
-   m.rms * 1.4`, `widgets.tsx:634`) but that is not the console meter, and the `× 1.4` lift
+m.rms * 1.4`, `widgets.tsx:634`) but that is not the console meter, and the `× 1.4` lift
    on RMS is a display fudge with no stated derivation.
 
    No context menu on any meter. No mode selection of any kind.
@@ -439,7 +439,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 3. **Gap — `PARTIAL`.** RMS and peak-hold are both present and metering is stereo; the
    **mode menu is `MISSING`**, **plain Peak mode is `MISSING`**, and the reference's
    two-menu / global-scope structure has no counterpart. The reference's mutual exclusivity
-   and global scope is an important design detail: it is a *console preference*, not a
+   and global scope is an important design detail: it is a _console preference_, not a
    per-strip toggle.
 
 ### 4.2 Scale, ballistics, peak hold
@@ -474,7 +474,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
      conflates hold decay with meter fall.
    - **Scale is a MotionLab decision** (−60 dB floor, `^1.9` warp). The manual states no
      scale, so this is `DIVERGENT-BY-DESIGN` and cannot be called a gap either way. It should
-     be recorded as *ours*, with its own justification, rather than implied to be parity.
+     be recorded as _ours_, with its own justification, rather than implied to be parity.
 
 ### 4.3 Pre-fader metering
 
@@ -512,7 +512,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
      improvement, keep it.
    - **`MISSING`: the count.** "3 clips" and "clipped at some point" are different pieces of
      information, and the reference deliberately gives the former.
-   - **`DIVERGENT`: reset scope.** Clicking one strip's over-lamp clearing *every* channel's
+   - **`DIVERGENT`: reset scope.** Clicking one strip's over-lamp clearing _every_ channel's
      is surprising and is the kind of control-that-does-more-than-it-says the house style
      objects to. Worth a per-channel reset with a modifier for reset-all.
    - **`MISSING`: reset-on-fader-move.**
@@ -530,7 +530,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    The manual names **exactly three** scales here. It does **not** name True Peak or R128 as
    meter-scale options in the Metering section.
 
-2. **MotionLab does.** No K-System. No scale switching of any kind. MotionLab *does* have a
+2. **MotionLab does.** No K-System. No scale switching of any kind. MotionLab _does_ have a
    real BS.1770-4 loudness implementation (`src/model/loudness.ts` — K-weighting, −0.691
    offset, absolute gate at −70 LUFS, histogram, momentary/short-term/integrated) and a true-
    peak measurement, but they are used **only in export reporting**
@@ -627,7 +627,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    were already off (hold any modifier to activate those too).
 
    **Removing:** menu arrow then Remove, or drag into the console's **Trash Bin** panel;
-   *Remove All* from the rack header menu. "When any Insert effect is removed, it is placed in
+   _Remove All_ from the rack header menu. "When any Insert effect is removed, it is placed in
    the Trash Bin, where it can be restored to its original state and location at any time."
 
    **Add an insert to a Sends rack** creates a new FX Channel with that effect (settings
@@ -636,7 +636,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 2. **MotionLab does.** `DeviceRack.tsx` (514 lines) on the strip, `InsertRack.tsx` (470) in
    the Inspector, `InsertChain` in `src/audio/effectChain.ts` as the audio implementation.
    Inserts are pre-fader by construction (`buildChannel`: `input -> trim -> inserts -> pdc ->
-   mute -> volume -> pan`), which matches the reference. `DeviceRack` implements a device menu
+mute -> volume -> pan`), which matches the reference. `DeviceRack` implements a device menu
    (Open / Bypass / Move up / Move down / Copy to… / Remove) and HTML5 drag-and-drop with an
    `application/x-motionlab-device` payload and drop-index insertion.
 
@@ -651,7 +651,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    `[Alt]`-drag-to-move.
 
 3. **Gap — `PARTIAL`.** The three-state off model (bypass / deactivate / disable) is the most
-   *conceptually* significant miss: it is a CPU-management vocabulary, and a browser DAW with
+   _conceptually_ significant miss: it is a CPU-management vocabulary, and a browser DAW with
    a WASM/WebAudio graph needs it at least as much as a native one. **Bypass being
    automatable while deactivate and disable are not** is a precise rule worth adopting
    verbatim.
@@ -663,7 +663,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 
    **Routes to create one:**
    - Drag an effect or **FX Chain** from the Browser into a channel's **Send Device Rack** —
-     creates a new FX Channel *named after the effect or chain*, with the effect loaded, and
+     creates a new FX Channel _named after the effect or chain_, with the effect loaded, and
      a Send to it.
    - Click **Add Send** in the Send Device Rack, then choose an existing FX Channel (or Bus).
    - With the Sends/Cue-mix component shown, click the **`+`** to "select an existing
@@ -716,10 +716,10 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 
    ```ts
    export interface Send {
-     busId: string;      // target bus track id
-     amount: number;     // linear amount 0..1.5
+     busId: string; // target bus track id
+     amount: number; // linear amount 0..1.5
      enabled: boolean;
-     preFader: boolean;  // post-fader is the default
+     preFader: boolean; // post-fader is the default
    }
    ```
 
@@ -746,7 +746,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    ```
 
    A **pre-fader send is silenced by mute and by another channel's solo**. The reference only
-   promises independence from the *fader*. Plausible and probably correct, but unstated in the
+   promises independence from the _fader_. Plausible and probably correct, but unstated in the
    manual: mark unverified.
 
    And buses/FX are refused sends in **both** layers — UI (`SendRack` early-returns with
@@ -756,27 +756,27 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 
 3. **Gap — `PARTIAL`, and this is one of the two largest gaps in the chapter.**
 
-   | Reference behaviour | MotionLab | Status |
-   | ------------------- | --------- | ------ |
-   | A send is a created **object** with a destination | One row per bus, keyed by `busId` | `MISSING` — two sends to one destination impossible |
-   | Level range -inf…**+10 dB** | `0..1.5` linear, about -inf…**+3.5 dB** | `PARTIAL` — 6.5 dB short |
-   | Numeric dB readout on the send fader | none (raw `<input type=range>`) | `MISSING` |
-   | **Send pan** | not in the model at all | `MISSING` |
-   | **Pan Lock** (locked by default; unlockable per-rack and per-send; sticky for new sends and new documents) | n/a (no send pan) | `MISSING` |
-   | Activate button per send | `ON`/`OFF` button | `PARITY` |
-   | Pre/Post Fader button | `PRE`/`PST` button | `PARITY` |
-   | Send source always post-inserts | `ch.inserts.exit` | `PARITY` |
-   | Buses and FX channels can send | refused in UI **and** engine | `MISSING` |
-   | Send to a plug-in **sidechain input** | `Track.sidechainFrom` picks a *source channel*, wired post-fader from `src.panner` to `inserts.sidechainInputs()` | `PARTIAL` — routing exists, but as a channel property rather than a send with its own level/pre-post |
-   | Fine-control pop-up + arrow-key traversal | none | `MISSING` |
-   | Remove-all sends, incl. across selected channels | none | `MISSING` |
-   | Copy send / copy whole send rack / Alt-move | none | `MISSING` |
+   | Reference behaviour                                                                                        | MotionLab                                                                                                         | Status                                                                                               |
+   | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+   | A send is a created **object** with a destination                                                          | One row per bus, keyed by `busId`                                                                                 | `MISSING` — two sends to one destination impossible                                                  |
+   | Level range -inf…**+10 dB**                                                                                | `0..1.5` linear, about -inf…**+3.5 dB**                                                                           | `PARTIAL` — 6.5 dB short                                                                             |
+   | Numeric dB readout on the send fader                                                                       | none (raw `<input type=range>`)                                                                                   | `MISSING`                                                                                            |
+   | **Send pan**                                                                                               | not in the model at all                                                                                           | `MISSING`                                                                                            |
+   | **Pan Lock** (locked by default; unlockable per-rack and per-send; sticky for new sends and new documents) | n/a (no send pan)                                                                                                 | `MISSING`                                                                                            |
+   | Activate button per send                                                                                   | `ON`/`OFF` button                                                                                                 | `PARITY`                                                                                             |
+   | Pre/Post Fader button                                                                                      | `PRE`/`PST` button                                                                                                | `PARITY`                                                                                             |
+   | Send source always post-inserts                                                                            | `ch.inserts.exit`                                                                                                 | `PARITY`                                                                                             |
+   | Buses and FX channels can send                                                                             | refused in UI **and** engine                                                                                      | `MISSING`                                                                                            |
+   | Send to a plug-in **sidechain input**                                                                      | `Track.sidechainFrom` picks a _source channel_, wired post-fader from `src.panner` to `inserts.sidechainInputs()` | `PARTIAL` — routing exists, but as a channel property rather than a send with its own level/pre-post |
+   | Fine-control pop-up + arrow-key traversal                                                                  | none                                                                                                              | `MISSING`                                                                                            |
+   | Remove-all sends, incl. across selected channels                                                           | none                                                                                                              | `MISSING`                                                                                            |
+   | Copy send / copy whole send rack / Alt-move                                                                | none                                                                                                              | `MISSING`                                                                                            |
 
    The **acyclic-graph justification for refusing bus sends is sound but over-broad.** The
    reference solves the same problem differently and says so: "It is possible to **nest buses
    infinitely**… **Feedback prevention is in place** so that you can't create a bus routing
    that would cause a feedback loop (e.g., A to B, B to C, C to A)." That is cycle
-   *detection*, not a blanket ban. MotionLab already has the graph walk to do it —
+   _detection_, not a blanket ban. MotionLab already has the graph walk to do it —
    `mixerGraph.feedersOf` plus the `seenDown`/`seenUp` traversals in `resolveChannels` are
    most of a reachability check.
 
@@ -810,10 +810,10 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    automation data (otherwise use **Merge VCA automation** first). Mix FX are not reinstated
    on the way back.
 
-   **Instrument buses:** *Automatically Create Instrument Busses* creates a bus per multi-out
-   instrument; *Create Buses for All Multi-Out Instruments* does it manually.
+   **Instrument buses:** _Automatically Create Instrument Busses_ creates a bus per multi-out
+   instrument; _Create Buses for All Multi-Out Instruments_ does it manually.
 
-   **Groups (Edit Groups) in the console** — a *separate* concept from buses:
+   **Groups (Edit Groups) in the console** — a _separate_ concept from buses:
    - Create: select channels, right-click, **Group Selected Tracks**, or `[Ctrl]/[Cmd]+G`.
      Dissolve: `[Ctrl]/[Cmd]+[Shift]+G`.
    - "When a Channel is placed in a Group its fader is **linked** to the faders for all other
@@ -860,7 +860,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
      reference calls it infinite; MotionLab hard-codes bus-to-master in the engine. It also
      makes the "no sends from buses" restriction (§5.2) doubly binding: a bus can reach
      another bus by neither route.
-   - **Console Groups: `MISSING`.** MotionLab has the *name* (`editGroup`) attached to a
+   - **Console Groups: `MISSING`.** MotionLab has the _name_ (`editGroup`) attached to a
      different feature, which is worse than not having it — a user who groups tracks
      reasonably expects the faders to link.
    - Bus creation and routing-to: `PARITY`.
@@ -921,12 +921,12 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    affordance and no `captureParamChange` call — the VCA fader writes no automation at all),
    **Merge VCA Automation**, and the **grey companion line** on members' volume lanes.
 
-3. **Gap — `PARTIAL`, and the *concept* is at parity while the *automation story* is absent.**
+3. **Gap — `PARTIAL`, and the _concept_ is at parity while the _automation story_ is absent.**
 
    The three-way distinction MotionLab actually implements is: **bus** (audio passes through),
-   **VCA** (gain scaling, no routing change), **folder** (gain scaling *and* arrangement
-   nesting). It has no **group** (linked faders). So MotionLab has the reference's *hardest*
-   case right and its *easiest* case missing.
+   **VCA** (gain scaling, no routing change), **folder** (gain scaling _and_ arrangement
+   nesting). It has no **group** (linked faders). So MotionLab has the reference's _hardest_
+   case right and its _easiest_ case missing.
 
    The highest-value single addition here is **VCA volume automation**, because the manual's
    own justification for VCAs is automation ("it can be desirable to write automation that
@@ -982,7 +982,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
      (`MAX_SAVED_CHAINS = 64`), per-device rather than per-project, with a documented
      rationale. `src/model/effectPresets.ts` holds the built-in chains. So **storing a user
      chain does exist** — which corrects `docs/REFERENCE-FSP8.md` §9.15's claim that "a user
-     chain cannot be **saved** as an FX Chain". What is `MISSING` is the *browser integration*
+     chain cannot be **saved** as an FX Chain". What is `MISSING` is the _browser integration_
      (no chain library in a browser panel, no drag-to-insert/replace/expand) and **parallel
      topology** (no Splitter, so no chain can carry one).
    - **Mix Engine FX:** `MISSING` entirely. There is no bus-level slot that reaches back into
@@ -992,7 +992,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
      `docs/REFERENCE-FSP8.md`'s own framing, functional parity is not owed here.
 
 3. **Gap.** FX Chains: `PARTIAL`. Mix Engine FX: `MISSING` (and architecturally interesting —
-   it is the only reference feature that requires a *reverse* dependency from a bus to its
+   it is the only reference feature that requires a _reverse_ dependency from a bus to its
    feeders, which MotionLab's one-pass `resolveChannels` model would need to accommodate).
    Hardware inserts: `DIVERGENT-BY-DESIGN`.
 
@@ -1025,7 +1025,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
      cue mix is being monitored, the fader, pan and mute belong to the cue: what you hear is
      what you are adjusting";
    - automation capture is correctly suppressed while flipped (`onGestureStart={() => !cue &&
-     …}`, and `captureParamChange` is skipped);
+…}`, and `captureParamChange` is skipped);
    - the mode is signalled by a colour change on the bar and an `in-cue` class on every strip,
      with the reason given: "a mode that is not obvious is a mode that gets left on".
 
@@ -1094,7 +1094,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    renameable.
 
    **Transform settings per assignment:** a response curve from start to end of the macro's
-   travel, with draggable endpoints (which set the *effective range*, and can be **inverted**
+   travel, with draggable endpoints (which set the _effective range_, and can be **inverted**
    by putting the right point below the left) and a mid handle for curve shape; Reset /
    Invert / Copy / Paste. Macro **buttons** have no curve but can be inverted from the Trans
    column. Right-click a macro knob or switch for **automation** of that control.
@@ -1119,7 +1119,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 
 2. **MotionLab does.**
    - **Macros:** `MAX_MACROS = 8` (`src/model/macros.ts:14`); `Macro { id, name, value,
-     targets }` with `MacroTarget { from, to }` giving each target a **range** (`targetNorm`
+targets }` with `MacroTarget { from, to }` giving each target a **range** (`targetNorm`
      maps macro position into `[from, to]`, and `from > to` inverts). Bound to `Track.macros`
      and resolved through `paramRegistry`. So: 8 knobs `PARITY`, per-target range and
      inversion `PARITY`. `MISSING`: 8 **buttons**, 2 **X/Y pads**, a **curve shape** per
@@ -1131,7 +1131,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
      Channel Overview but no Routing view and no macro-mapping view.
 
 3. **Gap — `PARTIAL` on macros, `MISSING` on Routing/Splitter.** The Splitter is the largest
-   single *DSP-architecture* gap in this chapter: it is the reference's answer to parallel
+   single _DSP-architecture_ gap in this chapter: it is the reference's answer to parallel
    compression, mid/side and multiband, and it changes what an "FX Chain" can contain.
 
 ---
@@ -1153,11 +1153,11 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 
    **Management:** Recall / Rename / Update / Remove / Remove Scenes (multi-select).
 
-   *(Distinct from Launcher Scenes, which are a clip-launching concept in a different chapter.)*
+   _(Distinct from Launcher Scenes, which are a clip-launching concept in a different chapter.)_
 
 2. **MotionLab does.** `MISSING` entirely. Nothing in `src/state/` or `src/model/` stores a
    console snapshot. `ProjectData.scratchPads` is a different feature (alternative
-   *arrangements*, not console configurations).
+   _arrangements_, not console configurations).
 
 3. **Gap — `MISSING`.** Worth noting the shape MotionLab would need: a scene is (a) a
    visibility set and (b) a selective settings snapshot with a per-aspect recall mask. The
@@ -1176,7 +1176,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    "immediately to the left or right of the Main Out Channel. It can be dragged to either
    side." Its output can be routed to any output pair; its status is saved with the session.
 
-   **Solo through Listen Bus** is toggled *independently*: engaged, soloed channels route
+   **Solo through Listen Bus** is toggled _independently_: engaged, soloed channels route
    through the Listen Bus **and the other channels are still heard through the Main Out**;
    disengaged, "soloed Channels are heard through the Main Out Channel and all other Channels
    are muted" (i.e. plain SIP).
@@ -1202,7 +1202,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    Adjacent capabilities that exist: **cue mixes** (a separate headphone balance per performer,
    `model/cueMix.ts`, `MAX_CUE_MIXES = 8`, with `ignoreSolo` per cue) and the master strip's
    **DIM** (-20 dB monitor dim) and **MONO** check. The metronome click is deliberately joined
-   *after* the master analyser and limiter so it is never metered, compressed or bounced
+   _after_ the master analyser and limiter so it is never metered, compressed or bounced
    (`engine.buildMasterChain`) — which is the same instinct as the Listen Bus's separate click
    controls, applied to the main path instead.
 
@@ -1247,7 +1247,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 3. **Gap — `PARTIAL`, with a likely correctness bug worth a test.**
 
    The compensation is **flat, not graph-aware**: every channel is equalised against the single
-   deepest *channel* latency, with no account of routing depth. A track routed through a bus
+   deepest _channel_ latency, with no account of routing depth. A track routed through a bus
    that itself carries a latent insert passes through that latency **in addition to** its own
    compensated delay, while a track routed straight to master does not. The bus's own `pdc`
    delays the bus output further, which pushes the through-bus path later still rather than
@@ -1392,7 +1392,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 
 3. **Gap — `DIVERGENT-BY-DESIGN`, and worth a note.** The reference explicitly advises against
    a limiter on the master when mixing; MotionLab ships one **on by default**. The two are not
-   in conflict — MotionLab's is a *safety* limiter at -1.5 dB, not a loudness tool, and its
+   in conflict — MotionLab's is a _safety_ limiter at -1.5 dB, not a loudness tool, and its
    comment says so — but the master strip's `LIM` button and the export path should make clear
    that it is a monitoring safety net. **Open question for verification:** `exportMix.ts` builds
    its own master chain; whether the safety limiter is included in a bounce was not confirmed in
@@ -1438,7 +1438,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    `Remove>>`.
 
 2. **MotionLab does.** `src/model/automation.ts` — `AutomationLane { id, paramId, points,
-   enabled, height? }` with points **normalized to 0..1** and the parameter descriptor
+enabled, height? }` with points **normalized to 0..1** and the parameter descriptor
    (`src/model/paramRegistry.ts`) mapping to real units. The doc comment gives the reason:
    "Storing normalized values keeps curve math domain-free, makes every lane render identically,
    and gives cross-parameter copy/paste a defined meaning."
@@ -1447,7 +1447,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    (`types.ts:607`) — so master automation exists. `paramId` covers channel controls and sends
    (`"volume"`, `"pan"`, `"mute"`, `"send:<busId>"`) and device parameters via the registry;
    `engine.applyAutomation` dispatches on `kind: 'volume' | 'pan' | 'mute' | 'send' | 'fx' |
-   'synth' | 'smp'`.
+'synth' | 'smp'`.
 
    Per-lane `enabled` is honoured everywhere (`ChannelStrip` filters on it; `AutomationLanes.tsx`
    exposes the toggle). `Track.automationOpen` is the expand-lanes state.
@@ -1512,7 +1512,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
      the kind of thing users only discover after it has cost them a session.
    - **The segment curve handle** is the reference's primary shaping gesture. MotionLab's five
      named shapes cover most cases but cannot express an arbitrary curve, and the shape lives on
-     the *point* rather than being drawn on the *segment*, which is a different mental model.
+     the _point_ rather than being drawn on the _segment_, which is a different mental model.
 
 ### 12.3 Editing curves — Paint, Transform, Range tools
 
@@ -1554,7 +1554,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    trim** for a range or a single segment.
 
    `PARTIAL`: **Remove Track Automation** — `projectStore.removeAutomationLane(trackId, laneId)`
-   removes a lane *and* its data, one lane at a time. The reference purges data across the whole
+   removes a lane _and_ its data, one lane at a time. The reference purges data across the whole
    track while **keeping the lanes**, which is a meaningfully different operation (you keep your
    lane layout and start the pass again).
 
@@ -1565,7 +1565,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    redrawing it is a daily move and MotionLab cannot do it at all), then **Transform** (scaling
    an existing pass), then **Line** and **Freehand** paint, then the waveform figures.
 
-   Note MotionLab *does* have a `trim` **automation mode** (§12.4), which solves the same problem
+   Note MotionLab _does_ have a `trim` **automation mode** (§12.4), which solves the same problem
    from the realtime side. The Range-tool trim is its offline counterpart and the two together
    are the reference's full story.
 
@@ -1578,7 +1578,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 
    - **Auto: Off** — "all automation for the current parameter **and for all related
      parameters** are turned off". The manual's example: viewing a compressor's Attack and
-     choosing Auto:Off turns off *all* automation for that compressor, while parameters
+     choosing Auto:Off turns off _all_ automation for that compressor, while parameters
      belonging to other devices keep their own modes. "This is **not the same** as turning an
      individual automation curve on and off."
    - **Read** — existing curves control their parameters. "**Read mode is automatically engaged
@@ -1607,7 +1607,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 
 3. **Gap — `PARTIAL`, with a divergence in each direction.**
    - **`MISSING`: per-device mode granularity.** This is the significant one. FSP8's mode is
-     scoped to a *device*; MotionLab's is scoped to a *track*. Putting one plug-in in Touch while
+     scoped to a _device_; MotionLab's is scoped to a _track_. Putting one plug-in in Touch while
      volume stays in Read is impossible. It also makes **Auto: Off** unrepresentable —
      MotionLab's `off` turns off the whole track.
    - **`MISSING`: Read auto-engaging when a curve is drawn.** A user who draws a ride in a track
@@ -1668,13 +1668,13 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 
 ## 13. Directive §1 deep-dive summary
 
-| Directive ask | Answer, in one line | Status |
-| ------------- | ------------------- | ------ |
-| **Channel strip order** | Reference: I/O display **at top**, then input controls, insert rack, send rack, pan, fader+meter, mute/solo, VCA, group, automation mode, name, notes, icon — most rows user-hideable via Channel Components. MotionLab: name at top, output at bottom, nine fixed rows, no visibility model. | `PARTIAL` |
-| **Sends** | Reference: created objects with destination, Activate, Level (**-inf…+10 dB**), **Pan** (Pan-Locked to the channel by default), Pre/Post; source **always post-inserts**; any channel including buses can send; no stated limit. MotionLab: one send per bus, 0…1.5 linear (**+3.5 dB**), no pan, no pan lock, buses refused in UI **and** engine. | `PARTIAL` |
-| **Buses and groups** | Reference: buses created from a context menu or for a selection, routed by output or send, **nested infinitely with feedback prevention**; **Groups** link faders relatively plus mute/solo/rec/monitor with per-group attributes, suspension and nesting; **VCAs** scale without moving member faders or rerouting audio, nest, and automate with a merge. MotionLab: buses hard-wired to master (no nesting), no console groups (`editGroup` is clip-edit linking), VCAs correct in gain semantics but no nesting and **no automation**. | `PARTIAL` / `MISSING` |
-| **Metering** | Reference: Peak **or** Peak/RMS (global, mutually exclusive, not for outputs); outputs are Peak/RMS plus **K-20/K-14/K-12** with an 85 dB SPL calibration rule; global **Peak Hold** and **Hold Length**; global **Pre-Fader Metering**; **Main Out Clip Counter** that counts and resets on click or fader move; no scale or ballistics constants stated. MotionLab: one RMS-fill plus peak-hold meter, **-60 dB floor**, ticks at 0/-3/-6/-12/-18/-24/-36/-48, fall as **26 dB/s** preference, hold decays with the bar, over-lamp is a boolean latch reset globally, post-fader only, no menu, no K-System. | `PARTIAL` |
-| **Pan law** | Reference, verbatim: **"Fender Studio Pro uses a -3 dB pan law for all channel panning. On stereo channels, the panner adjusts the balance of left and right signal levels."** One law, not selectable. MotionLab: Web Audio `StereoPannerNode` — spec-defined constant-power cos/sin, **-3.01 dB at centre**, stereo handled as balance. | **`PARITY`** |
+| Directive ask                   | Answer, in one line                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Status                                                                  |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Channel strip order**         | Reference: I/O display **at top**, then input controls, insert rack, send rack, pan, fader+meter, mute/solo, VCA, group, automation mode, name, notes, icon — most rows user-hideable via Channel Components. MotionLab: name at top, output at bottom, nine fixed rows, no visibility model.                                                                                                                                                                                                                                                                                                                                                         | `PARTIAL`                                                               |
+| **Sends**                       | Reference: created objects with destination, Activate, Level (**-inf…+10 dB**), **Pan** (Pan-Locked to the channel by default), Pre/Post; source **always post-inserts**; any channel including buses can send; no stated limit. MotionLab: one send per bus, 0…1.5 linear (**+3.5 dB**), no pan, no pan lock, buses refused in UI **and** engine.                                                                                                                                                                                                                                                                                                    | `PARTIAL`                                                               |
+| **Buses and groups**            | Reference: buses created from a context menu or for a selection, routed by output or send, **nested infinitely with feedback prevention**; **Groups** link faders relatively plus mute/solo/rec/monitor with per-group attributes, suspension and nesting; **VCAs** scale without moving member faders or rerouting audio, nest, and automate with a merge. MotionLab: buses hard-wired to master (no nesting), no console groups (`editGroup` is clip-edit linking), VCAs correct in gain semantics but no nesting and **no automation**.                                                                                                            | `PARTIAL` / `MISSING`                                                   |
+| **Metering**                    | Reference: Peak **or** Peak/RMS (global, mutually exclusive, not for outputs); outputs are Peak/RMS plus **K-20/K-14/K-12** with an 85 dB SPL calibration rule; global **Peak Hold** and **Hold Length**; global **Pre-Fader Metering**; **Main Out Clip Counter** that counts and resets on click or fader move; no scale or ballistics constants stated. MotionLab: one RMS-fill plus peak-hold meter, **-60 dB floor**, ticks at 0/-3/-6/-12/-18/-24/-36/-48, fall as **26 dB/s** preference, hold decays with the bar, over-lamp is a boolean latch reset globally, post-fader only, no menu, no K-System.                                        | `PARTIAL`                                                               |
+| **Pan law**                     | Reference, verbatim: **"Fender Studio Pro uses a -3 dB pan law for all channel panning. On stereo channels, the panner adjusts the balance of left and right signal levels."** One law, not selectable. MotionLab: Web Audio `StereoPannerNode` — spec-defined constant-power cos/sin, **-3.01 dB at centre**, stereo handled as balance.                                                                                                                                                                                                                                                                                                             | **`PARITY`**                                                            |
 | **Solo / mute / implicit mute** | Reference: **SIP** is the console mode; **Solo Safe** by Shift-click, solo button **green**, **on by default for FX channels**; **PFL/AFL** exist only via the **Listen Bus**; Global Solo Off by Ctrl-click **with recall of the previous set**; `[M]`/`[S]` do not affect Bus/FX; **implicit-mute indication is not documented**. MotionLab: SIP with transitive up/downstream expansion through folders and VCAs, solo-safe by right-click shown as `S!`, **no FX default**, **no global solo off**, **no Listen Bus / PFL / AFL**; implicit mute distinguished as `mutedByGroup` vs `mutedBySolo` and shown as 55% opacity plus a worded tooltip. | `PARTIAL`; implicit-mute is `DIVERGENT-BY-DESIGN` in MotionLab's favour |
 
 ---
@@ -1687,8 +1687,8 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
    Manual: "At the top of each Channel is a display of its configured Input and Output, with the
    Input shown at the top and the **Output below it**." The output selector is at the **top** of
    the strip, directly under the input. §4.3's item 9 ("Output selector") placed ninth in a
-   top-to-bottom list is wrong for the same reason. *(Note: MotionLab currently follows the
-   reference doc's incorrect placement.)*
+   top-to-bottom list is wrong for the same reason. _(Note: MotionLab currently follows the
+   reference doc's incorrect placement.)_
 
 2. **§4.8 output meter scales "True Peak, K-20, K-14, K-12, **R128**" — CONTRADICTED as stated.**
    The Metering section names **exactly three** K-System scales: "This metering system features
@@ -1700,11 +1700,11 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 3. **§9.15 "a user chain cannot be **saved** as an FX Chain" — CONTRADICTED by our own code.**
    `src/state/chainStore.ts` saves named user chains (`MAX_SAVED_CHAINS = 64`, localStorage,
    per-device). The real gap is browser integration and parallel topology, not saving. This is a
-   correction to the reference doc's reading of *MotionLab*, not of FSP8.
+   correction to the reference doc's reading of _MotionLab_, not of FSP8.
 
 4. **§4.3 Main Out "Two insert racks… 'Inserts' (pre-fader) and 'Post' (post-fader) **[C]**" —
    NOT SUPPORTED by these chapters, and the manual attributes a post-fader FX rack to a
-   *different* channel.** The only mention of a post-fader rack in the Mixing chapter is under
+   _different_ channel.** The only mention of a post-fader rack in the Mixing chapter is under
    **Listen Bus features**: "Insert FX and **Post-fader FX** can be added as needed." The Main Out
    description mentions no second rack. Not a flat contradiction (a Main Out post rack may be
    documented in a chapter outside this assignment) but the [C] is not earned here, and the
@@ -1794,7 +1794,7 @@ every place the manual now **confirms**, **corrects** or **contradicts** it.
 ### 14.3 New material the reference doc does not cover at all
 
 - **Pan modes** (Balance / Dual / Binaural), their gestures, negative width, and the
-  *Use Binaural/Dual for New Channels* preference.
+  _Use Binaural/Dual for New Channels_ preference.
 - **The -3 dB pan law statement** — the reference doc contains no pan-law claim of any kind.
 - **Channel Pan Lock** for sends (locked by default; unlock per-rack or per-send; sticky for new
   sends and new documents).

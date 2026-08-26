@@ -73,9 +73,7 @@ export function LiveTakeLane({
       // carried over rather than repainted from the note list — that repaint
       // is exactly the O(take length) cost this is avoiding.
       const keep =
-        lastWidth > 0 && ctx !== null
-          ? ctx.getImageData(0, 0, canvas.width, canvas.height)
-          : null;
+        lastWidth > 0 && ctx !== null ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
       canvas.width = Math.ceil(w * dpr);
       canvas.height = Math.ceil(height * dpr);
       canvas.style.width = `${w}px`;

@@ -89,7 +89,9 @@ describe('the pointer advances by an exact state transition', () => {
     // different instrument.
     const law = standardVu();
     const pointer = new VuPointer(law);
-    const frames = [0.017, 0.008, 0.033, 0.012, 0.021, 0.009, 0.05, 0.016, 0.011, 0.02, 0.03, 0.014, 0.019, 0.04];
+    const frames = [
+      0.017, 0.008, 0.033, 0.012, 0.021, 0.009, 0.05, 0.016, 0.011, 0.02, 0.03, 0.014, 0.019, 0.04,
+    ];
     let elapsed = 0;
     for (const dt of frames) {
       pointer.advance(1, dt);

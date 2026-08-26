@@ -2,7 +2,7 @@
 
 **Directive 09 §1 · Research Analyst chapter deliverable**
 
-- **Source:** Fender Studio Pro 8 user manual, chapter *Editing*, extracted text
+- **Source:** Fender Studio Pro 8 user manual, chapter _Editing_, extracted text
   lines 4088–8095 (`scratchpad/fsp8.txt`). Read cover to cover.
 - **Target:** MotionLab Studio web DAW, `src/` on branch
   `claude/motionlab-studio-poc-3l1gwa`.
@@ -14,7 +14,7 @@ trademarked name in this document — the host product's name, its bundled
 instrument and effect names, its file-format names, or the names of third-party
 engines it licenses — may be carried into MotionLab UI strings, type names,
 symbol names, preset names or filenames. Where a behaviour is worth having, this
-document names the *behaviour*; any MotionLab name for it must be invented
+document names the _behaviour_; any MotionLab name for it must be invented
 fresh. See `LEGAL_NOTES.md`.
 
 ---
@@ -23,9 +23,9 @@ fresh. See `LEGAL_NOTES.md`.
 
 ### 1.1 Event taxonomy
 
-1. **FSP8 does.** Three material objects on the timeline. *Audio Events*
-   (waveform, audio tracks only); *Audio Parts* — "Events that contain multiple
-   Audio Events"; *Instrument Parts* (note data, instrument tracks only).
+1. **FSP8 does.** Three material objects on the timeline. _Audio Events_
+   (waveform, audio tracks only); _Audio Parts_ — "Events that contain multiple
+   Audio Events"; _Instrument Parts_ (note data, instrument tracks only).
    Collectively "Events". Editing happens in both Arrange view and Edit view.
 2. **MotionLab does.** `src/model/types.ts` defines `Clip = AudioClip | MidiClip`
    over a shared `ClipBase` (`id`, `trackId`, `name`, `start`, `length`, `muted`,
@@ -84,19 +84,20 @@ fresh. See `LEGAL_NOTES.md`.
    - **Frames** — nearest frame subdivision.
 
    **Six optional behaviours**, combinable with any of the four:
-   - *Snap to Cursor and Loop* — snap to the playback cursor and loop locators.
-   - *Snap to Events* — snap relative to Events in the arrangement.
-   - *Snap to Zero Crossings* — "ensures that the audio data in an Event will
+   - _Snap to Cursor and Loop_ — snap to the playback cursor and loop locators.
+   - _Snap to Events_ — snap relative to Events in the arrangement.
+   - _Snap to Zero Crossings_ — "ensures that the audio data in an Event will
      snap to a zero crossing point… help avoid an unnatural click".
-   - *Snap to Grid* — engaged by default.
-   - *Snap Event End* — "enables snapping on both the start and end of the moved
+   - _Snap to Grid_ — engaged by default.
+   - _Snap Event End_ — "enables snapping on both the start and end of the moved
      Event. (When disabled, only the event start snaps.)"
-   - *Relative Grid* — "maintains the time relationship relative to the grid …
+   - _Relative Grid_ — "maintains the time relationship relative to the grid …
      the snap position maintains the original position relative to the grid,
      instead of snapping directly to the grid."
 
    The Audio Editor adds **Snap to Event Hotspots** (bend markers) and keeps its
    own Snap and Timebase, independent of the Arrange view.
+
 2. **MotionLab does.** `src/model/snap.ts` — a five-value union
    `SnapMode = 'off' | 'grid' | 'events' | 'zeroCrossing' | 'adaptive'`, all
    pure, plus a separate grid size in beats in `uiStore.snap`. The
@@ -120,7 +121,7 @@ fresh. See `LEGAL_NOTES.md`.
      combined with the grid — the combination that matters most.
    - **Missing:** Frames timebase; Snap to Cursor and Loop; **Snap Event End**;
      **Relative Grid**; Snap to Event Hotspots; per-editor independent snap
-     *mode* (the piano roll has its own grid `prSnap` but not its own mode).
+     _mode_ (the piano roll has its own grid `prSnap` but not its own mode).
    - **Missing exposure:** `zeroCrossing` is unreachable from the toolbar.
 
 ### 1.6 Spot
@@ -138,10 +139,10 @@ fresh. See `LEGAL_NOTES.md`.
 
 ### 1.7 Detect Tempo / Extract to Tempo Track
 
-1. **FSP8 does.** *Detect Tempo* analyses the file and aligns its timing to the
+1. **FSP8 does.** _Detect Tempo_ analyses the file and aligns its timing to the
    session tempo (requires timestretch enabled in the Track Inspector); a marker
    lands on the first detected downbeat and **becomes the event's sync point**,
-   so moving the event snaps that downbeat to the grid. *Extract to Tempo Track*
+   so moving the event snaps that downbeat to the grid. _Extract to Tempo Track_
    applies the file's timing variation to the session tempo map so the session
    follows the performance's feel.
 2. **MotionLab does.** `src/model/transients.ts` — `estimateTempo()`,
@@ -158,8 +159,8 @@ fresh. See `LEGAL_NOTES.md`.
 
 ### 1.8 Extract Note / Extract Drum
 
-1. **FSP8 does.** *Extract Note* creates a new instrument event with a bundled
-   synth preloaded with a chord-preview preset; *Extract Drum* the same into a
+1. **FSP8 does.** _Extract Note_ creates a new instrument event with a bundled
+   synth preloaded with a chord-preview preset; _Extract Drum_ the same into a
    bundled drum instrument with a drum preset. Dragging an Audio Event onto an
    Instrument Track raises a dialog asking Drums or Notes.
 2. **MotionLab does.** `src/model/audioToMidi.ts` — `audioToNotes()` with
@@ -176,8 +177,8 @@ fresh. See `LEGAL_NOTES.md`.
 ### 1.9 Stretching Parts from the edge
 
 1. **FSP8 does.** Hold `[Alt]` and drag either edge of an **Instrument Part** to
-   stretch it; automation inside stretches with it unless *Select Part Automation
-   with Notes* is off. The same gesture on an **Audio Event** timestretches (§10).
+   stretch it; automation inside stretches with it unless _Select Part Automation
+   with Notes_ is off. The same gesture on an **Audio Event** timestretches (§10).
 2. **MotionLab does.** Edge drags in `ClipView.tsx` (`dragLeft`, `dragRight`)
    **trim**, never stretch: audio via `trimClipStart` / `trimClipEnd`, MIDI via
    `resizeClip`. No `altKey` branch on either handle. MIDI stretch exists only as
@@ -189,15 +190,15 @@ fresh. See `LEGAL_NOTES.md`.
 
 1. **FSP8 does.** A per-Event marker used as the snap reference instead of the
    event's start/end — for a percussion loop with a mid-loop transient, or a
-   riser that must land near but not at its end. Set via *Events → Set Sync Point
-   to Cursor*; a white vertical line with a yellow diamond on hover; drag the
+   riser that must land near but not at its end. Set via _Events → Set Sync Point
+   to Cursor_; a white vertical line with a yellow diamond on hover; drag the
    diamond to move it. Zoomed out, "Sync Points will automatically snap to
    transients when moving. Zoom in to bypass this behavior", or disable snap
-   `[N]`, or hold Shift. *Toggle Sync Point* enables/disables it. Sync points are
+   `[N]`, or hold Shift. _Toggle Sync Point_ enables/disables it. Sync points are
    "non-destructive and flexible, meaning a Sync Point's position is maintained
    if an Event is Reversed or Bounced", participate in event-to-event snapping
-   under *Snap To Events*, obey the Snap dropdown mode, and redirect *Cursor
-   Follows Edit Position* to the sync point rather than the clip start.
+   under _Snap To Events_, obey the Snap dropdown mode, and redirect _Cursor
+   Follows Edit Position_ to the sync point rather than the clip start.
 2. **MotionLab does.** Absent. Grepped `syncPoint`, `hotspot`: no hits. The
    nearest concept is a warp marker (`WarpMarker`, `src/model/warp.ts`), which
    pins source time to musical time for stretching — a different job.
@@ -207,7 +208,7 @@ fresh. See `LEGAL_NOTES.md`.
 ### 1.11 Event icons
 
 1. **FSP8 does.** Badges at an Event's bottom-left:
-   - **Gear** — timestretch enabled, *or* clip sample rate ≠ session rate, *or*
+   - **Gear** — timestretch enabled, _or_ clip sample rate ≠ session rate, _or_
      transpose/tune changed.
    - **Mute** — muted; `[M]` mutes, `[Shift]+[M]` unmutes.
    - **Time Lock** (circle-slash clock) / **Edit Lock** (circle-slash pencil);
@@ -216,7 +217,7 @@ fresh. See `LEGAL_NOTES.md`.
      effect.
    - **Chain** — audio events consolidated into a nested unit (`[G]`).
    - **Ghost** — shared duplicates; edits propagate. `[Shift]+[D]`.
-   - **Folder** — the event belongs to a folder track (*Pack Folder*).
+   - **Folder** — the event belongs to a folder track (_Pack Folder_).
    - **Layer** — several recorded takes, or several pattern variations.
 2. **MotionLab does.** `ClipView.tsx` renders inside `.clip-name`: `🔒` locked,
    `◇` muted, `▤{n}` take count, `ø` polarity invert, `M` mono sum — plus a
@@ -303,8 +304,8 @@ curve dragging, Shift-combined length+curve editing, whole-crossfade drag with
 the Hand cursor, and Alt-isolate within a multi-selection.
 
 **Select multiple.** FSP8 lists five gestures: marquee from empty space;
-`[Shift]`+click to add; `[Alt]+[Shift]+[Home]` / *Edit/Select/Select from Start
-to Event* (all tracks) and `[Shift]+[Home]` (current track); the End variants;
+`[Shift]`+click to add; `[Alt]+[Shift]+[Home]` / _Edit/Select/Select from Start
+to Event_ (all tracks) and `[Shift]+[Home]` (current track); the End variants;
 and `[Shift]`+double-click a track's timeline to select every event on it.
 MotionLab: marquee from empty lane space; Shift/Ctrl/Cmd click toggles
 (`toggleClipSelection`); `Ctrl+A` selects all clips. No select-to-start,
@@ -322,7 +323,7 @@ Range, Split, Eraser, Paint, Mute, Bend, Listen, picked from a dropdown under
 the Arrow tool or cycled by repeatedly pressing `[1]`; "The currently-active
 Alternative Tool is highlighted with a blue underline"). `[Ctrl]+[Alt]` over an
 event = Slip. `[Ctrl]+[Alt]` over an event **edge** = Define Tempo.
-MotionLab: `Ctrl`/`Cmd` on a clip is *add to selection*, not a tool modifier.
+MotionLab: `Ctrl`/`Cmd` on a clip is _add to selection_, not a tool modifier.
 Slip is a separate tool `[6]`. Define Tempo has no gesture.
 → `MISSING` for all three, and the Ctrl binding is already taken by a different
 meaning, which is a design decision to make rather than a hole to fill.
@@ -339,7 +340,7 @@ meaning, which is a design decision to make rather than a hole to fill.
    whole Events. All of your selections remain selected." Double-click splits an
    event in half at that point; double-clicking a selected range splits at both
    borders. Range selections snap under Snap to Grid; Shift reverses it.
-   Selected ranges are resizable from their edges. *Split Range* =
+   Selected ranges are resizable from their edges. _Split Range_ =
    `[Ctrl]+[Alt]+X`. `[Alt]` temporarily gives the Arrow tool.
 2. **MotionLab does.** `uiStore.range = { fromBeat, toBeat, trackIds }` — kept
    beside `selectedClipIds` because "a range covers whatever is inside it,
@@ -354,8 +355,8 @@ meaning, which is a design decision to make rather than a hole to fill.
    context menu offers: Split at the edges · Clear · Delete and close the gap ·
    Insert silence · Copy · Cut · Paste here · Duplicate · Crop the song to this
    range · Fade in across the range · Fade out across the range.
-3. **Gap.** `PARITY` on the *operations* — MotionLab's range-edit set is at least
-   as complete and is better factored. `PARTIAL` on the *gestures*: no
+3. **Gap.** `PARITY` on the _operations_ — MotionLab's range-edit set is at least
+   as complete and is better factored. `PARTIAL` on the _gestures_: no
    multi-range selection, no hover-to-Arrow, no double-click split, no
    resize-from-edge, no click-to-locate, no Alt-to-Arrow, no Ctrl-to-Range from
    the Arrow tool.
@@ -420,8 +421,8 @@ meaning, which is a design decision to make rather than a hole to fill.
 
 1. **FSP8 does.** Click to mute/unmute an Audio Event, Audio Part or Instrument
    Part; muted events grey out with an "m" badge. Click and drag to mute several;
-   clicking one of a multi-selection mutes all of them. *Edit/Select/Select Muted
-   Events* then Delete clears unused material. `[Alt]` gives the Arrow tool.
+   clicking one of a multi-selection mutes all of them. _Edit/Select/Select Muted
+   Events_ then Delete clears unused material. `[Alt]` gives the Arrow tool.
 2. **MotionLab does.** Tool `mute` (`[5]` in MotionLab's order): pointer-down
    toggles `setClip(id, { muted: !clip.muted })` on the clip under the pointer.
    Muted clips render `◇` and a dimmed style. No drag sweep, no selection
@@ -475,19 +476,19 @@ meaning, which is a design decision to make rather than a hole to fill.
 
 ### 2.10 Tool set comparison
 
-| FSP8 tool | Key | MotionLab tool | Key | Notes |
-|---|---|---|---|---|
-| Link (Arrow+Range) | — | — | — | MISSING |
-| Arrow | 1 | pointer | 1 | move/size/fade/select; no alt-tool modifiers |
-| Range | 2 | range | 2 | ops at parity, gestures thinner |
-| Split | 3 | split | 3 | no multi-clip, no Alt note-split |
-| Eraser | 4 | erase | 4 | no drag sweep |
-| Paint | 5 | paint | **7** | MIDI clips only; no shapes, no gain curve |
-| Mute | 6 | mute | **5** | no drag sweep |
-| Bend | — | (warp, in editor) | — | not an arrangement tool |
-| Listen | — | listen | 8 | divergent by design |
-| — | — | slip | 6 | FSP8 has this as Arrow+Ctrl+Alt |
-| — | — | zoom | 9 | MotionLab addition |
+| FSP8 tool          | Key | MotionLab tool    | Key   | Notes                                        |
+| ------------------ | --- | ----------------- | ----- | -------------------------------------------- |
+| Link (Arrow+Range) | —   | —                 | —     | MISSING                                      |
+| Arrow              | 1   | pointer           | 1     | move/size/fade/select; no alt-tool modifiers |
+| Range              | 2   | range             | 2     | ops at parity, gestures thinner              |
+| Split              | 3   | split             | 3     | no multi-clip, no Alt note-split             |
+| Eraser             | 4   | erase             | 4     | no drag sweep                                |
+| Paint              | 5   | paint             | **7** | MIDI clips only; no shapes, no gain curve    |
+| Mute               | 6   | mute              | **5** | no drag sweep                                |
+| Bend               | —   | (warp, in editor) | —     | not an arrangement tool                      |
+| Listen             | —   | listen            | 8     | divergent by design                          |
+| —                  | —   | slip              | 6     | FSP8 has this as Arrow+Ctrl+Alt              |
+| —                  | —   | zoom              | 9     | MotionLab addition                           |
 
 **Note the numbering collision:** MotionLab's `ARRANGE_TOOLS` order is
 `pointer, range, split, erase, mute, slip, paint, listen, zoom`, so `5` is Mute
@@ -509,7 +510,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 
 ### 3.1 The Clip abstraction
 
-1. **FSP8 does.** A *Clip* is a representation of an audio file plus **metadata
+1. **FSP8 does.** A _Clip_ is a representation of an audio file plus **metadata
    describing its processing** — "its Gain Curve, bend markers, Melodyne edit
    state, chord data, and more" — so one file can sound many ways across many
    Events without bouncing. Clips live in the Browser's **Pool**; files live in
@@ -523,15 +524,15 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
    over one media file are fully independent.
 3. **Gap.** `DIVERGENT-BY-DESIGN`, and worth stating as such rather than as a
    hole. FSP8's shared-metadata model is the reason it then needs Clip Versions;
-   MotionLab's per-clip model gets independence for free and needs a *shared*
+   MotionLab's per-clip model gets independence for free and needs a _shared_
    mechanism instead (see §5.8). Neither is strictly better; the MotionLab
    choice is simpler and should be defended explicitly in an ADR.
 
 ### 3.2 Clip Versions / Separate Shared Copies
 
 1. **FSP8 does.** A Clip Version is "a completely separate copy of a Clip with
-   its own, independent metadata". Created by right-click → Audio → *New Clip
-   Version*. *Separate Shared Copies* (`[Alt]+[C]`) makes one new version per
+   its own, independent metadata". Created by right-click → Audio → _New Clip
+   Version_. _Separate Shared Copies_ (`[Alt]+[C]`) makes one new version per
    version used by the selection, and "Groups of Events sharing a Clip Version
    will still share the new Version". Versions are numbered in the Pool and
    badged on the event. "Note that clip versions cannot have individual tempos."
@@ -580,7 +581,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
    multi-select, Shift-fine, Alt-no-snap, copy/paste/duplicate, per-point curve
    shapes and keyboard editing) — so the interaction vocabulary is already
    written, one object away.
-3. **Gap.** `MISSING`, and it is the largest single missing *feature* in the
+3. **Gap.** `MISSING`, and it is the largest single missing _feature_ in the
    chapter measured by manual page count. Mitigating: a per-clip volume
    automation lane would deliver most of it by reusing `automation.ts`, and
    MotionLab's per-clip independence (§3.1) removes the shared-copy hazard the
@@ -598,7 +599,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
    without affecting the arrangement. With Bars, the grid comes from the Quantize
    panel.
 2. **MotionLab does.** Bars/beats only. `prefsStore.primaryTimeDisplay` is
-   `'bbt' | 'clock'` — a *display* choice for the transport readout, not a grid
+   `'bbt' | 'clock'` — a _display_ choice for the transport readout, not a grid
    timebase. `formatPosition(clip.start, timeSig)` labels clips in bars. No
    samples timebase, no frames timebase.
 3. **Gap.** `PARTIAL` — bars are complete and tempo-map-aware; seconds exists as
@@ -607,7 +608,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 
 ### 4.2 Quantize panel — every parameter
 
-1. **FSP8 does.** Opened from the toolbar or *View/Additional Views/Quantize*;
+1. **FSP8 does.** Opened from the toolbar or _View/Additional Views/Quantize_;
    detachable. Left to right: **Grid or Groove mode**; **note-value selection**;
    **note grouping and Swing amount**; **Start, End, Velocity and Range
    percentages**; **preset management**.
@@ -636,17 +637,21 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 2. **MotionLab does.** `src/model/midiTools.ts`:
    ```ts
    export const QUANT_GRIDS = [
-     { label: '1/1',   beats: 4 },     { label: '1/2',  beats: 2 },
-     { label: '1/4',   beats: 1 },     { label: '1/8',  beats: 0.5 },
-     { label: '1/16',  beats: 0.25 },  { label: '1/32', beats: 0.125 },
-     { label: '1/4T',  beats: 2/3 },   { label: '1/8T', beats: 1/3 },
-     { label: '1/16T', beats: 1/6 },
+     { label: '1/1', beats: 4 },
+     { label: '1/2', beats: 2 },
+     { label: '1/4', beats: 1 },
+     { label: '1/8', beats: 0.5 },
+     { label: '1/16', beats: 0.25 },
+     { label: '1/32', beats: 0.125 },
+     { label: '1/4T', beats: 2 / 3 },
+     { label: '1/8T', beats: 1 / 3 },
+     { label: '1/16T', beats: 1 / 6 },
    ] as const;
    ```
    `QuantizeOptions = { grid, strength (0..1), swing (0..1), lengths?: boolean }`.
    `nearestSwungSlot()` displaces odd slots late by `swing × grid / 2` and picks
    the nearest of the three candidate slots, so "strength interpolates toward the
-   *swung* grid". The piano-roll toolbar exposes **Q** (grid), **Str** (0–100 %),
+   _swung_ grid". The piano-roll toolbar exposes **Q** (grid), **Str** (0–100 %),
    **Sw** (0–100 %) and a Quantize button whose title reads
    `Quantize ${selection ? 'selection' : 'all notes'}`; the audio editor and warp
    panel each have their own grid + strength.
@@ -657,7 +662,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
    - **Missing parameters:** **Velocity %** (velocity-weighted strength);
      **Range %** (a quantize window); **Start %** is present as `strength` but is
      not separable from End % — `lengths` is a boolean, not a second percentage.
-   - **Missing plumbing:** no Quantize *panel* object, so the settings are local
+   - **Missing plumbing:** no Quantize _panel_ object, so the settings are local
      component state ("it is a tool setting, not project data") and are not
      stored, presettable, or shared with the arrangement grid. FSP8's arrangement
      **grid is drawn from the quantize value**; MotionLab's arrangement grid
@@ -749,8 +754,8 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 ### 5.4 Global Transpose
 
 1. **FSP8 does.** A transport-bar control, **−12 … +12 semitones**, applying to
-   both instrument and audio tracks that have *Follow Global Transpose* engaged
-   in the Track Inspector. Right-click → *Freeze Global Transposition* resets it
+   both instrument and audio tracks that have _Follow Global Transpose_ engaged
+   in the Track Inspector. Right-click → _Freeze Global Transposition_ resets it
    to 0 at the original pitch.
 2. **MotionLab does.** Absent. Grepped `globalTranspose`, `followGlobalTranspose`:
    no hits. Per-track transpose is also absent (only per-clip and per-note).
@@ -770,7 +775,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 
 ### 5.6 Duplicate / Duplicate and Insert
 
-1. **FSP8 does.** *Duplicate* (`[D]`) "combines the Copy and Paste actions and
+1. **FSP8 does.** _Duplicate_ (`[D]`) "combines the Copy and Paste actions and
    intelligently places the pasted selection based on the musical timing of the
    selection". The copy is always placed after the original and is automatically
    selected — so repeated `[D]` lays a loop across a section, and duplicating a
@@ -791,7 +796,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 
 1. **FSP8 does.** `[Shift]+[D]` links duplicates to the original: "Any edits made
    to the original Part or a Shared copy are applied to all instances of that
-   Part", flagged with a ghost icon. *Separate Shared Copies* from the Event menu
+   Part", flagged with a ghost icon. _Separate Shared Copies_ from the Event menu
    breaks one out.
 2. **MotionLab does.** Absent. Every duplicate is an independent deep clone
    (`duplicateClips`, `duplicateClip`, `insertClips` all `structuredClone` and
@@ -803,7 +808,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 
 ### 5.8 Explode Pitches to Tracks
 
-1. **FSP8 does.** Right-click an Instrument Part → *Explode Pitches to Tracks*:
+1. **FSP8 does.** Right-click an Instrument Part → _Explode Pitches to Tracks_:
    every pitch becomes its own Instrument Part on its own new track — "if you
    have a MIDI loop to use with a virtual drum instrument, you may want to have
    each piece of the drum kit on its own Instrument Track."
@@ -814,15 +819,15 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 
 ### 5.9 Strip Silence
 
-1. **FSP8 does.** A panel (toolbar button or *View/Additional Views*). Select
+1. **FSP8 does.** A panel (toolbar button or _View/Additional Views_). Select
    events, set options, **Apply**; **Default** restores defaults. "The result …
    is similar to using a gate processor to only allow the desired signal to be
    heard, except that the Event is edited." A lit indicator beside **Apply**
    means re-applying auto-undoes the previous pass so settings can be dialled in;
    any selection change or other edit ends that state.
-   - **Detection → Material:** *Lots of Silence* (clean single-drum recordings),
-     *Little Silence* (minimal techno, ride, snare), *Noise Floor* (noisy
-     overheads, drum mixes, loops), *Manual*.
+   - **Detection → Material:** _Lots of Silence_ (clean single-drum recordings),
+     _Little Silence_ (minimal techno, ride, snare), _Noise Floor_ (noisy
+     overheads, drum mixes, loops), _Manual_.
    - **Open Threshold** −80 … 0.00 dB; **Threshold Link**; **Close Threshold**
      −80 … 0.00 dB.
    - **Events → Minimum Length** (s), **Pre-Roll** (s), **Post-Roll** (s),
@@ -831,8 +836,11 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 2. **MotionLab does.** `src/model/rangeEdits.ts`:
    ```ts
    export const DEFAULT_STRIP_SILENCE: StripSilenceOptions = {
-     thresholdDb: -40, minSilenceSec: 0.25, minPartSec: 0.1,
-     padBeforeSec: 0.02, padAfterSec: 0.05,
+     thresholdDb: -40,
+     minSilenceSec: 0.25,
+     minPartSec: 0.1,
+     padBeforeSec: 0.02,
+     padAfterSec: 0.05,
    };
    ```
    `stripSilence(clip, peaks, opts)` returns `KeptSpan[]` in source seconds.
@@ -856,13 +864,13 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
    "appear and function as a single Event in the arrangement while also appearing
    and functioning as separate Events in the Editor". Supports shared/ghost
    copies except Event FX, which stay per instance. Two Event Inspector options:
-   - **Play mode:** *Normal* (topmost only, overlaps not played) · *Overlaps*
+   - **Play mode:** _Normal_ (topmost only, overlaps not played) · _Overlaps_
      (overlapping audio plays mixed rather than cutting off — "This often happens
      if individual slices are have been quantized but not timestretched") ·
-     *Slices* (optimised for sliced-loop files; short fades on slices, each slice
+     _Slices_ (optimised for sliced-loop files; short fades on slices, each slice
      triggered once, no overlaps).
    - **Stretch Events** — timestretch events inside the Part to session tempo.
-   *Dissolve Audio Part* from the context menu.
+     _Dissolve Audio Part_ from the context menu.
 2. **MotionLab does.** Absent (§1.1). The overlap question is handled per-track:
    `Track.playOverlaps` is documented in the FSP8 inspector list and MotionLab
    has an analogous scheduling decision in `src/audio/clipSchedule.ts`, but there
@@ -879,8 +887,8 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 2. **MotionLab does.** `createCrossfade(leftId, rightId, lengthBeats, shape)` —
    "creates the overlap (using trim headroom on both sides where needed) and sets
    complementary fades of the given shape. One undo step." Exposed as two menu
-   items on a two-clip selection: *Crossfade (equal power)* and *Crossfade
-   (linear)*, plus `setFadeShape(id, 'in'|'out', shape)`. `crossfadeSelection`
+   items on a two-clip selection: _Crossfade (equal power)_ and _Crossfade
+   (linear)_, plus `setFadeShape(id, 'in'|'out', shape)`. `crossfadeSelection`
    toasts "Select two audio clips on the same track to crossfade." if the
    selection is wrong.
 3. **Gap.** `PARITY` on the operation, including the gap-closing behaviour
@@ -891,14 +899,14 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 
 ### 5.12 Transport options that affect editing
 
-| FSP8 option | Shortcut | MotionLab | Gap |
-|---|---|---|---|
-| **Loop Follows Selection** — loop markers snap around any edit selection; only while stopped | `Alt+Ctrl+P` | Absent; `setLoop` exists, nothing drives it from a selection | `MISSING` |
-| **Enable Play Start Marker** — playback start separated from the edit selection, draggable in the timeline | `Alt+P` | Absent; playback starts from the playhead only | `MISSING` |
-| **Return to Start Position on Stop** | `Alt+NumPad 0` | Absent as an option; `Enter` = "Return to start" is a manual command | `MISSING` |
-| **Locate to the Mouse Cursor** | `Ctrl+Space` | Absent | `MISSING` |
-| **Zoom to loop / selection** | `Shift+L` / `Shift+S` | `zoomToSelection()` on a toolbar button, toasts "Select clips first…" | `PARTIAL` |
-| **Set loop around range** | `Shift+P` | Absent | `MISSING` |
+| FSP8 option                                                                                                | Shortcut              | MotionLab                                                             | Gap       |
+| ---------------------------------------------------------------------------------------------------------- | --------------------- | --------------------------------------------------------------------- | --------- |
+| **Loop Follows Selection** — loop markers snap around any edit selection; only while stopped               | `Alt+Ctrl+P`          | Absent; `setLoop` exists, nothing drives it from a selection          | `MISSING` |
+| **Enable Play Start Marker** — playback start separated from the edit selection, draggable in the timeline | `Alt+P`               | Absent; playback starts from the playhead only                        | `MISSING` |
+| **Return to Start Position on Stop**                                                                       | `Alt+NumPad 0`        | Absent as an option; `Enter` = "Return to start" is a manual command  | `MISSING` |
+| **Locate to the Mouse Cursor**                                                                             | `Ctrl+Space`          | Absent                                                                | `MISSING` |
+| **Zoom to loop / selection**                                                                               | `Shift+L` / `Shift+S` | `zoomToSelection()` on a toolbar button, toasts "Select clips first…" | `PARTIAL` |
+| **Set loop around range**                                                                                  | `Shift+P`             | Absent                                                                | `MISSING` |
 
 ### 5.13 Ripple Edit
 
@@ -912,10 +920,10 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
    `rippleDeleteClips(ids)` ("Delete and pull later clips on the same tracks left
    by the removed span"), `rangeDelete(range, ripple = true)` → "Delete and close
    the gap", `insertSilence`, and `RangeEditResult.ripple = { fromBeat,
-   deltaBeats }` so the caller moves markers, sections, chords and tempo events
+deltaBeats }` so the caller moves markers, sections, chords and tempo events
    by the same rule — a detail FSP8 does not discuss and MotionLab gets right.
    The clip menu offers "Ripple delete".
-3. **Gap.** `PARTIAL` — ripple *delete* and *insert* are at parity or better
+3. **Gap.** `PARTIAL` — ripple _delete_ and _insert_ are at parity or better
    (global-track propagation is a genuine MotionLab advantage). Missing: ripple as
    a persistent mode, ripple paste-displacement, part swapping, and ripple on
    trim and nudge.
@@ -955,7 +963,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 ### 5.16 Set Bar / Second Offset to Cursor
 
 1. **FSP8 does.** Right-click the timebase ruler (or the Session menu) →
-   *Set Bar Offset to Cursor* / *Set Second Offset to Cursor*, to offset the
+   _Set Bar Offset to Cursor_ / _Set Second Offset to Cursor_, to offset the
    session's bar or second numbering for lead-ins, imported stems and video sync.
 2. **MotionLab does.** Absent.
 3. **Gap.** `MISSING`.
@@ -967,7 +975,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 ### 6.1 Track Lock
 
 1. **FSP8 does.** Available for Audio, Instrument, Automation and Folder tracks;
-   right-click the track name → *Lock Track* / *Unlock Track*. A locked track
+   right-click the track name → _Lock Track_ / _Unlock Track_. A locked track
    refuses addition or deletion of events, refuses recording and pasting into it,
    cannot be removed from the session, and cannot be used by the Arranger Track.
    Still allowed: Mute, Solo, reorder in the track list, colour change, rename —
@@ -992,7 +1000,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
    relocate it. **Edit Lock** prevents the contents being altered in any way and
    also locks the Transpose and Velocity fields at the top of the menu. Both
    together show a padlock. Locking is undoable like any action, so the manual
-   recommends *Save New Version* as a backup.
+   recommends _Save New Version_ as a backup.
 2. **MotionLab does.** One flag: `ClipBase.locked?` — "locked clips refuse timing
    edits and deletion until unlocked". `ClipView` hides the trim edges and fade
    handles, refuses tool actions with the toast "This clip is locked — unlock it
@@ -1005,10 +1013,10 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 
 ## 7. Convert a Part into a Pattern
 
-1. **FSP8 does.** Right-click a Part → *Convert Part to Pattern* (also on the
+1. **FSP8 does.** Right-click a Part → _Convert Part to Pattern_ (also on the
    Event menu). The app picks Melodic or Drum mode from the instrument. Maximum
    pattern length is **64 steps**; "anything beyond that is truncated during the
-   conversion". *Convert Pattern to Part* reverses it.
+   conversion". _Convert Pattern to Part_ reverses it.
 2. **MotionLab does.** Absent — there is no Pattern object (§21).
 3. **Gap.** `MISSING` (both directions).
 
@@ -1031,14 +1039,14 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
      browser; `[Alt]` toggles between Musicloop and plain MIDI export. Dropping
      one into a session recreates the track, instrument and output effects;
      "the rendered audio can be used even if the instrument and effects used to
-     create the Musicloop are not installed." *Show Package Contents* exposes the
+     create the Musicloop are not installed." _Show Package Contents_ exposes the
      elements for individual drag-out. Channel volume, pan, send and bus details
      are **not** included. The session key signature must be set before export.
 2. **MotionLab does.** No composite loop format. Adjacent capability:
    `src/app/exportActions.ts` (stem and mixdown export),
    `src/model/midiExport.ts` / `midiFile.ts` / `midiImport.ts` (MIDI in/out),
    `src/model/templates.ts` (session templates with tracks, routing, inserts and
-   sends — the closest thing to a Musicloop's *setup* half),
+   sends — the closest thing to a Musicloop's _setup_ half),
    `src/model/presets.ts` and `effectPresets.ts` (instrument and effect presets),
    a Loops browser tab (`BrowserTab` includes `'loops'`), and
    `src/app/projectMerge.ts` (merging one project's material into another).
@@ -1051,18 +1059,18 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 ## 9. Edit Groups
 
 1. **FSP8 does.** Group tracks so an edit on one is performed on all.
-   - **Create:** select tracks → right-click → *Group Selected Tracks*, or
+   - **Create:** select tracks → right-click → _Group Selected Tracks_, or
      `[Ctrl]+[G]`. Names are suggested from common track names ("Snare 1" and
      "Snare 2" → "Snare"), else "Group 1", "Group 2"… Rename from the group
      selection box.
    - **Add a track:** click the Edit Group box under the input selector, or
-     right-click → *Group Assignment* (a check mark shows the current group).
+     right-click → _Group Assignment_ (a check mark shows the current group).
    - **Behaviour:** selecting a grouped track selects all of them; edits on any
      event apply to all group members' events; a colour change applies to the
      whole group; faders and several console features are grouped too; an edit
      group can be made from a Folder Track; the Edit view shows a group icon when
      the event being edited belongs to one.
-   - **Dissolve:** right-click → *Dissolve Group (n)*. Undoable.
+   - **Dissolve:** right-click → _Dissolve Group (n)_. Undoable.
    - **Suspend:** `[Alt]` while performing an action suspends the group for that
      action; `[Shift]+[G]` then the group's first letter or number suspends and
      reactivates the whole group.
@@ -1113,12 +1121,12 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
      stretched.
    - **Follow** — start positions are tied to the musical grid, so events move
      with tempo but are not stretched.
-   - **Timestretch** — start positions follow *and* events are stretched to fit.
-   Switching modes is nondestructive and reversible on the fly.
+   - **Timestretch** — start positions follow _and_ events are stretched to fit.
+     Switching modes is nondestructive and reversible on the fly.
 2. **MotionLab does.** Per-**clip**, not per-track: `followTempo?` ("the clip
    re-stretches when the tempo map changes") with `sourceBpm?` ("source tempo in
    bpm, used to derive `stretch` when following tempo") and `preservePitch?`.
-   Clip starts are stored in beats, so *Follow* behaviour is unconditional and
+   Clip starts are stored in beats, so _Follow_ behaviour is unconditional and
    automatic — every clip's position moves with tempo, always.
 3. **Gap.** `PARTIAL`/`DIVERGENT-BY-DESIGN`. MotionLab has Follow (always) and
    Timestretch (per clip). It has **no Don't Follow** — no way to pin an event to
@@ -1128,8 +1136,8 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 ### 10.3 Defining file tempo
 
 1. **FSP8 does.** Two routes. (a) Arrow tool + `[Ctrl]+[Alt]` at an event edge
-   gives the **Define Tempo** tool: drag to a musical length and the *original
-   clip's* tempo is set from it, updating every event in the session that uses
+   gives the **Define Tempo** tool: drag to a musical length and the _original
+   clip's_ tempo is set from it, updating every event in the session that uses
    the clip. (b) Type into the Inspector's **File Tempo** box; with the track in
    Timestretch mode this restretches every event using that clip.
 2. **MotionLab does.** `sourceBpm` typed into `TimePitchPanel` (20–999), or
@@ -1175,7 +1183,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 
 ### 10.6 Timestretch cache
 
-1. **FSP8 does.** *Use Cache for Timestretched Audio Files*, on by default
+1. **FSP8 does.** _Use Cache for Timestretched Audio Files_, on by default
    (Options → Advanced → Audio Engine). Renders a correct-tempo cache file so
    stretching does not happen during playback, and lets the app use a
    higher-quality setting than realtime allows. Costs disk; disable if space or
@@ -1210,12 +1218,12 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 
 ### 11.1 Takes and Layers model
 
-1. **FSP8 does.** *Layers* are lanes beneath a track. With **Record Takes To
+1. **FSP8 does.** _Layers_ are lanes beneath a track. With **Record Takes To
    Layers** on (Record panel, `[Shift]+[Alt]+[R]`), every recording after the
    first goes to its own layer, one layer per take, revealed when recording
    stops; the last take is placed on the track. "If only one take is recorded, no
    Layers will be created." Applies to Instrument Parts too. Layers can be added
-   manually (right-click track → *Add Layer*) and parts dragged into them — but
+   manually (right-click track → _Add Layer_) and parts dragged into them — but
    "once an Event has been dragged to a layer, it cannot be moved or copied to
    another location". Layer content is renamable ("great", "not good",
    "brilliant") for organising takes.
@@ -1268,7 +1276,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 ### 11.3 Range-tool comping without promotion
 
 1. **FSP8 does.** The Range tool selects within layers **without** promoting;
-   the *Copy Ranges to Track* arrow in the layer's controls then promotes the
+   the _Copy Ranges to Track_ arrow in the layer's controls then promotes the
    selection. Useful with keyboard navigation.
 2. **MotionLab does.** Absent — a swipe promotes immediately.
 3. **Gap.** `MISSING`.
@@ -1308,7 +1316,7 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 ### 11.6 Switching between layers
 
 1. **FSP8 does.** Three routes: the arrow between track name and layer name plus
-   the 4-way arrow keys; the *Activate Layer* up-arrow on an expanded layer; the
+   the 4-way arrow keys; the _Activate Layer_ up-arrow on an expanded layer; the
    Inspector's Layers field.
 2. **MotionLab does.** Promote button per lane. No keyboard route.
 3. **Gap.** `PARTIAL`.
@@ -1362,8 +1370,8 @@ per-hover-zone cursor vocabulary is thinner. `PARTIAL`.
 1. **FSP8 does.** An Inspector option per track: layers follow the track event
    when it is moved or duplicated. Disabled, "moving an Event with one or more
    Layers beneath it detaches that Event from the layers below, making it a
-   permanent part of the primary Layer." Also *Enable 'Layers Follow Events for
-   New Tracks'* in Advanced Options, which additionally renames the track and its
+   permanent part of the primary Layer." Also _Enable 'Layers Follow Events for
+   New Tracks'_ in Advanced Options, which additionally renames the track and its
    channel to the active layer's name.
 2. **MotionLab does.** Structurally unnecessary — takes are fields of the clip,
    so they move with it by construction and cannot detach.
@@ -1409,7 +1417,7 @@ Covered in §11.5. `PARTIAL` (auto colours, no names).
 ### 12.1 Detect Transients
 
 1. **FSP8 does.** Select an Audio Event → Bend panel → **Analyze**, or
-   right-click → Audio/Audio Bend → *Detect Transients*. Progress shows as a
+   right-click → Audio/Audio Bend → _Detect Transients_. Progress shows as a
    percentage in the event's lower left. After detection the event becomes
    slightly translucent and blue **Bend Markers** — full-height vertical lines —
    sit at every transient. Two detection modes, **Standard** (default) and
@@ -1448,7 +1456,7 @@ Covered in §11.5. `PARTIAL` (auto colours, no names).
 1. **FSP8 does.** Markers stretch audio inside an event without slicing. Placed
    by detection at a default **Threshold of 80 %** (adjustable at the top of the
    event context menu or in the Inspector, range 0–100 %), and insertable
-   manually before or after detection. *Show Bend Markers* toggles visibility.
+   manually before or after detection. _Show Bend Markers_ toggles visibility.
    A detected marker is preceded by "a very short, highlighted range" — the
    distance from onset to peak — and the two are used differently: "When cutting,
    the onset of the transient is used, so as to encompass the whole transient.
@@ -1482,7 +1490,7 @@ Covered in §11.5. `PARTIAL` (auto colours, no names).
    used — "if you want to change the rhythmic phrasing of a word in a vocal part,
    add a Bend Marker to the left and right of the word you want to alter".
    `[Shift]`+click selects multiple markers; `[Alt]` selects a group.
-   Right-click → *Reset Bend Marker*, on one or many.
+   Right-click → _Reset Bend Marker_, on one or many.
 2. **MotionLab does.** `WarpLane` in `WarpTool.tsx`: markers are buttons on a
    lane above the waveform, "drawn on the recording's own timeline… so a marker
    sits on the sound it pins". Drag previews locally and commits on release —
@@ -1579,7 +1587,7 @@ No gap; recorded here only as an IP boundary marker.
 
 ### 13.1 Audio Track Freeze
 
-1. **FSP8 does.** Right-click the track → *Freeze to Rendered Audio*. Inserts and
+1. **FSP8 does.** Right-click the track → _Freeze to Rendered Audio_. Inserts and
    mix automation are rendered into the audio; the original track is replaced by
    a new audio track of the same name with no inserts. Options: **Preserve
    Realtime State** (to be able to freeze back), **Auto Tail** with a **Max
@@ -1588,7 +1596,7 @@ No gap; recorded here only as an IP boundary marker.
    lengthy delays or extremely long reverbs, as it works by detecting a range of
    silence at which to cut off and fade out". Volume and pan (and their
    automation) are applied and reset to defaults on the new track; sends, bus
-   assignments and other mix parameters are retained. *Freeze to Realtime Audio*
+   assignments and other mix parameters are retained. _Freeze to Realtime Audio_
    reverses it. Bounced files go to the Pool and stay until cleared. Multiple
    tracks can be frozen at once, rendered simultaneously.
 2. **MotionLab does.** `src/model/freeze.ts` + `src/audio/freeze.ts`.
@@ -1614,7 +1622,7 @@ No gap; recorded here only as an IP boundary marker.
 
 ### 13.2 Instrument Track Freeze
 
-1. **FSP8 does.** *Freeze to Audio Track* with options: **Render All Channels**
+1. **FSP8 does.** _Freeze to Audio Track_ with options: **Render All Channels**
    (when the instrument has multiple outputs), **Render Inserts**, **Preserve
    Instrument Track State**, **Remove Instrument** (to reclaim CPU), **Auto
    Tail**. Produces a new audio track whose send configuration and output routing
@@ -1645,21 +1653,21 @@ Toggle: `[F4]` or the "i" button. Two sub-toggles: **Show Event Inspector** and
 
 ### 14.1 Track Inspector — audio
 
-| FSP8 field | Range / values | MotionLab | Gap |
-|---|---|---|---|
-| Tempo (Mode) | Don't Follow / Follow / Timestretch | per-clip `followTempo`; no Don't Follow | `PARTIAL` (§10.2) |
-| Timestretch (Mode) | Drums / Sound / Solo / Tape | `preservePitch` boolean | `PARTIAL` (§10.5) |
-| Group | assign to a track group | `editGroup` 1–4 | `PARTIAL` (§9) |
-| Layers | add / duplicate / rename / remove, choose active | per-clip takes | `PARTIAL` (§11) |
-| Layers Follow Events | on/off | n/a by construction | `DIVERGENT` (§11.11) |
-| Play Overlaps | on/off | scheduling decision, no control | `PARTIAL` |
-| Follow Chords | mode vs the Chord Track | chord track exists (`ChordEvent`, `src/model/chords.ts`, `chordAssistant.ts`); no per-track follow mode | `PARTIAL` |
-| Delay | **−1000 … +1000 ms** | absent | `MISSING` |
-| Follow Global Transpose | on/off | absent | `MISSING` (§5.4) |
-| Tune Mode | algorithm per material | absent | `MISSING` |
-| Automation | mode + per-parameter enable | `automationMode` (`read`/`touch`/`latch`/`off`), lanes with enable, `AutomationLanes.tsx` | `PARITY` |
-| Parameter (routing/mix) | duplicate of the channel strip | mixer components; inspector shows some | `PARTIAL` |
-| Edit Note | track notes window | `Track.notes?` — "free-form per-track note shown in the inspector" | `PARITY` |
+| FSP8 field              | Range / values                                   | MotionLab                                                                                               | Gap                  |
+| ----------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | -------------------- |
+| Tempo (Mode)            | Don't Follow / Follow / Timestretch              | per-clip `followTempo`; no Don't Follow                                                                 | `PARTIAL` (§10.2)    |
+| Timestretch (Mode)      | Drums / Sound / Solo / Tape                      | `preservePitch` boolean                                                                                 | `PARTIAL` (§10.5)    |
+| Group                   | assign to a track group                          | `editGroup` 1–4                                                                                         | `PARTIAL` (§9)       |
+| Layers                  | add / duplicate / rename / remove, choose active | per-clip takes                                                                                          | `PARTIAL` (§11)      |
+| Layers Follow Events    | on/off                                           | n/a by construction                                                                                     | `DIVERGENT` (§11.11) |
+| Play Overlaps           | on/off                                           | scheduling decision, no control                                                                         | `PARTIAL`            |
+| Follow Chords           | mode vs the Chord Track                          | chord track exists (`ChordEvent`, `src/model/chords.ts`, `chordAssistant.ts`); no per-track follow mode | `PARTIAL`            |
+| Delay                   | **−1000 … +1000 ms**                             | absent                                                                                                  | `MISSING`            |
+| Follow Global Transpose | on/off                                           | absent                                                                                                  | `MISSING` (§5.4)     |
+| Tune Mode               | algorithm per material                           | absent                                                                                                  | `MISSING`            |
+| Automation              | mode + per-parameter enable                      | `automationMode` (`read`/`touch`/`latch`/`off`), lanes with enable, `AutomationLanes.tsx`               | `PARITY`             |
+| Parameter (routing/mix) | duplicate of the channel strip                   | mixer components; inspector shows some                                                                  | `PARTIAL`            |
+| Edit Note               | track notes window                               | `Track.notes?` — "free-form per-track note shown in the inspector"                                      | `PARITY`             |
 
 ### 14.2 Track Inspector — instrument
 
@@ -1676,21 +1684,21 @@ ranges), which FSP8's track inspector has no equivalent for.
 
 ### 14.3 Event Inspector — audio event
 
-| FSP8 field | Range | MotionLab | Gap |
-|---|---|---|---|
-| Event FX | insert rack per event | `ClipBase.eventFx?` + `addEventFx`/`removeEventFx`/`setEventFxParam`/`setEventFxBypass`/`moveEventFx` | `PARITY` |
-| Start / End | numeric | absent (drag only) | `MISSING` |
-| File Tempo | bpm | `sourceBpm` 20–999 | `PARITY` |
-| Speedup | multiplier | `stretch` 0.25–4 | `PARITY` |
-| Transpose | **−24 … +24 st** | `transpose` −24…+24 | `PARITY` |
-| Tune | **−100 … +100 cents** | absent for clips | `MISSING` |
-| Normalize | peak to 0 dBFS, `[Alt]+[N]` | `Normalize to −0.3 dB` (menu) | `PARTIAL` — different target, no key |
-| Gain | **−40 … +24 dB** | `gain` (linear) via dialog | `PARTIAL` — no stated range |
-| Fade-In / Fade-Out | ms, 0 = none | `fadeIn`/`fadeOut` seconds + shapes | `PARITY` |
-| Bend Marker | show | warp lane in the editor | `PARTIAL` |
-| Threshold | **0–100 %, default 80 %** | absent | `MISSING` |
-| Gain Curve | bypass + show | absent | `MISSING` (§3.3) |
-| Time Lock / Edit Lock | two flags | one `locked` | `PARTIAL` (§6.2) |
+| FSP8 field            | Range                       | MotionLab                                                                                             | Gap                                  |
+| --------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Event FX              | insert rack per event       | `ClipBase.eventFx?` + `addEventFx`/`removeEventFx`/`setEventFxParam`/`setEventFxBypass`/`moveEventFx` | `PARITY`                             |
+| Start / End           | numeric                     | absent (drag only)                                                                                    | `MISSING`                            |
+| File Tempo            | bpm                         | `sourceBpm` 20–999                                                                                    | `PARITY`                             |
+| Speedup               | multiplier                  | `stretch` 0.25–4                                                                                      | `PARITY`                             |
+| Transpose             | **−24 … +24 st**            | `transpose` −24…+24                                                                                   | `PARITY`                             |
+| Tune                  | **−100 … +100 cents**       | absent for clips                                                                                      | `MISSING`                            |
+| Normalize             | peak to 0 dBFS, `[Alt]+[N]` | `Normalize to −0.3 dB` (menu)                                                                         | `PARTIAL` — different target, no key |
+| Gain                  | **−40 … +24 dB**            | `gain` (linear) via dialog                                                                            | `PARTIAL` — no stated range          |
+| Fade-In / Fade-Out    | ms, 0 = none                | `fadeIn`/`fadeOut` seconds + shapes                                                                   | `PARITY`                             |
+| Bend Marker           | show                        | warp lane in the editor                                                                               | `PARTIAL`                            |
+| Threshold             | **0–100 %, default 80 %**   | absent                                                                                                | `MISSING`                            |
+| Gain Curve            | bypass + show               | absent                                                                                                | `MISSING` (§3.3)                     |
+| Time Lock / Edit Lock | two flags                   | one `locked`                                                                                          | `PARTIAL` (§6.2)                     |
 
 ### 14.4 Event Inspector — instrument part
 
@@ -1706,7 +1714,7 @@ are note-level operations in the piano roll (`transposeNotes`,
 1. **FSP8 does.** Insert effects on one event rather than the whole channel:
    Inspector → Event FX → **Enable** opens an Insert Device Rack; or right-click
    → Event FX → Add Effect. Processing is real-time and in context. A **Tail**
-   checkbox processes volume envelopes *after* the effects, since "Event Effects
+   checkbox processes volume envelopes _after_ the effects, since "Event Effects
    may alter the relative volume of an Event, thereby skewing existing volume
    fade envelopes". Effects can be dragged from the Browser onto all selected
    events. **Render** collapses the rack, replaces the event with rendered audio
@@ -1737,8 +1745,8 @@ are note-level operations in the piano roll (`transposeNotes`,
 1. **FSP8 does.** Save and recall track + channel configurations: inputs,
    settings, routing, names, instruments, pan, levels, "any variables that can be
    set in the Inspector". Stored by right-clicking the track header →
-   *Store Track Preset* (with subfolder support) or by dragging a track header to
-   the browser; recalled by *Load Track Preset*, *Apply Track Preset* on a
+   _Store Track Preset_ (with subfolder support) or by dragging a track header to
+   the browser; recalled by _Load Track Preset_, _Apply Track Preset_ on a
    channel, or browser drag-and-drop, including multi-select drag. Track presets
    **also work with folder tracks**, so a whole group with its buses and FX
    channels is one preset. Loading multiple presets containing identical FX
@@ -1751,7 +1759,7 @@ are note-level operations in the piano roll (`transposeNotes`,
    instrument presets and `effectPresets.ts` FX chains. `duplicateTrack` copies a
    track wholesale within a session. There is no per-track preset that survives
    between sessions.
-3. **Gap.** `PARTIAL` — the *shape* is defined (`TemplateTrack` is very nearly a
+3. **Gap.** `PARTIAL` — the _shape_ is defined (`TemplateTrack` is very nearly a
    track preset) but it is session-scoped and not user-authorable. `MISSING`:
    store/load a single track, folder-track presets, FX-channel deduplication on
    load, multi-preset drag.
@@ -1766,7 +1774,7 @@ are note-level operations in the piano roll (`transposeNotes`,
    its own Snap and Timebase — "the Snap and Timebase settings are not shared
    between the Arrange view and Editor; they remain independent." While open,
    `[Alt]`+double-click an event in the Arrange view zooms the editor to contain
-   it (requires *Synchronize Editor to Arrangement* off). The editor detaches to
+   it (requires _Synchronize Editor to Arrangement_ off). The editor detaches to
    its own resizable window and can be pinned, allowing several side by side, and
    any track can be chosen from a dropdown. An **[Action]** button gives quick
    access to the Audio/Musical Functions submenus.
@@ -1833,12 +1841,12 @@ are note-level operations in the piano roll (`transposeNotes`,
      notes to split them all.
    - **Glue** — click at the lower area **between** two adjacent same-pitch notes
      to join them.
-   The **Basic** arrow disables all of that, leaving move and endpoint trim.
+     The **Basic** arrow disables all of that, leaving move and endpoint trim.
 2. **MotionLab does.** One note pointer behaviour. Velocity is edited from a
    velocity lane, a toolbar slider ("Vel", 1–127, applied to the selection), or
    focus + `↑`/`↓` (`Shift` = ±10). Mute is `M` on the selection, `Alt`+click on
    one note, or the note context menu. There is no in-place cut or glue on a note.
-3. **Gap.** `PARTIAL` — every *capability* exists; the zoned, tool-free gesture
+3. **Gap.** `PARTIAL` — every _capability_ exists; the zoned, tool-free gesture
    set does not, and neither does the Extended/Basic switch.
 
 ### 17.4 Moving, creating, deleting, resizing notes
@@ -1854,11 +1862,11 @@ are note-level operations in the piano roll (`transposeNotes`,
      an outer edge; inner edges eventually pile the middle notes onto the ends).
    - `[Alt]`+`[Ctrl]`+drag the **right** edge makes all notes end together; the
      **left** edge makes all notes start together.
-   **Duplicating:** `[Alt]`+click-drag a selection duplicates it to the drop
-   position.
-   Temporary tools: `[Ctrl]` = Eraser, `[Ctrl]+[Shift]` = Split.
-   With multiple Parts visible only one is active for editing; click a note or
-   empty space inside a Part to activate it.
+     **Duplicating:** `[Alt]`+click-drag a selection duplicates it to the drop
+     position.
+     Temporary tools: `[Ctrl]` = Eraser, `[Ctrl]+[Shift]` = Split.
+     With multiple Parts visible only one is active for editing; click a note or
+     empty space inside a Part to activate it.
 2. **MotionLab does.** `PianoRoll.tsx`: drag to move with
    `start: Math.max(0, e.shiftKey ? o.start + dBeats : snapBeat(o.start + dBeats, snap))`
    — Shift bypasses snap, checked per move. Resize handles clamp to
@@ -1936,7 +1944,7 @@ are note-level operations in the piano roll (`transposeNotes`,
 2. **MotionLab does.** Velocity editing is per note (drag a bar, focus + arrows)
    or per selection (the "Vel" slider sets one value for all; `scaleVelocities`
    multiplies). No box selection with scale handles, no slope.
-3. **Gap.** `PARTIAL` — the *scale* operation exists as a command; the direct
+3. **Gap.** `PARTIAL` — the _scale_ operation exists as a command; the direct
    manipulation with corner-handle slope does not. Note the automation lanes
    already have marquee + multi-point drag, so the interaction exists in the
    codebase for a different object.
@@ -1969,10 +1977,10 @@ are note-level operations in the piano roll (`transposeNotes`,
 
 ### 17.10 Humanize
 
-1. **FSP8 does.** *Humanize* alters note start and end times and velocity "within
+1. **FSP8 does.** _Humanize_ alters note start and end times and velocity "within
    a very small threshold, based on rules modeled on common human performance
    patterns… Note that the exact results cannot be directly controlled."
-   *Humanize Less* uses gentler rules.
+   _Humanize Less_ uses gentler rules.
 2. **MotionLab does.** `humanizeNotes(notes, opts)` with
    `HumanizeOptions = { seed, timing, velocity, length, probability, pitch? }`,
    built on a **deterministic** mulberry32 PRNG: "Humanise must be reproducible:
@@ -2001,7 +2009,7 @@ are note-level operations in the piano roll (`transposeNotes`,
    loop-this-clip, zoom. `deleteOverlaps(notes)` implements No-overlap as a
    command ("Remove same-pitch overlaps by shortening the earlier note, never
    deleting. Chords (different pitches) are untouched") rather than a live mode —
-   and note it is *safer* than FSP8, which removes fully-overlapped notes.
+   and note it is _safer_ than FSP8, which removes fully-overlapped notes.
    Chord detection exists (`src/model/chords.ts`, `chordAssistant.ts`, a chords
    editor tab). No numeric note start/end/length/pitch fields; no audition-notes
    toggle (audition is unconditional); no default-length control separate from
@@ -2068,7 +2076,7 @@ are note-level operations in the piano roll (`transposeNotes`,
 2. **MotionLab does.** `prKey` (0–11) + `prScale` (id, `'chromatic'` = off) +
    `prScaleLock` ("Snap added and dragged notes to the scale") from
    `src/model/scales.ts`, with a "Suggested from the notes in this clip" button.
-   Arrow-key transpose steps *in scale* when scale-lock is on. Scale-aware
+   Arrow-key transpose steps _in scale_ when scale-lock is on. Scale-aware
    background shading. No custom scale authoring, no presets, no Apply Scale to
    existing notes, no pitch-visibility folding.
 3. **Gap.** `PARTIAL`. The **Used**/**In Scale** row folding is the notable miss
@@ -2132,14 +2140,14 @@ are note-level operations in the piano roll (`transposeNotes`,
      single Key Switch for each articulation available, there would be no keys
      left to play music on!"
    - **Placement.** Sound Variations live in an **Automation Lane**, not among
-     the notes: right-click a note → *Apply Sound Variation* (with a "Used" list
+     the notes: right-click a note → _Apply Sound Variation_ (with a "Used" list
      of the last ten); paint them into the Sound Variation lane; or select notes
-     and hit `[+]` in the Note Event Inspector to *Apply Active Variation* (with
+     and hit `[+]` in the Note Event Inspector to _Apply Active Variation_ (with
      no selection, it applies at the playback cursor). "Sound Variations will be
      applied to all coincident Notes", so a chord cannot carry two articulations.
      An entry "remain[s] in effect until another Sound Variation is entered".
-   - **Global modes:** *Enable Key Switches* · *Disable Key Switches* ·
-     *Use Activation Sequence*.
+   - **Global modes:** _Enable Key Switches_ · _Disable Key Switches_ ·
+     _Use Activation Sequence_.
    - **Editor.** Per-variation Colour, Name, Input Pitch, Score Symbols,
      Default Score Variation, and **Momentary** ("controls if the instrument will
      return to the previous Sound Variation after the Note Off"). Folders. Its
@@ -2156,9 +2164,9 @@ are note-level operations in the piano roll (`transposeNotes`,
      distributed from 13-127", behind a **Process Dynamics** flag. Action menu:
      Load Default · Store as Default (per instrument) · Copy From · Auto Assign
      Symbol Map · Clear Map.
-   - **Musical Symbols lane.** *Articulations* are note-based (click to select
+   - **Musical Symbols lane.** _Articulations_ are note-based (click to select
      coincident notes, click again for the list, click a third time to apply;
-     multiple articulations can apply at once). *Directions* are range-based,
+     multiple articulations can apply at once). _Directions_ are range-based,
      painted or inserted at the cursor. "Musical Symbols will out-prioritize
      Sound Variations… where one of each is placed in the same position".
    - **Isolation.** Key switches "are filtered and excluded from any type of
@@ -2166,8 +2174,8 @@ are note-level operations in the piano roll (`transposeNotes`,
      do not appear in the Score, and survive chord-track following.
    - **Dynamic Mapping.** Qualifying instruments expose their own mapping, which
      is imported automatically and is then read-only but still triggerable.
-   - **Alternative triggers.** Twenty Sound Variation slots plus a *Find and
-     Apply Variation* command, bindable to keyboard shortcuts, macros, MIDI
+   - **Alternative triggers.** Twenty Sound Variation slots plus a _Find and
+     Apply Variation_ command, bindable to keyboard shortcuts, macros, MIDI
      hardware (right-click a mapped control → Assign Command) and the companion
      remote app.
 2. **MotionLab does.** Absent, in every part. Grepped `soundVariation`,
@@ -2190,8 +2198,8 @@ are note-level operations in the piano roll (`transposeNotes`,
 
 1. **FSP8 does.** An **extension** (separately installed) that separates any
    stereo or mono track into four stems — **vocals, bass, drums, and "other"**.
-   Triggered by `[Ctrl]+[U]` or right-click → Audio/Audio Processing → *Separate
-   Stems*. A dialog selects which stems to separate and offers **Consolidate**,
+   Triggered by `[Ctrl]+[U]` or right-click → Audio/Audio Processing → _Separate
+   Stems_. A dialog selects which stems to separate and offers **Consolidate**,
    which merges the selected stems into a new track — "helpful if you would like
    to remove certain stems, but maintain everything else as a single Event."
    Last-used settings are remembered. A progress window follows; "Depending on
@@ -2199,7 +2207,7 @@ are note-level operations in the piano roll (`transposeNotes`,
    Generated tracks are named `{source event name} + {stem type}` and placed in a
    **new folder track** beneath the original, whose track is then **muted**.
 2. **MotionLab does.** `src/model/stemSeparation.ts` — `separateStems(channels,
-   rate, opts)` returning `Stems = Record<StemName, Float32Array[]>` over
+rate, opts)` returning `Stems = Record<StemName, Float32Array[]>` over
    `STEM_NAMES = ['vocals', 'drums', 'bass', 'other']` (the same four),
    `sumStems(stems)`, and a stated invariant
    `RECONSTRUCTION_TOLERANCE_DB = -80` — the stems must sum back to the original
@@ -2221,18 +2229,18 @@ are note-level operations in the piano roll (`transposeNotes`,
 FSP8 groups the Action menu into **Global, Pitch, Velocity, Quantize, Time,
 Mute and Process**. Item by item:
 
-| FSP8 action | What it does | MotionLab | Gap |
-|---|---|---|---|
-| **Apply Scale** | conform selected notes to the chosen scale | `prScaleLock` snaps *new/dragged* notes only | `PARTIAL` |
-| **Quantize Notes** | a full parameter set applied to a selection: grid resolution, type (Triplet/Quintuplet…), Swing, Strength, Range, note starts and/or ends | `quantizeNotes` with grid/strength/swing/lengths | `PARTIAL` (§4.2) |
-| **Distribute Notes** | distribute a selection equally, at a variable **Amount** strength | absent | `MISSING` |
-| **Repeat Notes to Part End** | repeat a selection as many times as fills the Part | `repeatNotes(notes, times)` — fixed ×2 in the menu | `PARTIAL` |
-| **Mirror Notes** | mirror horizontally, vertically, or both, about the **first, middle, last, or a custom note within ±10 octaves** | `mirrorNotes` (pitch, about the selection's own centre) + `reverseNotes` (time, within the selection's span) | `PARTIAL` — both axes exist, no focal-point choice, no combined mode |
-| **Randomize Notes** | variable pitch / velocity / length randomisation, original or custom pitch range, original-pitches-only, optionally applying a new Scale | `humanizeNotes` (seeded; timing, velocity, length, pitch, probability) | `PARTIAL` — no pitch-range constraint, no scale application |
-| **Thin out Notes** — *Simplify* | delete a percentage, "starting with notes that are less aligned to the grid… a note located on the first beat of a measure is only deleted if all notes that are not on the first beat… have already been deleted" | absent | `MISSING` |
-| **Thin out Notes** — *Randomly* | delete a percentage with equal probability | `humanizeNotes.probability` mutes rather than deletes | `PARTIAL` |
-| **Thin out Notes** — *Grid* | remove all notes not starting on a grid position | absent | `MISSING` |
-| **Fill with Notes** | generate notes to fill a range or Part, optionally applying a scale, filling between two selected notes, at a set length, optionally reusing only existing pitches; pitches enterable from a controller | absent | `MISSING` |
+| FSP8 action                     | What it does                                                                                                                                                                                                       | MotionLab                                                                                                    | Gap                                                                  |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| **Apply Scale**                 | conform selected notes to the chosen scale                                                                                                                                                                         | `prScaleLock` snaps _new/dragged_ notes only                                                                 | `PARTIAL`                                                            |
+| **Quantize Notes**              | a full parameter set applied to a selection: grid resolution, type (Triplet/Quintuplet…), Swing, Strength, Range, note starts and/or ends                                                                          | `quantizeNotes` with grid/strength/swing/lengths                                                             | `PARTIAL` (§4.2)                                                     |
+| **Distribute Notes**            | distribute a selection equally, at a variable **Amount** strength                                                                                                                                                  | absent                                                                                                       | `MISSING`                                                            |
+| **Repeat Notes to Part End**    | repeat a selection as many times as fills the Part                                                                                                                                                                 | `repeatNotes(notes, times)` — fixed ×2 in the menu                                                           | `PARTIAL`                                                            |
+| **Mirror Notes**                | mirror horizontally, vertically, or both, about the **first, middle, last, or a custom note within ±10 octaves**                                                                                                   | `mirrorNotes` (pitch, about the selection's own centre) + `reverseNotes` (time, within the selection's span) | `PARTIAL` — both axes exist, no focal-point choice, no combined mode |
+| **Randomize Notes**             | variable pitch / velocity / length randomisation, original or custom pitch range, original-pitches-only, optionally applying a new Scale                                                                           | `humanizeNotes` (seeded; timing, velocity, length, pitch, probability)                                       | `PARTIAL` — no pitch-range constraint, no scale application          |
+| **Thin out Notes** — _Simplify_ | delete a percentage, "starting with notes that are less aligned to the grid… a note located on the first beat of a measure is only deleted if all notes that are not on the first beat… have already been deleted" | absent                                                                                                       | `MISSING`                                                            |
+| **Thin out Notes** — _Randomly_ | delete a percentage with equal probability                                                                                                                                                                         | `humanizeNotes.probability` mutes rather than deletes                                                        | `PARTIAL`                                                            |
+| **Thin out Notes** — _Grid_     | remove all notes not starting on a grid position                                                                                                                                                                   | absent                                                                                                       | `MISSING`                                                            |
+| **Fill with Notes**             | generate notes to fill a range or Part, optionally applying a scale, filling between two selected notes, at a set length, optionally reusing only existing pitches; pitches enterable from a controller            | absent                                                                                                       | `MISSING`                                                            |
 
 **MotionLab's own note menu** additionally offers, with no FSP8 counterpart:
 Transpose ±12, Double/Half length, **Legato**, **Delete overlaps**,
@@ -2240,7 +2248,7 @@ Transpose ±12, Double/Half length, **Legato**, **Delete overlaps**,
 drop-2, spread, octave double) from `src/model/chords.ts`. Every one commits
 through `transformNotes`, so each is one undo step.
 
-→ Net: MotionLab has a comparable *number* of note actions with a different
+→ Net: MotionLab has a comparable _number_ of note actions with a different
 selection. The generative half (Fill, Distribute, Thin/Simplify) is the gap;
 the harmonic half is MotionLab's addition.
 
@@ -2252,7 +2260,7 @@ the harmonic half is MotionLab's addition.
    the same track, "even sitting right on top of them", making patterns "perfect
    for peppering your more traditional sequences with fills, turnarounds, and
    other flourishes." Two modes: **Melodic** and **Drum**.
-   - **Create:** convert a Part (§7), or *Event → Insert Pattern* /
+   - **Create:** convert a Part (§7), or _Event → Insert Pattern_ /
      `[Ctrl]+[Shift]+[P]` for an empty one.
    - **Globals:** **Steps** 2–64 (default 16); **Resolution** 1/2 → 1/64 with
      triplet (T) and dotted (D) variants (default 1/16); **Swing** default 0 %;
@@ -2267,7 +2275,7 @@ the harmonic half is MotionLab's addition.
      `[Ctrl]+[Shift]`+drag resizes the chord.
    - **Step Recording:** click a step number to position, play notes on a
      controller; holding lets several land on one step; releasing advances.
-     *Insert Rest* button; clicking it before releasing enters a tie.
+     _Insert Rest_ button; clicking it before releasing enters a tie.
    - **Realtime recording** into a pattern (or a variation) under loop.
    - **Pattern operations** (both modes): Copy · Paste · **Duplicate**
      (copies the first half onto the second when empty — the manual's worked
@@ -2318,13 +2326,13 @@ the harmonic half is MotionLab's addition.
 ## 22. Pitch Correction (third-party integration)
 
 1. **FSP8 does.** Deep integration with a licensed third-party pitch editor,
-   bundled at its entry tier. `[Ctrl]+[M]` or right-click → *Edit With Melodyne*
+   bundled at its entry tier. `[Ctrl]+[M]` or right-click → _Edit With Melodyne_
    inserts it into the event's Event FX rack and opens its view where the audio
    and note editors live. The audio is analysed automatically and detected notes
    are shown ready to edit; the view maximises and detaches like the other
    editors, and `[F2]` switches back to the Audio Editor. **Detection
-   algorithms:** *Melodic* for monophonic lines, *Percussive* for non-pitched
-   signals, *Universal* for polyphonic material. It **runs in real time by
+   algorithms:** _Melodic_ for monophonic lines, _Percussive_ for non-pitched
+   signals, _Universal_ for polyphonic material. It **runs in real time by
    default**, with **Render** to reclaim CPU and the pre-render state stored so
    editing can resume; removing it from the rack loses all edits. It extracts a
    **tempo map** which can be applied to the Tempo Track via a nine-step
@@ -2365,7 +2373,7 @@ the harmonic half is MotionLab's addition.
    roll the document back to the point where that edit was made." The history is
    **cleared when a document is closed** but "remains intact when the document is
    saved and kept open". No depth limit is stated. Locking a track or event is
-   explicitly undoable, and the manual recommends *Save New Version* as an
+   explicitly undoable, and the manual recommends _Save New Version_ as an
    additional backup around important locks. Input quantize is undoable. The
    Strip Silence and Bend panels each carry an **auto-undo-on-reapply**
    indicator. The Sound Variations Editor keeps its **own** undo/redo, "not
@@ -2379,7 +2387,7 @@ the harmonic half is MotionLab's addition.
      50,000-clip project."
    - **Entry point:** every mutation goes through `update(mutator, { undoable })`,
      which clones, mutates, stamps `modifiedAt`, runs `releaseStaleFreezes`, and
-     pushes the *previous* project when undoable and no gesture is open. `undo()`
+     pushes the _previous_ project when undoable and no gesture is open. `undo()`
      and `redo()` swap between the stacks, both bounded at 60.
    - **Gestures:** `beginGesture` / `endGesture` / `flushGestures` collapse a
      continuous drag into **one** undo step. Calls nest with a depth counter —
@@ -2429,28 +2437,28 @@ the harmonic half is MotionLab's addition.
 
 ## 24. Navigating with Zoom
 
-| FSP8 command | Key / gesture | MotionLab | Gap |
-|---|---|---|---|
-| Zoom in/out horizontally | drag vertically in the timeline | timeline drag not bound; **Zoom tool `[9]`** drags horizontally to zoom | `PARTIAL` (axis differs) |
-| Zoom in/out horizontally | scrollwheel over the timeline | `Ctrl`/`Cmd` + wheel zooms (`Arrangement.tsx` line ~484) | `PARTIAL` |
-| Zoom In / Out | `[E]` / `[W]` | toolbar buttons `zoomBy(1/0.8)`; no keys | `PARTIAL` |
-| Zoom vertically | `Shift+E` / `Shift+W` | zoom tool vertical drag → `laneScale` (0.6–2.5) | `PARTIAL` |
-| Zoom vertically | `Ctrl` + wheel | `Shift` + wheel when |ΔY|>|ΔX| | `PARTIAL` |
-| Zoom to Loop | `Shift+L` | absent | `MISSING` |
-| Zoom to Selection (H+V) | `Shift+S` | `zoomToSelection()` button, horizontal only | `PARTIAL` |
-| Zoom to Selection (H) | `Alt+S` | as above | `PARTIAL` |
-| Zoom by Selecting | `Alt+Shift`+draw; `Alt+Shift`+click returns | absent | `MISSING` |
-| Zoom Full | `Alt+Z` | absent | `MISSING` |
-| Track-height key commands | assignable | `Track.height?` per track + `laneScale` global | `PARTIAL` |
-| **Zoom History** | Undo Zoom `Alt+W`, Redo Zoom `Alt+E` | absent | `MISSING` |
-| **Toggle Zoom** | `[Z]` swaps current with a stored state | `[Z]` is **keyboard octave down** in MotionLab | `MISSING` + conflict |
-| **Store Zoom State** | `Shift+Z` | absent | `MISSING` |
-| **Auto Zoom** | vertical / horizontal / full; re-zooms on window resize and on adding, duplicating or deleting events; disabled by any manual zoom; mutually exclusive with Synchronize Editor to Arrangement | absent | `MISSING` |
-| Link Horizontal and Vertical Zoom | lock icon in drum mode | absent | `MISSING` |
+| FSP8 command                      | Key / gesture                                                                                                                                                                                 | MotionLab                                                               | Gap                      |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------ |
+| Zoom in/out horizontally          | drag vertically in the timeline                                                                                                                                                               | timeline drag not bound; **Zoom tool `[9]`** drags horizontally to zoom | `PARTIAL` (axis differs) |
+| Zoom in/out horizontally          | scrollwheel over the timeline                                                                                                                                                                 | `Ctrl`/`Cmd` + wheel zooms (`Arrangement.tsx` line ~484)                | `PARTIAL`                |
+| Zoom In / Out                     | `[E]` / `[W]`                                                                                                                                                                                 | toolbar buttons `zoomBy(1/0.8)`; no keys                                | `PARTIAL`                |
+| Zoom vertically                   | `Shift+E` / `Shift+W`                                                                                                                                                                         | zoom tool vertical drag → `laneScale` (0.6–2.5)                         | `PARTIAL`                |
+| Zoom vertically                   | `Ctrl` + wheel                                                                                                                                                                                | `Shift` + wheel when                                                    | ΔY                       | >   | ΔX  |     | `PARTIAL` |
+| Zoom to Loop                      | `Shift+L`                                                                                                                                                                                     | absent                                                                  | `MISSING`                |
+| Zoom to Selection (H+V)           | `Shift+S`                                                                                                                                                                                     | `zoomToSelection()` button, horizontal only                             | `PARTIAL`                |
+| Zoom to Selection (H)             | `Alt+S`                                                                                                                                                                                       | as above                                                                | `PARTIAL`                |
+| Zoom by Selecting                 | `Alt+Shift`+draw; `Alt+Shift`+click returns                                                                                                                                                   | absent                                                                  | `MISSING`                |
+| Zoom Full                         | `Alt+Z`                                                                                                                                                                                       | absent                                                                  | `MISSING`                |
+| Track-height key commands         | assignable                                                                                                                                                                                    | `Track.height?` per track + `laneScale` global                          | `PARTIAL`                |
+| **Zoom History**                  | Undo Zoom `Alt+W`, Redo Zoom `Alt+E`                                                                                                                                                          | absent                                                                  | `MISSING`                |
+| **Toggle Zoom**                   | `[Z]` swaps current with a stored state                                                                                                                                                       | `[Z]` is **keyboard octave down** in MotionLab                          | `MISSING` + conflict     |
+| **Store Zoom State**              | `Shift+Z`                                                                                                                                                                                     | absent                                                                  | `MISSING`                |
+| **Auto Zoom**                     | vertical / horizontal / full; re-zooms on window resize and on adding, duplicating or deleting events; disabled by any manual zoom; mutually exclusive with Synchronize Editor to Arrangement | absent                                                                  | `MISSING`                |
+| Link Horizontal and Vertical Zoom | lock icon in drum mode                                                                                                                                                                        | absent                                                                  | `MISSING`                |
 
 MotionLab's zoom **maths** is stronger than FSP8's documented behaviour — see
 §2.9 for the exact constants, the anchor-preserving scroll and the shimmer-
-avoiding quantisation. What is missing is the *command vocabulary*: history,
+avoiding quantisation. What is missing is the _command vocabulary_: history,
 toggle, store, auto and zoom-to-loop. `Z` and `X` are already bound to keyboard
 octave, so any convergence must rebind rather than assume.
 
@@ -2462,7 +2470,7 @@ octave, so any convergence must rebind rather than assume.
    default and detachable (with vertical or horizontal orientation), with
    **independent toolbars for the Arrangement, Note Editor and Audio Editor**.
    - **Macros** string multiple commands into one action. The manual's worked
-     example — *Select Parts in Between Selection* — "selects all events, splits
+     example — _Select Parts in Between Selection_ — "selects all events, splits
      them at the left and right locator locations, then merges the events that
      are still selected (those within the loop range)". Commands execute in list
      order and can be reordered with Up/Down.
@@ -2509,8 +2517,8 @@ octave, so any convergence must rebind rather than assume.
    sub-behaviours), `PARTIAL` only in that rebinding and MIDI control exist for
    parameters. **Terminology hazard:** "Macro" already means something else in
    MotionLab, so a command-sequence feature must be named differently — and note
-   the manual's own worked example is a *sequence of existing MotionLab store
-   actions*, which is what makes it feasible: `selectClips` → `rangeSplit` →
+   the manual's own worked example is a _sequence of existing MotionLab store
+   actions_, which is what makes it feasible: `selectClips` → `rangeSplit` →
    `healClips` is already three callable functions.
 
 ---

@@ -54,7 +54,7 @@ small, addressed, commutative-where-possible operation (`set`, `insert`,
 `remove`, `move`) against a path in the document. Sync ships operations, not
 documents. Two devices that edited different things merge cleanly with no
 prompt; two that edited the same field resolve by a total order (Lamport
-timestamp, device id as tiebreak) and the loser is *kept* in history rather than
+timestamp, device id as tiebreak) and the loser is _kept_ in history rather than
 discarded, so a conflict is recoverable rather than announced.
 
 **Version 1 is a floor, not a guess.** The loader validates and migrates

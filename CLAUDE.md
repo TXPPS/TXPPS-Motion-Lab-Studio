@@ -113,7 +113,7 @@ writing those files — not whether to widen the scope until it goes quiet.
   believed.** Twenty probe defects have been found across the stress harness and
   the reachability sweep, and every one was diagnosed properly — which is the
   problem. "Suspect the probe first" decays into "assume the probe", and once it
-  has, a correction that quietly *widens* a check is indistinguishable from one
+  has, a correction that quietly _widens_ a check is indistinguishable from one
   that fixes it: both make the red go away. So each correction keeps the defect
   it replaced executable beside it, via `unless()` from `scripts/probe-mutant.mjs`,
   and `npm run probe:mutations` restores each one and requires the measurement

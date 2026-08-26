@@ -28,8 +28,8 @@ outright. Section 9 lists what could not be confirmed at all.
 **Intellectual-property rule for this file.** Manufacturer and product names appear here
 because this is an internal research note and naming the object of study is how research
 works. They must **never** appear in shipped UI strings, code identifiers, filenames,
-preset names, or marketing copy. What we are permitted to learn from is *behaviour and
-interaction design* — what a control does, how a workflow is sequenced, why a layout works.
+preset names, or marketing copy. What we are permitted to learn from is _behaviour and
+interaction design_ — what a control does, how a workflow is sequenced, why a layout works.
 No panel artwork, logo, typeface or badge is described here, and none may be traced,
 imitated or reproduced. Nothing in this document was obtained by decompilation or asset
 extraction, and no such method may be used.
@@ -52,24 +52,24 @@ the new Liquid". **[R]** The eleven-item list is the manual's contents page and 
 PitchShaper and ReverbShaper, which are sold as separate products and bundle additions. The
 reconciliation that fits both: **nine modules ship inside the base host; PitchShaper and
 ReverbShaper are separately-purchased modules that dock into the same host.** I take the
-eleven-item manual listing as the better-documented statement of what the *host
-architecture* supports, and the nine-item figure as the base-bundle content. **[I]**
+eleven-item manual listing as the better-documented statement of what the _host
+architecture_ supports, and the nine-item figure as the base-bundle content. **[I]**
 
 What each module does, for our purposes:
 
-| Reference module | Function | Confidence |
-| --- | --- | --- |
-| Volume | Gain modulation; the sidechain-ducking workhorse. v7 adds a compressor whose gain reduction is drawn on the *same* graph as the manual volume curve, so drawn and dynamic gain are read together. | [C] compressor-on-same-graph; [R] "British-inspired" voicing |
-| Pan | Amplitude panning **plus delay-based Haas panning**, selectable/blendable. This is the notable one: two physically different pan laws in one module. | [R] |
-| Width | Mid/side modulation, per band. | [R] |
-| Filter | Dual filter, low-pass / high-pass / band-pass / notch / peaking, independently configured; **zero-delay-feedback topology with resonance compensation and internal saturation**; a "Safe Res" mode caps resonance below self-oscillation, defeatable. | [R] |
-| Drive | Distortion set (multiple algorithms, count unknown). | [R] |
-| Crush | Bit-depth reduction and sample-rate reduction (lo-fi digital distortion). | [R] |
-| Noise | Modulated noise layering/texture rather than a processor of the input. | [R] |
-| Time | Modulates the **position of a virtual playhead** in a recorded buffer, producing stutter, half-time, reverse, scratch, tape-stop and glitch. Sync'd to beats/bars, "all with sample accuracy". | [C] |
-| Liquid | Flanging and phasing (modulated short delay / allpass chain) in one module. | [R] |
-| Pitch | Multiband pitch shifting **with independent formant control** — described as making voices deeper/thinner/older/younger, which is only possible if the formant envelope is shifted independently of pitch. | [C] |
-| Reverb | Rhythmically modulated reverb. Static controls named in the source: **Size, Decay, Pre-Delay, Width**. | [C] |
+| Reference module | Function                                                                                                                                                                                                                                              | Confidence                                                   |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Volume           | Gain modulation; the sidechain-ducking workhorse. v7 adds a compressor whose gain reduction is drawn on the _same_ graph as the manual volume curve, so drawn and dynamic gain are read together.                                                     | [C] compressor-on-same-graph; [R] "British-inspired" voicing |
+| Pan              | Amplitude panning **plus delay-based Haas panning**, selectable/blendable. This is the notable one: two physically different pan laws in one module.                                                                                                  | [R]                                                          |
+| Width            | Mid/side modulation, per band.                                                                                                                                                                                                                        | [R]                                                          |
+| Filter           | Dual filter, low-pass / high-pass / band-pass / notch / peaking, independently configured; **zero-delay-feedback topology with resonance compensation and internal saturation**; a "Safe Res" mode caps resonance below self-oscillation, defeatable. | [R]                                                          |
+| Drive            | Distortion set (multiple algorithms, count unknown).                                                                                                                                                                                                  | [R]                                                          |
+| Crush            | Bit-depth reduction and sample-rate reduction (lo-fi digital distortion).                                                                                                                                                                             | [R]                                                          |
+| Noise            | Modulated noise layering/texture rather than a processor of the input.                                                                                                                                                                                | [R]                                                          |
+| Time             | Modulates the **position of a virtual playhead** in a recorded buffer, producing stutter, half-time, reverse, scratch, tape-stop and glitch. Sync'd to beats/bars, "all with sample accuracy".                                                        | [C]                                                          |
+| Liquid           | Flanging and phasing (modulated short delay / allpass chain) in one module.                                                                                                                                                                           | [R]                                                          |
+| Pitch            | Multiband pitch shifting **with independent formant control** — described as making voices deeper/thinner/older/younger, which is only possible if the formant envelope is shifted independently of pitch.                                            | [C]                                                          |
+| Reverb           | Rhythmically modulated reverb. Static controls named in the source: **Size, Decay, Pre-Delay, Width**.                                                                                                                                                | [C]                                                          |
 
 There is **no dedicated Send module** in the researched product line. The brief asked me to
 enumerate a "send" module; I could find no evidence one exists. What exists instead is a
@@ -89,11 +89,11 @@ three independent reviews; marked [C] as an absence, not a presence).
   rather than as a permanent numeric readout. **[C]**
 - **Selectable crossover slope: 6, 12 or 24 dB/octave**, per split. The control is hidden
   until the mouse enters the spectrum area. **[C]**
-- Each band carries its own module parameters *and its own modulation curve*. **[C]**
+- Each band carries its own module parameters _and its own modulation curve_. **[C]**
 
 The interaction lesson worth copying: the crossover controls are **progressive-disclosure**
 — hidden until hover, numeric value in a status strip rather than a permanent field. That
-keeps a dense processor legible. The band split is also the *first* thing in the visual
+keeps a dense processor legible. The band split is also the _first_ thing in the visual
 hierarchy (top-left), which correctly signals that it is the outermost structural decision.
 
 ### 1.3 Module ordering and routing
@@ -102,7 +102,7 @@ hierarchy (top-left), which correctly signals that it is the outermost structura
 - The chain order is **user-rearrangeable by dragging modules left/right in a
   "Shaper Bar"**, and the vendor documentation explicitly states the order materially
   changes the sound. **[C]**
-- Whether the band split is *inside* each module or *outside* the whole chain: the
+- Whether the band split is _inside_ each module or _outside_ the whole chain: the
   documented behaviour is that **every module can independently be split into up to three
   bands**, with its own crossover frequencies. **[C]** That means the split is
   **per-module**, not a single global split feeding parallel chains — i.e. the topology is
@@ -116,14 +116,14 @@ hierarchy (top-left), which correctly signals that it is the outermost structura
 - **Three drawing tools ("Pens")**: a **Line Pen** (straight segments), an **Arc Pen**
   (curved arcs), and an **S-Curve Pen** (S-shaped segments). Plus a **Pointer** tool that
   creates and edits points **without** snapping to the grid. **[C]**
-- **Snap to grid**: when active, newly added *and* dragged points snap to the background
+- **Snap to grid**: when active, newly added _and_ dragged points snap to the background
   grid. The Pointer is the documented escape hatch from snapping. **[C]**
 - The background grid has **Auto Straight / Auto Triplet** behaviour, on by default, which
   switches grid subdivision according to the LFO length. **[C]**
 - Control-strip operations on the whole wave include **randomise all point positions**;
   the full operation list is **unknown**. **[C]** for randomise, **[U]** for the rest.
-- **Wave Presets** load a shape into the current module *without touching any other
-  setting* — sine/square/saw analogue shapes, sidechain-duck shapes, and rhythmic patterns.
+- **Wave Presets** load a shape into the current module _without touching any other
+  setting_ — sine/square/saw analogue shapes, sidechain-duck shapes, and rhythmic patterns.
   **Shift-click on a preset rescales it to the current wave's vertical range** instead of
   replacing the range, which is how you audition shapes inside a narrow filter-cutoff
   window without losing your calibration. **[C]** That modifier behaviour is the single
@@ -168,7 +168,7 @@ band-limiting. We should reach the same conclusion for the same reason.
 ### 1.6 Global and per-band controls
 
 - **Smooth**: **0–100%**, smooths point-to-point transitions on the curve, and draws an
-  animated smoothed line *on the same display* so the user sees the actual applied
+  animated smoothed line _on the same display_ so the user sees the actual applied
   modulator, not just the drawn one. **[C]** The visual feedback is important: it makes
   smoothing legible instead of mysterious.
 - **Mix**: a per-band dry/wet slider at upper right, **plus** a separate **Master Mix** in
@@ -232,50 +232,50 @@ are given as the mapping from a normalised UI position `p ∈ [0,1]` to the valu
 
 ### 3.1 Instance / global
 
-| Control | Range | Unit | Taper | Default | Interactions |
-| --- | --- | --- | --- | --- | --- |
-| Master Mix | 0–100 | % | linear | 100 | Dry path needs latency alignment (V6). Reference has this. **[C]** |
-| Output trim | −24 … +24 | dB | linear in dB | 0 | Applied post-mix. |
-| Sync mode | {Host, Free, Audio-trig, MIDI-trig} | enum | — | Host | Free mode phase-resets on transport start **[C]**. Audio-trig enables §3.4. |
-| LFO length | 1/128 … 32 bars **[C]** | note | discrete list | 1 bar | Straight/Triplet/Dotted variant flag is separate. Ignored in Free mode. |
-| Length variant | {Straight, Triplet, Dotted} | enum | — | Straight | Drives grid auto-subdivision **[C]**. |
-| Free rate | 0.01 … 200 | Hz | log | 1.0 | Above ~20 Hz this becomes audio-rate AM — see §4.5 and V3. |
-| Grid | {Off, 1/4 … 1/64, Auto} | enum | — | Auto | Auto switches straight/triplet by length **[C]**. |
-| Anti-click smoothing | on/off | — | — | **on** | Reference default is on **[C]**. Off is a QA/measurement mode only. |
-| Sidechain source | {Off, Internal, External} | enum | — | Off | External needs a bus input. |
+| Control              | Range                               | Unit | Taper         | Default  | Interactions                                                                |
+| -------------------- | ----------------------------------- | ---- | ------------- | -------- | --------------------------------------------------------------------------- |
+| Master Mix           | 0–100                               | %    | linear        | 100      | Dry path needs latency alignment (V6). Reference has this. **[C]**          |
+| Output trim          | −24 … +24                           | dB   | linear in dB  | 0        | Applied post-mix.                                                           |
+| Sync mode            | {Host, Free, Audio-trig, MIDI-trig} | enum | —             | Host     | Free mode phase-resets on transport start **[C]**. Audio-trig enables §3.4. |
+| LFO length           | 1/128 … 32 bars **[C]**             | note | discrete list | 1 bar    | Straight/Triplet/Dotted variant flag is separate. Ignored in Free mode.     |
+| Length variant       | {Straight, Triplet, Dotted}         | enum | —             | Straight | Drives grid auto-subdivision **[C]**.                                       |
+| Free rate            | 0.01 … 200                          | Hz   | log           | 1.0      | Above ~20 Hz this becomes audio-rate AM — see §4.5 and V3.                  |
+| Grid                 | {Off, 1/4 … 1/64, Auto}             | enum | —             | Auto     | Auto switches straight/triplet by length **[C]**.                           |
+| Anti-click smoothing | on/off                              | —    | —             | **on**   | Reference default is on **[C]**. Off is a QA/measurement mode only.         |
+| Sidechain source     | {Off, Internal, External}           | enum | —             | Off      | External needs a bus input.                                                 |
 
 ### 3.2 Per module slot
 
-| Control | Range | Unit | Taper | Default | Interactions |
-| --- | --- | --- | --- | --- | --- |
-| Slot enable | on/off | — | — | on | Bypass must be click-free (crossfade, §4.6). |
-| Band count | 1, 2, 3 **[C]** | — | — | 1 **[C]** | 1 band bypasses crossover entirely. |
-| Split A (low/mid) | 20 … 20 000 | Hz | log | 200 | Must satisfy A < B − 1/3 octave; clamp, don't swap. |
-| Split B (mid/high) | 20 … 20 000 | Hz | log | 2 000 | As above. |
-| Slope A, Slope B | {6, 12, 24} **[C]** | dB/oct | enum | 24 | 6 and 12 need band polarity handling — §4.2. |
-| Band mix ×3 | 0–100 **[C]** | % | linear | 100 | Per-band dry/wet, distinct from Master Mix **[C]**. |
-| Band solo ×3 | on/off | — | — | off | Not confirmed in reference (§1.3) — our addition. |
+| Control            | Range               | Unit   | Taper  | Default   | Interactions                                        |
+| ------------------ | ------------------- | ------ | ------ | --------- | --------------------------------------------------- |
+| Slot enable        | on/off              | —      | —      | on        | Bypass must be click-free (crossfade, §4.6).        |
+| Band count         | 1, 2, 3 **[C]**     | —      | —      | 1 **[C]** | 1 band bypasses crossover entirely.                 |
+| Split A (low/mid)  | 20 … 20 000         | Hz     | log    | 200       | Must satisfy A < B − 1/3 octave; clamp, don't swap. |
+| Split B (mid/high) | 20 … 20 000         | Hz     | log    | 2 000     | As above.                                           |
+| Slope A, Slope B   | {6, 12, 24} **[C]** | dB/oct | enum   | 24        | 6 and 12 need band polarity handling — §4.2.        |
+| Band mix ×3        | 0–100 **[C]**       | %      | linear | 100       | Per-band dry/wet, distinct from Master Mix **[C]**. |
+| Band solo ×3       | on/off              | —      | —      | off       | Not confirmed in reference (§1.3) — our addition.   |
 
 ### 3.3 Per band modulation
 
-| Control | Range | Unit | Taper | Default | Interactions |
-| --- | --- | --- | --- | --- | --- |
-| Curve | up to 128 breakpoints | — | — | flat at 1.0 | Point cap is ours; reference cap unknown. |
-| Depth | 0–100 | % | linear | 100 | `m' = neutral + depth·(m − neutral)`; `neutral` is module-defined (1.0 for gain, 0.0 for pan). |
-| Phase offset | −180 … +180 | deg | linear | 0 | Added to φ after swing warp, wrapped. |
-| Swing | 0–100 **[I]** | % | linear | 0 | 100% ≡ boundary at 2/3, i.e. triplet feel. §4.3. |
-| Smooth | 0–100 **[C]** | % | see below | 0 | Maps to time constant τ, **log**: `τ = 0.05·(4000)^p` ms → 0.05 ms … 200 ms. |
-| Invert | on/off | — | — | off | `m ← 2·neutral − m`. |
+| Control      | Range                 | Unit | Taper     | Default     | Interactions                                                                                   |
+| ------------ | --------------------- | ---- | --------- | ----------- | ---------------------------------------------------------------------------------------------- |
+| Curve        | up to 128 breakpoints | —    | —         | flat at 1.0 | Point cap is ours; reference cap unknown.                                                      |
+| Depth        | 0–100                 | %    | linear    | 100         | `m' = neutral + depth·(m − neutral)`; `neutral` is module-defined (1.0 for gain, 0.0 for pan). |
+| Phase offset | −180 … +180           | deg  | linear    | 0           | Added to φ after swing warp, wrapped.                                                          |
+| Swing        | 0–100 **[I]**         | %    | linear    | 0           | 100% ≡ boundary at 2/3, i.e. triplet feel. §4.3.                                               |
+| Smooth       | 0–100 **[C]**         | %    | see below | 0           | Maps to time constant τ, **log**: `τ = 0.05·(4000)^p` ms → 0.05 ms … 200 ms.                   |
+| Invert       | on/off                | —    | —         | off         | `m ← 2·neutral − m`.                                                                           |
 
 ### 3.4 Trigger / envelope follower
 
-| Control | Range | Unit | Taper | Default | Interactions |
-| --- | --- | --- | --- | --- | --- |
-| Detect algorithm | {Drums, General, Complex} **[C]** name only | enum | — | Drums | Internals unknown — our implementations are ours. |
-| Threshold | −60 … 0 | dBFS | linear in dB | −24 | |
-| Retrigger hold | 1 … 500 | ms | log | 40 | Refractory period; prevents double-triggering on one hit. |
-| Env attack | 0.1 … 200 | ms | log | 1 | `α = 1 − exp(−1/(fs·τ))`. |
-| Env release | 1 … 2000 | ms | log | 100 | |
+| Control          | Range                                       | Unit | Taper        | Default | Interactions                                              |
+| ---------------- | ------------------------------------------- | ---- | ------------ | ------- | --------------------------------------------------------- |
+| Detect algorithm | {Drums, General, Complex} **[C]** name only | enum | —            | Drums   | Internals unknown — our implementations are ours.         |
+| Threshold        | −60 … 0                                     | dBFS | linear in dB | −24     |                                                           |
+| Retrigger hold   | 1 … 500                                     | ms   | log          | 40      | Refractory period; prevents double-triggering on one hit. |
+| Env attack       | 0.1 … 200                                   | ms   | log          | 1       | `α = 1 − exp(−1/(fs·τ))`.                                 |
+| Env release      | 1 … 2000                                    | ms   | log          | 100     |                                                           |
 
 ---
 
@@ -284,7 +284,7 @@ are given as the mapping from a normalised UI position `p ∈ [0,1]` to the valu
 ### 4.1 Crossover — the Linkwitz-Riley cascade
 
 An LR2*k* crossover is a parallel low-pass/high-pass pair, each built by cascading two
-identical Butterworth filters of order *k*. Each branch is therefore **−6 dB at f_c**, so
+identical Butterworth filters of order _k_. Each branch is therefore **−6 dB at f_c**, so
 the two branches sum to **0 dB at f_c**, and the network's summed response is **all-pass:
 flat magnitude, smoothly rotating phase**. **[C]**
 
@@ -318,14 +318,14 @@ reduces exactly to
 This settles a conflict in the literature. Loudspeaker sources describe an LR4 crossover as
 behaving like a "fourth-order all-pass". **[C]** The transfer function above is
 unambiguously **second** order. The reconciliation: those sources name the all-pass by the
-*crossover* order and by the fact that its phase rotates a full 360°, which is what a
+_crossover_ order and by the fact that its phase rotates a full 360°, which is what a
 second-order all-pass does. **For implementation, use the second-order section.** Building a
 fourth-order all-pass because a source said "fourth-order" will double the phase rotation
 and break the three-band sum.
 
 **Consequence for the three-band split.** With a cascaded split — first L / (M+H) at `f₁`,
 then M / H at `f₂` — the low band never passes through the `f₂` network and so does not
-receive its phase rotation. Summing then is *not* flat. The fix is to pass the low band
+receive its phase rotation. Summing then is _not_ flat. The fix is to pass the low band
 through **the all-pass `A(s)` evaluated at f₂** (one biquad), which is exactly the sum of
 the `f₂` crossover. This is drawn in the §2 diagram. **[C, derived]** Cost: one extra biquad
 per channel.
@@ -377,7 +377,7 @@ the current segment index and advancing it when the phase crosses `x_{i+1}`. Rea
 
 1. A table forces a resolution choice; any choice steps. Per-sample analytic evaluation has
    no resolution at all — it is exact to float precision at every sample.
-2. It is *cheaper*, not dearer: a segment evaluation is one `pow` at worst (replaceable by
+2. It is _cheaper_, not dearer: a segment evaluation is one `pow` at worst (replaceable by
    a fast exp2/log2 pair, or by two multiplies when `p` snaps to 1, 2 or 0.5), versus a
    table read plus interpolation plus the memory traffic of a table per band per slot.
 3. Segment transitions are detected exactly, which is what §4.6's discontinuity handling
@@ -404,7 +404,7 @@ Per sample, the phase source produces `φ ∈ [0,1)`:
 
 **Swing** warps φ within pairs of subdivisions. Let `n` be the number of swing units per
 LFO period (default: swing unit = 1/16 note). Let `q = frac(φ·n/2)` be position within a
-*pair*, and let the boundary be `b = 0.5 + s·(2/3 − 0.5) = 0.5 + s/6` for swing amount
+_pair_, and let the boundary be `b = 0.5 + s·(2/3 − 0.5) = 0.5 + s/6` for swing amount
 `s ∈ [0,1]`, so `s = 1` puts the boundary at 2/3 — exact triplet feel.
 
 ```
@@ -414,7 +414,7 @@ LFO period (default: swing unit = 1/16 note). Let `q = frac(φ·n/2)` be positio
 
 then reassemble `φ' = (floor(φ·n/2) + q')·2/n`. This is continuous and monotonic, so it
 introduces no discontinuity of its own; its derivative is piecewise constant, which means
-swing changes the *rate* of the modulator in each half of a pair, and that is musically
+swing changes the _rate_ of the modulator in each half of a pair, and that is musically
 correct.
 
 **Offset** is applied last: `φ'' = frac(φ' + offset/360)`.
@@ -427,7 +427,7 @@ shortcut. It is wrong here for two specific reasons:
 1. The device explicitly supports **audio-rate modulation** — the reference offers free-run
    rates in Hz and audio-rate stutter/AM behaviour. A block-rate modulator at a 256-sample
    buffer has a 187 Hz Nyquist; every modulation frequency above ~90 Hz aliases.
-2. Even at low rates, a per-block ramp turns a drawn *curve* into a piecewise-linear
+2. Even at low rates, a per-block ramp turns a drawn _curve_ into a piecewise-linear
    approximation with 256-sample segments. The corner frequency of the resulting error is
    in the audible band and it is exactly the "stepping" the brief asks us to avoid.
 
@@ -440,7 +440,7 @@ A discontinuity in a gain multiplier produces a step in the output whose spectru
 material is. Two mitigations exist and they are **not** interchangeable:
 
 - **Band-limiting the modulator** (polyBLEP / BLEP correction, the standard technique for
-  band-limiting waveform discontinuities). **[C]** This makes the *modulator* alias-free,
+  band-limiting waveform discontinuities). **[C]** This makes the _modulator_ alias-free,
   which matters when the modulator is at audio rate and its harmonics fold. It does **not**
   make the gain change inaudible, because a band-limited step is still a step in energy.
 - **Smoothing the modulator** with a lowpass. This removes the click by limiting the rate
@@ -479,7 +479,7 @@ converts a step into a τ-limited ramp for free.
 Any topology change (slot enable/disable, band count change, crossover slope change) must
 be a **4 ms equal-power crossfade between the old and new signal paths**, both running for
 the crossfade duration. Switching filter coefficients in place while the filter has state is
-the standard source of a pop and is not acceptable at any setting. Crossover *frequency*
+the standard source of a pop and is not acceptable at any setting. Crossover _frequency_
 changes are the exception: recomputing biquad coefficients per block for a moving `f_c` is
 fine and does not need a crossfade, because the state remains meaningful.
 
@@ -527,41 +527,41 @@ multiplier. Each is a deliberate, defeatable addition.
 
 Every one of these is a pass/fail gate with a numeric target. "Sounds fine" is not a result.
 
-| ID | Measurement | Method | Target | Tolerance |
-| --- | --- | --- | --- | --- |
-| V1 | **Neutral null.** 1 slot, 1 band, Depth 0, Mix 100%, curve flat at neutral. | Null against dry input, pink noise + a drum loop, 60 s. | **Exact null**, ≤ −140 dBFS peak residual (float32 rounding only). | Any residual above −140 dBFS is a bug, not a tolerance. |
-| V2 | **Crossover sum flatness.** 3 bands, all modulation neutral, slope 24. | Log sweep 10 Hz–22 kHz, measure magnitude of output/input. | **±0.05 dB, 20 Hz–20 kHz.** | Failure here means the §4.1 all-pass compensation is missing or wrong. Also run at slopes 6 and 12 — these test the polarity handling. |
-| V3 | **Click detection at extreme rates.** Square-ish curve (two `step` breakpoints), Smooth = 0, on a 1 kHz sine. Sweep LFO rate 0.1 Hz → 200 Hz. | Per-sample first difference of output; flag any sample where `\|Δy\|` exceeds the maximum `\|Δy\|` of the un-modulated 1 kHz sine by more than 12 dB. | **Zero flagged samples across the whole sweep.** | Zero. This is the anti-click floor (§4.5) doing its job; one flag means the τ floor is not applied on that path. |
-| V4 | **Retrigger click.** Audio-trigger mode, trigger on every sample of a click train at 40 Hz, worst-case curve. | As V3. | **Zero flagged samples.** | Zero. |
-| V5 | **Modulator alias floor.** Free mode, 90 Hz, `step` curve, on a 1 kHz sine. | FFT the output; identify sidebands not at `1000 ± k·90` Hz. | Spurious (aliased) content **≤ −80 dBFS**. | +3 dB. Tests the BLEP path. |
-| V6 | **Master Mix comb test.** Mix 50%, all slots neutral. | Sweep; compare to Mix 100%. | **±0.05 dB** — identical, no comb. | Failure means the dry path is not latency-aligned. |
-| V7 | **Timing accuracy and drift.** 1/16 gate curve, 128 bars at 174 BPM, then seek to bar 100 and play. | Cross-correlate gate onsets against expected sample positions. | **0 samples error** at every onset, including after the seek. | 0. Phase must come from transport position (§4.3), not accumulation. |
-| V8 | **Swing correctness.** Swing 100%, 1/16 unit. | Measure onset positions of a gate curve. | Boundary at exactly **2/3** of each pair, i.e. onsets at 0 and 2/3 of each 1/8. | ±1 sample. |
-| V9 | **Topology-change pop.** Toggle slot bypass, band count 1↔3, and slope 6↔24, 200 times each over programme material. | V3's difference detector. | **Zero flagged samples.** | Zero. Tests §4.6. |
-| V10 | **Denormal stall.** Feed 30 s of programme then 30 s of digital silence, 3 bands, 8 slots. | Measure per-block processing time during the silence. | Silence-period block time **≤ 1.2×** the programme-period block time. | Above that, FTZ is not set or state is not being flushed. |
-| V11 | **Smooth taper monotonicity.** Sweep Smooth 0→100 in 100 steps. | Measure −3 dB corner of the modulator path each step. | Monotonically decreasing, **0.05 ms … 200 ms**, no discontinuity > 15% between adjacent steps. | 15%. |
+| ID  | Measurement                                                                                                                                   | Method                                                                                                                                                | Target                                                                                         | Tolerance                                                                                                                              |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| V1  | **Neutral null.** 1 slot, 1 band, Depth 0, Mix 100%, curve flat at neutral.                                                                   | Null against dry input, pink noise + a drum loop, 60 s.                                                                                               | **Exact null**, ≤ −140 dBFS peak residual (float32 rounding only).                             | Any residual above −140 dBFS is a bug, not a tolerance.                                                                                |
+| V2  | **Crossover sum flatness.** 3 bands, all modulation neutral, slope 24.                                                                        | Log sweep 10 Hz–22 kHz, measure magnitude of output/input.                                                                                            | **±0.05 dB, 20 Hz–20 kHz.**                                                                    | Failure here means the §4.1 all-pass compensation is missing or wrong. Also run at slopes 6 and 12 — these test the polarity handling. |
+| V3  | **Click detection at extreme rates.** Square-ish curve (two `step` breakpoints), Smooth = 0, on a 1 kHz sine. Sweep LFO rate 0.1 Hz → 200 Hz. | Per-sample first difference of output; flag any sample where `\|Δy\|` exceeds the maximum `\|Δy\|` of the un-modulated 1 kHz sine by more than 12 dB. | **Zero flagged samples across the whole sweep.**                                               | Zero. This is the anti-click floor (§4.5) doing its job; one flag means the τ floor is not applied on that path.                       |
+| V4  | **Retrigger click.** Audio-trigger mode, trigger on every sample of a click train at 40 Hz, worst-case curve.                                 | As V3.                                                                                                                                                | **Zero flagged samples.**                                                                      | Zero.                                                                                                                                  |
+| V5  | **Modulator alias floor.** Free mode, 90 Hz, `step` curve, on a 1 kHz sine.                                                                   | FFT the output; identify sidebands not at `1000 ± k·90` Hz.                                                                                           | Spurious (aliased) content **≤ −80 dBFS**.                                                     | +3 dB. Tests the BLEP path.                                                                                                            |
+| V6  | **Master Mix comb test.** Mix 50%, all slots neutral.                                                                                         | Sweep; compare to Mix 100%.                                                                                                                           | **±0.05 dB** — identical, no comb.                                                             | Failure means the dry path is not latency-aligned.                                                                                     |
+| V7  | **Timing accuracy and drift.** 1/16 gate curve, 128 bars at 174 BPM, then seek to bar 100 and play.                                           | Cross-correlate gate onsets against expected sample positions.                                                                                        | **0 samples error** at every onset, including after the seek.                                  | 0. Phase must come from transport position (§4.3), not accumulation.                                                                   |
+| V8  | **Swing correctness.** Swing 100%, 1/16 unit.                                                                                                 | Measure onset positions of a gate curve.                                                                                                              | Boundary at exactly **2/3** of each pair, i.e. onsets at 0 and 2/3 of each 1/8.                | ±1 sample.                                                                                                                             |
+| V9  | **Topology-change pop.** Toggle slot bypass, band count 1↔3, and slope 6↔24, 200 times each over programme material.                          | V3's difference detector.                                                                                                                             | **Zero flagged samples.**                                                                      | Zero. Tests §4.6.                                                                                                                      |
+| V10 | **Denormal stall.** Feed 30 s of programme then 30 s of digital silence, 3 bands, 8 slots.                                                    | Measure per-block processing time during the silence.                                                                                                 | Silence-period block time **≤ 1.2×** the programme-period block time.                          | Above that, FTZ is not set or state is not being flushed.                                                                              |
+| V11 | **Smooth taper monotonicity.** Sweep Smooth 0→100 in 100 steps.                                                                               | Measure −3 dB corner of the modulator path each step.                                                                                                 | Monotonically decreasing, **0.05 ms … 200 ms**, no discontinuity > 15% between adjacent steps. | 15%.                                                                                                                                   |
 
 ---
 
 ## 7. CPU and memory cost model
 
 Budget: **12 instances, phone, 256-sample buffer, 48 kHz.** 256 samples = **5.33 ms** of
-wall clock per block for *everything* — all 12 instances plus the rest of the engine. A
+wall clock per block for _everything_ — all 12 instances plus the rest of the engine. A
 defensible allocation is **30% of one core for all 12 instances**, i.e. **~2.5% of a core
 per instance**, i.e. roughly **133 µs per block per instance** on a core that has 5.33 ms.
 
 ### 7.1 Per-sample arithmetic, one instance, stereo, 3 bands, one Volume slot
 
-| Item | Count | Flops each | Flops/sample |
-| --- | --- | --- | --- |
-| LR4 split, low/mid at f₁ (LP×2 + HP×2 biquads) | 4 biquads × 2 ch | 9 | 72 |
-| LR4 split, mid/high at f₂ | 4 biquads × 2 ch | 9 | 72 |
-| All-pass compensation on low band @ f₂ | 1 biquad × 2 ch | 9 | 18 |
-| Modulator: phase, swing warp, segment eval, depth | 3 bands | ~25 | 75 |
-| Modulator: 2× one-pole smoothing | 3 bands × 2 poles | 3 | 18 |
-| Gain apply | 3 bands × 2 ch | 1 | 6 |
-| Band mix + recombine | 3 bands × 2 ch | 3 | 18 |
-| **Total** | | | **≈ 280 flops/sample** |
+| Item                                              | Count             | Flops each | Flops/sample           |
+| ------------------------------------------------- | ----------------- | ---------- | ---------------------- |
+| LR4 split, low/mid at f₁ (LP×2 + HP×2 biquads)    | 4 biquads × 2 ch  | 9          | 72                     |
+| LR4 split, mid/high at f₂                         | 4 biquads × 2 ch  | 9          | 72                     |
+| All-pass compensation on low band @ f₂            | 1 biquad × 2 ch   | 9          | 18                     |
+| Modulator: phase, swing warp, segment eval, depth | 3 bands           | ~25        | 75                     |
+| Modulator: 2× one-pole smoothing                  | 3 bands × 2 poles | 3          | 18                     |
+| Gain apply                                        | 3 bands × 2 ch    | 1          | 6                      |
+| Band mix + recombine                              | 3 bands × 2 ch    | 3          | 18                     |
+| **Total**                                         |                   |            | **≈ 280 flops/sample** |
 
 At 48 kHz: **13.4 Mflop/s per instance**; **161 Mflop/s for 12 instances**. A current
 mid-range phone core sustains on the order of 2–8 Gflop/s scalar and several times that
@@ -575,19 +575,19 @@ recommends a hard slot cap on mobile.
 
 ### 7.2 Per-module incremental costs (per sample, stereo, 3 bands)
 
-| Module | Extra flops/sample | Notes |
-| --- | --- | --- |
-| Volume | 6 | Trivial. |
-| Pan (amplitude) | ~18 | Two gains + pan law. |
-| Pan (Haas) | ~30 + 2 delay lines | Delay lines are memory, not flops. |
-| Width (M/S) | ~30 | Encode, scale, decode per band. |
-| Drive | 60–400 | Depends entirely on oversampling — see below. |
-| Crush | ~40 | Cheap, but **aliases by design**; do not oversample it. |
-| Filter (2 ZDF SVF per band) | ~200 | ZDF/TPT SVF ≈ 15 flops/sample/channel/filter. |
-| Liquid (phaser, 6 allpass) | ~220 | 6 × biquad × 2 ch × 3 bands, plus LFO. |
-| Time | ~120 + heavy memory | Interpolated read + crossfade. See §7.3. |
-| Pitch | **500–2000** | Granular or phase-vocoder per band. The expensive one. |
-| Reverb | 300–800 | Depends on architecture; see FX-02. |
+| Module                      | Extra flops/sample  | Notes                                                   |
+| --------------------------- | ------------------- | ------------------------------------------------------- |
+| Volume                      | 6                   | Trivial.                                                |
+| Pan (amplitude)             | ~18                 | Two gains + pan law.                                    |
+| Pan (Haas)                  | ~30 + 2 delay lines | Delay lines are memory, not flops.                      |
+| Width (M/S)                 | ~30                 | Encode, scale, decode per band.                         |
+| Drive                       | 60–400              | Depends entirely on oversampling — see below.           |
+| Crush                       | ~40                 | Cheap, but **aliases by design**; do not oversample it. |
+| Filter (2 ZDF SVF per band) | ~200                | ZDF/TPT SVF ≈ 15 flops/sample/channel/filter.           |
+| Liquid (phaser, 6 allpass)  | ~220                | 6 × biquad × 2 ch × 3 bands, plus LFO.                  |
+| Time                        | ~120 + heavy memory | Interpolated read + crossfade. See §7.3.                |
+| Pitch                       | **500–2000**        | Granular or phase-vocoder per band. The expensive one.  |
+| Reverb                      | 300–800             | Depends on architecture; see FX-02.                     |
 
 **Drive and oversampling.** Anti-aliasing a saturator needs 4× oversampling to push
 harmonic images above audibility, and a polyphase FIR up/downsampler at 4× costs roughly
@@ -608,7 +608,7 @@ twelve instances**. That does not fit on a phone and would not fit on most deskt
 Three mitigations, in order of importance:
 
 1. **Record the full-band signal once per slot, not once per band.** Read three
-   independent playheads from the one buffer and apply the band filter *after* the read —
+   independent playheads from the one buffer and apply the band filter _after_ the read —
    the low tap only needs the LP branch, the mid tap only the BP, the high tap only the HP,
    so this costs ~13 biquads/channel instead of 9 but divides buffer memory by **3**.
 2. **Cap the history buffer independently of the LFO length menu.** Spec: history =

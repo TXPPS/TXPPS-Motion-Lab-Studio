@@ -18,11 +18,11 @@ framework's default panel and their ledger rows say so.
 
 What to judge, with a thumb:
 
-- **The dials turn.** Drag one up and down. Drag sideways *while* holding it —
+- **The dials turn.** Drag one up and down. Drag sideways _while_ holding it —
   the same drag gets about ten times finer without the value jumping. Take a
   finger well outside the dial and circle it; it tracks the angle from there.
 - **The frequency selectors click.** They only stop on their marked positions,
-  and a *tap* advances one position — which is the fastest way to work them
+  and a _tap_ advances one position — which is the fastest way to work them
   one-handed.
 - **EQ In is a lever.** One tap throws it. Watch the two low legs: boost and
   cut at once is the point of the unit, not a mistake.

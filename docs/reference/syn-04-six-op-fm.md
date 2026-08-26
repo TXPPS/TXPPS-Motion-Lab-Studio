@@ -13,7 +13,7 @@ is published under permissive licences. It describes **circuit and algorithm beh
 because engineering discussion requires them. They must not appear in shipped UI strings,
 code identifiers, filenames, preset names, or marketing copy. No panel artwork, logotype,
 typeface or badge from any reference product may be reproduced, traced, or described for the
-purpose of tracing. Section 14 describes the *era's* design language, which is what the UI team
+purpose of tracing. Section 14 describes the _era's_ design language, which is what the UI team
 is permitted to evoke.
 
 Confidence markers, consistent with `docs/REFERENCE-FSP8.md`:
@@ -22,17 +22,17 @@ Confidence markers, consistent with `docs/REFERENCE-FSP8.md`:
   specification, or a published measurement of the physical device (including die-level reverse
   engineering). See §0.1 for how each source is classified.
 - **[R]** reported by a reputable secondary source but not cross-checked against a primary one.
-- **[I]** **implementation-derived** — the value's only source is somebody's *emulator*, not a
+- **[I]** **implementation-derived** — the value's only source is somebody's _emulator_, not a
   measurement of hardware and not manufacturer documentation. An emulator constant is that
   author's design decision. It may be an accurate transcription of hardware behaviour, or a
   measurement, or a plausible guess that happens to sound right. **Every [I] value must be
   re-derived — by measurement, by fitting an analytic curve, or from manufacturer documentation —
-  before it is written into `src/`.** [I] values are in this sheet so that we know the *shape* of
+  before it is written into `src/`.** [I] values are in this sheet so that we know the _shape_ of
   the behaviour to look for, not so that we can copy them.
 - **[U]** unconfirmed or inferred. **Do not build to a [U] value without checking it.**
 - **[X]** explicitly unknown — I could not establish it. Listed in §16.
 
-Where a number is *derived* (computed by me from a primary source rather than quoted from one),
+Where a number is _derived_ (computed by me from a primary source rather than quoted from one),
 it is marked **[derived]** and the derivation is shown so it can be re-checked.
 
 Environment note: this machine's egress proxy blocks nearly all HTTP fetches. `github.com` and
@@ -46,13 +46,13 @@ cloned and read line by line. See §0.1 and §15.
 Sources for this sheet fall into three classes, and the class determines what may be done with a
 value.
 
-| Class | What it is | Sources used here | May a value be written into `src/`? |
-|---|---|---|---|
-| **Documentation** | The manufacturer's own manual, specification or patent | Operation manual (via page extracts); design archive | Yes. Facts about a published specification. |
-| **Measurement** | Instrumented observation of the physical device, including die-level reverse engineering | Ken Shirriff's chip reverse-engineering series; ajxs's technical analysis; the sample rate, DAC and log-domain findings in §11 | Yes. Facts about a physical device are not copyrightable. |
-| **Implementation** | Somebody's emulator | `asb2m10/dexed`, specifically its DSP core `Source/msfa/` | **No — not directly.** Re-derive first. |
+| Class              | What it is                                                                               | Sources used here                                                                                                              | May a value be written into `src/`?                       |
+| ------------------ | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| **Documentation**  | The manufacturer's own manual, specification or patent                                   | Operation manual (via page extracts); design archive                                                                           | Yes. Facts about a published specification.               |
+| **Measurement**    | Instrumented observation of the physical device, including die-level reverse engineering | Ken Shirriff's chip reverse-engineering series; ajxs's technical analysis; the sample rate, DAC and log-domain findings in §11 | Yes. Facts about a physical device are not copyrightable. |
+| **Implementation** | Somebody's emulator                                                                      | `asb2m10/dexed`, specifically its DSP core `Source/msfa/`                                                                      | **No — not directly.** Re-derive first.                   |
 
-**Licence position on the implementation source, stated precisely.** The Dexed *project* is
+**Licence position on the implementation source, stated precisely.** The Dexed _project_ is
 GPL-3.0. The files I actually read are its DSP core, `Source/msfa/`, which is Google's
 `music-synthesizer-for-android` and carries **Apache-2.0** headers in every file I opened
 (`fm_core.cc`, `fm_core.h`, `fm_op_kernel.cc`, `env.cc`, `lfo.cc`, `pitchenv.cc`, `dx7note.cc`,
@@ -125,7 +125,7 @@ the verification targets, and the era-language notes. **What is not:** any bare 
    └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-Solid arrows carrying audio-rate data: operator → operator (as *phase* offset, not amplitude),
+Solid arrows carrying audio-rate data: operator → operator (as _phase_ offset, not amplitude),
 and carriers → voice output. Everything else is control-rate.
 
 ### 1.2 The rendering model (bus machine)
@@ -136,19 +136,19 @@ how the algorithm ROM is organised and how Dexed's `FmCore::render()` implements
 
 Each operator, per algorithm, carries five facts:
 
-| Field | Meaning |
-|---|---|
-| input bus | 0 (none), 1, or 2 — read as the phase-modulation input |
-| output bus | 0 (voice output), 1, or 2 |
-| add flag | if set, *sum* into the target; if clear, *overwrite* the target |
-| FB out | this operator's output is written to the feedback delay |
-| FB in | this operator reads the feedback delay as extra phase offset |
+| Field      | Meaning                                                         |
+| ---------- | --------------------------------------------------------------- |
+| input bus  | 0 (none), 1, or 2 — read as the phase-modulation input          |
+| output bus | 0 (voice output), 1, or 2                                       |
+| add flag   | if set, _sum_ into the target; if clear, _overwrite_ the target |
+| FB out     | this operator's output is written to the feedback delay         |
+| FB in      | this operator reads the feedback delay as extra phase offset    |
 
 A bus that has not yet been written in this voice's render pass is treated as empty: an operator
 whose input bus is empty renders as a pure sine, and an operator with the add flag whose output
 bus is empty overwrites instead. **[I]** — `FmCore::render`, `has_contents[]`.
 
-**Implementation note.** Two `int32_t` buffers of one block each are enough. Do *not* generalise
+**Implementation note.** Two `int32_t` buffers of one block each are enough. Do _not_ generalise
 to an arbitrary routing graph and then try to reproduce the reference's 32 fixed cases; implement
 the bus machine and drive it from the table in §3. The bus machine is what makes the parallel
 modulator cases (algorithms 7–18, 20, 26, 27) sum correctly at unity, with no gain compensation.
@@ -158,12 +158,12 @@ modulator cases (algorithms 7–18, 20, 26, 27) sum correctly at unity, with no 
 ## 2. The operator: phase modulation, not frequency modulation
 
 The reference instrument, and every commercial "FM" synthesiser derived from it, implements
-**phase modulation**: the modulator's output is added to the carrier's *phase accumulator read
-address*, not to its frequency increment. **[I]** — this is visible directly in the operator
+**phase modulation**: the modulator's output is added to the carrier's _phase accumulator read
+address_, not to its frequency increment. **[I]** — this is visible directly in the operator
 kernel, `y = Sin::lookup(phase + input[i])`, where `phase` is advanced by a constant `freq` each
 sample and `input[i]` is the modulator sample.
 
-True frequency modulation would be `phase += freq + input[i]`, i.e. the *integral* of the
+True frequency modulation would be `phase += freq + input[i]`, i.e. the _integral_ of the
 modulator would appear in the phase.
 
 Consequences that matter to the implementation, and to anyone porting formulas out of the
@@ -171,7 +171,7 @@ academic FM literature:
 
 1. **The modulation index is frequency-independent.** In true FM the index is `Δf / f_m`, so a
    fixed modulator amplitude produces less index as the modulator's frequency rises. In phase
-   modulation the index *is* the modulator's peak amplitude in radians. A modulator envelope
+   modulation the index _is_ the modulator's peak amplitude in radians. A modulator envelope
    therefore maps directly and linearly onto the index, and a patch keeps its timbre when
    transposed. This is the single reason the reference design tracks the keyboard musically.
 2. **No DC drift.** A DC offset at a true-FM modulator input detunes the carrier permanently. In
@@ -215,47 +215,47 @@ checks pass.
 So the table is **[I] with strong [R] corroboration**: the topology is almost certainly right, but
 its immediate source is an implementation.
 
-**The gap, named:** I have *not* verified rows 10, 12, 14, 15, 18, 19, 20, 21, 23, 26, 27, 28, 29,
+**The gap, named:** I have _not_ verified rows 10, 12, 14, 15, 18, 19, 20, 21, 23, 26, 27, 28, 29,
 30 against a published diagram — no search result I obtained described those algorithms
 individually. The corroborated rows are 1, 4, 5, 6, 7, 8, 9, 11, 13, 16, 17, 22, 24, 25, 31, 32
 (by carrier count, feedback operator, or explicit description). **Before implementation, check all
 32 rows against the manufacturer's algorithm chart in the operation manual**, which is a
 five-minute job for anyone who can open the PDF. Test 13.1 is the behavioural backstop.
 
-| Alg | Carriers | Modulation chains | FB |
-|----:|----------|-------------------|----|
-|  1 | 1, 3 | 5<-6; 4<-5; 3<-4; 1<-2 | 6 |
-|  2 | 1, 3 | 5<-6; 4<-5; 3<-4; 1<-2 | 2 |
-|  3 | 1, 4 | 5<-6; 4<-5; 2<-3; 1<-2 | 6 |
-|  4 | 1, 4 | 5<-6; 4<-5; 2<-3; 1<-2 | 4->6 |
-|  5 | 1, 3, 5 | 5<-6; 3<-4; 1<-2 | 6 |
-|  6 | 1, 3, 5 | 5<-6; 3<-4; 1<-2 | 5->6 |
-|  7 | 1, 3 | 5<-6; 3<-5+4; 1<-2 | 6 |
-|  8 | 1, 3 | 5<-6; 3<-5+4; 1<-2 | 4 |
-|  9 | 1, 3 | 5<-6; 3<-5+4; 1<-2 | 2 |
-| 10 | 1, 4 | 4<-6+5; 2<-3; 1<-2 | 3 |
-| 11 | 1, 4 | 4<-6+5; 2<-3; 1<-2 | 6 |
-| 12 | 1, 3 | 3<-6+5+4; 1<-2 | 2 |
-| 13 | 1, 3 | 3<-6+5+4; 1<-2 | 6 |
-| 14 | 1, 3 | 4<-6+5; 3<-4; 1<-2 | 6 |
-| 15 | 1, 3 | 4<-6+5; 3<-4; 1<-2 | 2 |
-| 16 | 1 | 5<-6; 3<-4; 1<-5+3+2 | 6 |
-| 17 | 1 | 5<-6; 3<-4; 1<-5+3+2 | 2 |
-| 18 | 1 | 5<-6; 4<-5; 1<-4+3+2 | 3 |
-| 19 | 1, 4, 5 | 5<-6; 4<-6; 2<-3; 1<-2 | 6 |
-| 20 | 1, 2, 4 | 4<-6+5; 2<-3; 1<-3 | 3 |
-| 21 | 1, 2, 4, 5 | 5<-6; 4<-6; 2<-3; 1<-3 | 3 |
-| 22 | 1, 3, 4, 5 | 5<-6; 4<-6; 3<-6; 1<-2 | 6 |
-| 23 | 1, 2, 4, 5 | 5<-6; 4<-6; 2<-3 | 6 |
-| 24 | 1, 2, 3, 4, 5 | 5<-6; 4<-6; 3<-6 | 6 |
-| 25 | 1, 2, 3, 4, 5 | 5<-6; 4<-6 | 6 |
-| 26 | 1, 2, 4 | 4<-6+5; 2<-3 | 6 |
-| 27 | 1, 2, 4 | 4<-6+5; 2<-3 | 3 |
-| 28 | 1, 3, 6 | 4<-5; 3<-4; 1<-2 | 5 |
-| 29 | 1, 2, 3, 5 | 5<-6; 3<-4 | 6 |
-| 30 | 1, 2, 3, 6 | 4<-5; 3<-4 | 5 |
-| 31 | 1, 2, 3, 4, 5 | 5<-6 | 6 |
-| 32 | 1, 2, 3, 4, 5, 6 | (none) | 6 |
+| Alg | Carriers         | Modulation chains      | FB   |
+| --: | ---------------- | ---------------------- | ---- |
+|   1 | 1, 3             | 5<-6; 4<-5; 3<-4; 1<-2 | 6    |
+|   2 | 1, 3             | 5<-6; 4<-5; 3<-4; 1<-2 | 2    |
+|   3 | 1, 4             | 5<-6; 4<-5; 2<-3; 1<-2 | 6    |
+|   4 | 1, 4             | 5<-6; 4<-5; 2<-3; 1<-2 | 4->6 |
+|   5 | 1, 3, 5          | 5<-6; 3<-4; 1<-2       | 6    |
+|   6 | 1, 3, 5          | 5<-6; 3<-4; 1<-2       | 5->6 |
+|   7 | 1, 3             | 5<-6; 3<-5+4; 1<-2     | 6    |
+|   8 | 1, 3             | 5<-6; 3<-5+4; 1<-2     | 4    |
+|   9 | 1, 3             | 5<-6; 3<-5+4; 1<-2     | 2    |
+|  10 | 1, 4             | 4<-6+5; 2<-3; 1<-2     | 3    |
+|  11 | 1, 4             | 4<-6+5; 2<-3; 1<-2     | 6    |
+|  12 | 1, 3             | 3<-6+5+4; 1<-2         | 2    |
+|  13 | 1, 3             | 3<-6+5+4; 1<-2         | 6    |
+|  14 | 1, 3             | 4<-6+5; 3<-4; 1<-2     | 6    |
+|  15 | 1, 3             | 4<-6+5; 3<-4; 1<-2     | 2    |
+|  16 | 1                | 5<-6; 3<-4; 1<-5+3+2   | 6    |
+|  17 | 1                | 5<-6; 3<-4; 1<-5+3+2   | 2    |
+|  18 | 1                | 5<-6; 4<-5; 1<-4+3+2   | 3    |
+|  19 | 1, 4, 5          | 5<-6; 4<-6; 2<-3; 1<-2 | 6    |
+|  20 | 1, 2, 4          | 4<-6+5; 2<-3; 1<-3     | 3    |
+|  21 | 1, 2, 4, 5       | 5<-6; 4<-6; 2<-3; 1<-3 | 3    |
+|  22 | 1, 3, 4, 5       | 5<-6; 4<-6; 3<-6; 1<-2 | 6    |
+|  23 | 1, 2, 4, 5       | 5<-6; 4<-6; 2<-3       | 6    |
+|  24 | 1, 2, 3, 4, 5    | 5<-6; 4<-6; 3<-6       | 6    |
+|  25 | 1, 2, 3, 4, 5    | 5<-6; 4<-6             | 6    |
+|  26 | 1, 2, 4          | 4<-6+5; 2<-3           | 6    |
+|  27 | 1, 2, 4          | 4<-6+5; 2<-3           | 3    |
+|  28 | 1, 3, 6          | 4<-5; 3<-4; 1<-2       | 5    |
+|  29 | 1, 2, 3, 5       | 5<-6; 3<-4             | 6    |
+|  30 | 1, 2, 3, 6       | 4<-5; 3<-4             | 5    |
+|  31 | 1, 2, 3, 4, 5    | 5<-6                   | 6    |
+|  32 | 1, 2, 3, 4, 5, 6 | (none)                 | 6    |
 
 Structural facts that fall out of the table and are worth asserting in a unit test:
 
@@ -263,7 +263,7 @@ Structural facts that fall out of the table and are worth asserting in a unit te
 - An operator is only ever modulated by a **higher-numbered** operator. This is what allows the
   strict 6→1 evaluation order with only two buses. **[I]**
 - Carrier counts run 1 (algorithms 16, 17, 18) to 6 (algorithm 32).
-- Algorithm 28 and 30 are the only algorithms where operator 6 is a *carrier* while the feedback
+- Algorithm 28 and 30 are the only algorithms where operator 6 is a _carrier_ while the feedback
   sits on operator 5.
 - 26 of the 32 have a self-loop feedback; algorithms 4 (loop 6→5→4→6) and 6 (loop 6→5→6) are the
   two multi-operator loops. Algorithms 10, 12, 15, 17, 18, 20, 21, 27 have their self-loop on an
@@ -295,20 +295,21 @@ fb_shift = (feedback != 0) ? (8 - feedback) : 16      // 16 == effectively off
 scaled_fb = (y_{n-2} + y_{n-1}) >> (fb_shift + 1)     // two-sample mean, then shift
 y_n       = sin(phase + scaled_fb) · gain
 ```
+
 **[I]** — `Dx7Note::init` (`FEEDBACK_BITDEPTH = 8`) and `FmOpKernel::compute_fb`.
 
 Reading the law out of that:
 
 | FEEDBACK | fb_shift | effective gain on the mean of the last two outputs |
-|---:|---:|---|
-| 0 | 16 | 2⁻¹⁷ — audibly zero |
-| 1 | 7 | 2⁻⁸ |
-| 2 | 6 | 2⁻⁷ |
-| 3 | 5 | 2⁻⁶ |
-| 4 | 4 | 2⁻⁵ |
-| 5 | 3 | 2⁻⁴ |
-| 6 | 2 | 2⁻³ |
-| 7 | 1 | 2⁻² |
+| -------: | -------: | -------------------------------------------------- |
+|        0 |       16 | 2⁻¹⁷ — audibly zero                                |
+|        1 |        7 | 2⁻⁸                                                |
+|        2 |        6 | 2⁻⁷                                                |
+|        3 |        5 | 2⁻⁶                                                |
+|        4 |        4 | 2⁻⁵                                                |
+|        5 |        3 | 2⁻⁴                                                |
+|        6 |        2 | 2⁻³                                                |
+|        7 |        1 | 2⁻²                                                |
 
 So **the depth law is exactly one doubling per step**, i.e. +6.02 dB of loop gain per unit, over a
 42 dB range, with a hard "off" at 0. **[C, derived]** Implement it as a shift or as
@@ -341,14 +342,13 @@ full.
 
 ### 5.1 The state machine
 
-The EG is a **rate/level** generator, not ADSR. Segment *i* moves the current level toward `L_i`
+The EG is a **rate/level** generator, not ADSR. Segment _i_ moves the current level toward `L_i`
 at a speed set by `R_i`, and advances when it arrives.
 
 - On note-on: jump to segment 1, target `L1`.
 - Segments 1→2→3 run automatically; segment 3 then **holds at L3** while the key is down.
-- On note-off: jump to segment 4, target `L4`. The voice is free when it reaches `L4` and `L4` is
-  0. **[I]** — `Env::keydown`, `Env::advance`, `Env::isActive`.
-- Segment time is proportional to the *distance* between the current level and the target, so
+- On note-off: jump to segment 4, target `L4`. The voice is free when it reaches `L4` and `L4` is 0. **[I]** — `Env::keydown`, `Env::advance`, `Env::isActive`.
+- Segment time is proportional to the _distance_ between the current level and the target, so
   time is not a parameter: a rate of 60 with L1=L2 costs nothing, and the same rate with a 90 dB
   excursion takes far longer.
 
@@ -379,6 +379,7 @@ The **attack is a different curve**. It is not linear-in-dB. The reference appli
 if (level < 1716<<16) level = 1716<<16;        // floor: attacks start ~89.9 dB down, not at -inf
 level += (((17<<24) - level) >> 24) * inc;     // increment scaled by (17 - level_in_octaves)
 ```
+
 **[I]** — `Env::getsample`, rising branch.
 
 That is a **target-seeking curve in the log domain**: the step size shrinks as the level rises,
@@ -394,6 +395,7 @@ omitting the floor gives soft, late attacks, and using a linear-in-dB attack giv
 qrate = min( ((R * 41) >> 6) + rate_scaling, 63 )
 inc   = (4 + (qrate & 3)) << (2 + LG_N + (qrate >> 2))       // LG_N = 6, block of 64 samples
 ```
+
 **[I]** — `Env::advance`.
 
 So R 0..99 maps onto a 6-bit quantised rate 0..63 (R 99 → qrate 63), and the increment **doubles
@@ -406,21 +408,21 @@ identical**. That is authentic; do not smooth it.
 
 Decay slope at 44.1 kHz, computed from the code above **[derived]**:
 
-| R | qrate | inc | dB/s | seconds to fall 96 dB |
-|---:|---:|---:|---:|---:|
-| 0 | 0 | 1 024 | 0.253 | 379 |
-| 5 | 3 | 1 792 | 0.443 | 217 |
-| 10 | 6 | 3 072 | 0.760 | 126 |
-| 20 | 12 | 8 192 | 2.03 | 47.4 |
-| 30 | 19 | 28 672 | 7.09 | 13.5 |
-| 40 | 25 | 81 920 | 20.3 | 4.74 |
-| 50 | 32 | 262 144 | 64.8 | 1.48 |
-| 60 | 38 | 786 432 | 195 | 0.494 |
-| 70 | 44 | 2 097 152 | 519 | 0.185 |
-| 80 | 51 | 7 340 032 | 1 815 | 0.0529 |
-| 90 | 57 | 20 971 520 | 5 186 | 0.0185 |
-| 95 | 60 | 33 554 432 | 8 297 | 0.0116 |
-| 99 | 63 | 58 720 256 | 14 520 | 0.0066 |
+|   R | qrate |        inc |   dB/s | seconds to fall 96 dB |
+| --: | ----: | ---------: | -----: | --------------------: |
+|   0 |     0 |      1 024 |  0.253 |                   379 |
+|   5 |     3 |      1 792 |  0.443 |                   217 |
+|  10 |     6 |      3 072 |  0.760 |                   126 |
+|  20 |    12 |      8 192 |   2.03 |                  47.4 |
+|  30 |    19 |     28 672 |   7.09 |                  13.5 |
+|  40 |    25 |     81 920 |   20.3 |                  4.74 |
+|  50 |    32 |    262 144 |   64.8 |                  1.48 |
+|  60 |    38 |    786 432 |    195 |                 0.494 |
+|  70 |    44 |  2 097 152 |    519 |                 0.185 |
+|  80 |    51 |  7 340 032 |  1 815 |                0.0529 |
+|  90 |    57 | 20 971 520 |  5 186 |                0.0185 |
+|  95 |    60 | 33 554 432 |  8 297 |                0.0116 |
+|  99 |    63 | 58 720 256 | 14 520 |                0.0066 |
 
 The full 100-entry table is generated by the two lines of arithmetic above; store the formula,
 not the table.
@@ -435,7 +437,7 @@ measurable time. Dexed carries an empirically measured table of "static" segment
 samples at 44.1 kHz, indexed by rate 0..76, behind `ACCURATE_ENVELOPE`, with the note that above
 R=76 the time is `20 · (99 − R)` samples and that the attack segment is scaled ~20× faster. **[R]**
 — the table is described in the source as empirically gathered from two units and
-"needs to be double-checked". Treat the exact values as [U]; treat the *existence* of a
+"needs to be double-checked". Treat the exact values as [U]; treat the _existence_ of a
 non-zero zero-distance segment time as [I], because it is audible as the characteristic slight
 "smear" on fast multi-segment percussive envelopes.
 
@@ -447,6 +449,7 @@ Both go through the same 0..99 → attenuation table:
 scaleoutlevel(v) = v >= 20 ? 28 + v
                            : lowCurve(v)        // 20-entry table, see below
 ```
+
 **[I]** — the linear-above-20 branch and the existence of a separate 20-entry low-end table.
 
 `lowCurve` is a 20-entry table in the implementation. Its **shape**, which is what you need: it
@@ -462,7 +465,7 @@ wrong at very low output levels, that is worth knowing and is cheap to measure.
 - Above 20 the mapping is linear in dB: 1 step = 32 internal units = **0.7526 dB**. **[derived,
   corroborated]**
 - Below 20 the curve steepens sharply: level 0 sits about 90 dB below level 99. The low end is
-  *not* a straight line, and getting this wrong makes quiet modulators far too loud.
+  _not_ a straight line, and getting this wrong makes quiet modulators far too loud.
 
 The two consumers differ in resolution:
 
@@ -470,6 +473,7 @@ The two consumers differ in resolution:
 target_level = ((scaleoutlevel(L_i) >> 1) << 6) + (scaleoutlevel(OUTLEVEL) << 5) − 4256
 target_level = max(target_level, 16)
 ```
+
 **[I]** — `Env::advance`.
 
 The `>> 1` on the L value halves its resolution: **L1..L4 quantise to 1.505 dB steps** (changing
@@ -478,26 +482,26 @@ That asymmetry is authentic and audible when automating a level.
 
 ### 5.5 Output level → modulation index
 
-For a modulator, "output level" *is* modulation depth. Peak phase excursion, computed from the
+For a modulator, "output level" _is_ modulation depth. Peak phase excursion, computed from the
 gain law of §5.2 with `L=99` **[derived]**:
 
 | OUTPUT LEVEL | scaleoutlevel | dB rel. OL 99 | peak modulation index (radians) |
-|---:|---:|---:|---:|
-| 0 | 0 | −89.9 | 0.0004 |
-| 5 | 20 | −80.5 | 0.0012 |
-| 10 | 31 | −72.3 | 0.0031 |
-| 19 | 46 | −61.0 | 0.0113 |
-| 20 | 48 | −59.5 | 0.0134 |
-| 30 | 58 | −51.9 | 0.0318 |
-| 40 | 68 | −44.4 | 0.0757 |
-| 50 | 78 | −36.9 | 0.180 |
-| 60 | 88 | −29.4 | 0.428 |
-| 70 | 98 | −21.8 | 1.019 |
-| 80 | 108 | −14.3 | 2.42 |
-| 85 | 113 | −10.5 | 3.74 |
-| 90 | 118 | −6.77 | 5.76 |
-| 95 | 123 | −3.01 | 8.89 |
-| 99 | 127 | 0.00 | **12.57 = 4π** |
+| -----------: | ------------: | ------------: | ------------------------------: |
+|            0 |             0 |         −89.9 |                          0.0004 |
+|            5 |            20 |         −80.5 |                          0.0012 |
+|           10 |            31 |         −72.3 |                          0.0031 |
+|           19 |            46 |         −61.0 |                          0.0113 |
+|           20 |            48 |         −59.5 |                          0.0134 |
+|           30 |            58 |         −51.9 |                          0.0318 |
+|           40 |            68 |         −44.4 |                          0.0757 |
+|           50 |            78 |         −36.9 |                           0.180 |
+|           60 |            88 |         −29.4 |                           0.428 |
+|           70 |            98 |         −21.8 |                           1.019 |
+|           80 |           108 |         −14.3 |                            2.42 |
+|           85 |           113 |         −10.5 |                            3.74 |
+|           90 |           118 |         −6.77 |                            5.76 |
+|           95 |           123 |         −3.01 |                            8.89 |
+|           99 |           127 |          0.00 |                  **12.57 = 4π** |
 
 **Maximum index at OUTPUT LEVEL 99 is exactly 4π ≈ 12.566 radians**, i.e. the modulator swings the
 carrier's read pointer by ±2 whole cycles. **[derived]** One published FM conversion table quotes
@@ -505,7 +509,7 @@ carrier's read pointer by ±2 whole cycles. **[derived]** One published FM conve
 
 **Velocity can exceed it.** `ScaleVelocity` adds up to +224 internal units (≈ +5.3 dB) on top of
 OUTPUT LEVEL 99 at velocity 127 with velocity sensitivity 7, pushing peak index to roughly 23 rad.
-**[C, derived]** — `ScaleVelocity`, and `outlevel` is clamped to 127 *before* the velocity term is
+**[C, derived]** — `ScaleVelocity`, and `outlevel` is clamped to 127 _before_ the velocity term is
 added. Decide deliberately whether to clamp; the reference's 12-bit envelope word saturates, so
 clamping at the 12-bit ceiling is the more faithful choice. Marked **[U]** as to the exact
 hardware ceiling.
@@ -516,10 +520,11 @@ hardware ceiling.
 vel_value  = velocityCurve[velocity >> 1] − 239   // 64-entry table, range 0..254
 scaled_vel = ((sensitivity · vel_value + 7) >> 3) << 4           // sensitivity 0..7
 ```
+
 **[I]** — the structure and the arithmetic; the 64-entry curve itself is **not reproduced here**.
 Its shape: monotone increasing, 0 at the bottom, 254 at the top, strongly concave — it rises very
 fast over the first few entries (0 → 70 → 86 → 97 in the first four) and then flattens, so most of
-the table's resolution is spent on low velocities. The subtraction of 239 sets the *unity* point:
+the table's resolution is spent on low velocities. The subtraction of 239 sets the _unity_ point:
 velocities mapping to 239 produce no level change, higher velocities add, lower ones subtract.
 239 lands around MIDI velocity 100. Re-derive by fitting a concave curve through those three
 constraints, then verify with test 13.14. Note the table is indexed by `velocity >> 1`, so
@@ -561,13 +566,13 @@ level, in the same 0.7526 dB units as OUTPUT LEVEL, then clamped to 127. **[I]**
 
 ### 6.1 Controls
 
-| Control | Range | Unit | Default | Notes |
-|---|---|---|---|---|
-| BREAK POINT | 0..99, displayed A-1..C8 | note name | C3 (patch-dependent) | the key at which scaling is zero |
-| LEFT DEPTH | 0..99 | scaling units | 0 | applies to keys below the break point |
-| RIGHT DEPTH | 0..99 | scaling units | 0 | applies to keys above the break point |
-| LEFT CURVE | 0..3 | enum | 0 | 0 = −LIN, 1 = −EXP, 2 = +EXP, 3 = +LIN |
-| RIGHT CURVE | 0..3 | enum | 0 | same enum |
+| Control     | Range                    | Unit          | Default              | Notes                                  |
+| ----------- | ------------------------ | ------------- | -------------------- | -------------------------------------- |
+| BREAK POINT | 0..99, displayed A-1..C8 | note name     | C3 (patch-dependent) | the key at which scaling is zero       |
+| LEFT DEPTH  | 0..99                    | scaling units | 0                    | applies to keys below the break point  |
+| RIGHT DEPTH | 0..99                    | scaling units | 0                    | applies to keys above the break point  |
+| LEFT CURVE  | 0..3                     | enum          | 0                    | 0 = −LIN, 1 = −EXP, 2 = +EXP, 3 = +LIN |
+| RIGHT CURVE | 0..3                     | enum          | 0                    | same enum                              |
 
 Curve enum ordering `−LIN, −EXP, +EXP, +LIN` is confirmed by the sign test `if (curve < 2) scale
 = −scale` combined with the shape test `if (curve == 0 || curve == 3) linear`. **[I]**
@@ -584,6 +589,7 @@ exponential:  scale = (expCurve[min(group, 32)] · depth · 329) >> 15
 if (curve < 2) scale = −scale
 outlevel += scale
 ```
+
 **[I]** — `ScaleLevel` / `ScaleCurve`.
 
 `expCurve` is a 33-entry table indexed by group (0..32, i.e. 0..96 semitones from the break
@@ -606,11 +612,11 @@ Notes an implementer will trip over:
 
 Linear curve, DEPTH 99:
 
-| distance from break point | offset | 
-|---|---|
-| 1 octave | 31 units = **23.3 dB** |
-| 2 octaves | 63 units = 47.4 dB |
-| 3 octaves | 95 units = 71.5 dB |
+| distance from break point | offset                 |
+| ------------------------- | ---------------------- |
+| 1 octave                  | 31 units = **23.3 dB** |
+| 2 octaves                 | 63 units = 47.4 dB     |
+| 3 octaves                 | 95 units = 71.5 dB     |
 
 so ≈ **23.3 dB/octave**, straight. A widely repeated secondary claim puts this at "22 dB per
 octave"; the discrepancy is discussed in §16. **[R vs derived]**
@@ -631,6 +637,7 @@ x          = clamp(midinote / 3 − 7, 0, 31)
 qratedelta = (sensitivity · x) >> 3
 qrate      = min( ((R·41)>>6) + qratedelta, 63 )
 ```
+
 **[I]** — `ScaleRate`, `Env::advance`.
 
 At sensitivity 7 and the top of the keyboard, `qratedelta` reaches 27, i.e. nearly 7 doublings of
@@ -655,9 +662,9 @@ Per operator: **MODE** (ratio / fixed), **COARSE** 0..31, **FINE** 0..99, **DETU
 
 `coarse_ratio` comes from a 32-entry log table and evaluates to:
 
-| COARSE | 0 | 1 | 2 | 3 | 4 | … | 31 |
-|---|---|---|---|---|---|---|---|
-| ratio | **0.5** | 1 | 2 | 3 | 4 | … | 31 |
+| COARSE | 0       | 1   | 2   | 3   | 4   | …   | 31  |
+| ------ | ------- | --- | --- | --- | --- | --- | --- |
+| ratio  | **0.5** | 1   | 2   | 3   | 4   | …   | 31  |
 
 i.e. the integers 1..31 with 0.5 in slot 0. **[I, derived]** — decoded from the implementation's
 log-domain coarse table, whose raw values are not reproduced here. The result is a clean,
@@ -665,7 +672,7 @@ documentation-checkable statement ("0.5 then the integers"), and the manual's "0
 times" phrasing corroborates it **[R]**; note the manual says 32 and the table tops out at 31 —
 see §16.
 
-FINE therefore gives 100 steps of 1% *of the coarse ratio*: with COARSE 1 the range is 1.00–1.99;
+FINE therefore gives 100 steps of 1% _of the coarse ratio_: with COARSE 1 the range is 1.00–1.99;
 with COARSE 2 it is 2.00–3.98. The manual's phrasing "fine adjustment is possible over a range of
 from 1 to 1.99 times" describes the COARSE 1 case. **[R]** Implement as a multiplier so it scales
 with coarse; a fixed 0.01 additive step is wrong at high ratios.
@@ -675,6 +682,7 @@ with coarse; a fixed 0.01 additive step is wrong at high ratios.
 ```
 f = 10 ^ ( ((COARSE & 3) · 100 + FINE) / 100 )   Hz
 ```
+
 **[C, derived]** — COARSE selects the decade (1, 10, 100, 1000 Hz) and FINE multiplies by
 10^(FINE/100), i.e. 1.000 … 9.772. This matches the manual's "coarse adjustment in four steps —
 1, 10, 100 and 1000 — and fine adjustment from 1 to 9.772 times". **[R, corroborated]**
@@ -693,17 +701,18 @@ DETUNE is stored 0..14 and displayed −7..+7. The reference implementation mode
 detuneRatio = 0.0209 · exp(−0.396 · logfreq_in_octaves) / 7
 logfreq    += detuneRatio · logfreq · (DETUNE − 7)
 ```
+
 **[I]** — with the source comment "those numbers come from my DX7".
 
 Resulting detune per step **[derived]**:
 
-| note | frequency | cents at DETUNE = +7 | cents per step |
-|---|---|---|---|
-| A0 (21) | 27.5 Hz | +18.1 | +2.58 |
-| C2 (36) | 65.4 Hz | +13.9 | +1.98 |
-| C4 (60) | 261.6 Hz | +8.4 | +1.20 |
-| C6 (84) | 1046.5 Hz | +4.7 | +0.68 |
-| C8 (108) | 4186 Hz | +2.6 | +0.37 |
+| note     | frequency | cents at DETUNE = +7 | cents per step |
+| -------- | --------- | -------------------- | -------------- |
+| A0 (21)  | 27.5 Hz   | +18.1                | +2.58          |
+| C2 (36)  | 65.4 Hz   | +13.9                | +1.98          |
+| C4 (60)  | 261.6 Hz  | +8.4                 | +1.20          |
+| C6 (84)  | 1046.5 Hz | +4.7                 | +0.68          |
+| C8 (108) | 4186 Hz   | +2.6                 | +0.37          |
 
 So detune is **approximately a constant frequency offset, not a constant interval** — a few cents
 at the top of the keyboard, nearly 20 cents at the bottom. An earlier revision of the same
@@ -728,16 +737,16 @@ One LFO per voice, global to all six operators, with per-operator amplitude sens
 
 ### 9.1 Controls
 
-| Control | Range | Unit | Notes |
-|---|---|---|---|
-| WAVE | 0..5 | enum | 0 triangle, 1 saw down, 2 saw up, 3 square, 4 sine, 5 sample & hold **[I]** |
-| SPEED | 0..99 | table index | see §9.2 |
-| DELAY | 0..99 | table index | see §9.3 |
-| PMD (pitch mod depth) | 0..99 | — | scaled `(PMD · 165) >> 6` **[I]** |
-| AMD (amp mod depth) | 0..99 | — | scaled `(AMD · 165) >> 6` **[I]** |
-| PMS (pitch mod sensitivity) | 0..7 | enum → table | global |
-| AMS (amp mod sensitivity) | 0..3 | enum → table | **per operator** |
-| KEY SYNC | 0/1 | bool | resets LFO phase to just below the top on each note-on **[I]** |
+| Control                     | Range | Unit         | Notes                                                                       |
+| --------------------------- | ----- | ------------ | --------------------------------------------------------------------------- |
+| WAVE                        | 0..5  | enum         | 0 triangle, 1 saw down, 2 saw up, 3 square, 4 sine, 5 sample & hold **[I]** |
+| SPEED                       | 0..99 | table index  | see §9.2                                                                    |
+| DELAY                       | 0..99 | table index  | see §9.3                                                                    |
+| PMD (pitch mod depth)       | 0..99 | —            | scaled `(PMD · 165) >> 6` **[I]**                                           |
+| AMD (amp mod depth)         | 0..99 | —            | scaled `(AMD · 165) >> 6` **[I]**                                           |
+| PMS (pitch mod sensitivity) | 0..7  | enum → table | global                                                                      |
+| AMS (amp mod sensitivity)   | 0..3  | enum → table | **per operator**                                                            |
+| KEY SYNC                    | 0/1   | bool         | resets LFO phase to just below the top on each note-on **[I]**              |
 
 The waveform generators are integer-exact in the reference implementation — triangle, square and
 sawtooth are built by shifts and masks on the phase accumulator with no interpolation, so they are
@@ -757,16 +766,16 @@ The reference implementation holds a **100-entry table of LFO frequencies in Hz*
 value. **[I]** — the table is not reproduced here. Its anchors and shape, which is what to build
 from:
 
-| SPEED | Hz |
-|---:|---:|
-| 0 | 0.0625 |
-| 10 | 1.56 |
-| 25 | 4.00 |
-| 50 | 7.99 |
-| 63 | 10.12 |
-| 64 | 11.25 |
-| 75 | 20.83 |
-| 99 | 49.26 |
+| SPEED |     Hz |
+| ----: | -----: |
+|     0 | 0.0625 |
+|    10 |   1.56 |
+|    25 |   4.00 |
+|    50 |   7.99 |
+|    63 |  10.12 |
+|    64 |  11.25 |
+|    75 |  20.83 |
+|    99 |  49.26 |
 
 Two things to note. The law is **piecewise**: from SPEED 0 to 63 it is close to linear in Hz at
 about 0.16 Hz per step, and at SPEED 64 the slope jumps by roughly 7× to about 1.1 Hz per step,
@@ -794,6 +803,7 @@ else {
 }
 unit = round(N · 25190424 / sampleRate)                 // constant = 2³²/15.5 s/11
 ```
+
 **[I]** — `Lfo::reset`, `Lfo::init`.
 
 The delay runs a 32-bit counter: while it is below half scale the LFO output is forced to zero;
@@ -823,37 +833,37 @@ the order of 15 s. **[derived from the `2³²/15.5 s` constant; exact maximum is
 The reference voice is 155 bytes packed / 156 bytes unpacked. Unpacked layout, which is what the
 DSP consumes **[I]** — offsets read directly from `Dx7Note::init`:
 
-| Offset | Field |
-|---|---|
-| `op·21 + 0..3` | R1..R4 |
-| `op·21 + 4..7` | L1..L4 |
-| `op·21 + 8` | break point |
-| `op·21 + 9` | left depth |
-| `op·21 + 10` | right depth |
-| `op·21 + 11` | left curve |
-| `op·21 + 12` | right curve |
-| `op·21 + 13` | rate scaling |
-| `op·21 + 14` | amplitude mod sensitivity (0..3) |
-| `op·21 + 15` | velocity sensitivity (0..7) |
-| `op·21 + 16` | output level |
-| `op·21 + 17` | oscillator mode (0 ratio, 1 fixed) |
-| `op·21 + 18` | coarse |
-| `op·21 + 19` | fine |
-| `op·21 + 20` | detune |
-| 126..129 | pitch EG rates 1..4 |
-| 130..133 | pitch EG levels 1..4 |
-| 134 | algorithm (0..31) |
-| 135 | feedback (0..7) |
-| 136 | oscillator key sync |
-| 137 | LFO speed |
-| 138 | LFO delay |
-| 139 | LFO pitch mod depth |
-| 140 | LFO amp mod depth |
-| 141 | LFO key sync |
-| 142 | LFO waveform |
-| 143 | pitch mod sensitivity |
-| 144 | transpose |
-| 145..154 | name (10 ASCII characters) |
+| Offset         | Field                              |
+| -------------- | ---------------------------------- |
+| `op·21 + 0..3` | R1..R4                             |
+| `op·21 + 4..7` | L1..L4                             |
+| `op·21 + 8`    | break point                        |
+| `op·21 + 9`    | left depth                         |
+| `op·21 + 10`   | right depth                        |
+| `op·21 + 11`   | left curve                         |
+| `op·21 + 12`   | right curve                        |
+| `op·21 + 13`   | rate scaling                       |
+| `op·21 + 14`   | amplitude mod sensitivity (0..3)   |
+| `op·21 + 15`   | velocity sensitivity (0..7)        |
+| `op·21 + 16`   | output level                       |
+| `op·21 + 17`   | oscillator mode (0 ratio, 1 fixed) |
+| `op·21 + 18`   | coarse                             |
+| `op·21 + 19`   | fine                               |
+| `op·21 + 20`   | detune                             |
+| 126..129       | pitch EG rates 1..4                |
+| 130..133       | pitch EG levels 1..4               |
+| 134            | algorithm (0..31)                  |
+| 135            | feedback (0..7)                    |
+| 136            | oscillator key sync                |
+| 137            | LFO speed                          |
+| 138            | LFO delay                          |
+| 139            | LFO pitch mod depth                |
+| 140            | LFO amp mod depth                  |
+| 141            | LFO key sync                       |
+| 142            | LFO waveform                       |
+| 143            | pitch mod sensitivity              |
+| 144            | transpose                          |
+| 145..154       | name (10 ASCII characters)         |
 
 Operators are stored **in reverse order**: index 0 is operator 6. Consistent with the render
 order of §1.2. **[I]**
@@ -865,23 +875,23 @@ here only so that user-supplied patch files can be imported.
 
 ## 11. Numerical format of the original
 
-| Property | Value | Confidence |
-|---|---|---|
-| Internal sample rate | **49 096 Hz** | [R], consistently reported |
-| DAC clock | 785 536 Hz (49 096 × 16), time-multiplexed across voices | [R] |
-| Envelope word to the operator chip | **12 bits** | [R] |
-| Frequency word to the operator chip | 14 bits | [R] |
-| Phase accumulators | 96 (16 voices × 6 operators) | [R] |
-| Sine table | stored as **log₂|sin|**, so amplitude scaling is an *addition* | [C] |
-| Exponential | two identical ROMs plus adder/shifter reconstruct 2^x | [R] |
-| Output converter | 12-bit DAC plus a **3-bit discrete compander** — sign, 11-bit mantissa, 2-bit exponent scaling ×1/2/4/8 | [R] |
-| Effective dynamic range | ~15 bits | [R] |
-| Output filter | aggressive analogue LPF, quoted around 16 kHz on the first hardware revision | [R] |
+| Property                            | Value                                                                                                   | Confidence                 |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------- |
+| Internal sample rate                | **49 096 Hz**                                                                                           | [R], consistently reported |
+| DAC clock                           | 785 536 Hz (49 096 × 16), time-multiplexed across voices                                                | [R]                        |
+| Envelope word to the operator chip  | **12 bits**                                                                                             | [R]                        |
+| Frequency word to the operator chip | 14 bits                                                                                                 | [R]                        |
+| Phase accumulators                  | 96 (16 voices × 6 operators)                                                                            | [R]                        |
+| Sine table                          | stored as **log₂                                                                                        | sin                        | **, so amplitude scaling is an _addition_ | [C] |
+| Exponential                         | two identical ROMs plus adder/shifter reconstruct 2^x                                                   | [R]                        |
+| Output converter                    | 12-bit DAC plus a **3-bit discrete compander** — sign, 11-bit mantissa, 2-bit exponent scaling ×1/2/4/8 | [R]                        |
+| Effective dynamic range             | ~15 bits                                                                                                | [R]                        |
+| Output filter                       | aggressive analogue LPF, quoted around 16 kHz on the first hardware revision                            | [R]                        |
 
 The log-domain trick is the architectural key: with the sine stored as a logarithm, applying an
 envelope is an add rather than a multiply, and the single exponential ROM at the end of the chain
 converts back. That is why the gain quantisation is 0.0235 dB — it is one LSB of the log-domain
-adder — and why the *level* domain, not the amplitude domain, is the natural place to do all
+adder — and why the _level_ domain, not the amplitude domain, is the natural place to do all
 envelope arithmetic (§5.2).
 
 ---
@@ -917,27 +927,27 @@ envelope arithmetic (§5.2).
 All tests at 48 kHz unless stated, rendering to 32-bit float, comparing against the stated target.
 Where a tolerance is given as dB it is on the magnitude spectrum after a Hann window.
 
-| # | Test | Method | Target | Tolerance |
-|---|---|---|---|---|
-| 13.1 | **Algorithm topology** | For each of the 32 algorithms, set exactly one operator to OUTPUT LEVEL 99 and the rest to 0; assert audible output only for the carriers listed in §3. Then set one modulator at a time to index 1 and assert sidebands appear only around the carriers it is documented to reach. | matches §3 exactly | binary pass/fail |
-| 13.2 | **Feedback depth law** | Algorithm 32, operator 6 only, ratio 1, feedback 1..7, measure THD+N of the resulting waveform and the amplitude of the 2nd harmonic. | 2nd-harmonic level rises ≈6.0 dB per feedback step | ±0.5 dB per step |
-| 13.3 | **Envelope decay slope** | One carrier, L1=99, L2=0, R2 under test, render note-on and measure the time for the level to fall from −6 dB to −66 dB. | matches the dB/s column of §5.3, scaled to 48 kHz | ±3 % |
-| 13.4 | **Envelope level quantisation** | Sweep L2 across 0..99 with fixed OUTPUT LEVEL; measure sustain level. Sweep OUTPUT LEVEL 20..99 likewise. | L steps 1.505 dB (changing every 2 units); OL steps 0.7526 dB | ±0.05 dB |
-| 13.5 | **Output level → index** | Two operators, algorithm 5, carrier ratio 1, modulator ratio 1; sweep modulator OUTPUT LEVEL; fit the sideband amplitudes to Bessel `J_n(I)` and recover I. | I(99) = 4π ± 2 %; the full curve within ±0.5 dB of §5.5 | ±2 % on I |
-| 13.6 | **Pitch EG range** | Pitch EG L = 0 and 99 with all other levels 50; measure the pitch offset of a ratio-1 carrier. | record the measured value and **fill in the [X] in §5.7** | n/a — this test defines the constant |
-| 13.7 | **Keyboard level scaling** | −LIN, depth 99, break point C3; measure carrier level at C3, C4, C5, C6. | −23.3 dB per octave, staircase in 3-semitone steps | ±0.5 dB |
-| 13.8 | **Rate scaling** | Rate scaling 7, R2 = 50, measure decay time at C1 and C7. | ratio ≈ 128:1 | ±10 % |
-| 13.9 | **LFO rate** | For SPEED = 0, 25, 50, 63, 64, 75, 99 measure the modulation period. | matches §9.2 | ±1 % |
-| 13.10 | **LFO delay shape** | DELAY 50, measure time to first non-zero LFO output and time to full depth. | two-slope: hold then fade, fade slower than hold | qualitative + record values |
-| 13.11 | **Fixed frequency** | MODE = fixed, sweep COARSE 0..3 and FINE 0/50/99; measure the fundamental. | `10^((COARSE·100+FINE)/100)` Hz | ±0.5 % |
-| 13.12 | **Ratio accuracy** | COARSE 0..31 at FINE 0; measure the ratio to the carrier. | 0.5 then integers 1..31 | ±0.05 % |
-| 13.13 | **Detune** | DETUNE −7/+7 at A0, C4, C8; measure cents. | matches §8.3 table | ±0.3 cents |
-| 13.14 | **Velocity** | Sensitivity 7, velocities 1..127; measure carrier level. | monotone, 64 distinct steps (velocity halved), max +5.3 dB over the nominal | step count exact |
-| 13.15 | **Sample-rate independence** | Render the same patch at 44.1 / 48 / 96 kHz; align and measure envelope times and LFO periods. | identical | ±0.1 % |
-| 13.16 | **Aliasing signature** | Ratio 14 modulator, index 8, carrier at C5; compare the spectrum with and without the optional oversampling mode. | default mode shows fold-back partials; oversampled mode does not | qualitative, must differ |
-| 13.17 | **CPU budget** | 16 voices, algorithm 1, all six operators active, feedback 7. | within the per-instrument budget in `docs/PERFORMANCE.md` | per that document |
+| #     | Test                            | Method                                                                                                                                                                                                                                                                              | Target                                                                      | Tolerance                            |
+| ----- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------ |
+| 13.1  | **Algorithm topology**          | For each of the 32 algorithms, set exactly one operator to OUTPUT LEVEL 99 and the rest to 0; assert audible output only for the carriers listed in §3. Then set one modulator at a time to index 1 and assert sidebands appear only around the carriers it is documented to reach. | matches §3 exactly                                                          | binary pass/fail                     |
+| 13.2  | **Feedback depth law**          | Algorithm 32, operator 6 only, ratio 1, feedback 1..7, measure THD+N of the resulting waveform and the amplitude of the 2nd harmonic.                                                                                                                                               | 2nd-harmonic level rises ≈6.0 dB per feedback step                          | ±0.5 dB per step                     |
+| 13.3  | **Envelope decay slope**        | One carrier, L1=99, L2=0, R2 under test, render note-on and measure the time for the level to fall from −6 dB to −66 dB.                                                                                                                                                            | matches the dB/s column of §5.3, scaled to 48 kHz                           | ±3 %                                 |
+| 13.4  | **Envelope level quantisation** | Sweep L2 across 0..99 with fixed OUTPUT LEVEL; measure sustain level. Sweep OUTPUT LEVEL 20..99 likewise.                                                                                                                                                                           | L steps 1.505 dB (changing every 2 units); OL steps 0.7526 dB               | ±0.05 dB                             |
+| 13.5  | **Output level → index**        | Two operators, algorithm 5, carrier ratio 1, modulator ratio 1; sweep modulator OUTPUT LEVEL; fit the sideband amplitudes to Bessel `J_n(I)` and recover I.                                                                                                                         | I(99) = 4π ± 2 %; the full curve within ±0.5 dB of §5.5                     | ±2 % on I                            |
+| 13.6  | **Pitch EG range**              | Pitch EG L = 0 and 99 with all other levels 50; measure the pitch offset of a ratio-1 carrier.                                                                                                                                                                                      | record the measured value and **fill in the [X] in §5.7**                   | n/a — this test defines the constant |
+| 13.7  | **Keyboard level scaling**      | −LIN, depth 99, break point C3; measure carrier level at C3, C4, C5, C6.                                                                                                                                                                                                            | −23.3 dB per octave, staircase in 3-semitone steps                          | ±0.5 dB                              |
+| 13.8  | **Rate scaling**                | Rate scaling 7, R2 = 50, measure decay time at C1 and C7.                                                                                                                                                                                                                           | ratio ≈ 128:1                                                               | ±10 %                                |
+| 13.9  | **LFO rate**                    | For SPEED = 0, 25, 50, 63, 64, 75, 99 measure the modulation period.                                                                                                                                                                                                                | matches §9.2                                                                | ±1 %                                 |
+| 13.10 | **LFO delay shape**             | DELAY 50, measure time to first non-zero LFO output and time to full depth.                                                                                                                                                                                                         | two-slope: hold then fade, fade slower than hold                            | qualitative + record values          |
+| 13.11 | **Fixed frequency**             | MODE = fixed, sweep COARSE 0..3 and FINE 0/50/99; measure the fundamental.                                                                                                                                                                                                          | `10^((COARSE·100+FINE)/100)` Hz                                             | ±0.5 %                               |
+| 13.12 | **Ratio accuracy**              | COARSE 0..31 at FINE 0; measure the ratio to the carrier.                                                                                                                                                                                                                           | 0.5 then integers 1..31                                                     | ±0.05 %                              |
+| 13.13 | **Detune**                      | DETUNE −7/+7 at A0, C4, C8; measure cents.                                                                                                                                                                                                                                          | matches §8.3 table                                                          | ±0.3 cents                           |
+| 13.14 | **Velocity**                    | Sensitivity 7, velocities 1..127; measure carrier level.                                                                                                                                                                                                                            | monotone, 64 distinct steps (velocity halved), max +5.3 dB over the nominal | step count exact                     |
+| 13.15 | **Sample-rate independence**    | Render the same patch at 44.1 / 48 / 96 kHz; align and measure envelope times and LFO periods.                                                                                                                                                                                      | identical                                                                   | ±0.1 %                               |
+| 13.16 | **Aliasing signature**          | Ratio 14 modulator, index 8, carrier at C5; compare the spectrum with and without the optional oversampling mode.                                                                                                                                                                   | default mode shows fold-back partials; oversampled mode does not            | qualitative, must differ             |
+| 13.17 | **CPU budget**                  | 16 voices, algorithm 1, all six operators active, feedback 7.                                                                                                                                                                                                                       | within the per-instrument budget in `docs/PERFORMANCE.md`                   | per that document                    |
 
-A **null test against a reference implementation** is deliberately *not* on this list as a
+A **null test against a reference implementation** is deliberately _not_ on this list as a
 pass/fail gate, because MotionLab intentionally diverges on algorithms 4 and 6 (§3) and on the
 optional oversampling and detune modes. Run it as a diagnostic; expect and document differences
 only in those places.
@@ -946,7 +956,7 @@ only in those places.
 
 ## 14. UI era language (1983–1985 digital workstation)
 
-For the UI team. This describes the *period vocabulary*, not any specific product's trade dress.
+For the UI team. This describes the _period vocabulary_, not any specific product's trade dress.
 Nothing here licenses copying a panel layout, a logotype, a typeface, or a badge.
 
 **Control taxonomy.** The period's defining move was the removal of one-knob-per-function.
@@ -955,7 +965,7 @@ The vocabulary is:
 - a **single shared data-entry control** (a short-throw linear slider plus an increment/decrement
   pair) that acts on whatever parameter is currently selected;
 - a **matrix of identically sized, unlabelled-until-context membrane keys** for parameter
-  selection, arranged in a rectangular grid with printed legends *above* rather than on the key;
+  selection, arranged in a rectangular grid with printed legends _above_ rather than on the key;
 - **mode keys** that reassign the whole grid (voice select / edit / function), so the same 32 keys
   mean different things in different modes;
 - a **numeric-first display** rather than a graphical one.
@@ -985,7 +995,7 @@ only. Parameter legends are abbreviated to fit a fixed grid pitch.
 a small character display that is the only place numbers live; a single green accent; a matt
 grey-beige field; no skeuomorphic knobs anywhere. Our algorithm display should be a schematic of
 operator boxes drawn from our own primitives — the connection topology is functional information
-(the table in §3), not artwork, but the *drawing* must be ours.
+(the table in §3), not artwork, but the _drawing_ must be ours.
 
 ---
 

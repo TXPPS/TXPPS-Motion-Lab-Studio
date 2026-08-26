@@ -152,7 +152,13 @@ export class LivePeaks {
    * as an error: a renderer that asks slightly past the end is drawing the edge
    * of a take that is still growing, which is the normal case here.
    */
-  read(level: number, from: number, to: number, outMin: Float32Array, outMax: Float32Array): number {
+  read(
+    level: number,
+    from: number,
+    to: number,
+    outMin: Float32Array,
+    outMax: Float32Array,
+  ): number {
     const source = this.levels[level];
     const start = Math.max(0, from);
     const end = Math.min(source.count, to);

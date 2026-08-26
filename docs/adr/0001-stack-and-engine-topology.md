@@ -30,13 +30,13 @@ has to say what happens to it.
 
 The build host for this programme is a Linux container. Verified this session:
 
-| Available | Not available |
-| --- | --- |
-| gcc 13.3, clang 18.1, cmake 3.28, ninja, make | Xcode, `swift`, any macOS toolchain |
-| Rust 1.94 + cargo (host target only) | Android SDK/NDK (`adb`, `gradle` absent) |
-| Node 22, npm 10, Playwright Chromium | Emscripten (`emcc` absent) |
-| npm registry, PyPI, crates.io reachable | ALSA/JACK/PortAudio headers — **no audio device I/O at all** |
-| 4 cores, 15 GB RAM | Any physical phone, tablet, Mac or Windows machine |
+| Available                                     | Not available                                                |
+| --------------------------------------------- | ------------------------------------------------------------ |
+| gcc 13.3, clang 18.1, cmake 3.28, ninja, make | Xcode, `swift`, any macOS toolchain                          |
+| Rust 1.94 + cargo (host target only)          | Android SDK/NDK (`adb`, `gradle` absent)                     |
+| Node 22, npm 10, Playwright Chromium          | Emscripten (`emcc` absent)                                   |
+| npm registry, PyPI, crates.io reachable       | ALSA/JACK/PortAudio headers — **no audio device I/O at all** |
+| 4 cores, 15 GB RAM                            | Any physical phone, tablet, Mac or Windows machine           |
 
 This is decisive and is treated as such in ADR-0005. Four of the five shipping
 targets cannot be compiled here, and none of them — including Linux — can open an
@@ -50,7 +50,7 @@ option this programme cannot begin work on today.
 The conventional answer, and the one every shipping cross-platform DAW uses.
 
 - **Real-time safety:** excellent. Manual memory management makes the
-  no-allocation rule enforceable and, more importantly, *testable*.
+  no-allocation rule enforceable and, more importantly, _testable_.
 - **iOS viability:** excellent. Core Audio, AUv3 hosting, background audio.
 - **Animation:** excellent, via Metal/OpenGL.
 - **Dev velocity here:** the DSP core compiles and tests headlessly today. The
@@ -70,7 +70,7 @@ The conventional answer, and the one every shipping cross-platform DAW uses.
   WKWebView. This is not a performance gap; the capability does not exist.
 - Rejected on the constraints, not on taste. It is scored below for the record.
 
-### Option C — Shared C++ DSP core, compiled native *and* to WebAssembly; per-platform UI
+### Option C — Shared C++ DSP core, compiled native _and_ to WebAssembly; per-platform UI
 
 Option A plus one more compilation target for the same core. The web build runs
 the identical DSP inside an AudioWorklet through WASM, where the audio callback
@@ -93,16 +93,16 @@ no-allocation rule — the one way a browser can hold it.
 brief lists; it is added because a gate that can never be run is a gate that can
 never pass, and QA holds a veto.
 
-| Criterion | A: native only | B: web everywhere | C: shared core, native + WASM |
-| --- | --- | --- | --- |
-| Real-time safety | 5 | 1 | 5 |
-| iOS viability | 5 | 1 | 5 |
-| Animation performance | 5 | 3 | 5 |
-| Dev velocity | 3 | 4 | 3 |
-| Long-term maintenance | 4 | 3 | 3 |
-| Skill overlap (C++/JUCE, TS/React, Vite, Electron) | 4 | 5 | 5 |
-| Verifiable in this environment | 2 | 4 | 4 |
-| **Total** | **28** | **21** | **30** |
+| Criterion                                          | A: native only | B: web everywhere | C: shared core, native + WASM |
+| -------------------------------------------------- | -------------- | ----------------- | ----------------------------- |
+| Real-time safety                                   | 5              | 1                 | 5                             |
+| iOS viability                                      | 5              | 1                 | 5                             |
+| Animation performance                              | 5              | 3                 | 5                             |
+| Dev velocity                                       | 3              | 4                 | 3                             |
+| Long-term maintenance                              | 4              | 3                 | 3                             |
+| Skill overlap (C++/JUCE, TS/React, Vite, Electron) | 4              | 5                 | 5                             |
+| Verifiable in this environment                     | 2              | 4                 | 4                             |
+| **Total**                                          | **28**         | **21**            | **30**                        |
 
 Option B scores 1 on the first two criteria because it does not meet them at
 all, and no strength elsewhere compensates for a constraint that is not met.
@@ -142,7 +142,7 @@ new core lands under `motionwave/` (ADR-0003), and neither disturbs the other.
 - JUCE is **not** adopted for the core. The core is plain C++ with no framework
   dependency, so it can compile for WASM and for a headless test harness without
   dragging a GUI framework through the build. JUCE remains the candidate for the
-  *desktop shell* — plugin hosting and device I/O are exactly what it is good
+  _desktop shell_ — plugin hosting and device I/O are exactly what it is good
   at — and that is a separate decision, deferred until a desktop toolchain
   exists to evaluate it on.
 - Plugin hosting is a shell responsibility, not a core one. The core exposes a

@@ -22,7 +22,7 @@ has never been in a DAW.
 ADR-0001 anticipated a Motion Wave shell of its own, with the web DAW as the
 interaction reference. What it did not weigh is the ordering cost: Motion Wave
 has no transport, no tracks, no mixer and no timeline, so a unit has nothing to
-be inserted *into* until Phases 1–3 exist. Building those first leaves fourteen
+be inserted _into_ until Phases 1–3 exist. Building those first leaves fourteen
 units unheard for months, which is the wrong feedback loop for audio work — the
 defects that matter in a reverb are the ones you notice on the third listen, and
 you cannot have a third listen of something that will not load.
@@ -75,12 +75,12 @@ cost ADR-0001 named, taken deliberately, in exchange for the units being audible
 this month instead of next year.
 
 What keeps it bounded is that the units do not adopt anything from the host. The
-drift ADR-0001 feared is a *shared* feature implemented twice; here the units
+drift ADR-0001 feared is a _shared_ feature implemented twice; here the units
 implement themselves and the host only routes to them.
 
 **Cross-origin isolation is not available and the transport must not assume it.**
 `src/audio/wam/wamHost.ts` and `public/_headers` both record, with reasons, that
-this app is deliberately *not* cross-origin isolated: COOP and COEP would break
+this app is deliberately _not_ cross-origin isolated: COOP and COEP would break
 cross-origin assets, complicate the service worker's precache, and make hosting
 third-party WAM plugins harder. So `SharedArrayBuffer` is absent, and the dev
 harness's seqlock frame transport cannot be carried over as it stands. The

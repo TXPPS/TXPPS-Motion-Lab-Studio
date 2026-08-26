@@ -27,10 +27,10 @@ frequency control and neither has a Q control. Everything a user can do is a det
 
 They differ fundamentally in how the curve is made:
 
-* **The British lineage uses inductors.** Real wound inductors with real series resistance and real
+- **The British lineage uses inductors.** Real wound inductors with real series resistance and real
   cores, switched together with capacitors, forming resonant networks in the feedback path of
   discrete transistor amplifier stages.
-* **The American lineage does not.** The 550A uses **bridged-T RC networks** — resistors and
+- **The American lineage does not.** The 550A uses **bridged-T RC networks** — resistors and
   capacitors only — around discrete op-amp modules with a summing node. Its sibling graphic EQ uses
   gyrators (active inductor simulations); the 550A uses neither real nor simulated inductors.
 
@@ -72,7 +72,7 @@ bridged-T network's interaction with the boost/cut divider, not from an inductor
               balanced out
 ```
 
-The EQ, the filters and the fader sit *between* two amplifier stages. Within the EQ section, the
+The EQ, the filters and the fader sit _between_ two amplifier stages. Within the EQ section, the
 reactive networks sit in the feedback loops of inverting amplifier stages, which behave like inverting
 op-amps with frequency-dependent closed-loop gain.
 
@@ -108,38 +108,45 @@ the design its fixed relationship between band shape and boost amount.
 ## 3. Controls — British lineage
 
 ### 3.1 Mic/line gain
+
 Microphone gain **+20 dB to +80 dB in 5 dB steps** (13 positions). Stepped rotary switch, no
 intermediate values. Separate line gain path. Default: whatever gives nominal level; for a plug-in,
 default the gain to unity-equivalent and treat the gain switch as a drive control, because it is the
 principal way a user reaches the amplifier's nonlinearity.
 
 ### 3.2 HIGH FREQUENCY
+
 Fixed frequency: **12 kHz shelf, ±16 dB**, continuously variable amount on the hardware's concentric
 control. No frequency choice. Default 0.
 
 ### 3.3 MID FREQUENCY
+
 Bell, **±18 dB**, six switched centre frequencies: **360 Hz, 700 Hz, 1.6 kHz, 3.2 kHz, 4.8 kHz,
 7.2 kHz**. Q is not adjustable. Default 0 dB, 1.6 kHz.
 
 Published Q estimates range from about **1.0 to 1.7**, with no manufacturer figure. **Unknown** as a
-specification. The behaviour is better described than the number: the filter is *constant-bandwidth*
+specification. The behaviour is better described than the number: the filter is _constant-bandwidth_
 rather than constant-Q, so it gets narrower as boost or cut increases. **Marked as inference:** use
 Q ≈ 1.2 at moderate settings as the starting point, implement constant bandwidth so that Q rises with
 amount, and flag the value for measurement.
 
 ### 3.4 LOW FREQUENCY
+
 Shelf, **±16 dB**, four switched frequencies: **35, 60, 110, 220 Hz**. Default 0 dB, 110 Hz.
 
 ### 3.5 HIGH-PASS FILTER
+
 **18 dB per octave**, four switched corners: **50, 80, 160, 300 Hz**, plus out. An 18 dB/octave slope
 is third-order, which is unusual — most console filters of the period were 12 dB/octave — and it is
 one of the unit's identifying characteristics. Default out.
 
 ### 3.6 EQ IN
+
 Latching switch, removes the EQ networks. As with DYN-01, it does **not** remove the amplifier stages
 or the transformers. **Implementer rule: bypassing the EQ must not bypass the preamp colour.**
 
 ### 3.7 Interactions
+
 The bands are not independent in the way a parametric's are. Because the networks sit in the feedback
 paths of shared amplifier stages, adjacent bands interact: a large low shelf boost measurably changes
 the mid band's effective response. **Marked as inference** from the topology; no published measurement
@@ -149,34 +156,40 @@ independent biquads summed in dB, and the interaction will appear on its own.
 ## 4. Controls — American lineage
 
 ### 4.1 Band structure, 550A
+
 Three bands, each a dual-concentric stepped switch: the outer ring selects **frequency**, the inner
 selects **boost or cut**.
 
-| Band | Frequencies | Shape |
-|---|---|---|
+| Band   | Frequencies               | Shape                     |
+| ------ | ------------------------- | ------------------------- |
 | 1 (LF) | 50, 100, 200, 300, 400 Hz | peak or shelf, switchable |
-| 2 (MF) | 0.4, 0.8, 1.5, 3, 5 kHz | peak only |
-| 3 (HF) | 5, 7, 10, 12.5, 15 kHz | peak or shelf, switchable |
+| 2 (MF) | 0.4, 0.8, 1.5, 3, 5 kHz   | peak only                 |
+| 3 (HF) | 5, 7, 10, 12.5, 15 kHz    | peak or shelf, switchable |
 
 The bands overlap deliberately: 400 Hz appears at the top of band 1 and the bottom of band 2, and
 5 kHz appears at the top of band 2 and the bottom of band 3.
 
 ### 4.2 Boost/cut steps
+
 **Five steps each way: ±2, ±4, ±6, ±9, ±12 dB**, plus zero. Stepped, detented, reciprocal — the cut
 curve is the mirror of the boost curve at the same step. Default 0.
 
 ### 4.3 Shelf/peak switches
+
 Bands 1 and 3 only. Default peak. **Marked as inference:** no published default exists; peak is chosen
 because it is the shape the proportional-Q behaviour is defined for.
 
 ### 4.4 BAND-PASS FILTER
+
 Switchable, **12 dB per octave, 50 Hz to 15 kHz**, insertable independently of every EQ setting.
 Two-state. Default out.
 
 ### 4.5 EQ IN
+
 Latching switch that introduces the EQ silently. The op-amps and output transformer remain in circuit.
 
 ### 4.6 550B differences
+
 Four overlapping bands instead of three, **seven** frequency positions per band instead of five, and
 shelf/peak switching on bands 1 and 4 instead of 1 and 3. Same proportional-Q principle, same discrete
 op-amp modules. The 550B's per-band boost/cut step count is given as seven switchable positions in
@@ -184,6 +197,7 @@ manufacturer copy; the exact dB values were not established. **Unknown** — do 
 Wave ships a four-band variant, use the 550A's five steps until the 550B's are confirmed.
 
 ### 4.7 Interactions
+
 The overlapping frequency ranges are the main interaction: two bands set to the same overlapping
 frequency stack, and because the Q is proportional to amount, two bands at 6 dB do **not** equal one
 band at 12 dB — the two 6 dB curves are each three-octaves-ish wide and their sum is a wide 12 dB bump,
@@ -206,50 +220,51 @@ phase shift is part of what the unit does to low-frequency transients.
 
 The reactive elements are real wound inductors. The important behavioural consequences:
 
-* **Band Q varies with frequency in a specific, documented pattern.** For the *lower* bands both the
+- **Band Q varies with frequency in a specific, documented pattern.** For the _lower_ bands both the
   inductance and the capacitance are switched, which keeps Q roughly constant across those positions.
-  For the *upper* bands only the capacitors are switched and the inductance is held constant, so **Q
+  For the _upper_ bands only the capacitors are switched and the inductance is held constant, so **Q
   increases as the selected centre frequency rises**. A model with a single Q value per band is wrong
   at the frequency extremes.
-* **Constant bandwidth rather than constant Q with amount.** The mid band narrows as boost or cut
+- **Constant bandwidth rather than constant Q with amount.** The mid band narrows as boost or cut
   increases. This is the opposite convention to a textbook parametric where Q is independent of gain.
-* **Finite inductor Q.** A wound inductor has series resistance, so the resonance is damped and the
+- **Finite inductor Q.** A wound inductor has series resistance, so the resonance is damped and the
   peak is lower and broader than the LC values alone predict. This is the main reason an inductor EQ's
   boost curve looks "softer at the top" than a biquad's. **Marked as inference** as to magnitude; no
   published measurement of the reference unit's inductor DCR was found.
-* **Shelves are not first-order.** An LC shelving network produces a shelf with a slight resonant
+- **Shelves are not first-order.** An LC shelving network produces a shelf with a slight resonant
   feature near the transition and an asymptote that is approached rather than reached. A first-order
   shelving biquad will not match it.
-* **Core nonlinearity.** The inductor cores saturate under high low-frequency level, so a large low
+- **Core nonlinearity.** The inductor cores saturate under high low-frequency level, so a large low
   shelf boost on bass-heavy material adds harmonic content that a linear filter cannot produce. This
   is a real and audible part of the unit and it belongs in the EQ section, not in the amplifier model.
-* **The 18 dB/octave high-pass is third-order** and therefore has an asymmetric, non-Butterworth
+- **The 18 dB/octave high-pass is third-order** and therefore has an asymmetric, non-Butterworth
   shape. Its exact alignment is **unknown**; measure or derive from the schematic.
 
 ### 6.2 American lineage — bridged-T curves and proportional Q
 
-* **Bridged-T RC networks**, not inductors, around discrete op-amp modules with a summing node,
+- **Bridged-T RC networks**, not inductors, around discrete op-amp modules with a summing node,
   producing a fixed relationship between shape and amount.
-* **Proportional Q, with published numbers**: the response is approximately **three octaves wide at
+- **Proportional Q, with published numbers**: the response is approximately **three octaves wide at
   2 dB of boost or cut and approximately one octave wide at 12 dB**. That is the most precise
   published Q figure available for any unit in this project and it should be treated as a target, not
   a guideline.
-* **Implementer rule for the intermediate steps:** interpolate the bandwidth logarithmically between
+- **Implementer rule for the intermediate steps:** interpolate the bandwidth logarithmically between
   the two published endpoints. Using bandwidth `BW` in octaves against amount `g` in dB:
   `BW(g) = 3 × (1/3)^((|g| − 2)/10)` gives 3 octaves at 2 dB and 1 octave at 12 dB.
   **Marked as inference** — only the two endpoints are published, and the law between them is our
   choice. QA test 6 measures all five steps so the law can be corrected when better data arrives.
-* **Reciprocal cut.** The cut curve mirrors the boost curve, which is stated by the manufacturer and
+- **Reciprocal cut.** The cut curve mirrors the boost curve, which is stated by the manufacturer and
   is a property of the bridged-T-plus-summing-node arrangement. A boost of +6 dB followed by a cut of
-  −6 dB at the same frequency should very nearly cancel. This is *not* true of the British lineage and
+  −6 dB at the same frequency should very nearly cancel. This is _not_ true of the British lineage and
   is not true of DYN-01 at all.
-* **Departure from ideal:** an ideal parametric holds Q constant while gain varies. This design cannot
+- **Departure from ideal:** an ideal parametric holds Q constant while gain varies. This design cannot
   — the two are mechanically tied. Any Motion Wave UI that exposes a Q control on this device family
   has misunderstood it.
 
 ## 7. Nonlinearity sources, located in the path
 
 ### 7.1 British lineage
+
 1. **Microphone or line input transformer**, nickel-cored. Hysteresis distortion at low levels,
    saturation at high levels, third-harmonic dominant, frequency-inverse (Whitlock, Jensen). Nickel
    cores have low hysteresis distortion but reach saturation distortion at high level.
@@ -262,6 +277,7 @@ The reactive elements are real wound inductors. The important behavioural conseq
 4. **Output transformer** into 600 Ω, at the highest level in the unit.
 
 ### 7.2 American lineage
+
 1. **Discrete op-amp modules.** Two of them. Their distortion signature is that of a discrete
    transistor gain block with feedback: low at nominal level, rising steeply near the rails.
    **Marked as inference** as to harmonic order; no published spectrum was found. **Unknown.**
@@ -273,21 +289,21 @@ The reactive elements are real wound inductors. The important behavioural conseq
 
 ## 8. Where the two lineages differ — the side-by-side
 
-| | British lineage (1073-type) | American lineage (550A-type) |
-|---|---|---|
-| EQ element | real wound inductors + capacitors | bridged-T RC networks, no inductors |
-| Amplifier | discrete Class A transistor stages, transformer-coupled | discrete op-amp modules |
-| Bands | 3 + high-pass filter | 3 (550A) or 4 (550B) + band-pass filter |
-| Frequency selection | stepped; HF fixed at 12 kHz | stepped; 5 positions/band (550A), 7 (550B) |
-| Amount | continuous on the hardware control | stepped: ±2, 4, 6, 9, 12 dB |
-| Q with amount | constant bandwidth: narrows as amount rises | proportional Q: 3 octaves at 2 dB, 1 octave at 12 dB |
-| Q with frequency | roughly constant on lower bands; rises with frequency on upper bands | not reported to vary; **unknown** |
-| Boost/cut symmetry | not reciprocal | reciprocal |
-| Filter | high-pass, 18 dB/oct, 50/80/160/300 Hz | band-pass, 12 dB/oct, 50 Hz–15 kHz |
-| Max boost | ±16 dB LF, ±18 dB MF, ±16 dB HF | ±12 dB all bands |
-| EQ-section nonlinearity | yes — inductor core saturation | no |
-| Dominant harmonic at drive | second (Class A stages) | third (1:3 output transformer) |
-| Output | >+26 dBu into 600 Ω | up to +28 dBm |
+|                            | British lineage (1073-type)                                          | American lineage (550A-type)                         |
+| -------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------- |
+| EQ element                 | real wound inductors + capacitors                                    | bridged-T RC networks, no inductors                  |
+| Amplifier                  | discrete Class A transistor stages, transformer-coupled              | discrete op-amp modules                              |
+| Bands                      | 3 + high-pass filter                                                 | 3 (550A) or 4 (550B) + band-pass filter              |
+| Frequency selection        | stepped; HF fixed at 12 kHz                                          | stepped; 5 positions/band (550A), 7 (550B)           |
+| Amount                     | continuous on the hardware control                                   | stepped: ±2, 4, 6, 9, 12 dB                          |
+| Q with amount              | constant bandwidth: narrows as amount rises                          | proportional Q: 3 octaves at 2 dB, 1 octave at 12 dB |
+| Q with frequency           | roughly constant on lower bands; rises with frequency on upper bands | not reported to vary; **unknown**                    |
+| Boost/cut symmetry         | not reciprocal                                                       | reciprocal                                           |
+| Filter                     | high-pass, 18 dB/oct, 50/80/160/300 Hz                               | band-pass, 12 dB/oct, 50 Hz–15 kHz                   |
+| Max boost                  | ±16 dB LF, ±18 dB MF, ±16 dB HF                                      | ±12 dB all bands                                     |
+| EQ-section nonlinearity    | yes — inductor core saturation                                       | no                                                   |
+| Dominant harmonic at drive | second (Class A stages)                                              | third (1:3 output transformer)                       |
+| Output                     | >+26 dBu into 600 Ω                                                  | up to +28 dBm                                        |
 
 The one-sentence version for implementers: **the British unit's character is in the inductors and the
 Class A stages, the American unit's is in the proportional-Q law and the step-up output transformer,
@@ -297,28 +313,28 @@ and they must not share a filter engine.**
 
 ### 9.1 British lineage
 
-| Quantity | Value | Conditions |
-|---|---|---|
-| EIN | better than −125 dBu | at 60 dB gain |
-| Distortion | not more than 0.07 % | 50 Hz to 10 kHz, +20 dBu output into 600 Ω, 80 kHz measurement bandwidth |
-| Noise | −83 dBu | all line gain settings, 22 Hz–22 kHz |
-| Frequency response | ±0.5 dB, 20 Hz–20 kHz; −3 dB at 40 kHz | |
-| Maximum output | > +26 dBu | into 600 Ω |
-| Mic gain | +20 to +80 dB, 5 dB steps | |
-| LF shelf | ±16 dB at 35/60/110/220 Hz | |
-| MF bell | ±18 dB at 360 Hz/700 Hz/1.6/3.2/4.8/7.2 kHz, fixed Q | |
-| HF shelf | ±16 dB at 12 kHz | |
-| HPF | 18 dB/octave at 50/80/160/300 Hz | |
+| Quantity           | Value                                                | Conditions                                                               |
+| ------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------ |
+| EIN                | better than −125 dBu                                 | at 60 dB gain                                                            |
+| Distortion         | not more than 0.07 %                                 | 50 Hz to 10 kHz, +20 dBu output into 600 Ω, 80 kHz measurement bandwidth |
+| Noise              | −83 dBu                                              | all line gain settings, 22 Hz–22 kHz                                     |
+| Frequency response | ±0.5 dB, 20 Hz–20 kHz; −3 dB at 40 kHz               |                                                                          |
+| Maximum output     | > +26 dBu                                            | into 600 Ω                                                               |
+| Mic gain           | +20 to +80 dB, 5 dB steps                            |                                                                          |
+| LF shelf           | ±16 dB at 35/60/110/220 Hz                           |                                                                          |
+| MF bell            | ±18 dB at 360 Hz/700 Hz/1.6/3.2/4.8/7.2 kHz, fixed Q |                                                                          |
+| HF shelf           | ±16 dB at 12 kHz                                     |                                                                          |
+| HPF                | 18 dB/octave at 50/80/160/300 Hz                     |                                                                          |
 
 ### 9.2 American lineage
 
-| Quantity | Value | Conditions |
-|---|---|---|
-| Boost/cut | ±2, 4, 6, 9, 12 dB, five steps | reciprocal |
-| Bandwidth | ≈3 octaves at 2 dB; ≈1 octave at 12 dB | proportional Q |
-| Band-pass filter | 12 dB/octave, 50 Hz–15 kHz | switchable, independent of EQ |
-| Maximum output | up to +28 dBm | |
-| Output transformer | 1:3 | |
+| Quantity           | Value                                  | Conditions                    |
+| ------------------ | -------------------------------------- | ----------------------------- |
+| Boost/cut          | ±2, 4, 6, 9, 12 dB, five steps         | reciprocal                    |
+| Bandwidth          | ≈3 octaves at 2 dB; ≈1 octave at 12 dB | proportional Q                |
+| Band-pass filter   | 12 dB/octave, 50 Hz–15 kHz             | switchable, independent of EQ |
+| Maximum output     | up to +28 dBm                          |                               |
+| Output transformer | 1:3                                    |                               |
 
 No THD, noise or frequency-response specification for the American unit was located in a citable
 form. **Unknown**, and obtaining a measured THD-versus-level curve for it is the highest-value
@@ -390,8 +406,8 @@ Run at 48 kHz and 96 kHz. Drive at −20 dBFS for response measurements.
     British model.
 18. **Output transformer signature.** 40 Hz at a level near +28 dBm-equivalent. Assert third harmonic
     exceeds second by at least 4 dB.
-19. **Cross-family check.** Run tests 3 and 12 on both models. Assert the British model's Q *rises*
-    with amount and the American model's bandwidth *falls* with amount, and that the two engines
+19. **Cross-family check.** Run tests 3 and 12 on both models. Assert the British model's Q _rises_
+    with amount and the American model's bandwidth _falls_ with amount, and that the two engines
     produce measurably different curve shapes for nominally equivalent settings. If they match, the
     two devices are sharing a filter engine and one of them is wrong.
 
@@ -399,72 +415,71 @@ Run at 48 kHz and 96 kHz. Drive at −20 dBFS for response measurements.
 
 **British lineage**
 
-* AMS Neve 1073 product documentation (ams-neve.com, 1073 mic preamp and equaliser; 1073LBEQ module)
+- AMS Neve 1073 product documentation (ams-neve.com, 1073 mic preamp and equaliser; 1073LBEQ module)
   — band structure, ±16 dB shelves, ±18 dB fixed-Q mid with the six centre frequencies, 18 dB/octave
   high-pass at 50/80/160/300 Hz, mic gain +20 to +80 dB in 5 dB steps, Class A, Marinair input
   transformers.
-* Neve 1073 and 1084 user manual, issue 5 (via Scribd and the AMS Neve PDF library), and the 1073
+- Neve 1073 and 1084 user manual, issue 5 (via Scribd and the AMS Neve PDF library), and the 1073
   documentation pack at technicalaudio.com/neve/neve_pdf/1073-fullpak.pdf — EIN better than −125 dBu
   at 60 dB gain, distortion not more than 0.07 % from 50 Hz to 10 kHz at +20 dBu into 600 Ω in an
   80 kHz bandwidth, noise −83 dBu at all line gain settings 22 Hz–22 kHz, response ±0.5 dB 20 Hz–20 kHz
   and −3 dB at 40 kHz, maximum output >+26 dBu into 600 Ω.
-* SI14 Lab, "Circuit Analysis of Neve 1073 Preamp (BA 283)", and GroupDIY threads 69131 and 41022 —
+- SI14 Lab, "Circuit Analysis of Neve 1073 Preamp (BA 283)", and GroupDIY threads 69131 and 41022 —
   BA283 as two common-emitter stages plus an emitter follower with feedback setting AC gain and DC
   conditions; EQ, filters and fader inserted between two amplifier stages; the BA284 EQ amplifiers
   functioning as inverting op-amps with reactive feedback networks.
-* GroupDIY, "Neve 1073 inductor questions" and "Inductors for Neve type EQ design" (threads 2368,
-  90093) — for the lower bands both inductance and capacitance are switched giving roughly constant Q,
+- GroupDIY, "Neve 1073 inductor questions" and "Inductors for Neve type EQ design" (threads 2368, 90093) — for the lower bands both inductance and capacitance are switched giving roughly constant Q,
   while on the upper bands only the capacitors are switched with inductance held constant, giving Q
   that increases with centre frequency.
-* Gearspace threads 872168 and 1009466 on the 1073 mid-band Q — estimates between 1.0 and 1.7, and the
+- Gearspace threads 872168 and 1009466 on the 1073 mid-band Q — estimates between 1.0 and 1.7, and the
   observation that the "fixed Q" behaves as constant bandwidth, narrowing as boost or cut increases.
 
 **American lineage**
 
-* API 550A product page and manual (apiaudio.com/product/550a-discrete-3-band-eq;
+- API 550A product page and manual (apiaudio.com/product/550a-discrete-3-band-eq;
   barryrudolph.com/recall/manuals/api550a.pdf) — reciprocal equalisation at 15 points in five steps to
   ±12 dB, three overlapping ranges, bands 1 and 3 selectable peak or shelf, band-pass filter insertable
   independently, proportional Q.
-* Universal Audio API 500 Series EQ Collection manual (help.uaudio.com article 32524771071636) — the
+- Universal Audio API 500 Series EQ Collection manual (help.uaudio.com article 32524771071636) — the
   frequency lists for all three bands.
-* Big Fish Audio and Alto Music 550A listings — the step values ±2, 4, 6, 9, 12 dB.
-* Mix Online, "API 550A EQ", and Gearspace "API 550 history / tech info" (thread 723544) — bridged-T
+- Big Fish Audio and Alto Music 550A listings — the step values ±2, 4, 6, 9, 12 dB.
+- Mix Online, "API 550A EQ", and Gearspace "API 550 history / tech info" (thread 723544) — bridged-T
   RC networks, two 2520 discrete op-amp modules, 1:3 output transformer, up to +28 dBm output,
   switchable 12 dB/octave 50 Hz–15 kHz band-pass filter, and the statement that the graphic sibling
   uses a gyrator design while the 550A uses filters in the feed-forward or feedback path with a
   summing node.
-* Waves, "API 550 or API 560? The Differences Explained" — the proportional-Q figures: approximately
+- Waves, "API 550 or API 560? The Differences Explained" — the proportional-Q figures: approximately
   three octaves wide at 2 dB of boost/cut narrowing to approximately one octave at 12 dB.
-* API 550B documentation (barryrudolph.com/recall/manuals/api550balt.pdf) and Waves' 550 comparison —
+- API 550B documentation (barryrudolph.com/recall/manuals/api550balt.pdf) and Waves' 550 comparison —
   four overlapping bands, seven frequency positions per band, shelf/peak on bands 1 and 4.
 
 **General**
 
-* Whitlock, "Audio Transformers" (Jensen) — transformer hysteresis and saturation mechanisms, nickel
+- Whitlock, "Audio Transformers" (Jensen) — transformer hysteresis and saturation mechanisms, nickel
   versus steel core behaviour, third-harmonic dominance and frequency-inverse distortion.
-* Elliott Sound Products, "Valves — Distortion + Intermod", and push-pull cancellation literature —
+- Elliott Sound Products, "Valves — Distortion + Intermod", and push-pull cancellation literature —
   used here for the general single-ended versus balanced harmonic argument applied to the Class A
   stages.
 
 **Conflicts and resolutions.**
 
-*British high shelf: ±16 dB or ±18 dB?* The manufacturer's own documentation gives **±16 dB** at
+_British high shelf: ±16 dB or ±18 dB?_ The manufacturer's own documentation gives **±16 dB** at
 12 kHz. A plug-in emulation's documentation gives ±18 dB. This sheet uses the manufacturer's figure.
 
-*British mid-band Q.* No manufacturer figure exists. Community estimates span 1.0 to 1.7 and one is
+_British mid-band Q._ No manufacturer figure exists. Community estimates span 1.0 to 1.7 and one is
 derived from matching a hardware emulation rather than from measuring hardware. **Recorded as unknown**
-with a working value of 1.2 flagged as inference. The *behaviour* — constant bandwidth, Q rising with
+with a working value of 1.2 flagged as inference. The _behaviour_ — constant bandwidth, Q rising with
 frequency on the upper positions — is better attested than any number and is what the QA tests check.
 
-*American unit: "15 points" or "21 points"?* The manufacturer's own product page says reciprocal
+_American unit: "15 points" or "21 points"?_ The manufacturer's own product page says reciprocal
 equalisation at **15 points** in five steps, which is consistent with three bands of five frequencies.
 A retail listing says 21 points. **15 is correct**; 21 appears to be an error or a conflation with the
 four-band sibling.
 
-*Whether the American unit uses inductors.* Widely assumed, including in the brief for this project,
+_Whether the American unit uses inductors._ Widely assumed, including in the brief for this project,
 and **incorrect for the 550A**. The published circuit description is bridged-T RC networks; the
 gyrator-based design is the graphic sibling. This is the most consequential correction in this sheet
 and §7.2 and QA test 17 both depend on it.
 
-*550B step values.* Manufacturer copy describes seven switchable frequency positions per band, but the
+_550B step values._ Manufacturer copy describes seven switchable frequency positions per band, but the
 boost/cut step values for the 550B were not established. **Unknown.**

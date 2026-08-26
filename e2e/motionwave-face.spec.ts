@@ -229,7 +229,9 @@ test.describe('Cell 26 — operable by thumb, in portrait', () => {
       const boxes = await page.evaluate((fx) => {
         const panel = document.querySelector(`[data-testid="mw-face-${fx}"] .mw-panel`);
         return [...(panel?.querySelectorAll<HTMLElement>('[data-mw-primitive]') ?? [])]
-          .filter((el) => !['meter', 'lamp', 'vu', 'display'].includes(el.dataset.mwPrimitive ?? ''))
+          .filter(
+            (el) => !['meter', 'lamp', 'vu', 'display'].includes(el.dataset.mwPrimitive ?? ''),
+          )
           .map((el) => {
             const r = el.getBoundingClientRect();
             return { id: el.dataset.mwElement ?? '?', w: r.width, h: r.height };
@@ -315,7 +317,9 @@ test.describe('Cell 26 — one panel per unit', () => {
         const a = signatures[i];
         const b = signatures[j];
         const same = a.bytes.length === b.bytes.length && a.bytes.equals(b.bytes);
-        console.log(`cell 26 · distinct · ${a.label} vs ${b.label}: ${same ? 'IDENTICAL' : 'differ'}`);
+        console.log(
+          `cell 26 · distinct · ${a.label} vs ${b.label}: ${same ? 'IDENTICAL' : 'differ'}`,
+        );
         expect(same, `${a.label} and ${b.label} render the same panel`).toBe(false);
       }
     }

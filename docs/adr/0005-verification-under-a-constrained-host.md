@@ -35,7 +35,7 @@ for platform-independent work: DSP correctness, engine logic, project format,
 sync algorithms, parameter and automation behaviour, and anything measurable by
 rendering offline.
 
-**MODELLED** — the gate cannot run here, but a *proxy* was run whose result
+**MODELLED** — the gate cannot run here, but a _proxy_ was run whose result
 bounds the real one, and the proxy's relationship to the real gate is stated.
 Example: the iPhone dropout budget cannot be measured, but worst-case
 per-block processing time for 24 tracks and 12 plugins can be measured on this
@@ -71,11 +71,11 @@ rather than at the bottom.
 
 ## What would unblock each class
 
-| Blocked capability | What it needs |
-| --- | --- |
-| macOS/iOS build, Core Audio, AUv3, notarisation | A Mac with Xcode; an Apple Developer account |
-| Android build, AAudio, background audio | Android SDK + NDK; a device or emulator |
-| Windows build, ASIO | A Windows toolchain; an ASIO SDK licence |
+| Blocked capability                                      | What it needs                                                 |
+| ------------------------------------------------------- | ------------------------------------------------------------- |
+| macOS/iOS build, Core Audio, AUv3, notarisation         | A Mac with Xcode; an Apple Developer account                  |
+| Android build, AAudio, background audio                 | Android SDK + NDK; a device or emulator                       |
+| Windows build, ASIO                                     | A Windows toolchain; an ASIO SDK licence                      |
 | Any audio device I/O, xrun counting, round-trip latency | ALSA/JACK/PortAudio headers on this host, plus a sound device |
-| Battery, thermal, touch latency, VoiceOver/TalkBack | Physical devices |
-| WASM build of the core | Emscripten on this host |
+| Battery, thermal, touch latency, VoiceOver/TalkBack     | Physical devices                                              |
+| WASM build of the core                                  | Emscripten on this host                                       |

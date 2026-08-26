@@ -82,7 +82,7 @@ write and trim are recording modes over the same structure, not four code paths.
 ### Presets are `{ paramId → normalised }` plus a version
 
 Normalised, not real, so a preset survives a spec whose range changes; versioned,
-so a spec that changes *meaning* can migrate rather than silently reinterpret.
+so a spec that changes _meaning_ can migrate rather than silently reinterpret.
 **Unknown ids are preserved, not dropped** — a preset written by a newer build
 and opened by an older one must not lose what it does not understand.
 
@@ -102,7 +102,7 @@ the only honest way to show what a modulation depth actually reaches.
   ring buffers and the parameter arrays are the only shared state, and both are
   sized at construction.
 - The generic UI can render any plugin from its specs alone, so a plugin's
-  custom face is an *upgrade* over a working default rather than a prerequisite
+  custom face is an _upgrade_ over a working default rather than a prerequisite
   for shipping it.
 - A parameter's id is permanent. Renaming a control is a display change;
   renumbering one breaks every project that automated it.

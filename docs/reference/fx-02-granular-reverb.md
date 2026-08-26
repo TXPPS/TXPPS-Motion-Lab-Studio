@@ -54,7 +54,7 @@ perceptual boundaries, not conventions.
   surface (texture)**. **[C]**
 
 Below roughly **10–15 ms** the grain envelope itself becomes spectrally significant and
-introduces audible artefacts. **[C]** That sets the practical floor for a *reverb* grain:
+introduces audible artefacts. **[C]** That sets the practical floor for a _reverb_ grain:
 we should not default below 15 ms, and the UI should indicate when the user has entered the
 region where the window is colouring the sound rather than merely gating it.
 
@@ -139,12 +139,12 @@ whether the grains are correlated:
 
 Window constants, computed exactly:
 
-| Window | `mean(w)` | `mean(w²)` |
-| --- | --- | --- |
-| Hann | 0.5 | **0.375** (= 3/8) |
-| Tukey(α) | `1 − α/2` | `1 − 5α/8` |
-| Gaussian σ=0.3 | ≈ 0.376 | ≈ 0.266 |
-| Rectangular | 1 | 1 |
+| Window         | `mean(w)` | `mean(w²)`        |
+| -------------- | --------- | ----------------- |
+| Hann           | 0.5       | **0.375** (= 3/8) |
+| Tukey(α)       | `1 − α/2` | `1 − 5α/8`        |
+| Gaussian σ=0.3 | ≈ 0.376   | ≈ 0.266           |
+| Rectangular    | 1         | 1                 |
 
 **[C, computed]** — these fall straight out of integrating the window definitions above; the
 Tukey values reduce to the Hann values at α = 1, which is the arithmetic check.
@@ -172,7 +172,7 @@ architecture, not an implementation detail. **[C]**
 - **Synchronous / pitch-synchronous**: constant hop `H = 1/f₀`. The grain rate itself
   becomes an audible pitch. Wrong for reverb — it produces a comb-like, buzzing tail.
 - **Quasi-synchronous**: constant hop with bounded random deviation. Interval between grains
-  in a stream is *essentially* equal. **[C]** Useful for the tighter end of our Diffusion
+  in a stream is _essentially_ equal. **[C]** Useful for the tighter end of our Diffusion
   control.
 - **Asynchronous**: onsets drawn from a stochastic process. This is what a reverb wants,
   because it produces no periodicity for the ear to lock onto.
@@ -202,7 +202,7 @@ production, **amplitude jitter**, **grain-length jitter**, and **per-grain stere
 placement** — with pan spread often specified so grains land randomly across a width, up to
 hard-left/hard-right. **[C]**
 
-For a reverb the useful defaults are: heavy position spray (it *is* the diffusion), moderate
+For a reverb the useful defaults are: heavy position spray (it _is_ the diffusion), moderate
 onset jitter, mild amplitude jitter, mild length jitter, wide pan spread.
 
 ---
@@ -272,7 +272,7 @@ Then to first order
 **[I, derived by analogy]** — mark this as inference. It is correct in the mean, and the
 spread of `τᵢ` is precisely what makes a granular tail smoother than a comb's (the decay is
 a superposition of exponentials with the same mean rate but different periods, which fills
-in the echo pattern). It is *not* exact, and §6/V5 requires that the shipped Decay control
+in the echo pattern). It is _not_ exact, and §6/V5 requires that the shipped Decay control
 be **calibrated against measured RT60**, not trusted from the formula. Build a lookup
 correction table from the measurement if the error exceeds the V5 tolerance.
 
@@ -297,9 +297,9 @@ all (§2.4).
 Two independent mechanisms produce diffusion and we want both, because they act on
 different timescales:
 
-- **Grain spray** (randomised read offsets, §1.5) diffuses on the scale of the *size*
+- **Grain spray** (randomised read offsets, §1.5) diffuses on the scale of the _size_
   window — tens to hundreds of milliseconds. It builds the tail's statistical smoothness.
-- **An allpass chain** diffuses on the scale of *milliseconds* — it builds echo density
+- **An allpass chain** diffuses on the scale of _milliseconds_ — it builds echo density
   immediately after each grain onset, which is what stops sparse settings sounding like
   discrete taps.
 
@@ -352,14 +352,14 @@ One-pole lowpass in the loop:
     y[n] = (1 − d) · x[n] + d · y[n−1]
 ```
 
-where `d ∈ [0, 0.95]`. To hit a *target* HF decay ratio, note that per pass the loop applies
+where `d ∈ [0, 0.95]`. To hit a _target_ HF decay ratio, note that per pass the loop applies
 `fb · H_lp(ω)`, so `RT60(ω) = −3·τ̄ / log₁₀( fb · |H_lp(ω)| )`. Expose the control as
 "Damping 0–100%" mapped to `d`, and **display the resulting RT60 at 8 kHz** next to the
 control — that turns an opaque parameter into a legible one and costs nothing.
 
 **Spectral tilt** is a separate, symmetric control: a first-order shelving pair pivoting at
 **1 kHz**, low shelf `+T` dB and high shelf `−T` dB, `T ∈ [−12, +12]`. Placed in the
-feedback path it compounds per pass, which is what makes it a *character* control rather
+feedback path it compounds per pass, which is what makes it a _character_ control rather
 than an EQ: a −3 dB tilt becomes −30 dB by the tenth pass. Document that compounding in the
 tooltip, because users will otherwise find the control absurdly strong.
 
@@ -403,7 +403,7 @@ against linear's ≈4). At `|s| > 12` semitones, additionally apply a one-pole l
 
 The architecture is settled in the literature: **the best-sounding shimmer puts the +12
 shift inside the reverb's feedback path**, not in a parallel send. **[C]** In a granular
-reverb this is free, because the grains *are* the feedback path — a grain simply picks its
+reverb this is free, because the grains _are_ the feedback path — a grain simply picks its
 own pitch when it is spawned.
 
 **Per-grain pitch assignment** [I]: each grain draws a shift from a weighted interval set.
@@ -413,16 +413,16 @@ continuously reshuffled, which is the sound people mean by "shimmer".
 
 Interval sets to ship:
 
-| Name | Semitone set | Weights |
-| --- | --- | --- |
-| Unison | {0} | 1 |
-| Octave up | {0, +12} | 0.6, 0.4 |
-| Octave down | {0, −12} | 0.6, 0.4 |
-| Fifth | {0, +7} | 0.6, 0.4 |
-| Major | {0, +4, +7, +12} | 0.4, 0.2, 0.2, 0.2 |
-| Minor | {0, +3, +7, +12} | 0.4, 0.2, 0.2, 0.2 |
-| Sus | {0, +5, +7, +12} | 0.4, 0.2, 0.2, 0.2 |
-| Wide | {−12, 0, +12, +19} | 0.25 each |
+| Name        | Semitone set       | Weights            |
+| ----------- | ------------------ | ------------------ |
+| Unison      | {0}                | 1                  |
+| Octave up   | {0, +12}           | 0.6, 0.4           |
+| Octave down | {0, −12}           | 0.6, 0.4           |
+| Fifth       | {0, +7}            | 0.6, 0.4           |
+| Major       | {0, +4, +7, +12}   | 0.4, 0.2, 0.2, 0.2 |
+| Minor       | {0, +3, +7, +12}   | 0.4, 0.2, 0.2, 0.2 |
+| Sus         | {0, +5, +7, +12}   | 0.4, 0.2, 0.2, 0.2 |
+| Wide        | {−12, 0, +12, +19} | 0.25 each          |
 
 The literature confirms products in this class shift by **perfect fourths, fifths and
 octaves**, and that sub-octave plus octave-up simultaneously is a standard pairing. **[C]**
@@ -430,7 +430,7 @@ octaves**, and that sub-octave plus octave-up simultaneously is a standard pairi
 **Scale quantisation** (constraining shifts to a key rather than to intervals) is a
 different feature and I could not find it documented in the shimmer literature. It is
 straightforward to add — quantise the drawn shift to the nearest member of a scale-degree
-set — but it only makes musical sense if the *root* is known, which means either a
+set — but it only makes musical sense if the _root_ is known, which means either a
 user-set key or pitch detection on the input. **Spec the interval sets now; treat
 scale-quantisation as a later addition** and mark it unconfirmed as prior art. [I]
 
@@ -507,8 +507,8 @@ network to compensate for the decay-time-dependent colouration. **[C]**
 - Cost, and this is the fact that surprises people: an `N = 16` Hadamard FDN does **not**
   cost 256 multiplies. A fast Walsh-Hadamard transform computes it in `N·log₂N = 64`
   add/subtracts. With 16 delay lines and 16 one-pole absorption filters that is roughly
-  **130 flops/sample/channel**. **[C, computed]** An FDN16 is *cheaper than our granular
-  reverb.*
+  **130 flops/sample/channel**. **[C, computed]** An FDN16 is _cheaper than our granular
+  reverb._
 - Strength: dense, smooth, precisely controllable RT60 per band; the best "neutral room".
 - Weakness: no pitch capability, no freeze, and the sound is inherently smooth — it cannot
   do the sparse, grainy, textural settings that are the whole point of FX-02.
@@ -535,7 +535,7 @@ cannot freeze, cannot shimmer, and cannot change decay time without swapping the
 **Choose granular.** It is the only architecture in this list that natively provides
 per-grain pitch shifting (§3.1), exact freeze (§2.4), and a continuous sparse-to-dense
 texture axis, and it does so at a cost (§7) that is the same order as an FDN and two orders
-below convolution. Its weakness — it is *not* the most neutral-sounding room — is real, and
+below convolution. Its weakness — it is _not_ the most neutral-sounding room — is real, and
 the answer is to **also** ship a Dattorro-class plate (§4.3) as a separate algorithm rather
 than to try to make the granular engine sound neutral.
 
@@ -569,30 +569,30 @@ loop, which increases echo density per pass at no extra cost.
 
 All ranges are our spec [I] unless a literature value is cited.
 
-| Control | Range | Unit | Taper | Default | Interactions |
-| --- | --- | --- | --- | --- | --- |
-| Mix | 0–100 | % | linear (equal-power above 50) | 35 | 0% must null exactly (V1). |
-| Pre-delay | 0–500 | ms | linear | 20 | Sync-to-tempo option; adds to latency budget only if > 0. |
-| Size | 20–4000 | ms | log | 800 | Width of the read-offset window; sets `τ̄ ≈ minOffset + size/2`, so it interacts with Decay's calibration (§2.2). |
-| Min offset | 5–500 | ms | log | 20 | Floor of the read window. Must stay ≥ `L` or grains read the write head and self-oscillate. Clamp hard. |
-| Decay (RT60) | 0.1–60 | s | log | 3.0 | Inverts to `fb` via §2.2; `fb` capped 0.98. Ignored in Freeze. |
-| Freeze | on/off | — | — | off | Stops write head (§2.4); `fb` ignored; 10 ms crossfade. |
-| Grain size | 5–500 **[C-informed]** | ms | log | 60 | Below 15 ms the window colours the sound (§1.1) — show a UI marker there. Above ~50 ms the tail begins to separate into discrete events **[C]**. |
-| Density | 1–2000 **[C-informed]** | grains/s | log | 350 | Literature range is hundreds to thousands **[C]**. Sets `O = R·L`; drives CPU directly (§7). |
-| Overlap readout | — | ×  | — | — | Not a control: display `O = R·L` live. It is the number that predicts both sound and CPU. |
-| Spray (position) | 0–100 | % | linear | 70 | Scales randomisation of `τ` within the size window. |
-| Onset jitter | 0–100 | % | linear | 60 | 0 = quasi-synchronous, 100 = asynchronous (§1.4). |
-| Length jitter | 0–100 | % | linear | 25 | |
-| Amp jitter | 0–100 | % | linear | 15 | |
-| Window shape | 0–100 | % → Tukey α 1→0.1 | linear | 0 (Hann) | Auto-linked to grain size by default. |
-| Pitch set | enum (§3.2) | — | — | Unison | Non-unison sets force damping/HPF limits (§3.3). |
-| Pitch spread | 0–100 | cents | linear | 0 | Per-grain random detune on top of the set. |
-| Diffusion | 0–100 | % → allpass g 0→0.72 | linear | 60 | |
-| Damping | 0–100 | % → `d` 0→0.95 | linear | 45 | Display resulting RT60 @ 8 kHz. Lower-bounded by pitch set (§3.3). |
-| Tilt | −12 … +12 | dB | linear | 0 | Compounds per pass — say so in the tooltip. |
-| Width | 0–200 | % | linear | 100 | M/S on the wet bus only. |
-| Output trim | −24 … +24 | dB | linear in dB | 0 | |
-| Quality | {Eco, Normal, High} | enum | — | Normal | Caps `O` (§7.4) and selects interpolation order. |
+| Control          | Range                   | Unit                 | Taper                         | Default  | Interactions                                                                                                                                     |
+| ---------------- | ----------------------- | -------------------- | ----------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Mix              | 0–100                   | %                    | linear (equal-power above 50) | 35       | 0% must null exactly (V1).                                                                                                                       |
+| Pre-delay        | 0–500                   | ms                   | linear                        | 20       | Sync-to-tempo option; adds to latency budget only if > 0.                                                                                        |
+| Size             | 20–4000                 | ms                   | log                           | 800      | Width of the read-offset window; sets `τ̄ ≈ minOffset + size/2`, so it interacts with Decay's calibration (§2.2).                                 |
+| Min offset       | 5–500                   | ms                   | log                           | 20       | Floor of the read window. Must stay ≥ `L` or grains read the write head and self-oscillate. Clamp hard.                                          |
+| Decay (RT60)     | 0.1–60                  | s                    | log                           | 3.0      | Inverts to `fb` via §2.2; `fb` capped 0.98. Ignored in Freeze.                                                                                   |
+| Freeze           | on/off                  | —                    | —                             | off      | Stops write head (§2.4); `fb` ignored; 10 ms crossfade.                                                                                          |
+| Grain size       | 5–500 **[C-informed]**  | ms                   | log                           | 60       | Below 15 ms the window colours the sound (§1.1) — show a UI marker there. Above ~50 ms the tail begins to separate into discrete events **[C]**. |
+| Density          | 1–2000 **[C-informed]** | grains/s             | log                           | 350      | Literature range is hundreds to thousands **[C]**. Sets `O = R·L`; drives CPU directly (§7).                                                     |
+| Overlap readout  | —                       | ×                    | —                             | —        | Not a control: display `O = R·L` live. It is the number that predicts both sound and CPU.                                                        |
+| Spray (position) | 0–100                   | %                    | linear                        | 70       | Scales randomisation of `τ` within the size window.                                                                                              |
+| Onset jitter     | 0–100                   | %                    | linear                        | 60       | 0 = quasi-synchronous, 100 = asynchronous (§1.4).                                                                                                |
+| Length jitter    | 0–100                   | %                    | linear                        | 25       |                                                                                                                                                  |
+| Amp jitter       | 0–100                   | %                    | linear                        | 15       |                                                                                                                                                  |
+| Window shape     | 0–100                   | % → Tukey α 1→0.1    | linear                        | 0 (Hann) | Auto-linked to grain size by default.                                                                                                            |
+| Pitch set        | enum (§3.2)             | —                    | —                             | Unison   | Non-unison sets force damping/HPF limits (§3.3).                                                                                                 |
+| Pitch spread     | 0–100                   | cents                | linear                        | 0        | Per-grain random detune on top of the set.                                                                                                       |
+| Diffusion        | 0–100                   | % → allpass g 0→0.72 | linear                        | 60       |                                                                                                                                                  |
+| Damping          | 0–100                   | % → `d` 0→0.95       | linear                        | 45       | Display resulting RT60 @ 8 kHz. Lower-bounded by pitch set (§3.3).                                                                               |
+| Tilt             | −12 … +12               | dB                   | linear                        | 0        | Compounds per pass — say so in the tooltip.                                                                                                      |
+| Width            | 0–200                   | %                    | linear                        | 100      | M/S on the wet bus only.                                                                                                                         |
+| Output trim      | −24 … +24               | dB                   | linear in dB                  | 0        |                                                                                                                                                  |
+| Quality          | {Eco, Normal, High}     | enum                 | —                             | Normal   | Caps `O` (§7.4) and selects interpolation order.                                                                                                 |
 
 ---
 
@@ -614,38 +614,38 @@ The dominant term is grain rendering, and it is **linear in the overlap factor**
 `C_grain`, per grain per sample, for our spec (one buffer read, cubic Hermite, table window,
 stereo pan-accumulate):
 
-| Operation | Flops |
-| --- | --- |
-| Read-pointer advance + wrap | 2 |
-| 4-point cubic Hermite interpolation | 14 |
-| Window table read + lerp | 4 |
-| Amplitude + pan, accumulate to L and R | 4 |
-| **C_grain** | **24** |
+| Operation                              | Flops  |
+| -------------------------------------- | ------ |
+| Read-pointer advance + wrap            | 2      |
+| 4-point cubic Hermite interpolation    | 14     |
+| Window table read + lerp               | 4      |
+| Amplitude + pan, accumulate to L and R | 4      |
+| **C_grain**                            | **24** |
 
 With linear interpolation instead of Hermite (Eco quality), `C_grain = 14`.
 
 `C_fixed`, per sample, stereo:
 
-| Item | Flops |
-| --- | --- |
-| Buffer write + wrap | 4 |
-| 4 diffusion allpasses × 2 ch (two-multiply form, ~6 each) | 48 |
-| DC blocker × 2 | 8 |
-| Damping one-pole × 2 | 6 |
-| Tilt shelves (2 biquads × 2 ch) | 36 |
-| Soft limiter (envelope + tanh approx) × 2 | 24 |
-| Mix, width, trim | 14 |
-| Scheduler amortised (≈ R spawns/s × ~60 flops) | ~1 |
-| **C_fixed** | **≈ 141** |
+| Item                                                      | Flops     |
+| --------------------------------------------------------- | --------- |
+| Buffer write + wrap                                       | 4         |
+| 4 diffusion allpasses × 2 ch (two-multiply form, ~6 each) | 48        |
+| DC blocker × 2                                            | 8         |
+| Damping one-pole × 2                                      | 6         |
+| Tilt shelves (2 biquads × 2 ch)                           | 36        |
+| Soft limiter (envelope + tanh approx) × 2                 | 24        |
+| Mix, width, trim                                          | 14        |
+| Scheduler amortised (≈ R spawns/s × ~60 flops)            | ~1        |
+| **C_fixed**                                               | **≈ 141** |
 
 ### 7.2 Worked figures
 
-| Setting | `R` (g/s) | `L` (ms) | `O` | flops/sample | Mflop/s @48k | ×12 instances |
-| --- | --- | --- | --- | --- | --- | --- |
-| Sparse texture | 60 | 80 | 4.8 | 256 | 12.3 | 148 Mflop/s |
-| **Default** | **350** | **60** | **21** | **645** | **31.0** | **372 Mflop/s** |
-| Dense/smooth | 800 | 60 | 48 | 1 293 | 62.1 | 745 Mflop/s |
-| Literature max | 2 000 | 100 | 200 | 4 941 | 237 | **2.85 Gflop/s** |
+| Setting        | `R` (g/s) | `L` (ms) | `O`    | flops/sample | Mflop/s @48k | ×12 instances    |
+| -------------- | --------- | -------- | ------ | ------------ | ------------ | ---------------- |
+| Sparse texture | 60        | 80       | 4.8    | 256          | 12.3         | 148 Mflop/s      |
+| **Default**    | **350**   | **60**   | **21** | **645**      | **31.0**     | **372 Mflop/s**  |
+| Dense/smooth   | 800       | 60       | 48     | 1 293        | 62.1         | 745 Mflop/s      |
+| Literature max | 2 000     | 100      | 200    | 4 941        | 237          | **2.85 Gflop/s** |
 
 A current mid-range phone core sustains roughly 2–8 Gflop/s scalar and several times that
 with NEON. The default setting at 12 instances is comfortable. **The "literature max" row is
@@ -659,20 +659,20 @@ about 5× the cost of an FDN and 20× cheaper than convolution.
 
 Per instance:
 
-| Item | Size |
-| --- | --- |
-| Circular buffer, **mono**, `maxOffset + maxSize + maxGrain` = 5 s, float32 | **960 KB** |
-| Circular buffer if **stereo** instead | 1.92 MB |
-| Grain pool, 256 slots × 64 B | 16 KB |
-| Diffusion allpass delay lines, ~50 ms × 2 ch, float32 | 19 KB |
-| Window tables (4 shapes × 4096 × float32), **shared across all instances** | 64 KB total |
-| Pre-delay line, 500 ms stereo float32 | 192 KB |
-| **Per instance total (mono buffer)** | **≈ 1.19 MB** |
-| **12 instances** | **≈ 14.3 MB** |
+| Item                                                                       | Size          |
+| -------------------------------------------------------------------------- | ------------- |
+| Circular buffer, **mono**, `maxOffset + maxSize + maxGrain` = 5 s, float32 | **960 KB**    |
+| Circular buffer if **stereo** instead                                      | 1.92 MB       |
+| Grain pool, 256 slots × 64 B                                               | 16 KB         |
+| Diffusion allpass delay lines, ~50 ms × 2 ch, float32                      | 19 KB         |
+| Window tables (4 shapes × 4096 × float32), **shared across all instances** | 64 KB total   |
+| Pre-delay line, 500 ms stereo float32                                      | 192 KB        |
+| **Per instance total (mono buffer)**                                       | **≈ 1.19 MB** |
+| **12 instances**                                                           | **≈ 14.3 MB** |
 
 **Decision: the granular buffer is mono.** [I] Reasons, in order: it halves the largest
 allocation; it halves interpolation cost (one read per grain rather than two); and it
-*sounds better*, because per-grain random panning of a mono source produces a fully
+_sounds better_, because per-grain random panning of a mono source produces a fully
 decorrelated stereo tail, whereas granulating stereo and preserving each grain's original
 stereo position produces a narrower, more correlated tail. The cost is that a
 hard-panned stereo source loses its placement in the tail — which for a reverb is
@@ -680,11 +680,11 @@ acceptable and arguably correct. The dry path is untouched and remains stereo.
 
 ### 7.4 Quality tiers
 
-| Tier | Interpolation | Max `O` | Notes |
-| --- | --- | --- | --- |
-| Eco | linear | 12 | Mobile default. `C_grain = 14` → 309 flops/sample worst case. |
-| Normal | cubic Hermite | 32 | Desktop default; mobile if instance count < 6. |
-| High | cubic Hermite + anti-alias LPF on shifted reads | 96 | Desktop only. |
+| Tier   | Interpolation                                   | Max `O` | Notes                                                         |
+| ------ | ----------------------------------------------- | ------- | ------------------------------------------------------------- |
+| Eco    | linear                                          | 12      | Mobile default. `C_grain = 14` → 309 flops/sample worst case. |
+| Normal | cubic Hermite                                   | 32      | Desktop default; mobile if instance count < 6.                |
+| High   | cubic Hermite + anti-alias LPF on shifted reads | 96      | Desktop only.                                                 |
 
 The cap is applied by **reducing `R` to satisfy `R·L ≤ O_max`, not by dropping grains**.
 Dropping grains modulates loudness with CPU load, which is unacceptable; reducing `R`
@@ -701,7 +701,7 @@ counter is a QA output (V8).
 ## 8. Character artefacts worth modelling
 
 1. **Grain-rate periodicity at low density.** When `O` is around 1–3 and onset jitter is
-   low, the grain rate is audible as a pitch or flutter. This is a *feature* at the sparse
+   low, the grain rate is audible as a pitch or flutter. This is a _feature_ at the sparse
    end of the Density control and must not be smoothed away; it is the sound of a granular
    reverb rather than an FDN.
 2. **Window-induced spectral bloom on short grains.** Below 10–15 ms the window's spectrum
@@ -711,8 +711,8 @@ counter is a QA output (V8).
    beat against each other. Pitch spread (§6) controls how much. This is what makes a
    shimmer sound like an ensemble rather than a transposer.
 4. **Shimmer's rising spectral centroid.** Even with the §3.3 limits, the tail's centroid
-   rises over the decay. That *is* shimmer. Do not flatten it.
-5. **Freeze-boundary discontinuity.** Handled in §2.4 — but a *deliberate* version, a
+   rises over the decay. That _is_ shimmer. Do not flatten it.
+5. **Freeze-boundary discontinuity.** Handled in §2.4 — but a _deliberate_ version, a
    short buffer loop with an audible seam, is a useful glitch character and should be
    available as a "hard freeze" variant.
 6. **Limiter pumping in the loop.** At long decays with dense input, the loop limiter
@@ -723,21 +723,21 @@ counter is a QA output (V8).
 
 ## 9. Verification — measurements QA must run
 
-| ID | Measurement | Method | Target | Tolerance |
-| --- | --- | --- | --- | --- |
-| V1 | **Dry null.** Mix = 0%. | Null against input, 60 s of pink noise + drums. | **≤ −140 dBFS** residual. | None; any audible residual is a bug. |
-| V2 | **COLA sanity.** Bypass feedback and randomisation; Hann window, hop = `N/2`, unity pitch, no spray. | Feed DC 1.0; measure output. | Output = **1.000** constant. | ±0.001. Proves the window table, phase increment and normalisation are all correct in isolation. Run this before anything else. |
-| V3 | **Onset quantisation / block-rate buzz.** `R` = 300, `L` = 30 ms, jitter = 0, feedback = 0, input = DC. | FFT the output; look for a line at `fs/blockSize` (187.5 Hz at 256/48k) and its harmonics. | Component at `fs/blockSize` **≤ −80 dBFS** relative to the grain-rate component. | +3 dB. Repeat at block sizes 64, 128, 256, 512 — the artefact must not move with block size, which is the definitive test. |
-| V4 | **Continuity vs overlap.** Sweep `O` from 0.25 to 32 with white-noise input. | Measure the longest inter-grain gap and the RMS modulation depth of the output envelope. | At `O ≥ 4`, no gap exceeds **4 ms** (below the pink-noise perceptibility threshold **[C]**); envelope modulation ≤ 1.5 dB RMS. | ±0.5 dB. |
-| V5 | **RT60 accuracy.** For Decay settings {0.5, 1, 2, 4, 8, 16, 32, 60} s, at Damping 0. | Impulse → **Schroeder backward integration** of the squared IR; fit the −5 dB to −35 dB region and extrapolate to −60 dB (T30 method). | Measured RT60 within **±10%** of the displayed value, in octave bands 250 Hz–4 kHz. | ±10%. §2.2's `fb` formula is an approximation; if it fails, build a calibration table from this measurement — **do not** ship the uncalibrated formula. |
-| V6 | **Decay independence from density.** Fix Decay = 4 s; sweep Density 20 → 1500 g/s. | Measure RT60 at each. | RT60 varies by **≤ 5%** across the whole sweep. | 5%. This is the direct test that the §1.3 normalisation is inside the loop. Failure here is the runaway-feedback bug. |
-| V7 | **Echo density buildup.** Default settings. | Normalised echo density of the IR (Abel–Huang measure) vs time. | Reaches **0.9** within **80 ms** of the impulse. | +20 ms. Below that the tail sounds grainy-in-a-bad-way; consider the Dattorro tank (§2.3). |
-| V8 | **Grain-density accounting.** Instrument the scheduler. | Over 60 s at each of Density = {10, 100, 350, 1000, 2000}: count grains spawned, grains rendered, grains dropped for pool exhaustion. | `spawned/60` within **±1%** of the set rate; **dropped = 0**; `rendered = spawned`. | 1% on rate; **zero** drops. A non-zero drop count means the pool is undersized for that `O` and the Quality cap (§7.4) is not being applied. |
-| V9 | **Feedback stability sweep.** Decay = 60 s, Freeze off, all pitch sets, Density at max, 10 minutes of programme then silence. | Peak and RMS of the loop signal. | Loop RMS **must not grow** after input stops; peak **≤ −0.1 dBFS** at all times. | None. Any monotonic growth is a fail. |
-| V10 | **DC accumulation.** Feed a +0.5 DC offset for 60 s at Decay = 30 s. | Measure output DC. | **≤ −80 dBFS** DC at the output. | +3 dB. Tests the loop DC blocker. |
-| V11 | **Freeze exactness.** Freeze with a 1 kHz sine in the buffer; hold 10 minutes. | Measure output RMS and spectral centroid at t = 10 s and t = 600 s. | RMS drift **≤ 0.1 dB**; centroid drift **≤ 1%**. | As stated. Proves freeze is write-head-stop, not `fb = 1.0`. |
-| V12 | **Shimmer aliasing.** Pitch set "Wide", 10 kHz sine input, High quality. | FFT; identify components not at `10 000 · 2^(s/12)` for `s` in the set. | Alias products **≤ −70 dBFS**. | +3 dB. Tests §3.1's interpolation and pre-read lowpass. |
-| V13 | **CPU vs overlap linearity.** Profile at `O` = 4, 8, 16, 32, 64. | Per-block processing time. | Fits `a·O + b` with **R² ≥ 0.98**; extracted `a` within **±25%** of `C_grain/fs`. | As stated. A non-linear fit means allocation or cache behaviour is leaking into the audio thread. |
+| ID  | Measurement                                                                                                                   | Method                                                                                                                                 | Target                                                                                                                         | Tolerance                                                                                                                                               |
+| --- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| V1  | **Dry null.** Mix = 0%.                                                                                                       | Null against input, 60 s of pink noise + drums.                                                                                        | **≤ −140 dBFS** residual.                                                                                                      | None; any audible residual is a bug.                                                                                                                    |
+| V2  | **COLA sanity.** Bypass feedback and randomisation; Hann window, hop = `N/2`, unity pitch, no spray.                          | Feed DC 1.0; measure output.                                                                                                           | Output = **1.000** constant.                                                                                                   | ±0.001. Proves the window table, phase increment and normalisation are all correct in isolation. Run this before anything else.                         |
+| V3  | **Onset quantisation / block-rate buzz.** `R` = 300, `L` = 30 ms, jitter = 0, feedback = 0, input = DC.                       | FFT the output; look for a line at `fs/blockSize` (187.5 Hz at 256/48k) and its harmonics.                                             | Component at `fs/blockSize` **≤ −80 dBFS** relative to the grain-rate component.                                               | +3 dB. Repeat at block sizes 64, 128, 256, 512 — the artefact must not move with block size, which is the definitive test.                              |
+| V4  | **Continuity vs overlap.** Sweep `O` from 0.25 to 32 with white-noise input.                                                  | Measure the longest inter-grain gap and the RMS modulation depth of the output envelope.                                               | At `O ≥ 4`, no gap exceeds **4 ms** (below the pink-noise perceptibility threshold **[C]**); envelope modulation ≤ 1.5 dB RMS. | ±0.5 dB.                                                                                                                                                |
+| V5  | **RT60 accuracy.** For Decay settings {0.5, 1, 2, 4, 8, 16, 32, 60} s, at Damping 0.                                          | Impulse → **Schroeder backward integration** of the squared IR; fit the −5 dB to −35 dB region and extrapolate to −60 dB (T30 method). | Measured RT60 within **±10%** of the displayed value, in octave bands 250 Hz–4 kHz.                                            | ±10%. §2.2's `fb` formula is an approximation; if it fails, build a calibration table from this measurement — **do not** ship the uncalibrated formula. |
+| V6  | **Decay independence from density.** Fix Decay = 4 s; sweep Density 20 → 1500 g/s.                                            | Measure RT60 at each.                                                                                                                  | RT60 varies by **≤ 5%** across the whole sweep.                                                                                | 5%. This is the direct test that the §1.3 normalisation is inside the loop. Failure here is the runaway-feedback bug.                                   |
+| V7  | **Echo density buildup.** Default settings.                                                                                   | Normalised echo density of the IR (Abel–Huang measure) vs time.                                                                        | Reaches **0.9** within **80 ms** of the impulse.                                                                               | +20 ms. Below that the tail sounds grainy-in-a-bad-way; consider the Dattorro tank (§2.3).                                                              |
+| V8  | **Grain-density accounting.** Instrument the scheduler.                                                                       | Over 60 s at each of Density = {10, 100, 350, 1000, 2000}: count grains spawned, grains rendered, grains dropped for pool exhaustion.  | `spawned/60` within **±1%** of the set rate; **dropped = 0**; `rendered = spawned`.                                            | 1% on rate; **zero** drops. A non-zero drop count means the pool is undersized for that `O` and the Quality cap (§7.4) is not being applied.            |
+| V9  | **Feedback stability sweep.** Decay = 60 s, Freeze off, all pitch sets, Density at max, 10 minutes of programme then silence. | Peak and RMS of the loop signal.                                                                                                       | Loop RMS **must not grow** after input stops; peak **≤ −0.1 dBFS** at all times.                                               | None. Any monotonic growth is a fail.                                                                                                                   |
+| V10 | **DC accumulation.** Feed a +0.5 DC offset for 60 s at Decay = 30 s.                                                          | Measure output DC.                                                                                                                     | **≤ −80 dBFS** DC at the output.                                                                                               | +3 dB. Tests the loop DC blocker.                                                                                                                       |
+| V11 | **Freeze exactness.** Freeze with a 1 kHz sine in the buffer; hold 10 minutes.                                                | Measure output RMS and spectral centroid at t = 10 s and t = 600 s.                                                                    | RMS drift **≤ 0.1 dB**; centroid drift **≤ 1%**.                                                                               | As stated. Proves freeze is write-head-stop, not `fb = 1.0`.                                                                                            |
+| V12 | **Shimmer aliasing.** Pitch set "Wide", 10 kHz sine input, High quality.                                                      | FFT; identify components not at `10 000 · 2^(s/12)` for `s` in the set.                                                                | Alias products **≤ −70 dBFS**.                                                                                                 | +3 dB. Tests §3.1's interpolation and pre-read lowpass.                                                                                                 |
+| V13 | **CPU vs overlap linearity.** Profile at `O` = 4, 8, 16, 32, 64.                                                              | Per-block processing time.                                                                                                             | Fits `a·O + b` with **R² ≥ 0.98**; extracted `a` within **±25%** of `C_grain/fs`.                                              | As stated. A non-linear fit means allocation or cache behaviour is leaking into the audio thread.                                                       |
 
 ---
 
@@ -745,42 +745,42 @@ counter is a QA output (V8).
 
 Granular synthesis:
 
-- [Curtis Roads, *Microsound* (MIT Press, 2001) — full text PDF](https://monoskop.org/images/d/d1/Roads_Curtis_Microsound.pdf) — time scales, the 50 ms fusion threshold, the 4 ms / 20 ms pink-noise interruption results, point→pulse→line→surface, the twenty-grain cloud illustration
-- [Sound On Sound — review of Roads' *Microsound*](https://www.soundonsound.com/reviews/curtis-roads-microsound)
+- [Curtis Roads, _Microsound_ (MIT Press, 2001) — full text PDF](https://monoskop.org/images/d/d1/Roads_Curtis_Microsound.pdf) — time scales, the 50 ms fusion threshold, the 4 ms / 20 ms pink-noise interruption results, point→pulse→line→surface, the twenty-grain cloud illustration
+- [Sound On Sound — review of Roads' _Microsound_](https://www.soundonsound.com/reviews/curtis-roads-microsound)
 - [SFU Sonic Studio Handbook — Microsound](https://www.sfu.ca/sonic-studio-webdav/cmns/Handbook%20Tutorial/Microsound.html)
 - [Barry Truax — Granular Synthesis](https://www.sfu.ca/~truax/gran.html) — real-time granular from 1986, quasi-synchronous streams, trapezoidal envelopes
-- [Ross Bencina, *Implementing Real-Time Granular Synthesis* (Audio Anecdotes, 2001)](http://www.rossbencina.com/static/code/granular-synthesis/BencinaAudioAnecdotes310801.pdf) — scheduling architecture, three envelope-generation algorithms, two stochastic-onset methods, the scheduling/synthesis boundary
+- [Ross Bencina, _Implementing Real-Time Granular Synthesis_ (Audio Anecdotes, 2001)](http://www.rossbencina.com/static/code/granular-synthesis/BencinaAudioAnecdotes310801.pdf) — scheduling architecture, three envelope-generation algorithms, two stochastic-onset methods, the scheduling/synthesis boundary
 - [University of Washington CSE490S — Granular Synthesis and Processing (lecture notes)](https://courses.cs.washington.edu/courses/cse490s/11au/lectures/G-Granular.pdf) — envelope spectral distortion ranking; the <10–15 ms artefact threshold
-- [Brandtsegg et al., *Particle synthesis — a unified model for granular synthesis* (LAC 2011)](http://lac.linuxaudio.org/2011/download/Partikkel_LAC_2011.pdf)
-- [Csound *partikkel* opcode manual](https://csound.com/manual/opcodes/partikkel/)
-- [Keller & Truax, *Ecologically-based granular synthesis* (CCRMA)](https://ccrma.stanford.edu/~dkeller/pdf/KellerTruax98.pdf)
-- [Roads' five-way classification, via *Spectral Granular Synthesis* (ICMC 2018)](https://quod.lib.umich.edu/i/icmc/bbp2372.2018.019/--spectral-granular-synthesis?rgn=main%3Bview%3Dfulltext)
+- [Brandtsegg et al., _Particle synthesis — a unified model for granular synthesis_ (LAC 2011)](http://lac.linuxaudio.org/2011/download/Partikkel_LAC_2011.pdf)
+- [Csound _partikkel_ opcode manual](https://csound.com/manual/opcodes/partikkel/)
+- [Keller & Truax, _Ecologically-based granular synthesis_ (CCRMA)](https://ccrma.stanford.edu/~dkeller/pdf/KellerTruax98.pdf)
+- [Roads' five-way classification, via _Spectral Granular Synthesis_ (ICMC 2018)](https://quod.lib.umich.edu/i/icmc/bbp2372.2018.019/--spectral-granular-synthesis?rgn=main%3Bview%3Dfulltext)
 
 Granular reverberation:
 
-- [Ervik & Brandtsegg, *Creating reverb effects using granular synthesis* (1st International Csound Conference, Hannover 2011)](https://www.incontri.hmtm-hannover.de/fileadmin/www.incontri/Csound_Conference/Ervik_Brandtsegg2.pdf) — feedback of granular output into the source table; the 8×0.5 s buffer, ×8 time-stretch, slow attack/release construction
+- [Ervik & Brandtsegg, _Creating reverb effects using granular synthesis_ (1st International Csound Conference, Hannover 2011)](https://www.incontri.hmtm-hannover.de/fileadmin/www.incontri/Csound_Conference/Ervik_Brandtsegg2.pdf) — feedback of granular output into the source table; the 8×0.5 s buffer, ×8 time-stretch, slow attack/release construction
 - [Sound On Sound — Understanding Granular Delay](https://www.soundonsound.com/techniques/understanding-granular-delay) — buffer/grain relationship, feedback into the input for longer decays
 
 Shimmer:
 
-- [Zheng, *"Shimmer" Audio Effect: A Harmonic Reverberator* (CCRMA)](https://ccrma.stanford.edu/~jingjiez/portfolio/echoing-harmonics/pdfs/Shimmer%20Audio%20Effect%20-%20A%20Harmonic%20Reverberator.pdf) — pitch shifter inside the feedback path; TSM-plus-resampling for the octave
+- [Zheng, _"Shimmer" Audio Effect: A Harmonic Reverberator_ (CCRMA)](https://ccrma.stanford.edu/~jingjiez/portfolio/echoing-harmonics/pdfs/Shimmer%20Audio%20Effect%20-%20A%20Harmonic%20Reverberator.pdf) — pitch shifter inside the feedback path; TSM-plus-resampling for the octave
 - [Sound On Sound — Creating Shimmer Reverb Effects](https://www.soundonsound.com/techniques/creating-shimmer-reverb-effects) — crossover-controlled feedback for stability; fourths/fifths/octaves
 - [ModWiggler — How does shimmer reverb work?](https://www.modwiggler.com/forum/viewtopic.php?t=136261) [R]
 
 Artificial reverberation:
 
-- [Julius O. Smith, *Physical Audio Signal Processing* — Schroeder Reverberators](https://www.dsprelated.com/freebooks/pasp/Schroeder_Reverberators.html) — mutually prime delays, comb gain ≤ 0.85, 30–45 ms comb delays
+- [Julius O. Smith, _Physical Audio Signal Processing_ — Schroeder Reverberators](https://www.dsprelated.com/freebooks/pasp/Schroeder_Reverberators.html) — mutually prime delays, comb gain ≤ 0.85, 30–45 ms comb delays
 - [Julius O. Smith — FDN Reverberation](https://www.dsprelated.com/freebooks/pasp/FDN_Reverberation.html)
 - [Julius O. Smith — Lowpass-Feedback Comb Filter](https://www.dsprelated.com/freebooks/pasp/Lowpass_Feedback_Comb_Filter.html) — feedback sets LF T60, damping shortens T60 with frequency
 - [Julius O. Smith, MUS420 Lecture 3 — Artificial Reverberation and Spatialization](https://ccrma.stanford.edu/~jos/Reverb/Reverb.pdf)
-- [J. A. Moorer, *About This Reverberation Business* (1979), IRCAM listing](http://articles.ircam.fr/textes/Moorer78b/) — two-multiply allpass, lowpass in comb feedback
-- [Jon Dattorro, *Effect Design Part 1: Reverberator and Other Filters* (JAES 1997)](https://ccrma.stanford.edu/~dattorro/EffectDesignPart1.pdf) — plate topology, the figure-eight tank, echo-density and decorrelation argument
+- [J. A. Moorer, _About This Reverberation Business_ (1979), IRCAM listing](http://articles.ircam.fr/textes/Moorer78b/) — two-multiply allpass, lowpass in comb feedback
+- [Jon Dattorro, _Effect Design Part 1: Reverberator and Other Filters_ (JAES 1997)](https://ccrma.stanford.edu/~dattorro/EffectDesignPart1.pdf) — plate topology, the figure-eight tank, echo-density and decorrelation argument
 - [Valhalla DSP — Getting Started With Reverb Design, Part 2: The Best Papers](https://valhalladsp.com/2021/09/22/getting-started-with-reverb-design-part-2-the-foundations/) — bibliography and design commentary [R]
 - [McGill MUMT 618 — Late Reverberation](https://www.music.mcgill.ca/~gary/618/week3/node11.html)
-- [*Improved Reverberation Time Control For Feedback Delay Networks* (DAFx)](https://www.researchgate.net/publication/335756510_Improved_Reverberation_Time_Control_For_Feedback_Delay_Networks) — `g = 10^(−3t/RT60)` and the per-sample attenuation formulation
-- [*Unitary Matrix Design for Diffuse Jot Reverberators*](https://www.researchgate.net/publication/230757792_Unitary_Matrix_Design_for_Diffuse_Jot_Reverberators) — circulant/sparse/Householder for efficiency, Hadamard for density
-- [*FDNTB: The Feedback Delay Network Toolbox*](https://www.researchgate.net/publication/344467473_FDNTB_The_Feedback_Delay_Network_Toolbox)
-- [Gardner-style non-uniform partitioned convolution — *A Low Latency Implementation of a Non Uniform Partitioned Convolution algorithm*](https://www.researchgate.net/publication/236839141_A_Low_Latency_Implementation_of_a_Non_Uniform_Partitioned_Convolution_algorithm_for_Room_acoustic_simulation)
+- [_Improved Reverberation Time Control For Feedback Delay Networks_ (DAFx)](https://www.researchgate.net/publication/335756510_Improved_Reverberation_Time_Control_For_Feedback_Delay_Networks) — `g = 10^(−3t/RT60)` and the per-sample attenuation formulation
+- [_Unitary Matrix Design for Diffuse Jot Reverberators_](https://www.researchgate.net/publication/230757792_Unitary_Matrix_Design_for_Diffuse_Jot_Reverberators) — circulant/sparse/Householder for efficiency, Hadamard for density
+- [_FDNTB: The Feedback Delay Network Toolbox_](https://www.researchgate.net/publication/344467473_FDNTB_The_Feedback_Delay_Network_Toolbox)
+- [Gardner-style non-uniform partitioned convolution — _A Low Latency Implementation of a Non Uniform Partitioned Convolution algorithm_](https://www.researchgate.net/publication/236839141_A_Low_Latency_Implementation_of_a_Non_Uniform_Partitioned_Convolution_algorithm_for_Room_acoustic_simulation)
 - [Zero-latency convolution on Bela (project report)](https://csteinmetz1.github.io/bela-zlc/report.pdf)
 
 ---
@@ -790,7 +790,7 @@ Artificial reverberation:
 1. **The exact `fb ↔ RT60` relation for a granular loop.** §2.2 is derived by analogy with
    the comb/FDN case and is marked [I]. **V5 exists specifically to catch this**, and the
    shipped control must be calibrated from measurement.
-2. **Whether `τ̄` is the right time constant** or whether the *median* or the harmonic mean
+2. **Whether `τ̄` is the right time constant** or whether the _median_ or the harmonic mean
    of the offset distribution predicts RT60 better. Determine empirically during V5.
 3. **Scale-quantised grain pitch as prior art.** Interval sets are documented **[C]**;
    key/scale quantisation of grain pitch is not, in anything I could reach.
@@ -804,7 +804,7 @@ Artificial reverberation:
    measurement. The 2–8 Gflop/s scalar figure for a mid-range phone core is a rough
    engineering figure, **[U]**, and the whole budget rests on it. Profile before committing
    to the Quality-tier caps.
-7. **Whether 12 simultaneous instances of *this* effect is a realistic product requirement.**
+7. **Whether 12 simultaneous instances of _this_ effect is a realistic product requirement.**
    At the "literature max" row of §7.2 it is not achievable on any phone. If the product
    genuinely needs 12 reverbs, the Eco tier must be the mobile default and must be enforced,
    not suggested.
