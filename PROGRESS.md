@@ -3,9 +3,12 @@
 ```
 RESUME: Directive 11 — parity, reachability, exhaustive proof.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: 0650777, bundle index-orQk2sIC.js, sha256 489e0ed9e6b7177b
+Deployed commit: ff4dfac, bundle index-tvn0lsYX.js, sha256 eb81cdcf7658b2cf
                  over 445174 bytes — fetched from the live page and matched
-                 against a clean-tree rebuild, not just by name.
+                 against a clean-tree rebuild, not just by name. `0650777` /
+                 `index-orQk2sIC.js` / `489e0ed9e6b7177b` was verified the same
+                 way two commits earlier; every commit changes the bundle hash,
+                 because `vite.config.ts` compiles the commit's date in.
                  A note on "clean": `git status --porcelain` reported 576
                  modified files after the working tree was normalised to LF,
                  while `git diff` reported none — a stale index stat cache,
