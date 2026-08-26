@@ -377,6 +377,14 @@ They are not gaps; they are the surface the reference does not have.
 | MotionLab bindings with no reference counterpart                                                                | **13**  |
 | Entries in MotionLab's registry (`SHORTCUTS`)                                                                   | **59**  |
 
+These are hand counts of _shortcuts_, and their denominator is 204 — which
+includes the eight `N/A` rows and the thirteen MotionLab-only bindings that
+carry no verdict at all. `npm run parity-guard` counts _verdicts_, and reads 202
+in this chapter. The two numbers measure different things and are both right;
+reconciling them would be arithmetic dressed as a check, which is why this
+section is registered as narrative in `scripts/parity/judgement.mjs` rather than
+as a claim about the code.
+
 The registry is 59 entries against the reference's 204 documented shortcuts, but
 that ratio overstates the gap: a large fraction of the 131 missing are function
 keys for panels MotionLab does not have (Pool, Scenes, Record Panel, Score,

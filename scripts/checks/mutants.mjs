@@ -200,17 +200,21 @@ export const CHECKS = {
   },
   'parity-guard': {
     kind: 'gate',
-    // Delete the code a claim rests on and the verdict recorded for it becomes
-    // a lie. This is the direction that has never happened; the one that has —
-    // a MISSING quietly becoming true — is what the guard was written for, and
-    // it caught five on its first run.
-    // The engine's publish, not the store's field: the field name appears twice
-    // in that file and renaming one left the other for the predicate to find,
-    // which read as DECAYED and was the mutation being too small to matter.
+    // The evidence layer, which is where 806 of the 947 claims are settled.
+    //
+    // The editing chapter states, as its reason for calling the Audio Part
+    // `PARTIAL`, that it grepped `audioPart` and `consolidate` and found no
+    // hits. Putting `audioPart` into the tree makes that sentence false, which
+    // is exactly the drift that let six items — one of them a P0 — be closed
+    // while the documents still called them missing.
+    //
+    // It used to mutate `engine.ts`'s `pdcSamples` publish, which exercised the
+    // thirteen pinned predicates instead. Those still run; this one covers the
+    // layer that covers the corpus.
     mutate: editing(
-      'src/audio/engine.ts',
-      'pdcSamples: plan.commonSamples',
-      'pdcSamplesNotPublished: plan.commonSamples',
+      'src/model/types.ts',
+      'export interface',
+      'export type MutantPart = { audioPart: number };export interface',
     ),
   },
   'scope-guard': {

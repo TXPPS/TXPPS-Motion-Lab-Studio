@@ -2,210 +2,150 @@
  * The FSP8 parity audit, kept honest against the code it describes.
  *
  *   node scripts/parity-guard.mjs           # verdicts against the repository
- *   node scripts/parity-guard.mjs --list    # what is claimed, and where
+ *   node scripts/parity-guard.mjs --list    # what is claimed, and how it is settled
  *
- * `docs/reference/fsp8-parity-*.md` is eleven thousand lines of verdicts —
- * `PARITY`, `PARTIAL`, `MISSING`, `DIVERGENT-BY-DESIGN` — taken by reading the
- * reference manual against this repository at one moment. Nothing has kept them
- * matching since, and five of the eight items those documents name as their own
- * priorities had been closed while the documents still called them missing. The
- * headline one — "the cheapest high-value item is that **no keyboard shortcut
- * opens any pane**" — is answered by nine shortcuts that have been in
- * `src/app/shortcuts.ts` for directives.
+ * `docs/reference/fsp8-parity-*.md` is eleven thousand lines of verdicts taken
+ * by reading the reference manual against this repository at one moment.
+ * Nothing kept them matching afterwards, and five of the eight items those
+ * documents name as their own priorities had been closed while the documents
+ * still called them missing. The headline one — "the cheapest high-value item
+ * is that **no keyboard shortcut opens any pane**" — is answered by nine
+ * shortcuts that have been in `src/app/shortcuts.ts` for directives.
  *
  * A stale audit is worse than no audit, for the same reason a configured check
  * nobody invokes is worse than a missing one: it is *evidence*, and it stops
- * anybody looking. So every claim the audit makes about MotionLab's own code
- * that can be settled by reading that code is settled here, on every build, and
- * a verdict that has moved fails rather than rots.
+ * anybody looking.
  *
- * This does not check the reference half. Whether FSP8 does what the manual
- * says is not knowable from this repository, and pretending otherwise would be
- * the second opinion CLAUDE.md's rule is about. What is checkable is the half
- * that is ours: does MotionLab still do — or still not do — what the verdict
- * says it does.
+ * It used to check thirteen claims. Thirteen of nine hundred and forty-seven is
+ * not a guarded document, it is a guarded paragraph — so this now settles every
+ * claim in the corpus one of three ways, and fails if any claim is settled none
+ * of them:
+ *
+ *  - **Its own evidence.** The chapters record what they looked at as well as
+ *    what they concluded — "Grepped `audioPart`, `consolidate`: no hits in
+ *    `src/`" — and its key promises it: "`MISSING` — absent, with the grep that
+ *    established it named". Every cited path and filename must still resolve
+ *    and every symbol said to be absent must still be absent. **806 claims**,
+ *    and its first run found three sentences that had stopped being true.
+ *  - **A pinned predicate.** Thirteen claims the chapters call their own
+ *    priorities, each tied to a predicate that must agree with the recorded
+ *    verdict in both directions. This is the only check that can see a
+ *    `MISSING` that quietly became true.
+ *  - **A recorded judgement.** 141 claims across 99 sections whose MotionLab
+ *    side is the absence of a whole subsystem, or a gesture no static read
+ *    settles. Each section is named in `scripts/parity/judgement.mjs` with the
+ *    reason, and a section listed there that *gains* a citation fails: that is
+ *    a claim that became checkable and was left out.
+ *
+ * What this still does not check is the reference half. Whether FSP8 does what
+ * the manual says is not knowable from this repository, and pretending
+ * otherwise would be the second opinion CLAUDE.md's rule is about.
  */
-import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { readClaims, tally } from './parity/claims.mjs';
+import { evidenceIn, pathExists, fileExists, stillAbsent } from './parity/evidence.mjs';
+import { JUDGEMENT, REASONS, NARRATIVE, PROPOSED } from './parity/judgement.mjs';
+import { PINNED, expected, read } from './parity/pinned.mjs';
 
-const ROOT = resolve(import.meta.dirname, '..');
 const LIST = process.argv.includes('--list');
+const problems = [];
 
-const read = (path) => {
-  try {
-    return readFileSync(join(ROOT, path), 'utf8');
-  } catch {
-    return '';
-  }
-};
-/** True when every pattern appears in the file. */
-const has = (path, ...patterns) => {
-  const src = read(path);
-  return patterns.every((p) => (p instanceof RegExp ? p.test(src) : src.includes(p)));
-};
+const { claims, unread, sections } = readClaims();
 
-/**
- * Each claim the audit makes about this repository, and how to settle it.
+/*
+ * A section that states a verdict and yields no claim.
  *
- * `verdict` is what the document currently says. `holds` returns true when
- * MotionLab *does* the thing. They must agree: `PARITY` with a false predicate
- * is a claim that regressed, and `MISSING` with a true one is a claim that was
- * closed and never written down. Both are failures, and the second is the one
- * that actually happened — five times.
- *
- * `anchor` is text that must still be in the named document. Without it a claim
- * could be deleted from the audit and go on being checked here, which is the
- * same drift in the other direction.
+ * The chapters spell a gap eight different ways, and every one of them was
+ * found by running the enumerator and looking at what it could not read rather
+ * than by reading eleven thousand lines. A ninth spelling would land here.
  */
-const CLAIMS = [
-  {
-    id: 'spec/pane-shortcuts',
-    doc: 'docs/reference/fsp8-parity-spec.md',
-    anchor: 'The cheapest high-value item is that',
-    what: 'a keyboard shortcut opens a pane',
-    verdict: 'PARITY',
-    holds: () =>
-      has('src/app/shortcuts.ts', "id: 'panel-editor'", "id: 'panel-mixer'", "id: 'panel-browser'"),
-  },
-  {
-    id: 'fundamentals/pdc-in-transport',
-    doc: 'docs/reference/fsp8-parity-fundamentals.md',
-    anchor: 'Total PDC displayed in the transport',
-    what: 'the transport shows what delay compensation is costing',
-    verdict: 'PARITY',
-    holds: () =>
-      has('src/components/transport/TransportBar.tsx', 'pdcSamples') &&
-      has('src/state/transportStore.ts', 'pdcSamples') &&
-      has('src/audio/engine.ts', 'pdcSamples: plan.commonSamples'),
-  },
-  {
-    id: 'recording/monitor-follows-arm',
-    doc: 'docs/reference/fsp8-parity-recording.md',
-    anchor: 'monitoring-follows-arm',
-    what: 'arming a track opens its monitor, under a named preference',
-    verdict: 'PARITY',
-    holds: () =>
-      has('src/app/monitorActions.ts', 'monitorFollowsArm') &&
-      has('src/components/settings/SettingsSheet.tsx', 'monitorFollowsArm'),
-  },
-  {
-    id: 'recording/mono-input-is-constrained',
-    doc: 'docs/reference/fsp8-parity-recording.md',
-    anchor: 'channelCount: { exact: 1 }',
-    what: 'a mono track asks for one channel as a constraint rather than a hint',
-    verdict: 'PARITY',
-    holds: () => has('src/audio/inputManager.ts', /channelCount:\s*\{\s*exact:/),
-  },
-  {
-    id: 'recording/track-declares-its-width',
-    doc: 'docs/reference/fsp8-parity-recording.md',
-    anchor: 'mono vs stereo',
-    what: 'a track records at a declared width rather than at whatever arrived',
-    verdict: 'PARTIAL',
-    expect: true,
-    // Partial on purpose, and the predicate says which half. The width is
-    // declared per track; what is still missing is the reference's *portable
-    // named channel* layer, which is a different object and would be a schema
-    // change rather than a field.
-    holds: () =>
-      has('src/model/types.ts', 'inputChannels?: 1 | 2') &&
-      !has('src/model/types.ts', 'InputChannelSet'),
-  },
-  {
-    id: 'mixing/pan-law-is-minus-three',
-    doc: 'docs/reference/fsp8-parity-spec.md',
-    anchor: 'a **−3 dB pan law**',
-    what: 'panning uses the constant-power law, inherited rather than chosen',
-    verdict: 'PARITY',
-    // A pan law is not a line of code, so this is checked where the product
-    // asserts it — a bare `createStereoPanner` is the spec-defined −3.01 dB,
-    // and a hand-rolled gain pair would be the thing to catch.
-    holds: () =>
-      has('src/audio/engine.ts', 'createStereoPanner') &&
-      has('src/audio/exportMix.ts', 'createStereoPanner'),
-  },
-  {
-    id: 'mixing/metering-scales',
-    doc: 'docs/reference/fsp8-parity-mixing.md',
-    anchor: 'K-20',
-    what: 'the meters offer the three reference scales',
-    verdict: 'MISSING',
-    holds: () => has('src/model/metering.ts', 'K-20', 'K-14', 'K-12'),
-  },
-  {
-    id: 'mixing/no-second-post-fader-rack',
-    doc: 'docs/reference/fsp8-parity-spec.md',
-    anchor: 'second post-fader insert rack',
-    what: 'the main output has one insert rack, not two',
-    verdict: 'PARITY',
-    holds: () => !has('src/model/types.ts', 'postFaderEffects'),
-  },
-  {
-    id: 'fundamentals/undo-history-browser',
-    doc: 'docs/reference/fsp8-parity-fundamentals.md',
-    anchor: 'Undo History browser',
-    what: 'the undo stack carries a label per entry, so a history list is buildable',
-    verdict: 'MISSING',
-    holds: () => has('src/state/projectStore.ts', /undoLabels|undoStack:\s*\{\s*label/),
-  },
-  // ---- and the MotionLab backlog, which had gone stale the same way ----
-  {
-    id: 'backlog/ra-006-insert-button',
-    doc: 'docs/BACKLOG_MOTIONLAB.md',
-    anchor: 'RA-006',
-    what: 'a press on a strip does not move the console under the pointer',
-    verdict: 'PARITY',
-    holds: () => has('src/components/mixer/ChannelOverview.tsx', 'useSettledSelection'),
-  },
-  {
-    id: 'backlog/pa-012-filter-drive',
-    doc: 'docs/BACKLOG_MOTIONLAB.md',
-    anchor: 'PA-012',
-    what: "the Filter's Drive aligns its own dry leg",
-    verdict: 'PARITY',
-    holds: () => has('src/audio/effectChain.ts', /this.align.delayTime/),
-  },
-  {
-    id: 'backlog/pa-009-bypassed-limiter',
-    doc: 'docs/BACKLOG_MOTIONLAB.md',
-    anchor: 'PA-009',
-    what: 'a bypassed limiter declares no latency',
-    verdict: 'PARITY',
-    // A plain substring, not a regex: the declaration is formatted across
-    // lines and a pattern that tries to match the whitespace between them is a
-    // pattern that breaks the next time prettier reflows it.
-    holds: () => has('src/audio/effectChain.ts', 'lastBypass'),
-  },
-  {
-    id: 'fundamentals/per-track-delay',
-    doc: 'docs/reference/fsp8-parity-fundamentals.md',
-    anchor: 'Manual per-track delay',
-    what: 'a track can be nudged by a manual delay in milliseconds',
-    verdict: 'MISSING',
-    holds: () => has('src/model/types.ts', 'delayMs'),
-  },
-];
-
-/**
- * What the predicate must return for the recorded verdict to still be true.
- *
- * Stated per claim rather than derived from the verdict word: `PARTIAL` means
- * "some of it", and its predicate is written to describe the half that is
- * there — so inferring `false` from the label would fail every partial claim
- * the moment it was written.
- */
-const expected = (claim) => claim.expect ?? claim.verdict === 'PARITY';
-
-if (LIST) {
-  console.log('FSP8 parity claims checked against this repository:\n');
-  for (const c of CLAIMS) {
-    console.log(`  ${c.verdict.padEnd(8)} ${c.holds() ? 'holds ' : 'absent'}  ${c.id} — ${c.what}`);
+for (const s of unread) {
+  if (NARRATIVE[s.id]) continue;
+  problems.push(
+    `${s.file}:${s.line} — ${s.id} states a verdict ${s.mentions} time(s) and no claim could be ` +
+      'read from it. Either the chapter has a notation `scripts/parity/claims.mjs` does not know, ' +
+      'or the section is narrative and belongs in NARRATIVE with the reason.',
+  );
+}
+for (const id of Object.keys(NARRATIVE)) {
+  if (!unread.some((s) => s.id === id)) {
+    problems.push(
+      `${id} is registered as NARRATIVE and now yields claims. Drop the entry — leaving it ` +
+        'exempts whatever is written there next.',
+    );
   }
-  process.exit(0);
 }
 
-const problems = [];
-for (const claim of CLAIMS) {
+// ---------------------------------------------------------------- evidence
+const evidence = new Map();
+for (const s of sections.values()) evidence.set(s.id, evidenceIn(s.text));
+
+const checkable = (id) => {
+  const e = evidence.get(id);
+  return !!e && (e.paths.length > 0 || e.files.length > 0 || e.absent.length > 0);
+};
+
+for (const [id, e] of evidence) {
+  const where = sections.get(id);
+  for (const p of e.paths) {
+    if (pathExists(p)) continue;
+    problems.push(
+      `${where.file}:${where.line} — ${id} cites \`${p}\`, which is not a file. ` +
+        'A verdict resting on a path that has moved is a verdict nobody can re-derive.',
+    );
+  }
+  for (const f of e.files) {
+    if (fileExists(f) || PROPOSED[f]) continue;
+    problems.push(
+      `${where.file}:${where.line} — ${id} cites \`${f}\` and no such file exists. ` +
+        'If the audit is proposing it rather than citing it, say so in PROPOSED.',
+    );
+  }
+  for (const sym of e.absent) {
+    if (stillAbsent(sym)) continue;
+    problems.push(
+      `${where.file}:${where.line} — ${id} says \`${sym}\` is absent from src/, and it is there ` +
+        'now. Either the claim was closed and never written down, or the grep the audit named ' +
+        'is not the one it meant.',
+    );
+  }
+}
+for (const [name, why] of Object.entries(PROPOSED)) {
+  if (!fileExists(name)) continue;
+  problems.push(
+    `\`${name}\` is registered as PROPOSED (${why}) and now exists. It is a citation, not a ` +
+      'proposal — drop the entry so the checker starts holding it to that.',
+  );
+}
+
+// ------------------------------------------------------------- judgement
+const needsJudgement = new Set();
+for (const c of claims) if (!checkable(c.section)) needsJudgement.add(c.section);
+
+for (const id of needsJudgement) {
+  const reason = JUDGEMENT[id];
+  const where = sections.get(id);
+  if (!reason) {
+    problems.push(
+      `${where.file}:${where.line} — ${id} makes a claim about this repository and cites nothing ` +
+        'checkable. Cite the code it rests on, or record it in `scripts/parity/judgement.mjs` ' +
+        'with the reason no read of this repository can settle it.',
+    );
+  } else if (!REASONS[reason]) {
+    problems.push(`${id} is marked "${reason}", which is not one of: ${Object.keys(REASONS)}`);
+  }
+}
+for (const id of Object.keys(JUDGEMENT)) {
+  if (needsJudgement.has(id)) continue;
+  const where = sections.get(id);
+  problems.push(
+    `${id} is recorded as needing judgement and now ${
+      where ? 'cites checkable code' : 'no longer exists'
+    }. ${where ? 'It became checkable and was left out of the sweep.' : 'The section was renamed or removed.'}`,
+  );
+}
+
+// ---------------------------------------------------------------- pinned
+for (const claim of PINNED) {
   if (!read(claim.doc).includes(claim.anchor)) {
     problems.push(
       `${claim.id}: "${claim.anchor}" is no longer in ${claim.doc}. ` +
@@ -225,13 +165,38 @@ for (const claim of CLAIMS) {
   );
 }
 
+// ------------------------------------------------------------------ report
+const counts = tally(claims);
+const byEvidence = claims.filter((c) => checkable(c.section)).length;
+
+if (LIST) {
+  console.log(`FSP8 parity: ${claims.length} claim(s) across ${sections.size} section(s)\n`);
+  for (const [v, n] of Object.entries(counts).sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${String(n).padStart(4)}  ${v}`);
+  }
+  console.log(`\n  ${byEvidence} settled by the audit's own citations`);
+  console.log(`  ${PINNED.length} pinned to a predicate that must agree with the verdict`);
+  console.log(
+    `  ${claims.length - byEvidence} needing judgement, across ${needsJudgement.size} section(s):`,
+  );
+  const perReason = {};
+  for (const id of needsJudgement)
+    perReason[JUDGEMENT[id] ?? '(unregistered)'] =
+      (perReason[JUDGEMENT[id] ?? '(unregistered)'] ?? 0) + 1;
+  for (const [r, n] of Object.entries(perReason))
+    console.log(`      ${String(n).padStart(3)}  ${r} — ${REASONS[r] ?? '???'}`);
+  process.exit(0);
+}
+
 if (problems.length > 0) {
   console.error('parity-guard: the audit and the code disagree.\n');
   for (const p of problems) console.error(`  ${p}\n`);
   process.exit(1);
 }
-const parity = CLAIMS.filter((c) => c.verdict === 'PARITY').length;
+const parity = PINNED.filter((c) => c.verdict === 'PARITY').length;
 console.log(
-  `parity-guard: ${CLAIMS.length} checked claim(s) — ${parity} at parity, ` +
-    `${CLAIMS.length - parity} still open, and every one of them settled by reading the code.`,
+  `parity-guard: ${claims.length} claim(s) in ${sections.size} section(s) — ` +
+    `${byEvidence} checked against the audit's own citations, ${PINNED.length} pinned to a ` +
+    `predicate (${parity} at parity), ${claims.length - byEvidence} recorded as needing ` +
+    `judgement with a reason. ${counts.MISSING} MISSING, ${counts.PARTIAL} PARTIAL still open.`,
 );

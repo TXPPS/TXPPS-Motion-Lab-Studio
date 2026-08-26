@@ -15,18 +15,18 @@ the one in `dist/` now, this file describes a product that has moved.
 
 ## 3. Properties
 
-| property | result | detail |
-| --- | --- | --- |
-| a project saved and reloaded is the same project | PASS |  |
-| opening a project the loader has already opened changes nothing further | PASS |  |
-| opening a project does not drop an automation lane it can read | PASS |  |
-| undo restores the state an undoable action was invoked from | PASS |  |
-| redo restores what undo removed | PASS |  |
-| an automation point reads back the value it was written with | PASS |  |
-| every bypassed insert renders exactly what no insert renders | PASS |  |
-| raising a track fader never lowers the rendered level | PASS |  |
-| a latency-declaring insert moves nothing in the bounce, wherever it lands | FAIL | a render is silent (0.00e+0, 0.00e+0), so nothing was measured |
-| deleting a track leaves no clip pointing at it | PASS |  |
+| property                                                                  | result | detail                                                         |
+| ------------------------------------------------------------------------- | ------ | -------------------------------------------------------------- |
+| a project saved and reloaded is the same project                          | PASS   |                                                                |
+| opening a project the loader has already opened changes nothing further   | PASS   |                                                                |
+| opening a project does not drop an automation lane it can read            | PASS   |                                                                |
+| undo restores the state an undoable action was invoked from               | PASS   |                                                                |
+| redo restores what undo removed                                           | PASS   |                                                                |
+| an automation point reads back the value it was written with              | PASS   |                                                                |
+| every bypassed insert renders exactly what no insert renders              | PASS   |                                                                |
+| raising a track fader never lowers the rendered level                     | PASS   |                                                                |
+| a latency-declaring insert moves nothing in the bounce, wherever it lands | FAIL   | a render is silent (0.00e+0, 0.00e+0), so nothing was measured |
+| deleting a track leaves no clip pointing at it                            | PASS   |                                                                |
 
 ## Uncaught page errors
 

@@ -178,7 +178,12 @@ Notes toward building it, since this is one of the deep-dive items:
 ### MotionLab does
 
 - `Float32Array` throughout: **201 occurrences across 19 files** in `src/audio/`.
-  **No `Float64Array` anywhere, and no `precision` setting.**
+  **No 64-bit audio path, and no `precision` setting.** Three double-precision
+  arrays exist and none of them carries signal: `effectChain.ts` uses one for
+  the Motion Wave frame boundary and `encode/flac.ts` two for the Rice parameter
+  search. This bullet used to claim the type appeared nowhere at all, which was
+  not true and would have sent anyone re-running the grep to the opposite
+  conclusion. The verdict below is unchanged; it now rests on what is measurable.
 - Summing is whatever the browser's Web Audio graph does, which is 32-bit float
   and not user-selectable.
 - Export bit-depth reduction has real dither: `src/audio/encode/dither.ts`.
