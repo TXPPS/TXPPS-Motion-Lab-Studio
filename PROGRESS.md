@@ -1,30 +1,27 @@
 # Motion Wave — progress
 
 ```
-RESUME: Directive 11 — parity, reachability, exhaustive proof.
+RESUME: F6 — the sampler's load route, documents that cannot lie, honest
+        coverage arithmetic.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: ff4dfac, bundle index-tvn0lsYX.js, sha256 eb81cdcf7658b2cf
-                 over 445174 bytes — fetched from the live page and matched
-                 against a clean-tree rebuild, not just by name. `0650777` /
-                 `index-orQk2sIC.js` / `489e0ed9e6b7177b` was verified the same
-                 way two commits earlier; every commit changes the bundle hash,
-                 because `vite.config.ts` compiles the commit's date in.
-                 A note on "clean": `git status --porcelain` reported 576
-                 modified files after the working tree was normalised to LF,
-                 while `git diff` reported none — a stale index stat cache,
-                 which `git add --renormalize .` clears. Until it was cleared
-                 every local build compiled in the wall clock and no two of
-                 them hashed alike, so the check below could not have passed.
-                 Three things the check has now failed on and none of them
-                 was the deploy: a stale local dist/, chasing a bundle that was
-                 never going to appear; a *dirty* tree, which makes the
-                 build non-reproducible by design — `vite.config.ts` compiles in
-                 the commit's date for a clean tree and the wall clock for a
-                 dirty one, so two builds a minute apart hashed differently.
-                 Clean means committed, not merely rebuilt — and, as above, not
-                 merely believed: `git status` and `git diff` disagreed for
-                 five hundred and seventy-six files and only one of them is
-                 what the build reads.
+Deployed commit: 232feb0, bundle index-CqCua4AE.js, sha256 ffa09e874b488ac6
+                 over 449374 bytes - fetched from the live worker and compared
+                 byte-for-byte against a clean-tree rebuild, not matched by
+                 name. This line names the tip at the moment it was written,
+                 so the commit that edits it is by construction one ahead of
+                 what it describes.
+                 The push before it, bf52af2, never deployed: `docs-guard` ran
+                 `git cat-file -e` on eleven commits Cloudflare's shallow clone
+                 had never fetched, failed all eleven, and exited the build.
+                 Fifteen minutes of polling for a bundle that was never coming.
+                 A claim about the repository, made from a truncated copy of
+                 it, is BLOCKED-is-a-claim-about-the-host again.
+                 A note on "clean": `git status --porcelain` once reported 576
+                 modified files after the tree was normalised to LF while
+                 `git diff` reported none - a stale index stat cache, which
+                 `git add --renormalize .` clears. Until it was cleared every
+                 local build compiled in the wall clock and no two hashed
+                 alike. Clean means committed, not merely rebuilt.
 Bundle verified: every deploy is checked by fetching the live bundle and
                  matching its hash against a clean-tree build. Cloudflare takes
                  260-280 s to pick one up; a check that does not wait that long
