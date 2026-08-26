@@ -31,11 +31,33 @@ function actionsIn(file) {
  * The interface is the contract a component calls through, and it lists methods
  * one per line as `name: (args) => ret;`. Reading the implementation instead
  * would pick up private helpers that no user can invoke.
+ *
+ * **Which interface** is the part this got wrong for four directives. The
+ * pattern ran over the whole file, so any two-space-indented function-typed
+ * field counted — and `uiStore.ts` declares `DialogState.onSubmit` and
+ * `MenuItem.action` beside its state. Both were rows in the Function Ledger,
+ * both were permanently undriven, and neither is a store action at all: they
+ * are callbacks a caller supplies. Two phantom rows sat in the denominator, so
+ * the coverage percentage was reported against 403 when the product declares
+ * 401. Found by writing a recipe for every store row and running out of things
+ * that were stores.
+ *
+ * `create<Name>(...)` is what the store is actually built from, so `Name` is
+ * the block to read and nothing else in the file counts.
  */
 function storeActionsIn(file) {
   const src = read(join('src/state', file));
+  const contract = src.match(/\bcreate<(\w+)>/)?.[1];
+  if (!contract) return [];
+  const start = src.search(new RegExp(`^(?:export )?(?:interface|type) ${contract}\\b`, 'm'));
+  if (start === -1) return [];
+  // The block ends at the first line-start `}`, which is where every one of
+  // these declarations closes. Nested members are indented, so this cannot end
+  // early on an inner brace.
+  const end = src.indexOf('\n}', start);
+  const block = src.slice(start, end === -1 ? src.length : end);
   const found = [];
-  for (const m of src.matchAll(/^\s{2}(\w+)\s*(?:\?)?:\s*\((?![^)]*\)\s*=>\s*void\s*\|)/gm)) {
+  for (const m of block.matchAll(/^\s{2}(\w+)\s*(?:\?)?:\s*\((?![^)]*\)\s*=>\s*void\s*\|)/gm)) {
     found.push(m[1]);
   }
   // Only those whose type is a function, which the pattern above already

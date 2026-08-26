@@ -8,6 +8,10 @@
  *
  * Every mutation is applied to a copy-on-disk and restored in a `finally`, so
  * an interrupted run leaves the tree as it found it.
+ *
+ * @clone: index — it stages and unstages one file for `scope-guard`'s gate, and
+ * checks out what a mutated run rewrote. Nothing here asks about a commit, so a
+ * shallow clone answers every question it has.
  */
 import { execSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -18,7 +22,7 @@ import { emsdkToolchain } from '../emcxx.mjs';
 const TIMEOUT_MS = 240_000;
 
 /** Run a command; report only whether it succeeded. */
-function run(command, env = {}) {
+export function run(command, env = {}) {
   try {
     execSync(command, {
       cwd: ROOT,
@@ -39,7 +43,7 @@ function run(command, env = {}) {
  * from the reverse edit, because a reverse edit that does not match leaves the
  * tree quietly wrong and this runs against the working copy.
  */
-function apply(mutate) {
+export function apply(mutate) {
   const path = join(ROOT, mutate.file);
   if (mutate.content !== undefined) {
     if (existsSync(path)) throw new Error(`${mutate.file} already exists`);
@@ -56,6 +60,25 @@ function apply(mutate) {
     copyFileSync(backup, path);
     rmSync(backup, { force: true });
   };
+}
+
+/**
+ * Put back anything the *check* rewrote, not just what the edit touched.
+ *
+ * `wasm:check` runs `build.sh`, which copies its output over the tracked
+ * `prebuilt/` core as its last step. So a run against an edited source leaves a
+ * mutant artefact in git — correctly reported as not matching its source, and
+ * then left there for whoever committed next. Shared with the satisfiability
+ * driver because it disturbs exactly the same files.
+ */
+export function restore(paths) {
+  for (const path of paths ?? []) {
+    try {
+      execSync(`git checkout -- "${path}"`, { cwd: ROOT, stdio: 'ignore' });
+    } catch {
+      console.error(`  could not restore ${path} — check it out by hand`);
+    }
+  }
 }
 
 /**
@@ -159,12 +182,6 @@ export function runGate(name, command, entry) {
      * there for whoever committed next. The gate has to put back everything it
      * disturbed, not everything it meant to.
      */
-    for (const path of entry.restores ?? []) {
-      try {
-        execSync(`git checkout -- "${path}"`, { cwd: ROOT, stdio: 'ignore' });
-      } catch {
-        console.error(`  could not restore ${path} — check it out by hand`);
-      }
-    }
+    restore(entry.restores);
   }
 }

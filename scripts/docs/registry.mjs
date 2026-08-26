@@ -71,6 +71,14 @@ export const DOCS = Object.fromEntries([
     },
   ],
   [
+    'docs/audit/store-coverage.json',
+    {
+      kind: 'GENERATED',
+      by: 'test',
+      why: 'the store sweep records what it observed per row; `npm test` rewrites it, so it is current on every push rather than as of the last soak',
+    },
+  ],
+  [
     'docs/FUNCTION_LEDGER.md',
     {
       kind: 'GENERATED',

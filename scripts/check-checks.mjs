@@ -33,6 +33,8 @@ import {
 import { reachability } from './checks/reach.mjs';
 import { CHECKS, DIRECT } from './checks/mutants.mjs';
 import { runGate } from './checks/gates.mjs';
+import { runSatisfy } from './checks/satisfy.mjs';
+import { cloneClaims } from './checks/clone.mjs';
 
 const STATIC_ONLY = process.argv.includes('--check');
 const LIST_ONLY = process.argv.includes('--list');
@@ -64,12 +66,49 @@ for (const [name, entry] of Object.entries(CHECKS)) {
   if (entry.kind === 'gate' && !entry.mutate && entry.expect !== 'unfalsifiable') {
     problems.push(`"${name}" is a gate with no mutation.`);
   }
+  // And how it can pass. A mutation says a check is load-bearing; it says
+  // nothing about whether the state the check demands can ever be reached, and
+  // `docs-guard`'s currency rule was load-bearing and unreachable at once.
+  if (entry.kind !== 'tool' && !entry.satisfy && !entry.satisfiedBy) {
+    problems.push(
+      `"${name}" says how it can fail and not how it can pass. Give it a \`satisfy\` case ` +
+        'or a `satisfiedBy` reason: a check nobody can satisfy gets turned off.',
+    );
+  }
 }
 for (const [path, entry] of Object.entries(DIRECT)) {
   if (!reach.allText.includes(path))
     problems.push(`${path} is declared here and invoked by nothing.`);
   if (entry.expect === 'unfalsifiable' && !entry.unfalsifiableBecause) {
     problems.push(`${path}: expect is unfalsifiable and no reason is given.`);
+  }
+  if (!entry.satisfy && !entry.satisfiedBy) {
+    problems.push(`${path} says how it can fail and not how it can pass.`);
+  }
+}
+
+// ------------------------------------------------- and what copy it needs
+
+/*
+ * A guard that asks git a question declares what kind of copy can answer it.
+ *
+ * `docs-guard` ran `git cat-file -e` on eleven commits and Cloudflare's builder,
+ * which clones `--depth 1`, had fetched none of them. All eleven failed, the
+ * build exited, and the deploy did not happen. A claim about the repository,
+ * made from a truncated copy of it, is the same error as BLOCKED being a claim
+ * about the host — and the fix is not to remember, it is to have to say so.
+ */
+for (const claim of cloneClaims()) {
+  if (!claim.declared) {
+    problems.push(
+      `${claim.file} invokes git and declares no \`@clone:\` requirement. Say which copy can ` +
+        'answer it: working-tree, index, or full-history.',
+    );
+  } else if (claim.needs === 'full-history' && !claim.handlesShallow) {
+    problems.push(
+      `${claim.file} declares \`@clone: full-history\` and never asks whether it has one. ` +
+        'A shallow clone must be detected and skipped with a note, not failed.',
+    );
   }
 }
 
@@ -230,6 +269,11 @@ for (const suite of SUITES) {
   );
 }
 
+console.log('\nWhat each script needs of the repository:');
+for (const claim of cloneClaims()) {
+  console.log(`  ${String(claim.needs).padEnd(13)} ${claim.file}`);
+}
+
 console.log('\nEach gate, mutated:');
 const verdicts = [];
 for (const [name, entry] of Object.entries(CHECKS)) {
@@ -246,7 +290,31 @@ for (const [path, entry] of Object.entries(DIRECT)) {
   console.log(`  ${result.verdict.padEnd(8)} ${path}${result.why ? ` — ${result.why}` : ''}`);
 }
 
+console.log('\nEach check, satisfied:');
+const satisfied = [];
+for (const [name, entry] of Object.entries(CHECKS)) {
+  if (entry.kind === 'tool') continue;
+  if (FILTER && !name.includes(FILTER)) continue;
+  const result = runSatisfy(name, entry.command ?? `npm run ${name} --silent`, entry);
+  satisfied.push({ name, ...result });
+  console.log(`  ${result.verdict.padEnd(8)} ${name}${result.why ? ` — ${result.why}` : ''}`);
+}
+for (const [path, entry] of Object.entries(DIRECT)) {
+  if (FILTER && !path.includes(FILTER)) continue;
+  const result = runSatisfy(path, `node ${path}`, entry);
+  satisfied.push({ name: path, ...result });
+  console.log(`  ${result.verdict.padEnd(8)} ${path}${result.why ? ` — ${result.why}` : ''}`);
+}
+
 const bad = verdicts.filter((v) => v.verdict === 'DECAYED' || v.verdict === 'BROKEN');
+const unsatisfiable = satisfied.filter((v) => v.verdict === 'REFUSES' || v.verdict === 'BROKEN');
+console.log(
+  `\n${satisfied.length} check(s) asked whether they can pass: ` +
+    ['ACCEPTS', 'KEPT', 'BLOCKED', 'REFUSES', 'BROKEN']
+      .map((v) => `${satisfied.filter((x) => x.verdict === v).length} ${v}`)
+      .join(', ') +
+    '.',
+);
 console.log(
   `\n${verdicts.length} gate(s): ` +
     ['HELD', 'BLOCKED', 'KEPT', 'DECAYED', 'BROKEN']
@@ -254,4 +322,4 @@ console.log(
       .join(', ') +
     `; ${missing} spec file(s) on disk that no runner listed.`,
 );
-process.exit(bad.length > 0 || missing > 0 ? 1 : 0);
+process.exit(bad.length > 0 || missing > 0 || unsatisfiable.length > 0 ? 1 : 0);

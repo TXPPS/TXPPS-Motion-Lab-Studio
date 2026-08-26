@@ -1,8 +1,8 @@
 # Motion Wave — progress
 
 ```
-RESUME: F6 — the sampler's load route, documents that cannot lie, honest
-        coverage arithmetic.
+RESUME: F7 — every store mutator swept by one pattern, every check proved
+        satisfiable, and the voice partition PA-003 cannot come back through.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
 Deployed commit: 232feb0, bundle index-CqCua4AE.js, sha256 ffa09e874b488ac6
                  over 449374 bytes - fetched from the live worker and compared
@@ -29,27 +29,34 @@ Bundle verified: every deploy is checked by fetching the live bundle and
                  This line names the tip at the moment it was written, so the
                  commit that edits it is by construction one ahead of what it
                  describes. Said plainly rather than left to be noticed.
-Current section: F6 §1-§3 COMPLETE. A P0 closed - the sampler had no route to
-                 a user's own audio on any form factor. Every document under
-                 docs/ is now GENERATED, GUARDED or NARRATIVE and a guard
-                 enforces what each means. The coverage arithmetic is reported
-                 against the ledger rather than against the sweep's own scope.
-Next action:     §7 continues. `voice/note_id.h` and `voice/note_registry.h`
-                 are built and VS-04 is closed - the row the spec calls
-                 "BUG-005 made executable". `voice_set.h` is next: VS-01 and
-                 VS-02 are PA-003 made executable and need a partition to
-                 walk. Ten of the substrate's twelve files remain, then the
+Current section: F7 COMPLETE. All 186 store mutators are driven by one
+                 four-phase pattern - invoke, undo, save, reload - and the
+                 ledger reads 228 of 401, up from 69. Every declared check now
+                 says how it can PASS as well as how it can fail, and a guard
+                 that asks git anything declares what kind of clone can answer
+                 it. §6's piano roll gap is closed: a note too short to carry
+                 a resize grip had no way to be resized on a phone at all.
+                 §7 has `voice/voice_set.h` - VS-01, VS-02, VS-05, VS-30.
+Next action:     §7 continues. Three of the substrate's twelve files are built
+                 (`note_id.h`, `note_registry.h`, `voice_set.h`) and VS-01,
+                 VS-02, VS-04, VS-05 and VS-30 are closed. `trigger_bus.h` is
+                 next - it is 110 lines and every envelope, ramp and LFO
+                 subscribes to it, so it comes before `envelope.h`. Then the
                  Slipstream Sampler, then the five synths.
-                 Also open: SA-001, the analysing importer smp-01 §3 specifies.
-                 The load route exists now; nothing analyses what it loads.
-Function Ledger: 403 functions, **69 with a state-asserting test - 17.1%**.
-                 The sweep drives 136 of the 403 and 69 of those change
-                 something; 267 rows have no case at all and are named, by
-                 kind, under "Never driven". F3 reported 69/396 and the last
-                 report said 69/136 - the same numerator against the sweep's
-                 own scope, which reads as coverage tripling. Both numbers are
-                 printed now, by `scripts/functions/enumerate.mjs`, which the
-                 ledger and the soak both read so they cannot disagree.
+                 SA-001 stays open: the load route exists, and nothing
+                 analyses what it loads. See "Where SA-001 sits" below for the
+                 order and the argument for it.
+Function Ledger: 401 functions, **228 with a state-asserting test - 56.9%**.
+                 Two instruments: the functional soak drives 136 against a
+                 running browser on three form factors, and the store sweep
+                 drives 159 in `npm test`. 106 rows have no case at all - 87
+                 actions and 19 surfaces - and are named under "Never driven".
+                 The denominator moved 403 -> 401 and the reason is a defect:
+                 the ledger's store axis read every two-space-indented
+                 function-typed field in a store file, so `DialogState.onSubmit`
+                 and `MenuItem.action` were rows. Neither is a store action.
+                 Found by writing a recipe for every store row and running out
+                 of things that were stores.
 Open P1s:        None. The suite has no failing case.
                  The console's target-size question is CLOSED, by WCAG 2.5.8's
                  equivalent-alternative provision rather than by moving a
@@ -124,6 +131,271 @@ Ledger:          **7 of 14 SHIPPING** - Motion Shaper, Program EQ, Optical
                  cloud is reading now; the grain *count* is a spawn rate times a
                  length and sat at 22 whatever was playing.
 ```
+
+## One pattern, one hundred and eighty-six store mutators
+
+159 of the Ledger's 186 store rows had no case at all, and they are the cheapest
+rows to cover and the most valuable — undo, persistence and the engine graph all
+meet there. So they were swept as a batch under one shape
+rather than argued about one at a time.
+
+The shape is four phases, and each is a separate claim:
+
+1. **It does something.** The store's serialisable state must differ. This is
+   what stops a wrong recipe reading as green, and it is why the arguments could
+   be hand-written without the assertions being negotiable.
+2. **Undo behaves as declared.** Each recipe says `undo: 'step'` or
+   `undo: 'none'` and **both are checked**: a step pushes exactly one entry and
+   restores exactly, none pushes nothing. The declaration lives in the recipe
+   rather than being read out of the store, because reading it out of the thing
+   under test makes the check a restatement.
+3. **The change survives a save and a reload.** Not "the project still
+   validates" — the paths the action _wrote_ are diffed and every one of them
+   must still hold its value after `validateProject`. A reload may add defaults;
+   it may never drop or alter what was written.
+4. **It is serialisable, and it reaches storage.** For the eight shell stores,
+   which have no undo and no document: a change JSON cannot carry is the defect
+   worth finding, and where the store persists, the persisted blob must move.
+
+`cases.mjs` warns against exactly this kind of sweep — "a generated invocation
+would call every action with plausible-looking rubbish, observe that something
+changed, and report coverage of a behaviour nobody specified" — and the warning
+is right about _generated arguments_. The split is what answers it: the
+arguments are hand-written per row and the assertions are identical for all 186.
+The recipe says what to call; the harness says what must be true of any store
+action; neither can be weakened without the other noticing.
+
+**Thirteen of my own undo declarations were wrong on the first run**, and every
+one of them was mine rather than the store's — `setBpm`, `setLoop`,
+`trimClipStart`, `setClipGain`, `updateNotes` and the rest are drags, wrapped in
+a gesture by the caller, and the gesture is what collapses a hundred writes into
+one Ctrl+Z. Three went the other way: `setSend`, `setCueMix` and `registerMedia`
+push a step and should, because the click that first enables a send is a
+decision that has to be undoable on its own. Re-deriving each from _what the
+action is_ rather than re-fitting to what the store did is the difference
+between a check and a transcript.
+
+**The ledger's denominator moved 403 → 401, and the two rows that left were a
+defect.** The store axis matched every two-space-indented function-typed field
+in a store file, so `uiStore.ts`'s `DialogState.onSubmit` and `MenuItem.action`
+were rows in the Function Ledger. Neither is a store action — they are callbacks
+a caller supplies. Both had been permanently undriven and permanently
+uncoverable, which is what made them invisible: a row nobody can drive looks
+exactly like a row nobody has driven yet. Found by writing a recipe for every
+store row and running out of things that were stores. `create<Name>` is what the
+store is actually built from, so the enumeration reads that block and nothing
+else in the file.
+
+**228 of 401 — 56.9%**, from 69. Two instruments now, and each row says which
+one covered it: the functional soak drives 136 against a running browser on
+three form factors, and the store sweep drives 159 in `npm test`, which means
+those rows are current on every push rather than as of the last twenty-minute
+soak. A store-sweep row reads `n/a` in the form columns rather than `?`, because
+a store mutator is the same code on a phone and a desktop; what differs per form
+is whether anything can _reach_ it, and that is `npm run reachability`'s subject.
+
+106 rows still have no case at all: 87 actions and 19 surfaces. Named, as
+before.
+
+---
+
+## Every check now says how it can pass
+
+Two standing rules, both out of the deploy `docs-guard` took down.
+
+**A guard that asks git anything declares what kind of copy can answer it.**
+One line — `// @clone: working-tree | index | full-history` — which
+`scripts/checks/clone.mjs` reads and `check-checks --check` enforces. Declaring
+`full-history` carries an obligation: the script must detect a shallow clone and
+skip that part with a note, and the build fails if it does not. Three scripts
+invoke git and all three now declare. The rule is proved rather than asserted:
+`docs-guard`'s second satisfiability case clones this repository `--depth 1` and
+runs the guard inside it, which is the failure reproduced rather than remembered.
+
+**Every check must be provably satisfiable, not only falsifiable.** This is the
+larger of the two and it is the one the currency rule failed. A mutation says a
+check is load-bearing. It says nothing about whether the state the check demands
+can ever be reached — and `docs-guard`'s currency rule was load-bearing and
+unreachable at the same time: it compared a bundle name that `vite.config.ts`
+changes on every commit, so committing the report it wanted invalidated the
+report. It would have held its mutation test. **A check that cannot be satisfied
+gets turned off**, and turning one off is this apparatus failing by a side door.
+
+So every entry in `scripts/checks/mutants.mjs` carries a `satisfy` case beside
+its `mutate` one, or a `satisfiedBy` reason why none can be constructed. The
+strongest form is `repairedBy('npm run …')`: **apply the gate's own mutation,
+run the writer its error message names, and require the check to go green
+again.** That is not "some state passes" — the tree we started from already
+passes — it is "the state this check demands is reachable by doing what it tells
+you to do", which is exactly the question the currency rule could not answer.
+Nine generator checks are proved that way. The guards that have no writer get a
+legal addition they must tolerate: a permissively licensed source, a document
+_with_ its registry entry, a spec that presses through `e2e/pointer.ts`, a file
+staged inside the declared scope, a rename made in both the probe registry and
+its call site.
+
+`ACCEPTS` / `REFUSES` / `KEPT` / `BLOCKED` / `BROKEN`, and `REFUSES` fails the
+run. `check-checks --check` refuses a check that declares neither, so this
+cannot decay into the subset somebody got round to.
+
+**It found a decayed mutation on its first run.** `docs-guard:release`'s gate
+renamed the _bundle_ `SOAK.md` declares — and the currency rule had stopped
+reading the bundle when it moved to the source fingerprint, so the mutation went
+through and the check still passed: DECAYED, on the very check this directive's
+lesson came from. Its anchor is the `- **Source**` label now rather than the
+digest, because a digest changes whenever `src/` does and an anchor with an
+expiry date reads BROKEN later.
+
+---
+
+## Where SA-001 sits, and why the substrate goes first
+
+The question was whether the analysing importer (smp-01 §3, six of seven steps
+absent) comes before or after the voice substrate, given that Slipstream is
+supposed to _prove_ the substrate for the five synths.
+
+**Substrate first, Slipstream consumes it, SA-001 before the synths.** The
+argument, since it is worth making rather than asserting:
+
+The two are not the same kind of work and they prove different things. The
+substrate is a **shared** contract — the five synths and the sampler all take
+their voices, envelopes, LFOs, glide and MPE from it, and what "proven through
+Slipstream" means is that the contract survived one real consumer. That claim is
+about `voice/`, and it is exercised by any instrument that allocates voices,
+holds notes and steals under load. A sampler with a hand-loaded zone does all of
+that. The importer does none of it: transient detection, pitch detection and
+auto-zoning run **before** a note is ever pressed, produce a `SampleZone[]`, and
+hand it to the same `addSamplerZones` a person's finger reaches through today.
+There is no substrate interface on that path at all.
+
+So building SA-001 first would not make the substrate better proven. It would
+delay every one of the twelve substrate files behind seven DSP steps that the
+substrate does not touch, and it would do it in the order that costs most:
+`voice_set.h` is what closes PA-003 by construction, and PA-003 is a _shipping_
+defect in two instruments.
+
+The reason SA-001 must still come **before the five synths** is different and it
+is about what "proven" is allowed to mean. Slipstream is the proof consumer. If
+it ships with one of its seven specified import steps built, then "the substrate
+is proven through Slipstream" is a claim about a Slipstream that does not exist
+yet — and the five synths would be built on a contract validated by a partial
+instrument. That is the shape of every stale document this project has found:
+a true sentence about a thing that has since moved.
+
+The order, then: **substrate (12 files) → Slipstream on the substrate → SA-001
+closes → the five synths.** Slipstream proves the substrate; SA-001 makes
+Slipstream the instrument the spec describes; the synths inherit both.
+
+---
+
+## §6 — a note too short to resize had no way to be resized
+
+The piano roll backlog is built and has been for a directive: independent zoom
+axes, a 56 px lane floor clamped on read, a resize grip with a short-note rule,
+a drag readout placed where the finger is not, a nudge pad, chord stamping and
+scale lock. Fifteen e2e cases across two specs drive them with a real pointer.
+
+What was not built was the other half of one of them, and `geometry.ts` said so
+in its own comment without anybody reading it as a gap. A note narrower than
+24 px gives up its resize grip so that dragging it still _moves_ it — and the
+comment adds that such a note "is moved by dragging and resized from the toolbar
+or the keyboard". The keyboard is a complete answer for a desktop and none at
+all for a phone. The toolbar's only length commands were **Double (×2)** and
+**Half (÷2)**, which cannot reach a dotted sixteenth from a sixteenth, or
+anything else that is not a power of two away.
+
+So for exactly the notes whose grip had been removed to make room for the move
+gesture, the resize capability was absent on touch. Capability parity failing in
+the one place the affordance divergence had been argued for.
+
+`pr-len-shorter` / `pr-len-longer` are that capability: one snap step, either
+way, the same edit Alt+←/→ makes. 44 px on a finger, measured by pressing.
+
+And the class is now guarded rather than noticed. `tests/pianoRollParity.test.ts`
+enumerates every `case` arm and every modifier branch in the roll's key handlers
+straight from the source, and each must name the on-screen control that makes
+the same edit or say why it needs none — a cell cursor's equivalent is touching
+the cell. A keyboard command added without either fails the build. Mutation-
+tested by renaming the length control's test id: two cases red, by name.
+
+---
+
+## A property failed on one seed in fifty, and the product was right
+
+`automation-reads-back` went red on the verification run: _seed 1787778238,
+beat 13.17: wrote 0.0887, read 0.8398_. It had passed on the seed before it and
+on every seed since the property was written.
+
+The property writes sixteen points at random beats on one lane and, after each,
+looks up "the point at that beat" and compares its value. Sixteen draws from
+6401 beats collide about one run in fifty — and `addAutomationPoint` **appends**
+rather than replacing, so two points can share a beat. The lookup found the
+_earlier_ of the two and reported the product had read back somebody else's
+value.
+
+The product is right to allow it. `laneValueAt` guards a zero-length span and
+returns the later of the two points, and `Array.prototype.sort` is stable, so
+the parameter takes the value that was just written — which is what the property
+was actually claiming. Nothing in the audio path can see a stacked pair.
+
+Corrected to look up by the id `addAutomationPoint` returns, which is what the
+action hands back and what every caller already holds: the identity the claim
+was always about. **Mutation-tested before believing it**, on the seed that
+exposed it — `soak/automation-point-by-id`, corrected PASS, defect restored
+FAIL, verdict HELD. Twenty-seven registered corrections now.
+
+Worth recording because of what it nearly cost in the other direction. A
+property that goes red one run in fifty for a reason that is not the product is
+a property nobody believes when it is right, and the cheap resolutions were both
+wrong: widening the tolerance would have hidden a real read-back failure, and
+making the store replace a point at the same beat would have changed shipped
+behaviour to satisfy a test. The rule held — suspect the probe, then _prove_ the
+probe — and the proof is the part that had to happen before the correction was
+believed.
+
+## §7 — the partition PA-003 cannot come back through
+
+`voice/voice_set.h`, and VS-01, VS-02, VS-05 and VS-30 are closed.
+
+PA-003 was the same defect in two unrelated instruments: sixty simultaneous
+note-ons against a capacity of twenty-four produced **sixty** sounding
+oscillators and one steal, and the sampler answered eighty live against a cap of
+forty-eight. Both stole by running over the allocated set without removing each
+victim as they took it, so every pass chose the same voice and the loop ran out
+of iterations rather than out of work.
+
+The fix is structural rather than careful. **A voice's membership is its position
+in a permutation, not a flag:** `slots[0..live)` is allocated and
+`slots[live..capacity)` is free, and every operation is a swap and an increment.
+Two flags can disagree with each other and with a count; a position cannot be in
+two places. And `stealOne` returns **nothing at all** — the victim leaves the
+allocated span and `allocate` takes its voice from the free span like every other
+path, so there is no value in the class for a caller to hold and no way to write
+the loop that produced the defect.
+
+VS-01 reads exactly as the directive that recorded PA-003 does: 60 against 24
+gives `liveCount() == 24` and `stealCount() == 36`; 80 against 48 gives 48 and 32. A third case asks the same question of the _worst_ value rather than the
+final one, because a set that overshot to sixty and recovered before anybody
+looked would pass both — and sixty oscillators is what the defect sounded like.
+
+**Writing the tests found a defect in my own implementation**, which is the
+point of writing them first: `stealOne` freed a slot and `allocate` used the
+victim directly, so the allocated span ended one shorter than the number of
+voices sounding. PA-003 with the sign flipped, and just as invisible from
+outside — six of the eleven cases caught it.
+
+VS-02 walks the permutation after a hundred thousand randomised operations and
+requires every id to appear exactly once. **The mutation the spec names — replace
+the partition with a flag per voice — showed that case was too weak on its own.**
+Degrading `freeAt` to a bare decrement leaves the array untouched, so it is still
+a permutation and the hundred thousand operations pass; what breaks is
+_disjointness_, a voice with an owner sitting in the free span where the next
+allocation will hand it out while it is still sounding. Both are checked now,
+every step, and the mutation fails both VS-02 cases by name.
+
+Three of the substrate's twelve files are built. `trigger_bus.h` is next — 110
+lines, and every envelope, ramp and LFO subscribes to it, so it comes before
+`envelope.h`.
 
 ## The sampler had no way to load a sample
 

@@ -27,6 +27,7 @@ npm test                 # vitest
 npm run e2e              # playwright, uses the preview build
 npm run build
 npm run docs-guard:release   # before a deploy — see "Documents that record state"
+node scripts/check-checks.mjs # every gate mutated, and every check satisfied
 
 # Motion Wave (core)
 cd motionwave
@@ -154,6 +155,18 @@ writing those files — not whether to widen the scope until it goes quiet.
   value, choosing it against two _published_ constraints is calibration and is
   fine; choosing it against a measurement of your own code is not.
 
+- **Every store mutator is swept by one pattern: invoke, undo, save, reload.**
+  `tests/storeSweep/` drives all 186 of them. Phase 1 requires an observable
+  change, so a recipe with wrong arguments fails rather than reading green.
+  Phase 2 checks the recipe's `undo: 'step' | 'none'` declaration _both ways_ —
+  a step pushes exactly one entry and restores exactly; none pushes nothing.
+  Phase 3 diffs the paths the action wrote and requires every one of them to
+  survive `validateProject`; a reload may add defaults, it may never drop or
+  alter what was written. A store action added without a recipe fails
+  `tests/storeSweep.test.ts`. The arguments are hand-written per row and the
+  assertions are identical for all of them — that split is the design, and
+  neither half can be weakened without the other noticing.
+
 - **A control that does nothing is a bug of the same class as a wrong number.**
   Static guards enforce it: `tests/schemaWired.test.ts`, `tests/laneWired.test.ts`,
   `tests/prefs.test.ts`. Add to them rather than around them.
@@ -214,11 +227,31 @@ writing those files — not whether to widen the scope until it goes quiet.
   Comparing the bundle cannot work: `vite.config.ts` compiles the commit date in,
   so committing the fresh report invalidates the name the report has just been
   made to carry, and a check that cannot be satisfied gets turned off.
-- **A guard may not ask git a question a shallow clone cannot answer.**
+- **A guard that asks git anything declares what kind of copy can answer it.**
   `docs-guard`'s history check ran `git cat-file -e` on eleven commits
   Cloudflare's builder had never fetched, failed all eleven, and took the deploy
   down. A claim about the repository made from a truncated copy of it is the
-  same error as BLOCKED being a claim about the host. Skip, and say so.
+  same error as BLOCKED being a claim about the host. Skip, and say so — and
+  say it in the file: one `// @clone: working-tree | index | full-history` line,
+  which `check-checks --check` reads. Declaring `full-history` obliges the
+  script to detect a shallow clone and skip that part, and the build fails if it
+  does not. `scripts/checks/clone.mjs` is the rule; `docs-guard`'s second
+  satisfiability case is the proof, and it clones this repository `--depth 1` to
+  get it.
+
+- **Every guard must be provably _satisfiable_, not only falsifiable.** A
+  mutation says a check is load-bearing. It says nothing about whether the state
+  the check demands can ever be reached, and `docs-guard`'s currency rule was
+  both load-bearing and unreachable: it compared a bundle name that
+  `vite.config.ts` changes on every commit, so committing the report it wanted
+  invalidated the report. **A check that cannot be satisfied gets turned off**,
+  and that is this whole apparatus failing by a side door. So every entry in
+  `scripts/checks/mutants.mjs` carries a `satisfy` case beside its `mutate` one
+  — a constructed state the check must accept — or a `satisfiedBy` reason why
+  none can be built. The strongest form is `repairedBy('npm run …')`: apply the
+  gate's own mutation, run the writer the error message names, and require the
+  check to go green. `ACCEPTS` / `REFUSES` are the verdicts, and `REFUSES` fails
+  the run.
 
 ## Motion Wave core: the rules that are not negotiable
 

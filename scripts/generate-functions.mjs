@@ -57,31 +57,49 @@ const CHECK = process.argv.includes('--check');
  * file records what the soak said and whose build it said it about.
  */
 function soakCoverage(total) {
-  const file = join(ROOT, 'docs', 'audit', 'soak-coverage.json');
-  if (!existsSync(file)) return { rows: new Map(), why: 'no soak has been run', undriven: null };
-  const data = JSON.parse(readFileSync(file, 'utf8'));
-  const covered = data.rows.filter((r) => r.covered).length;
-  const attempted = data.rows.length;
+  const rows = new Map();
+  const read = (name) => {
+    const file = join(ROOT, 'docs', 'audit', name);
+    return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
+  };
+
+  const soak = read('soak-coverage.json');
+  for (const r of soak?.rows ?? []) rows.set(r.id, { ...r, by: 'soak' });
+
+  // The store sweep, second. It drives every store mutator through one
+  // four-phase pattern and it runs in `npm test`, so its rows are current on
+  // every push rather than as of the last twenty-minute soak. Where both have
+  // a row the soak wins: it drove the function through the running app.
+  const sweep = read('store-coverage.json');
+  for (const r of sweep?.rows ?? []) {
+    if (rows.has(r.id)) continue;
+    rows.set(r.id, { ...r, by: 'store sweep' });
+  }
+
+  if (rows.size === 0) return { rows, why: 'nothing has been run', undriven: null };
+  const covered = [...rows.values()].filter((r) => r.covered).length;
+  const attempted = rows.size;
+  const bySoak = [...rows.values()].filter((r) => r.by === 'soak').length;
   const pct = (n) => `${((n / total) * 100).toFixed(1)}%`;
   return {
-    rows: new Map(data.rows.map((r) => [r.id, r])),
-    undriven: undrivenBy(new Set(data.rows.map((r) => r.id))),
+    rows,
+    undriven: undrivenBy(new Set(rows.keys())),
     /*
      * Three numbers, because two of them were being reported as one.
      *
-     * The previous line read "69 of 136 attempted rows asserted a state
-     * change", which is true and is a hit rate *inside the sweep's own scope*.
-     * The report before it said "69 of 396". Same numerator, different
-     * denominator, and read together it looks like coverage tripled. It is
-     * the arithmetic that hides in a total: 136 is what the sweep drives, not
-     * what there is.
+     * A previous line read "69 of 136 attempted rows asserted a state change",
+     * which is true and is a hit rate *inside the sweep's own scope*. The
+     * report before it said "69 of 396". Same numerator, different denominator,
+     * and read together it looks like coverage tripled. It is the arithmetic
+     * that hides in a total: what a sweep drives is not what there is.
      */
     why:
       `**${covered} of ${total} ledger rows** (${pct(covered)}) have a state-asserting ` +
-      `result. The sweep attempted ${attempted} of them and ${covered} of those changed ` +
-      `something; **${total - attempted} rows have no case at all** and are named under ` +
-      `"Never driven" below. Measured against ` +
-      `\`${data.bundle?.entry ?? 'an unnamed bundle'}\` (\`${data.bundle?.hash || 'unhashed'}\`)`,
+      `result. Two instruments drive them: the functional soak against the running app ` +
+      `(${bySoak} rows, measured on \`${soak?.bundle?.entry ?? 'an unnamed bundle'}\`, ` +
+      `\`${soak?.bundle?.hash || 'unhashed'}\`) and the store sweep in \`npm test\` ` +
+      `(${attempted - bySoak} rows). ${total - attempted} rows have no case at all and are ` +
+      `named under "Never driven" below`,
   };
 }
 
@@ -99,7 +117,8 @@ const WHY_UNDRIVEN = {
     'no case exists for any of them. `scripts/soak/cases.mjs` covers stores directly and reaches actions only where a shortcut happens to call one',
   surface:
     'the functional sweep asserts state changes; reaching a surface is `npm run reachability`’s subject, and that sweep reports separately',
-  store: 'the 27 with a one-line state assertion are driven; the rest need a fixture built first',
+  store:
+    'driven — every store mutator has a recipe in `tests/storeSweep/`; any listed here is a store added without one, which `tests/storeSweep.test.ts` fails on',
   shortcut: 'driven — any listed here failed to resolve a binding',
   effect: 'driven — any listed here failed to instantiate',
   instrument: 'driven — any listed here failed to sound',
@@ -148,18 +167,26 @@ module, every store contract, every shortcut, every effect and instrument kind,
 every navigable surface the shell declares. A function added without a row fails
 the build.
 
-**A row is a question, not a claim.** \`tested\` reads \`PASS\` only where
-\`npm run soak\` invoked the function and *observed a named part of the state
-change* — the project, the ui, the undo stack or the transport. A row that was
-invoked and changed nothing stays \`FAIL\`, and so does every row nobody has
-written a case for. \`FAIL\` means untested rather than broken, which is the
-distinction the directive draws.
+**A row is a question, not a claim.** \`tested\` reads \`PASS\` only where an
+instrument invoked the function and *observed a named part of the state change*
+— the project, the ui, the undo stack or the transport. A row that was invoked
+and changed nothing stays \`FAIL\`, and so does every row nobody has written a
+case for. \`FAIL\` means untested rather than broken, which is the distinction
+the directive draws.
+
+**Two instruments, and the row says which.** \`npm run soak\` drives the
+running app through a real browser on three form factors. The store sweep
+(\`tests/storeSweep.test.ts\`) drives every store mutator through one pattern —
+invoke, undo, save, reload — and its rows read \`n/a\` in the form columns
+rather than \`?\`, because a store mutator is the same code on a phone and a
+desktop. What differs per form is whether anything can *reach* it, and that is
+\`npm run reachability\`'s subject, reported separately.
 
 Coverage is counted as **rows with a state-asserting result**, never as rows
 that are not FAIL. Those are the same number only until somebody is tempted to
 make the column green.
 
-Soak coverage: ${coverage.why}.
+Coverage: ${coverage.why}.
 
 | kind | count |
 | --- | --- |
@@ -186,15 +213,19 @@ const body = rows
     const keyboard = r.kind === 'shortcut' ? r.key : 'none';
     const cover = coverage.rows.get(r.id);
     const at = (form) => {
+      if (cover?.by === 'store sweep') return 'n/a';
       const cell = cover?.forms?.[form];
       return cell ? (cell.state === 'PASS' ? 'PASS' : 'FAIL') : '?';
     };
     const cells = Object.values(cover?.forms ?? {});
     // The evidence, verbatim from the sweep. A PASS that does not say what
     // changed is exactly the claim this table refuses to make.
-    const why = cover?.covered
-      ? cells.find((f) => f.state === 'PASS').why
-      : (cells[0]?.why ?? 'not attempted');
+    const why =
+      cover?.by === 'store sweep'
+        ? `${cover.note} — store sweep`
+        : cover?.covered
+          ? cells.find((f) => f.state === 'PASS').why
+          : (cells[0]?.why ?? 'not attempted');
     return (
       `| \`${r.id}\` | ${r.surface} | ${r.kind} | ${at('desktop')} | ${at('tablet')} | ` +
       `${at('phone')} | ${keyboard} | ${cover?.covered ? 'PASS' : 'FAIL'} | ${why} |`
@@ -219,7 +250,7 @@ if (CHECK) {
   const known = new Set(rows.map((r) => r.id));
   const orphans = [...coverage.rows.keys()].filter((id) => !known.has(id) && !id.endsWith(':*'));
   if (orphans.length > 0) {
-    console.error('functions:check: soak coverage names functions that are not in the ledger:');
+    console.error('functions:check: coverage names functions that are not in the ledger:');
     for (const id of orphans) console.error(`  ${id}`);
     process.exit(1);
   }

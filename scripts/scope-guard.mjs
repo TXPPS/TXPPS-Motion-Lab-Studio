@@ -25,6 +25,10 @@
  *
  * A reason is mandatory and is not checked for quality — the value is in having
  * had to write one. An unexplained path is what gets rejected.
+ *
+ * @clone: index — it reads what is staged and nothing else. A shallow clone
+ * stages the same way a full one does, so there is no question here that a
+ * truncated history could fail to answer.
  */
 import { execSync } from 'node:child_process';
 

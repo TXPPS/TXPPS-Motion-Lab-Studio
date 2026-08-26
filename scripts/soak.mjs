@@ -255,14 +255,32 @@ function markdown(r) {
       '## 1. Functional sweep',
       '',
       `**${covered.length} of ${ledger.length} ledger rows** ` +
-        `(${((covered.length / ledger.length) * 100).toFixed(1)}%) asserted a state change.`,
+        `(${((covered.length / ledger.length) * 100).toFixed(1)}%) asserted a state change ` +
+        '**here**.',
       '',
       `The sweep attempted **${ids.length}** of them, and ${covered.length} of those changed ` +
         `something — a hit rate of ${((covered.length / ids.length) * 100).toFixed(1)}% ` +
         `**inside the sweep's own scope**, which is not the same figure and must not be ` +
-        `reported as if it were. **${holes} rows have no case at all**:`,
+        `reported as if it were.`,
       '',
-      '| kind | never driven | of |',
+      /*
+       * "This sweep", not "at all", and the word matters.
+       *
+       * This line read "**N rows have no case at all**" while it was the only
+       * instrument, and it stopped being true the moment the store sweep in
+       * `npm test` started driving 159 of them. A generated document that says
+       * "at all" about a subject it can only see part of is the same failure as
+       * a hand-written one going stale — worse, because it regenerates and
+       * carries the wrong word forward every time.
+       *
+       * `docs/FUNCTION_LEDGER.md` is where the two instruments are added up,
+       * and it is the only place that can answer "at all".
+       */
+      `**${holes} rows have no case in *this* sweep.** How many have no case in ` +
+        'any instrument is a question only `docs/FUNCTION_LEDGER.md` can answer, ' +
+        'because it is the only thing that reads both this and the store sweep:',
+      '',
+      '| kind | not driven here | of |',
       '| --- | --- | --- |',
       ...[...undriven.keys()]
         .sort()
@@ -272,7 +290,8 @@ function markdown(r) {
             `${ledger.filter((row) => row.kind === k).length} |`,
         ),
       '',
-      'They are named row by row in `docs/FUNCTION_LEDGER.md` under "Never driven".',
+      'They are named row by row in `docs/FUNCTION_LEDGER.md` under "Never driven", ' +
+        'which subtracts what the store sweep drives before it calls anything a hole.',
       '',
       'A row is green here only when a named part of the state — the project, the',
       'ui, the undo stack, the transport — was observed to differ either side of',

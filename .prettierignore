@@ -32,3 +32,8 @@ motionwave/ui/test/curve_golden.json
 # every comparison against it stops meaning anything.
 docs/audit/SOAK.md
 docs/audit/soak-coverage.json
+
+# Written by `tests/storeSweep.test.ts` on every full `npm test`. Same argument
+# as the two above: a formatter that rewrites a generated file makes the
+# artefact in git something the generator does not produce.
+docs/audit/store-coverage.json

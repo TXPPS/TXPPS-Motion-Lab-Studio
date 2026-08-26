@@ -83,6 +83,23 @@ export const MUTATIONS = [
     expect: 'differs',
   },
   {
+    id: 'soak/automation-point-by-id',
+    probe: 'soak',
+    correction: 'The written point is found by the id `addAutomationPoint` returned.',
+    defect: 'Find "the point at that beat", as the property did.',
+    cost:
+      'Sixteen draws from 6401 beats collide about one run in fifty, and the store appends ' +
+      'rather than replacing — so two points can share a beat. The lookup found the earlier ' +
+      'of the two and reported that the product had read back somebody else’s value. ' +
+      'Seed 1787778238, beat 13.17: "wrote 0.0887, read 0.8398", and nothing was wrong: ' +
+      '`laneValueAt` guards a zero-length span and returns the later point, so the parameter ' +
+      'takes the value that was just written. A property that fails on one seed in fifty for ' +
+      'a reason that is not the product is a property nobody will believe when it is right.',
+    scope: { seed: 1787778238 },
+    metric: 'automation-reads-back',
+    expect: 'differs',
+  },
+  {
     id: 'soak/bounce-target-has-content',
     probe: 'soak',
     correction: 'The seed draws from tracks that have a clip inside the measured bars.',

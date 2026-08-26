@@ -8,18 +8,26 @@ module, every store contract, every shortcut, every effect and instrument kind,
 every navigable surface the shell declares. A function added without a row fails
 the build.
 
-**A row is a question, not a claim.** `tested` reads `PASS` only where
-`npm run soak` invoked the function and *observed a named part of the state
-change* — the project, the ui, the undo stack or the transport. A row that was
-invoked and changed nothing stays `FAIL`, and so does every row nobody has
-written a case for. `FAIL` means untested rather than broken, which is the
-distinction the directive draws.
+**A row is a question, not a claim.** `tested` reads `PASS` only where an
+instrument invoked the function and *observed a named part of the state change*
+— the project, the ui, the undo stack or the transport. A row that was invoked
+and changed nothing stays `FAIL`, and so does every row nobody has written a
+case for. `FAIL` means untested rather than broken, which is the distinction
+the directive draws.
+
+**Two instruments, and the row says which.** `npm run soak` drives the
+running app through a real browser on three form factors. The store sweep
+(`tests/storeSweep.test.ts`) drives every store mutator through one pattern —
+invoke, undo, save, reload — and its rows read `n/a` in the form columns
+rather than `?`, because a store mutator is the same code on a phone and a
+desktop. What differs per form is whether anything can *reach* it, and that is
+`npm run reachability`'s subject, reported separately.
 
 Coverage is counted as **rows with a state-asserting result**, never as rows
 that are not FAIL. Those are the same number only until somebody is tempted to
 make the column green.
 
-Soak coverage: **69 of 403 ledger rows** (17.1%) have a state-asserting result. The sweep attempted 136 of them and 69 of those changed something; **267 rows have no case at all** and are named under "Never driven" below. Measured against `index-iG8bhIUY.js` (`a601afed1b94ae19`).
+Coverage: **228 of 401 ledger rows** (56.9%) have a state-asserting result. Two instruments drive them: the functional soak against the running app (136 rows, measured on `index-Bd0Gyd3j.js`, `cd1e1e1feac5154a`) and the store sweep in `npm test` (159 rows). 106 rows have no case at all and are named under "Never driven" below.
 
 | kind | count |
 | --- | --- |
@@ -27,9 +35,9 @@ Soak coverage: **69 of 403 ledger rows** (17.1%) have a state-asserting result. 
 | effect | 34 |
 | instrument | 4 |
 | shortcut | 71 |
-| store | 188 |
+| store | 186 |
 | surface | 19 |
-| **total** | **403** |
+| **total** | **401** |
 
 ## Never driven
 
@@ -40,18 +48,11 @@ together is what let the coverage figure read as half rather than a sixth.
 | kind | undriven | of | why |
 | --- | --- | --- | --- |
 | action | 87 | 87 | no case exists for any of them. `scripts/soak/cases.mjs` covers stores directly and reaches actions only where a shortcut happens to call one |
-| store | 161 | 188 | the 27 with a one-line state assertion are driven; the rest need a fixture built first |
 | surface | 19 | 19 | the functional sweep asserts state changes; reaching a surface is `npm run reachability`’s subject, and that sweep reports separately |
 
 <details><summary>action — 87 rows</summary>
 
 `action:audioEditActions.analyzeClip`, `action:audioEditActions.clipBufferReady`, `action:audioEditActions.crossfadeSelection`, `action:audioEditActions.ensureClipDecoded`, `action:audioEditActions.healSelection`, `action:audioEditActions.maxSlipOffset`, `action:audioEditActions.mediaDurationSec`, `action:audioEditActions.normalizeClip`, `action:audioEditActions.packSelectionIntoTakes`, `action:audioEditActions.rippleDeleteSelection`, `action:audioEditActions.zoomToSelection`, `action:automationActions.activeCaptureCount`, `action:automationActions.captureParamChange`, `action:automationActions.captureParamRelease`, `action:automationActions.copyAutomationSelection`, `action:automationActions.deleteAutomationSelection`, `action:automationActions.duplicateAutomationSelection`, `action:automationActions.hasAutomationClipboard`, `action:automationActions.pasteAutomation`, `action:automationActions.startAutomationRunners`, `action:chainActions.applyChainSteps`, `action:chainActions.captureChain`, `action:clipboardActions.clipboardCount`, `action:clipboardActions.copySelection`, `action:clipboardActions.cutSelection`, `action:clipboardActions.duplicateSelection`, `action:clipboardActions.pasteAtPlayhead`, `action:clipboardActions.resetClipboard`, `action:exportActions.cancelExport`, `action:exportActions.exportLoopRegion`, `action:exportActions.exportProject`, `action:exportActions.exportState`, `action:exportActions.exportWav`, `action:exportActions.normalizeInPlace`, `action:exportActions.onExportState`, `action:importActions.dragHasFiles`, `action:importActions.importDrop`, `action:importActions.importToNewTrack`, `action:importActions.isImporting`, `action:importActions.pickAndImport`, `action:importActions.runImport`, `action:midiFileActions.exportMidiFile`, `action:midiFileActions.importMidiFile`, `action:midiFileActions.isMidiFile`, `action:midiFileActions.pickMidiFile`, `action:monitorActions.inputDeviceOf`, `action:monitorActions.inputFormatOf`, `action:monitorActions.isInputOpen`, `action:monitorActions.isMonitoring`, `action:monitorActions.setArmed`, `action:monitorActions.setTrackInputDevice`, `action:monitorActions.setTrackInputFormat`, `action:monitorActions.syncTrackInput`, `action:monitorActions.toggleMonitoring`, `action:monitorActions.wantedInput`, `action:projectActions.bootProject`, `action:projectActions.deleteById`, `action:projectActions.duplicateById`, `action:projectActions.installAutosave`, `action:projectActions.mergeProjectById`, `action:projectActions.newProject`, `action:projectActions.newProjectFromTemplate`, `action:projectActions.openProject`, `action:projectActions.renameCurrent`, `action:projectActions.saveCurrent`, `action:projectActions.saveCurrentAs`, `action:rangeActions.hasRangeClipboard`, `action:rangeActions.rangeCopy`, `action:rangeActions.rangeCrop`, `action:rangeActions.rangeCut`, `action:rangeActions.rangeDelete`, `action:rangeActions.rangeDuplicate`, `action:rangeActions.rangeFade`, `action:rangeActions.rangeInsertSilence`, `action:rangeActions.rangePaste`, `action:rangeActions.rangeSplit`, `action:rangeActions.stripSilenceFromClip`, `action:recoveryActions.describeRecovery`, `action:recoveryActions.discardAllRecoveries`, `action:recoveryActions.discardRecovery`, `action:recoveryActions.recoverTake`, `action:recoveryActions.scanRecoveries`, `action:samplerImportActions.openSampleSourceMenu`, `action:samplerImportActions.pickSamplesInto`, `action:samplerImportActions.placeSamples`, `action:samplerImportActions.projectSamples`, `action:samplerImportActions.sampleSourceItems`
-
-</details>
-
-<details><summary>store — 161 rows</summary>
-
-`store:chainStore.remove`, `store:chainStore.reset`, `store:chainStore.save`, `store:inputStore.set`, `store:keymapStore.clearBinding`, `store:keymapStore.resetAll`, `store:keymapStore.setBinding`, `store:prefsStore.reset`, `store:prefsStore.set`, `store:projectStore.addAudioClip`, `store:projectStore.addControlLink`, `store:projectStore.addCueMix`, `store:projectStore.addEventFx`, `store:projectStore.addMacro`, `store:projectStore.addMarker`, `store:projectStore.addMasterEffect`, `store:projectStore.addNote`, `store:projectStore.addNoteFx`, `store:projectStore.addNotes`, `store:projectStore.addRecordedClip`, `store:projectStore.addSamplerZones`, `store:projectStore.addSection`, `store:projectStore.addVca`, `store:projectStore.applyGrooveToClip`, `store:projectStore.applyPreset`, `store:projectStore.applySamplerPreset`, `store:projectStore.assignMacroTarget`, `store:projectStore.assignPad`, `store:projectStore.assignVca`, `store:projectStore.beginGesture`, `store:projectStore.clearChords`, `store:projectStore.clearControlLinks`, `store:projectStore.copyEffectTo`, `store:projectStore.createCrossfade`, `store:projectStore.createScratchPad`, `store:projectStore.deleteAutomationPoints`, `store:projectStore.deleteNotes`, `store:projectStore.deleteScratchPad`, `store:projectStore.deleteTake`, `store:projectStore.duplicateClips`, `store:projectStore.endGesture`, `store:projectStore.flushGestures`, `store:projectStore.groupTracks`, `store:projectStore.healClips`, `store:projectStore.insertAutomationPoints`, `store:projectStore.insertClips`, `store:projectStore.markSaved`, `store:projectStore.matchCueToMain`, `store:projectStore.moveEffect`, `store:projectStore.moveEventFx`, `store:projectStore.moveMasterEffect`, `store:projectStore.moveNoteFx`, `store:projectStore.moveSection`, `store:projectStore.moveTake`, `store:projectStore.moveTempoEvent`, `store:projectStore.packTakes`, `store:projectStore.promoteTake`, `store:projectStore.rackAddItem`, `store:projectStore.rackMoveItem`, `store:projectStore.rackRemoveItem`, `store:projectStore.rackSetLayerZones`, `store:projectStore.rackUpdateItem`, `store:projectStore.registerMedia`, `store:projectStore.removeAutomationLane`, `store:projectStore.removeChord`, `store:projectStore.removeControlLink`, `store:projectStore.removeCueMix`, `store:projectStore.removeEventFx`, `store:projectStore.removeGroove`, `store:projectStore.removeMacro`, `store:projectStore.removeMacroTarget`, `store:projectStore.removeMarker`, `store:projectStore.removeMasterEffect`, `store:projectStore.removeNoteFx`, `store:projectStore.removeSamplerZones`, `store:projectStore.removeSection`, `store:projectStore.removeSend`, `store:projectStore.removeSignature`, `store:projectStore.removeTempoEvent`, `store:projectStore.renameCueMix`, `store:projectStore.renameMacro`, `store:projectStore.renameScratchPad`, `store:projectStore.reorderEffect`, `store:projectStore.reorderMasterEffect`, `store:projectStore.rippleDeleteClips`, `store:projectStore.saveGroove`, `store:projectStore.setAutomationCurve`, `store:projectStore.setAutomationLane`, `store:projectStore.setAutomationMode`, `store:projectStore.setBpm`, `store:projectStore.setChord`, `store:projectStore.setClipFades`, `store:projectStore.setClipGain`, `store:projectStore.setClipView`, `store:projectStore.setCompRange`, `store:projectStore.setCueMix`, `store:projectStore.setCueSend`, `store:projectStore.setEffectShape`, `store:projectStore.setEventFxBypass`, `store:projectStore.setEventFxParam`, `store:projectStore.setFadeShape`, `store:projectStore.setFolderFor`, `store:projectStore.setLoop`, `store:projectStore.setMacroTargetRange`, `store:projectStore.setMacroValue`, `store:projectStore.setMarker`, `store:projectStore.setMaster`, `store:projectStore.setMasterEffectBypass`, `store:projectStore.setMasterEffectParam`, `store:projectStore.setMasterVolume`, `store:projectStore.setMetronome`, `store:projectStore.setNoteFxBypass`, `store:projectStore.setNoteFxList`, `store:projectStore.setNoteFxParam`, `store:projectStore.setNotes`, `store:projectStore.setParamNorm`, `store:projectStore.setProject`, `store:projectStore.setSamplerParams`, `store:projectStore.setSection`, `store:projectStore.setSend`, `store:projectStore.setSignature`, `store:projectStore.setSoloTake`, `store:projectStore.setTakeMuted`, `store:projectStore.setTempoEvent`, `store:projectStore.setTimeSig`, `store:projectStore.setZoneSample`, `store:projectStore.setZoneSlices`, `store:projectStore.sliceToMidiClip`, `store:projectStore.sliceToPads`, `store:projectStore.slipClip`, `store:projectStore.swapScratchPad`, `store:projectStore.transformNotes`, `store:projectStore.trimAutomationAt`, `store:projectStore.trimClipEnd`, `store:projectStore.trimClipStart`, `store:projectStore.ungroupFolder`, `store:projectStore.updateAutomationPoints`, `store:projectStore.updateControlLink`, `store:projectStore.updateNotes`, `store:projectStore.updateSamplerZones`, `store:projectStore.writeAutomationAt`, `store:routeStore.go`, `store:routeStore.setRoute`, `store:transportStore.set`, `store:uiStore.action`, `store:uiStore.closeDialog`, `store:uiStore.closeMenu`, `store:uiStore.dismissToast`, `store:uiStore.onSubmit`, `store:uiStore.openEditorFor`, `store:uiStore.selectClip`, `store:uiStore.selectClips`, `store:uiStore.showDialog`, `store:uiStore.showMenu`, `store:uiStore.toast`, `store:uiStore.toggleClipSelection`, `store:workspaceStore.reset`, `store:workspaceStore.reveal`, `store:workspaceStore.setMaximized`, `store:workspaceStore.setSizes`, `store:workspaceStore.toggle`
 
 </details>
 
@@ -168,16 +169,16 @@ together is what let the coverage figure read as half rather than a sixth.
 | `effect:gate` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.52e-2 RMS |
 | `effect:limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.73e-1 RMS |
 | `effect:multiband` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.89e-1 RMS |
-| `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.17e-1 RMS |
+| `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.16e-1 RMS |
 | `effect:mw-fet-limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.11e-1 RMS |
 | `effect:mw-granular-reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.12e-3 RMS |
 | `effect:mw-motion-shaper` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 7.40e-2 RMS |
-| `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.05e-1 RMS |
-| `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.05e-1 RMS |
+| `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.04e-1 RMS |
+| `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.04e-1 RMS |
 | `effect:mw-variable-mu` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.10e-1 RMS |
 | `effect:phaser` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.91e-2 RMS |
 | `effect:pingpong` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.25e-2 RMS |
-| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 6.73e-3 RMS |
+| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.21e-3 RMS |
 | `effect:rotary` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.61e-2 RMS |
 | `effect:saturator` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.92e-1 RMS |
 | `effect:tremolo` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.27e-3 RMS |
@@ -260,194 +261,192 @@ together is what let the coverage figure read as half rather than a sixth.
 | `shortcut:tool-zoom` | keyboard | shortcut | PASS | PASS | PASS | tool-zoom | PASS | ui changed |
 | `shortcut:tools` | keyboard | shortcut | FAIL | FAIL | FAIL | tools | FAIL | combo "1-9" has no keyboard spelling |
 | `shortcut:undo` | keyboard | shortcut | PASS | PASS | PASS | undo | PASS | project, undo, redo changed |
-| `store:chainStore.remove` | src/state/chainStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:chainStore.reset` | src/state/chainStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:chainStore.save` | src/state/chainStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:inputStore.set` | src/state/inputStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:keymapStore.clearBinding` | src/state/keymapStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:keymapStore.resetAll` | src/state/keymapStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:keymapStore.setBinding` | src/state/keymapStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:prefsStore.reset` | src/state/prefsStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:prefsStore.set` | src/state/prefsStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addAudioClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:chainStore.remove` | src/state/chainStore.ts | store | n/a | n/a | n/a | none | PASS | 0 chains left — store sweep |
+| `store:chainStore.reset` | src/state/chainStore.ts | store | n/a | n/a | n/a | none | PASS | 0 chains left — store sweep |
+| `store:chainStore.save` | src/state/chainStore.ts | store | n/a | n/a | n/a | none | PASS | saved <id> — store sweep |
+| `store:inputStore.set` | src/state/inputStore.ts | store | n/a | n/a | n/a | none | PASS | phase recording — store sweep |
+| `store:keymapStore.clearBinding` | src/state/keymapStore.ts | store | n/a | n/a | n/a | none | PASS | 0 overrides — store sweep |
+| `store:keymapStore.resetAll` | src/state/keymapStore.ts | store | n/a | n/a | n/a | none | PASS | 0 overrides — store sweep |
+| `store:keymapStore.setBinding` | src/state/keymapStore.ts | store | n/a | n/a | n/a | none | PASS | undo -> Ctrl+Alt+Z — store sweep |
+| `store:prefsStore.reset` | src/state/prefsStore.ts | store | n/a | n/a | n/a | none | PASS | theme system — store sweep |
+| `store:prefsStore.set` | src/state/prefsStore.ts | store | n/a | n/a | n/a | none | PASS | theme light — store sweep |
+| `store:projectStore.addAudioClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | clip <id> — store sweep |
 | `store:projectStore.addAutomationLane` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 0 -> 1 lanes |
 | `store:projectStore.addAutomationPoint` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 0 -> 1 points |
-| `store:projectStore.addControlLink` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addCueMix` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addControlLink` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | link <id> — store sweep |
+| `store:projectStore.addCueMix` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | cue <id> — store sweep |
 | `store:projectStore.addEffect` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 1 -> 2 inserts |
-| `store:projectStore.addEventFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addMacro` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addMarker` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addMasterEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addEventFx` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | clip insert <id> — store sweep |
+| `store:projectStore.addMacro` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | macro <id> — store sweep |
+| `store:projectStore.addMarker` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | marker <id> — store sweep |
+| `store:projectStore.addMasterEffect` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | master insert <id> — store sweep |
 | `store:projectStore.addMidiClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 clips |
-| `store:projectStore.addNote` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addNoteFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addRecordedClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addSamplerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmtaeu9m90e7piz |
-| `store:projectStore.addVca` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.applyGrooveToClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.applyPreset` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.applySamplerPreset` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.assignMacroTarget` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.assignPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.assignVca` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.beginGesture` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.clearChords` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.clearControlLinks` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.copyEffectTo` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.createCrossfade` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.createScratchPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.deleteAutomationPoints` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.addNote` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | note <id> — store sweep |
+| `store:projectStore.addNoteFx` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | note fx <id> — store sweep |
+| `store:projectStore.addNotes` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | notes 3 — store sweep |
+| `store:projectStore.addRecordedClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | clip <id> — store sweep |
+| `store:projectStore.addSamplerZones` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | zones 1 — store sweep |
+| `store:projectStore.addSection` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | section <id> — store sweep |
+| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmtaljqz80e7u1p |
+| `store:projectStore.addVca` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | vca <id> — store sweep |
+| `store:projectStore.applyGrooveToClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | groove applied — store sweep |
+| `store:projectStore.applyPreset` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | synth preset Deep Saw Bass — store sweep |
+| `store:projectStore.applySamplerPreset` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | preset Sweep — store sweep |
+| `store:projectStore.assignMacroTarget` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | targets 1 — store sweep |
+| `store:projectStore.assignPad` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 8 pads filled — store sweep |
+| `store:projectStore.assignVca` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | vca of inst <id> — store sweep |
+| `store:projectStore.beginGesture` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | gesture depth 1 — store sweep |
+| `store:projectStore.clearChords` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 chords left — store sweep |
+| `store:projectStore.clearControlLinks` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 links left — store sweep |
+| `store:projectStore.copyEffectTo` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | copied as <id> — store sweep |
+| `store:projectStore.createCrossfade` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | crossfade true — store sweep |
+| `store:projectStore.createScratchPad` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | pad <id> — store sweep |
+| `store:projectStore.deleteAutomationPoints` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 2 points left — store sweep |
 | `store:projectStore.deleteClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 12 clips |
 | `store:projectStore.deleteClips` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 12 clips |
-| `store:projectStore.deleteNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.deleteScratchPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.deleteTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.deleteNotes` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 53 -> 52 notes — store sweep |
+| `store:projectStore.deleteScratchPad` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 pads left — store sweep |
+| `store:projectStore.deleteTake` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | takes now 1 — store sweep |
 | `store:projectStore.deleteTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 12 tracks |
 | `store:projectStore.duplicateClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 clips |
-| `store:projectStore.duplicateClips` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.duplicateClips` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | copies 1 — store sweep |
 | `store:projectStore.duplicateTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks |
-| `store:projectStore.endGesture` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.flushGestures` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.groupTracks` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.healClips` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.insertAutomationPoints` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.insertClips` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.markSaved` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.matchCueToMain` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.endGesture` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | volume 0.22, depth 0 — store sweep |
+| `store:projectStore.flushGestures` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | volume 0.33, depth 0 — store sweep |
+| `store:projectStore.groupTracks` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | folder <id> — store sweep |
+| `store:projectStore.healClips` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | healed 1 — store sweep |
+| `store:projectStore.insertAutomationPoints` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | inserted 2 — store sweep |
+| `store:projectStore.insertClips` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | pasted 1 — store sweep |
+| `store:projectStore.markSaved` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | dirty false — store sweep |
+| `store:projectStore.matchCueToMain` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | follow undefined — store sweep |
 | `store:projectStore.moveClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project changed — start 0 -> 4 |
 | `store:projectStore.moveClipsBy` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — start 0 -> 2 |
-| `store:projectStore.moveEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.moveEventFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.moveMasterEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.moveNoteFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.moveSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.moveTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.moveTempoEvent` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmtaeu2v706vpa6,tmtaeu2v706wqab,tmtaeu2v706x7jo,tmtaeu2v706ynss,tmtaeu2v706zjeo,tmtaeu2v70704zr,tmtaeu2zr0dp5y6,tmtaeu2zs0drlzg,tmtaeu2zt0e0b7i,tmtaeu2zt0e1ewn,tmtaeu2v7071ybh,tmtaeu2v7072ywi,tmtaeu2zu0e2dc1 -> tmtaeu2v706wqab,tmtaeu2v706x7jo,tmtaeu2v706vpa6,tmtaeu2v706ynss,tmtaeu2v706zjeo,tmtaeu2v70704zr,tmtaeu2zr0dp5y6,tmtaeu2zs0drlzg,tmtaeu2zt0e0b7i,tmtaeu2zt0e1ewn,tmtaeu2v7071ybh,tmtaeu2v7072ywi,tmtaeu2zu0e2dc1 |
-| `store:projectStore.packTakes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.promoteTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.rackAddItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.rackMoveItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.rackRemoveItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.rackSetLayerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.rackUpdateItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.moveEffect` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order eq3,eq3 — store sweep |
+| `store:projectStore.moveEventFx` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order <id>,eq3 — store sweep |
+| `store:projectStore.moveMasterEffect` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order <id>,eq3 — store sweep |
+| `store:projectStore.moveNoteFx` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order chorder,<id> — store sweep |
+| `store:projectStore.moveSection` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order Chorus,Verse — store sweep |
+| `store:projectStore.moveTake` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order <id>,<id> — store sweep |
+| `store:projectStore.moveTempoEvent` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | moved to 12 — store sweep |
+| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmtaljk7v06vhrw,tmtaljk7v06w4zb,tmtaljk7v06xqwe,tmtaljk7v06y94a,tmtaljk7v06z3jl,tmtaljk7v070ush,tmtaljkcb0dp163,tmtaljkcc0dr8s6,tmtaljkcd0e06w4,tmtaljkcd0e1brt,tmtaljk7v071e8z,tmtaljk7v0723mp,tmtaljkcd0e2t1q -> tmtaljk7v06w4zb,tmtaljk7v06xqwe,tmtaljk7v06vhrw,tmtaljk7v06y94a,tmtaljk7v06z3jl,tmtaljk7v070ush,tmtaljkcb0dp163,tmtaljkcc0dr8s6,tmtaljkcd0e06w4,tmtaljkcd0e1brt,tmtaljk7v071e8z,tmtaljk7v0723mp,tmtaljkcd0e2t1q |
+| `store:projectStore.packTakes` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | packed into <id> — store sweep |
+| `store:projectStore.promoteTake` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | promoted <id> — store sweep |
+| `store:projectStore.rackAddItem` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | rack item <id> — store sweep |
+| `store:projectStore.rackMoveItem` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order synth,sampler — store sweep |
+| `store:projectStore.rackRemoveItem` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 1 rack items left — store sweep |
+| `store:projectStore.rackSetLayerZones` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | layer zones 1 — store sweep |
+| `store:projectStore.rackUpdateItem` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | name Renamed layer — store sweep |
 | `store:projectStore.redo` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks after redo |
-| `store:projectStore.registerMedia` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeAutomationLane` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeChord` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeControlLink` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeCueMix` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.registerMedia` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 2 media — store sweep |
+| `store:projectStore.removeAutomationLane` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 lanes left — store sweep |
+| `store:projectStore.removeChord` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 chords left — store sweep |
+| `store:projectStore.removeControlLink` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 links left — store sweep |
+| `store:projectStore.removeCueMix` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 cues left — store sweep |
 | `store:projectStore.removeEffect` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 1 -> 0 |
-| `store:projectStore.removeEventFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeGroove` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeMacro` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeMacroTarget` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeMarker` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeMasterEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeNoteFx` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeSamplerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeSend` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeSignature` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.removeTempoEvent` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.renameCueMix` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.renameMacro` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.renameScratchPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.reorderEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.reorderMasterEffect` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.removeEventFx` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 1 clip inserts — store sweep |
+| `store:projectStore.removeGroove` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 grooves left — store sweep |
+| `store:projectStore.removeMacro` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 macros left — store sweep |
+| `store:projectStore.removeMacroTarget` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 targets left — store sweep |
+| `store:projectStore.removeMarker` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 markers left — store sweep |
+| `store:projectStore.removeMasterEffect` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 1 master inserts — store sweep |
+| `store:projectStore.removeNoteFx` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 1 note fx — store sweep |
+| `store:projectStore.removeSamplerZones` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 zones left — store sweep |
+| `store:projectStore.removeSection` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 1 sections left — store sweep |
+| `store:projectStore.removeSend` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 sends left — store sweep |
+| `store:projectStore.removeSignature` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 1 <id> left — store sweep |
+| `store:projectStore.removeTempoEvent` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 1 tempo events left — store sweep |
+| `store:projectStore.renameCueMix` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | name Singer — store sweep |
+| `store:projectStore.renameMacro` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | name Brightness — store sweep |
+| `store:projectStore.renameScratchPad` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | name Alt bridge — store sweep |
+| `store:projectStore.reorderEffect` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order eq3,eq3 — store sweep |
+| `store:projectStore.reorderMasterEffect` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order <id>,eq3 — store sweep |
 | `store:projectStore.resizeClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project changed — length 7 |
-| `store:projectStore.rippleDeleteClips` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.saveGroove` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setAutomationCurve` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setAutomationLane` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setAutomationMode` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setBpm` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setChord` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.rippleDeleteClips` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 12 -> 11 clips — store sweep |
+| `store:projectStore.saveGroove` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 1 grooves — store sweep |
+| `store:projectStore.setAutomationCurve` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | curve exp — store sweep |
+| `store:projectStore.setAutomationLane` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | enabled false — store sweep |
+| `store:projectStore.setAutomationMode` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | mode latch — store sweep |
+| `store:projectStore.setBpm` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | bpm 132 — store sweep |
+| `store:projectStore.setChord` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | chord <id> — store sweep |
 | `store:projectStore.setClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — name Soak clip |
-| `store:projectStore.setClipFades` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setClipGain` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setClipView` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setCompRange` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setCueMix` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setCueSend` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setClipFades` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | fades 0.25/0.5 — store sweep |
+| `store:projectStore.setClipGain` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | gain 0.33 — store sweep |
+| `store:projectStore.setClipView` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | takesOpen true — store sweep |
+| `store:projectStore.setCompRange` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | comp segments 2 — store sweep |
+| `store:projectStore.setCueMix` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | level 0.6 — store sweep |
+| `store:projectStore.setCueSend` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | follow false — store sweep |
 | `store:projectStore.setEffectBypass` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — bypass false -> true |
 | `store:projectStore.setEffectParam` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project changed — threshold: -22 -> -10.9 |
-| `store:projectStore.setEffectShape` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setEventFxBypass` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setEventFxParam` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setFadeShape` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setFolderFor` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setEffectShape` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | shape nodes 3 — store sweep |
+| `store:projectStore.setEventFxBypass` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | bypass true — store sweep |
+| `store:projectStore.setEventFxParam` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | gain -2 — store sweep |
+| `store:projectStore.setFadeShape` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | in shape equalPower — store sweep |
+| `store:projectStore.setFolderFor` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | folder of audio <id> — store sweep |
 | `store:projectStore.setInstrument` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — instrument now undefined |
-| `store:projectStore.setLoop` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setMacroTargetRange` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setMacroValue` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setMarker` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setMaster` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setMasterEffectBypass` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setMasterEffectParam` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setMasterVolume` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setMetronome` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setNoteFxBypass` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setNoteFxList` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setNoteFxParam` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setParamNorm` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setProject` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setSamplerParams` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setSend` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setSignature` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setSoloTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setLoop` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | loop 8-24 true — store sweep |
+| `store:projectStore.setMacroTargetRange` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | range 0.2..0.9 — store sweep |
+| `store:projectStore.setMacroValue` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | value 0.7 — store sweep |
+| `store:projectStore.setMarker` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | name Bridge — store sweep |
+| `store:projectStore.setMaster` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | pan -0.2 — store sweep |
+| `store:projectStore.setMasterEffectBypass` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | bypass true — store sweep |
+| `store:projectStore.setMasterEffectParam` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | gain 3 — store sweep |
+| `store:projectStore.setMasterVolume` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | master volume 0.62 — store sweep |
+| `store:projectStore.setMetronome` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | metronome true — store sweep |
+| `store:projectStore.setNoteFxBypass` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | bypass true — store sweep |
+| `store:projectStore.setNoteFxList` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | list 0,4,7 — store sweep |
+| `store:projectStore.setNoteFxParam` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | rate 4 — store sweep |
+| `store:projectStore.setNotes` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | notes 37 chars — store sweep |
+| `store:projectStore.setParamNorm` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | fx:<id>:midDb -> 0.77 — store sweep |
+| `store:projectStore.setProject` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | project Swept — store sweep |
+| `store:projectStore.setSamplerParams` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | attack 0.12 — store sweep |
+| `store:projectStore.setSection` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | name Intro — store sweep |
+| `store:projectStore.setSend` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | sends 1 — store sweep |
+| `store:projectStore.setSignature` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 2 <id> — store sweep |
+| `store:projectStore.setSoloTake` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | solo <id> — store sweep |
 | `store:projectStore.setSynthParams` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — cutoff 0.31 |
-| `store:projectStore.setTakeMuted` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setTempoEvent` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setTimeSig` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setTakeMuted` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | muted true — store sweep |
+| `store:projectStore.setTempoEvent` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 2 tempo events — store sweep |
+| `store:projectStore.setTimeSig` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 3/4 — store sweep |
 | `store:projectStore.setTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — name "Soak renamed", volume 0.42 |
-| `store:projectStore.setZoneSample` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.setZoneSlices` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.sliceToMidiClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.sliceToPads` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.slipClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.setZoneSample` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | zone name Renamed sample — store sweep |
+| `store:projectStore.setZoneSlices` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | slices 4 — store sweep |
+| `store:projectStore.sliceToMidiClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | clip <id> — store sweep |
+| `store:projectStore.sliceToPads` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | pads made 4 — store sweep |
+| `store:projectStore.slipClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | offset 0 -> 0.1 — store sweep |
 | `store:projectStore.splitClip` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 clips |
-| `store:projectStore.swapScratchPad` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.transformNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.trimAutomationAt` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.trimClipEnd` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.trimClipStart` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.swapScratchPad` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | active <id> — store sweep |
+| `store:projectStore.transformNotes` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | first pitch 41 — store sweep |
+| `store:projectStore.trimAutomationAt` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 6 points after the trim — store sweep |
+| `store:projectStore.trimClipEnd` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | length 8 -> 7 — store sweep |
+| `store:projectStore.trimClipStart` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | start 0 -> 1 — store sweep |
 | `store:projectStore.undo` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | redo changed — 13 -> 14 -> 13 tracks |
-| `store:projectStore.ungroupFolder` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:projectStore.ungroupFolder` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 0 folders left — store sweep |
 | `store:projectStore.update` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — bpm 137 |
-| `store:projectStore.updateAutomationPoints` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.updateControlLink` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.updateNotes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.updateSamplerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.writeAutomationAt` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:routeStore.go` | src/state/routeStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:routeStore.setRoute` | src/state/routeStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:transportStore.set` | src/state/transportStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.action` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.closeDialog` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.closeMenu` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.dismissToast` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.onSubmit` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.openEditorFor` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.selectClip` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.selectClips` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmtaeu2zr0dp5y6 -> tmtaeu2v706wqab |
+| `store:projectStore.updateAutomationPoints` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | first value 0.1 — store sweep |
+| `store:projectStore.updateControlLink` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | mode toggle — store sweep |
+| `store:projectStore.updateNotes` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | first velocity 125 — store sweep |
+| `store:projectStore.updateSamplerZones` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | gain 0.42 — store sweep |
+| `store:projectStore.writeAutomationAt` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 4 points after the pass — store sweep |
+| `store:routeStore.go` | src/state/routeStore.ts | store | n/a | n/a | n/a | none | PASS | page show, hash #/show — store sweep |
+| `store:routeStore.setRoute` | src/state/routeStore.ts | store | n/a | n/a | n/a | none | PASS | page mastering — store sweep |
+| `store:transportStore.set` | src/state/transportStore.ts | store | n/a | n/a | n/a | none | PASS | playState playing — store sweep |
+| `store:uiStore.closeDialog` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | dialog null — store sweep |
+| `store:uiStore.closeMenu` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | menu null — store sweep |
+| `store:uiStore.dismissToast` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | 0 toasts — store sweep |
+| `store:uiStore.openEditorFor` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | editing clip-a on the piano tab — store sweep |
+| `store:uiStore.selectClip` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | primary clip-a, set 1 — store sweep |
+| `store:uiStore.selectClips` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | primary clip-c of 3 — store sweep |
+| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmtaljkcb0dp163 -> tmtaljk7v06w4zb |
 | `store:uiStore.set` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — editorTab mixer -> piano |
-| `store:uiStore.showDialog` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.showMenu` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.toast` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.toggleClipSelection` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:workspaceStore.reset` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:workspaceStore.reveal` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:workspaceStore.setMaximized` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:workspaceStore.setSizes` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:workspaceStore.toggle` | src/state/workspaceStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
+| `store:uiStore.showDialog` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | dialog Sweep — store sweep |
+| `store:uiStore.showMenu` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | menu of 1 — store sweep |
+| `store:uiStore.toast` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | 1 toasts — store sweep |
+| `store:uiStore.toggleClipSelection` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | set clip-a,clip-b — store sweep |
+| `store:workspaceStore.reset` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | browser 16 — store sweep |
+| `store:workspaceStore.reveal` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | showInspector true — store sweep |
+| `store:workspaceStore.setMaximized` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | maximized editor — store sweep |
+| `store:workspaceStore.setSizes` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | browser 32 — store sweep |
+| `store:workspaceStore.toggle` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | showBrowser false — store sweep |
 | `surface:combo-mixer` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
 | `surface:combo-piano` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
 | `surface:combo-synth` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |

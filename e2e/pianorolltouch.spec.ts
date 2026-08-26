@@ -22,6 +22,9 @@ import { landing, reach, reachableBox } from './pointer';
  *    holding, and touch has no hover, no tooltip and no cursor beside the
  *    thing it is moving.
  *  - **Nudge only on the arrow keys**, which a phone does not have.
+ *  - **Resize only under Alt.** The grip is removed from a short note so that
+ *    dragging still moves it, and the route left was the keyboard or a ×2 / ÷2
+ *    the toolbar offered. Neither is a phone, and neither is one snap step.
  */
 
 /** The touch minimum. `geometry.ts` holds the lane floor to the same number. */
@@ -309,6 +312,72 @@ test.describe('the piano roll is editable by thumb', () => {
     await reach(page.locator('[data-testid="pr-nudge-later"]'), 'touch', 'nudge later');
     await page.waitForTimeout(200);
     expect((await selected())!.start, 'nudge later did nothing').toBeGreaterThan(before!.start);
+    await close();
+  });
+
+  test('the length pad resizes the selection by one step, with no keyboard', async ({
+    browser,
+  }) => {
+    /*
+     * The half of the resize capability a phone did not have.
+     *
+     * `geometry.ts` takes the grip away from a note narrower than 24px so that
+     * dragging it still *moves* it, and says such a note "is moved by dragging
+     * and resized from the toolbar or the keyboard". A phone has no keyboard,
+     * and the toolbar's only length commands were Double (×2) and Half (÷2) —
+     * which cannot reach a dotted sixteenth from a sixteenth, or anything else
+     * that is not a power of two away. So for exactly the notes whose grip had
+     * been removed to make room for the gesture, the capability was absent.
+     *
+     * Asserted at the note's length, not at its pixels: a resize that changes
+     * the drawn width and not the model is a redraw.
+     */
+    const { page, close } = await phone(browser);
+    await openRoll(page);
+
+    await centre(page, '[data-testid="pr-note"]');
+    await reach(page.locator('[data-testid="pr-note"]').first(), 'touch', 'a note');
+    await page.waitForTimeout(250);
+
+    const length = () =>
+      page.evaluate(() => {
+        const w = window as unknown as {
+          __ml?: {
+            uiStore?: { getState: () => { selectedNoteIds: string[] } };
+            projectStore?: {
+              getState: () => {
+                project: { clips: { notes?: { id: string; length: number }[] }[] };
+              };
+            };
+          };
+        };
+        const id = w.__ml?.uiStore?.getState().selectedNoteIds[0];
+        if (!id) return null;
+        for (const c of w.__ml?.projectStore?.getState().project.clips ?? []) {
+          const nt = c.notes?.find((x) => x.id === id);
+          if (nt) return nt.length;
+        }
+        return null;
+      });
+
+    const before = await length();
+    expect(before, 'tapping a note did not select it').not.toBeNull();
+
+    const longer = page.locator('[data-testid="pr-len-longer"]');
+    const box = await reachableBox(longer);
+    expect(
+      Math.min(box.width, box.height),
+      `the length control is ${box.width} x ${box.height} where a finger reaches it`,
+    ).toBeGreaterThanOrEqual(MIN_TOUCH);
+
+    await reach(longer, 'touch', 'lengthen');
+    await page.waitForTimeout(200);
+    const grown = await length();
+    expect(grown, 'lengthen did nothing').toBeGreaterThan(before!);
+
+    await reach(page.locator('[data-testid="pr-len-shorter"]'), 'touch', 'shorten');
+    await page.waitForTimeout(200);
+    expect(await length(), 'shorten did not undo the growth').toBeCloseTo(before!, 5);
     await close();
   });
 

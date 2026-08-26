@@ -823,6 +823,31 @@ export function PianoRoll() {
     }
   };
 
+  /**
+   * Lengthen or shorten every selected note by one snap step.
+   *
+   * The missing half of the resize capability. `geometry.ts` says a note too
+   * narrow to carry a grip "is moved by dragging and resized from the toolbar
+   * or the keyboard" — and on a phone there is no keyboard, and the toolbar's
+   * only length commands were ×2 and ÷2. Doubling is not resizing: a sixteenth
+   * that should be a dotted sixteenth cannot be reached by halving or doubling
+   * anything, so the capability the desktop has with Alt+←/→ had no equivalent
+   * at all on touch for exactly the notes that most needed one.
+   *
+   * The floor is one step rather than zero: a note of length zero is a note
+   * that has been deleted by a control that does not say so.
+   */
+  const resizeSelection = (dBeats: number) => {
+    const ids = useUiStore.getState().selectedNoteIds;
+    if (ids.length === 0 || !clip) return;
+    const step = snap || 0.25;
+    useProjectStore.getState().beginGesture();
+    useProjectStore
+      .getState()
+      .updateNotes(clip.id, ids, (nt) => ({ length: Math.max(step, nt.length + dBeats) }));
+    useProjectStore.getState().endGesture();
+  };
+
   const onGridKey = (e: React.KeyboardEvent) => {
     // Notes own their own keys and stop them; anything arriving here is the
     // grid's own cursor.
@@ -1285,6 +1310,40 @@ export function PianoRoll() {
             onClick={() => nudgeSelection(0, snap || 0.25)}
           >
             ▶
+          </button>
+        </div>
+
+        {/*
+          Length, as a control rather than only as Alt+←/→.
+
+          A note narrower than `MIN_BODY` gives up its resize grip so that
+          dragging it still moves it — `geometry.ts` says so, and says the note
+          is then "resized from the toolbar or the keyboard". The keyboard half
+          is a complete answer for a desktop and none at all for a phone, and
+          the toolbar half was ×2 and ÷2, which change a note's length without
+          being able to reach most of the lengths it might want. These two are
+          the same edit Alt+←/→ makes: one snap step, either way.
+        */}
+        <div className="pr-nudge" role="group" aria-label="Length of the selection">
+          <button
+            className="icon-btn"
+            data-testid="pr-len-shorter"
+            disabled={selectedNoteIds.length === 0}
+            title={`Shorter by ${snap || 0.25} beat`}
+            aria-label="Shorten the selection"
+            onClick={() => resizeSelection(-(snap || 0.25))}
+          >
+            ⇤
+          </button>
+          <button
+            className="icon-btn"
+            data-testid="pr-len-longer"
+            disabled={selectedNoteIds.length === 0}
+            title={`Longer by ${snap || 0.25} beat`}
+            aria-label="Lengthen the selection"
+            onClick={() => resizeSelection(snap || 0.25)}
+          >
+            ⇥
           </button>
         </div>
 

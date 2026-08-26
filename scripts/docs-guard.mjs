@@ -33,7 +33,12 @@ import { srcFingerprint } from './srcfingerprint.mjs';
 const ROOT = process.cwd();
 const DOCS_DIR = join(ROOT, 'docs');
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-/** Release mode: a stale generated report is a failure rather than a note. */
+/** Release mode: a stale generated report is a failure rather than a note.  *
+ * @clone: full-history — the historical documents name commits and this asks
+ * whether they resolve. A `--depth 1` clone cannot answer that either way, so
+ * `fullHistory` below detects one and the question is skipped with a note. It
+ * is not optional politeness: asking it anyway is what took a deploy down.
+ */
 const STRICT = process.argv.includes('--strict');
 
 const problems = [];

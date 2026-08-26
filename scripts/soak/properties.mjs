@@ -159,18 +159,39 @@ export const PROPERTIES = [
   {
     id: 'automation-reads-back',
     what: 'an automation point reads back the value it was written with',
-    body: async ({ seed }) => {
+    body: async ({ seed, active }) => {
       const st = () => window.__ml.projectStore.getState();
       const rnd = window.__soakRnd(seed);
+      // `probe-mutant.mjs`'s predicate, rebuilt: see `runProperties` for why it
+      // cannot be imported. `npm run probe:mutations --check` matches on the
+      // call site below, so the name has to be this one.
+      const mutated = (id) => id === active;
       const track = st().project.tracks[0];
       st().addAutomationLane(track.id, 'volume');
       const lane = st().project.tracks.find((t) => t.id === track.id).automation[0];
       for (let i = 0; i < 16; i += 1) {
         const beat = Math.round(rnd() * 6400) / 100;
         const value = Math.round(rnd() * 10000) / 10000;
-        st().addAutomationPoint(track.id, lane.id, beat, value);
+        const id = st().addAutomationPoint(track.id, lane.id, beat, value);
         const now = st().project.tracks.find((t) => t.id === track.id).automation[0];
-        const point = now.points.find((p) => Math.abs(p.beat - beat) < 1e-6);
+        /*
+         * By the id the write returned, not by the beat it was written at.
+         *
+         * Sixteen draws from 6401 beats collide about one run in fifty, and
+         * `addAutomationPoint` appends rather than replacing — two points can
+         * share a beat and the product is right to allow it, because
+         * `laneValueAt` guards a zero-length span and returns the later one, so
+         * the parameter takes the value that was just written. Finding "the
+         * point at that beat" found the *earlier* of the two and reported the
+         * product had read back somebody else's value. Seed 1787778238, beat
+         * 13.17: wrote 0.0887, read 0.8398, and nothing was wrong.
+         *
+         * The id is what the action hands back and what every caller holds, so
+         * it is the identity the claim was always about.
+         */
+        const point = mutated('soak/automation-point-by-id')
+          ? now.points.find((p) => Math.abs(p.beat - beat) < 1e-6)
+          : now.points.find((p) => p.id === id);
         if (!point) return `point at beat ${beat} was written and is not there`;
         if (Math.abs(point.value - value) > 1e-6) {
           return `beat ${beat}: wrote ${value}, read ${point.value}`;

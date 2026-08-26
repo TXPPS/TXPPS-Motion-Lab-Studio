@@ -1,0 +1,800 @@
+{
+  "instrument": "tests/storeSweep.test.ts",
+  "rows": [
+    {
+      "id": "store:chainStore.remove",
+      "covered": true,
+      "note": "0 chains left"
+    },
+    {
+      "id": "store:chainStore.reset",
+      "covered": true,
+      "note": "0 chains left"
+    },
+    {
+      "id": "store:chainStore.save",
+      "covered": true,
+      "note": "saved <id>"
+    },
+    {
+      "id": "store:inputStore.set",
+      "covered": true,
+      "note": "phase recording"
+    },
+    {
+      "id": "store:keymapStore.clearBinding",
+      "covered": true,
+      "note": "0 overrides"
+    },
+    {
+      "id": "store:keymapStore.resetAll",
+      "covered": true,
+      "note": "0 overrides"
+    },
+    {
+      "id": "store:keymapStore.setBinding",
+      "covered": true,
+      "note": "undo -> Ctrl+Alt+Z"
+    },
+    {
+      "id": "store:prefsStore.reset",
+      "covered": true,
+      "note": "theme system"
+    },
+    {
+      "id": "store:prefsStore.set",
+      "covered": true,
+      "note": "theme light"
+    },
+    {
+      "id": "store:projectStore.addAudioClip",
+      "covered": true,
+      "note": "clip <id>"
+    },
+    {
+      "id": "store:projectStore.addControlLink",
+      "covered": true,
+      "note": "link <id>"
+    },
+    {
+      "id": "store:projectStore.addCueMix",
+      "covered": true,
+      "note": "cue <id>"
+    },
+    {
+      "id": "store:projectStore.addEventFx",
+      "covered": true,
+      "note": "clip insert <id>"
+    },
+    {
+      "id": "store:projectStore.addMacro",
+      "covered": true,
+      "note": "macro <id>"
+    },
+    {
+      "id": "store:projectStore.addMarker",
+      "covered": true,
+      "note": "marker <id>"
+    },
+    {
+      "id": "store:projectStore.addMasterEffect",
+      "covered": true,
+      "note": "master insert <id>"
+    },
+    {
+      "id": "store:projectStore.addNote",
+      "covered": true,
+      "note": "note <id>"
+    },
+    {
+      "id": "store:projectStore.addNoteFx",
+      "covered": true,
+      "note": "note fx <id>"
+    },
+    {
+      "id": "store:projectStore.addNotes",
+      "covered": true,
+      "note": "notes 3"
+    },
+    {
+      "id": "store:projectStore.addRecordedClip",
+      "covered": true,
+      "note": "clip <id>"
+    },
+    {
+      "id": "store:projectStore.addSamplerZones",
+      "covered": true,
+      "note": "zones 1"
+    },
+    {
+      "id": "store:projectStore.addSection",
+      "covered": true,
+      "note": "section <id>"
+    },
+    {
+      "id": "store:projectStore.addVca",
+      "covered": true,
+      "note": "vca <id>"
+    },
+    {
+      "id": "store:projectStore.applyGrooveToClip",
+      "covered": true,
+      "note": "groove applied"
+    },
+    {
+      "id": "store:projectStore.applyPreset",
+      "covered": true,
+      "note": "synth preset Deep Saw Bass"
+    },
+    {
+      "id": "store:projectStore.applySamplerPreset",
+      "covered": true,
+      "note": "preset Sweep"
+    },
+    {
+      "id": "store:projectStore.assignMacroTarget",
+      "covered": true,
+      "note": "targets 1"
+    },
+    {
+      "id": "store:projectStore.assignPad",
+      "covered": true,
+      "note": "8 pads filled"
+    },
+    {
+      "id": "store:projectStore.assignVca",
+      "covered": true,
+      "note": "vca of inst <id>"
+    },
+    {
+      "id": "store:projectStore.beginGesture",
+      "covered": true,
+      "note": "gesture depth 1"
+    },
+    {
+      "id": "store:projectStore.clearChords",
+      "covered": true,
+      "note": "0 chords left"
+    },
+    {
+      "id": "store:projectStore.clearControlLinks",
+      "covered": true,
+      "note": "0 links left"
+    },
+    {
+      "id": "store:projectStore.copyEffectTo",
+      "covered": true,
+      "note": "copied as <id>"
+    },
+    {
+      "id": "store:projectStore.createCrossfade",
+      "covered": true,
+      "note": "crossfade true"
+    },
+    {
+      "id": "store:projectStore.createScratchPad",
+      "covered": true,
+      "note": "pad <id>"
+    },
+    {
+      "id": "store:projectStore.deleteAutomationPoints",
+      "covered": true,
+      "note": "2 points left"
+    },
+    {
+      "id": "store:projectStore.deleteNotes",
+      "covered": true,
+      "note": "53 -> 52 notes"
+    },
+    {
+      "id": "store:projectStore.deleteScratchPad",
+      "covered": true,
+      "note": "0 pads left"
+    },
+    {
+      "id": "store:projectStore.deleteTake",
+      "covered": true,
+      "note": "takes now 1"
+    },
+    {
+      "id": "store:projectStore.duplicateClips",
+      "covered": true,
+      "note": "copies 1"
+    },
+    {
+      "id": "store:projectStore.endGesture",
+      "covered": true,
+      "note": "volume 0.22, depth 0"
+    },
+    {
+      "id": "store:projectStore.flushGestures",
+      "covered": true,
+      "note": "volume 0.33, depth 0"
+    },
+    {
+      "id": "store:projectStore.groupTracks",
+      "covered": true,
+      "note": "folder <id>"
+    },
+    {
+      "id": "store:projectStore.healClips",
+      "covered": true,
+      "note": "healed 1"
+    },
+    {
+      "id": "store:projectStore.insertAutomationPoints",
+      "covered": true,
+      "note": "inserted 2"
+    },
+    {
+      "id": "store:projectStore.insertClips",
+      "covered": true,
+      "note": "pasted 1"
+    },
+    {
+      "id": "store:projectStore.markSaved",
+      "covered": true,
+      "note": "dirty false"
+    },
+    {
+      "id": "store:projectStore.matchCueToMain",
+      "covered": true,
+      "note": "follow undefined"
+    },
+    {
+      "id": "store:projectStore.moveEffect",
+      "covered": true,
+      "note": "order eq3,eq3"
+    },
+    {
+      "id": "store:projectStore.moveEventFx",
+      "covered": true,
+      "note": "order <id>,eq3"
+    },
+    {
+      "id": "store:projectStore.moveMasterEffect",
+      "covered": true,
+      "note": "order <id>,eq3"
+    },
+    {
+      "id": "store:projectStore.moveNoteFx",
+      "covered": true,
+      "note": "order chorder,<id>"
+    },
+    {
+      "id": "store:projectStore.moveSection",
+      "covered": true,
+      "note": "order Chorus,Verse"
+    },
+    {
+      "id": "store:projectStore.moveTake",
+      "covered": true,
+      "note": "order <id>,<id>"
+    },
+    {
+      "id": "store:projectStore.moveTempoEvent",
+      "covered": true,
+      "note": "moved to 12"
+    },
+    {
+      "id": "store:projectStore.packTakes",
+      "covered": true,
+      "note": "packed into <id>"
+    },
+    {
+      "id": "store:projectStore.promoteTake",
+      "covered": true,
+      "note": "promoted <id>"
+    },
+    {
+      "id": "store:projectStore.rackAddItem",
+      "covered": true,
+      "note": "rack item <id>"
+    },
+    {
+      "id": "store:projectStore.rackMoveItem",
+      "covered": true,
+      "note": "order synth,sampler"
+    },
+    {
+      "id": "store:projectStore.rackRemoveItem",
+      "covered": true,
+      "note": "1 rack items left"
+    },
+    {
+      "id": "store:projectStore.rackSetLayerZones",
+      "covered": true,
+      "note": "layer zones 1"
+    },
+    {
+      "id": "store:projectStore.rackUpdateItem",
+      "covered": true,
+      "note": "name Renamed layer"
+    },
+    {
+      "id": "store:projectStore.registerMedia",
+      "covered": true,
+      "note": "2 media"
+    },
+    {
+      "id": "store:projectStore.removeAutomationLane",
+      "covered": true,
+      "note": "0 lanes left"
+    },
+    {
+      "id": "store:projectStore.removeChord",
+      "covered": true,
+      "note": "0 chords left"
+    },
+    {
+      "id": "store:projectStore.removeControlLink",
+      "covered": true,
+      "note": "0 links left"
+    },
+    {
+      "id": "store:projectStore.removeCueMix",
+      "covered": true,
+      "note": "0 cues left"
+    },
+    {
+      "id": "store:projectStore.removeEventFx",
+      "covered": true,
+      "note": "1 clip inserts"
+    },
+    {
+      "id": "store:projectStore.removeGroove",
+      "covered": true,
+      "note": "0 grooves left"
+    },
+    {
+      "id": "store:projectStore.removeMacro",
+      "covered": true,
+      "note": "0 macros left"
+    },
+    {
+      "id": "store:projectStore.removeMacroTarget",
+      "covered": true,
+      "note": "0 targets left"
+    },
+    {
+      "id": "store:projectStore.removeMarker",
+      "covered": true,
+      "note": "0 markers left"
+    },
+    {
+      "id": "store:projectStore.removeMasterEffect",
+      "covered": true,
+      "note": "1 master inserts"
+    },
+    {
+      "id": "store:projectStore.removeNoteFx",
+      "covered": true,
+      "note": "1 note fx"
+    },
+    {
+      "id": "store:projectStore.removeSamplerZones",
+      "covered": true,
+      "note": "0 zones left"
+    },
+    {
+      "id": "store:projectStore.removeSection",
+      "covered": true,
+      "note": "1 sections left"
+    },
+    {
+      "id": "store:projectStore.removeSend",
+      "covered": true,
+      "note": "0 sends left"
+    },
+    {
+      "id": "store:projectStore.removeSignature",
+      "covered": true,
+      "note": "1 <id> left"
+    },
+    {
+      "id": "store:projectStore.removeTempoEvent",
+      "covered": true,
+      "note": "1 tempo events left"
+    },
+    {
+      "id": "store:projectStore.renameCueMix",
+      "covered": true,
+      "note": "name Singer"
+    },
+    {
+      "id": "store:projectStore.renameMacro",
+      "covered": true,
+      "note": "name Brightness"
+    },
+    {
+      "id": "store:projectStore.renameScratchPad",
+      "covered": true,
+      "note": "name Alt bridge"
+    },
+    {
+      "id": "store:projectStore.reorderEffect",
+      "covered": true,
+      "note": "order eq3,eq3"
+    },
+    {
+      "id": "store:projectStore.reorderMasterEffect",
+      "covered": true,
+      "note": "order <id>,eq3"
+    },
+    {
+      "id": "store:projectStore.rippleDeleteClips",
+      "covered": true,
+      "note": "12 -> 11 clips"
+    },
+    {
+      "id": "store:projectStore.saveGroove",
+      "covered": true,
+      "note": "1 grooves"
+    },
+    {
+      "id": "store:projectStore.setAutomationCurve",
+      "covered": true,
+      "note": "curve exp"
+    },
+    {
+      "id": "store:projectStore.setAutomationLane",
+      "covered": true,
+      "note": "enabled false"
+    },
+    {
+      "id": "store:projectStore.setAutomationMode",
+      "covered": true,
+      "note": "mode latch"
+    },
+    {
+      "id": "store:projectStore.setBpm",
+      "covered": true,
+      "note": "bpm 132"
+    },
+    {
+      "id": "store:projectStore.setChord",
+      "covered": true,
+      "note": "chord <id>"
+    },
+    {
+      "id": "store:projectStore.setClipFades",
+      "covered": true,
+      "note": "fades 0.25/0.5"
+    },
+    {
+      "id": "store:projectStore.setClipGain",
+      "covered": true,
+      "note": "gain 0.33"
+    },
+    {
+      "id": "store:projectStore.setClipView",
+      "covered": true,
+      "note": "takesOpen true"
+    },
+    {
+      "id": "store:projectStore.setCompRange",
+      "covered": true,
+      "note": "comp segments 2"
+    },
+    {
+      "id": "store:projectStore.setCueMix",
+      "covered": true,
+      "note": "level 0.6"
+    },
+    {
+      "id": "store:projectStore.setCueSend",
+      "covered": true,
+      "note": "follow false"
+    },
+    {
+      "id": "store:projectStore.setEffectShape",
+      "covered": true,
+      "note": "shape nodes 3"
+    },
+    {
+      "id": "store:projectStore.setEventFxBypass",
+      "covered": true,
+      "note": "bypass true"
+    },
+    {
+      "id": "store:projectStore.setEventFxParam",
+      "covered": true,
+      "note": "gain -2"
+    },
+    {
+      "id": "store:projectStore.setFadeShape",
+      "covered": true,
+      "note": "in shape equalPower"
+    },
+    {
+      "id": "store:projectStore.setFolderFor",
+      "covered": true,
+      "note": "folder of audio <id>"
+    },
+    {
+      "id": "store:projectStore.setLoop",
+      "covered": true,
+      "note": "loop 8-24 true"
+    },
+    {
+      "id": "store:projectStore.setMacroTargetRange",
+      "covered": true,
+      "note": "range 0.2..0.9"
+    },
+    {
+      "id": "store:projectStore.setMacroValue",
+      "covered": true,
+      "note": "value 0.7"
+    },
+    {
+      "id": "store:projectStore.setMarker",
+      "covered": true,
+      "note": "name Bridge"
+    },
+    {
+      "id": "store:projectStore.setMaster",
+      "covered": true,
+      "note": "pan -0.2"
+    },
+    {
+      "id": "store:projectStore.setMasterEffectBypass",
+      "covered": true,
+      "note": "bypass true"
+    },
+    {
+      "id": "store:projectStore.setMasterEffectParam",
+      "covered": true,
+      "note": "gain 3"
+    },
+    {
+      "id": "store:projectStore.setMasterVolume",
+      "covered": true,
+      "note": "master volume 0.62"
+    },
+    {
+      "id": "store:projectStore.setMetronome",
+      "covered": true,
+      "note": "metronome true"
+    },
+    {
+      "id": "store:projectStore.setNoteFxBypass",
+      "covered": true,
+      "note": "bypass true"
+    },
+    {
+      "id": "store:projectStore.setNoteFxList",
+      "covered": true,
+      "note": "list 0,4,7"
+    },
+    {
+      "id": "store:projectStore.setNoteFxParam",
+      "covered": true,
+      "note": "rate 4"
+    },
+    {
+      "id": "store:projectStore.setNotes",
+      "covered": true,
+      "note": "notes 37 chars"
+    },
+    {
+      "id": "store:projectStore.setParamNorm",
+      "covered": true,
+      "note": "fx:<id>:midDb -> 0.77"
+    },
+    {
+      "id": "store:projectStore.setProject",
+      "covered": true,
+      "note": "project Swept"
+    },
+    {
+      "id": "store:projectStore.setSamplerParams",
+      "covered": true,
+      "note": "attack 0.12"
+    },
+    {
+      "id": "store:projectStore.setSection",
+      "covered": true,
+      "note": "name Intro"
+    },
+    {
+      "id": "store:projectStore.setSend",
+      "covered": true,
+      "note": "sends 1"
+    },
+    {
+      "id": "store:projectStore.setSignature",
+      "covered": true,
+      "note": "2 <id>"
+    },
+    {
+      "id": "store:projectStore.setSoloTake",
+      "covered": true,
+      "note": "solo <id>"
+    },
+    {
+      "id": "store:projectStore.setTakeMuted",
+      "covered": true,
+      "note": "muted true"
+    },
+    {
+      "id": "store:projectStore.setTempoEvent",
+      "covered": true,
+      "note": "2 tempo events"
+    },
+    {
+      "id": "store:projectStore.setTimeSig",
+      "covered": true,
+      "note": "3/4"
+    },
+    {
+      "id": "store:projectStore.setZoneSample",
+      "covered": true,
+      "note": "zone name Renamed sample"
+    },
+    {
+      "id": "store:projectStore.setZoneSlices",
+      "covered": true,
+      "note": "slices 4"
+    },
+    {
+      "id": "store:projectStore.sliceToMidiClip",
+      "covered": true,
+      "note": "clip <id>"
+    },
+    {
+      "id": "store:projectStore.sliceToPads",
+      "covered": true,
+      "note": "pads made 4"
+    },
+    {
+      "id": "store:projectStore.slipClip",
+      "covered": true,
+      "note": "offset 0 -> 0.1"
+    },
+    {
+      "id": "store:projectStore.swapScratchPad",
+      "covered": true,
+      "note": "active <id>"
+    },
+    {
+      "id": "store:projectStore.transformNotes",
+      "covered": true,
+      "note": "first pitch 41"
+    },
+    {
+      "id": "store:projectStore.trimAutomationAt",
+      "covered": true,
+      "note": "6 points after the trim"
+    },
+    {
+      "id": "store:projectStore.trimClipEnd",
+      "covered": true,
+      "note": "length 8 -> 7"
+    },
+    {
+      "id": "store:projectStore.trimClipStart",
+      "covered": true,
+      "note": "start 0 -> 1"
+    },
+    {
+      "id": "store:projectStore.ungroupFolder",
+      "covered": true,
+      "note": "0 folders left"
+    },
+    {
+      "id": "store:projectStore.updateAutomationPoints",
+      "covered": true,
+      "note": "first value 0.1"
+    },
+    {
+      "id": "store:projectStore.updateControlLink",
+      "covered": true,
+      "note": "mode toggle"
+    },
+    {
+      "id": "store:projectStore.updateNotes",
+      "covered": true,
+      "note": "first velocity 125"
+    },
+    {
+      "id": "store:projectStore.updateSamplerZones",
+      "covered": true,
+      "note": "gain 0.42"
+    },
+    {
+      "id": "store:projectStore.writeAutomationAt",
+      "covered": true,
+      "note": "4 points after the pass"
+    },
+    {
+      "id": "store:routeStore.go",
+      "covered": true,
+      "note": "page show, hash #/show"
+    },
+    {
+      "id": "store:routeStore.setRoute",
+      "covered": true,
+      "note": "page mastering"
+    },
+    {
+      "id": "store:transportStore.set",
+      "covered": true,
+      "note": "playState playing"
+    },
+    {
+      "id": "store:uiStore.closeDialog",
+      "covered": true,
+      "note": "dialog null"
+    },
+    {
+      "id": "store:uiStore.closeMenu",
+      "covered": true,
+      "note": "menu null"
+    },
+    {
+      "id": "store:uiStore.dismissToast",
+      "covered": true,
+      "note": "0 toasts"
+    },
+    {
+      "id": "store:uiStore.openEditorFor",
+      "covered": true,
+      "note": "editing clip-a on the piano tab"
+    },
+    {
+      "id": "store:uiStore.selectClip",
+      "covered": true,
+      "note": "primary clip-a, set 1"
+    },
+    {
+      "id": "store:uiStore.selectClips",
+      "covered": true,
+      "note": "primary clip-c of 3"
+    },
+    {
+      "id": "store:uiStore.showDialog",
+      "covered": true,
+      "note": "dialog Sweep"
+    },
+    {
+      "id": "store:uiStore.showMenu",
+      "covered": true,
+      "note": "menu of 1"
+    },
+    {
+      "id": "store:uiStore.toast",
+      "covered": true,
+      "note": "1 toasts"
+    },
+    {
+      "id": "store:uiStore.toggleClipSelection",
+      "covered": true,
+      "note": "set clip-a,clip-b"
+    },
+    {
+      "id": "store:workspaceStore.reset",
+      "covered": true,
+      "note": "browser 16"
+    },
+    {
+      "id": "store:workspaceStore.reveal",
+      "covered": true,
+      "note": "showInspector true"
+    },
+    {
+      "id": "store:workspaceStore.setMaximized",
+      "covered": true,
+      "note": "maximized editor"
+    },
+    {
+      "id": "store:workspaceStore.setSizes",
+      "covered": true,
+      "note": "browser 32"
+    },
+    {
+      "id": "store:workspaceStore.toggle",
+      "covered": true,
+      "note": "showBrowser false"
+    }
+  ]
+}
