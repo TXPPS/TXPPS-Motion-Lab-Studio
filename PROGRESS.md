@@ -4,18 +4,30 @@
 RESUME: F7 — every store mutator swept by one pattern, every check proved
         satisfiable, and the voice partition PA-003 cannot come back through.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: 232feb0, bundle index-CqCua4AE.js, sha256 ffa09e874b488ac6
+Deployed commit: 6649f6e, bundle index-UnsIXC-T.js, sha256 5ad510ad95fc4d0d
                  over 449374 bytes - fetched from the live worker and compared
                  byte-for-byte against a clean-tree rebuild, not matched by
                  name. This line names the tip at the moment it was written,
                  so the commit that edits it is by construction one ahead of
                  what it describes.
-                 The push before it, bf52af2, never deployed: `docs-guard` ran
-                 `git cat-file -e` on eleven commits Cloudflare's shallow clone
-                 had never fetched, failed all eleven, and exited the build.
-                 Fifteen minutes of polling for a bundle that was never coming.
-                 A claim about the repository, made from a truncated copy of
-                 it, is BLOCKED-is-a-claim-about-the-host again.
+                 The push before it, 5a6f24e, could not have deployed:
+                 splitting `scripts/checks/mutants.mjs` moved the scripted-press
+                 string literal that proves `gesture-guard` can fail into a file
+                 the guard does not exempt by name, so `npm run build` exited on
+                 it. Caught in the clean-tree rebuild before the four minutes of
+                 polling, which is the one improvement over the last time this
+                 happened - and the cause is plain: the build was run *before*
+                 the split and not after. `check-checks --check`, lint and
+                 format all passed after it, and none of them is the build.
+                 The build is the check; it goes after the last edit.
+                 The push before that, bf52af2, never deployed either:
+                 `docs-guard` ran `git cat-file -e` on eleven commits
+                 Cloudflare's shallow clone had never fetched, failed all
+                 eleven, and exited the build. Fifteen minutes of polling for a
+                 bundle that was never coming. A claim about the repository,
+                 made from a truncated copy of it, is BLOCKED-is-a-claim-about-
+                 the-host again - and `docs-guard` now has a satisfiability
+                 case that clones this repository `--depth 1` and proves it.
                  A note on "clean": `git status --porcelain` once reported 576
                  modified files after the tree was normalised to LF while
                  `git diff` reported none - a stale index stat cache, which
@@ -319,6 +331,33 @@ the cell. A keyboard command added without either fails the build. Mutation-
 tested by renaming the length control's test id: two cases red, by name.
 
 ---
+
+## The mutation sweep was overwriting the soak report with a stub
+
+Found by `git diff` during the verification run, not by any guard.
+
+`npm run probe:mutations` scores each recorded probe correction by running
+`scripts/soak.mjs --layer=properties --seed=…` twice — twenty-seven corrections,
+fifty-four runs. Every one of those runs reached the bottom of the script and
+wrote `docs/audit/SOAK.md`. With only the properties layer selected there is no
+functional sweep, no fuzz and no endurance to render, so the file came out as
+**three lines**: the header, a bundle, a seed. 195 lines gone.
+
+`docs-guard` did not notice and could not have. Its currency rule compares the
+source fingerprint the report declares against `src/`, and a partial run copies
+that fingerprint forward correctly — the document was _current_ and _empty_ at
+the same time. A wrong document is worse than a missing one; a truncated one is
+worse still, because it keeps the shape of the thing it replaced.
+
+The rule now: **a partial run measures, and only a full run writes the report.**
+`--quick`, or any `--layer=` that does not name all four, writes `soak-out.json`
+and says in as many words that it has not written `SOAK.md`. `soak-out.json` is
+gitignored and is what the mutation driver reads its metric from, so nothing
+that needed the write loses it.
+
+`soak-coverage.json` had the identical hole and is guarded by the identical
+line: coverage written from a scoped functional layer would be read by the
+Function Ledger as the whole sweep's answer.
 
 ## A property failed on one seed in fifty, and the product was right
 

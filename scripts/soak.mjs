@@ -54,7 +54,25 @@ const arg = (name, fallback) => {
   return found ? found.slice(name.length + 3) : fallback;
 };
 const QUICK = process.argv.includes('--quick');
-const LAYERS = (arg('layer', 'functional,fuzz,properties,endurance') ?? '').split(',');
+const ALL_LAYERS = ['functional', 'fuzz', 'properties', 'endurance'];
+const LAYERS = (arg('layer', ALL_LAYERS.join(',')) ?? '').split(',');
+
+/**
+ * Is this run the report, or a measurement?
+ *
+ * `docs/audit/SOAK.md` is a tracked, generated document that says what the
+ * product does. `npm run probe:mutations` runs this script twenty-seven times
+ * with `--layer=properties` to score one probe correction, and each of those
+ * runs *overwrote the report with a three-line stub* — every section gone, the
+ * seed replaced, and `docs-guard` none the wiser because the source fingerprint
+ * had not moved. A wrong document is worse than a missing one, and a truncated
+ * one is worse still: it keeps the shape of the thing it replaced.
+ *
+ * So a partial run measures and says so. `soak-out.json` is still written: it
+ * is the run's own raw output, it is gitignored, and it is where the mutation
+ * driver reads its metric from.
+ */
+const IS_REPORT = !QUICK && ALL_LAYERS.every((l) => LAYERS.includes(l));
 const SEED = Number(arg('seed', String((Date.now() / 1000) | 0))) >>> 0;
 const STEPS = Number(arg('steps', String(QUICK ? 600 : DEFAULT_STEPS)));
 const MINUTES = Number(arg('minutes', String(QUICK ? 1 : 10)));
@@ -117,14 +135,18 @@ if (LAYERS.includes('functional')) {
   }
   const coverage = [...byId.values()];
   mkdirSync(join(ROOT, 'docs', 'audit'), { recursive: true });
-  writeFileSync(
-    join(ROOT, 'docs', 'audit', 'soak-coverage.json'),
-    `${JSON.stringify(
-      { bundle, srcFingerprint: report.srcFingerprint, seed: SEED, rows: coverage },
-      null,
-      2,
-    )}\n`,
-  );
+  // The same rule as the report: a functional layer run on its own is a
+  // measurement, and coverage written from one would be read by the Function
+  // Ledger as the whole sweep's answer.
+  if (IS_REPORT)
+    writeFileSync(
+      join(ROOT, 'docs', 'audit', 'soak-coverage.json'),
+      `${JSON.stringify(
+        { bundle, srcFingerprint: report.srcFingerprint, seed: SEED, rows: coverage },
+        null,
+        2,
+      )}\n`,
+    );
   const green = coverage.filter((r) => r.covered).length;
   console.log(`  ${green}/${coverage.length} row(s) have a state-asserting result\n`);
 }
@@ -204,8 +226,15 @@ report.pageErrors = pageErrors;
 
 mkdirSync(join(ROOT, 'docs', 'audit'), { recursive: true });
 writeFileSync(join(ROOT, 'soak-out.json'), `${JSON.stringify(report, null, 2)}\n`);
-writeFileSync(join(ROOT, 'docs', 'audit', 'SOAK.md'), markdown(report));
-console.log('docs/audit/SOAK.md written.');
+if (IS_REPORT) {
+  writeFileSync(join(ROOT, 'docs', 'audit', 'SOAK.md'), markdown(report));
+  console.log('docs/audit/SOAK.md written.');
+} else {
+  console.log(
+    `soak: partial run (${LAYERS.join(',')}${QUICK ? ', quick' : ''}) — soak-out.json only. ` +
+      'docs/audit/SOAK.md is the report, and only a full run writes it.',
+  );
+}
 
 function markdown(r) {
   const NL = '\n';

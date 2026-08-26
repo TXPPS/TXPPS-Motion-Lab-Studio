@@ -89,10 +89,31 @@ export const CHECKS = {
   },
   'test:core': {
     kind: 'suite',
+    /*
+     * Scoped, and the scope is the point rather than a shortcut.
+     *
+     * `npm run test:core` compiles forty-four suites to WebAssembly and takes
+     * about twenty-five minutes; a satisfiability case that ran it clean and
+     * again with the new file beside it would cost the best part of an hour
+     * every sweep. That is how a check comes to be turned off, which is the
+     * failure this whole mechanism exists to prevent — so the case runs the
+     * runner's own filter over one cheap existing suite and the new one.
+     *
+     * It is not a weaker claim. What this asks is whether the runner picks up a
+     * suite that appears and accepts it; whether the other forty-three still
+     * pass is `test:core`'s own job, and it is run in full every directive.
+     *
+     * `MW_TEST` takes the sentence, not an identifier, and a suite needs its
+     * own `MW_TEST_MAIN` to link. Both were wrong in the first draft of this
+     * case and neither would have been noticed until somebody ran the sweep —
+     * a satisfiability case that cannot compile reports BROKEN, which is the
+     * verdict for "unreadable" rather than for "unsatisfiable".
+     */
+    command: 'node scripts/run-core-tests.mjs crossover',
     satisfy: accepting(
-      'a new suite the compiler picks up',
-      'motionwave/core/test/__satisfy_tests.cpp',
-      '#include "harness.h"\n\nMW_TEST(satisfy_the_runner) {\n  MW_EXPECT(1 + 1 == 2);\n}\n',
+      'a new suite the runner picks up beside an existing one',
+      'motionwave/core/test/crossover_satisfy_tests.cpp',
+      '#include "harness.h"\n\nMW_TEST("the runner finds a suite that appears") {\n  MW_EXPECT(1 + 1 == 2);\n}\n\nMW_TEST_MAIN("crossover satisfy")\n',
     ),
   },
   e2e: {
