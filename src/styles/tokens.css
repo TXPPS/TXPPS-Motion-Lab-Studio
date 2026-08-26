@@ -148,6 +148,24 @@
   --toolbar-h-sm: calc(30px * var(--ui-scale));
   /* Console device rack: four 17px device rows plus the Insert button. */
   --dev-rack-h: calc(88px * var(--ui-scale));
+  /* The rack's parts, as tokens because its floor is derived from them.
+     They were three literals in `mixer.css` and the derivation was a sentence
+     in a comment: the shortest tier says "one device row and the Insert
+     button, scrolling for the rest", and 88px x 0.3 is 26px against a row and
+     a button that need 37. So the claim was false at the two shortest tiers —
+     one slot was clipped mid-height, and a clipped slot's options menu is a
+     control a finger cannot open. Deriving the floor is what makes the comment
+     checkable instead of aspirational. */
+  --dev-slot-h: 16px;
+  --dev-add-h: 15px;
+  --dev-rack-gap: 2px;
+  --dev-rack-pad: 2px;
+  /* One whole device row, the gap, the Insert button, and the rack's padding.
+     Deliberately *not* scaled by `--ui-scale`: the parts it is made of are not,
+     and a floor that shrank below its own contents would be no floor. */
+  --dev-rack-min: calc(
+    var(--dev-slot-h) + var(--dev-rack-gap) + var(--dev-add-h) + 2 * var(--dev-rack-pad)
+  );
   --control-h: calc(28px * var(--ui-scale));
   --control-h-sm: calc(22px * var(--ui-scale));
 

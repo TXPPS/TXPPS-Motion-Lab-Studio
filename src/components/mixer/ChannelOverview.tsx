@@ -8,7 +8,7 @@
  * its meter — everything about one channel on one line, without opening a
  * panel or losing sight of the desk.
  */
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { describeEffect, effectSpec } from '../../model/effects';
 import { formatDb } from '../../model/music';
 import { resolveChannels } from '../../model/mixerGraph';
@@ -229,9 +229,48 @@ export const ChannelOverview = memo(function ChannelOverview({ track }: { track:
   );
 });
 
+/**
+ * The selected track id, held still while a pointer is pressed on the console.
+ *
+ * Selecting a strip mounts this band, and the band takes 116 px out of a mixer
+ * pane that had 265 — which re-tiers the console under the pointer that is
+ * still pressed on it. Measured: the Insert button moved from y=696 to y=803
+ * between `pointerdown` and `pointerup`, so the release landed on a different
+ * element and the click was never delivered. The only way to add a device to a
+ * channel did not work with a mouse, and the device suite did not see it
+ * because it opens that menu with `el.click()` — a synthetic click, which has
+ * no press to move under.
+ *
+ * Selection still happens on `pointerdown`: a fader dragged on an unselected
+ * strip has to select it, and there is no click at the end of a drag. What
+ * waits is the *layout*. The band appears when the hand comes off, by which
+ * time the gesture it would have broken has been delivered.
+ */
+function settledSelection(): string | null {
+  const live = useUiStore((s) => s.selectedTrackId);
+  const [settled, setSettled] = useState(live);
+  const [pressed, setPressed] = useState(false);
+  useEffect(() => {
+    const down = () => setPressed(true);
+    const up = () => setPressed(false);
+    window.addEventListener('pointerdown', down, { capture: true });
+    window.addEventListener('pointerup', up, { capture: true });
+    window.addEventListener('pointercancel', up, { capture: true });
+    return () => {
+      window.removeEventListener('pointerdown', down, { capture: true });
+      window.removeEventListener('pointerup', up, { capture: true });
+      window.removeEventListener('pointercancel', up, { capture: true });
+    };
+  }, []);
+  useEffect(() => {
+    if (!pressed) setSettled(live);
+  }, [pressed, live]);
+  return settled;
+}
+
 /** Renders the overview for whatever channel is selected, or a prompt. */
 export function ChannelOverviewHost() {
-  const id = useUiStore((s) => s.selectedTrackId);
+  const id = settledSelection();
   const track = useProjectStore((s) => s.project.tracks.find((t) => t.id === id));
   // Nothing selected: take no room at all. A band of empty console saying
   // "select a channel" was costing a quarter of the mixer's height to tell

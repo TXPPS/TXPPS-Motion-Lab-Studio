@@ -1218,7 +1218,18 @@
    ============================================================ */
 
 .channel-overview {
-  flex: none;
+  /* Shrinkable, and capped at two fifths of the pane.
+
+     It was `flex: none`, so on a 265px mixer it took 116px — 44% — and left the
+     console 113. At that height the strip drops to its shortest tier, the
+     device rack collapses, and the options menu on a device ends up under the
+     row below it: a channel you have selected is a channel you can no longer
+     work on, which is the opposite of what an overview is for. The console
+     keeps the majority because the console is where twenty channels are; this
+     band is one channel, and it scrolls. */
+  flex: 0 1 auto;
+  max-height: 40%;
+  overflow-y: auto;
   display: flex;
   align-items: stretch;
   gap: var(--sp-4);
@@ -1476,10 +1487,9 @@
 .dev-rack {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--dev-rack-gap);
   min-width: 0;
-  min-height: 0;
-  padding: 2px;
+  padding: var(--dev-rack-pad);
   border-radius: var(--radius-xs);
   background: var(--bg-well);
   box-shadow: var(--sh-well);
@@ -1494,7 +1504,33 @@
      demo project's drum rack is already at the fold. The x axis stays hidden
      because a device slot must never widen the strip. */
   max-height: var(--dev-rack-h);
+  /* One whole device row and the Insert button, at every tier.
+
+     `min-height` was 0 and the two shortest tiers scale `--dev-rack-h` to
+     0.42 and 0.3 — 37px and 26px against parts that need 37. So the shortest
+     rack showed a slot cut off part-way down, and its options menu, which is
+     as tall as the slot, came back measuring under the touch minimum: a device
+     that is on the channel and cannot be bypassed, moved or removed. Scrolling
+     does not answer it, because the thing that does not fit is one row.
+
+     Derived from `--dev-slot-h`, `--dev-add-h`, the gap and the padding
+     rather than written as a number, so the floor moves when the parts do.
+     `min-height` beats `max-height` in CSS, which is what makes this a floor
+     rather than a fight. */
+  min-height: var(--dev-rack-min);
   overflow: hidden auto;
+}
+/* An instrument channel's rack carries a row the others do not.
+
+   The floor above is one device row and the Insert button. A drum or
+   instrument channel also shows its instrument, and 37px cannot hold three
+   rows: measured, the device list was squeezed to *zero height* and its device
+   went on painting on top of the Insert button — so the device's own options
+   button sat under a control that intercepted every click aimed at it. Nothing
+   was clipped and nothing was too small; two rows were occupying one row's
+   space, and only the hit test could tell. */
+.dev-rack:has(.dev-instrument) {
+  min-height: calc(var(--dev-rack-min) + var(--dev-slot-h) + var(--dev-rack-gap));
 }
 .dev-list {
   list-style: none;
@@ -1503,7 +1539,10 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  min-height: 0;
+  /* One device row, never less. It was zero, which is what let a flex column
+     squeeze this out of existence while its contents went on painting where
+     the row below was expecting to be. */
+  min-height: var(--dev-slot-h);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
@@ -1520,7 +1559,17 @@
   align-items: center;
   gap: 3px;
   min-width: 0;
-  height: 16px;
+  /* Its height, not a suggestion.
+
+     A flex item in a column shrinks below its `height` by default, and on a
+     short console every row in the rack did: a device row measured 11px where
+     it declares 16, and the options button inside it came out 11 x 11 against
+     a 44px touch minimum. The rack is a *scroller* — its own comment says a
+     longer chain scrolls — so compressing the rows was the one thing it was
+     never supposed to do. `flex: none` makes the overflow go to the scrollbar,
+     where it was always meant to. */
+  flex: none;
+  height: var(--dev-slot-h);
   padding: 0 2px 0 4px;
   border: none;
   border-radius: var(--radius-xs);
@@ -1717,7 +1766,9 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
-  height: 15px;
+  /* See `.dev-slot`: the only way in to a device rack must not be squeezed. */
+  flex: none;
+  height: var(--dev-add-h);
   padding: 0 2px;
   border: none;
   border-radius: var(--radius-xs);
@@ -2278,4 +2329,20 @@
 .fx-body-mw .mw-panel {
   min-width: 0;
   width: 100%;
+}
+
+/* The gap while the face's code is being fetched.
+   `MotionWaveFace` is loaded on demand — it carries 44 kB of artwork, control
+   primitives and design system that a session which never opens a Motion Wave
+   unit never needs. A zero-height fallback would collapse the rack and reflow
+   everything under the pointer that just opened it, so the placeholder holds
+   roughly the height a panel occupies and paints the panel's own ground.
+   Deliberately outside every `@container mixer` block: those renumber strip
+   rows by source order, and this is not a strip row. */
+.mw-face-loading {
+  display: block;
+  width: 100%;
+  min-height: 12rem;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-well);
 }
