@@ -19,7 +19,7 @@ Coverage is counted as **rows with a state-asserting result**, never as rows
 that are not FAIL. Those are the same number only until somebody is tempted to
 make the column green.
 
-Soak coverage: **69 of 403 ledger rows** (17.1%) have a state-asserting result. The sweep attempted 136 of them and 69 of those changed something; **267 rows have no case at all** and are named under "Never driven" below. Measured against `index-Bm1Nlvxd.js` (`5a8571257574042c`).
+Soak coverage: **69 of 403 ledger rows** (17.1%) have a state-asserting result. The sweep attempted 136 of them and 69 of those changed something; **267 rows have no case at all** and are named under "Never driven" below. Measured against `index-iG8bhIUY.js` (`a601afed1b94ae19`).
 
 | kind | count |
 | --- | --- |
@@ -168,16 +168,16 @@ together is what let the coverage figure read as half rather than a sixth.
 | `effect:gate` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.52e-2 RMS |
 | `effect:limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.73e-1 RMS |
 | `effect:multiband` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.89e-1 RMS |
-| `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.16e-1 RMS |
+| `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.17e-1 RMS |
 | `effect:mw-fet-limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.11e-1 RMS |
 | `effect:mw-granular-reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.12e-3 RMS |
 | `effect:mw-motion-shaper` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 7.40e-2 RMS |
 | `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.05e-1 RMS |
 | `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.05e-1 RMS |
-| `effect:mw-variable-mu` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.09e-1 RMS |
+| `effect:mw-variable-mu` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.10e-1 RMS |
 | `effect:phaser` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.91e-2 RMS |
 | `effect:pingpong` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.25e-2 RMS |
-| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 6.71e-3 RMS |
+| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 6.73e-3 RMS |
 | `effect:rotary` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.61e-2 RMS |
 | `effect:saturator` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.92e-1 RMS |
 | `effect:tremolo` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.27e-3 RMS |
@@ -286,7 +286,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.addRecordedClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.addSamplerZones` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.addSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmtadpr0e0e7fwa |
+| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmtaeu9m90e7piz |
 | `store:projectStore.addVca` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.applyGrooveToClip` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.applyPreset` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
@@ -327,7 +327,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.moveSection` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.moveTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.moveTempoEvent` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmtadpk9f06v43n,tmtadpk9f06w7b8,tmtadpk9f06xy95,tmtadpk9f06ydoc,tmtadpk9f06zdep,tmtadpk9f0708ia,tmtadpkdu0dpdxf,tmtadpkdv0drrhs,tmtadpkdw0e0pr3,tmtadpkdw0e1e5z,tmtadpk9f071lii,tmtadpk9f072n8x,tmtadpkdw0e2efq -> tmtadpk9f06w7b8,tmtadpk9f06xy95,tmtadpk9f06v43n,tmtadpk9f06ydoc,tmtadpk9f06zdep,tmtadpk9f0708ia,tmtadpkdu0dpdxf,tmtadpkdv0drrhs,tmtadpkdw0e0pr3,tmtadpkdw0e1e5z,tmtadpk9f071lii,tmtadpk9f072n8x,tmtadpkdw0e2efq |
+| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmtaeu2v706vpa6,tmtaeu2v706wqab,tmtaeu2v706x7jo,tmtaeu2v706ynss,tmtaeu2v706zjeo,tmtaeu2v70704zr,tmtaeu2zr0dp5y6,tmtaeu2zs0drlzg,tmtaeu2zt0e0b7i,tmtaeu2zt0e1ewn,tmtaeu2v7071ybh,tmtaeu2v7072ywi,tmtaeu2zu0e2dc1 -> tmtaeu2v706wqab,tmtaeu2v706x7jo,tmtaeu2v706vpa6,tmtaeu2v706ynss,tmtaeu2v706zjeo,tmtaeu2v70704zr,tmtaeu2zr0dp5y6,tmtaeu2zs0drlzg,tmtaeu2zt0e0b7i,tmtaeu2zt0e1ewn,tmtaeu2v7071ybh,tmtaeu2v7072ywi,tmtaeu2zu0e2dc1 |
 | `store:projectStore.packTakes` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.promoteTake` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:projectStore.rackAddItem` | src/state/projectStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
@@ -437,7 +437,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:uiStore.openEditorFor` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:uiStore.selectClip` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:uiStore.selectClips` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
-| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmtadpkdu0dpdxf -> tmtadpk9f06w7b8 |
+| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmtaeu2zr0dp5y6 -> tmtaeu2v706wqab |
 | `store:uiStore.set` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — editorTab mixer -> piano |
 | `store:uiStore.showDialog` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |
 | `store:uiStore.showMenu` | src/state/uiStore.ts | store | ? | ? | ? | none | FAIL | not attempted |

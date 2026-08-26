@@ -21,11 +21,16 @@
  *     eight times, judged on slope rather than on a final reading.
  *
  * **This runs against a build, and it rebuilds nothing.** §10's rule is that a
- * green test against a stale artefact proves nothing, so the first thing the
- * run does is record the hash of the bundle it is actually talking to, and
- * `docs/audit/SOAK.md` carries it. A report whose hash does not match the
- * current `dist/` is a report about a product that no longer exists, and saying
- * so is cheaper than preventing it.
+ * green test against a stale artefact proves nothing, so the run records both
+ * the bundle it is talking to *and* a fingerprint of every source that bundle
+ * is built from, and `docs/audit/SOAK.md` carries both.
+ *
+ * The fingerprint is what `npm run docs-guard:release` compares, and the bundle
+ * name is for identification only. Comparing the bundle was tried and cannot
+ * work: its hash moves with the commit date, so committing the fresh report is
+ * itself enough to invalidate the name the report has just been made to carry.
+ * A check that cannot be satisfied gets turned off, which is the failure this
+ * whole apparatus exists to prevent, arriving by a side door.
  *
  * The functional layer writes `docs/audit/soak-coverage.json`, which is what
  * fills the Function Ledger's `tested` column. A row is green there only if a
@@ -41,6 +46,7 @@ import { replay, shrink, DEFAULT_STEPS } from './soak/fuzz.mjs';
 import { runProperties } from './soak/properties.mjs';
 import { runEndurance } from './soak/endurance.mjs';
 import { enumerate, undrivenBy } from './functions/enumerate.mjs';
+import { srcFingerprint } from './srcfingerprint.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const arg = (name, fallback) => {
@@ -78,7 +84,7 @@ console.log(`soak: ${BASE}, bundle ${bundle.entry} (${bundle.hash || 'unhashed'}
 console.log(`soak: seed ${SEED}, ${STEPS} fuzz step(s), ${MINUTES} endurance minute(s)\n`);
 
 const browser = await launch();
-const report = { seed: SEED, bundle, layers: {} };
+const report = { seed: SEED, bundle, srcFingerprint: srcFingerprint(), layers: {} };
 const pageErrors = [];
 
 // -------------------------------------------------------------- 1. functional
@@ -113,7 +119,11 @@ if (LAYERS.includes('functional')) {
   mkdirSync(join(ROOT, 'docs', 'audit'), { recursive: true });
   writeFileSync(
     join(ROOT, 'docs', 'audit', 'soak-coverage.json'),
-    `${JSON.stringify({ bundle, seed: SEED, rows: coverage }, null, 2)}\n`,
+    `${JSON.stringify(
+      { bundle, srcFingerprint: report.srcFingerprint, seed: SEED, rows: coverage },
+      null,
+      2,
+    )}\n`,
   );
   const green = coverage.filter((r) => r.covered).length;
   console.log(`  ${green}/${coverage.length} row(s) have a state-asserting result\n`);
@@ -210,10 +220,19 @@ function markdown(r) {
     'every input, and an endurance run judged on trends rather than endpoints.',
     '',
     `- **Bundle** \`${r.bundle.entry}\` (\`${r.bundle.hash || 'unhashed'}\`)`,
+    `- **Source** \`${r.srcFingerprint}\``,
     `- **Seed** \`${r.seed}\``,
     '',
-    'A report is about the bundle named above and no other. If that hash is not',
-    'the one in `dist/` now, this file describes a product that has moved.',
+    'A report is about the source fingerprint named above and no other, and',
+    '`npm run docs-guard:release` compares it against `src/` before a deploy.',
+    '',
+    'The *bundle* is named for identification and is deliberately not what the',
+    'comparison uses. Its hash moves with the commit date — `vite.config.ts`',
+    'compiles that in — so committing this report is itself enough to invalidate',
+    'the bundle name the report has just been made to carry, and a check that',
+    'cannot be satisfied gets turned off. The source fingerprint asks the',
+    'narrower question that actually matters: has anything the bundle is built',
+    'from changed since this ran?',
     '',
   ];
   if (r.layers.functional) {

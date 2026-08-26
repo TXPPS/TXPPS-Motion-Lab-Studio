@@ -37,7 +37,7 @@
 // the commit is in this repository. A report that names no commit is claiming to
 // describe the present, and the present is what goes wrong.
 
-/** @typedef {{ kind: 'GENERATED', by: string, declares?: 'bundle', why: string }} Generated */
+/** @typedef {{ kind: 'GENERATED', by: string, declares?: 'source', why: string }} Generated */
 /** @typedef {{ kind: 'GUARDED', by: string, why: string }} Guarded */
 /** @typedef {{ kind: 'NARRATIVE', why: string }} Narrative */
 
@@ -58,7 +58,7 @@ export const DOCS = Object.fromEntries([
     {
       kind: 'GENERATED',
       by: 'soak',
-      declares: 'bundle',
+      declares: 'source',
       why: 'four soak layers against one running build; the bundle it names is the only one it describes',
     },
   ],

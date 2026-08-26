@@ -209,11 +209,16 @@ writing those files — not whether to widen the scope until it goes quiet.
   is gone. A NARRATIVE document may carry `historical: true` and name the commit
   it describes — that is the conversion for an audit, because a measurement of a
   named tree is history and cannot go stale.
-- **`npm run docs-guard:release` before a deploy.** The bundle-currency check is
-  a note in the build and a failure there, because `vite.config.ts` compiles the
-  commit date in: re-running the soak changes the commit, which changes the hash
-  the fresh report has just been made to name. It can only be satisfied against
-  the artefact actually being deployed.
+- **`npm run docs-guard:release` before a deploy.** It compares the source
+  fingerprint `docs/audit/SOAK.md` declares against `src/` — not the bundle name.
+  Comparing the bundle cannot work: `vite.config.ts` compiles the commit date in,
+  so committing the fresh report invalidates the name the report has just been
+  made to carry, and a check that cannot be satisfied gets turned off.
+- **A guard may not ask git a question a shallow clone cannot answer.**
+  `docs-guard`'s history check ran `git cat-file -e` on eleven commits
+  Cloudflare's builder had never fetched, failed all eleven, and took the deploy
+  down. A claim about the repository made from a truncated copy of it is the
+  same error as BLOCKED being a claim about the host. Skip, and say so.
 
 ## Motion Wave core: the rules that are not negotiable
 

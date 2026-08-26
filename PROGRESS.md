@@ -237,6 +237,41 @@ commit, which changes the hash the fresh report has just been made to name. It
 can only be satisfied against the artefact actually being deployed. Declared in
 `check-checks` and in CLAUDE.md's command block, so it is not a side door.
 
+## The guard I added took the deploy down
+
+Worth recording in full because the shape recurs and it caught me the same day
+I wrote the rule about it.
+
+`docs-guard` checks that a document registered as history names a commit and
+that the commit exists — `git cat-file -e <sha>`. It runs in `npm run build`.
+Cloudflare's builder clones **shallow**, so eleven documents named eleven
+commits it had never fetched, all eleven failed, the build exited 1, and the
+deploy never happened. The live site sat on the previous commit for a quarter of
+an hour while the bundle verification politely waited for a hash that was never
+coming.
+
+Reproduced rather than assumed: `git clone --depth 1` of this repository, the
+guard as deployed, eleven failures; the same clone with the fix, none.
+
+**A claim about the repository, made from a truncated copy of it, is the same
+error as BLOCKED being a claim about the host.** The stamp is the half that
+matters and needs no history; whether the commit resolves is a question this
+checkout may be unable to answer either way. It is skipped now, and skipping
+says so.
+
+The second half of the same lesson: the currency check compared `SOAK.md`'s
+declared **bundle** against `dist/`, and it could never have passed.
+`vite.config.ts` compiles the commit date into the bundle, so committing the
+fresh soak report is itself enough to invalidate the bundle name the report has
+just been made to carry. A check that cannot be satisfied gets turned off, which
+is this whole apparatus failing by a side door.
+
+It compares a **source fingerprint** now — `scripts/srcfingerprint.mjs`, a
+digest of every compiled file under `src/`, path and content, line endings
+normalised. A documentation commit does not move it. One line of `src/` does.
+That is the question worth asking of a report about the product, and it is
+answerable.
+
 ## The coverage arithmetic, and the denominator that moved
 
 F3 reported **69 of 396**. The last report said **69 of 136**. Same numerator;

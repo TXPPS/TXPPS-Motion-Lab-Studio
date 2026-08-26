@@ -28,6 +28,7 @@ import { execFileSync } from 'node:child_process';
 import { join, relative, sep } from 'node:path';
 import { DOCS } from './docs/registry.mjs';
 import { stateRecords, PATTERNS } from './docs/state.mjs';
+import { srcFingerprint } from './srcfingerprint.mjs';
 
 const ROOT = process.cwd();
 const DOCS_DIR = join(ROOT, 'docs');
@@ -68,21 +69,6 @@ for (const f of Object.keys(DOCS)) {
 }
 
 // ── 2. GENERATED: the header is true, and the currency is checked ───────────
-/**
- * The entry bundle this build produced, for documents that name one.
- *
- * Read out of `index.html` rather than by picking the first `index-*.js` in
- * `dist/assets`. There is more than one — a lazy chunk carries the same prefix
- * — and directory order is not entry order, so the first version of this named
- * the wrong file in its own failure message. `soak.mjs` reads the same line to
- * decide what it is measuring, which is what makes the two comparable.
- */
-function currentBundle() {
-  const indexPath = join(ROOT, 'dist/index.html');
-  if (!existsSync(indexPath)) return null;
-  return /assets\/(index-[\w-]+\.js)/.exec(readFileSync(indexPath, 'utf8'))?.[1] ?? null;
-}
-
 for (const [f, spec] of Object.entries(DOCS)) {
   if (spec.kind !== 'GENERATED' || !files.includes(f)) continue;
   const text = readFileSync(join(ROOT, f), 'utf8');
@@ -105,36 +91,35 @@ for (const [f, spec] of Object.entries(DOCS)) {
     }
   }
 
-  if (spec.declares === 'bundle') {
-    const named = /`(index-[A-Za-z0-9_-]+\.js)`/.exec(text)?.[1] ?? null;
-    const now = currentBundle();
+  if (spec.declares === 'source') {
+    /*
+     * The source it measured, not the bundle it measured.
+     *
+     * Comparing the bundle name was the first version and it could never pass:
+     * `vite.config.ts` compiles the commit date in, so every commit produces a
+     * new hash — including the commit that lands the fresh report. The report
+     * would be stale the instant it was committed, and a check that cannot be
+     * satisfied gets turned off, which is this whole apparatus failing by a
+     * side door.
+     *
+     * A documentation commit does not change `src/`. Editing one line of it
+     * does. That is the question worth asking of a report about the product.
+     */
+    const named = /\*\*Source\*\* `([0-9a-f]{8,64})`/.exec(text)?.[1] ?? null;
+    const now = srcFingerprint();
     if (!named) {
-      fail(f, 'declares a bundle and no `index-*.js` name could be found in it.');
-    } else if (!now) {
-      // Skipping is not a pass, and it says so rather than staying quiet.
-      notes.push(
-        `${f}: SKIPPED the currency check — there is no dist/ to compare against. ` +
-          `Run \`npm run build\` first. This is not a pass.`,
+      fail(
+        f,
+        'declares a source fingerprint and none could be found in it. It must carry a ' +
+          '"- **Source** `<hash>`" line, which `npm run soak` writes.',
       );
     } else if (named !== now) {
-      /*
-       * A failure at release, a note in the build, and the reason is ordering
-       * rather than severity.
-       *
-       * `vite.config.ts` compiles the commit date into the bundle, so every
-       * commit produces a new hash — including the commit that lands a fresh
-       * soak report. Made a hard build failure, this could never be satisfied:
-       * re-running the soak changes SOAK.md, which changes the commit, which
-       * changes the hash the report has just been made to name. So the build
-       * says it loudly and `--strict` refuses, and `--strict` is what the
-       * release sequence runs against the artefact it is about to deploy.
-       * `scripts/check-checks.mjs` declares it, so it is not a side door.
-       */
       const msg =
-        `describes bundle \`${named}\` and dist/ now holds \`${now}\`. This is the SOAK.md ` +
-        `failure exactly: the file says in as many words that a different hash means it ` +
-        `describes a product that has moved, and nothing read that line. Re-run ` +
-        `\`npm run ${spec.by}\` before deploying.`;
+        `was measured against source \`${named}\` and \`src/\` now hashes to \`${now}\`. ` +
+        `Something the bundle is built from has changed since this ran, so the report ` +
+        `describes a product that has moved. Re-run \`npm run ${spec.by}\` before deploying.`;
+      // A note in the build and a failure at release: the build is where you
+      // find out, and the deploy is where it must not be true.
       if (STRICT) fail(f, msg);
       else notes.push(`${f}: STALE — ${msg}`);
     }
@@ -157,6 +142,30 @@ for (const [f, spec] of Object.entries(DOCS)) {
   }
 }
 
+/**
+ * Can a commit named in a document be looked up here at all?
+ *
+ * Cloudflare's builder clones shallow, and the deploy build ran this guard,
+ * asked git for eleven commits it had never fetched, failed all eleven, and
+ * took the deploy down with it. The stamp is the part that matters and needs no
+ * history; whether the commit resolves is a question about *this copy of the
+ * repository*, and a truncated copy cannot answer it either way.
+ *
+ * So it is skipped, and skipping says so — the same discipline as `BLOCKED is a
+ * claim about the host`. What must not happen is a guard reporting a document
+ * as wrong because the checkout it ran in was shallow.
+ */
+const fullHistory = (() => {
+  try {
+    return execFileSync('git', ['rev-parse', '--is-shallow-repository'], { encoding: 'utf8' })
+      .trim()
+      .startsWith('false');
+  } catch {
+    return false;
+  }
+})();
+const unresolvable = [];
+
 // ── 4. NARRATIVE: contains no record of this product's *present* state ─────
 for (const [f, spec] of Object.entries(DOCS)) {
   if (spec.kind !== 'NARRATIVE' || !files.includes(f)) continue;
@@ -177,12 +186,14 @@ for (const [f, spec] of Object.entries(DOCS)) {
         'is registered as history and does not say which commit it describes. Add ' +
           '"**Describes commit `<sha>`.**" near the top, or reclassify it.',
       );
-    } else {
+    } else if (fullHistory) {
       try {
         execFileSync('git', ['cat-file', '-e', `${sha}^{commit}`], { stdio: 'ignore' });
       } catch {
         fail(f, `names commit \`${sha}\`, which is not in this repository.`);
       }
+    } else {
+      unresolvable.push(f);
     }
     continue;
   }
@@ -282,6 +293,14 @@ if (files.includes(limitsPath)) {
 // ── Report ─────────────────────────────────────────────────────────────────
 const counts = { GENERATED: 0, GUARDED: 0, NARRATIVE: 0 };
 for (const f of files) if (DOCS[f]) counts[DOCS[f].kind]++;
+
+if (unresolvable.length) {
+  notes.push(
+    `${unresolvable.length} historical document(s) name a commit this checkout cannot look ` +
+      `up — it is a shallow clone, or git is not available. The stamps are present and were ` +
+      `checked; whether each commit resolves was not. This is not a pass for that half.`,
+  );
+}
 
 for (const n of notes) console.log(`docs-guard: ${n}`);
 
