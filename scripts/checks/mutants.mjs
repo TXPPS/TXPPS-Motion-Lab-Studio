@@ -175,11 +175,35 @@ export const CHECKS = {
   // have built, and lint, format and `check-checks --check` all passed on it.
   'push-guard': {
     kind: 'gate',
-    // One recorded blob corrupted, which is "the build read something else"
-    // written down. The record is gitignored, so this mutates a local artefact
-    // rather than the tree — and `restore` cannot put it back, which is why the
-    // gate re-records afterwards.
-    mutate: editing('.build-tree.json', '"package.json": "', '"package.json": "0'),
+    // Two rules, two mutations. A guard that enforces more than one thing is
+    // load-bearing in more than one way, and one edit can only ever speak for
+    // one of them.
+    //
+    // The record is gitignored, so both mutate a local artefact rather than the
+    // tree — and `restore` cannot put it back, which is why the gate re-records
+    // afterwards.
+    mutate: [
+      // One recorded blob corrupted: "the build read something else", written
+      // down.
+      editing('.build-tree.json', '"package.json": "', '"package.json": "0'),
+      // A path the build read and the commit does not carry. This rule shipped
+      // with a false positive and nothing caught it, because the gate had one
+      // mutation and it spoke for the other rule: `tracked` is `git ls-files`,
+      // which still lists a tracked file whose deletion is unstaged, so a
+      // correct push was refused over a file the build had never read. Both
+      // halves are edited here because the rule now asks for both — a path in
+      // `tracked` alone is exactly the case it must ignore.
+      {
+        file: '.build-tree.json',
+        from: '  "tracked": [\n',
+        to: '  "tracked": [\n    "src/__mutant-vanished.ts",\n',
+      },
+      {
+        file: '.build-tree.json',
+        from: '  "files": {\n',
+        to: '  "files": {\n    "src/__mutant-vanished.ts": "0000000000000000000000000000000000000000",\n',
+      },
+    ],
     needs: 'committed',
     restores: [],
     // The strong form, and the honest one: the error message says to run the

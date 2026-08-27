@@ -124,10 +124,26 @@ function differences(sha) {
       out.push(`${path} — in the commit, and the build never saw it`);
     else if (rec.files[path] !== blob) out.push(`${path} — changed after the build ran`);
   }
+  /*
+   * Intersected with what the build actually read, not `tracked` alone.
+   *
+   * `tracked` is `git ls-files`, which reports the *index* — so a tracked file
+   * deleted from the working tree is still in it until the deletion is staged.
+   * This refused a correct push for exactly that: `ChannelOverview.tsx` was
+   * gone from disk and from `rec.files`, the build never read it, the commit
+   * correctly dropped it, and the guard called that a difference.
+   *
+   * `rec.files` is what a commit made from the working tree would contain, so
+   * intersecting the two asks the question this rule is actually for — a path
+   * the build read, under version control, that the commit does not carry —
+   * while still ignoring an untracked scratch file, which is what `tracked`
+   * was introduced to do.
+   */
   const inCommit = new Set(Object.keys(head));
   for (const path of rec.tracked) {
+    if (rec.files[path] === undefined) continue;
     if (!inCommit.has(path))
-      out.push(`${path} — tracked when the build ran, and not in the commit`);
+      out.push(`${path} — tracked and read by the build, and not in the commit`);
   }
   return out.sort();
 }
