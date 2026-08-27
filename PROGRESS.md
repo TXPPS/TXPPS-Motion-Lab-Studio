@@ -7,22 +7,26 @@ RESUME: F11 — the console strip stopped being a grid, because a grid item
         heights and swept ten pixels at a time instead of sampled at six form
         factors.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: e53d59c, bundle index-DSGWwjaz.js, sha256 c78bae8077339498
-                 over 450737 bytes - fetched from the live worker and compared
-                 byte-for-byte against a clean-tree rebuild, not matched by
-                 name. 3cdf869 before it was verified the same way
-                 (index-NMs_q7-T.js, 8764a17d72a32f4f), and 56c9221 before that
-                 (index-jUzXzV8o.js, 20ad4118d6fcb147). This line names the tip
-                 at the moment it was written, so the commit that edits it is by
-                 construction one ahead of what it describes.
-                 **Poll the deploy with a cache buster.** This one read as
-                 undeployed for thirty-three minutes and was live the whole
-                 time: `/` is cacheable, the response came back
-                 `CF-Cache-Status: HIT`, and every attempt was reading
-                 Cloudflare's edge rather than the worker. `?cb=<random>` with
-                 `Cache-Control: no-cache` returned the new bundle name
-                 immediately. It failed safe here - a stale read says "not
-                 deployed" - but the same cache can hold a name that has just
+Deployed commit: 9cdc69c, bundle index-Buj7ZIVp.js, sha256 9fed40d1cf5ec30d
+                 over 450737 bytes - fetched from the live worker by
+                 `npm run deploy:check` and compared byte-for-byte against the
+                 clean-tree build, not matched by name. e53d59c before it
+                 (index-DSGWwjaz.js, c78bae8077339498) and 3cdf869 before that
+                 (index-NMs_q7-T.js, 8764a17d72a32f4f), both verified the same
+                 way. This line names the tip at the moment it was written, so
+                 the commit that edits it is by construction one ahead of what
+                 it describes.
+                 **`npm run deploy:check` is the procedure now**, and it takes
+                 longer than this file used to say. Thirty-three minutes of
+                 polling `/` returned the previous bundle name with
+                 `CF-Cache-Status: HIT` on every response, while one request
+                 carrying `?cb=<random>` and `Cache-Control: no-cache` returned
+                 the new one - the edge was answering, not the worker. When that
+                 deploy landed is not knowable from a reading taken through a
+                 cache; the NEXT one, polled with a buster throughout, took 44
+                 attempts at 20 s, about fifteen minutes, against the 260-280 s
+                 this line carried for three directives. The cache failed safe
+                 in that direction, but it can equally hold a name that has just
                  become right for a deploy that has not landed, which is the
                  direction that would be believed.
                  The build chain also runs on a **depth-1 clone**, the copy the
@@ -435,17 +439,27 @@ rather than a toolbar.
 Three rounds, and the ruler was right in all three. **A route written into a
 document is a claim, and a claim that has never been driven is a sentence.**
 
-## The deploy was live for thirty-three minutes before anything could see it
+## Half an hour of polling a cache, and a deploy slower than the procedure says
 
-`/` is cacheable. Every poll came back `CF-Cache-Status: HIT`, so the check was
-reading Cloudflare's edge rather than the worker, and reported the previous
-bundle name for half an hour after the new one had gone out. `?cb=<random>` with
-`Cache-Control: no-cache` answered on the first request.
+`/` is cacheable. Thirty-three minutes of polling came back
+`CF-Cache-Status: HIT` and reported the previous bundle name; a single request
+with `?cb=<random>` and `Cache-Control: no-cache` returned the new one
+immediately, and the plain request went on returning the old one beside it. So
+the cache was masking the answer at the moment of asking, which is the part that
+is measured.
 
-It failed safe — a stale read says "not deployed", and nothing was believed that
-should not have been. The direction that matters is the other one: the same edge
-holds a _new_ name for a while after a rollback or a partial deploy, and a poll
-that sees the name it wants and stops is a deploy verified against a cache.
+**What is not measured is when the deploy actually landed.** A reading taken
+through a cache cannot say, and the first draft of this section claimed it had
+been "live the whole time" — which is a claim about a window nothing observed.
+The next deploy, polled with a buster on every request, took about fifteen
+minutes: forty-four attempts at twenty seconds. So the 260-280 s the deploy
+procedure has carried for three directives is also well under, and two separate
+things were being read as one.
+
+The cache failed safe here — a stale read says "not deployed". The direction
+that matters is the other one: the same edge holds a _new_ name for a while
+after a rollback or a partial deploy, and a poll that sees the name it wants and
+stops is a deploy verified against a cache.
 
 Two things came out of it. `npm run deploy:check` polls with a buster, reports
 the cache header rather than hiding it, then **fetches the bundle and compares

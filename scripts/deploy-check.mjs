@@ -6,14 +6,19 @@
  *
  * Two things this exists to stop, and the first one has already happened.
  *
- * **The edge cache answers before the worker does.** A deploy read as absent
- * for thirty-three minutes while it had been live the whole time: `/` is
- * cacheable, every response came back `CF-Cache-Status: HIT`, and the poll was
- * reading Cloudflare's edge. That failed safe — a stale read says "not
- * deployed" — but the same cache holds the *new* name for a while after a
- * rollback, and a poll that sees the name it wants and stops is the direction
- * somebody believes. So every request carries a cache buster and
- * `Cache-Control: no-cache`, and the header is reported rather than assumed.
+ * **The edge cache answers before the worker does.** Thirty-three minutes of
+ * polling `/` returned the previous bundle name with `CF-Cache-Status: HIT` on
+ * every response, while one request carrying a buster returned the new one. How
+ * long that deploy actually took is not knowable from a reading taken through a
+ * cache; what is known is that the edge was answering. The failure was safe in
+ * that direction — a stale read says "not deployed" — but the same cache holds
+ * the *new* name for a while after a rollback, and a poll that sees the name it
+ * wants and stops is the direction somebody believes. So every request carries a
+ * buster and `Cache-Control: no-cache`, and the header is reported rather than
+ * assumed.
+ *
+ * Budget accordingly: a deploy polled this way took forty-four attempts, about
+ * fifteen minutes, against the 260-280 s the procedure had assumed.
  *
  * **A name is not a bundle.** `vite.config.ts` compiles the commit and its date
  * in, so a matching name is strong evidence and not proof: two builds of two

@@ -371,10 +371,13 @@ writing those files — not whether to widen the scope until it goes quiet.
   so committing the fresh report invalidates the name the report has just been
   made to carry, and a check that cannot be satisfied gets turned off.
 - **Poll a deploy with a cache buster, and prove the build on a depth-1 clone.**
-  A deploy read as absent for thirty-three minutes while it had been live the
-  whole time: `/` is cacheable, the response came back `CF-Cache-Status: HIT`,
-  and every poll was reading Cloudflare's edge rather than the worker.
-  `?cb=<random>` with `Cache-Control: no-cache` answered immediately. It failed
+  Thirty-three minutes of polling `/` returned the previous bundle name with
+  `CF-Cache-Status: HIT` on every response, while a single request carrying
+  `?cb=<random>` and `Cache-Control: no-cache` returned the new one — so the
+  edge was answering, not the worker. **How long the deploy itself took is not
+  knowable from a reading taken through a cache**, and the next one took about
+  fifteen minutes with a buster on every request, which puts the 260-280 s in
+  the deploy procedure well under too. It failed
   safe that time — a stale read says "not deployed" — but the same cache can
   hold a bundle name that has just become right for a deploy that has _not_
   landed, and that is the direction somebody would believe. And when a deploy
