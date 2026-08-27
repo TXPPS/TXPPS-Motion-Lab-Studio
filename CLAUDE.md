@@ -80,9 +80,34 @@ not a faster product; it is a different product.
 - **`tsc -b` is a _build_.** Running it with `--noEmit false` emits a `.js`
   beside every `.ts` in the tree. If you find a few hundred stray `.js` files,
   that is what happened; delete them and use the script.
-- **`@container mixer` blocks in `src/styles/mixer.css` are source-order
-  dependent.** The strip row templates renumber rows per tier; adding a rule in
-  the middle can change which row an element lands in.
+- **A row that will not fit must clip, not overlap — and a grid gives you the
+  wrong one.** A grid item whose `min-height` exceeds its track neither shrinks
+  nor overflows the grid: it paints outside its own track, over the row below.
+  That was the console's landscape defect for two directives, 34 px of device
+  rack drawn through a fader with the rows above it squeezed to 6 px, and three
+  caps in a row each moved the collision instead of removing it. The strip is a
+  flex column now, so an over-subscribed strip overflows the bottom and
+  `overflow: hidden` clips it. **Clipping is wrong and visible; overlapping is
+  wrong and invisible, and only a hit test ever finds it.** Two things do not
+  survive the translation: `minmax(floor + margin, 1fr)` loses the margin term,
+  because a grid track contains its item's margin and a flex item's margin sits
+  outside its box; and `align-content` stops meaning anything.
+
+- **A `container-type: size` query measures the container's CONTENT box.** The
+  mixer's content box is exactly one strip tall, so a strip tier threshold
+  compares against the strip and the mixer's own padding is not in it. Adding
+  that padding to every rung cost the desktop console its dB readout at 18.34em
+  against a rung that said 17.5, with 12 px of slack still in the strip. Two
+  numbers that cannot both be measuring the same thing is what said so.
+
+- **A tier ladder is derived or it is four numbers that made a measurement go
+  quiet.** `src/styles/mixer.css` carries a table of every row's measured height
+  per pointer, and each rung is the floor of the tier above it. There are two
+  ladders because one row — a device row — is 16 px on a fine pointer and 44 on
+  a coarse one, and a single ladder either strips a desktop of a rack that fits
+  or keeps one that cannot. **And a ladder is swept, not sampled**:
+  `e2e/striptiers.spec.ts` drives the container ten pixels at a time, because
+  the six form factors missed the broken band for two directives.
 - The preview server (`npm run preview`) sometimes needs `setsid` to survive a
   backgrounded shell. Screenshots via `scripts/screenshot.mjs` need it running.
 - **The build that proves the tree compiles is not the build that verifies the
@@ -222,6 +247,36 @@ writing those files — not whether to widen the scope until it goes quiet.
   a pixel — `TOUCH_MIN` and `RULER_SLACK` in `e2e/pointer.ts` say so once, and
   `RULER_SLACK` is an allowance on the instrument, never on the requirement.
 
+- **A surface deliberately not drawn below a tier declares what carries its
+  commands, and the sweep discharges it.** WCAG 2.5.8's equivalent alternative
+  has a shape the Reachability Matrix could not express, so taking the console's
+  device rack off three form factors read as a surface reachable on desktop and
+  not on a phone — the line this project treats as a P1 — while the Channel view
+  carried every one of those commands on all five. A target's `substitutedBy` in
+  `scripts/reach/targets.mjs` moves a row out of the defect list **only where
+  the sweep finds the named substitute reachable on the same form factor**, so a
+  substitute that stops being drawn puts the defect back. It is printed under
+  its own heading rather than filtered away: an answered defect is still
+  something somebody should be able to read.
+
+- **A navigation guard that returns is a case that never ran.** A form-factor
+  sweep written as `if (!(await goTo(page, nav))) return;` reports a pass on
+  every form factor whose shell has no such control — `landscape.spec.ts` had
+  never once checked a tablet, because a tablet has no `nav-mix` and its
+  console needs no navigation at all. Navigate, then **wait for the subject and
+  fail if it does not arrive**; a form factor that genuinely lacks a surface is
+  a claim worth writing down, not a branch worth skipping. Found by a mutation
+  that should have turned the case red and did not.
+
+- **A pane whose state nothing outside can reach is a control that does nothing
+  — on exactly one form factor.** The tablet's bottom pane chose what to draw
+  from a `useState` local to `TabletLayout`, so a control that set `editorTab`
+  and revealed the editor pane changed the tab, revealed the pane, and watched
+  it go on drawing the mixer. The console's chain summary and the cue bar's link
+  to the channel both did nothing there, and both worked on a phone and a
+  desktop, which is why it survived a directive. If two pieces of state can
+  disagree about whether a surface is showing, derive one from the other.
+
 - **A surface that opens on top of its opener has deleted the gesture that
   closes it.** The channel rail's contract is one tap to open a device and
   another to close it; on a phone the window opened over the card, so the second
@@ -233,6 +288,14 @@ writing those files — not whether to widen the scope until it goes quiet.
   420 px window in an 844 px viewport needs 428 clear pixels beside a 44 px
   control and the middle leaves 410 on both sides. **A placement rule cannot
   invent room, so say where it runs out rather than widening the claim.**
+
+- **A press can take away the thing you were about to ask about.** On a phone
+  the console unmounts when a control opens the editor, so a locator into the
+  strip stops resolving the moment the gesture lands — and a Playwright locator
+  that never resolves does not fail, it waits until the test's own timeout and
+  then reports the line _after_ the one that hung. Read whatever the assertion
+  needs from a control before pressing it. `expect(...).toBeVisible()` has the
+  10 s expect timeout; a bare `locator.getAttribute()` has none.
 
 - **A gesture test must send what a browser sends.** `fireEvent.doubleClick`
   dispatches a lone `dblclick` and _no clicks at all_; a real double-click sends

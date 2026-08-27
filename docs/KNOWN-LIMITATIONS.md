@@ -261,47 +261,51 @@ Measured on this project's CI hardware — see
   this is a divergence rather than a defect; Motion Wave's own importer must not
   inherit it. Tracked as SA-002.
 
-- **In landscape the channel strip's rack is drawn through its fader.**
-  Measured across the orientation matrix by `e2e/landscape.spec.ts`: 7px through
-  the fader on a phone in landscape, and 44px through the fader plus 16 through
-  the buttons and 9 through the footer on a tablet in landscape, where the mixer
-  shares the arrange view and no height tier matches. This is the "overlaps and
-  distorts" reported from use, and `orientation.spec.ts` and `responsive.spec.ts`
-  both passed throughout — they check horizontal overflow and whether named
-  surfaces are on screen, and neither asks whether two things are drawn on top of
-  each other.
+- **On the shortest console the strip says nothing about what is on the
+  channel.** `src/styles/mixer.css`, the tier ladder's last rung. A tablet in
+  landscape gives the mixer 131 px, which holds a name, a fader and the
+  mute/solo/arm row and nothing else: the floor with the chain summary is 171 px
+  and the floor without it is 124. So on that one form factor the console does
+  not say which channels have a compressor on them, and getting to a chain is
+  two gestures — select the strip, then the cue bar's link — where every other
+  tier makes it one.
+
+  This is the cost of the fix below rather than an oversight, and it is the
+  place where "nine rows of touch-sized controls in a space that holds four"
+  turns out to be four rows in a space that holds three. Nothing was tuned to
+  make it go away: `e2e/striptiers.spec.ts` forces the summary back on at that
+  height and requires the strip to overflow, so the claim that it does not fit
+  is checked rather than asserted.
+
+  The route it leaves is real and conformant — a strip is a 112 x 131 target
+  that selects the channel, and the Channel view carries the whole chain — but
+  it is a route with one more step in it than the design intended, and the honest
+  place for that is here.
+
+- **CLOSED — in landscape the channel strip's rack was drawn through its fader.**
+  Kept because the shape of it is the useful part. Measured across the
+  orientation matrix by `e2e/landscape.spec.ts`: 7 px through the fader on a
+  phone in landscape, and 44 px through the fader plus 16 through the buttons
+  and 9 through the footer on a tablet in landscape. `orientation.spec.ts` and
+  `responsive.spec.ts` both passed throughout — they check horizontal overflow
+  and whether named surfaces are on screen, and neither asks whether two things
+  are drawn on top of each other.
 
   `min-height` on a grid item does not shrink to fit its area; it makes the item
-  paint outside it. The rack's floor is one whole device row _plus_ the Insert
-  button, plus another row on a channel carrying an instrument — three 44px rows
-  on a coarse pointer before a device is drawn.
+  paint outside it, over the row below. The rack's floor is one whole device row
+  _plus_ the Insert button, plus another row on a channel carrying an instrument
+  — three 44 px rows on a coarse pointer before a device is drawn, in a strip of 131. Three caps were tried and each traded the defect for another: a floor of
+  zero stopped the overflow and started clipping, at 21 x 8.5 per options button
+  across forty-two devices; a floor of one whole row did the same from the other
+  side, because the floor is a row _and_ the button; deriving `--dev-rack-h`
+  from its parts fixed the tablet and left the phone.
 
-  Three fixes were tried and each traded the defect for another. A floor of zero
-  stopped the overflow and started clipping — the inspector's rack sits in a
-  short container too, and forty-two options buttons came back at 21 x 8.5,
-  caught by `devicewindow.spec.ts`. A floor of one whole row did the same from
-  the other side, because the floor is a row _and_ the button. Deriving
-  `--dev-rack-h` from its parts on a coarse pointer fixed the tablet and left the
-  phone. The strip is being asked for nine rows of touch-sized controls in a
-  space that holds four, and every cap moves the collision to whichever row loses
-  next.
-
-  The fix is the channel-strip redesign — the quick-EQ strip leaving the mixer
-  for a horizontal rack in the editor, and the device rack becoming collapsible
-  so it stops taking the fader's space. The two cases are marked `test.fail`
-  rather than skipped, so the suite goes red when the redesign lands and says to
-  delete them.
-
-  **Phase A of that redesign has landed and this is still open, deliberately.**
-  The Channel view exists, is reachable on every form factor, and holds the whole
-  chain with nothing drawn outside it — but the _console strip_ has not been
-  touched, so the overlap it describes is unchanged and both cases are still
-  `test.fail` with their numbers. Re-tiering the console changes every strip on
-  every form factor and it should be built against a design somebody has looked
-  at; `docs/design/channel-strip.md` §7 says why the two halves ship separately,
-  and §6 has the tier budgets the second half is built to.
-
-  The number that ends the argument, for whoever picks this up: the rack's
-  derived touch floor is **140 px** and a strip on a tablet in landscape has
-  **131**. The rack alone is larger than the whole channel, so no arithmetic
-  inside the strip can work — the chain has to leave, which is what phase B does.
+  What closed it was not a fourth cap. The strip is a flex column now, so a row
+  that does not fit overflows the bottom and is clipped — visibly wrong —
+  instead of painting over its neighbour, which only a hit test ever finds. The
+  ladder above it drops rows against floors derived from their measured heights,
+  the rack leaves for a chain summary at the rung where its 140 px floor stops
+  fitting, and `e2e/striptiers.spec.ts` sweeps the container ten pixels at a
+  time rather than sampling the six form factors that missed it for two
+  directives. The two `test.fail` cases were deleted by name, which is what they
+  were written for.

@@ -33,17 +33,36 @@ export function writeMatrix(rows, exercised, { FORMS, TARGETS, JSON_ONLY }) {
   const cell = (form, target) =>
     rows.find((r) => r.form === form && r.target === target)?.state === 'REACHABLE';
   const onDesktop = new Set(TARGETS.filter((t) => cell('desktop', t.id)).map((t) => t.id));
-  const defects = rows.filter(
+  const missing = rows.filter(
     (r) => r.kind !== 'desktop' && r.state !== 'REACHABLE' && onDesktop.has(r.target),
   );
+  /*
+   * A surface may declare that something else carries its commands below a
+   * tier, and the declaration is discharged by the SWEEP rather than by the
+   * declaration: the substitute has to come back REACHABLE on the same form
+   * factor, found by the same walk. A substitute that stops being drawn puts
+   * the defect straight back, which is the difference between this and an
+   * exemption list.
+   */
+  const substituteOf = (target) => TARGETS.find((t) => t.id === target)?.substitutedBy ?? null;
+  const answered = (r) => {
+    const alt = substituteOf(r.target);
+    return alt !== null && cell(r.form, alt);
+  };
+  const defects = missing.filter((r) => !answered(r));
+  const substituted = missing.filter(answered);
   const nowhere = TARGETS.filter((t) => !forms.some((f) => cell(f, t.id)));
 
-  const grouped = defects.reduce((acc, d) => {
-    const at = acc.find((a) => a.target === d.target);
-    if (at) at.forms.push(d.form);
-    else acc.push({ target: d.target, label: d.label, forms: [d.form] });
-    return acc;
-  }, []);
+  const group = (list) =>
+    list.reduce((acc, d) => {
+      const at = acc.find((a) => a.target === d.target);
+      if (at) at.forms.push(d.form);
+      else acc.push({ target: d.target, label: d.label, forms: [d.form] });
+      return acc;
+    }, []);
+  const grouped = group(defects);
+  const stood = group(substituted);
+  const labelOf = (id) => TARGETS.find((t) => t.id === id)?.label ?? id;
 
   const NL = '\n';
   const lines = [
@@ -89,6 +108,26 @@ export function writeMatrix(rows, exercised, { FORMS, TARGETS, JSON_ONLY }) {
     grouped.length === 0
       ? 'None.'
       : grouped.map((d) => `- **${d.label}** — ${d.forms.join(', ')}`).join(NL),
+    '',
+    '## Substituted below a tier',
+    '',
+    'A surface the product deliberately stops drawing below some size, whose',
+    "commands are carried by another surface that IS drawn there — WCAG 2.5.8's",
+    'equivalent-alternative provision. Listed rather than hidden, and discharged by',
+    'this sweep rather than by the declaration: each one is here only because its',
+    'named substitute came back reachable on the same form factor, by the same',
+    'walk. A substitute that stops being drawn puts its row back among the defects',
+    'above.',
+    '',
+    stood.length === 0
+      ? 'None.'
+      : stood
+          .map(
+            (d) =>
+              `- **${d.label}** — ${d.forms.join(', ')} — carried by ` +
+              `**${labelOf(substituteOf(d.target))}**`,
+          )
+          .join(NL),
     '',
     '## Not reached anywhere, including desktop',
     '',
@@ -137,6 +176,15 @@ export function writeMatrix(rows, exercised, { FORMS, TARGETS, JSON_ONLY }) {
       `${NL}${grouped.length} defect(s) — reachable on desktop, not on a smaller screen:`,
     );
     for (const d of grouped) console.log(`  ${d.label.padEnd(30)} ${d.forms.join(', ')}`);
+    console.log(
+      `${NL}${stood.length} surface(s) substituted below a tier, each by a substitute this ` +
+        'sweep found on the same form factor:',
+    );
+    for (const d of stood) {
+      console.log(
+        `  ${d.label.padEnd(30)} ${d.forms.join(', ')} -> ${labelOf(substituteOf(d.target))}`,
+      );
+    }
     console.log(
       `${NL}${nowhere.length} surface(s) not reached anywhere; this sweep does not open them.`,
     );

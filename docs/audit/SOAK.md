@@ -7,9 +7,9 @@ that asserts a state change per function, a seeded combinatorial fuzz with
 structural invariants after every step, property checks that must hold for
 every input, and an endurance run judged on trends rather than endpoints.
 
-- **Bundle** `index-BZts6NqT.js` (`8f31b56ca5072470`)
-- **Source** `4ad52b0e33b3b90c`
-- **Seed** `1787846057`
+- **Bundle** `index-BF-VbI7M.js` (`51e0146b752a6b83`)
+- **Source** `ec73c6409b0f13c3`
+- **Seed** `1787860927`
 
 A report is about the source fingerprint named above and no other, and
 `npm run docs-guard:release` compares it against `src/` before a deploy.
@@ -117,13 +117,13 @@ one.
 | `shortcut:auto-point-keys` | FAIL | FAIL | FAIL | combo "arrows (automation point)" has no keyboard spelling |
 | `shortcut:auto-point-select` | FAIL | FAIL | FAIL | combo "enter (automation point)" has no keyboard spelling |
 | `shortcut:auto-add-at-playhead` | FAIL | FAIL | FAIL | combo "enter (automation lane)" has no keyboard spelling |
-| `store:projectStore.addTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 14 tracks, id tmtbpeo630e7fm4 |
+| `store:projectStore.addTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 14 tracks, id tmtby9dy20e75zg |
 | `store:projectStore.duplicateTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 14 tracks |
 | `store:projectStore.deleteTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 12 tracks |
 | `store:projectStore.setTrack` | PASS | PASS | PASS | project, surfaces, undo changed — name "Soak renamed", volume 0.42 |
 | `store:projectStore.setInstrument` | PASS | PASS | PASS | project, undo changed — instrument now undefined |
 | `store:projectStore.setSynthParams` | PASS | PASS | PASS | project, undo changed — cutoff 0.31 |
-| `store:projectStore.moveTrack` | PASS | PASS | PASS | project, undo changed — tmtbpeh6t06vln6,tmtbpeh6t06wvax,tmtbpeh6t06xawa,tmtbpeh6t06yjr6,tmtbpeh6t06zjau,tmtbpeh6t070dmb,tmtbpehca0dpku1,tmtbpehcc0drfi6,tmtbpehcc0e0oat,tmtbpehcd0e1d5i,tmtbpeh6t071xma,tmtbpeh6t072pzm,tmtbpehcd0e2mwt -> tmtbpeh6t06wvax,tmtbpeh6t06xawa,tmtbpeh6t06vln6,tmtbpeh6t06yjr6,tmtbpeh6t06zjau,tmtbpeh6t070dmb,tmtbpehca0dpku1,tmtbpehcc0drfi6,tmtbpehcc0e0oat,tmtbpehcd0e1d5i,tmtbpeh6t071xma,tmtbpeh6t072pzm,tmtbpehcd0e2mwt |
+| `store:projectStore.moveTrack` | PASS | PASS | PASS | project, undo changed — tmtby96p206vwc9,tmtby96p206woly,tmtby96p206x2wh,tmtby96p206yg38,tmtby96p206zvqp,tmtby96p2070zfm,tmtby96uy0dpvzx,tmtby96v00drzcq,tmtby96v00e0fbz,tmtby96v20e1sok,tmtby96p20710dd,tmtby96p2072h8u,tmtby96v20e2two -> tmtby96p206woly,tmtby96p206x2wh,tmtby96p206vwc9,tmtby96p206yg38,tmtby96p206zvqp,tmtby96p2070zfm,tmtby96uy0dpvzx,tmtby96v00drzcq,tmtby96v00e0fbz,tmtby96v20e1sok,tmtby96p20710dd,tmtby96p2072h8u,tmtby96v20e2two |
 | `store:projectStore.addMidiClip` | PASS | PASS | PASS | project, undo changed — 13 -> 14 clips |
 | `store:projectStore.moveClip` | PASS | PASS | PASS | project changed — start 0 -> 4 |
 | `store:projectStore.resizeClip` | PASS | PASS | PASS | project changed — length 7 |
@@ -143,7 +143,7 @@ one.
 | `store:projectStore.addAutomationLane` | PASS | PASS | PASS | project, undo changed — 0 -> 1 lanes |
 | `store:projectStore.addAutomationPoint` | PASS | PASS | PASS | project, undo changed — 0 -> 1 points |
 | `store:uiStore.set` | PASS | PASS | PASS | ui changed — editorTab mixer -> piano |
-| `store:uiStore.selectTrack` | PASS | PASS | PASS | ui changed — selection tmtbpehca0dpku1 -> tmtbpeh6t06wvax |
+| `store:uiStore.selectTrack` | PASS | PASS | PASS | ui changed — selection tmtby96uy0dpvzx -> tmtby96p206woly |
 | `effect:compressor` | PASS | — | — | rendered audio differs by 2.94e-3 RMS |
 | `effect:gate` | PASS | — | — | rendered audio differs by 2.52e-2 RMS |
 | `effect:limiter` | PASS | — | — | rendered audio differs by 1.73e-1 RMS |
@@ -151,9 +151,9 @@ one.
 | `effect:deesser` | FAIL | — | — | rendered audio is identical to the dry render |
 | `effect:eq3` | PASS | — | — | rendered audio differs by 2.10e-3 RMS |
 | `effect:eq8` | PASS | — | — | rendered audio differs by 2.77e-2 RMS |
-| `effect:filter` | PASS | — | — | rendered audio differs by 1.98e-1 RMS |
-| `effect:saturator` | PASS | — | — | rendered audio differs by 1.93e-1 RMS |
-| `effect:distortion` | PASS | — | — | rendered audio differs by 2.01e-1 RMS |
+| `effect:filter` | PASS | — | — | rendered audio differs by 1.97e-1 RMS |
+| `effect:saturator` | PASS | — | — | rendered audio differs by 1.92e-1 RMS |
+| `effect:distortion` | PASS | — | — | rendered audio differs by 2.00e-1 RMS |
 | `effect:ampsim` | PASS | — | — | rendered audio differs by 5.01e-2 RMS |
 | `effect:bitcrusher` | PASS | — | — | rendered audio differs by 1.72e-2 RMS |
 | `effect:chorus` | PASS | — | — | rendered audio differs by 3.03e-2 RMS |
@@ -163,7 +163,7 @@ one.
 | `effect:rotary` | PASS | — | — | rendered audio differs by 5.61e-2 RMS |
 | `effect:delay` | PASS | — | — | rendered audio differs by 1.21e-2 RMS |
 | `effect:pingpong` | PASS | — | — | rendered audio differs by 1.25e-2 RMS |
-| `effect:reverb` | PASS | — | — | rendered audio differs by 7.65e-3 RMS |
+| `effect:reverb` | PASS | — | — | rendered audio differs by 1.04e-2 RMS |
 | `effect:width` | PASS | — | — | rendered audio differs by 2.06e-2 RMS |
 | `effect:autopan` | PASS | — | — | rendered audio differs by 2.40e-2 RMS |
 | `effect:trim` | PASS | — | — | rendered audio differs by 2.94e-3 RMS |
@@ -172,11 +172,11 @@ one.
 | `effect:tuner` | FAIL | — | — | rendered audio is identical to the dry render |
 | `effect:vocaltune` | FAIL | — | — | rendered audio is identical to the dry render |
 | `effect:mw-motion-shaper` | PASS | — | — | rendered audio differs by 7.40e-2 RMS |
-| `effect:mw-program-eq` | PASS | — | — | rendered audio differs by 1.07e-1 RMS |
+| `effect:mw-program-eq` | PASS | — | — | rendered audio differs by 1.06e-1 RMS |
 | `effect:mw-optical-leveller` | PASS | — | — | rendered audio differs by 1.06e-1 RMS |
-| `effect:mw-fet-limiter` | PASS | — | — | rendered audio differs by 1.13e-1 RMS |
-| `effect:mw-variable-mu` | PASS | — | — | rendered audio differs by 1.10e-1 RMS |
-| `effect:mw-console-eq` | PASS | — | — | rendered audio differs by 1.18e-1 RMS |
+| `effect:mw-fet-limiter` | PASS | — | — | rendered audio differs by 1.12e-1 RMS |
+| `effect:mw-variable-mu` | PASS | — | — | rendered audio differs by 1.09e-1 RMS |
+| `effect:mw-console-eq` | PASS | — | — | rendered audio differs by 1.17e-1 RMS |
 | `effect:mw-granular-reverb` | PASS | — | — | rendered audio differs by 9.12e-3 RMS |
 | `instrument:synth` | PASS | — | — | key 60 gave 1 source(s), 1 voice(s) held |
 | `instrument:quick` | FAIL | — | — | no zones are loaded, so there is nothing for a note to play — untested here |
@@ -185,7 +185,7 @@ one.
 
 ## 2. Combinatorial fuzz
 
-10000 steps in 40.4 s, every invariant held after every one.
+10000 steps in 39.9 s, every invariant held after every one.
 
 ## 3. Properties
 
@@ -209,25 +209,25 @@ inserts added and deleted continuously.
 
 | what | result | measured |
 | --- | --- | --- |
-| heap warm-up | PASS | 6354 KB before the first 3 sample(s) settled |
-| heap slope after warm-up | PASS | 34 KB/min across 6 samples — 16 MB over an eight-hour session |
-| frame time drift | PASS | median 16.6 to 16.8 ms |
-| worst frame | PASS | 30 ms |
-| voices retired | PASS | 0 source(s) left after 159 ms |
+| heap warm-up | PASS | 6403 KB before the first 3 sample(s) settled |
+| heap slope after warm-up | PASS | 36 KB/min across 6 samples — 17 MB over an eight-hour session |
+| frame time drift | PASS | median 16.4 to 16.6 ms |
+| worst frame | PASS | 31 ms |
+| voices retired | PASS | 0 source(s) left after 157 ms |
 | no notes stuck | PASS | 0 voice(s) held at the end |
 | tracks balanced | PASS | 0 track(s) left over from 8 add/delete cycles |
 
 | sample | frame median | p90 | max | heap KB | sources | tracks |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0 | 16.6 | 18.1 | 30 | 15123 | 10 | 13 |
-| 1 | 16.8 | 17.7 | 18 | 19321 | 12 | 13 |
-| 2 | 16.7 | 17.6 | 18 | 21409 | 17 | 13 |
-| 3 | 16.8 | 17.1 | 21 | 21476 | 13 | 13 |
-| 4 | 16.6 | 17.5 | 21 | 21551 | 14 | 13 |
-| 5 | 16.6 | 17.6 | 20 | 21592 | 11 | 13 |
-| 6 | 16.8 | 17.9 | 18 | 21662 | 13 | 13 |
-| 7 | 16.7 | 17.5 | 18 | 21644 | 15 | 13 |
-| 8 | 16.8 | 17.6 | 18 | 21688 | 17 | 13 |
+| 0 | 16.4 | 18.2 | 31 | 15158 | 10 | 13 |
+| 1 | 16.6 | 17.6 | 18 | 19419 | 12 | 13 |
+| 2 | 16.6 | 17.8 | 19 | 21473 | 15 | 13 |
+| 3 | 16.7 | 17.2 | 18 | 21560 | 18 | 13 |
+| 4 | 16.6 | 17.9 | 18 | 21625 | 14 | 13 |
+| 5 | 16.6 | 17.6 | 18 | 21654 | 16 | 13 |
+| 6 | 16.7 | 17.4 | 18 | 21747 | 8 | 13 |
+| 7 | 16.7 | 17.4 | 18 | 21717 | 15 | 13 |
+| 8 | 16.6 | 17.2 | 18 | 21783 | 15 | 13 |
 
 ## Uncaught page errors
 

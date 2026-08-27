@@ -190,18 +190,43 @@ does, because it _is_ the rack.
 
 Tiers, derived from the token heights rather than chosen, so they move when the
 tokens do. The mixer container computes at 12.5 px, which is what turns each
-budget into the `em` a `@container` query needs:
+budget into the `em` a `@container` query needs.
 
-| tier     | budget | em    | rows                                                |
-| -------- | ------ | ----- | --------------------------------------------------- |
-| full     | 430 px | 34.4  | all nine                                            |
-| standard | 300 px | 24    | name, chain, sends, pan, fader, M/S, readout, route |
-| compact  | 212 px | 16.96 | name, chain, fader, M/S, route                      |
-| minimal  | below  | —     | name, fader, M/S + the chain control                |
+This is what shipped, measured on a coarse pointer. A tier applies once the
+container has fallen below the **floor of the tier above it**, and a floor is
+the sum of the rows that tier keeps. So the right-hand column is both: what this
+tier needs, and the height at which the next one takes over.
 
-Minimal against tablet-landscape: 22 (name) + 44 (fader floor) + 44 (buttons) +
-13 (padding) = **123 px** into 131. Compact: 22 + 44 + 44 + 44 + 44 + 13 = 211.
-Standard: 22 + 44 + 44 + 26 + 44 + 44 + 18 + 44 + 13 = 299.
+| tier | rows                                   | floor  |
+| ---- | -------------------------------------- | ------ |
+| cT0  | all nine                               | 432 px |
+| cT1  | — input, sends                         | 344 px |
+| cT2  | — pan                                  | 308 px |
+| cT3  | — readout                              | 290 px |
+| cT4  | rack → **chain summary**               | 194 px |
+| cT5  | — route                                | 171 px |
+| cT6  | — chain summary; name, fader, M/S only | 124 px |
+
+A fine pointer gets its own ladder for the one row that differs by a factor of
+four — a device row is 16 px there and 44 px on a coarse pointer — and its
+floors run 325, 239, 205, 188, 161, 139. `src/styles/mixer.css` carries the
+parts table both are computed from and `e2e/striptiers.spec.ts` sweeps the
+container ten pixels at a time rather than sampling the six form factors.
+
+The version this replaces, kept because the shape of the mistake is the useful
+part: four tiers with budgets rather than floors, and a minimal row list that
+contradicted its own arithmetic.
+
+> | tier     | budget | em    | rows                                                |
+> | -------- | ------ | ----- | --------------------------------------------------- |
+> | full     | 430 px | 34.4  | all nine                                            |
+> | standard | 300 px | 24    | name, chain, sends, pan, fader, M/S, readout, route |
+> | compact  | 212 px | 16.96 | name, chain, fader, M/S, route                      |
+> | minimal  | below  | —     | name, fader, M/S + the chain control                |
+>
+> Minimal against tablet-landscape: name 22, fader floor 44, buttons 44, padding
+> 13, for **123 px** into 131. Compact: 22, 44, 44, 44, 44, 13 = 211. Standard:
+> 22, 44, 44, 26, 44, 44, 18, 44, 13 = 299.
 
 ## 7. What ships first, and what waits for judgement
 
@@ -219,11 +244,67 @@ changed, and there is a real surface to judge.
 by name. It is deliberately not in phase A: it is the half that cannot be undone
 channel by channel.
 
+Both have shipped. Phase B deleted those two cases, and the whole sweep — six
+form factors, three sections each — reports no in-flow sibling overlap
+anywhere.
+
 ## 8. What the build corrected
 
-Four things this document had wrong, kept beside their replacements rather than
-quietly edited, because a design that only ever records what worked is a design
-nobody can learn the shape of a mistake from.
+Nine things this document had wrong — four found by phase A, five by phase B —
+kept beside their replacements rather than quietly edited, because a design that
+only ever records what worked is a design nobody can learn the shape of a
+mistake from.
+
+### Phase B
+
+**The strip had to stop being a grid, and §6 thought this was about
+thresholds.** It is not, and no threshold could have fixed it: a grid item whose
+`min-height` exceeds its track neither shrinks nor overflows the grid — it
+paints outside its own track, over the row below. That is the mechanism behind
+every landscape overlap, and it is why three caps in a row each moved the
+collision rather than removing it. A flex column cannot do it: a column whose
+children refuse to shrink overflows the bottom, where `overflow: hidden` clips
+it. Clipping is wrong and visible; overlapping is wrong and invisible, and only
+a hit test finds it. The grid also made every tier restate a nine-row template
+and every row's number, which is the source-order gotcha `CLAUDE.md` carried.
+
+**The container query reads the mixer's content box, and the first ladder added
+its padding to every rung.** `container-type: size` measures the content box,
+which is exactly one strip tall because strips stretch to fill it — so a
+threshold in `em` compares against the strip's own border-box height and the
+mixer's 12 to 16 px of padding is not in it. Every rung sat that much too high,
+and the desktop console lost its dB readout at 18.34em against a rung that said
+17.5em with 12 px of slack still in the strip. Two numbers that cannot both be
+measuring the same thing is what said so.
+
+**`minmax(fader-min + row-tight, 1fr)` does not translate to flex.** A grid
+track contains its item's margin, so the track had to be the margin taller for
+the fader to get its floor; a flex item's margin is outside its box. Carrying
+the term across made the row 3 px taller than the ladder's own arithmetic said,
+and the measured floor came out at 134 px against a tablet-landscape console of
+130.7. Found by the sweep, which is the only thing looking at heights no form
+factor lands on.
+
+**§6's minimal tier listed four rows and its own arithmetic added three.** The
+table said "name, fader, M/S + the chain control" and the sum under it — 22 + 44
+
+- 44 + 13 = 123 — has no chain in it. The measurement settles which was right:
+  the floor with the chain is 171 px and the shortest console the product draws is
+
+131. So the shortest tier drops the summary too, and that is the one rung that
+     costs something a person would notice; it is in `docs/KNOWN-LIMITATIONS.md`
+     rather than smoothed over.
+
+**The master is a channel, and §6 did not say so.** The tier ladder takes the
+rack off every strip including the master's, and the summary that replaces it
+opened a Channel view that drew "No channel selected" — because the master is
+not a member of `project.tracks` and the editor resolved it by searching that
+list. WCAG 2.5.8 obliges the alternative to carry _every_ command the small
+control offered, and every includes the master's inserts, so `MasterView` exists.
+A control pointing at a surface that refuses to draw what it points at is a
+route in the same sense a locked door is one.
+
+### Phase A
 
 **The card was two rows and had to become one.** Section 4 gave a card a head
 row of power and options and a name row under it. On a coarse pointer that is

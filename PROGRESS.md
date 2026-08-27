@@ -1,9 +1,11 @@
 # Motion Wave — progress
 
 ```
-RESUME: F10 — the rack was bigger than the channel that held it, so the chain
-        moved to the axis landscape actually has; and the push guard refused a
-        correct push while its own gate could not say so.
+RESUME: F11 — the console strip stopped being a grid, because a grid item
+        whose min-height exceeds its track paints over its neighbour rather
+        than overflowing; and its tier ladder is derived from measured row
+        heights and swept ten pixels at a time instead of sampled at six form
+        factors.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
 Deployed commit: 3cdf869, bundle index-NMs_q7-T.js, sha256 8764a17d72a32f4f
                  over 449348 bytes - fetched from the live worker and compared
@@ -51,7 +53,16 @@ Bundle verified: every deploy is checked by fetching the live bundle and
                  This line names the tip at the moment it was written, so the
                  commit that edits it is by construction one ahead of what it
                  describes. Said plainly rather than left to be noticed.
-Current section: F8 COMPLETE. Every GENERATED document now declares what it
+Current section: F11 COMPLETE - phase B of items 12-14. The console strip is a
+                 flex column with a derived tier ladder; the chain summary
+                 stands where the rack's floor does not fit and opens the
+                 channel end to end; the master is a channel in that view too;
+                 the console's output menu stopped offering FX returns; and the
+                 tablet's bottom pane follows the editor tab, which six inert
+                 controls had been waiting for. The two landscape.spec.ts
+                 test.fail cases are deleted by name and the whole orientation
+                 sweep is clean.
+                 F8 before it: every GENERATED document now declares what it
                  must contain as well as what it describes, because `SOAK.md`
                  was current and empty at the same time and nothing could see
                  it. The build's last step records the tree it read and
@@ -110,41 +121,61 @@ Open P1s:        None. The suite has no failing case.
                  The bypassed-insert P1 is CLOSED: the difference was a
                  mono/stereo pan-law change, x1.414214 exactly, and
                  `InsertChain` routes a bypassed insert around itself now.
-Suites:          typecheck (four projects), lint, format, 2018 unit,
-                 351 motionwave, 43 core suites, 367 e2e all passing,
-                 34 panel tests.
-                 `npm run check-checks`: 29 declared checks, 24 on every push,
-                 2 documented, 3 manual with a reason. 20 gates: 19 HELD,
-                 1 KEPT with a reason, **0 BLOCKED**, 0 DECAYED, 0 BROKEN.
-                 It was 2 BLOCKED for three directives, on a host that could
-                 run both - see the section below.
+Suites:          typecheck (four projects), lint, format, 2219 unit
+                 (116 files, 7 skipped), 351 motionwave, 417 e2e - 0 failed and
+                 0 flaky - 34 panel tests.
+                 `npm run test:core` and the panel suite were not re-run this
+                 directive and are the previous run's numbers: 44 core suites,
+                 34 panel. Nothing under motionwave/ changed, and
+                 `check-wasm-current` in the build is what says the artefact
+                 still matches the source. Twenty-five minutes to re-learn that
+                 is the kind of cost that turns a check off.
+                 `npm run check-checks`: 33 declared checks - 26 ACCEPTS,
+                 7 KEPT, **0 BLOCKED**, 0 REFUSES, 0 BROKEN. 24 gates:
+                 23 HELD, 1 KEPT with a reason, 0 BLOCKED, 0 DECAYED, 0 BROKEN.
                  `npm run parity-guard`: 947 claims in 427 sections - 806
                  checked against the audit's own citations, 13 pinned to a
                  predicate, 141 recorded as needing judgement with a reason.
                  454 MISSING and 263 PARTIAL still open.
-                 `npm run docs-guard`: 70 documents - 4 generated, 13 guarded,
-                 53 narrative. None records unchecked state.
-                 `npm run gesture-guard`: 93 files swept; every scripted press
-                 and every touch context pressed with a mouse has a reason.
+                 `npm run docs-guard:release`: 72 documents - 5 generated,
+                 13 guarded, 54 narrative. None records unchecked state.
+                 `npm run gesture-guard`: 110 files swept - 6 scripted press
+                 sites and 3 mouse-on-touch files, each with a reason;
+                 8 specs drive a real pointer through e2e/pointer.ts.
+                 `npm run route:check`: 29 surfaces x 5 forms, 116 recorded
+                 routes, both tables agree.
+                 `npm run reachability`: 3 defects, 1 substitution and 3
+                 surfaces this sweep does not open. The substitution is the new
+                 half: a target may name what carries its commands below a
+                 tier, and the row leaves the defect list only where the sweep
+                 finds that substitute reachable on the SAME form factor.
                  `npm run soak`: 69/136 functional rows with a state-asserting
                  result, 10,000 fuzz steps with every invariant holding, 10 of
-                 10 properties, endurance all PASS at 37 KB/min after warm-up -
-                 18 MB over an eight-hour session. `docs/audit/SOAK.md` had been
-                 tracking a FAIL on the bounce-alignment property since before
-                 it was fixed; it is regenerated against the bundle named above.
-                 `npm run test:core`: 43 suites, 0 failures.
-                 `npm run probe:mutations`: 26 corrections -
-                 **20 HELD, 4 BLOCKED, 2 KEPT with a reason, 0 DECAYED**. The
-                 four BLOCKED are branches this host's scope did not enter -
-                 tapFailures, scrolls and confirmations all zero on this run -
-                 and BLOCKED is not DECAYED: the registry's `exercisedBy` names
-                 the row that tells them apart.
-Open deviations: The console strip's landscape overlap is measured and unfixed -
-                 phase B of the channel redesign is what closes it, and the two
-                 landscape.spec.ts test.fail cases carry the numbers until it
-                 does. src/styles/channel.css is 517 lines; the ~400 rule is
-                 applied to TypeScript modules here, not to stylesheets or
-                 specs, and mixer.css is 2441.
+                 10 properties, endurance all PASS - 36 KB/min after warm-up
+                 (17 MB over an eight-hour session), median frame 16.4 to
+                 16.6 ms, worst 31 ms.
+                 `npm run probe:mutations --check`: 27 corrections, each
+                 planted once.
+                 Four mutations killed for phase B's own claims: removing the
+                 rack-to-summary substitution turns landscape.spec.ts red on
+                 phone-landscape and tablet-portrait; putting the grid's margin
+                 term back inside the fader's box puts striptiers' floor at
+                 134 px against a 130.7 px console; deleting the master branch
+                 in ChannelEditor makes the summary point at a prompt; and
+                 fixing the tablet combo to 'mixer' makes the tablet route draw
+                 nothing.
+Open deviations: On a tablet in landscape the console says nothing about what is
+                 on a channel. That is the tier ladder's last rung and it is a
+                 real cost: the floor with the chain summary is 171 px and the
+                 console has 131, so the strip is a name, a fader and
+                 mute/solo/arm. The route is two gestures instead of one -
+                 select the strip, then the cue bar's link. In
+                 KNOWN-LIMITATIONS, and striptiers.spec.ts forces the summary
+                 back on at that height and requires the strip to overflow, so
+                 "it does not fit" is checked rather than asserted.
+                 src/styles/channel.css is 517 lines; the ~400 rule is applied
+                 to TypeScript modules here, not to stylesheets or specs, and
+                 mixer.css is 2584.
                  F11 is left to the browser's fullscreen — the one place the
                  reference's panel map is not matched.
                  §2.5's monitoring modes and latency compensation are
@@ -167,6 +198,194 @@ Ledger:          **7 of 14 SHIPPING** - Motion Shaper, Program EQ, Optical
                  cloud is reading now; the grain *count* is a spawn rate times a
                  length and sat at 22 whatever was playing.
 ```
+
+## The console strip stopped being a grid
+
+Phase B, and the mechanism turned out not to be the one three directives of
+fixes had been aiming at. The strip was a CSS grid of nine explicitly numbered
+tracks, and **a grid item whose `min-height` exceeds its track neither shrinks
+nor overflows the grid — it paints outside its own track, over the row below.**
+That is every landscape overlap in one sentence: 34 px of device rack drawn
+through the fader on a tablet, 7 px on a phone, and the rows above squeezed to
+6 px where a control is supposed to be 44. Nothing was clipped and nothing was
+off screen, which is why `orientation.spec.ts` and `responsive.spec.ts` both
+passed throughout.
+
+Three caps were tried on the rack before this and each traded the defect for
+another one, because a cap cannot answer a container. The strip is a flex column
+now: a column whose children refuse to shrink overflows the bottom, where the
+strip's own `overflow: hidden` clips it. **Clipping is wrong and visible;
+overlapping is wrong and invisible, and only a hit test ever finds it.** The
+grid also made every tier restate a nine-row template and every row's number —
+the source-order gotcha `CLAUDE.md` carried — and hiding a row in a flex column
+removes it and renumbers nothing.
+
+Two things do not survive the translation and both cost something before they
+were noticed. `align-content` stops meaning anything in a single-line flex
+column. And `minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr)` loses its
+margin term: a grid track _contains_ its item's margin, so the track had to be
+the margin taller for the fader to get its floor, while a flex item's margin
+sits outside its box. Carried across unchanged it made the row 3 px taller than
+the ladder's own arithmetic said, and the measured floor came out at **134 px
+against a tablet-landscape console of 130.7**.
+
+## A tier ladder that is derived, and swept rather than sampled
+
+The four tiers this replaces were `0.6`, `0.55`, `0.42` and `0.3` of the rack's
+height — four numbers, each of which made one measurement go quiet. Every rung
+now is the **floor of the tier above it**, and that floor is the sum of the rows
+that tier keeps, from a table of measured heights that `src/styles/mixer.css`
+carries beside the ladder. Coarse: 432, 344, 308, 290, 194, 171, 124. Fine: 325,
+239, 205, 188, 161, 139.
+
+**There are two ladders because one row differs by a factor of four.** A device
+row is 16 px on a fine pointer and 44 on a coarse one, so the rack's floor is 57
+against 143 — and a single set of thresholds would either strip a desktop
+console of a rack that fits it in 57 px, or keep a 143 px rack on a tablet that
+has 131 px in total. The coarse ladder is layered on the fine one and only ever
+hides _more_, which composes by addition because every coarse part is at least
+as tall as its fine counterpart.
+
+Three things the arithmetic got wrong before the measurement corrected it:
+
+- **A `container-type: size` query reads the CONTENT box.** The mixer's content
+  box is exactly one strip tall, so a rung compares against the strip and the
+  mixer's 12–16 px of padding is not in it. The first ladder added that padding
+  everywhere, and the desktop console lost its dB readout at 18.34em against a
+  rung that said 17.5em with 12 px still spare. Two numbers that cannot both be
+  measuring the same thing is what said so.
+- **Grouping two rows into one rung is choosing again.** Pan and readout dropped
+  together in the first draft, which cost the desktop its readout for no reason
+  a measurement supports. A rung per row.
+- **The fader's floor, above.** Found by the sweep, not by a form factor.
+
+`e2e/striptiers.spec.ts` drives the container ten pixels at a time from 90 to
+700 on both pointers rather than sampling the six form factors, because those
+six missed the broken band for two directives. It asserts no overlap at _every_
+height including below the floor — a strip too short for its own minimum must
+clip — measures the floor rather than asserting it, and compares that floor
+against the shortest console the product actually draws, so neither side of the
+comparison is a constant copied from the stylesheet it is checking. And it asks
+the two substitutions to justify themselves where they happen: force the rack
+back on where the ladder replaced it, or the summary back on where the ladder
+dropped it, and the strip has to overflow. Nothing there reads a threshold.
+
+## What replaced the rack, and what it owed the rack
+
+One control, one row, a family-coloured dot per device, and pressing it opens
+the channel end to end. Substituting a small control for a large one is WCAG
+2.5.8's equivalent-alternative provision, and the provision obliges the
+alternative to carry **every** command the small control offered.
+
+Which is how the master turned up. The ladder takes the rack off every strip
+including the master's, and the summary on the master strip opened a Channel
+view that drew "No channel selected" — because the master is not a member of
+`project.tracks` and the editor resolved a channel by searching that list. A
+control pointing at a surface that refuses to draw what it points at is a route
+in the same sense a locked door is one. So `MasterView` exists, the Channel view
+draws the master's chain, its monitoring flags and its output, and
+`tests/components/chainSummary.test.tsx` asserts it with a non-vacuity case
+beside it.
+
+The one rung that costs something is the last. On a tablet in landscape the
+console has 131 px, the floor with the summary is 171 and without it 124 — so
+that one form factor gets a name, a fader and mute/solo/arm and says nothing
+about what is on the channel. That is in `docs/KNOWN-LIMITATIONS.md` as an open
+item rather than smoothed over, and the sweep forces the summary back on at that
+height and requires the strip to overflow, so "it does not fit" is checked.
+
+## A pane that could not be told what to show
+
+The chain summary worked on a phone and on a desktop and did nothing at all on
+a tablet. `openChannelView` sets `editorTab: 'channel'` and reveals the editor
+pane; on a tablet the bottom pane decides what to draw from a **`useState` local
+to `TabletLayout`**, so the tab changed, the pane was revealed, and it went on
+drawing the mixer. Nothing was covered, nothing was too small, and the press
+landed on the right control.
+
+The cue bar's link to the channel has had the same defect since the Channel view
+shipped — one form factor of three, on a control whose whole job is to go
+somewhere. And it is not two controls: **six** places set `editorTab` and every
+one of them was inert on a tablet. Opening an instrument from a track header or
+from the console rack, the Channel view's own "Open the mixer", the keyboard
+shortcut for the mixer, the cue bar's link and the chain summary. What hid it is that `EditorSurface` already reads `editorTab` to
+decide _which_ editor to draw, so on a phone and a desktop the request arrives
+and is honoured; only the tablet has a second opinion about whether an editor is
+showing at all.
+
+So the combo is **derived** now rather than kept beside the tab: `mixer` when
+`editorTab` is the mixer, `synth` when it is the synth, and the editor otherwise.
+Two answers that could disagree became one. The Piano Roll button remembers the
+last editor tab it was on, because somebody who was editing a clip, looked at the
+mixer and came back expects that clip rather than a default.
+
+**A pane's own state, held where nothing outside can reach it, is a control that
+does nothing — on exactly one form factor.** That is the same shape as
+`editor-tab-synth` on a phone: a surface whose availability is decided in a
+place the caller cannot see.
+
+## The mutation that found a case which had never run
+
+`chain-off` — take the chain summary away at the rung where it replaces the
+rack — did not turn `landscape.spec.ts` red. It should have: the console then
+draws neither a rack nor a summary, which is the one thing that case exists to
+forbid.
+
+It had never run there. The case opened the mixer with
+`if (!(await goTo(page, 'nav-mix'))) return;`, and **a tablet has no
+`nav-mix`** — its console lives in the arrange view's bottom pane and needs no
+navigation at all. So on two of the five form factors the case returned before
+asserting anything and reported a pass, and had done since it was written. The
+early return is gone; the case waits for a strip and fails if none arrives.
+
+Correcting it also corrected the claim. "A console never draws neither" is false
+at the ladder's last rung, where the summary's own 47 px does not fit either —
+so what the case asserts now is the ORDER: the summary ranks below the route
+row and is dropped after it, so _neither, while a route is still drawn_ is a
+console that gave up saying what is on the channel while a row it ranks above
+was still costing it space. That is a structural marker rather than a pixel
+constant, and "it genuinely does not fit" is proved in
+`e2e/striptiers.spec.ts`, which forces the summary back on at that height and
+requires the strip to overflow.
+
+## A surface can be substituted, and the matrix could not say so
+
+The tier ladder takes the console's device rack off three form factors, and the
+MIDI FX slots live inside that rack. The reachability sweep read that the only
+way it can: **reachable on desktop, not on a phone**, which is the line this
+project treats as a P1. It is not one — the commands are carried by the Channel
+view, which the same sweep finds reachable on all five — but nothing in the
+matrix could express the difference, so the report would have said four new
+mobile defects and been wrong about three of them.
+
+A target may now declare `substitutedBy`, and the declaration is **discharged
+by the sweep rather than by the declaration**: a row moves out of the defect
+list only where the named substitute comes back REACHABLE on the _same_ form
+factor, found by the same walk. A substitute that stops being drawn puts the
+defect straight back. That is the difference between this and an exemption list,
+and it is the same shape as `assetSupply`'s registry — the reason is never
+inspected, the _substitute being there_ is what is checked.
+
+It is printed under its own heading rather than filtered away, because a defect
+that has been answered is still something somebody should be able to read. The
+matrix now reads 3 defects and 1 substitution, where before this it read 4
+defects.
+
+## A locator that never resolves does not fail
+
+The reachability half of the new spec hung for the full 60-second test timeout
+and reported the line _after_ the one that hung. The cause: on a phone the
+console unmounts when a control opens the editor, so `chain.getAttribute(...)`
+after the press was waiting on an element that no longer existed —
+`expect(...).toBeVisible()` carries the 10 s expect timeout, a bare locator
+action carries none. Read what an assertion needs from a control _before_
+pressing it.
+
+The master case failed differently and correctly: `reachableBox` read 0 x 0,
+because the console is a horizontal scroller and the master sits past the right
+edge of a phone in landscape. **0 means "not on screen", not "too small"** —
+`scrollIntoViewIfNeeded` first, which is the lesson the sampler library cost two
+rounds to learn.
 
 ## The rack was bigger than the channel that held it
 
@@ -203,12 +422,15 @@ now carries a section on the four things the build corrected in it.
   quantity and a knob is nothing but quantity. And the defect the item names —
   `Mixer.tsx` merges buses with FX returns and hands the list to the strip's
   _output_ menu, so an FX return has been offered as an output destination for as
-  long as the type has existed.
+  long as the type has existed. (Closed in phase B, on the strip as well — see
+  "the console wires it that way, not only the strip" in
+  `tests/components/channelStrip.test.tsx`.)
 
-**Phase A only.** The console strip is untouched, so nothing regresses and the
-two `landscape.spec.ts` `test.fail` cases stay red-by-design — the strip they
-describe has not changed. Phase B is the strip's tiers and it is what deletes
-those two by name. It is deliberately not in this deploy: it is the half that
+**Phase A only** — as it stood at F10; phase B has since landed and the sections
+above it are what it did. The console strip was untouched, so nothing regressed
+and the two `landscape.spec.ts` `test.fail` cases stayed red-by-design — the
+strip they describe had not changed. Phase B is the strip's tiers and it is what
+deleted those two by name. It is deliberately not in this deploy: it is the half that
 cannot be undone channel by channel, and it should not be built against a design
 nobody has looked at yet.
 

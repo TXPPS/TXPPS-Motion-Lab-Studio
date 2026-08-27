@@ -137,7 +137,42 @@ const TARGETS = [
   {
     id: 'console-notefx',
     label: 'MIDI FX rack on the console strip',
-    selector: '[data-testid="notefx-slots"]',
+    // Scoped to a strip. The same component draws the Channel view's MIDI rack,
+    // so an unscoped selector would report the console as still carrying one on
+    // the form factors where the tier ladder has taken its whole device rack
+    // away — the matrix would be recording the surface rather than the route.
+    selector: '.strip [data-testid="notefx-slots"]',
+    /*
+     * The MIDI slots live inside the console's device rack, and the tier ladder
+     * takes that rack off a strip once its 143 px floor stops fitting. What is
+     * drawn instead is a chain summary that opens the channel end to end, where
+     * the same rack is — so this is WCAG 2.5.8's equivalent alternative rather
+     * than a surface that went missing on a small screen.
+     *
+     * Naming the substitute is what makes that checkable: the sweep discharges
+     * this only where it finds `channel-notefx` reachable on the SAME form
+     * factor, by the same walk.
+     */
+    substitutedBy: 'channel-notefx',
+  },
+  {
+    id: 'channel-notefx',
+    label: 'MIDI FX rack in the channel view',
+    selector: '.channel-view [data-testid="notefx-slots"]',
+  },
+  /*
+   * The row that stands where the rack cannot.
+   *
+   * Its own target rather than a note under `insert-rack`, because the two are
+   * never both on screen: the tier ladder draws the rack while its 140 px floor
+   * fits the strip and this below that. A matrix that recorded only the rack
+   * would report the console as having lost its chain on exactly the form
+   * factors where the substitution happens, which is the opposite of what it did.
+   */
+  {
+    id: 'console-chain',
+    label: 'chain summary on the console strip',
+    selector: '[data-testid^="chain-"]',
   },
   {
     id: 'shortcuts',
