@@ -34,6 +34,7 @@ import { useProjectStore } from '../../state/projectStore';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
+import { NoteFxSlots, type NoteFxHost } from './NoteFxSlots';
 import { SHELF, addShelfPlugin } from '../../audio/wam/shelf';
 
 /**
@@ -50,6 +51,14 @@ export interface RackHost {
   effects: Effect[];
   /** The instrument above the inserts, on channels that play notes. */
   instrument?: { label: string; frozen: boolean; open: () => void };
+  /**
+   * The MIDI chain above the instrument, on channels that play notes.
+   *
+   * Optional because a bus, an FX return and the master do not receive notes —
+   * and a rack that showed an empty "MIDI FX" header on an audio bus would be
+   * teaching the wrong signal path.
+   */
+  noteFx?: NoteFxHost;
   add: (kind: EffectKind) => string | null;
   remove: (effectId: string) => void;
   setParam: (effectId: string, key: string, value: number) => void;
@@ -78,6 +87,19 @@ export function trackRack(track: Track): RackHost {
             useUiStore.getState().selectTrack(track.id);
             useWorkspaceStore.getState().reveal('editor');
             useUiStore.getState().set({ editorTab: 'synth' });
+          },
+        }
+      : undefined,
+    noteFx: playsNotes
+      ? {
+          list: track.noteFx ?? [],
+          add: (kind) => store.getState().addNoteFx(track.id, kind),
+          setBypass: (id, bypass) => store.getState().setNoteFxBypass(track.id, id, bypass),
+          remove: (id) => store.getState().removeNoteFx(track.id, id),
+          open: () => {
+            useUiStore.getState().selectTrack(track.id);
+            useWorkspaceStore.getState().reveal('inspector');
+            useUiStore.getState().set({ phoneMode: 'browse' });
           },
         }
       : undefined,
@@ -579,6 +601,9 @@ export function DeviceRack({ rack }: { rack: RackHost }) {
         }
       }}
     >
+      {/* Signal order, read top to bottom: what the clip writes goes through the
+          MIDI chain, into the instrument, and out through the inserts. */}
+      {rack.noteFx && <NoteFxSlots host={rack.noteFx} />}
       <InstrumentSlot rack={rack} />
       <ul className={`dev-list${dropIndex === effects.length ? ' drop-end' : ''}`}>
         {effects.map((fx, i) => (

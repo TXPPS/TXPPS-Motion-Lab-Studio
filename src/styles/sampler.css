@@ -629,3 +629,68 @@ button.chip.on {
     min-height: calc(150px * var(--ui-scale));
   }
 }
+
+/* ====================================================================== */
+/* The library: what is loaded, and what you can do to the set.           */
+/*                                                                        */
+/* Rows wrap and have no fixed height, which is the same discipline        */
+/* `.zone-row` records above: a control that needs 44pt on a coarse        */
+/* pointer grows the row it sits in rather than overhanging the next one.  */
+/* A target grown past its row is a target pointing at whatever is under   */
+/* the overhang, and that has already shipped three times here.            */
+/* ====================================================================== */
+.smp-lib {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.smp-lib-row > button,
+.smp-lib-row .btn {
+  min-height: var(--smp-lib-h);
+  min-width: var(--smp-lib-h);
+}
+.smp-lib-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 3px 6px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--bg-panel-2);
+  box-shadow: var(--sh-1);
+}
+.smp-lib-name {
+  flex: 1 1 8rem;
+  min-width: 6rem;
+  height: var(--smp-lib-h);
+  padding: 0 6px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: var(--bg-well);
+  box-shadow: inset 0 0 0 1px var(--border-soft);
+  color: var(--text);
+  font: inherit;
+}
+.smp-lib-name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.smp-lib-move {
+  /* Square, and sized from the same token every other control here uses, so
+     the coarse-pointer bump reaches it too rather than leaving two 18px
+     arrows in a 44px row. */
+  min-width: var(--smp-lib-h);
+}
+.smp-lib-move:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.smp-lib-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 2px;
+}

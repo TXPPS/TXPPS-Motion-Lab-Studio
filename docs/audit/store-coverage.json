@@ -262,6 +262,11 @@
       "note": "order chorder,<id>"
     },
     {
+      "id": "store:projectStore.moveSamplerZone",
+      "covered": true,
+      "note": "first is now the other"
+    },
+    {
       "id": "store:projectStore.moveSection",
       "covered": true,
       "note": "order Chorus,Verse"
@@ -405,6 +410,11 @@
       "id": "store:projectStore.renameMacro",
       "covered": true,
       "note": "name Brightness"
+    },
+    {
+      "id": "store:projectStore.renameSamplerZone",
+      "covered": true,
+      "note": "named Kick In"
     },
     {
       "id": "store:projectStore.renameScratchPad",

@@ -7,14 +7,12 @@
  * gives the written performance back exactly; the rack says so, because a
  * musician needs to know their part is still there.
  */
-import { NOTE_FX_SPECS, noteFxParam } from '../../model/noteFx';
+import { MAX_NOTE_FX, NOTE_FX_SPECS, noteFxParam } from '../../model/noteFx';
 import type { NoteFxKind, Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { Icon } from '../common/Icon';
 import { FxKnob } from '../mixer/PluginFace';
-
-const MAX_NOTE_FX = 4;
 
 export function NoteFxRack({ track }: { track: Track }) {
   const store = useProjectStore;

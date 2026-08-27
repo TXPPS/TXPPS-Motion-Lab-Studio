@@ -58,6 +58,7 @@ import {
 import { InstrumentFrame } from '../instrument/InstrumentFrame';
 import { openSampleSourceMenu } from '../../app/samplerImportActions';
 import { SampleSourceButton } from './SampleSource';
+import { SampleLibrary } from './SampleLibrary';
 import { Waveform } from '../arrangement/Waveform';
 import { Keyboard } from '../synth/Keyboard';
 import { ZoneMap } from './ZoneMap';
@@ -297,7 +298,6 @@ function ZoneWaveEditor({ track, zone }: { track: Track; zone: SampleZone }) {
 
 function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
   const store = useProjectStore;
-  const ui = useUiStore;
   const zone = params.zones[0];
   if (!zone) {
     return (
@@ -341,159 +341,180 @@ function QuickView({ track, params }: { track: Track; params: SamplerParams }) {
       </InstrumentSection>
     );
   }
+  return <QuickLoaded track={track} params={params} />;
+}
+
+function QuickLoaded({ track, params }: { track: Track; params: SamplerParams }) {
+  const store = useProjectStore;
+  const ui = useUiStore;
+  const zone = params.zones[0];
   const upd = (patch: Partial<SampleZone>) =>
     store.getState().updateSamplerZones(track.id, [zone.id], () => patch);
   const buf = getBufferSync(zone.mediaId);
 
   return (
-    <InstrumentSection
-      title="Sample"
-      aside={`${zone.name} · ${midiToName(zone.rootNote)}`}
-      wide
-      testId="smp-quick"
-    >
-      <ZoneWaveEditor track={track} zone={zone} />
-      <div className="smp-row">
-        <SampleSourceButton
+    <>
+      {/* A quick sampler is still a set — it can hold layers, and until now the
+          only way to find out what was in one was to play it. The same library
+          the multisample gets, because "see what is loaded" is the first thing
+          a sampler owes you whichever view you are in. */}
+      <InstrumentSection title="Library" wide testId="smp-library">
+        <SampleLibrary
           trackId={track.id}
-          dest={{ kind: 'replace', zoneId: zone.id }}
-          label="Load sample"
-          testId="smp-load-quick"
+          zones={params.zones}
+          onPreview={(z) => preview(track.id, z.rootNote)}
+          addLabel="Add sample"
         />
-        <button
-          className="btn"
-          onClick={() => preview(track.id, zone.rootNote)}
-          data-testid="smp-preview"
-        >
-          Preview
-        </button>
-        <label>
-          Root
-          <input
-            type="number"
-            min={0}
-            max={127}
-            value={zone.rootNote}
-            onChange={(e) => upd({ rootNote: num(e.target.value, 60) })}
-            aria-label="Root note"
+      </InstrumentSection>
+      <InstrumentSection
+        title="Sample"
+        aside={`${zone.name} · ${midiToName(zone.rootNote)}`}
+        wide
+        testId="smp-quick"
+      >
+        <ZoneWaveEditor track={track} zone={zone} />
+        <div className="smp-row">
+          <SampleSourceButton
+            trackId={track.id}
+            dest={{ kind: 'replace', zoneId: zone.id }}
+            label="Load sample"
+            testId="smp-load-quick"
           />
-          <span className="mono">{midiToName(zone.rootNote)}</span>
-        </label>
-        <label>
-          Tune
-          <input
-            type="number"
-            min={-48}
-            max={48}
-            value={zone.tuneCoarse}
-            onChange={(e) => upd({ tuneCoarse: num(e.target.value, 0) })}
-            aria-label="Coarse tune (semitones)"
-          />
-          st
-          <input
-            type="number"
-            min={-100}
-            max={100}
-            value={zone.tuneFine}
-            onChange={(e) => upd({ tuneFine: num(e.target.value, 0) })}
-            aria-label="Fine tune (cents)"
-          />
-          ct
-        </label>
-        <button
-          className={`th-mini wide${zone.loop ? ' on' : ''}`}
-          aria-pressed={zone.loop}
-          onClick={() => upd({ loop: !zone.loop })}
-          title="Loop the playback window"
-        >
-          LOOP
-        </button>
-        <button
-          className={`th-mini wide${zone.reverse ? ' on' : ''}`}
-          aria-pressed={zone.reverse}
-          onClick={() => upd({ reverse: !zone.reverse })}
-          title="Reverse playback"
-          data-testid="smp-reverse"
-        >
-          REV
-        </button>
-        <button
-          className={`th-mini wide${zone.oneShot ? ' on' : ''}`}
-          aria-pressed={zone.oneShot}
-          onClick={() => upd({ oneShot: !zone.oneShot })}
-          title="One-shot: ignore note-off"
-        >
-          1SHOT
-        </button>
-        <button
-          className="btn"
-          title="Set zone gain so the window peaks at -0.3 dBFS"
-          onClick={() => {
-            if (!buf) {
-              ui.getState().toast('error', 'Start audio once so the sample can be decoded.');
-              return;
-            }
-            const gain = normalizedGain(zone, buf);
-            if (gain !== null) upd({ gain });
-          }}
-        >
-          Normalize
-        </button>
-      </div>
-      <div className="smp-row">
-        <span className="hint">Slices: {zone.slices?.length ?? 0}</span>
-        <button
-          className="btn"
-          data-testid="smp-detect"
-          onClick={() => {
-            if (!buf) {
-              ui.getState().toast('error', 'Start audio once so the sample can be decoded.');
-              return;
-            }
-            const w = zoneWindowOf(zone, buf.duration);
-            const markers = detectTransients(buf.getChannelData(0), buf.sampleRate).filter(
-              (s) => s >= w.startSec && s <= w.endSec,
-            );
-            store.getState().setZoneSlices(track.id, zone.id, markers);
-            ui.getState().toast(
-              'info',
-              `${markers.length} transient${markers.length === 1 ? '' : 's'} marked`,
-            );
-          }}
-        >
-          Detect transients
-        </button>
-        <button
-          className="btn"
-          onClick={() => store.getState().setZoneSlices(track.id, zone.id, [])}
-        >
-          Clear
-        </button>
-        <button
-          className="btn"
-          data-testid="smp-to-pads"
-          disabled={!zone.slices?.length}
-          onClick={() => {
-            const n = store.getState().sliceToPads(track.id, zone.id);
-            ui.getState().toast('info', `${n} slices → drum pads`);
-          }}
-        >
-          Slices → pads
-        </button>
-        <button
-          className="btn"
-          disabled={!zone.slices?.length}
-          onClick={() => {
-            const id = store
-              .getState()
-              .sliceToMidiClip(track.id, zone.id, Math.floor(engine.getPositionBeats()));
-            if (id) ui.getState().toast('info', 'MIDI clip created from slices');
-          }}
-        >
-          Slices → MIDI
-        </button>
-      </div>
-    </InstrumentSection>
+          <button
+            className="btn"
+            onClick={() => preview(track.id, zone.rootNote)}
+            data-testid="smp-preview"
+          >
+            Preview
+          </button>
+          <label>
+            Root
+            <input
+              type="number"
+              min={0}
+              max={127}
+              value={zone.rootNote}
+              onChange={(e) => upd({ rootNote: num(e.target.value, 60) })}
+              aria-label="Root note"
+            />
+            <span className="mono">{midiToName(zone.rootNote)}</span>
+          </label>
+          <label>
+            Tune
+            <input
+              type="number"
+              min={-48}
+              max={48}
+              value={zone.tuneCoarse}
+              onChange={(e) => upd({ tuneCoarse: num(e.target.value, 0) })}
+              aria-label="Coarse tune (semitones)"
+            />
+            st
+            <input
+              type="number"
+              min={-100}
+              max={100}
+              value={zone.tuneFine}
+              onChange={(e) => upd({ tuneFine: num(e.target.value, 0) })}
+              aria-label="Fine tune (cents)"
+            />
+            ct
+          </label>
+          <button
+            className={`th-mini wide${zone.loop ? ' on' : ''}`}
+            aria-pressed={zone.loop}
+            onClick={() => upd({ loop: !zone.loop })}
+            title="Loop the playback window"
+          >
+            LOOP
+          </button>
+          <button
+            className={`th-mini wide${zone.reverse ? ' on' : ''}`}
+            aria-pressed={zone.reverse}
+            onClick={() => upd({ reverse: !zone.reverse })}
+            title="Reverse playback"
+            data-testid="smp-reverse"
+          >
+            REV
+          </button>
+          <button
+            className={`th-mini wide${zone.oneShot ? ' on' : ''}`}
+            aria-pressed={zone.oneShot}
+            onClick={() => upd({ oneShot: !zone.oneShot })}
+            title="One-shot: ignore note-off"
+          >
+            1SHOT
+          </button>
+          <button
+            className="btn"
+            title="Set zone gain so the window peaks at -0.3 dBFS"
+            onClick={() => {
+              if (!buf) {
+                ui.getState().toast('error', 'Start audio once so the sample can be decoded.');
+                return;
+              }
+              const gain = normalizedGain(zone, buf);
+              if (gain !== null) upd({ gain });
+            }}
+          >
+            Normalize
+          </button>
+        </div>
+        <div className="smp-row">
+          <span className="hint">Slices: {zone.slices?.length ?? 0}</span>
+          <button
+            className="btn"
+            data-testid="smp-detect"
+            onClick={() => {
+              if (!buf) {
+                ui.getState().toast('error', 'Start audio once so the sample can be decoded.');
+                return;
+              }
+              const w = zoneWindowOf(zone, buf.duration);
+              const markers = detectTransients(buf.getChannelData(0), buf.sampleRate).filter(
+                (s) => s >= w.startSec && s <= w.endSec,
+              );
+              store.getState().setZoneSlices(track.id, zone.id, markers);
+              ui.getState().toast(
+                'info',
+                `${markers.length} transient${markers.length === 1 ? '' : 's'} marked`,
+              );
+            }}
+          >
+            Detect transients
+          </button>
+          <button
+            className="btn"
+            onClick={() => store.getState().setZoneSlices(track.id, zone.id, [])}
+          >
+            Clear
+          </button>
+          <button
+            className="btn"
+            data-testid="smp-to-pads"
+            disabled={!zone.slices?.length}
+            onClick={() => {
+              const n = store.getState().sliceToPads(track.id, zone.id);
+              ui.getState().toast('info', `${n} slices → drum pads`);
+            }}
+          >
+            Slices → pads
+          </button>
+          <button
+            className="btn"
+            disabled={!zone.slices?.length}
+            onClick={() => {
+              const id = store
+                .getState()
+                .sliceToMidiClip(track.id, zone.id, Math.floor(engine.getPositionBeats()));
+              if (id) ui.getState().toast('info', 'MIDI clip created from slices');
+            }}
+          >
+            Slices → MIDI
+          </button>
+        </div>
+      </InstrumentSection>
+    </>
   );
 }
 
@@ -1281,6 +1302,17 @@ function MultiView({ track, params }: { track: Track; params: SamplerParams }) {
           <span className="grow" />
           <span className="t-label">Focus a zone below to trace it</span>
         </div>
+      </InstrumentSection>
+      <InstrumentSection title="Library" wide testId="smp-library">
+        {/* What is loaded, and everything you can do to the set — rename,
+            reorder, replace, remove. The rows below it are where one zone's key
+            range and window are edited; this is where the *set* is managed, and
+            managing the set was what had no home. */}
+        <SampleLibrary
+          trackId={track.id}
+          zones={params.zones}
+          onPreview={(z) => preview(track.id, z.keyLo)}
+        />
       </InstrumentSection>
       <InstrumentSection title="Zones" wide>
         <div className="zone-list">

@@ -201,6 +201,18 @@ writing those files — not whether to widen the scope until it goes quiet.
   delivered 1 x 1. **Measure a target with `reachableBox`, never with an inset
   you can read off the stylesheet.**
 
+- **When a measurement disagrees with the product, measure what is on top
+  before you change the product.** The sampler library's rows read 41pt against
+  a 44 minimum. Two rounds went into making the control bigger — and the control
+  was 46 x 46 border-box the whole time; what was actually wrong was that the
+  on-screen keyboard clipped the last row of the scroller, which `reachableBox`
+  was correctly refusing to count. The ruler was right both times, and adjusting
+  a number until a measurement agrees is how a real defect gets absorbed rather
+  than removed. `elementFromPoint` at the failing edge names the thing on top in
+  one probe. `reachableBox` hit-tests on the pixel grid and so resolves to about
+  a pixel — `TOUCH_MIN` and `RULER_SLACK` in `e2e/pointer.ts` say so once, and
+  `RULER_SLACK` is an allowance on the instrument, never on the requirement.
+
 - **A target grown past the row that holds it is a target pointing at
   something else.** Three times now: a 44 px options button in a 16 px rack row
   landed on the third device's icon; a 44 px hit area on a 5 px lamp bypassed

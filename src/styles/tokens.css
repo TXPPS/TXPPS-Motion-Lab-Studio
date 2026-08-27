@@ -167,6 +167,11 @@
     var(--dev-slot-h) + var(--dev-rack-gap) + var(--dev-add-h) + 2 * var(--dev-rack-pad)
   );
   --control-h: calc(28px * var(--ui-scale));
+  /* The sampler library's row controls. Its own token rather than
+     `--control-h` because it is raised on a coarse pointer and `--control-h`
+     is not — raising that one would move every control in the product, which
+     is a different decision from making a library row usable with a thumb. */
+  --smp-lib-h: var(--control-h);
   --control-h-sm: calc(22px * var(--ui-scale));
 
   /* Mixer strip geometry — strips are fixed-width and never shrink. */
@@ -235,6 +240,9 @@
        something else. */
     --dev-slot-h: 44px;
     --dev-add-h: 44px;
+    /* Same rule, same reason: the library's rows wrap, so raising the controls
+       grows the row rather than overhanging the one below it. */
+    --smp-lib-h: 44px;
   }
 }
 

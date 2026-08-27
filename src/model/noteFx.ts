@@ -131,6 +131,15 @@ const seedParam = (def: number): ParamSpec => ({
   default: def,
 });
 
+/**
+ * How many note effects a track may carry.
+ *
+ * Shared rather than declared twice: the inspector's rack and the channel's rack
+ * are two views of one chain, and a limit that disagreed between them would let
+ * one of them add a fifth and the other refuse to show it.
+ */
+export const MAX_NOTE_FX = 4;
+
 export const NOTE_FX_SPECS: NoteFxSpec[] = [
   {
     kind: 'arpeggiator',

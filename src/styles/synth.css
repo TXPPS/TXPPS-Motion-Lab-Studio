@@ -13,6 +13,17 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  /* Room under the last control, so scrolling to the end of a panel actually
+     reaches it.
+     The last row of the sampler's library measured 46px tall and 41px
+     reachable on a phone: it ends flush against the on-screen keyboard below,
+     and a hit test at its lower edge lands on the keyboard rather than on the
+     control. Two attempts went into making the control bigger before anything
+     asked what was on top of it — the ruler had been right both times. A
+     scroller whose last row cannot be pressed is the same defect as a control
+     that is too small, and it is invisible until somebody scrolls to the
+     bottom. */
+  padding-bottom: 12px;
 }
 .syn-empty {
   flex: 1;

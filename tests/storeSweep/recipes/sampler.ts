@@ -52,6 +52,33 @@ export const samplerRecipes = (h: Handles): Recipe[] => {
       },
     },
     {
+      id: 'store:projectStore.renameSamplerZone',
+      undo: 'step',
+      // A name is one decision somebody typed, not a drag — which is why it is
+      // its own action rather than a call through `updateSamplerZones`, and why
+      // it declares a step.
+      arrange: oneZone,
+      run: () => {
+        s().renameSamplerZone(h.inst.id, zoneId, 'Kick In');
+        return `named ${zones(h.inst.id)[0]?.name}`;
+      },
+    },
+    {
+      id: 'store:projectStore.moveSamplerZone',
+      undo: 'step',
+      // Two zones, because moving the only one in a list is a no-op and a
+      // recipe that changed nothing would fail phase 1 — correctly.
+      arrange: () => {
+        s().setInstrument(h.inst.id, 'multi');
+        zoneId = s().addSamplerZones(h.inst.id, [makeZone({ mediaId: h.media.id })])[0];
+        s().addSamplerZones(h.inst.id, [makeZone({ mediaId: h.media.id })]);
+      },
+      run: () => {
+        s().moveSamplerZone(h.inst.id, zoneId, 1);
+        return `first is now ${zones(h.inst.id)[0]?.id === zoneId ? 'the same' : 'the other'}`;
+      },
+    },
+    {
       id: 'store:projectStore.removeSamplerZones',
       undo: 'step',
       arrange: oneZone,

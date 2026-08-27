@@ -259,6 +259,21 @@ export interface ProjectStore {
   ) => void;
   removeSamplerZones: (trackId: string, ids: string[]) => void;
   /**
+   * Rename one zone. Undoable, unlike `updateSamplerZones`: a name is one
+   * decision a person typed, not a drag, and losing it to an undo that was
+   * aimed at something else is the kind of thing that stops people naming
+   * anything.
+   */
+  renameSamplerZone: (trackId: string, zoneId: string, name: string) => void;
+  /**
+   * Move a zone within the list. `delta` is -1 or +1; out-of-range is a no-op.
+   *
+   * Order is not cosmetic in a sampler: `matchZones` returns every zone whose
+   * key and velocity ranges contain the note, and layers are summed in list
+   * order, so which one is first is which one a crossfade tapers *from*.
+   */
+  moveSamplerZone: (trackId: string, zoneId: string, delta: number) => void;
+  /**
    * Point a zone at different audio. Undoable, unlike `updateSamplerZones` —
    * loading a sample is one decision, not a drag, and it is the one sampler
    * edit a user is most likely to want back.
@@ -1602,6 +1617,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         const t = trackById(d, trackId);
         if (!t?.sampler) return;
         t.sampler.zones = t.sampler.zones.filter((z) => !ids.includes(z.id));
+      }),
+
+    renameSamplerZone: (trackId, zoneId, name) =>
+      update((d) => {
+        const z = trackById(d, trackId)?.sampler?.zones.find((x) => x.id === zoneId);
+        if (z) z.name = name;
+      }),
+
+    moveSamplerZone: (trackId, zoneId, delta) =>
+      update((d) => {
+        const zones = trackById(d, trackId)?.sampler?.zones;
+        if (!zones) return;
+        const from = zones.findIndex((z) => z.id === zoneId);
+        const to = from + delta;
+        if (from < 0 || to < 0 || to >= zones.length) return;
+        const [moved] = zones.splice(from, 1);
+        zones.splice(to, 0, moved);
       }),
 
     setZoneSample: (trackId, zoneId, mediaId, name) =>

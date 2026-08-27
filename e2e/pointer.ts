@@ -85,6 +85,25 @@ export async function landing(locator: Locator): Promise<Landing> {
  * time, where the control stops answering. It costs a few hundred hit tests
  * and it cannot be wrong about clipping, stacking or a neighbour on top.
  */
+/** WCAG 2.5.8's minimum, in CSS pixels. */
+export const TOUCH_MIN = 44;
+
+/**
+ * How much shorter than the truth `reachableBox` can read.
+ *
+ * It establishes a size by hit-testing outward on the pixel grid, which is the
+ * right question — it is what a finger actually meets — and it therefore cannot
+ * resolve better than about a pixel. A control built to exactly `TOUCH_MIN`
+ * measures 43.
+ *
+ * This is an allowance on the *instrument*, not on the requirement, and it is
+ * worth the distinction: the sampler library's rows read 41 for a while, two
+ * attempts went into making the control bigger, and what was actually wrong was
+ * that the on-screen keyboard clipped the last row. The ruler had been right
+ * both times. Widen this only with a measurement of what is on top.
+ */
+export const RULER_SLACK = 1;
+
 export async function reachableBox(locator: Locator): Promise<{ width: number; height: number }> {
   return locator.evaluate((el) => {
     const r = el.getBoundingClientRect();
@@ -100,6 +119,14 @@ export async function reachableBox(locator: Locator): Promise<{ width: number; h
       // 60 is past any target this product draws; a control that reaches
       // further than that is a bug of the opposite kind.
       while (d < 60 && mine(cx + dx * (d + 1), cy + dy * (d + 1))) d++;
+      // The boundary sits somewhere between `d` and `d + 1`, and the centre a
+      // walk starts from is rarely on a whole pixel. Stopping at the last whole
+      // step therefore under-reports by up to a pixel each way, and a control
+      // built to exactly the 44pt minimum measured 42 — the product was right
+      // and the ruler was short. Half a pixel of resolution is all it takes to
+      // tell 44 from 43, and it can only ever make a measurement larger, so no
+      // target this has already passed can start failing.
+      if (d < 60 && mine(cx + dx * (d + 0.5), cy + dy * (d + 0.5))) return d + 0.5;
       return d;
     };
     return {

@@ -2502,3 +2502,107 @@
   border-radius: var(--radius-sm, 4px);
   background: var(--bg-well);
 }
+
+/* ====================================================================== */
+/* The MIDI FX rack, on the channel.                                      */
+/*                                                                        */
+/* Appended rather than filed beside the other rack rules on purpose: the  */
+/* `@container mixer` blocks above renumber the strip's grid rows per tier */
+/* and are source-order dependent, so a rule inserted among them can move  */
+/* which row an unrelated element lands in. Nothing here sets a grid row — */
+/* these slots live *inside* `dev-rack`, above the instrument, because that */
+/* is where they are in the signal path.                                   */
+/* ====================================================================== */
+.dev-notefx {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: none;
+}
+.dev-notefx-head {
+  font-family: var(--font-cond);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 0 4px;
+}
+.dev-notefx-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.dev-nfx {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+  /* `flex: none` and the shared slot height for the same reason the device
+     rows have them: a flex item in a column shrinks below its height by
+     default, and a row that compressed to 11px would put an 11 x 11 target
+     under a finger that needs 44. The rack is a scroller — the overflow goes
+     to the scrollbar, which is where it was always meant to go. */
+  flex: none;
+  height: var(--dev-slot-h);
+}
+.dev-nfx-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  padding: 0 4px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-panel-2);
+  box-shadow:
+    var(--sh-1),
+    inset 2px 0 0 var(--fx-mod, var(--fx-util));
+  font-family: var(--font-cond);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.dev-nfx.bypassed .dev-nfx-open {
+  opacity: 0.5;
+}
+.dev-nfx-power {
+  flex: none;
+  /* 44 on a finger, and the row is 44 tall to match: a target wider than the
+     row that holds it is a target pointing at whatever is under the overhang. */
+  width: var(--dev-slot-h);
+  min-width: 22px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-panel-2);
+  box-shadow: var(--sh-1);
+  font-family: var(--font-cond);
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+.dev-nfx-power.on {
+  color: var(--accent);
+  box-shadow:
+    var(--sh-1),
+    inset 0 0 0 1px var(--accent-soft, transparent);
+}
+.dev-nfx-add {
+  flex: none;
+  height: var(--dev-add-h);
+  border-radius: var(--radius-xs);
+  background: var(--bg-panel-2);
+  box-shadow: var(--sh-1);
+  font-family: var(--font-cond);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.dev-nfx-add:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

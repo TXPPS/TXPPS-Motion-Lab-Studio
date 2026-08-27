@@ -27,7 +27,7 @@ Coverage is counted as **rows with a state-asserting result**, never as rows
 that are not FAIL. Those are the same number only until somebody is tempted to
 make the column green.
 
-Coverage: **228 of 401 ledger rows** (56.9%) have a state-asserting result. Two instruments drive them: the functional soak against the running app (136 rows, measured on `index-Bd0Gyd3j.js`, `cd1e1e1feac5154a`) and the store sweep in `npm test` (159 rows). 106 rows have no case at all and are named under "Never driven" below.
+Coverage: **230 of 403 ledger rows** (57.1%) have a state-asserting result. Two instruments drive them: the functional soak against the running app (136 rows, measured on `index-Bd0Gyd3j.js`, `cd1e1e1feac5154a`) and the store sweep in `npm test` (161 rows). 106 rows have no case at all and are named under "Never driven" below.
 
 | kind | count |
 | --- | --- |
@@ -35,9 +35,9 @@ Coverage: **228 of 401 ledger rows** (56.9%) have a state-asserting result. Two 
 | effect | 34 |
 | instrument | 4 |
 | shortcut | 71 |
-| store | 186 |
+| store | 188 |
 | surface | 19 |
-| **total** | **401** |
+| **total** | **403** |
 
 ## Never driven
 
@@ -325,6 +325,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.moveEventFx` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order <id>,eq3 — store sweep |
 | `store:projectStore.moveMasterEffect` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order <id>,eq3 — store sweep |
 | `store:projectStore.moveNoteFx` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order chorder,<id> — store sweep |
+| `store:projectStore.moveSamplerZone` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | first is now the other — store sweep |
 | `store:projectStore.moveSection` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order Chorus,Verse — store sweep |
 | `store:projectStore.moveTake` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order <id>,<id> — store sweep |
 | `store:projectStore.moveTempoEvent` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | moved to 12 — store sweep |
@@ -357,6 +358,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.removeTempoEvent` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 1 tempo events left — store sweep |
 | `store:projectStore.renameCueMix` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | name Singer — store sweep |
 | `store:projectStore.renameMacro` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | name Brightness — store sweep |
+| `store:projectStore.renameSamplerZone` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | named Kick In — store sweep |
 | `store:projectStore.renameScratchPad` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | name Alt bridge — store sweep |
 | `store:projectStore.reorderEffect` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order eq3,eq3 — store sweep |
 | `store:projectStore.reorderMasterEffect` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order <id>,eq3 — store sweep |
