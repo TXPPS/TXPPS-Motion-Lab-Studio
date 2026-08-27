@@ -5,7 +5,7 @@ Two products live here. Read this before touching either.
 ## What is here
 
 **MotionLab Studio** (`src/`, `tests/`, `e2e/`) — a shipping web DAW: React 18 +
-TypeScript strict + Vite, Web Audio engine, ~1500 unit tests, 222 end-to-end
+TypeScript strict + Vite, Web Audio engine, ~2200 unit tests, 411 end-to-end
 tests, deployed to Cloudflare Workers. It works and it is in use.
 
 **Motion Wave** (`motionwave/`) — the cross-platform native DAW under

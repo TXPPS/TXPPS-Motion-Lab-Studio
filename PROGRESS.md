@@ -1,16 +1,16 @@
 # Motion Wave — progress
 
 ```
-RESUME: F8 — a generated document can be current and empty at once, the build
-        goes after the last edit because git refuses otherwise, and three specs
-        named a mutation their own criteria could not catch.
+RESUME: F10 — the rack was bigger than the channel that held it, so the chain
+        moved to the axis landscape actually has; and the push guard refused a
+        correct push while its own gate could not say so.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: 6d59fc8, bundle index-CQjbdB0p.js, sha256 e28ee6a8a788cdf5
-                 over 449374 bytes - fetched from the live worker and compared
+Deployed commit: 3cdf869, bundle index-NMs_q7-T.js, sha256 8764a17d72a32f4f
+                 over 449348 bytes - fetched from the live worker and compared
                  byte-for-byte against a clean-tree rebuild, not matched by
-                 name. ac6bedd before it was verified the same way
-                 (index-CBhjnBJE.js, 93877b2e96aeb956), and 6649f6e before that
-                 (index-UnsIXC-T.js, 5ad510ad95fc4d0d). This line names the tip
+                 name. 56c9221 before it was verified the same way
+                 (index-jUzXzV8o.js, 20ad4118d6fcb147), and 6d59fc8 before that
+                 (index-CQjbdB0p.js, e28ee6a8a788cdf5). This line names the tip
                  at the moment it was written, so the commit that edits it is by
                  construction one ahead of what it describes.
                  The rebuild has to happen *after* the commit and this cost
@@ -139,7 +139,13 @@ Suites:          typecheck (four projects), lint, format, 2018 unit,
                  tapFailures, scrolls and confirmations all zero on this run -
                  and BLOCKED is not DECAYED: the registry's `exercisedBy` names
                  the row that tells them apart.
-Open deviations: F11 is left to the browser's fullscreen — the one place the
+Open deviations: The console strip's landscape overlap is measured and unfixed -
+                 phase B of the channel redesign is what closes it, and the two
+                 landscape.spec.ts test.fail cases carry the numbers until it
+                 does. src/styles/channel.css is 517 lines; the ~400 rule is
+                 applied to TypeScript modules here, not to stylesheets or
+                 specs, and mixer.css is 2441.
+                 F11 is left to the browser's fullscreen — the one place the
                  reference's panel map is not matched.
                  §2.5's monitoring modes and latency compensation are
                  DIVERGENT-BY-DESIGN; §3.1 reopens the take-alignment half,
