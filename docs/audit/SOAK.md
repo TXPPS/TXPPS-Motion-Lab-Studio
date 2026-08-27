@@ -7,9 +7,9 @@ that asserts a state change per function, a seeded combinatorial fuzz with
 structural invariants after every step, property checks that must hold for
 every input, and an endurance run judged on trends rather than endpoints.
 
-- **Bundle** `index-Bd0Gyd3j.js` (`cd1e1e1feac5154a`)
-- **Source** `2eaa35b4960b5be6`
-- **Seed** `1787779144`
+- **Bundle** `index-CkJLQwU_.js` (`54095af2c01a6b4a`)
+- **Source** `436777567490a56c`
+- **Seed** `1787802506`
 
 A report is about the source fingerprint named above and no other, and
 `npm run docs-guard:release` compares it against `src/` before a deploy.
@@ -24,16 +24,16 @@ from changed since this ran?
 
 ## 1. Functional sweep
 
-**69 of 401 ledger rows** (17.2%) asserted a state change **here**.
+**69 of 403 ledger rows** (17.1%) asserted a state change **here**.
 
 The sweep attempted **136** of them, and 69 of those changed something — a hit rate of 50.7% **inside the sweep's own scope**, which is not the same figure and must not be reported as if it were.
 
-**265 rows have no case in *this* sweep.** How many have no case in any instrument is a question only `docs/FUNCTION_LEDGER.md` can answer, because it is the only thing that reads both this and the store sweep:
+**267 rows have no case in *this* sweep.** How many have no case in any instrument is a question only `docs/FUNCTION_LEDGER.md` can answer, because it is the only thing that reads both this and the store sweep:
 
 | kind | not driven here | of |
 | --- | --- | --- |
 | action | 87 | 87 |
-| store | 159 | 186 |
+| store | 161 | 188 |
 | surface | 19 | 19 |
 
 They are named row by row in `docs/FUNCTION_LEDGER.md` under "Never driven", which subtracts what the store sweep drives before it calls anything a hole.
@@ -117,13 +117,13 @@ one.
 | `shortcut:auto-point-keys` | FAIL | FAIL | FAIL | combo "arrows (automation point)" has no keyboard spelling |
 | `shortcut:auto-point-select` | FAIL | FAIL | FAIL | combo "enter (automation point)" has no keyboard spelling |
 | `shortcut:auto-add-at-playhead` | FAIL | FAIL | FAIL | combo "enter (automation lane)" has no keyboard spelling |
-| `store:projectStore.addTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 14 tracks, id tmtalkh5q0e7xje |
+| `store:projectStore.addTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 14 tracks, id tmtazh7qm0e7olf |
 | `store:projectStore.duplicateTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 14 tracks |
 | `store:projectStore.deleteTrack` | PASS | PASS | PASS | project, surfaces, undo changed — 13 -> 12 tracks |
 | `store:projectStore.setTrack` | PASS | PASS | PASS | project, surfaces, undo changed — name "Soak renamed", volume 0.42 |
 | `store:projectStore.setInstrument` | PASS | PASS | PASS | project, undo changed — instrument now undefined |
 | `store:projectStore.setSynthParams` | PASS | PASS | PASS | project, undo changed — cutoff 0.31 |
-| `store:projectStore.moveTrack` | PASS | PASS | PASS | project, undo changed — tmtalka2k06v91q,tmtalka2k06wr0z,tmtalka2k06x8dp,tmtalka2k06y32t,tmtalka2k06zr40,tmtalka2k070l4k,tmtalka860dp26l,tmtalka870drqnt,tmtalka870e04qj,tmtalka880e1jwj,tmtalka2k071ld3,tmtalka2k072qm5,tmtalka880e27ye -> tmtalka2k06wr0z,tmtalka2k06x8dp,tmtalka2k06v91q,tmtalka2k06y32t,tmtalka2k06zr40,tmtalka2k070l4k,tmtalka860dp26l,tmtalka870drqnt,tmtalka870e04qj,tmtalka880e1jwj,tmtalka2k071ld3,tmtalka2k072qm5,tmtalka880e27ye |
+| `store:projectStore.moveTrack` | PASS | PASS | PASS | project, undo changed — tmtazh0kv06v7oa,tmtazh0kv06wrmm,tmtazh0kv06x2fh,tmtazh0kv06ym86,tmtazh0kv06z0oo,tmtazh0kv070szx,tmtazh0qj0dpdv2,tmtazh0ql0drp9h,tmtazh0qm0e0heb,tmtazh0qn0e1ytk,tmtazh0kv071ya6,tmtazh0kv072pkt,tmtazh0qo0e2wyp -> tmtazh0kv06wrmm,tmtazh0kv06x2fh,tmtazh0kv06v7oa,tmtazh0kv06ym86,tmtazh0kv06z0oo,tmtazh0kv070szx,tmtazh0qj0dpdv2,tmtazh0ql0drp9h,tmtazh0qm0e0heb,tmtazh0qn0e1ytk,tmtazh0kv071ya6,tmtazh0kv072pkt,tmtazh0qo0e2wyp |
 | `store:projectStore.addMidiClip` | PASS | PASS | PASS | project, undo changed — 13 -> 14 clips |
 | `store:projectStore.moveClip` | PASS | PASS | PASS | project changed — start 0 -> 4 |
 | `store:projectStore.resizeClip` | PASS | PASS | PASS | project changed — length 7 |
@@ -143,17 +143,17 @@ one.
 | `store:projectStore.addAutomationLane` | PASS | PASS | PASS | project, undo changed — 0 -> 1 lanes |
 | `store:projectStore.addAutomationPoint` | PASS | PASS | PASS | project, undo changed — 0 -> 1 points |
 | `store:uiStore.set` | PASS | PASS | PASS | ui changed — editorTab mixer -> piano |
-| `store:uiStore.selectTrack` | PASS | PASS | PASS | ui changed — selection tmtalka860dp26l -> tmtalka2k06wr0z |
+| `store:uiStore.selectTrack` | PASS | PASS | PASS | ui changed — selection tmtazh0qj0dpdv2 -> tmtazh0kv06wrmm |
 | `effect:compressor` | PASS | — | — | rendered audio differs by 2.94e-3 RMS |
 | `effect:gate` | PASS | — | — | rendered audio differs by 2.52e-2 RMS |
 | `effect:limiter` | PASS | — | — | rendered audio differs by 1.73e-1 RMS |
-| `effect:multiband` | PASS | — | — | rendered audio differs by 1.89e-1 RMS |
+| `effect:multiband` | PASS | — | — | rendered audio differs by 1.90e-1 RMS |
 | `effect:deesser` | FAIL | — | — | rendered audio is identical to the dry render |
 | `effect:eq3` | PASS | — | — | rendered audio differs by 2.10e-3 RMS |
 | `effect:eq8` | PASS | — | — | rendered audio differs by 2.77e-2 RMS |
 | `effect:filter` | PASS | — | — | rendered audio differs by 1.97e-1 RMS |
 | `effect:saturator` | PASS | — | — | rendered audio differs by 1.92e-1 RMS |
-| `effect:distortion` | PASS | — | — | rendered audio differs by 2.00e-1 RMS |
+| `effect:distortion` | PASS | — | — | rendered audio differs by 2.01e-1 RMS |
 | `effect:ampsim` | PASS | — | — | rendered audio differs by 5.01e-2 RMS |
 | `effect:bitcrusher` | PASS | — | — | rendered audio differs by 1.72e-2 RMS |
 | `effect:chorus` | PASS | — | — | rendered audio differs by 3.03e-2 RMS |
@@ -162,8 +162,8 @@ one.
 | `effect:tremolo` | PASS | — | — | rendered audio differs by 9.27e-3 RMS |
 | `effect:rotary` | PASS | — | — | rendered audio differs by 5.61e-2 RMS |
 | `effect:delay` | PASS | — | — | rendered audio differs by 1.21e-2 RMS |
-| `effect:pingpong` | PASS | — | — | rendered audio differs by 1.25e-2 RMS |
-| `effect:reverb` | PASS | — | — | rendered audio differs by 9.21e-3 RMS |
+| `effect:pingpong` | PASS | — | — | rendered audio differs by 1.20e-2 RMS |
+| `effect:reverb` | PASS | — | — | rendered audio differs by 8.13e-3 RMS |
 | `effect:width` | PASS | — | — | rendered audio differs by 2.06e-2 RMS |
 | `effect:autopan` | PASS | — | — | rendered audio differs by 2.40e-2 RMS |
 | `effect:trim` | PASS | — | — | rendered audio differs by 2.94e-3 RMS |
@@ -172,11 +172,11 @@ one.
 | `effect:tuner` | FAIL | — | — | rendered audio is identical to the dry render |
 | `effect:vocaltune` | FAIL | — | — | rendered audio is identical to the dry render |
 | `effect:mw-motion-shaper` | PASS | — | — | rendered audio differs by 7.40e-2 RMS |
-| `effect:mw-program-eq` | PASS | — | — | rendered audio differs by 1.04e-1 RMS |
-| `effect:mw-optical-leveller` | PASS | — | — | rendered audio differs by 1.04e-1 RMS |
-| `effect:mw-fet-limiter` | PASS | — | — | rendered audio differs by 1.11e-1 RMS |
+| `effect:mw-program-eq` | PASS | — | — | rendered audio differs by 1.06e-1 RMS |
+| `effect:mw-optical-leveller` | PASS | — | — | rendered audio differs by 1.06e-1 RMS |
+| `effect:mw-fet-limiter` | PASS | — | — | rendered audio differs by 1.13e-1 RMS |
 | `effect:mw-variable-mu` | PASS | — | — | rendered audio differs by 1.10e-1 RMS |
-| `effect:mw-console-eq` | PASS | — | — | rendered audio differs by 1.16e-1 RMS |
+| `effect:mw-console-eq` | PASS | — | — | rendered audio differs by 1.18e-1 RMS |
 | `effect:mw-granular-reverb` | PASS | — | — | rendered audio differs by 9.12e-3 RMS |
 | `instrument:synth` | PASS | — | — | key 60 gave 1 source(s), 1 voice(s) held |
 | `instrument:quick` | FAIL | — | — | no zones are loaded, so there is nothing for a note to play — untested here |
@@ -185,7 +185,7 @@ one.
 
 ## 2. Combinatorial fuzz
 
-10000 steps in 47.4 s, every invariant held after every one.
+10000 steps in 42.3 s, every invariant held after every one.
 
 ## 3. Properties
 
@@ -209,25 +209,25 @@ inserts added and deleted continuously.
 
 | what | result | measured |
 | --- | --- | --- |
-| heap warm-up | PASS | 6559 KB before the first 3 sample(s) settled |
-| heap slope after warm-up | PASS | 39 KB/min across 6 samples — 18 MB over an eight-hour session |
-| frame time drift | PASS | median 16.5 to 16.6 ms |
-| worst frame | PASS | 32 ms |
-| voices retired | PASS | 0 source(s) left after 164 ms |
+| heap warm-up | PASS | 6528 KB before the first 3 sample(s) settled |
+| heap slope after warm-up | PASS | 37 KB/min across 6 samples — 17 MB over an eight-hour session |
+| frame time drift | PASS | median 16.5 to 16.7 ms |
+| worst frame | PASS | 33 ms |
+| voices retired | PASS | 0 source(s) left after 271 ms |
 | no notes stuck | PASS | 0 voice(s) held at the end |
 | tracks balanced | PASS | 0 track(s) left over from 8 add/delete cycles |
 
 | sample | frame median | p90 | max | heap KB | sources | tracks |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0 | 16.5 | 18.3 | 32 | 15225 | 10 | 13 |
-| 1 | 16.6 | 17.9 | 18 | 19608 | 12 | 13 |
-| 2 | 16.7 | 17.4 | 18 | 21687 | 19 | 13 |
-| 3 | 16.6 | 17.9 | 18 | 21784 | 14 | 13 |
-| 4 | 16.6 | 17.6 | 18 | 21866 | 10 | 13 |
-| 5 | 16.6 | 17.5 | 19 | 21898 | 12 | 13 |
-| 6 | 16.5 | 17.9 | 18 | 21977 | 13 | 13 |
-| 7 | 16.6 | 17.6 | 18 | 21978 | 11 | 13 |
-| 8 | 16.6 | 17.3 | 18 | 22026 | 18 | 13 |
+| 0 | 16.5 | 17.9 | 33 | 15307 | 10 | 13 |
+| 1 | 16.8 | 17.4 | 18 | 19688 | 12 | 13 |
+| 2 | 16.8 | 17.5 | 18 | 21740 | 17 | 13 |
+| 3 | 16.7 | 17.8 | 19 | 21835 | 13 | 13 |
+| 4 | 16.6 | 17.7 | 18 | 21911 | 13 | 13 |
+| 5 | 16.6 | 17.9 | 18 | 21953 | 13 | 13 |
+| 6 | 16.7 | 17.9 | 18 | 22041 | 10 | 13 |
+| 7 | 16.6 | 17.5 | 18 | 22024 | 15 | 13 |
+| 8 | 16.7 | 17.4 | 18 | 22068 | 15 | 13 |
 
 ## Uncaught page errors
 

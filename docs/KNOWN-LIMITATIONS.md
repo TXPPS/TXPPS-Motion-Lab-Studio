@@ -260,3 +260,34 @@ Measured on this project's CI hardware — see
   native-rate decode — `decodeAudioData` resamples to the context. For MotionLab
   this is a divergence rather than a defect; Motion Wave's own importer must not
   inherit it. Tracked as SA-002.
+
+- **In landscape the channel strip's rack is drawn through its fader.**
+  Measured across the orientation matrix by `e2e/landscape.spec.ts`: 7px through
+  the fader on a phone in landscape, and 44px through the fader plus 16 through
+  the buttons and 9 through the footer on a tablet in landscape, where the mixer
+  shares the arrange view and no height tier matches. This is the "overlaps and
+  distorts" reported from use, and `orientation.spec.ts` and `responsive.spec.ts`
+  both passed throughout — they check horizontal overflow and whether named
+  surfaces are on screen, and neither asks whether two things are drawn on top of
+  each other.
+
+  `min-height` on a grid item does not shrink to fit its area; it makes the item
+  paint outside it. The rack's floor is one whole device row _plus_ the Insert
+  button, plus another row on a channel carrying an instrument — three 44px rows
+  on a coarse pointer before a device is drawn.
+
+  Three fixes were tried and each traded the defect for another. A floor of zero
+  stopped the overflow and started clipping — the inspector's rack sits in a
+  short container too, and forty-two options buttons came back at 21 x 8.5,
+  caught by `devicewindow.spec.ts`. A floor of one whole row did the same from
+  the other side, because the floor is a row _and_ the button. Deriving
+  `--dev-rack-h` from its parts on a coarse pointer fixed the tablet and left the
+  phone. The strip is being asked for nine rows of touch-sized controls in a
+  space that holds four, and every cap moves the collision to whichever row loses
+  next.
+
+  The fix is the channel-strip redesign — the quick-EQ strip leaving the mixer
+  for a horizontal rack in the editor, and the device rack becoming collapsible
+  so it stops taking the fader's space. The two cases are marked `test.fail`
+  rather than skipped, so the suite goes red when the redesign lands and says to
+  delete them.

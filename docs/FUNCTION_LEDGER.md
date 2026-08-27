@@ -27,7 +27,7 @@ Coverage is counted as **rows with a state-asserting result**, never as rows
 that are not FAIL. Those are the same number only until somebody is tempted to
 make the column green.
 
-Coverage: **230 of 403 ledger rows** (57.1%) have a state-asserting result. Two instruments drive them: the functional soak against the running app (136 rows, measured on `index-Bd0Gyd3j.js`, `cd1e1e1feac5154a`) and the store sweep in `npm test` (161 rows). 106 rows have no case at all and are named under "Never driven" below.
+Coverage: **230 of 403 ledger rows** (57.1%) have a state-asserting result. Two instruments drive them: the functional soak against the running app (136 rows, measured on `index-CkJLQwU_.js`, `54095af2c01a6b4a`) and the store sweep in `npm test` (161 rows). 106 rows have no case at all and are named under "Never driven" below.
 
 | kind | count |
 | --- | --- |
@@ -160,7 +160,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `effect:compressor` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.94e-3 RMS |
 | `effect:deesser` | insert rack | effect | FAIL | ? | ? | none | FAIL | rendered audio is identical to the dry render |
 | `effect:delay` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.21e-2 RMS |
-| `effect:distortion` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.00e-1 RMS |
+| `effect:distortion` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.01e-1 RMS |
 | `effect:eq3` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.10e-3 RMS |
 | `effect:eq8` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.77e-2 RMS |
 | `effect:filter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.97e-1 RMS |
@@ -168,17 +168,17 @@ together is what let the coverage figure read as half rather than a sixth.
 | `effect:gainMatch` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.94e-3 RMS |
 | `effect:gate` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.52e-2 RMS |
 | `effect:limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.73e-1 RMS |
-| `effect:multiband` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.89e-1 RMS |
-| `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.16e-1 RMS |
-| `effect:mw-fet-limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.11e-1 RMS |
+| `effect:multiband` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.90e-1 RMS |
+| `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.18e-1 RMS |
+| `effect:mw-fet-limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.13e-1 RMS |
 | `effect:mw-granular-reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.12e-3 RMS |
 | `effect:mw-motion-shaper` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 7.40e-2 RMS |
-| `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.04e-1 RMS |
-| `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.04e-1 RMS |
+| `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.06e-1 RMS |
+| `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.06e-1 RMS |
 | `effect:mw-variable-mu` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.10e-1 RMS |
 | `effect:phaser` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.91e-2 RMS |
-| `effect:pingpong` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.25e-2 RMS |
-| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.21e-3 RMS |
+| `effect:pingpong` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.20e-2 RMS |
+| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 8.13e-3 RMS |
 | `effect:rotary` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.61e-2 RMS |
 | `effect:saturator` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.92e-1 RMS |
 | `effect:tremolo` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.27e-3 RMS |
@@ -287,7 +287,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.addRecordedClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | clip <id> — store sweep |
 | `store:projectStore.addSamplerZones` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | zones 1 — store sweep |
 | `store:projectStore.addSection` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | section <id> — store sweep |
-| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmtaljqz80e7u1p |
+| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmtazghk60e7evi |
 | `store:projectStore.addVca` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | vca <id> — store sweep |
 | `store:projectStore.applyGrooveToClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | groove applied — store sweep |
 | `store:projectStore.applyPreset` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | synth preset Deep Saw Bass — store sweep |
@@ -329,7 +329,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.moveSection` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order Chorus,Verse — store sweep |
 | `store:projectStore.moveTake` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order <id>,<id> — store sweep |
 | `store:projectStore.moveTempoEvent` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | moved to 12 — store sweep |
-| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmtaljk7v06vhrw,tmtaljk7v06w4zb,tmtaljk7v06xqwe,tmtaljk7v06y94a,tmtaljk7v06z3jl,tmtaljk7v070ush,tmtaljkcb0dp163,tmtaljkcc0dr8s6,tmtaljkcd0e06w4,tmtaljkcd0e1brt,tmtaljk7v071e8z,tmtaljk7v0723mp,tmtaljkcd0e2t1q -> tmtaljk7v06w4zb,tmtaljk7v06xqwe,tmtaljk7v06vhrw,tmtaljk7v06y94a,tmtaljk7v06z3jl,tmtaljk7v070ush,tmtaljkcb0dp163,tmtaljkcc0dr8s6,tmtaljkcd0e06w4,tmtaljkcd0e1brt,tmtaljk7v071e8z,tmtaljk7v0723mp,tmtaljkcd0e2t1q |
+| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmtazgat406vseh,tmtazgat406wlgn,tmtazgat406xjdq,tmtazgat406ykfj,tmtazgat406za8b,tmtazgat4070poy,tmtazgay60dp9bg,tmtazgay70dryma,tmtazgay80e05am,tmtazgay80e13y1,tmtazgat4071k73,tmtazgat4072yjd,tmtazgay80e2sdl -> tmtazgat406wlgn,tmtazgat406xjdq,tmtazgat406vseh,tmtazgat406ykfj,tmtazgat406za8b,tmtazgat4070poy,tmtazgay60dp9bg,tmtazgay70dryma,tmtazgay80e05am,tmtazgay80e13y1,tmtazgat4071k73,tmtazgat4072yjd,tmtazgay80e2sdl |
 | `store:projectStore.packTakes` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | packed into <id> — store sweep |
 | `store:projectStore.promoteTake` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | promoted <id> — store sweep |
 | `store:projectStore.rackAddItem` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | rack item <id> — store sweep |
@@ -438,7 +438,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:uiStore.openEditorFor` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | editing clip-a on the piano tab — store sweep |
 | `store:uiStore.selectClip` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | primary clip-a, set 1 — store sweep |
 | `store:uiStore.selectClips` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | primary clip-c of 3 — store sweep |
-| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmtaljkcb0dp163 -> tmtaljk7v06w4zb |
+| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmtazgay60dp9bg -> tmtazgat406wlgn |
 | `store:uiStore.set` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — editorTab mixer -> piano |
 | `store:uiStore.showDialog` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | dialog Sweep — store sweep |
 | `store:uiStore.showMenu` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | menu of 1 — store sweep |
