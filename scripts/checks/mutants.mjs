@@ -190,18 +190,21 @@ export const CHECKS = {
       // with a false positive and nothing caught it, because the gate had one
       // mutation and it spoke for the other rule: `tracked` is `git ls-files`,
       // which still lists a tracked file whose deletion is unstaged, so a
-      // correct push was refused over a file the build had never read. Both
-      // halves are edited here because the rule now asks for both — a path in
-      // `tracked` alone is exactly the case it must ignore.
+      // correct push was refused over a file the build had never read.
+      //
+      // **One edit, spanning both lists.** The first attempt was two — one
+      // adding the path to `tracked`, one adding it to `files` — and the gate
+      // reported DECAYED, correctly: every edit in a list has to turn the check
+      // red *on its own*, and neither half does. A path in `tracked` alone is
+      // precisely the case the rule must now ignore, and a path in `files`
+      // alone is in neither loop. So the edit is anchored on the seam between
+      // the two, which is the only place one replacement can reach both.
       {
         file: '.build-tree.json',
-        from: '  "tracked": [\n',
-        to: '  "tracked": [\n    "src/__mutant-vanished.ts",\n',
-      },
-      {
-        file: '.build-tree.json',
-        from: '  "files": {\n',
-        to: '  "files": {\n    "src/__mutant-vanished.ts": "0000000000000000000000000000000000000000",\n',
+        from: '\n  ],\n  "files": {\n',
+        to:
+          ',\n    "src/__mutant-vanished.ts"\n  ],\n  "files": {\n' +
+          '    "src/__mutant-vanished.ts": "0000000000000000000000000000000000000000",\n',
       },
     ],
     needs: 'committed',
