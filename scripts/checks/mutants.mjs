@@ -161,6 +161,21 @@ export const CHECKS = {
   // Asking the matrix rather than guessing at it. `route:check` is the check,
   // and it is in the build; this is the half a person or a run types.
   route: { kind: 'tool', why: 'queries a generated document; `route:check` is the check' },
+  /*
+   * A deploy verifier, and the reason it is a tool rather than a gate is that
+   * there is no file to mutate: what it reads is a live worker. So it carries
+   * its own falsifiability instead of borrowing one. `--selftest` fetches the
+   * live bundle, flips a byte and requires the comparison to say no, which is
+   * the only claim the script makes; a comparison that had stopped comparing
+   * would report a match there and exit non-zero.
+   *
+   * It exists because a deploy read as absent for thirty-three minutes while it
+   * was live: `/` is cacheable and the poll was reading Cloudflare's edge.
+   */
+  'deploy:check': {
+    kind: 'tool',
+    why: 'verifies a live deploy against dist/ byte for byte;  is what proves it can say no, and there is no file to mutate because what it reads is a worker',
+  },
   reachability: {
     kind: 'probe',
     provenBy: 'probe:mutations',

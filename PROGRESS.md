@@ -7,14 +7,29 @@ RESUME: F11 — the console strip stopped being a grid, because a grid item
         heights and swept ten pixels at a time instead of sampled at six form
         factors.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: 3cdf869, bundle index-NMs_q7-T.js, sha256 8764a17d72a32f4f
-                 over 449348 bytes - fetched from the live worker and compared
+Deployed commit: e53d59c, bundle index-DSGWwjaz.js, sha256 c78bae8077339498
+                 over 450737 bytes - fetched from the live worker and compared
                  byte-for-byte against a clean-tree rebuild, not matched by
-                 name. 56c9221 before it was verified the same way
-                 (index-jUzXzV8o.js, 20ad4118d6fcb147), and 6d59fc8 before that
-                 (index-CQjbdB0p.js, e28ee6a8a788cdf5). This line names the tip
+                 name. 3cdf869 before it was verified the same way
+                 (index-NMs_q7-T.js, 8764a17d72a32f4f), and 56c9221 before that
+                 (index-jUzXzV8o.js, 20ad4118d6fcb147). This line names the tip
                  at the moment it was written, so the commit that edits it is by
                  construction one ahead of what it describes.
+                 **Poll the deploy with a cache buster.** This one read as
+                 undeployed for thirty-three minutes and was live the whole
+                 time: `/` is cacheable, the response came back
+                 `CF-Cache-Status: HIT`, and every attempt was reading
+                 Cloudflare's edge rather than the worker. `?cb=<random>` with
+                 `Cache-Control: no-cache` returned the new bundle name
+                 immediately. It failed safe here - a stale read says "not
+                 deployed" - but the same cache can hold a name that has just
+                 become right for a deploy that has not landed, which is the
+                 direction that would be believed.
+                 The build chain also runs on a **depth-1 clone**, the copy the
+                 deploy builder makes, and produces this bundle byte-identical
+                 to the local one. That is worth ten minutes the next time a
+                 deploy looks absent: it separates "the tree cannot build there"
+                 from "the answer came from a cache".
                  The rebuild has to happen *after* the commit and this cost
                  twenty minutes to work out. `vite.config.ts` falls back to the
                  wall clock when `git status` is dirty, so the pre-commit build
@@ -419,6 +434,34 @@ rather than a toolbar.
 
 Three rounds, and the ruler was right in all three. **A route written into a
 document is a claim, and a claim that has never been driven is a sentence.**
+
+## The deploy was live for thirty-three minutes before anything could see it
+
+`/` is cacheable. Every poll came back `CF-Cache-Status: HIT`, so the check was
+reading Cloudflare's edge rather than the worker, and reported the previous
+bundle name for half an hour after the new one had gone out. `?cb=<random>` with
+`Cache-Control: no-cache` answered on the first request.
+
+It failed safe — a stale read says "not deployed", and nothing was believed that
+should not have been. The direction that matters is the other one: the same edge
+holds a _new_ name for a while after a rollback or a partial deploy, and a poll
+that sees the name it wants and stops is a deploy verified against a cache.
+
+Two things came out of it. `npm run deploy:check` polls with a buster, reports
+the cache header rather than hiding it, then **fetches the bundle and compares
+bytes** — the name is only how it knows when to stop waiting, because
+`vite.config.ts` compiles the commit in and two builds of two trees at one
+commit produce one name. It is a tool rather than a gate because what it reads
+is a live worker and there is no file to mutate, so it carries its own
+falsifiability instead of borrowing one: `--selftest` flips a byte of the live
+bundle and requires the comparison to say no.
+
+And the deploy build chain was run on a `git clone --depth 1` of this
+repository — the copy Cloudflare's builder makes — where it passes and produces
+a bundle byte-identical to the local one. That is the ten-minute answer to "did
+the tree fail to build there, or did the answer come from a cache", and it is
+the first time this project's deploy conditions have been reproduced rather
+than reasoned about.
 
 ## A locator that never resolves does not fail
 

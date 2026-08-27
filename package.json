@@ -54,7 +54,8 @@
     "soak": "node scripts/soak.mjs",
     "docs-guard": "node scripts/docs-guard.mjs",
     "docs-guard:release": "node scripts/docs-guard.mjs --strict",
-    "prepare": "node scripts/install-hooks.mjs"
+    "prepare": "node scripts/install-hooks.mjs",
+    "deploy:check": "node scripts/deploy-check.mjs"
   },
   "dependencies": {
     "@webaudiomodules/api": "2.0.0-alpha.6",

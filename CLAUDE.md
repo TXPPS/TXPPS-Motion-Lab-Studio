@@ -370,6 +370,19 @@ writing those files — not whether to widen the scope until it goes quiet.
   Comparing the bundle cannot work: `vite.config.ts` compiles the commit date in,
   so committing the fresh report invalidates the name the report has just been
   made to carry, and a check that cannot be satisfied gets turned off.
+- **Poll a deploy with a cache buster, and prove the build on a depth-1 clone.**
+  A deploy read as absent for thirty-three minutes while it had been live the
+  whole time: `/` is cacheable, the response came back `CF-Cache-Status: HIT`,
+  and every poll was reading Cloudflare's edge rather than the worker.
+  `?cb=<random>` with `Cache-Control: no-cache` answered immediately. It failed
+  safe that time — a stale read says "not deployed" — but the same cache can
+  hold a bundle name that has just become right for a deploy that has _not_
+  landed, and that is the direction somebody would believe. And when a deploy
+  does look absent, `git clone --depth 1` of this repository plus
+  `npm run build` separates "the tree cannot build there" from "the answer came
+  from a cache" in ten minutes: the chain passes on that clone and produces a
+  byte-identical bundle.
+
 - **A guard that asks git anything declares what kind of copy can answer it.**
   `docs-guard`'s history check ran `git cat-file -e` on eleven commits
   Cloudflare's builder had never fetched, failed all eleven, and took the deploy
