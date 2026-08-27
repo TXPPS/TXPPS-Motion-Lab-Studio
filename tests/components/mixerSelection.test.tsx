@@ -88,6 +88,26 @@ describe('the console holds still while a channel is selected', () => {
     // The half that must NOT be given up in fixing the above. Selection has to
     // happen on the press: dragging a fader on an unselected strip has to select
     // it, and a drag ends with no click for a later handler to catch.
+    //
+    // Pressed on the FADER, not on the strip element. This fired on the strip
+    // itself and passed while the product did not do it: `usePointerDrag` calls
+    // `stopPropagation`, so a press that lands anywhere draggable never reached
+    // the strip's handler — and the strip element is a node no finger ever
+    // lands on. Measured on a tablet in landscape, the fader row is 52 px of a
+    // 123 px channel and selecting a strip is the first step of the console's
+    // only route to a chain. The strip claims it in the capture phase now.
+    render(<Mixer />);
+    const strip = screen.getByTestId('strip-Ch2');
+    const fader = strip.querySelector('.fader');
+    expect(fader, 'the strip draws no fader, so this presses nothing').toBeTruthy();
+    fireEvent.pointerDown(fader!);
+    expect(useUiStore.getState().selectedTrackId).toBe(ids[1]);
+  });
+
+  it("and a press on the strip's own body still selects it", () => {
+    // Both halves, because the capture handler could have been moved onto the
+    // fader instead and that would pass the case above while losing every press
+    // on the name, the buttons or the readout.
     render(<Mixer />);
     fireEvent.pointerDown(screen.getByTestId('strip-Ch2'));
     expect(useUiStore.getState().selectedTrackId).toBe(ids[1]);

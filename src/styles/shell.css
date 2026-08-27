@@ -167,6 +167,23 @@
   position: absolute;
   inset: -3px;
 }
+/*
+ * Upward only, for a horizontal seam.
+ *
+ * A symmetric overhang reaches 3 px into the pane BELOW, and the top of that
+ * pane is where its toolbar lives. Measured on a tablet in landscape: it
+ * covered the top 3 px of every control in the mixer's cue bar, so the
+ * console's only route to a channel there reached 41 of the 44 it is drawn at
+ * — a target grown past the row that holds it, taking presses aimed at its
+ * neighbour, which is the shape this repository has three defects from.
+ *
+ * The grab zone keeps its size and spends all of it on the side where there is
+ * nothing to take a press from: a pane's last few pixels are its content's
+ * bottom margin, and its first few are a toolbar.
+ */
+.resize-handle.v::after {
+  inset: -6px -3px 0;
+}
 @media (pointer: coarse) {
   .resize-handle.h {
     width: 9px;

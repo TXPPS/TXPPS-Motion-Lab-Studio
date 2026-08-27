@@ -27,7 +27,9 @@ export const VcaStrip = memo(function VcaStrip({
     <div
       className={`strip vca${selected ? ' selected' : ''}`}
       style={{ ['--strip-color' as string]: track.color }}
-      onPointerDown={() => useUiStore.getState().selectTrack(track.id)}
+      // Capture, for the reason `ChannelStrip` gives at length: a VCA's fader
+      // is the whole strip, and `usePointerDrag` stops the press there.
+      onPointerDownCapture={() => useUiStore.getState().selectTrack(track.id)}
       data-testid={`strip-${track.name}`}
       data-strip="vca"
     >

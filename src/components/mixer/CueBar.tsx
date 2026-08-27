@@ -29,7 +29,7 @@ function ChannelViewLink() {
   const here = useUiStore((s) => s.editorTab === 'channel');
   return (
     <button
-      className={`icon-btn${here ? ' on' : ''}`}
+      className={`icon-btn chn-link${here ? ' on' : ''}`}
       onClick={() => {
         useWorkspaceStore.getState().reveal('editor');
         useUiStore.getState().set({ editorTab: 'channel', phoneMode: 'edit' });

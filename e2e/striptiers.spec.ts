@@ -360,3 +360,46 @@ test.describe('the summary can be pressed, and goes where it says', () => {
     });
   }
 });
+
+test('the last rung leaves a route, and it is a target a finger can hit', async ({ browser }) => {
+  /*
+   * Tablet in landscape: 130.7 px of console, which is under the 171 the chain
+   * summary needs, so the strip says a name, a level and a state and nothing
+   * about what is on the channel. That is recorded in
+   * `docs/KNOWN-LIMITATIONS.md` as the cost of the ladder — and a recorded cost
+   * has to be measured, because the sentence that describes it names a route.
+   *
+   * The route is the cue bar's link. It measured 36 x 36 on a coarse pointer
+   * inside a row that is 44, so the alternative WCAG 2.5.8 obliges was itself
+   * under the touch minimum; it is grown to the row now. This is the case that
+   * would notice if it shrank back, or if the summary quietly returned and the
+   * limitation stopped being true.
+   */
+  const { page, close } = await openMixer(browser, 1024, 768, true);
+  try {
+    const summary = page.locator('[data-strip="channel"] .strip-chain').first();
+    await expect(
+      summary,
+      'this console draws a chain summary after all, so the limitation this case ' +
+        'measures the fallback for is no longer the product',
+    ).toBeHidden();
+
+    const link = page.locator('[data-testid="open-channel-view"]');
+    await expect(link, 'the console offers no route to the channel at all').toBeVisible();
+    const box = await reachableBox(link);
+    expect(
+      Math.min(box.width, box.height),
+      `the only route off this console measures ${box.width}x${box.height}`,
+    ).toBeGreaterThanOrEqual(TOUCH_MIN - RULER_SLACK);
+
+    // A channel first: the link opens whichever is selected, and with none it
+    // correctly draws the prompt instead.
+    await reach(page.locator('[data-strip="channel"]').first(), 'touch', 'a strip');
+    await reach(link, 'touch', 'the cue bar link to the channel');
+    await page.waitForTimeout(500);
+    await expect(page.locator('[data-testid="channel-view"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="channel-rail"]')).toBeVisible();
+  } finally {
+    await close();
+  }
+});

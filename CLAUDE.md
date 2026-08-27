@@ -259,6 +259,30 @@ writing those files — not whether to widen the scope until it goes quiet.
   its own heading rather than filtered away: an answered defect is still
   something somebody should be able to read.
 
+- **A press lands on a descendant, so a handler on the container is not a
+  handler on the press.** `usePointerDrag` calls `stopPropagation`, so a press
+  anywhere draggable — a fader, a knob, a meter — never reached the channel
+  strip's own `onPointerDown`, and RA-006's rule that a fader drag on an
+  unselected strip selects it was false in the product for as long as the rule
+  has existed. The test fired `pointerDown` on the **strip element**, a node no
+  finger lands on, and passed throughout. Claim it in the **capture** phase, and
+  press what a finger would press.
+
+- **A hit area that overhangs its row takes its neighbour's presses, and a pane
+  divider is a row.** `.resize-handle::after` was `inset: -3px`, reaching into
+  the pane below and over the top of every control in its toolbar — the mixer's
+  cue bar measured 41 of the 44 it is drawn at. Spend a grab zone on the side
+  with nothing to take a press from. This is the fourth instance of the same
+  shape; the other three were a 44 px options button in a 16 px rack row, a
+  44 px area on a 5 px lamp, and `min-height: 44px` inside a 34 px toolbar.
+
+- **Growing a control can shrink the surface under it.** Raising the cue bar's
+  channel link from 36 to the touch minimum grew its row from 44 to 52 and took
+  8 px off the console below, which put the shortest strip the product draws
+  under the tier ladder's own floor. Measure what the row does, not only what
+  the control does: here the row was already 44 and it was the padding that had
+  to go, not the console's height.
+
 - **A navigation guard that returns is a case that never ran.** A form-factor
   sweep written as `if (!(await goTo(page, nav))) return;` reports a pass on
   every form factor whose shell has no such control — `landscape.spec.ts` had

@@ -38,6 +38,13 @@ docs/audit/soak-coverage.json
 # artefact in git something the generator does not produce.
 docs/audit/store-coverage.json
 
+# Written by `npm run reachability`. Same argument again, and this one has now
+# cost a red `format:check`: the file was not listed here, so every sweep left
+# the tree unformatted until somebody remembered to run the formatter over a
+# document the formatter has no business rewriting. Its tables are read by
+# `npm run route` and `route:check`, which parse the generator's own spacing.
+docs/audit/REACHABILITY.md
+
 # The local build record. Written by `npm run build`, gitignored, and not a
 # document anybody reads — formatting it is churn on a file that is rewritten
 # in full on every build.

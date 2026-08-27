@@ -158,7 +158,24 @@ export const ChannelStrip = memo(function ChannelStrip({
       role="group"
       aria-label={`${track.name} channel`}
       aria-current={selected || undefined}
-      onPointerDown={() => useUiStore.getState().selectTrack(track.id)}
+      /*
+       * Capture, not bubble.
+       *
+       * RA-006 requires selection on the press — a fader drag on an unselected
+       * strip has to select it, and a drag ends with no click for a later
+       * handler to catch. On the bubble phase it did not: `usePointerDrag`
+       * calls `stopPropagation`, so every press that lands on the fader, the
+       * pan knob or the meter was swallowed before it got here. That is most of
+       * a short strip; on a tablet in landscape the fader row alone is 52 px of
+       * a 123 px channel, and the console's only route to a chain there begins
+       * with selecting one.
+       *
+       * The capture phase runs before any descendant, so the strip claims the
+       * selection first and the drag still gets its own press. Nothing mounts
+       * or unmounts on selection any more, which is what makes claiming it this
+       * early safe — see `tests/components/mixerSelection.test.tsx`.
+       */
+      onPointerDownCapture={() => useUiStore.getState().selectTrack(track.id)}
       data-testid={`strip-${track.name}`}
       data-strip="channel"
     >

@@ -123,8 +123,8 @@ Open P1s:        None. The suite has no failing case.
                  The bypassed-insert P1 is CLOSED: the difference was a
                  mono/stereo pan-law change, x1.414214 exactly, and
                  `InsertChain` routes a bypassed insert around itself now.
-Suites:          typecheck (four projects), lint, format, 2219 unit
-                 (116 files, 7 skipped), 351 motionwave, 417 e2e - 0 failed and
+Suites:          typecheck (four projects), lint, format, 2220 unit
+                 (116 files, 7 skipped), 351 motionwave, 418 e2e - 0 failed and
                  0 flaky - 34 panel tests.
                  `npm run test:core` and the panel suite were not re-run this
                  directive and are the previous run's numbers: 44 core suites,
@@ -154,18 +154,20 @@ Suites:          typecheck (four projects), lint, format, 2219 unit
                  `npm run soak`: 69/136 functional rows with a state-asserting
                  result, 10,000 fuzz steps with every invariant holding, 10 of
                  10 properties, endurance all PASS - 36 KB/min after warm-up
-                 (17 MB over an eight-hour session), median frame 16.4 to
-                 16.6 ms, worst 31 ms.
+                 (17 MB over an eight-hour session), median frame 16.7 to
+                 16.7 ms, worst 32 ms.
                  `npm run probe:mutations --check`: 27 corrections, each
                  planted once.
-                 Four mutations killed for phase B's own claims: removing the
+                 Five mutations killed for phase B's own claims: removing the
                  rack-to-summary substitution turns landscape.spec.ts red on
                  phone-landscape and tablet-portrait; putting the grid's margin
                  term back inside the fader's box puts striptiers' floor at
                  134 px against a 130.7 px console; deleting the master branch
                  in ChannelEditor makes the summary point at a prompt; and
                  fixing the tablet combo to 'mixer' makes the tablet route draw
-                 nothing.
+                 nothing; and moving the strip's selection back to the bubble
+                 phase means a press on a fader selects nothing, which is what
+                 the product was doing.
 Open deviations: On a tablet in landscape the console says nothing about what is
                  on a channel. That is the tier ladder's last rung and it is a
                  real cost: the floor with the chain summary is 171 px and the
@@ -372,6 +374,51 @@ It is printed under its own heading rather than filtered away, because a defect
 that has been answered is still something somebody should be able to read. The
 matrix now reads 3 defects and 1 substitution, where before this it read 4
 defects.
+
+## Writing down a route, and finding out it was three defects
+
+`docs/KNOWN-LIMITATIONS.md` says that below the ladder's last rung the console
+has no chain summary and the route to a channel is: select the strip, then the
+cue bar's link. Asserting that sentence — which is what a recorded cost is for —
+took three passes, and each failure was the product rather than the case.
+
+**A press on a strip did not select it.** RA-006's rule is that selection
+happens on the press, because dragging a fader on an unselected strip has to
+select it and a drag ends with no click for a later handler to catch. It did
+not: `usePointerDrag` calls `e.stopPropagation()`, so every press landing on a
+fader, a pan knob or a meter was swallowed before it reached the strip. That is
+most of a short strip — on a tablet in landscape the fader row is 52 px of a
+123 px channel — and it is the first step of the console's only route to a
+chain there. The strip claims the selection in the **capture** phase now, before
+any descendant can stop it.
+
+What let it survive is the test. `mixerSelection.test.tsx` fired `pointerDown`
+on the **strip element**, which is a node no finger ever lands on: a real press
+resolves to a descendant, and the descendant stopped it. The case presses the
+fader now, and a second case keeps the other half — a press on the strip's own
+body — because moving the handler onto the fader would have passed the first
+while losing the name, the buttons and the readout.
+
+**The link the sentence names was 36 px in a row that was 44.** So the
+equivalent alternative WCAG 2.5.8 obliges was itself under the touch minimum.
+Growing it to 44 grew the ROW to 52, which took 8 px off the console beneath it
+— and the shortest strip the product draws fell from 130.7 to 122.7 against a
+ladder floor of 124. A console below its own minimum to make one button bigger
+is a worse trade than the button. The row's block padding went instead: it
+becomes the height it was already pretending to be, the control fills it, and
+nothing below moves.
+
+**Then it measured 45 x 41 against 44.** The control is drawn 44 x 44 and
+`elementFromPoint` at its top edge returned `div.resize-handle v` — the pane
+divider's `::after` grab zone, `inset: -3px`, reaching 3 px into the pane below
+and over the top of every control in its toolbar. That is exactly the shape
+this repository has three defects from: a hit area grown past the row that holds
+it takes presses aimed at its neighbour. The zone keeps its size and spends all
+of it upward now, where a pane's last pixels are its content's bottom margin
+rather than a toolbar.
+
+Three rounds, and the ruler was right in all three. **A route written into a
+document is a claim, and a claim that has never been driven is a sentence.**
 
 ## A locator that never resolves does not fail
 

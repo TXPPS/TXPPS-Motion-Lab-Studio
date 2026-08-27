@@ -278,9 +278,14 @@ Measured on this project's CI hardware — see
   is checked rather than asserted.
 
   The route it leaves is real and conformant — a strip is a 112 x 131 target
-  that selects the channel, and the Channel view carries the whole chain — but
-  it is a route with one more step in it than the design intended, and the honest
-  place for that is here.
+  that selects the channel, and the cue bar's link opens it end to end — but it
+  is a route with one more step in it than the design intended, and the honest
+  place for that is here. Asserting that sentence found three defects in it:
+  pressing a strip did not select it, because `usePointerDrag` stops the press
+  before it reaches the strip; the link was 36 px in a 44 px row; and the pane
+  divider's grab zone covered the top 3 px of it. All three are fixed, and
+  `e2e/striptiers.spec.ts` drives the whole route so the sentence cannot go
+  stale without something saying so.
 
 - **CLOSED — in landscape the channel strip's rack was drawn through its fader.**
   Kept because the shape of it is the useful part. Measured across the

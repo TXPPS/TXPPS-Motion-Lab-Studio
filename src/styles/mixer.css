@@ -1360,6 +1360,38 @@
   overflow-x: auto;
   scrollbar-width: none;
 }
+/*
+ * The route the tier ladder leans on, at the size a finger needs.
+ *
+ * Below the ladder's last rung the console has no chain summary, and this is
+ * how a channel is opened end to end from there — so it is the equivalent
+ * alternative WCAG 2.5.8 obliges, and an alternative under the touch minimum is
+ * not one. It measured 36 x 36 on a coarse pointer inside a row that is 44.
+ *
+ * Grown TO the row rather than past it, which is the distinction that has cost
+ * this repository three defects: a 44 px target in a 16 px rack row landed on
+ * the third device down. The cue bar scrolls horizontally, so a wider button
+ * lengthens the scroll extent and takes nothing from its neighbours.
+ */
+@media (pointer: coarse) {
+  /*
+   * The row was already 44 px tall — 4 px of padding above and below a 36 px
+   * control — so growing the control inside that padding grew the ROW to 52 and
+   * took 8 px off the console under it. Measured immediately: the shortest
+   * strip the product draws fell from 130.7 to 122.7 against a ladder floor of
+   * 124, which is a console below its own minimum to make one button bigger.
+   *
+   * The padding goes instead. The row becomes the height it was already
+   * pretending to be, the control fills it, and nothing below moves.
+   */
+  .cue-bar {
+    padding-block: 0;
+  }
+  .cue-bar .chn-link {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
 .cue-bar::-webkit-scrollbar {
   display: none;
 }
