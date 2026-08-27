@@ -23,7 +23,7 @@ import { EffectVisual, FxKnob } from './PluginFace';
 import { MotionWaveFaceLazy } from './MotionWaveFaceLazy';
 import { isMotionWaveKind } from '../../audio/motionwave/registry';
 import { channelRack, type RackHost } from './DeviceRack';
-import { clampToViewport, placeWindow } from './windowPlace';
+import { clampToViewport, placeClearOf, placeWindow, type Box } from './windowPlace';
 import type { Rect } from './windowPlace';
 
 /**
@@ -59,10 +59,16 @@ let lastUserPos: { x: number; y: number } | null = null;
 function placeOpening(
   box: Rect,
   viewport: { width: number; height: number },
+  opener: Box | null,
 ): { x: number; y: number } {
-  return lastUserPos
-    ? clampToViewport(lastUserPos, box, viewport)
-    : placeWindow(PREFERRED_POS, box, viewport);
+  if (lastUserPos) return clampToViewport(lastUserPos, box, viewport);
+  const preferred = placeWindow(PREFERRED_POS, box, viewport);
+  // Clear of whatever opened it, when that is known. The channel rail's
+  // contract is that one tap opens a device and the next closes it, and on a
+  // phone the window landed on top of the card — so the second tap reached the
+  // EQ curve inside the window and the card could not be pressed by any
+  // gesture at all. See `placeClearOf`.
+  return opener ? placeClearOf(preferred, box, viewport, opener) : preferred;
 }
 
 /** How far the header must be thrown downward before a drag counts as a dismiss. */
@@ -145,7 +151,10 @@ export function PluginWindow() {
   /** False until this device's window has been given its opening place. */
   const placed = useRef(false);
 
-  const close = useCallback(() => useUiStore.getState().set({ openDevice: null }), []);
+  const close = useCallback(
+    () => useUiStore.getState().set({ openDevice: null, openedFrom: null }),
+    [],
+  );
 
   /*
    * Escape closes the window rather than reaching the app behind it — a window
@@ -237,7 +246,7 @@ export function PluginWindow() {
       setPos((current) =>
         placed.current
           ? clampToViewport(current, measure(), viewport)
-          : placeOpening(measure(), viewport),
+          : placeOpening(measure(), viewport, useUiStore.getState().openedFrom),
       );
       placed.current = true;
     };

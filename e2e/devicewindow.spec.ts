@@ -114,7 +114,12 @@ test.describe('the device window can be moved', () => {
     await toMixer(page);
     rack = await firstTrackRack(page);
     await addDevice(page, rack, 'Compressor');
-    await page.locator(`[data-testid="device-${rack}-1"] .dev-name`).dblclick();
+    // No press at all: `addDevice` opens the window, because a device you have
+    // just chosen is one you want to look at. This used to double-click the name
+    // as well, which was idempotent under the old gesture and is not under the
+    // new one — item 13 made a press on an open device *close* it, so the
+    // "open it" line was closing it. Every case below is about a window that is
+    // already up.
     await expect(page.locator('[data-testid="plugin-window"]')).toBeVisible();
   });
 
@@ -252,7 +257,12 @@ test.describe('a device on the master channel', () => {
   });
 
   test('opens its editor, exactly as one on a track does', async ({ page }) => {
-    await page.locator('[data-testid="device-Master-1"] .dev-name').dblclick();
+    // Closed first, so the press below is opening something rather than
+    // toggling the window `addDevice` already put up. Escape is the route a
+    // person has, which is why it is used instead of clearing the store.
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-testid="plugin-window"]')).toHaveCount(0);
+    await page.locator('[data-testid="device-Master-1"] .dev-name').click();
     // The window resolved its channel by searching `project.tracks`, and the
     // master is not a member of it — so this found nothing and rendered
     // nothing, silently, for every device ever put on the master.
@@ -262,7 +272,7 @@ test.describe('a device on the master channel', () => {
   });
 
   test('can be bypassed and re-enabled from its editor', async ({ page }) => {
-    await page.locator('[data-testid="device-Master-1"] .dev-name').dblclick();
+    // Already open — see the note in the track suite's beforeEach.
     const power = page.locator('[data-testid="plugin-window"] .pw-power');
     await expect(power).toHaveAttribute('aria-pressed', 'true');
     await power.click();
@@ -303,6 +313,25 @@ test.describe('every device offers the same options', () => {
     for (const kind of kinds) {
       console.log(`§2.1 · ${kind}`);
       await addDevice(page, rack, kind);
+      /*
+       * Dismissed before measuring. Adding a device opens its window, and the
+       * window sits over part of the console — so as the rack fills, the slot
+       * just added moves down until its options button is underneath the
+       * window and every press reports an intercept.
+       *
+       * It began failing when the console got *taller*: the channel overview
+       * band left the mixer for an editor of its own, which gave the strips
+       * back about 116px, which put the fortieth device's row under a window
+       * that had not moved. Nothing about the button changed. This is the
+       * same lesson as the sampler library's rows — measure what is on top
+       * before concluding anything about the control.
+       */
+      // No settle wait after it. This sweep walks forty-two kinds and was
+      // already finishing at 59s against a 60s budget; 120ms x 42 took it over
+      // and made it flaky. Playwright retries the press below until the
+      // element is actionable, so a window still unmounting resolves itself —
+      // what it could not resolve was a window that never closed at all.
+      await page.keyboard.press('Escape');
       const slot = page.locator(`[data-testid^="device-${rack}-"]`).last();
       const menu = slot.locator('.dev-menu');
       if ((await menu.count()) === 0) {

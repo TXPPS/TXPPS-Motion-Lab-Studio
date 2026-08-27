@@ -299,27 +299,34 @@ test.describe('sheets', () => {
 
 // ---------------------------------------------------------------- console
 
-test.describe('the console overview strip', () => {
-  test('can be hidden and brought back, and stays hidden across a reload', async ({ page }) => {
+test.describe('the console and the channel', () => {
+  /*
+   * This used to assert that the overview strip could be hidden and brought
+   * back. The strip is gone from the console — directive item 12: it was a
+   * permanent tenant of the mixer's track area, taking 116px out of the pane
+   * and taking it off the strips — and it is an editor of its own now.
+   *
+   * So the toggle became a route, and the case follows it. A control that once
+   * hid a surface and now navigates to it is not the same claim, and rewriting
+   * the old assertion to pass would have been the thing this repository calls
+   * re-fitting: the check would have stopped being a check on anything.
+   */
+  test('the console offers a way to the selected channel, laid out end to end', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await boot(page);
-    // Select a channel: the strip takes no room at all with nothing selected.
     await page.locator('[data-testid^="track-header-"]').first().locator('.th-name').click();
     await page.keyboard.press('F3');
-    const toggle = page.locator('[data-testid="toggle-channel-overview"]');
-    await expect(toggle).toBeVisible();
 
-    const overview = page.locator('[data-testid="channel-overview"]');
-    const wasVisible = (await overview.count()) > 0;
-    await toggle.click();
-    await page.waitForTimeout(200);
-    // The flag was read by the mixer and written by nothing: a surface with no
-    // control, which is as invisible a defect as a control with no surface.
-    expect((await overview.count()) > 0).toBe(!wasVisible);
-
-    await reload(page);
-    await page.keyboard.press('F3');
+    const link = page.locator('[data-testid="open-channel-view"]');
+    await expect(link, 'the console has no route to the channel view').toBeVisible();
+    await link.click();
     await page.waitForTimeout(300);
-    expect((await page.locator('[data-testid="channel-overview"]').count()) > 0).toBe(!wasVisible);
+
+    await expect(page.locator('[data-testid="channel-view"]')).toBeVisible();
+    // And the band is not back in the console: the whole point is that the
+    // chain stops competing with the strips for the pane's height.
+    await expect(page.locator('[data-testid="mixer"] [data-testid="channel-view"]')).toHaveCount(0);
   });
 });

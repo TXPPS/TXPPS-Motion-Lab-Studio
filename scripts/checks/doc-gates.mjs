@@ -16,8 +16,68 @@
 import { accepting, CLEAN_TS, creating, currentDeclaredSource, editing } from './edits.mjs';
 import { srcFingerprint } from '../srcfingerprint.mjs';
 
+/*
+ * Two headings out of `docs/audit/REACHABILITY.md`, used as insertion points.
+ *
+ * A heading rather than a table cell, because the formatter pads every cell in
+ * that document to its column's width — so a cell anchor stops matching the day
+ * somebody adds a surface with a longer name, and an anchor that stops matching
+ * reports BROKEN, the verdict that means the gate could not be read at all.
+ */
+const ROUTES_HEADING = '## How each was reached';
+// The heading that follows the matrix table. Not the sweep-summary one above
+// it: the generator writes that section and the committed document predates
+// it, so an anchor there is BROKEN today and would come back on the next
+// regeneration — which is an anchor that works only sometimes.
+const MATRIX_TAIL = '## Defects: reachable on desktop';
+
+/** The routes heading, followed by a table carrying the given rows. */
+const routeTable = (...rows) =>
+  `${ROUTES_HEADING}\n\n| surface | form | via |\n| --- | --- | --- |\n` +
+  rows.map((r) => `| ${r} |\n`).join('');
+
 /** Gates whose subject is a document this repository tracks. */
 export const DOC_GATES = {
+  'route:check': {
+    kind: 'gate',
+    // A route recorded for a surface the matrix table does not list. That is
+    // one of the three ways the two tables can describe different runs, and it
+    // is the one a real format drift produces: rows arriving in one table and
+    // not the other.
+    //
+    // The anchor is the section heading rather than a table cell, deliberately.
+    // Every row in that document is padded to its column's width by the
+    // formatter, so a cell anchor carries an expiry date measured in whenever
+    // somebody adds a surface with a longer name — and an anchor that stops
+    // matching reports BROKEN, which is the verdict meaning the gate could not
+    // be read at all. A heading has no padding in it and moves only when the
+    // generator's prose does.
+    mutate: editing(
+      'docs/audit/REACHABILITY.md',
+      ROUTES_HEADING,
+      routeTable('a surface the matrix does not list | desktop | nav-mix'),
+    ),
+    // A surface added to *both* tables, consistently — which is what growing
+    // the matrix by one actually looks like. A case that only added the
+    // not-reached row would also pass and would prove far less: it would show
+    // the check tolerates a surface with no routes, not that it accepts one
+    // with them.
+    satisfy: {
+      name: 'a surface present in both tables at once',
+      edits: [
+        editing(
+          'docs/audit/REACHABILITY.md',
+          MATRIX_TAIL,
+          `| a constructed surface | yes | — | — | — | — |\n\n${MATRIX_TAIL}`,
+        ),
+        editing(
+          'docs/audit/REACHABILITY.md',
+          ROUTES_HEADING,
+          routeTable('a constructed surface | phone-portrait | nav-mix'),
+        ),
+      ],
+    },
+  },
   'ledger-guard': {
     kind: 'gate',
     // A unit claimed as SHIPPING whose cells are all `—`, which is what the

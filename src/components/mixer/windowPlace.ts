@@ -59,3 +59,46 @@ export function placeWindow(preferred: Point, size: Rect, viewport: Rect): Point
   const x = fitsAtPreferred ? preferred.x : Math.round((viewport.width - size.width) / 2);
   return clampToViewport({ x, y: preferred.y }, size, viewport);
 }
+
+/** A rectangle in viewport coordinates — the control a window was opened from. */
+export interface Box extends Point, Rect {}
+
+/** Whether two boxes share any area at all. */
+function overlaps(a: Box, b: Box): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+/**
+ * A place that does not cover the control the window was opened from.
+ *
+ * The channel rail's contract is that one tap opens a device and the next
+ * closes it (directive item 13). On a phone that was unreachable in the most
+ * ordinary way possible: the window opened *on top of the card*, so the second
+ * tap landed on the EQ curve inside the window and the card could not be
+ * pressed again by any gesture at all. Measured — `elementFromPoint` at the
+ * card's centre returned `svg.fx-curve`. Nothing was too small and nothing was
+ * off screen; the control was simply behind something.
+ *
+ * Below the opener first, then above it, then wherever it fits. Below is the
+ * preference because a device window is read downward from its header, and
+ * because the rail sits above the fader on every form factor — a window placed
+ * above the rail would be covering the console instead.
+ *
+ * Returns the clamped fallback when neither side has room, and there is a band
+ * where neither does: a 420px window in an 844px phone needs 428 clear pixels on
+ * one side of a 44px control, and a control in the middle leaves 410 on both.
+ * No placement rule can invent the room, so the honest answer is to fall back
+ * rather than improvise — a window squeezed into a strip of pixels to avoid an
+ * overlap is worse than the overlap, and `clampToViewport` keeps the close
+ * control on screen either way.
+ */
+export function placeClearOf(fallback: Point, size: Rect, viewport: Rect, opener: Box): Point {
+  const at = (y: number) => clampToViewport({ x: fallback.x, y }, size, viewport);
+  for (const pos of [
+    at(opener.y + opener.height + EDGE_MARGIN),
+    at(opener.y - size.height - EDGE_MARGIN),
+  ]) {
+    if (!overlaps({ ...pos, ...size }, opener)) return pos;
+  }
+  return clampToViewport(fallback, size, viewport);
+}

@@ -120,6 +120,25 @@ const TARGETS = [
   { id: 'chords', label: 'chord assistant', selector: '[data-testid="chord-assistant"]' },
   { id: 'audio-editor', label: 'audio editor', selector: '[data-testid="audio-editor"]' },
   { id: 'take-review', label: 'take review', selector: '[data-testid="take-review"]' },
+  /*
+   * The Channel view, and the console's MIDI rack.
+   *
+   * Two surfaces that exist and were in no row of this matrix. `notefx-rack`
+   * above targets the *inspector's* rack — `notefx-rack-<trackId>` — so the
+   * console's own MIDI FX rack, which is what item 2 of the directive asked
+   * for, has never been swept: the target it would have matched has a
+   * different id. A surface with no row is not a surface with a clean row.
+   */
+  {
+    id: 'channel-view',
+    label: 'channel view (one channel end to end)',
+    selector: '[data-testid="channel-view"]',
+  },
+  {
+    id: 'console-notefx',
+    label: 'MIDI FX rack on the console strip',
+    selector: '[data-testid="notefx-slots"]',
+  },
   {
     id: 'shortcuts',
     label: 'keyboard shortcuts',

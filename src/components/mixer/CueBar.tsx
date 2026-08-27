@@ -13,23 +13,30 @@ import { useWorkspaceStore } from '../../state/workspaceStore';
 import { Icon } from '../common/Icon';
 
 /**
- * Show or hide the channel overview strip.
+ * The console's route to the selected channel, laid out end to end.
  *
- * It lives on the console's own header row because that is the row that is
- * always above the console, in both of `CueBar`'s branches. Until now the strip
- * had no control at all: the flag was read by the mixer and written by nothing,
- * so a user could neither hide it nor get it back.
+ * It was a toggle for a band drawn inside the mixer, and the band has moved out
+ * of the track area into an editor of its own (directive item 12) — so there is
+ * nothing left to show or hide and the control would have become a control that
+ * does nothing, which is a bug of the same class as a wrong number. It navigates
+ * instead, which is the job the toggle was standing in for: the console is where
+ * you notice a channel needs work, and the channel view is where the work is.
+ *
+ * It stays on the console's header row because that is the row above the
+ * console in both of `CueBar`'s branches.
  */
-function OverviewToggle() {
-  const on = useWorkspaceStore((w) => w.showChannelOverview);
+function ChannelViewLink() {
+  const here = useUiStore((s) => s.editorTab === 'channel');
   return (
     <button
-      className={`icon-btn${on ? ' on' : ''}`}
-      onClick={() => useWorkspaceStore.getState().toggle('showChannelOverview')}
-      title="Show or hide the channel overview"
-      aria-label="Show or hide the channel overview"
-      aria-pressed={on}
-      data-testid="toggle-channel-overview"
+      className={`icon-btn${here ? ' on' : ''}`}
+      onClick={() => {
+        useWorkspaceStore.getState().reveal('editor');
+        useUiStore.getState().set({ editorTab: 'channel', phoneMode: 'edit' });
+      }}
+      title="Open the selected channel end to end"
+      aria-label="Open the selected channel end to end"
+      data-testid="open-channel-view"
     >
       <Icon name="layers" size={14} />
     </button>
@@ -58,7 +65,7 @@ export function CueBar() {
         <span className="t-label">Cue mixes</span>
         <span className="hint">A separate headphone balance, off the same channels.</span>
         <span className="grow" />
-        <OverviewToggle />
+        <ChannelViewLink />
         <button className="btn" onClick={addCue} data-testid="cue-add">
           <Icon name="headphones" size={13} /> Add a cue
         </button>
@@ -157,9 +164,9 @@ export function CueBar() {
       ) : (
         <span className="grow" />
       )}
-      {/* Outside the branch: the strip is above the console whether or not a
-          cue is being monitored, so its control has to be reachable in both. */}
-      <OverviewToggle />
+      {/* Outside the branch: this row is above the console whether or not a cue
+          is being monitored, so the route out of it has to be in both. */}
+      <ChannelViewLink />
       {!active && (
         <button
           className="btn"

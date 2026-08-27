@@ -40,15 +40,18 @@ export interface WorkspaceLayout {
   /** Bird's-eye navigator strip above the arrangement. */
   showOverview: boolean;
   /**
-   * The channel overview strip above the console.
+   * Whether the Channel editor's device rail shows its cards or its chips.
    *
-   * It lived in `uiStore` as `channelOverview`, declared, defaulted to true,
-   * read once by the mixer, and **written by nothing** — a surface with no
-   * control, which is the same defect as a control with no surface and just as
-   * invisible. Here it sits beside the other view options and survives a
-   * reload with them.
+   * It replaced the flag that asked whether the overview band was drawn *inside
+   * the mixer*. The band is an editor of its own now — the whole point of items
+   * 12 to 14 is that a channel's chain stops being a tenant of the console's
+   * height — so the question that flag answered no longer exists, and a stored
+   * key nothing reads is the same defect the flag was itself written to fix.
+   *
+   * A view preference and not a property of the music, which is why it is here
+   * and not on the project: collapsing a rack is not an edit.
    */
-  showChannelOverview: boolean;
+  channelRackOpen: boolean;
 }
 
 export const DEFAULT_LAYOUT: WorkspaceLayout = {
@@ -65,7 +68,7 @@ export const DEFAULT_LAYOUT: WorkspaceLayout = {
   showChords: false,
   showTempoLane: false,
   showOverview: true,
-  showChannelOverview: true,
+  channelRackOpen: true,
 };
 
 const MAXIMIZABLE = new Set(['arrange', 'editor', 'browser', 'inspector']);
@@ -104,7 +107,7 @@ export function normalizeLayout(raw: unknown): WorkspaceLayout {
     showChords: bool(r.showChords, DEFAULT_LAYOUT.showChords),
     showTempoLane: bool(r.showTempoLane, DEFAULT_LAYOUT.showTempoLane),
     showOverview: bool(r.showOverview, DEFAULT_LAYOUT.showOverview),
-    showChannelOverview: bool(r.showChannelOverview, DEFAULT_LAYOUT.showChannelOverview),
+    channelRackOpen: bool(r.channelRackOpen, DEFAULT_LAYOUT.channelRackOpen),
     maximized:
       typeof r.maximized === 'string' && MAXIMIZABLE.has(r.maximized)
         ? (r.maximized as MaximizedPane)
@@ -135,7 +138,7 @@ interface WorkspaceState extends WorkspaceLayout {
       | 'showChords'
       | 'showTempoLane'
       | 'showOverview'
-      | 'showChannelOverview',
+      | 'channelRackOpen',
   ) => void;
   /** Toggle full-screen for a pane (passing the current pane restores). */
   setMaximized: (pane: MaximizedPane) => void;
@@ -270,7 +273,7 @@ function write(state: WorkspaceLayout): void {
         showChords,
         showTempoLane,
         showOverview,
-        showChannelOverview,
+        channelRackOpen,
         tabletBottomSize,
       } = state;
       localStorage.setItem(
@@ -289,7 +292,7 @@ function write(state: WorkspaceLayout): void {
           showChords,
           showTempoLane,
           showOverview,
-          showChannelOverview,
+          channelRackOpen,
         }),
       );
     } catch {

@@ -12,10 +12,10 @@
  */
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 import type { IconName } from '../components/common/Icon';
+import type { EditorId } from './editorIds';
 import type { ProjectData } from '../model/types';
 
-export type EditorId =
-  'mixer' | 'piano' | 'drums' | 'score' | 'audio' | 'chords' | 'synth' | 'diagnostics';
+export type { EditorId } from './editorIds';
 
 export interface EditorDef {
   id: EditorId;
@@ -38,6 +38,9 @@ export interface EditorDef {
 }
 
 const Mixer = lazy(() => import('../components/mixer/Mixer').then((m) => ({ default: m.Mixer })));
+const ChannelEditor = lazy(() =>
+  import('../components/channel/ChannelView').then((m) => ({ default: m.ChannelEditor })),
+);
 const PianoRoll = lazy(() =>
   import('../components/pianoroll/PianoRoll').then((m) => ({ default: m.PianoRoll })),
 );
@@ -123,6 +126,28 @@ export const EDITORS: EditorDef[] = [
     icon: 'synth',
     hint: 'The selected track’s instrument',
     component: SynthPanel,
+  },
+  /*
+   * After the instrument, and after every note editor — which is a position
+   * with a reason rather than a preference.
+   *
+   * `EditorBody` falls back to the *first* offered editor when the selected one
+   * is excluded, and a phone excludes Mixer because its bottom navigation
+   * already offers it. Placed second, this became the phone's fallback and the
+   * Edit tab stopped landing on a note editor: measured by
+   * `layout.spec.ts`'s "exactly one primary workspace is mounted at a time",
+   * which counts a phone workspace and found none.
+   *
+   * It also reads correctly here: piano, drums, score, audio and chords are
+   * editors of the *material*; Instrument and Channel are editors of what the
+   * material plays through, in that order down the signal.
+   */
+  {
+    id: 'channel',
+    label: 'Channel',
+    icon: 'layers',
+    hint: 'One channel end to end: in, MIDI FX, instrument, inserts, sends and output',
+    component: ChannelEditor,
   },
   {
     id: 'diagnostics',

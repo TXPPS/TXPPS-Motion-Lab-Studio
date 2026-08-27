@@ -279,7 +279,7 @@ ctx.createStereoPanner()`) and `engine.ts:361` (`masterPan`). The offline bounce
    Dual Pan and Binaural Pan also exist as separate plug-ins for more advanced control.
 
 2. **MotionLab does.** One mode. `PanKnob` (`src/components/common/widgets.tsx`) driving
-   `track.pan` (−1…1), a `panText()` readout, and the same knob in `ChannelOverview.tsx`.
+   `track.pan` (−1…1), a `panText()` readout, and the same knob in `ChannelView.tsx`.
    No mode selector, no dual panner, no width/mid-side control, no negative width, no
    fine-control pop-up, no arrow-key console navigation, no numeric entry.
 
@@ -553,7 +553,7 @@ m.rms * 1.4`, `widgets.tsx:634`) but that is not the console meter, and the `× 
    also sit in the Transport bar (double-clicking them opens the Main bus Channel Editor).
 
 2. **MotionLab does.** Console strips (`ChannelStrip`), the master strip, and the Channel
-   Overview (`ChannelOverview.tsx` uses the same `StereoMeter`). `engine.watchMeter` is
+   Channel view (`ChannelView.tsx` uses the same `StereoMeter`). `engine.watchMeter` is
    reference-counted so unwatched channels are never scanned — a good design that makes
    adding meter sites cheap. `PeakReadout` gives a text peak value beside each fader, which
    is the accessible reading the meter itself deliberately does not expose.
@@ -571,7 +571,7 @@ m.rms * 1.4`, `widgets.tsx:634`) but that is not the console meter, and the `× 
    here do not support that claim — see §14.
 
 2. **MotionLab does.** GR is drawn inside `DynamicsFace` (`PluginFace.tsx`) and in
-   `ChannelOverview.tsx`; the channel strip shows nothing.
+   `ChannelView.tsx`; the channel strip shows nothing.
 
 3. **Gap — unverifiable from this source.** Do not build to the reference doc's [C] here
    without a better citation.
@@ -1064,10 +1064,14 @@ mute -> volume -> pan`), which matches the reference. `DeviceRack` implements a 
    channel **icons**, per-tab **meters**, and **inputs/outputs**, plus an I/O button opening
    the Audio I/O Setup.
 
-2. **MotionLab does.** `src/components/mixer/ChannelOverview.tsx` (242 lines), hosted above
-   the console by `Mixer.tsx` when `uiStore.channelOverview` is set. Its own doc comment states
-   the same motivation almost word for word: "A console strip is 90 pixels wide, which is the
-   right shape for comparing twenty channels and the wrong shape for working on one."
+2. **MotionLab does.** `src/components/channel/ChannelView.tsx`, an editor of its own in
+   `app/editors.ts` and so present on every form factor at once. It states the same motivation
+   almost word for word: a console strip is the right shape for comparing twenty channels and
+   the wrong shape for working on one.
+
+   It **was** a band hosted above the console by `Mixer.tsx`, and that is what changed: the band
+   took 116 px out of the mixer pane and the height came off the strips, which is half of why a
+   channel cannot fit itself in landscape. `docs/design/channel-strip.md` has the arithmetic.
 
    It lays out: name, Input (polarity, mono), the **first non-bypassed EQ** as a real curve,
    the **first non-bypassed dynamics device** with live gain reduction, the remaining chain as

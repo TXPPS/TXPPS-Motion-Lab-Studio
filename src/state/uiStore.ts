@@ -1,3 +1,4 @@
+import type { EditorId } from '../app/editorIds';
 import type { SnapMode } from '../model/snap';
 import { create } from 'zustand';
 import { useWorkspaceStore } from './workspaceStore';
@@ -6,8 +7,17 @@ import { useWorkspaceStore } from './workspaceStore';
  * Which editor the bottom panel is showing. The list of editors themselves
  * lives in `app/editors.ts`; this is only the persisted selection.
  */
-export type EditorTab =
-  'mixer' | 'piano' | 'drums' | 'score' | 'audio' | 'chords' | 'synth' | 'diagnostics';
+/**
+ * The editor this store has selected.
+ *
+ * An alias rather than a second list. It *was* a second list, spelled out here
+ * and again in `app/editors.ts`, and adding the Channel view broke in three
+ * places at once because of it — which is the same defect the registry exists
+ * to prevent, arriving from the side the registry did not cover. Type-only, so
+ * nothing about the import survives compilation and there is no cycle to worry
+ * about between a store and a component registry.
+ */
+export type EditorTab = EditorId;
 export type PhoneMode = 'arrange' | 'record' | 'perform' | 'edit' | 'mix' | 'browse';
 export type BrowserTab = 'projects' | 'instruments' | 'effects' | 'loops' | 'samples' | 'pool';
 /**
@@ -89,6 +99,19 @@ interface UiState {
    * them all at once.
    */
   openDevice: { trackId: string; effectId: string } | null;
+  /**
+   * The rectangle of the control that opened the device window.
+   *
+   * A field of its own rather than part of `openDevice`, because that object is
+   * an *identity* — a dozen places compare it and one of them is how "tap the
+   * open device again to close it" knows which device it is looking at. Adding
+   * geometry to it would make two windows on the same device unequal.
+   *
+   * Read once, when the window is placed, so it never covers the thing that
+   * opened it. Null when nothing said where it came from, which is the case a
+   * keyboard or a menu produces.
+   */
+  openedFrom: { x: number; y: number; width: number; height: number } | null;
   /** Active arrangement tool */
   tool: ArrangeTool;
 
@@ -193,6 +216,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   exportOpen: false,
   monitorCueId: null,
   openDevice: null,
+  openedFrom: null,
   tool: 'pointer',
 
   selectedTrackId: null,

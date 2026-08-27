@@ -1,0 +1,517 @@
+/*
+ * The Channel view — one channel, end to end, on the axis landscape has.
+ *
+ * Directive items 12 to 14, and `docs/design/channel-strip.md` is the argument.
+ * The short version is arithmetic: a console strip on a tablet in landscape has
+ * 131 px, and the device rack's own touch floor is 140 — the rack is bigger
+ * than the channel that holds it, so no cap inside the strip was ever going to
+ * work. This is the same rack on the other axis.
+ *
+ * Two structural rules everything else follows from:
+ *
+ *  1. The rail is the ONLY scroller. Nested horizontal scrollers inside a
+ *     horizontal scroller are unusable with a thumb — a drag lands in whichever
+ *     one happens to be under it — so `.rail-list` lays out and does not scroll,
+ *     and `.chn-rail` carries the overflow for everything in it.
+ *  2. The output column is a GRID SIBLING of the rail, not its last child.
+ *     That is what makes "the chain never steals room from the fader"
+ *     structural rather than a promise: a twelfth insert changes the rail's
+ *     scroll extent and cannot move anything it does not contain.
+ */
+
+/* Geometry ---------------------------------------------------------------- */
+:root {
+  /* A card holds a power lamp and an options button side by side, and on a
+     coarse pointer each of those is 44 — so the card is what those two need
+     plus its gap, not a number picked to look right. A card narrower than its
+     own contents is the console strip's defect in a new orientation. */
+  --rail-card-w: calc(2 * var(--chn-ctl-h) + 88px * var(--ui-scale));
+  --rail-card-quick-w: calc(var(--rail-card-w) + 96px * var(--ui-scale));
+  /* The collapse caret. A target inside the rail bar, so the bar is what has
+     to grow when it does — a 44px control in a 13px row lands on whatever is
+     under the row, which this repository has now measured three times. */
+  --chn-caret: var(--chn-title-h);
+  /* Its own token rather than `--control-h`, for the reason `--smp-lib-h`
+     gives: raising that one moves every control in the product, which is a
+     different decision from making a rail card usable with a thumb. */
+  --chn-ctl-h: var(--control-h);
+  --chn-title-h: calc(13px * var(--ui-scale));
+  --chn-gap: 8px;
+  /* The pinned output column.
+     It is a whole console channel's worth of level control, so it is sized
+     against the console's own strip rather than guessed: `--strip-w` holds a
+     fader, a stereo meter with a printed scale and a name, and this holds the
+     same minus the name. Measured at 166px before it had a width of its own,
+     which on a 390px phone is 42% of the surface permanently spent on the one
+     section that is always in the same place. */
+  --chn-out-w: calc(var(--strip-w) - 4px);
+}
+
+@media (pointer: coarse) {
+  :root {
+    --chn-ctl-h: 44px;
+    --chn-caret: 44px;
+  }
+}
+
+/* The surface ------------------------------------------------------------- */
+.channel-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-panel);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* Identity, full bleed, with the track's colour on the top edge — the same
+   parallel system the console strip uses. Colour is identity here and never a
+   state; the five state colours are a different family. */
+.chn-head {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--chn-title-h);
+  padding: 3px 8px;
+  border-top: 3px solid var(--strip-color, var(--accent));
+  background: color-mix(in srgb, var(--strip-color, var(--accent)) 16%, var(--bg-panel-2));
+  font-size: var(--fs-sm);
+}
+.chn-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chn-silent {
+  padding: 0 5px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-well);
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+}
+
+/* The rail ---------------------------------------------------------------- */
+.chn-rail {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  align-items: stretch;
+  gap: var(--chn-gap);
+  min-width: 0;
+  min-height: 0;
+  padding: 6px 8px;
+  /* The one scroller. `hidden` on the block axis rather than `auto`: a section
+     taller than the row would otherwise add a second scrollbar in the axis this
+     layout exists to avoid using. */
+  overflow: auto;
+  overscroll-behavior-x: contain;
+}
+
+.chn-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.chn-title {
+  height: var(--chn-title-h);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.chn-body {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--chn-ctl-h);
+}
+
+/* Every section sits in a well cut into the desk, which is what says these are
+   parts of one signal path rather than a row of unrelated panels. */
+.chn-body,
+.chn-sends,
+.chn-out-body {
+  padding: 2px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-well);
+  box-shadow: var(--sh-well);
+}
+
+/* In ---------------------------------------------------------------------- */
+.chn-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.chn-input .in-flag {
+  min-width: var(--chn-ctl-h);
+  min-height: var(--chn-ctl-h);
+}
+.chn-trim {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: calc(88px * var(--ui-scale));
+}
+.chn-trim input[type='range'] {
+  width: 100%;
+  min-height: calc(var(--chn-ctl-h) / 2);
+}
+
+/* MIDI FX ----------------------------------------------------------------- */
+/* The console draws this as a column because a strip is a column. Here it is a
+   row, and it is the same component: a second copy would be a second answer to
+   what a MIDI chain looks like, and the two would drift. */
+.chn-notefx .dev-notefx {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+.chn-notefx .dev-notefx-head {
+  display: none;
+}
+.chn-notefx .dev-notefx-list {
+  flex-direction: row;
+  gap: 4px;
+}
+.chn-notefx .dev-nfx {
+  min-height: var(--chn-ctl-h);
+}
+.chn-notefx .dev-nfx-add {
+  min-height: var(--chn-ctl-h);
+  min-width: var(--chn-ctl-h);
+}
+
+/* Instrument -------------------------------------------------------------- */
+.chn-instrument {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: var(--chn-ctl-h);
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: var(--bg-raised);
+  color: var(--text);
+  box-shadow: var(--sh-1);
+  white-space: nowrap;
+}
+.chn-instrument.frozen {
+  color: var(--text-dim);
+}
+
+/* The insert rail --------------------------------------------------------- */
+.dev-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.rail-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--chn-title-h);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+.rail-title {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.rail-count {
+  opacity: 0.75;
+}
+.rail-caret {
+  display: grid;
+  place-items: center;
+  width: var(--chn-caret);
+  height: var(--chn-caret);
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+}
+/* The caret is under the touch minimum and that is allowed here, because the
+   command it carries has an equivalent that is not: the rack's own options menu
+   carries "Show controls", and collapsing is a view preference rather than a
+   command about the music. WCAG 2.5.8's equivalent-alternative provision, and
+   it obliges the alternative to carry every command the small control offers —
+   which is why the caret does one thing and that thing is reversible. */
+
+.rail-list {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* Deliberately not a scroller — see the header of this file. */
+}
+
+.rail-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 0 0 auto;
+  width: var(--rail-card-w);
+  padding: 2px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-panel-2);
+  box-shadow: var(--sh-1);
+  /* The processor family, as a rail down the left edge. The one thing the rail
+     draws that CSS cannot work out for itself, and the spec is already in hand
+     at the call site. */
+  border-left: 2px solid var(--dev-family, var(--edge-hi));
+}
+.rail-card.quick {
+  width: var(--rail-card-quick-w);
+}
+.rail-card.open {
+  background: var(--bg-raised);
+  box-shadow:
+    var(--sh-2),
+    inset 0 0 0 1px var(--edge-hi);
+}
+.rail-card.bypassed .rail-label,
+.rail-card.bypassed .rail-index {
+  opacity: 0.45;
+}
+
+.rail-row {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+.rail-power,
+.rail-menu {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  /* The full minimum, not the minimum less the card's padding. Subtracting
+     the padding measured 41 x 41 against a 44 requirement — the card sized its
+     contents instead of the contents sizing the card, which is the console
+     strip's defect arriving in a new orientation. The card's width already
+     carries two of these plus its padding, so this is what makes that
+     derivation true rather than decorative. */
+  min-width: var(--chn-ctl-h);
+  min-height: var(--chn-ctl-h);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: var(--bg-well);
+  color: var(--text-dim);
+}
+.rail-lamp {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  opacity: 0.4;
+}
+.rail-card:not(.bypassed) .rail-lamp {
+  background: var(--accent-lamp);
+  opacity: 1;
+  box-shadow: 0 0 5px var(--accent-lamp);
+}
+
+.rail-name {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: calc(56px * var(--ui-scale));
+  min-height: var(--chn-ctl-h);
+  padding: 0 5px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: var(--bg-well);
+  color: var(--text);
+  text-align: left;
+  overflow: hidden;
+}
+.rail-index {
+  flex: 0 0 auto;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+}
+.rail-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-sm);
+}
+.rail-quick {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rail-empty {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+.rail-add {
+  display: flex;
+  align-items: stretch;
+}
+.rail-add .dev-add {
+  min-height: var(--chn-ctl-h);
+  padding: 0 10px;
+}
+
+/* Collapsed: names only, and no control that needs a thumb — so the chip is
+   allowed to be short. Everything a chip cannot do is still reachable by
+   expanding, which is one press away and is the same press that got here. */
+.dev-rail.collapsed .rail-power,
+.dev-rail.collapsed .rail-menu,
+.dev-rail.collapsed .rail-quick {
+  display: none;
+}
+.dev-rail.collapsed .rail-card {
+  width: auto;
+  max-width: calc(112px * var(--ui-scale));
+}
+.dev-rail.collapsed .rail-name {
+  min-height: calc(24px * var(--ui-scale));
+}
+
+/* Sends ------------------------------------------------------------------- */
+.chn-sends {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.chn-sends.empty {
+  align-items: center;
+  padding: 0 8px;
+  min-height: var(--chn-ctl-h);
+}
+.chn-send {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: calc(46px * var(--ui-scale));
+}
+.chn-send-name {
+  max-width: calc(60px * var(--ui-scale));
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+.chn-send-tap {
+  min-height: calc(var(--chn-ctl-h) / 2);
+  padding: 0 5px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: var(--bg-panel-2);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+}
+.chn-send-tap.pre {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.chn-send.live .chn-send-name {
+  color: var(--text);
+}
+
+/* Output — the pinned column ---------------------------------------------- */
+.chn-out {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: var(--chn-out-w);
+  padding: 6px 8px 6px 0;
+  min-width: 0;
+}
+.chn-out-body {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.chn-pan,
+.chn-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.chn-fader {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  align-self: stretch;
+  min-height: var(--fader-min-h);
+}
+.chn-route {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: calc(var(--chn-ctl-h) / 2);
+}
+/* An arrow, because an output has no quantity. The knobs one section over are
+   the other half of the same statement: a send is nothing but quantity. */
+.chn-route-arrow {
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+}
+/* Share what the column has rather than each asking for a width of its own:
+   two 96px selects in a 114px column is how the pinned side came to be wider
+   than the fader it exists to protect. */
+.chn-route-select,
+.chn-vca-select,
+.chn-route-static {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: calc(var(--chn-ctl-h) / 2);
+  font-size: var(--fs-xs);
+}
+
+/* Nothing selected -------------------------------------------------------- */
+.channel-view.empty {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+}
+
+/* Family colour, the same five as the console's rack. A device is the same kind
+   of device wherever it is drawn, so the mapping is copied rather than invented:
+   red is absent from it because red is record and clip and nothing else. */
+.rail-card.fam-dynamics {
+  --dev-family: var(--fx-dyn);
+}
+.rail-card.fam-tone {
+  --dev-family: var(--fx-eq);
+}
+.rail-card.fam-modulation,
+.rail-card.fam-time {
+  --dev-family: var(--fx-time);
+}
+.rail-card.fam-stereo,
+.rail-card.fam-utility {
+  --dev-family: var(--fx-util);
+}

@@ -16,40 +16,54 @@ separately below rather than counted as a mobile defect.
 **A defect is a surface reachable on desktop and not on something smaller.**
 That is the rule the directive sets: layout may differ, capability may not.
 
-| surface                     | phone-portrait | phone-landscape | tablet-portrait | tablet-landscape | desktop |
-| --------------------------- | -------------- | --------------- | --------------- | ---------------- | ------- |
-| MIDI/note FX rack           | yes            | yes             | —               | —                | yes     |
-| add a note FX (arpeggiator) | yes            | yes             | —               | —                | yes     |
-| automation lane             | yes            | yes             | yes             | yes              | yes     |
-| sends rack                  | yes            | yes             | —               | —                | yes     |
-| cue mixes                   | yes            | yes             | yes             | yes              | yes     |
-| sampler zone editor         | —              | —               | —               | —                | —       |
-| score view                  | yes            | yes             | yes             | yes              | yes     |
-| freeze a track              | yes            | yes             | yes             | yes              | yes     |
-| insert rack                 | yes            | yes             | yes             | yes              | yes     |
-| a device editor             | —              | —               | —               | —                | —       |
-| drum editor                 | yes            | yes             | yes             | yes              | yes     |
-| sampler                     | yes            | yes             | yes             | yes              | yes     |
-| piano roll                  | yes            | yes             | yes             | yes              | yes     |
-| mixer                       | yes            | yes             | yes             | yes              | yes     |
-| arrangement                 | yes            | yes             | yes             | yes              | yes     |
-| browser                     | yes            | yes             | yes             | yes              | yes     |
-| inspector                   | yes            | yes             | yes             | yes              | yes     |
-| settings                    | yes            | yes             | yes             | yes              | yes     |
-| diagnostics                 | yes            | yes             | yes             | yes              | yes     |
-| export / bounce             | yes            | yes             | —               | —                | —       |
-| groove panel                | —              | yes             | yes             | yes              | yes     |
-| chord assistant             | yes            | yes             | yes             | yes              | yes     |
-| audio editor                | yes            | yes             | yes             | yes              | yes     |
-| take review                 | —              | —               | —               | —                | —       |
-| keyboard shortcuts          | yes            | yes             | yes             | yes              | yes     |
+| surface                               | phone-portrait | phone-landscape | tablet-portrait | tablet-landscape | desktop |
+| ------------------------------------- | -------------- | --------------- | --------------- | ---------------- | ------- |
+| MIDI/note FX rack                     | yes            | yes             | —               | —                | yes     |
+| add a note FX (arpeggiator)           | yes            | yes             | —               | —                | yes     |
+| automation lane                       | yes            | yes             | yes             | yes              | yes     |
+| sends rack                            | yes            | yes             | yes             | yes              | yes     |
+| cue mixes                             | yes            | yes             | yes             | yes              | yes     |
+| sampler zone editor                   | —              | —               | —               | —                | —       |
+| score view                            | yes            | yes             | yes             | yes              | yes     |
+| freeze a track                        | yes            | yes             | yes             | yes              | yes     |
+| insert rack                           | yes            | yes             | yes             | yes              | yes     |
+| a device editor                       | —              | —               | —               | —                | —       |
+| drum editor                           | yes            | yes             | yes             | yes              | yes     |
+| sampler                               | yes            | yes             | yes             | yes              | yes     |
+| piano roll                            | yes            | yes             | yes             | yes              | yes     |
+| mixer                                 | yes            | yes             | yes             | yes              | yes     |
+| arrangement                           | yes            | yes             | yes             | yes              | yes     |
+| browser                               | yes            | yes             | yes             | yes              | yes     |
+| inspector                             | yes            | yes             | yes             | yes              | yes     |
+| settings                              | yes            | yes             | yes             | yes              | yes     |
+| diagnostics                           | yes            | yes             | yes             | yes              | yes     |
+| export / bounce                       | yes            | yes             | —               | —                | —       |
+| groove panel                          | —              | yes             | yes             | yes              | yes     |
+| chord assistant                       | yes            | yes             | yes             | yes              | yes     |
+| audio editor                          | yes            | yes             | yes             | yes              | yes     |
+| take review                           | —              | —               | —               | —                | —       |
+| channel view (one channel end to end) | yes            | yes             | yes             | yes              | yes     |
+| MIDI FX rack on the console strip     | yes            | yes             | yes             | yes              | yes     |
+| keyboard shortcuts                    | yes            | yes             | yes             | yes              | yes     |
+
+## What the sweep managed, before any of it is read as a defect
+
+Every one of these is a way this sweep can under-report, so the numbers come
+first. A defect list standing on a walk that could not select a track is a
+list of the walk, not of the product.
+
+|                                       |     |
+| ------------------------------------- | --- |
+| tracks it could not select by tapping | 8   |
+| headers it had to scroll to           | 0   |
+| selections it had to re-assert        | 14  |
+| MIDI clips it opened                  | 4   |
 
 ## Defects: reachable on desktop, not on a smaller screen
 
 - **groove panel** — phone-portrait
 - **MIDI/note FX rack** — tablet-portrait, tablet-landscape
 - **add a note FX (arpeggiator)** — tablet-portrait, tablet-landscape
-- **sends rack** — tablet-portrait, tablet-landscape
 
 ## Not reached anywhere, including desktop
 
@@ -63,105 +77,117 @@ functional sweep rather than evidence of a missing feature.
 
 ## How each was reached
 
-| surface                     | form             | via                                                                      |
-| --------------------------- | ---------------- | ------------------------------------------------------------------------ |
-| MIDI/note FX rack           | phone-portrait   | nav-browse · drum track selected by tapping its header                   |
-| add a note FX (arpeggiator) | phone-portrait   | nav-browse · drum track selected by tapping its header                   |
-| automation lane             | phone-portrait   | long-press on track-header-Drums > "Add automation lane…" > "Volume"     |
-| sends rack                  | phone-portrait   | nav-browse                                                               |
-| cue mixes                   | phone-portrait   | nav-mix                                                                  |
-| score view                  | phone-portrait   | nav-edit > editor-tab-score                                              |
-| freeze a track              | phone-portrait   | long-press on track-header-Drums > "Freeze — render this track to audio" |
-| insert rack                 | phone-portrait   | nav-mix                                                                  |
-| drum editor                 | phone-portrait   | nav-edit > editor-tab-drums                                              |
-| sampler                     | phone-portrait   | nav-perform                                                              |
-| piano roll                  | phone-portrait   | nav-edit                                                                 |
-| mixer                       | phone-portrait   | nav-mix                                                                  |
-| arrangement                 | phone-portrait   | nav-arrange                                                              |
-| browser                     | phone-portrait   | nav-browse                                                               |
-| inspector                   | phone-portrait   | nav-browse                                                               |
-| settings                    | phone-portrait   | topbar-overflow > "Preferences…"                                         |
-| diagnostics                 | phone-portrait   | nav-edit > editor-tab-diagnostics                                        |
-| export / bounce             | phone-portrait   | topbar-overflow > "Export…Ctrl+Shift+E"                                  |
-| chord assistant             | phone-portrait   | nav-edit > editor-tab-chords                                             |
-| audio editor                | phone-portrait   | nav-edit > editor-tab-audio                                              |
-| keyboard shortcuts          | phone-portrait   | topbar-overflow > "Keyboard shortcuts…?"                                 |
-| MIDI/note FX rack           | phone-landscape  | nav-browse · drum track selected by tapping its header                   |
-| add a note FX (arpeggiator) | phone-landscape  | nav-browse · drum track selected by tapping its header                   |
-| automation lane             | phone-landscape  | long-press on track-header-Drums > "Add automation lane…" > "Volume"     |
-| sends rack                  | phone-landscape  | nav-browse                                                               |
-| cue mixes                   | phone-landscape  | nav-mix                                                                  |
-| score view                  | phone-landscape  | nav-edit > editor-tab-score                                              |
-| freeze a track              | phone-landscape  | long-press on track-header-Drums > "Freeze — render this track to audio" |
-| insert rack                 | phone-landscape  | nav-mix                                                                  |
-| drum editor                 | phone-landscape  | nav-edit > editor-tab-drums                                              |
-| sampler                     | phone-landscape  | nav-perform                                                              |
-| piano roll                  | phone-landscape  | nav-edit                                                                 |
-| mixer                       | phone-landscape  | nav-mix                                                                  |
-| arrangement                 | phone-landscape  | nav-arrange                                                              |
-| browser                     | phone-landscape  | nav-browse                                                               |
-| inspector                   | phone-landscape  | nav-browse                                                               |
-| settings                    | phone-landscape  | topbar-overflow > "Preferences…"                                         |
-| diagnostics                 | phone-landscape  | nav-edit > editor-tab-diagnostics                                        |
-| export / bounce             | phone-landscape  | topbar-overflow > "Export…Ctrl+Shift+E"                                  |
-| groove panel                | phone-landscape  | nav-browse · with a MIDI clip open                                       |
-| chord assistant             | phone-landscape  | nav-edit > editor-tab-chords                                             |
-| audio editor                | phone-landscape  | nav-edit > editor-tab-audio                                              |
-| keyboard shortcuts          | phone-landscape  | topbar-overflow > "Keyboard shortcuts…?"                                 |
-| automation lane             | tablet-portrait  | long-press on track-header-Drums > "Add automation lane…" > "Volume"     |
-| cue mixes                   | tablet-portrait  | combo-mixer                                                              |
-| score view                  | tablet-portrait  | combo-piano > editor-tab-score                                           |
-| freeze a track              | tablet-portrait  | long-press on track-header-Drums > "Freeze — render this track to audio" |
-| insert rack                 | tablet-portrait  | combo-mixer                                                              |
-| drum editor                 | tablet-portrait  | combo-piano > editor-tab-drums                                           |
-| sampler                     | tablet-portrait  | combo-synth                                                              |
-| piano roll                  | tablet-portrait  | combo-piano                                                              |
-| mixer                       | tablet-portrait  | combo-mixer                                                              |
-| arrangement                 | tablet-portrait  | combo-mixer                                                              |
-| browser                     | tablet-portrait  | tablet-browser                                                           |
-| inspector                   | tablet-portrait  | tablet-inspector                                                         |
-| settings                    | tablet-portrait  | combo-mixer                                                              |
-| diagnostics                 | tablet-portrait  | combo-mixer                                                              |
-| groove panel                | tablet-portrait  | tablet-inspector · with a MIDI clip open                                 |
-| chord assistant             | tablet-portrait  | combo-piano > editor-tab-chords                                          |
-| audio editor                | tablet-portrait  | combo-piano > editor-tab-audio                                           |
-| keyboard shortcuts          | tablet-portrait  | open-settings                                                            |
-| automation lane             | tablet-landscape | long-press on track-header-Drums > "Add automation lane…" > "Volume"     |
-| cue mixes                   | tablet-landscape | combo-mixer                                                              |
-| score view                  | tablet-landscape | combo-piano > editor-tab-score                                           |
-| freeze a track              | tablet-landscape | long-press on track-header-Drums > "Freeze — render this track to audio" |
-| insert rack                 | tablet-landscape | combo-mixer                                                              |
-| drum editor                 | tablet-landscape | combo-piano > editor-tab-drums                                           |
-| sampler                     | tablet-landscape | combo-synth                                                              |
-| piano roll                  | tablet-landscape | combo-piano                                                              |
-| mixer                       | tablet-landscape | combo-mixer                                                              |
-| arrangement                 | tablet-landscape | combo-mixer                                                              |
-| browser                     | tablet-landscape | tablet-browser                                                           |
-| inspector                   | tablet-landscape | tablet-inspector                                                         |
-| settings                    | tablet-landscape | combo-mixer                                                              |
-| diagnostics                 | tablet-landscape | combo-mixer                                                              |
-| groove panel                | tablet-landscape | tablet-inspector · with a MIDI clip open                                 |
-| chord assistant             | tablet-landscape | combo-piano > editor-tab-chords                                          |
-| audio editor                | tablet-landscape | combo-piano > editor-tab-audio                                           |
-| keyboard shortcuts          | tablet-landscape | open-settings                                                            |
-| MIDI/note FX rack           | desktop          | right-click on track-header-Drums                                        |
-| add a note FX (arpeggiator) | desktop          | right-click on track-header-Drums                                        |
-| automation lane             | desktop          | right-click on track-header-Drums > "Add automation lane…" > "Volume"    |
-| sends rack                  | desktop          | right-click on track-header-Drums                                        |
-| cue mixes                   | desktop          | editor-tab-mixer                                                         |
-| score view                  | desktop          | editor-tab-score                                                         |
-| freeze a track              | desktop          | right-click on track-header-Drums                                        |
-| insert rack                 | desktop          | editor-tab-mixer                                                         |
-| drum editor                 | desktop          | editor-tab-drums                                                         |
-| sampler                     | desktop          | editor-tab-synth                                                         |
-| piano roll                  | desktop          | editor-tab-piano                                                         |
-| mixer                       | desktop          | editor-tab-mixer                                                         |
-| arrangement                 | desktop          | editor-tab-mixer                                                         |
-| browser                     | desktop          | editor-tab-mixer                                                         |
-| inspector                   | desktop          | editor-tab-mixer                                                         |
-| settings                    | desktop          | editor-tab-mixer                                                         |
-| diagnostics                 | desktop          | editor-tab-mixer                                                         |
-| groove panel                | desktop          | right-click on track-header-Drums > "Add MIDI clip"                      |
-| chord assistant             | desktop          | editor-tab-chords                                                        |
-| audio editor                | desktop          | editor-tab-audio                                                         |
-| keyboard shortcuts          | desktop          | open-settings                                                            |
+| surface                               | form             | via                                                                      |
+| ------------------------------------- | ---------------- | ------------------------------------------------------------------------ |
+| MIDI/note FX rack                     | phone-portrait   | nav-browse · drum track selected by tapping its header                   |
+| add a note FX (arpeggiator)           | phone-portrait   | nav-browse · drum track selected by tapping its header                   |
+| automation lane                       | phone-portrait   | long-press on track-header-Drums > "Add automation lane…" > "Volume"     |
+| sends rack                            | phone-portrait   | nav-edit > editor-tab-channel                                            |
+| cue mixes                             | phone-portrait   | nav-mix                                                                  |
+| score view                            | phone-portrait   | nav-edit > editor-tab-score                                              |
+| freeze a track                        | phone-portrait   | long-press on track-header-Drums > "Freeze — render this track to audio" |
+| insert rack                           | phone-portrait   | nav-edit > editor-tab-channel                                            |
+| drum editor                           | phone-portrait   | nav-edit > editor-tab-drums                                              |
+| sampler                               | phone-portrait   | nav-perform                                                              |
+| piano roll                            | phone-portrait   | nav-edit                                                                 |
+| mixer                                 | phone-portrait   | nav-mix                                                                  |
+| arrangement                           | phone-portrait   | nav-arrange                                                              |
+| browser                               | phone-portrait   | nav-browse                                                               |
+| inspector                             | phone-portrait   | nav-browse                                                               |
+| settings                              | phone-portrait   | topbar-overflow > "Preferences…"                                         |
+| diagnostics                           | phone-portrait   | nav-edit > editor-tab-diagnostics                                        |
+| export / bounce                       | phone-portrait   | topbar-overflow > "Export…Ctrl+Shift+E"                                  |
+| chord assistant                       | phone-portrait   | nav-edit > editor-tab-chords                                             |
+| audio editor                          | phone-portrait   | nav-edit > editor-tab-audio                                              |
+| channel view (one channel end to end) | phone-portrait   | nav-edit > editor-tab-channel                                            |
+| MIDI FX rack on the console strip     | phone-portrait   | nav-mix                                                                  |
+| keyboard shortcuts                    | phone-portrait   | topbar-overflow > "Keyboard shortcuts…?"                                 |
+| MIDI/note FX rack                     | phone-landscape  | nav-browse                                                               |
+| add a note FX (arpeggiator)           | phone-landscape  | nav-browse                                                               |
+| automation lane                       | phone-landscape  | long-press on track-header-Drums > "Add automation lane…" > "Volume"     |
+| sends rack                            | phone-landscape  | nav-edit > editor-tab-channel                                            |
+| cue mixes                             | phone-landscape  | nav-mix                                                                  |
+| score view                            | phone-landscape  | nav-edit > editor-tab-score                                              |
+| freeze a track                        | phone-landscape  | nav-browse                                                               |
+| insert rack                           | phone-landscape  | nav-edit > editor-tab-channel                                            |
+| drum editor                           | phone-landscape  | nav-edit > editor-tab-drums                                              |
+| sampler                               | phone-landscape  | nav-perform                                                              |
+| piano roll                            | phone-landscape  | nav-edit                                                                 |
+| mixer                                 | phone-landscape  | nav-mix                                                                  |
+| arrangement                           | phone-landscape  | nav-arrange                                                              |
+| browser                               | phone-landscape  | nav-browse                                                               |
+| inspector                             | phone-landscape  | nav-browse                                                               |
+| settings                              | phone-landscape  | topbar-overflow > "Preferences…"                                         |
+| diagnostics                           | phone-landscape  | nav-edit > editor-tab-diagnostics                                        |
+| export / bounce                       | phone-landscape  | topbar-overflow > "Export…Ctrl+Shift+E"                                  |
+| groove panel                          | phone-landscape  | nav-browse · with a MIDI clip open                                       |
+| chord assistant                       | phone-landscape  | nav-edit > editor-tab-chords                                             |
+| audio editor                          | phone-landscape  | nav-edit > editor-tab-audio                                              |
+| channel view (one channel end to end) | phone-landscape  | nav-edit > editor-tab-channel                                            |
+| MIDI FX rack on the console strip     | phone-landscape  | nav-mix                                                                  |
+| keyboard shortcuts                    | phone-landscape  | topbar-overflow > "Keyboard shortcuts…?"                                 |
+| automation lane                       | tablet-portrait  | long-press on track-header-Drums > "Add automation lane…" > "Volume"     |
+| sends rack                            | tablet-portrait  | combo-piano > editor-tab-channel · with a MIDI clip open                 |
+| cue mixes                             | tablet-portrait  | combo-mixer                                                              |
+| score view                            | tablet-portrait  | combo-piano > editor-tab-score                                           |
+| freeze a track                        | tablet-portrait  | long-press on track-header-Drums > "Freeze — render this track to audio" |
+| insert rack                           | tablet-portrait  | combo-mixer                                                              |
+| drum editor                           | tablet-portrait  | combo-piano > editor-tab-drums                                           |
+| sampler                               | tablet-portrait  | combo-synth                                                              |
+| piano roll                            | tablet-portrait  | combo-piano                                                              |
+| mixer                                 | tablet-portrait  | combo-mixer                                                              |
+| arrangement                           | tablet-portrait  | combo-mixer                                                              |
+| browser                               | tablet-portrait  | tablet-browser                                                           |
+| inspector                             | tablet-portrait  | tablet-inspector                                                         |
+| settings                              | tablet-portrait  | combo-mixer                                                              |
+| diagnostics                           | tablet-portrait  | combo-mixer                                                              |
+| groove panel                          | tablet-portrait  | tablet-inspector · with a MIDI clip open                                 |
+| chord assistant                       | tablet-portrait  | combo-piano > editor-tab-chords                                          |
+| audio editor                          | tablet-portrait  | combo-piano > editor-tab-audio                                           |
+| channel view (one channel end to end) | tablet-portrait  | combo-piano > editor-tab-channel · with a MIDI clip open                 |
+| MIDI FX rack on the console strip     | tablet-portrait  | combo-mixer                                                              |
+| keyboard shortcuts                    | tablet-portrait  | open-settings                                                            |
+| automation lane                       | tablet-landscape | long-press on track-header-Drums > "Add automation lane…" > "Volume"     |
+| sends rack                            | tablet-landscape | combo-piano > editor-tab-channel · with a MIDI clip open                 |
+| cue mixes                             | tablet-landscape | combo-mixer                                                              |
+| score view                            | tablet-landscape | combo-piano > editor-tab-score                                           |
+| freeze a track                        | tablet-landscape | long-press on track-header-Drums > "Freeze — render this track to audio" |
+| insert rack                           | tablet-landscape | combo-mixer                                                              |
+| drum editor                           | tablet-landscape | combo-piano > editor-tab-drums                                           |
+| sampler                               | tablet-landscape | combo-synth                                                              |
+| piano roll                            | tablet-landscape | combo-piano                                                              |
+| mixer                                 | tablet-landscape | combo-mixer                                                              |
+| arrangement                           | tablet-landscape | combo-mixer                                                              |
+| browser                               | tablet-landscape | tablet-browser                                                           |
+| inspector                             | tablet-landscape | tablet-inspector                                                         |
+| settings                              | tablet-landscape | combo-mixer                                                              |
+| diagnostics                           | tablet-landscape | combo-mixer                                                              |
+| groove panel                          | tablet-landscape | tablet-inspector · with a MIDI clip open                                 |
+| chord assistant                       | tablet-landscape | combo-piano > editor-tab-chords                                          |
+| audio editor                          | tablet-landscape | combo-piano > editor-tab-audio                                           |
+| channel view (one channel end to end) | tablet-landscape | combo-piano > editor-tab-channel · with a MIDI clip open                 |
+| MIDI FX rack on the console strip     | tablet-landscape | combo-mixer                                                              |
+| keyboard shortcuts                    | tablet-landscape | open-settings                                                            |
+| MIDI/note FX rack                     | desktop          | right-click on track-header-Drums                                        |
+| add a note FX (arpeggiator)           | desktop          | right-click on track-header-Drums                                        |
+| automation lane                       | desktop          | right-click on track-header-Drums > "Add automation lane…" > "Volume"    |
+| sends rack                            | desktop          | right-click on track-header-Drums                                        |
+| cue mixes                             | desktop          | editor-tab-mixer                                                         |
+| score view                            | desktop          | editor-tab-score                                                         |
+| freeze a track                        | desktop          | right-click on track-header-Drums                                        |
+| insert rack                           | desktop          | editor-tab-mixer                                                         |
+| drum editor                           | desktop          | editor-tab-drums                                                         |
+| sampler                               | desktop          | editor-tab-synth                                                         |
+| piano roll                            | desktop          | editor-tab-piano                                                         |
+| mixer                                 | desktop          | editor-tab-mixer                                                         |
+| arrangement                           | desktop          | editor-tab-mixer                                                         |
+| browser                               | desktop          | editor-tab-mixer                                                         |
+| inspector                             | desktop          | editor-tab-mixer                                                         |
+| settings                              | desktop          | editor-tab-mixer                                                         |
+| diagnostics                           | desktop          | editor-tab-mixer                                                         |
+| groove panel                          | desktop          | right-click on track-header-Drums > "Add MIDI clip"                      |
+| chord assistant                       | desktop          | editor-tab-chords                                                        |
+| audio editor                          | desktop          | editor-tab-audio                                                         |
+| channel view (one channel end to end) | desktop          | editor-tab-channel · with a MIDI clip open                               |
+| MIDI FX rack on the console strip     | desktop          | editor-tab-mixer                                                         |
+| keyboard shortcuts                    | desktop          | open-settings                                                            |

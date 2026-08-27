@@ -158,6 +158,9 @@ export const CHECKS = {
     manual: 'endurance layer runs for minutes of wall clock by construction',
     satisfiedBy: 'same as `soak`: it is satisfied on every directive run, at minutes per run',
   },
+  // Asking the matrix rather than guessing at it. `route:check` is the check,
+  // and it is in the build; this is the half a person or a run types.
+  route: { kind: 'tool', why: 'queries a generated document; `route:check` is the check' },
   reachability: {
     kind: 'probe',
     provenBy: 'probe:mutations',

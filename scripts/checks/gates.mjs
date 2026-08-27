@@ -21,6 +21,9 @@ import { emsdkToolchain } from '../emcxx.mjs';
 
 const TIMEOUT_MS = 240_000;
 
+/** Distinguishes the backups of two edits that land in the same file. */
+let backupSeq = 0;
+
 /** Run a command; report only whether it succeeded. */
 export function run(command, env = {}) {
   try {
@@ -51,7 +54,14 @@ export function apply(mutate) {
     writeFileSync(path, mutate.content);
     return () => rmSync(path, { force: true });
   }
-  const backup = `${path}.mutant-backup`;
+  // Unique per call, not per file. It was `${path}.mutant-backup`, which two
+  // edits to one file share: the second copy overwrote the first's backup with
+  // the once-edited content, so the reverse-order undo restored that, deleted
+  // the backup, and the first undo then found nothing — leaving the first edit
+  // in a *tracked* file with the run reporting BROKEN. Found by the two-edit
+  // satisfy case on `route:check`, which is why that case is written as two
+  // edits rather than as one string that does both.
+  const backup = `${path}.mutant-backup.${backupSeq++}`;
   const src = readFileSync(path, 'utf8');
   if (!src.includes(mutate.from)) throw new Error(`${mutate.file} does not contain the anchor`);
   copyFileSync(path, backup);

@@ -162,6 +162,107 @@ Ledger:          **7 of 14 SHIPPING** - Motion Shaper, Program EQ, Optical
                  length and sat at 22 whatever was playing.
 ```
 
+## The rack was bigger than the channel that held it
+
+Items 12 to 14, and the number that made them one piece of work rather than
+three. A console strip on a tablet in landscape has **131 px**. The device
+rack's derived touch floor is **140** — one 44 px device row, the gap, the 44 px
+Insert button, the padding, plus another 44 for the instrument. Delete the name,
+the fader, the meter, the mute, the solo, the readout and the routing and it
+still does not fit.
+
+That is why the three landscape fixes last directive each traded the defect for
+another one. The floor is not wrong: a device row clipped part-way down yields
+an options button under the touch minimum, which is a device on the channel that
+cannot be bypassed, moved or removed. **The floor is right and the container is
+wrong.** A vertical list of 44 px rows does not go in a 112 x 131 box.
+
+So the chain moved to the axis a landscape screen actually has.
+`docs/design/channel-strip.md` is the argument, written before the build, and it
+now carries a section on the four things the build corrected in it.
+
+- **Item 12.** `ChannelOverview` was a band inside the mixer taking 116 px of the
+  pane, and the height came off the strips. It is `ChannelView` now, one entry in
+  `app/editors.ts` — so it appears on the phone's editor strip, the tablet's
+  combo and the desktop's bottom editor at once, which is what that registry is
+  for. Measured on all five form factors: nothing drawn outside the view, and no
+  vertical overflow anywhere.
+- **Item 13.** One tap opens a device's window, a second closes it, a double tap
+  shows its quick controls. Both racks moved, because two identical-looking
+  controls answering the same press differently is worse than either arrangement.
+  The double tap **reverts** the open its own first tap did, rather than the open
+  being deferred by an interval — that would put 250 ms on every open to serve
+  the rare gesture.
+- **Item 14.** An output is an arrow and a send is a knob: an arrow has no
+  quantity and a knob is nothing but quantity. And the defect the item names —
+  `Mixer.tsx` merges buses with FX returns and hands the list to the strip's
+  _output_ menu, so an FX return has been offered as an output destination for as
+  long as the type has existed.
+
+**Phase A only.** The console strip is untouched, so nothing regresses and the
+two `landscape.spec.ts` `test.fail` cases stay red-by-design — the strip they
+describe has not changed. Phase B is the strip's tiers and it is what deletes
+those two by name. It is deliberately not in this deploy: it is the half that
+cannot be undone channel by channel, and it should not be built against a design
+nobody has looked at yet.
+
+### Three things the build found that the design had not
+
+**A window must not cover the control that opened it.** On a phone the first tap
+opened the device window on top of the rail card, so the second tap landed on the
+EQ curve _inside_ the window and "tap again to close" was unreachable by any
+gesture. `elementFromPoint` at the card's centre returned `svg.fx-curve`. Nothing
+was too small and nothing was off screen; the control was behind something — the
+sampler library's lesson, arriving from a new direction. `placeClearOf` opens
+below the opener, then above, then falls back; the sweep that proves it found a
+band where neither side fits and corrected the claim from "never overlaps" to
+"clears it wherever clearing it is possible".
+
+**`fireEvent.doubleClick` dispatches a lone `dblclick` and no clicks at all.** A
+browser sends click, click, dblclick. The gesture reads clicks, so three unit
+tests built on the synthetic event were asserting against an event sequence no
+person can produce. They send two stamped clicks now.
+
+**Freezing `performance.now()` freezes React.** The first version of those tests
+mocked the clock so two presses would land in the same instant — and React's
+scheduler reads that clock, so the re-render never came and the assertion failed
+for a reason that had nothing to do with the product. The gesture reads the
+event's own timestamp now, which is both testable and more correct: it is when
+the input happened rather than when the handler ran.
+
+## Asking the matrix instead of guessing at it
+
+`npm run route -- <surface> [form]` prints how a surface is reached, per form
+factor, out of `docs/audit/REACHABILITY.md`. Three runs went into
+`editor-tab-synth` on a phone — which has no such tab — while the matrix had
+recorded `nav-perform` all along. That is the second tracked answer re-derived
+because asking was awkward, so asking is a command.
+
+`route:check` runs in the build and fails when the matrix's two tables stop
+agreeing, which is what stops the index rotting quietly against a format change.
+Its gate HELD and its satisfiability case ACCEPTS — and building that case found
+a real defect in the mutation harness: two edits to one file shared a backup
+name, so the reverse-order undo restored the once-edited copy, deleted the
+backup, and left the _first_ edit sitting in a tracked file. Backups are unique
+per call now, and that case is written as two edits rather than one string
+precisely so it keeps exercising the fix.
+
+## The parity guard refused a build that deleted a file it cites
+
+Removing `ChannelOverview.tsx` broke four citations and one pinned claim:
+`backlog/ra-006-insert-button` recorded PARITY on the presence of
+`useSettledSelection` — the hook that held the console's _layout_ still while a
+band mounted under a pressed pointer.
+
+The claim is still true and it is true for a better reason: nothing in the
+console mounts on selection any more, so there is no layout to settle. The
+predicate is re-derived rather than re-pointed — it names
+`tests/components/mixerSelection.test.tsx`, which measures that the console
+renders the same thing before and after a channel is selected, and carries a
+non-vacuity case that mounts a band and requires the measurement to move. A
+predicate naming an implementation goes stale the moment something better
+replaces it, which is exactly what happened here.
+
 ## Currency is not completeness
 
 `docs/audit/SOAK.md` was overwritten with three lines and `docs-guard` stayed

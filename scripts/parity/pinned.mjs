@@ -143,7 +143,19 @@ export const PINNED = [
     anchor: 'RA-006',
     what: 'a press on a strip does not move the console under the pointer',
     verdict: 'PARITY',
-    holds: () => has('src/components/mixer/ChannelOverview.tsx', 'useSettledSelection'),
+    // Re-derived, not re-fitted. This used to check for `useSettledSelection`
+    // inside `ChannelOverview.tsx` — the hook that held the *layout* still
+    // while a band mounted under a pressed pointer. Both are gone: the band is
+    // an editor of its own now, so nothing in the console mounts on selection
+    // and there is no layout left to settle.
+    //
+    // The claim is the same and it holds for a stronger reason, so the check
+    // points at the measurement rather than at an implementation. A predicate
+    // naming a hook goes stale the moment a better mechanism replaces it, which
+    // is precisely what happened — and `parity-guard` refusing the build is the
+    // only reason it was noticed rather than quietly re-pointed.
+    holds: () =>
+      has('tests/components/mixerSelection.test.tsx', 'renders the same console before and after'),
   },
   {
     id: 'backlog/pa-012-filter-drive',

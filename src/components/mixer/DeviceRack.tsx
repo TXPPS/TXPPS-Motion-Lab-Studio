@@ -30,6 +30,7 @@ import { saveChainFrom } from './InsertRack';
 import { MASTER_ID } from '../../model/types';
 import type { Effect, EffectKind, ProjectData, Track } from '../../model/types';
 import { usePointerDrag } from '../../hooks/usePointerDrag';
+import { useTapOrDouble } from '../../hooks/useTapOrDouble';
 import { useProjectStore } from '../../state/projectStore';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import { useUiStore } from '../../state/uiStore';
@@ -288,7 +289,15 @@ export function deviceMenu(
  * knob at that size is a dot. Drag it, or focus it and use the arrows — the
  * same contract every other parameter control in the product honours.
  */
-function MicroParam({ rack, effect, spec }: { rack: RackHost; effect: Effect; spec: ParamSpec }) {
+export function MicroParam({
+  rack,
+  effect,
+  spec,
+}: {
+  rack: RackHost;
+  effect: Effect;
+  spec: ParamSpec;
+}) {
   const value = effect.params[spec.key] ?? spec.default;
   const norm = (v: number) => (v - spec.min) / (spec.max - spec.min || 1);
   const denorm = (n: number) => spec.min + Math.min(1, Math.max(0, n)) * (spec.max - spec.min);
@@ -357,8 +366,36 @@ function DeviceSlot({
     (s) => s.openDevice?.trackId === rack.id && s.openDevice.effectId === effect.id,
   );
   const [micro, setMicro] = useState(false);
+  const nameRef = useRef<HTMLButtonElement>(null);
   const label = spec?.label ?? effect.kind;
   const microSpecs = micro ? microParams(effect.kind) : [];
+
+  /*
+   * Item 13's gesture, and it is the inverse of what this rack used to do: a
+   * click showed the micro params and a double-click opened the window. The
+   * window is what you want most often and it was the one costing two clicks.
+   *
+   * Both racks carry the same contract because they draw the same control, and
+   * two identical-looking controls answering the same press differently is a
+   * worse defect than either arrangement on its own. `useTapOrDouble` says why
+   * the double tap is the half that reverts, and why nothing is deferred.
+   */
+  const toggle = (alsoMicro: boolean) => {
+    const live = useUiStore.getState();
+    const was = live.openDevice?.trackId === rack.id && live.openDevice.effectId === effect.id;
+    const r = nameRef.current?.getBoundingClientRect();
+    live.set({
+      openDevice: was ? null : { trackId: rack.id, effectId: effect.id },
+      // Where the press landed, so the window does not open on top of the
+      // control that has to be pressed again to close it.
+      openedFrom: was || !r ? null : { x: r.x, y: r.y, width: r.width, height: r.height },
+    });
+    if (alsoMicro) setMicro((m) => !m);
+  };
+  const press = useTapOrDouble(
+    () => toggle(false),
+    () => toggle(true),
+  );
 
   return (
     <li
@@ -421,13 +458,12 @@ function DeviceSlot({
         }}
       />
       <button
+        ref={nameRef}
         className="dev-name"
         aria-expanded={micro}
-        title={`${label} — ${describeEffect(effect)}\nClick for its main controls, double-click to open it`}
-        onClick={() => setMicro((m) => !m)}
-        onDoubleClick={() =>
-          useUiStore.getState().set({ openDevice: { trackId: rack.id, effectId: effect.id } })
-        }
+        aria-pressed={open}
+        title={`${label} — ${describeEffect(effect)}\nClick to open it, click again to close, double-click for its main controls`}
+        onClick={press}
       >
         <span className="dev-index">{index + 1}</span>
         <span className="dev-label">{label}</span>
@@ -465,7 +501,7 @@ function addChain(rack: RackHost, steps: readonly ChainStepLike[]): void {
   if (dropped > 0) useUiStore.getState().toast('error', `Insert limit is ${MAX_INSERTS}.`);
 }
 
-function AddDevice({ rack, full }: { rack: RackHost; full: boolean }) {
+export function AddDevice({ rack, full }: { rack: RackHost; full: boolean }) {
   const saved = useChainStore((s) => s.chains);
   const ref = useRef<HTMLButtonElement>(null);
   return (

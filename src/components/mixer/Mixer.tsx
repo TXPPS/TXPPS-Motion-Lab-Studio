@@ -14,10 +14,8 @@ import { resolveChannels } from '../../model/mixerGraph';
 import type { Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
-import { useWorkspaceStore } from '../../state/workspaceStore';
 import { Icon } from '../common/Icon';
 import { ChannelStrip, MasterStrip } from './ChannelStrip';
-import { ChannelOverviewHost } from './ChannelOverview';
 import { CueBar } from './CueBar';
 import { VcaStrip } from './VcaStrip';
 
@@ -41,7 +39,6 @@ export function Mixer({ touch }: { touch?: boolean }) {
 
   const monitorCueId = useUiStore((s) => s.monitorCueId);
   const states = useMemo(() => resolveChannels(project, monitorCueId), [project, monitorCueId]);
-  const showOverview = useWorkspaceStore((w) => w.showChannelOverview);
 
   const buses = tracks.filter((t) => t.type === 'bus');
   const fxChannels = tracks.filter((t) => t.type === 'fx');
@@ -96,7 +93,6 @@ export function Mixer({ touch }: { touch?: boolean }) {
   return (
     <div className="mixer-wrap">
       <CueBar />
-      {showOverview && <ChannelOverviewHost />}
       <div
         ref={ref}
         className={`mixer${touch ? ' touch' : ''}`}

@@ -185,6 +185,15 @@ writing those files — not whether to widen the scope until it goes quiet.
   Static guards enforce it: `tests/schemaWired.test.ts`, `tests/laneWired.test.ts`,
   `tests/prefs.test.ts`. Add to them rather than around them.
 
+- **Ask the matrix before probing for a route: `npm run route -- <surface>`.**
+  `docs/audit/REACHABILITY.md` records how every surface was reached on every
+  form factor, and it has now been re-derived by guessing twice — three runs
+  went into `editor-tab-synth` on a phone, which has no such tab, while the
+  matrix already said `nav-perform`. The RA backlog was the same shape. A
+  tracked answer re-derived is the awkwardness of asking, so asking is a
+  command; `route:check` runs in the build and fails if the matrix's two tables
+  stop agreeing, which is what stops the index rotting against a format change.
+
 - **A reachability claim made with `el.click()` is not a reachability claim.**
   It invokes a handler; it does not ask whether anything is on top of the
   element, whether it can be seen, whether it is on screen, or whether the
@@ -212,6 +221,27 @@ writing those files — not whether to widen the scope until it goes quiet.
   one probe. `reachableBox` hit-tests on the pixel grid and so resolves to about
   a pixel — `TOUCH_MIN` and `RULER_SLACK` in `e2e/pointer.ts` say so once, and
   `RULER_SLACK` is an allowance on the instrument, never on the requirement.
+
+- **A surface that opens on top of its opener has deleted the gesture that
+  closes it.** The channel rail's contract is one tap to open a device and
+  another to close it; on a phone the window opened over the card, so the second
+  tap landed on the EQ curve inside the window and no gesture could reach the
+  card at all — `elementFromPoint` at its centre returned `svg.fx-curve`. Nothing
+  was too small and nothing was off screen. `placeClearOf` in
+  `src/components/mixer/windowPlace.ts` opens below the opener, then above, then
+  falls back, and the sweep that proves it found the band where neither fits: a
+  420 px window in an 844 px viewport needs 428 clear pixels beside a 44 px
+  control and the middle leaves 410 on both sides. **A placement rule cannot
+  invent room, so say where it runs out rather than widening the claim.**
+
+- **A gesture test must send what a browser sends.** `fireEvent.doubleClick`
+  dispatches a lone `dblclick` and _no clicks at all_; a real double-click sends
+  click, click, dblclick. Three tests built on it were asserting against an event
+  sequence no person can produce. And do not freeze `performance.now()` to put
+  two presses in the same instant — React's scheduler reads that clock, so the
+  re-render never comes and the case fails for a reason that is not the product.
+  A gesture reads the **event's own `timeStamp`**, which is when the input
+  happened rather than when the handler ran, and which a test can simply set.
 
 - **A target grown past the row that holds it is a target pointing at
   something else.** Three times now: a 44 px options button in a 16 px rack row

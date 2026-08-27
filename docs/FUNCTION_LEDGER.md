@@ -27,7 +27,7 @@ Coverage is counted as **rows with a state-asserting result**, never as rows
 that are not FAIL. Those are the same number only until somebody is tempted to
 make the column green.
 
-Coverage: **230 of 403 ledger rows** (57.1%) have a state-asserting result. Two instruments drive them: the functional soak against the running app (136 rows, measured on `index-CkJLQwU_.js`, `54095af2c01a6b4a`) and the store sweep in `npm test` (161 rows). 106 rows have no case at all and are named under "Never driven" below.
+Coverage: **230 of 404 ledger rows** (56.9%) have a state-asserting result. Two instruments drive them: the functional soak against the running app (136 rows, measured on `index-BZts6NqT.js`, `8f31b56ca5072470`) and the store sweep in `npm test` (161 rows). 107 rows have no case at all and are named under "Never driven" below.
 
 | kind | count |
 | --- | --- |
@@ -36,8 +36,8 @@ Coverage: **230 of 403 ledger rows** (57.1%) have a state-asserting result. Two 
 | instrument | 4 |
 | shortcut | 71 |
 | store | 188 |
-| surface | 19 |
-| **total** | **403** |
+| surface | 20 |
+| **total** | **404** |
 
 ## Never driven
 
@@ -48,7 +48,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | kind | undriven | of | why |
 | --- | --- | --- | --- |
 | action | 87 | 87 | no case exists for any of them. `scripts/soak/cases.mjs` covers stores directly and reaches actions only where a shortcut happens to call one |
-| surface | 19 | 19 | the functional sweep asserts state changes; reaching a surface is `npm run reachability`’s subject, and that sweep reports separately |
+| surface | 20 | 20 | the functional sweep asserts state changes; reaching a surface is `npm run reachability`’s subject, and that sweep reports separately |
 
 <details><summary>action — 87 rows</summary>
 
@@ -56,9 +56,9 @@ together is what let the coverage figure read as half rather than a sixth.
 
 </details>
 
-<details><summary>surface — 19 rows</summary>
+<details><summary>surface — 20 rows</summary>
 
-`surface:combo-mixer`, `surface:combo-piano`, `surface:combo-synth`, `surface:drawer-browser`, `surface:drawer-inspector`, `surface:editor-tab-audio`, `surface:editor-tab-chords`, `surface:editor-tab-diagnostics`, `surface:editor-tab-drums`, `surface:editor-tab-mixer`, `surface:editor-tab-piano`, `surface:editor-tab-score`, `surface:editor-tab-synth`, `surface:nav-arrange`, `surface:nav-browse`, `surface:nav-edit`, `surface:nav-mix`, `surface:nav-perform`, `surface:nav-record`
+`surface:combo-mixer`, `surface:combo-piano`, `surface:combo-synth`, `surface:drawer-browser`, `surface:drawer-inspector`, `surface:editor-tab-audio`, `surface:editor-tab-channel`, `surface:editor-tab-chords`, `surface:editor-tab-diagnostics`, `surface:editor-tab-drums`, `surface:editor-tab-mixer`, `surface:editor-tab-piano`, `surface:editor-tab-score`, `surface:editor-tab-synth`, `surface:nav-arrange`, `surface:nav-browse`, `surface:nav-edit`, `surface:nav-mix`, `surface:nav-perform`, `surface:nav-record`
 
 </details>
 
@@ -163,7 +163,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `effect:distortion` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.01e-1 RMS |
 | `effect:eq3` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.10e-3 RMS |
 | `effect:eq8` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.77e-2 RMS |
-| `effect:filter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.97e-1 RMS |
+| `effect:filter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.98e-1 RMS |
 | `effect:flanger` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 3.29e-2 RMS |
 | `effect:gainMatch` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.94e-3 RMS |
 | `effect:gate` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.52e-2 RMS |
@@ -174,13 +174,13 @@ together is what let the coverage figure read as half rather than a sixth.
 | `effect:mw-granular-reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.12e-3 RMS |
 | `effect:mw-motion-shaper` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 7.40e-2 RMS |
 | `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.06e-1 RMS |
-| `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.06e-1 RMS |
+| `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.07e-1 RMS |
 | `effect:mw-variable-mu` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.10e-1 RMS |
 | `effect:phaser` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.91e-2 RMS |
-| `effect:pingpong` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.20e-2 RMS |
-| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 8.13e-3 RMS |
+| `effect:pingpong` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.25e-2 RMS |
+| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 7.65e-3 RMS |
 | `effect:rotary` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.61e-2 RMS |
-| `effect:saturator` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.92e-1 RMS |
+| `effect:saturator` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.93e-1 RMS |
 | `effect:tremolo` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.27e-3 RMS |
 | `effect:trim` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.94e-3 RMS |
 | `effect:tuner` | insert rack | effect | FAIL | ? | ? | none | FAIL | rendered audio is identical to the dry render |
@@ -287,7 +287,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.addRecordedClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | clip <id> — store sweep |
 | `store:projectStore.addSamplerZones` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | zones 1 — store sweep |
 | `store:projectStore.addSection` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | section <id> — store sweep |
-| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmtazghk60e7evi |
+| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmtbpdyep0e7597 |
 | `store:projectStore.addVca` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | vca <id> — store sweep |
 | `store:projectStore.applyGrooveToClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | groove applied — store sweep |
 | `store:projectStore.applyPreset` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | synth preset Deep Saw Bass — store sweep |
@@ -329,7 +329,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.moveSection` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order Chorus,Verse — store sweep |
 | `store:projectStore.moveTake` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order <id>,<id> — store sweep |
 | `store:projectStore.moveTempoEvent` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | moved to 12 — store sweep |
-| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmtazgat406vseh,tmtazgat406wlgn,tmtazgat406xjdq,tmtazgat406ykfj,tmtazgat406za8b,tmtazgat4070poy,tmtazgay60dp9bg,tmtazgay70dryma,tmtazgay80e05am,tmtazgay80e13y1,tmtazgat4071k73,tmtazgat4072yjd,tmtazgay80e2sdl -> tmtazgat406wlgn,tmtazgat406xjdq,tmtazgat406vseh,tmtazgat406ykfj,tmtazgat406za8b,tmtazgat4070poy,tmtazgay60dp9bg,tmtazgay70dryma,tmtazgay80e05am,tmtazgay80e13y1,tmtazgat4071k73,tmtazgat4072yjd,tmtazgay80e2sdl |
+| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmtbpdrm506vk3h,tmtbpdrm506wkxv,tmtbpdrm506x4lx,tmtbpdrm506y4ln,tmtbpdrm506zqzv,tmtbpdrm5070v1n,tmtbpdrqe0dps05,tmtbpdrqf0dr2i7,tmtbpdrqg0e0rbt,tmtbpdrqg0e119s,tmtbpdrm50715ku,tmtbpdrm5072lde,tmtbpdrqg0e2sm1 -> tmtbpdrm506wkxv,tmtbpdrm506x4lx,tmtbpdrm506vk3h,tmtbpdrm506y4ln,tmtbpdrm506zqzv,tmtbpdrm5070v1n,tmtbpdrqe0dps05,tmtbpdrqf0dr2i7,tmtbpdrqg0e0rbt,tmtbpdrqg0e119s,tmtbpdrm50715ku,tmtbpdrm5072lde,tmtbpdrqg0e2sm1 |
 | `store:projectStore.packTakes` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | packed into <id> — store sweep |
 | `store:projectStore.promoteTake` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | promoted <id> — store sweep |
 | `store:projectStore.rackAddItem` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | rack item <id> — store sweep |
@@ -438,7 +438,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:uiStore.openEditorFor` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | editing clip-a on the piano tab — store sweep |
 | `store:uiStore.selectClip` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | primary clip-a, set 1 — store sweep |
 | `store:uiStore.selectClips` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | primary clip-c of 3 — store sweep |
-| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmtazgay60dp9bg -> tmtazgat406wlgn |
+| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmtbpdrqe0dps05 -> tmtbpdrm506wkxv |
 | `store:uiStore.set` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — editorTab mixer -> piano |
 | `store:uiStore.showDialog` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | dialog Sweep — store sweep |
 | `store:uiStore.showMenu` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | menu of 1 — store sweep |
@@ -455,6 +455,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `surface:drawer-browser` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
 | `surface:drawer-inspector` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
 | `surface:editor-tab-audio` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | not attempted |
+| `surface:editor-tab-channel` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | not attempted |
 | `surface:editor-tab-chords` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | not attempted |
 | `surface:editor-tab-diagnostics` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | not attempted |
 | `surface:editor-tab-drums` | src/app/editors.ts | surface | ? | ? | ? | none | FAIL | not attempted |

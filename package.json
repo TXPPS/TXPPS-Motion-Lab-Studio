@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/licence-guard.mjs && node scripts/ledger-guard.mjs && node scripts/parity-guard.mjs && node scripts/gesture-guard.mjs && node scripts/docs-guard.mjs && node scripts/generate-params.mjs --check && node scripts/generate-functions.mjs --check && node scripts/probe-mutations.mjs --check && node scripts/check-checks.mjs --check && node scripts/generate-sinc-table.mjs --check && node scripts/generate-window-tables.mjs --check && node scripts/generate-accent.mjs --check && vitest run tests/contrast.test.ts && node scripts/generate-icons.mjs --check && node scripts/check-wasm-current.mjs && node scripts/sync-motionwave-assets.mjs && tsc -b && vite build && node scripts/check-core-in-bundle.mjs && node scripts/checks/build-tree.mjs --record",
+    "build": "node scripts/licence-guard.mjs && node scripts/ledger-guard.mjs && node scripts/parity-guard.mjs && node scripts/gesture-guard.mjs && node scripts/docs-guard.mjs && node scripts/route.mjs --check && node scripts/generate-params.mjs --check && node scripts/generate-functions.mjs --check && node scripts/probe-mutations.mjs --check && node scripts/check-checks.mjs --check && node scripts/generate-sinc-table.mjs --check && node scripts/generate-window-tables.mjs --check && node scripts/generate-accent.mjs --check && vitest run tests/contrast.test.ts && node scripts/generate-icons.mjs --check && node scripts/check-wasm-current.mjs && node scripts/sync-motionwave-assets.mjs && tsc -b && vite build && node scripts/check-core-in-bundle.mjs && node scripts/checks/build-tree.mjs --record",
     "build-tree": "node scripts/checks/build-tree.mjs --record",
     "push-guard": "node scripts/checks/build-tree.mjs --verify",
     "hooks:install": "git config core.hooksPath .githooks",
@@ -47,6 +47,8 @@
     "stress": "node scripts/stress.mjs",
     "test:core": "node scripts/run-core-tests.mjs",
     "reachability": "node scripts/reachability.mjs",
+    "route": "node scripts/route.mjs",
+    "route:check": "node scripts/route.mjs --check",
     "functions": "node scripts/generate-functions.mjs",
     "probe:mutations": "node scripts/probe-mutations.mjs",
     "soak": "node scripts/soak.mjs",

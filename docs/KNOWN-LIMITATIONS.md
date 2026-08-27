@@ -291,3 +291,17 @@ Measured on this project's CI hardware — see
   so it stops taking the fader's space. The two cases are marked `test.fail`
   rather than skipped, so the suite goes red when the redesign lands and says to
   delete them.
+
+  **Phase A of that redesign has landed and this is still open, deliberately.**
+  The Channel view exists, is reachable on every form factor, and holds the whole
+  chain with nothing drawn outside it — but the _console strip_ has not been
+  touched, so the overlap it describes is unchanged and both cases are still
+  `test.fail` with their numbers. Re-tiering the console changes every strip on
+  every form factor and it should be built against a design somebody has looked
+  at; `docs/design/channel-strip.md` §7 says why the two halves ship separately,
+  and §6 has the tier budgets the second half is built to.
+
+  The number that ends the argument, for whoever picks this up: the rack's
+  derived touch floor is **140 px** and a strip on a tablet in landscape has
+  **131**. The rack alone is larger than the whole channel, so no arithmetic
+  inside the strip can work — the chain has to leave, which is what phase B does.
