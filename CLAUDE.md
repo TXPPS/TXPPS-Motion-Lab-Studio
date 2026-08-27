@@ -85,6 +85,19 @@ not a faster product; it is a different product.
   the middle can change which row an element lands in.
 - The preview server (`npm run preview`) sometimes needs `setsid` to survive a
   backgrounded shell. Screenshots via `scripts/screenshot.mjs` need it running.
+- **The build that proves the tree compiles is not the build that verifies the
+  deploy, and they cannot be the same one.** `vite.config.ts` stamps the commit
+  _and_ its date into the bundle, and falls back to the wall clock when
+  `git status` is dirty — deliberately, because a dirty tree has no commit to be
+  reproducible against. So the pre-commit build the pre-push guard wants is
+  stamped with the _parent_ commit and a clock reading, and its bundle name can
+  never match what Cloudflare produces. Build before committing to know the tree
+  compiles and to record it; build again on the clean committed tree to get the
+  bundle you compare against the live one. Both are right, the second is
+  reproducible, and the first is what `.build-tree.json` is for. Chasing a
+  bundle-name mismatch that was only ever a dirty-tree stamp is the hour this
+  bullet exists to save.
+
 - **Comparing a C++ float against a value parsed in TypeScript needs
   `Math.fround`.** `golden_render.h` stores each sample as a decimal literal of a
   float32; `Number()` parses it to a float64, and the two differ by about 5e-11.

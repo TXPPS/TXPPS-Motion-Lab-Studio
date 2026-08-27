@@ -5,13 +5,21 @@ RESUME: F8 — a generated document can be current and empty at once, the build
         goes after the last edit because git refuses otherwise, and three specs
         named a mutation their own criteria could not catch.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: ac6bedd, bundle index-CBhjnBJE.js, sha256 93877b2e96aeb956
+Deployed commit: 6d59fc8, bundle index-CQjbdB0p.js, sha256 e28ee6a8a788cdf5
                  over 449374 bytes - fetched from the live worker and compared
                  byte-for-byte against a clean-tree rebuild, not matched by
-                 name. 6649f6e before it was verified the same way
-                 (index-UnsIXC-T.js, 5ad510ad95fc4d0d). This line names the tip at the moment it was written,
-                 so the commit that edits it is by construction one ahead of
-                 what it describes.
+                 name. ac6bedd before it was verified the same way
+                 (index-CBhjnBJE.js, 93877b2e96aeb956), and 6649f6e before that
+                 (index-UnsIXC-T.js, 5ad510ad95fc4d0d). This line names the tip
+                 at the moment it was written, so the commit that edits it is by
+                 construction one ahead of what it describes.
+                 The rebuild has to happen *after* the commit and this cost
+                 twenty minutes to work out. `vite.config.ts` falls back to the
+                 wall clock when `git status` is dirty, so the pre-commit build
+                 the new push guard wants is stamped with the parent commit and
+                 a clock reading and produces a bundle name nothing will ever
+                 serve. Two builds, both correct: one proves the tree compiles
+                 and records it, the other is the reproducible artefact.
                  The push before it, 5a6f24e, could not have deployed:
                  splitting `scripts/checks/mutants.mjs` moved the scripted-press
                  string literal that proves `gesture-guard` can fail into a file
