@@ -87,12 +87,14 @@ Next action:     §7 continues. Five of the substrate's twelve files are built
                  SA-001 stays open: the load route exists, and nothing
                  analyses what it loads. See "Where SA-001 sits" below for the
                  order and the argument for it.
-Function Ledger: 401 functions, **228 with a state-asserting test - 56.9%**.
+Function Ledger: 404 functions, **230 with a state-asserting test - 56.9%**.
                  Two instruments: the functional soak drives 136 against a
                  running browser on three form factors, and the store sweep
-                 drives 159 in `npm test`. 106 rows have no case at all - 87
-                 actions and 19 surfaces - and are named under "Never driven".
-                 The denominator moved 403 -> 401 and the reason is a defect:
+                 drives 161 in `npm test`. 107 rows have no case at all - 87
+                 actions and 20 surfaces - and are named under "Never driven".
+                 The denominator moved 401 -> 404 with the Channel view's own
+                 surfaces; before that it moved 403 -> 401, and that one was a
+                 defect:
                  the ledger's store axis read every two-space-indented
                  function-typed field in a store file, so `DialogState.onSubmit`
                  and `MenuItem.action` were rows. Neither is a store action.
