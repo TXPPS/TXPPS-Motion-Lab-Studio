@@ -16,6 +16,7 @@ import { clipWarpMap, warpedBuffer, warpedClipTiming, warpedTimeSec } from './wa
 import { isAudioTrackType, MASTER_ID } from '../model/types';
 import { FREEZE_CLIP_PREFIX, freezeClipFor, isFreezeClipId, isFrozen } from '../model/freeze';
 import type { AudioClip, MidiClip, ProjectData, SynthParams } from '../model/types';
+import { ZoneRetirement, type ZoneSink } from './zoneRetire';
 import { useProjectStore } from '../state/projectStore';
 import { useTransportStore } from '../state/transportStore';
 import { diagLog } from '../state/diagnostics';
@@ -271,6 +272,12 @@ class AudioEngine {
   private samplerOverrides = new Map<string, Partial<SamplerParams>>();
   /** trackId → what kind of instrument is currently built (rebuild detector). */
   private instrumentKind = new Map<string, string>();
+  /**
+   * Silences a voice whose zone has left the project. See `zoneRetire.ts` for
+   * why it is a module rather than three fields here, and why the diff runs on
+   * every graph sync rather than at any removal call site.
+   */
+  private zoneRetirement = new ZoneRetirement();
   private autoDirty = true;
   private lastAutoPos = -1;
 
@@ -765,6 +772,12 @@ class AudioEngine {
         this.instrumentKind.set(track.id, kind);
       }
     }
+
+    // 1b. silence voices whose zone has just left the model.
+    this.zoneRetirement.sync(p.tracks, t, (id) => {
+      const inst = this.instruments.get(id) as Partial<ZoneSink> | undefined;
+      return inst?.retireZones ? (inst as ZoneSink) : null;
+    });
 
     // 2. remove channels for deleted tracks (and for tracks that became a
     // folder or a VCA, which no longer own one)

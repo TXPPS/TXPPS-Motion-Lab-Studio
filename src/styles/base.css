@@ -9,6 +9,17 @@ body,
 #root {
   height: 100%;
   overflow: hidden;
+  /* Double-tap must never zoom the page. `touch-action` is intersected down the
+     ancestor chain, so `manipulation` on `body` alone would already cover every
+     descendant — it is repeated here because the chain is exactly what a future
+     rule can widen, and this is a one-line class of bug that makes the whole app
+     feel like a web page instead of an instrument.
+     `manipulation` and not `none`: it removes the double-tap gesture and leaves
+     pinch alone. Killing pinch as well is the `user-scalable=no` route, and that
+     is WCAG 1.4.4 — the surfaces that want pinch for themselves take it with
+     `touch-action: none` on their own box, which is where that decision belongs
+     rather than in a meta tag that makes it for the whole product. */
+  touch-action: manipulation;
 }
 
 body {
@@ -43,6 +54,31 @@ textarea,
 .selectable-text * {
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* The other way the browser zooms a page you did not ask it to.
+   iOS Safari zooms whenever a text field is focused whose computed font-size is
+   under 16px, and it does not zoom back out — every field here inherits
+   `--fs-md`, which is 12.5px, so naming a track on an iPhone left the whole app
+   scaled up. `user-scalable=no` used to suppress it and iOS has ignored that
+   since version 10, deliberately, because it is an accessibility control. The
+   only lever left is the font size itself.
+   Coarse pointers only: the desktop's density is the density, and 16px in a
+   channel strip would be a different product. `max()` rather than a flat 16px
+   so a user who has scaled the interface up keeps their size. */
+@media (pointer: coarse) {
+  input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='color']),
+  textarea,
+  select,
+  [contenteditable='true'] {
+    /* `!important` because this is a platform constraint and not a design
+       preference. A media query adds no specificity, and `.arr-toolbar
+       .snap-mode` is 0,2,0 — so without this every component rule that sets a
+       smaller size silently reopens the defect, and the failure is invisible
+       until somebody taps that field on an iPhone. The e2e case that found this
+       one found it exactly that way. */
+    font-size: max(16px, var(--fs-md)) !important;
+  }
 }
 
 /* Faders and knobs must own their touches — a ride must never scroll the

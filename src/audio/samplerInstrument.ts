@@ -332,6 +332,48 @@ export class SamplerInstrument implements Instrument {
     this.voices.clear();
   }
 
+  /**
+   * Silence every voice whose zone has left the model.
+   *
+   * A zone can be removed while it is sounding, and a sounding voice holds its
+   * own buffer and its own graph — nothing about the zone disappearing from the
+   * project reaches it. `getParams()` is read live, so the *next* note is
+   * correct immediately; the note already playing is not, and if it is looping
+   * or held its `endsAt` is `Infinity`, so it plays until panic. Delete a
+   * sample, load another, play a chord, and you hear both.
+   *
+   * A soft stop rather than `release`: the zone no longer exists, so this is not
+   * a note-off and should not take the master release time, which can be
+   * seconds. 20 ms is prompt and does not click.
+   *
+   * Removal is not a button — undo, redo, load, import and preset changes all
+   * remove zones — so this is driven from the engine's graph sync, which sees
+   * every one of them, rather than from any of the call sites.
+   */
+  retireZones(gone: ReadonlySet<string>, at: number): number {
+    let silenced = 0;
+    for (const v of [...this.voices]) {
+      if (!gone.has(v.zoneId)) continue;
+      v.stop(false, at);
+      silenced++;
+    }
+    return silenced;
+  }
+
+  /**
+   * Test/diagnostic probe: the zones of voices with no scheduled end.
+   *
+   * The same measure `sustainingVoices` uses and for the same reason — under a
+   * probe context a correctly stopped voice stays in the set, because nothing
+   * retires it without a real graph. A voice that will sound until panic is the
+   * thing being asserted about, and `endsAt` is what says so.
+   */
+  sustainingZones(): string[] {
+    const out = new Set<string>();
+    for (const v of this.voices) if (!Number.isFinite(v.endsAt)) out.add(v.zoneId);
+    return [...out];
+  }
+
   /** Test/diagnostic probe. */
   activeVoices(): number {
     return this.voices.size;
@@ -380,6 +422,26 @@ export class RackInstrument implements Instrument {
   /** Held voices across its children. See `PolySynth.sustainingVoices`. */
   sustainingVoices(): number {
     return this.sum('sustainingVoices');
+  }
+
+  /** A rack owns no voices; every zone it could be sounding belongs to a child. */
+  retireZones(gone: ReadonlySet<string>, at: number): number {
+    let silenced = 0;
+    for (const child of this.children()) {
+      const inst = child.instrument as Partial<SamplerInstrument>;
+      silenced += inst.retireZones?.(gone, at) ?? 0;
+    }
+    return silenced;
+  }
+
+  /** See `SamplerInstrument.sustainingZones`. */
+  sustainingZones(): string[] {
+    const out = new Set<string>();
+    for (const child of this.children()) {
+      const inst = child.instrument as Partial<SamplerInstrument>;
+      for (const id of inst.sustainingZones?.() ?? []) out.add(id);
+    }
+    return [...out];
   }
 
   private sum(probe: 'activeVoices' | 'sustainingVoices'): number {
