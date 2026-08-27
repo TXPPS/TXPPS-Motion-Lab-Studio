@@ -39,20 +39,30 @@
   flex: 0 0 var(--strip-w);
   width: var(--strip-w);
   min-width: var(--strip-w);
-  display: grid;
-  /* Explicit, so a future row collision shows up as an overlap someone will
-     see rather than as a silent second column. */
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows:
-    auto /* name            */
-    auto /* input stage     */
-    minmax(0, auto) /* device rack     */
-    auto /* sends           */
-    auto /* pan             */
-    minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr) /* fader + meter */
-    auto /* mute/solo/arm   */
-    auto /* dB + peak       */
-    auto; /* routing + VCA   */
+  /*
+   * A column of rows, and it was a grid of nine explicitly numbered tracks.
+   *
+   * Two properties of that grid are why this is flex now. The first is
+   * bookkeeping: every tier restated the whole template and every row's
+   * `grid-row`, so dropping one row on one tier meant ten declarations that had
+   * to agree, and `CLAUDE.md` carried a gotcha saying a rule added in the
+   * middle of those blocks changes which row an element lands in.
+   *
+   * The second is the defect itself. A grid item whose `min-height` exceeds its
+   * track does not shrink and does not overflow the grid — it paints outside
+   * its own track, over the row below. That is the mechanism behind every
+   * landscape overlap this redesign exists to remove: measured on a tablet, 34
+   * px of device rack drawn through the fader with the rows above it squeezed
+   * to 6 px, which is a control that is present, visible, and pointing at
+   * something else.
+   *
+   * A flex column can do neither. Hiding a row removes it and nothing
+   * renumbers; a column whose children refuse to shrink overflows the bottom,
+   * where `overflow: hidden` clips it. Clipping is wrong and visible.
+   * Overlapping is wrong and invisible, and only a hit test ever finds it.
+   */
+  display: flex;
+  flex-direction: column;
   /*
    * Rhythm, not even spacing (§2.7).
    *
@@ -71,7 +81,6 @@
   --strip-pad-x: 6px;
   --strip-pad-t: 6px;
   row-gap: 0;
-  align-content: stretch;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -114,54 +123,27 @@
   box-shadow: none;
 }
 
-/* Rows are placed explicitly, not by auto-flow, so hiding an optional row
-   cannot shift every following row up one track (which would put the fader in
-   the pan row and the buttons in the flexible one). */
-.strip-name {
-  grid-row: 1;
-}
+/* Rows are in source order and carry only their own rhythm. The order in the
+   markup is the signal order — in, chain, sends, level, console footer — so a
+   tier that hides one takes it out of the column and moves nothing else. */
 .strip-input {
-  grid-row: 2;
   margin-top: var(--row-tight);
 }
-/* One row each. They shared row 4 while the template reserved row 3 for the
-   rack, so on any channel carrying both inserts and sends the two landed in
-   one cell, grid auto-placement resolved it by inventing a second column, and
-   the whole strip was laid out at half width — the fader lane, the meter and
-   the dB scale all cut. It only hid on a short mixer, where sends are dropped
-   and the collision cannot happen. */
 .dev-rack {
-  grid-row: 3;
   margin-top: var(--row-tight);
 }
 .strip-sends {
-  grid-row: 4;
   margin-top: var(--row-tight);
 }
 /* Group break: the signal path in ends, the level section begins. */
 .strip-pan {
-  grid-row: 5;
   margin-top: var(--row-group);
 }
 .strip-mid {
-  grid-row: 6;
   margin-top: var(--row-tight);
 }
-.strip-btns {
-  grid-row: 7;
-}
-.strip-readout {
-  grid-row: 8;
-}
-.strip-foot,
-.strip-route {
-  grid-row: 9;
+.strip-foot {
   margin-top: var(--row-tight);
-}
-/* A VCA has no input stage, inserts, sends, pan or meter: it borrows the
-   channel grid so the console's rows still line up across the desk. */
-.strip.vca .strip-mid {
-  grid-row: 6;
 }
 
 /*
@@ -248,9 +230,25 @@
 .strip > * {
   overflow: hidden;
   min-width: 0;
+  /* No row gives up height to make another one fit. A shrunk row is how the
+     console came to draw a 6 px input stage and a 10 px button row on a
+     tablet: present, under every touch minimum, and reported by nothing,
+     because shrinking is not overflow and it is not overlap either. */
+  flex: 0 0 auto;
 }
 .strip-mid {
-  min-height: 0;
+  /* The one row that takes the slack, and the one that has a floor.
+     
+     It was `minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr)` as a
+     grid track, and the `+ --row-tight` does not translate: a grid track
+     contains its item's margin, so the track had to be the margin taller for
+     the fader to get its floor. A flex item's margin is OUTSIDE its box, so
+     carrying the term over made the row 3 px taller than the ladder's own
+     arithmetic said and put the measured floor at 134 px against a
+     tablet-landscape console of 130.7. Found by the sweep, which is the only
+     thing looking at heights no form factor lands on. */
+  flex: 1 1 auto;
+  min-height: var(--fader-min-h);
   min-width: 0;
   display: flex;
   justify-content: center;
@@ -791,6 +789,95 @@
   font-weight: var(--fw-medium);
   color: var(--text);
   flex: none;
+}
+
+/* -------------------------------------------------- the chain summary */
+/*
+ * One row that says what kind of chain is on this channel, for the tiers where
+ * the rack's floor is larger than the strip. `ChainSummary.tsx` carries the
+ * argument; what belongs here is that it is drawn by nobody until the ladder
+ * turns it on, and that it is a CONTROL — WCAG 2.5.8's equivalent-alternative
+ * provision is what licenses substituting it for the rack, and the provision
+ * is about an alternative that can be operated, not an indicator.
+ */
+.strip-chain {
+  /* Off until a tier asks for it. The rack and the summary are alternatives:
+     `e2e/striptiers.spec.ts` requires exactly one of them at every height,
+     because neither would be a channel that cannot say what is on it and both
+     would be the rack's floor back again. */
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  /* One device row's worth, and never below a control's height. Derived from
+     `--dev-slot-h` because the summary IS the rack's row — raise the device
+     row on a coarse pointer and this rises with it — and floored at
+     `--control-h` because on a fine pointer that token is 16 px, which is a
+     row and not something to press. */
+  min-height: max(var(--control-h), var(--dev-slot-h));
+  margin-top: var(--row-tight);
+  padding: 0 4px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: var(--bg-well);
+  box-shadow: var(--sh-well);
+  color: var(--text-dim);
+  font-family: var(--font-cond);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  cursor: pointer;
+}
+.strip-chain:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.chain-dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+/* The same five families the rack's slots carry, in the same colours, because
+   the summary is the rack seen from further away and a second palette would
+   make it a different subject. Red is not among them: red is record and clip. */
+.chain-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--dev-family, var(--fx-util));
+}
+.chain-dot.fam-dynamics {
+  --dev-family: var(--fx-dyn);
+}
+.chain-dot.fam-tone {
+  --dev-family: var(--fx-eq);
+}
+.chain-dot.fam-modulation,
+.chain-dot.fam-time {
+  --dev-family: var(--fx-time);
+}
+.chain-dot.fam-stereo,
+.chain-dot.fam-utility {
+  --dev-family: var(--fx-util);
+}
+/* The instrument wears the track's own colour here for the same reason
+   `.dev-instrument` does: it is the channel's identity rather than a
+   processor family, and giving it one of the five would say it was. */
+.chain-dot.fam-instrument {
+  --dev-family: var(--strip-color, var(--border-strong));
+}
+.chain-n {
+  flex: none;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.chain-empty-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* -------------------------------------------------------- stereo meter */
@@ -2112,150 +2199,206 @@
   color: var(--text);
 }
 
-@container mixer (max-height: 26.4em) {
-  /* This tier drops the sends row, so the rack states its row here too rather
-     than inheriting one numbered for a template that no longer applies. */
+/* ======================================================================= */
+/* The tier ladder.                                                        */
+/*                                                                         */
+/* Nine rows, and a console pane that is 642 px tall on a phone held        */
+/* upright and 131 px on a tablet held sideways. Something has to go, and   */
+/* the question a ladder answers is which, and when.                       */
+/*                                                                         */
+/* Every threshold below is DERIVED: a tier applies once the container has  */
+/* dropped below the FLOOR of the tier above it, and that floor is the sum  */
+/* of the rows that tier keeps. The four thresholds it replaces were chosen */
+/* and then patched — 0.6, 0.55, 0.42 and 0.3 of the rack's height, each    */
+/* landing on a number that made one measurement go quiet — and             */
+/* `docs/design/channel-strip.md` §1 says why none of them could work: on a */
+/* coarse pointer the rack's own floor is 140 px and a tablet-landscape     */
+/* strip is 131 px in total. No fraction of the rack fits, because the      */
+/* floor is not a preference. A clipped device row yields an options button */
+/* under the touch minimum, which is a device on the channel that cannot be */
+/* bypassed, moved or removed.                                             */
+/*                                                                         */
+/* WHAT THE QUERY MEASURES. `container-type: size` reads the container's    */
+/* CONTENT box, and the mixer's content box is exactly one strip tall —     */
+/* strips stretch to fill it. So a threshold in em compares against the     */
+/* strip's own border-box height and the mixer's padding is not in it. The  */
+/* first draft added that padding to every rung, and the desktop console    */
+/* lost its dB readout at 18.34em against a rung that said 17.5em. Two      */
+/* numbers that cannot both be of the same thing is what said so: the       */
+/* container was 217.3 px and the mixer was 229.3.                         */
+/*                                                                         */
+/* PARTS, measured on the shipped build with nothing crushed, in px, as     */
+/* HEIGHT PLUS TOP MARGIN — `.strip-name` is full-bleed and carries a       */
+/* negative one, which is why its 24 px contributes 16 — and 12.5 px is the */
+/* container's font size, which is what turns a floor into an em:           */
+/*                                                                          */
+/*                        fine   coarse                                     */
+/*   strip padding          13       17                                     */
+/*   name                   16       16                                     */
+/*   input stage            18       19                                     */
+/*   rack floor            *57     *143   <- the row that differs           */
+/*   chain summary          30       47                                     */
+/*   sends (3 + "more")     68       69                                     */
+/*   pan                    34       36                                     */
+/*   fader floor            46       47                                     */
+/*   mute / solo / arm      34       44                                     */
+/*   readout              17.2     18.2                                     */
+/*   route                  22       23                                     */
+/*                                                                          */
+/*   * the rack's FLOOR, not its height: `--dev-rack-min` plus the          */
+/*     instrument row, which is what the first rung below pins it to.        */
+/*                                                                          */
+/* That one differing row is why there are two ladders rather than one. A    */
+/* single set of thresholds would either strip a desktop console of a rack   */
+/* that fits it in 57 px, or keep a 143 px rack on a tablet with no room for */
+/* it. The coarse ladder is layered on top of this one and only ever hides   */
+/* MORE — every coarse part is at least as tall as its fine counterpart, so  */
+/* every coarse rung sits above the fine rung it corresponds to and the two  */
+/* compose by addition. The one row a coarse rung has to *show* is the chain */
+/* summary, and it does so from later in the file, which is why the coarse   */
+/* block is second.                                                          */
+/*                                                                          */
+/* Each rung's em is the floor above it, less half a pixel, over 12.5:       */
+/* `max-height` is inclusive, and a container exactly as tall as that floor  */
+/* still fits it.                                                            */
+/*                                                                          */
+/* `e2e/striptiers.spec.ts` sweeps the container ten pixels at a time rather */
+/* than sampling the six form factors, because the four tiers this replaces  */
+/* passed a six-point check for two directives while a tablet in landscape   */
+/* drew 34 px of rack through its fader.                                     */
+/* ======================================================================= */
+
+/* Below the first rung the rack is exactly its own floor and scrolls for the
+   rest, which is what the rack's comment has claimed since it was written. It
+   said so while `max-height` was a fraction of `--dev-rack-h` that landed
+   under the floor at the two shortest tiers, so `min-height` won and the
+   fraction was decoration. Stating the floor as the ceiling too makes the two
+   agree by construction, and it is what the arithmetic above assumes. */
+@container mixer (max-height: 25.97em) {
   .dev-rack {
-    grid-row: 3;
-    max-height: calc(var(--dev-rack-h) * 0.6);
+    max-height: var(--dev-rack-min);
   }
-  .strip {
-    grid-template-rows:
-      auto /* name    */
-      auto /* input   */
-      auto /* inserts */
-      auto /* pan     */
-      minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr)
-      auto /* buttons */
-      auto /* readout */
-      auto; /* footer  */
-  }
-  .strip-sends {
-    display: none;
-  }
-  .strip-pan {
-    grid-row: 4;
-  }
-  .strip-mid {
-    grid-row: 5;
-  }
-  .strip-btns {
-    grid-row: 6;
-  }
-  .strip-readout {
-    grid-row: 7;
-  }
-  .strip-foot,
-  .strip-route {
-    grid-row: 8;
+  .dev-rack:has(.dev-instrument) {
+    max-height: calc(var(--dev-rack-min) + var(--dev-slot-h) + var(--dev-rack-gap));
   }
 }
 
-@container mixer (max-height: 22.4em) {
-  .strip {
-    grid-template-rows:
-      auto /* name  */
-      auto /* input */
-      minmax(0, auto) /* rack  */
-      auto /* pan   */
-      minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr)
-      auto
-      auto
-      auto;
-  }
-  /* The rack and the pan had the same row here, so a chain and a pan knob
-     were drawn on top of one another — the rack needs a row of its own at
-     every tier that keeps it. Sends are what this tier drops. */
-  .strip-sends {
-    display: none;
-  }
-  .dev-rack {
-    grid-row: 3;
-    max-height: calc(var(--dev-rack-h) * 0.55);
-  }
-  .strip-pan {
-    grid-row: 4;
-  }
-  .strip-mid {
-    grid-row: 5;
-  }
-  .strip-btns {
-    grid-row: 6;
-  }
-  .strip-readout {
-    grid-row: 7;
-  }
-  .strip-foot,
-  .strip-route {
-    grid-row: 8;
-  }
-}
-
-@container mixer (max-height: 20.4em) {
-  .strip {
-    grid-template-rows:
-      auto /* name  */
-      minmax(0, auto) /* rack  */
-      minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr)
-      auto
-      auto
-      auto;
-  }
-  /* The rack survives the input stage and the pan. A channel strip that
-     cannot show what is inserted on it is not a channel strip — it outranks
-     everything here except the fader itself. It shrinks to two devices and
-     scrolls; it does not leave. */
+/* T1 — the full strip is 13+16+18+57+68+34+46+34+17.2+22 = 325.2 px.
+   The input stage and the sends go together: they are the two rows a console
+   is least for, and a rung between them is a rung nothing lands in. */
+@container mixer (max-height: 25.97em) {
   .strip-input,
-  .strip-pan {
+  .strip-sends {
     display: none;
-  }
-  .dev-rack {
-    grid-row: 2;
-    max-height: calc(var(--dev-rack-h) * 0.42);
-  }
-  .strip-mid {
-    grid-row: 3;
-  }
-  .strip-btns {
-    grid-row: 4;
-  }
-  .strip-readout {
-    grid-row: 5;
-  }
-  .strip-foot,
-  .strip-route {
-    grid-row: 6;
   }
 }
 
-@container mixer (max-height: 16.96em) {
-  .strip {
-    grid-template-rows:
-      auto /* name */
-      minmax(0, auto) /* rack */
-      minmax(calc(var(--fader-min-h) + var(--row-tight)), 1fr)
-      auto
-      auto;
+/* T2 — 325.2 - 18 - 68 = 239.2 px.
+
+   A rung of its own, and the first draft grouped it with the readout below.
+   That cost a desktop console its dB readout while the strip still had 12 px
+   spare — a row dropped because the ladder was coarse rather than because it
+   did not fit, which is the ladder choosing again under the word "derived". */
+@container mixer (max-height: 19.09em) {
+  .strip-pan {
+    display: none;
   }
-  /* Even here the rack stays — one device row and the Insert button, scrolling
-     for the rest. This is the shortest console the product draws, and putting
-     a plugin on a channel is still the thing it is for. */
+}
+
+/* T3 — 239.2 - 34 = 205.2 px. */
+@container mixer (max-height: 16.37em) {
   .strip-readout {
     display: none;
   }
+}
+
+/* T4 — 205.2 - 17.2 = 188 px. The rack leaves and the chain summary takes its
+   row. This is the substitution the whole redesign is: not a smaller rack, the
+   same rack on the other axis, one press away. */
+@container mixer (max-height: 15em) {
   .dev-rack {
-    grid-row: 2;
-    max-height: calc(var(--dev-rack-h) * 0.3);
+    display: none;
   }
-  .strip-mid {
-    grid-row: 3;
+  .strip-chain {
+    display: flex;
   }
-  .strip-btns {
-    grid-row: 4;
+}
+
+/* T5 — 188 - 57 + 30 = 161 px. Below this the strip is a name, a fader, three
+   buttons and the chain; where the signal goes is in the Channel view's output
+   column, which the chain summary opens. */
+@container mixer (max-height: 12.84em) {
+  .strip-foot {
+    display: none;
   }
-  .strip-foot,
-  .strip-route {
-    grid-row: 5;
+}
+
+/* Floor: 161 - 22 = 139 px = 11.12em. Below that a fine-pointer console cannot
+   be drawn, and there is nothing left to drop that is not the console itself.
+   `e2e/striptiers.spec.ts` measures that floor rather than trusting it, and
+   requires the strip to CLIP below it — which is wrong and visible — rather
+   than to stack two rows in one row's space, which is wrong and invisible. */
+
+@media (pointer: coarse) {
+  /* cT1 — the full strip is 17+16+19+143+69+36+47+44+18.2+23 = 432.2 px, far
+     above the fine ladder's first rung. That is the whole point: a 44 px
+     device row costs what a 16 px one does not. */
+  @container mixer (max-height: 34.53em) {
+    .strip-input,
+    .strip-sends {
+      display: none;
+    }
+  }
+
+  /* cT2 — 432.2 - 19 - 69 = 344.2 px. */
+  @container mixer (max-height: 27.49em) {
+    .strip-pan {
+      display: none;
+    }
+  }
+
+  /* cT3 — 344.2 - 36 = 308.2 px. */
+  @container mixer (max-height: 24.61em) {
+    .strip-readout {
+      display: none;
+    }
+  }
+
+  /* cT4 — 308.2 - 18.2 = 290 px. The rack's floor is 143 here and the
+     summary's is 47, so this one rung saves 96 px — more than the three above
+     it put together, and more than any of them could have saved by being
+     tuned. */
+  @container mixer (max-height: 23.16em) {
+    .dev-rack {
+      display: none;
+    }
+    .strip-chain {
+      display: flex;
+    }
+  }
+
+  /* cT5 — 290 - 143 + 47 = 194 px. */
+  @container mixer (max-height: 15.48em) {
+    .strip-foot {
+      display: none;
+    }
+  }
+
+  /* cT6 — 194 - 23 = 171 px. The last rung, and the one that costs something
+     real: the chain summary itself goes, so a console this short says a
+     channel's name, its level and its state and nothing about what is on it. A
+     strip is still a 112 x 131 target that selects the channel and the cue
+     bar's link opens it end to end — but that is two gestures where the summary
+     was one, and it is recorded in `docs/KNOWN-LIMITATIONS.md` rather than
+     smoothed over.
+
+     Floor: 171 - 47 = 124 px = 9.92em. A tablet in landscape gives the console
+     130.7, which clears it by 6.7 px. There is no rung below this one because
+     there is no row left whose absence would still leave a console. */
+  @container mixer (max-height: 13.64em) {
+    .strip-chain {
+      display: none;
+    }
   }
 }
 
@@ -2326,8 +2469,8 @@
    unit never needs. A zero-height fallback would collapse the rack and reflow
    everything under the pointer that just opened it, so the placeholder holds
    roughly the height a panel occupies and paints the panel's own ground.
-   Deliberately outside every `@container mixer` block: those renumber strip
-   rows by source order, and this is not a strip row. */
+   Deliberately outside every `@container mixer` block: those are the strip's
+   tier ladder and this is not a strip row. */
 .mw-face-loading {
   display: block;
   width: 100%;
@@ -2340,11 +2483,11 @@
 /* The MIDI FX rack, on the channel.                                      */
 /*                                                                        */
 /* Appended rather than filed beside the other rack rules on purpose: the  */
-/* `@container mixer` blocks above renumber the strip's grid rows per tier */
-/* and are source-order dependent, so a rule inserted among them can move  */
-/* which row an unrelated element lands in. Nothing here sets a grid row — */
-/* these slots live *inside* `dev-rack`, above the instrument, because that */
-/* is where they are in the signal path.                                   */
+/* `@container mixer` blocks above are the strip's tier ladder, and a rule  */
+/* filed among them reads as a tier decision. These slots live *inside*     */
+/* `dev-rack`, above the instrument, because that is where they are in the  */
+/* signal path — so they leave and arrive with the rack, at whatever tier   */
+/* the ladder decides that is.                                              */
 /* ====================================================================== */
 .dev-notefx {
   display: flex;

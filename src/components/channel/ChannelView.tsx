@@ -20,36 +20,18 @@
  * can grow to any length without ever taking a pixel from the fader.
  */
 import { memo } from 'react';
-import { formatDb } from '../../model/music';
 import { resolveChannels } from '../../model/mixerGraph';
-import type { Track } from '../../model/types';
+import { MASTER_ID, type Track } from '../../model/types';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
 import { useWorkspaceStore } from '../../state/workspaceStore';
-import { Fader, PanKnob, PeakReadout, StereoMeter, panText } from '../common/widgets';
 import { Icon } from '../common/Icon';
 import { NoteFxSlots } from '../mixer/NoteFxSlots';
 import { channelRack } from '../mixer/DeviceRack';
 import { DeviceRail } from './DeviceRail';
+import { MasterView } from './MasterView';
+import { OutColumn, Section } from './parts';
 import { OutputRoute, SendKnobs } from './Routing';
-
-/** One labelled section of the rail. The label is the section's only chrome. */
-function Section({
-  title,
-  children,
-  testId,
-}: {
-  title: string;
-  children: React.ReactNode;
-  testId?: string;
-}) {
-  return (
-    <section className="chn-section" data-testid={testId}>
-      <span className="chn-title">{title}</span>
-      <div className="chn-body">{children}</div>
-    </section>
-  );
-}
 
 export const ChannelView = memo(function ChannelView({ track }: { track: Track }) {
   const store = useProjectStore;
@@ -172,45 +154,15 @@ export const ChannelView = memo(function ChannelView({ track }: { track: Track }
         </Section>
       </div>
 
-      {/*
-       * Pinned, and a sibling of the rail rather than its last child. That is
-       * what makes "the chain never steals room from the fader" structural: a
-       * twelfth insert changes the rail's scroll extent and cannot move
-       * anything in here, because the rail does not contain it.
-       */}
-      <aside className="chn-out" data-testid="channel-output">
-        <span className="chn-title">Out</span>
-        <div className="chn-out-body">
-          <div className="chn-pan">
-            <PanKnob
-              size={30}
-              value={track.pan}
-              onChange={(v) => store.getState().setTrack(track.id, { pan: v })}
-              onGestureStart={() => store.getState().beginGesture()}
-              onGestureEnd={() => store.getState().endGesture()}
-              label={`${track.name} pan`}
-            />
-            <span className="t-num">{panText(track.pan)}</span>
-          </div>
-          <div className="chn-fader">
-            <Fader
-              value={track.volume}
-              label={`${track.name} volume`}
-              onGestureStart={() => store.getState().beginGesture()}
-              onGestureEnd={() => store.getState().endGesture()}
-              onChange={(v) => store.getState().setTrack(track.id, { volume: v })}
-            />
-            <StereoMeter meterId={track.id} scale label={`${track.name} level`} />
-          </div>
-          <div className="chn-readout">
-            <span className="t-num" data-testid="channel-db">
-              {formatDb(track.volume)}
-            </span>
-            <PeakReadout meterId={track.id} />
-          </div>
-        </div>
-        <OutputRoute track={track} buses={buses} vcas={vcas} />
-      </aside>
+      <OutColumn
+        meterId={track.id}
+        label={track.name}
+        pan={track.pan}
+        volume={track.volume}
+        onPan={(v) => store.getState().setTrack(track.id, { pan: v })}
+        onVolume={(v) => store.getState().setTrack(track.id, { volume: v })}
+        route={<OutputRoute track={track} buses={buses} vcas={vcas} />}
+      />
     </div>
   );
 });
@@ -227,6 +179,11 @@ export const ChannelView = memo(function ChannelView({ track }: { track: Track }
 export function ChannelEditor() {
   const id = useUiStore((s) => s.selectedTrackId);
   const track = useProjectStore((s) => s.project.tracks.find((t) => t.id === id));
+  // The master is not a member of `project.tracks`, and the console's shortest
+  // tiers now send its chain here like any other. Answered before the track
+  // lookup because that lookup returns `undefined` for it, which would draw the
+  // "no channel selected" prompt over a channel that is selected.
+  if (id === MASTER_ID) return <MasterView />;
   if (!track || track.type === 'folder' || track.type === 'vca') {
     return (
       <div className="channel-view empty" data-testid="channel-view-empty">

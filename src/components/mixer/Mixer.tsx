@@ -67,7 +67,8 @@ export function Mixer({ touch }: { touch?: boolean }) {
       key={t.id}
       track={t}
       outputName={nameOf(t.output)}
-      buses={sendTargets}
+      buses={buses}
+      sendTargets={sendTargets}
       feeds={t.type === 'bus' || t.type === 'fx' ? feedsOf(t.id) : undefined}
       state={states.get(t.id)}
       vcas={vcas}

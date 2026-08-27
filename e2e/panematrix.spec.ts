@@ -329,4 +329,42 @@ test.describe('the console and the channel', () => {
     // chain stops competing with the strips for the pane's height.
     await expect(page.locator('[data-testid="mixer"] [data-testid="channel-view"]')).toHaveCount(0);
   });
+
+  test('and on a tablet, where the pane had its own opinion about what to draw', async ({
+    page,
+  }) => {
+    /*
+     * The same route, on the form factor where it did nothing.
+     *
+     * The tablet's bottom pane chose what to draw from a `useState` local to
+     * `TabletLayout`, so this link set `editorTab`, revealed the pane, and the
+     * pane went on drawing the mixer. Six controls set that tab and every one
+     * of them was inert here; it survived a directive because a phone and a
+     * desktop both honour the request and only a tablet had a second opinion.
+     *
+     * The combo is derived from the tab now, so this is the case that would go
+     * red if the two were ever allowed to disagree again.
+     */
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await boot(page);
+    await expect(page.locator('[data-testid="combo-mixer"]')).toBeVisible();
+    // A channel first: this link opens whichever channel is selected, and with
+    // none it correctly draws the "no channel selected" prompt instead. The
+    // desktop case above selects one for the same reason.
+    await page.locator('[data-testid^="track-header-"]').first().locator('.th-name').click();
+    await page.waitForTimeout(200);
+
+    const link = page.locator('[data-testid="open-channel-view"]');
+    await expect(link, 'the tablet console has no route to the channel view').toBeVisible();
+    await link.click();
+    await page.waitForTimeout(400);
+
+    await expect(page.locator('[data-testid="channel-view"]')).toBeVisible();
+    // And the combo bar says so: the button that draws an editor is the one
+    // that is on, rather than the pane and the bar disagreeing.
+    await expect(page.locator('[data-testid="combo-piano"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
 });

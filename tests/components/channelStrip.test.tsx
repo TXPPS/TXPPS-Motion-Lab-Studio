@@ -16,12 +16,14 @@ function StripHost({ trackId }: { trackId: string }) {
   const project = useProjectStore((s) => s.project);
   const track = project.tracks.find((t) => t.id === trackId);
   if (!track) throw new Error(`no track ${trackId}`);
-  const buses = project.tracks.filter((t) => t.type === 'bus' || t.type === 'fx');
+  const buses = project.tracks.filter((t) => t.type === 'bus');
+  const sendTargets = project.tracks.filter((t) => t.type === 'bus' || t.type === 'fx');
   return (
     <ChannelStrip
       track={track}
       outputName="Master"
       buses={buses}
+      sendTargets={sendTargets}
       vcas={project.tracks.filter((t) => t.type === 'vca')}
       state={resolveChannels(project).get(trackId)}
     />
@@ -205,5 +207,90 @@ describe('ChannelStrip metering', () => {
     act(() => engineStub.frame());
 
     expect(engineStub.getMeter).not.toHaveBeenCalled();
+  });
+});
+
+describe('ChannelStrip routing — an output is a destination, a send is an amount', () => {
+  /*
+   * Item 14, on the console. `Mixer.tsx` built `[...buses, ...fxChannels]` and
+   * passed it as `buses`, where it filled the output select — so the desk has
+   * offered an FX return as an output destination for as long as the `fx` type
+   * has existed, which erases the one distinction the type was created to make.
+   * Phase A fixed the Channel view and recorded that this was still open;
+   * phase B rewrites this strip, so it is fixed here rather than edited around.
+   */
+  it('offers buses as outputs and not FX returns', () => {
+    const store = useProjectStore.getState();
+    const busId = store.addTrack('bus');
+    store.setTrack(busId, { name: 'Drum Bus' });
+    const fxId = store.addTrack('fx');
+    store.setTrack(fxId, { name: 'Plate' });
+
+    const track = firstTrack();
+    render(<StripHost trackId={track.id} />);
+    const select = screen.getByRole('combobox', { name: `${track.name} output` });
+    const values = [...select.querySelectorAll('option')].map((o) => o.getAttribute('value'));
+
+    expect(values).toContain(busId);
+    expect(values).not.toContain(fxId);
+  });
+
+  it('keeps an FX return a channel is already routed to', () => {
+    // Never silently re-route: a select that cannot represent its own value
+    // rewrites somebody's mix on first render.
+    const store = useProjectStore.getState();
+    store.addTrack('bus');
+    const fxId = store.addTrack('fx');
+    store.setTrack(fxId, { name: 'Plate' });
+    const track = firstTrack();
+    act(() => useProjectStore.getState().setTrack(track.id, { output: fxId }));
+
+    render(<StripHost trackId={track.id} />);
+    const select = screen.getByRole('combobox', { name: `${track.name} output` });
+
+    expect((select as HTMLSelectElement).value).toBe(fxId);
+    expect(select.textContent).toContain('Plate (FX return)');
+  });
+
+  it('still names an FX return a send goes to', () => {
+    // The merged list was not wrong for everything: a send row has to be able
+    // to name an FX return, which is why the two lists both exist rather than
+    // one of them being deleted.
+    const store = useProjectStore.getState();
+    const fxId = store.addTrack('fx');
+    store.setTrack(fxId, { name: 'Plate' });
+    const track = firstTrack();
+    act(() =>
+      useProjectStore.getState().setTrack(track.id, {
+        sends: [{ busId: fxId, amount: 0.5, enabled: true, preFader: false }],
+      }),
+    );
+
+    render(<StripHost trackId={track.id} />);
+
+    expect(screen.getByText('Plate')).toBeVisible();
+  });
+
+  it('and the console wires it that way, not only the strip', async () => {
+    /*
+     * The defect was in `Mixer.tsx`, not in the strip: it built one merged list
+     * and passed it as `buses`. `StripHost` above hands the strip two correct
+     * lists, so every case in this describe would pass with the console still
+     * wired wrongly. This one renders the real console.
+     */
+    const { Mixer } = await import('../../src/components/mixer/Mixer');
+    const store = useProjectStore.getState();
+    const busId = store.addTrack('bus');
+    store.setTrack(busId, { name: 'Drum Bus' });
+    const fxId = store.addTrack('fx');
+    store.setTrack(fxId, { name: 'Plate' });
+    const track = firstTrack();
+
+    render(<Mixer />);
+    const select = screen.getByRole('combobox', { name: `${track.name} output` });
+    const values = [...select.querySelectorAll('option')].map((o) => o.getAttribute('value'));
+
+    expect(values).toContain(busId);
+    expect(values).not.toContain(fxId);
   });
 });

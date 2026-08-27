@@ -302,6 +302,19 @@ test.describe('every device offers the same options', () => {
   });
 
   test('every effect the add menu offers gets an options menu on a track', async ({ page }) => {
+    /*
+     * The budget is the instrument, not the requirement.
+     *
+     * This walks every kind the add menu offers — forty-two of them, read from
+     * the app rather than written down — and each round adds a device, closes
+     * its window, scrolls to the new row and measures it. It has been finishing
+     * at 54 to 59 s against the suite-wide 60 s ever since, and phase B put it
+     * over: a desktop console keeps its dB readout again, which moves the rack
+     * and adds a scroll per round. Trimming rounds to fit a clock would be
+     * shrinking the axis to fit the ruler, and the axis is the point — so the
+     * clock moves and says why.
+     */
+    test.setTimeout(150_000);
     const rack = await firstTrackRack(page);
     const kinds = await offeredKinds(page, rack);
     // The axis is read from the app. A hand-written list is how the master

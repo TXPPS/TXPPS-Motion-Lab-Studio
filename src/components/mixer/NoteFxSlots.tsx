@@ -13,10 +13,13 @@
  * bottom is reading the signal path, and that is the whole reason this is here
  * rather than in a fifth grid row of its own.
  *
- * They live inside `dev-rack` rather than beside it because the strip's grid
- * places every row explicitly — a tenth row means editing five templates, and
- * `mixer.css`'s `@container` blocks renumber rows per tier, which is the change
- * this repository has a written warning about.
+ * They live inside `dev-rack` rather than beside it because that is where they
+ * are in the signal path, and because it makes them the rack's problem rather
+ * than the ladder's: a tenth strip row would need a rung of its own in both
+ * tier ladders, derived from its own measured height, and it would have to
+ * argue for outranking something already there. Inside the rack it arrives and
+ * leaves with the rack, which is the right answer to "when is there room for
+ * this" — there is room for it exactly when there is room for the chain.
  *
  * A slot opens the inspector rather than editing in place. A channel strip is
  * 96px wide and an arpeggiator has seven parameters; the strip's job is to say

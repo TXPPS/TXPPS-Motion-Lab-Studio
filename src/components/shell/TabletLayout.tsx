@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useViewport } from '../../hooks/useViewport';
+import { useUiStore } from '../../state/uiStore';
+import type { EditorId } from '../../app/editorIds';
 import { useWorkspaceStore } from '../../state/workspaceStore';
 import { Arrangement } from '../arrangement/Arrangement';
 import { BrowserPanel } from '../browser/BrowserPanel';
@@ -91,7 +93,34 @@ function Drawer({
 }
 
 export function TabletLayout() {
-  const [combo, setCombo] = useState<Combo>('mixer');
+  /*
+   * The combo is DERIVED from the editor tab rather than kept beside it.
+   *
+   * It was `useState`, local to this component, so nothing outside could reach
+   * it — and a control that asked for an editor tab set the tab, revealed the
+   * pane, and watched the pane go on drawing the mixer. The console's chain
+   * summary is one; the cue bar's link to the channel is another, and it has
+   * been that way since the Channel view shipped. On a phone and a desktop both
+   * work, which is exactly why nobody saw it.
+   *
+   * `EditorSurface` already reads `editorTab` to decide *which* editor to draw,
+   * so the two were coupled in one direction. Deriving closes the loop: "which
+   * editor" and "is an editor showing" become one answer instead of two that
+   * can disagree. `editorTab` defaults to `'mixer'`, which is what this pane
+   * opened on before.
+   */
+  const editorTab = useUiStore((s) => s.editorTab);
+  const combo: Combo = editorTab === 'mixer' ? 'mixer' : editorTab === 'synth' ? 'synth' : 'piano';
+  // Which editor the Piano Roll button goes back to. Somebody who was editing a
+  // clip, looked at the mixer and came back expects that clip, not a default.
+  const lastEditor = useRef<EditorId>('piano');
+  useEffect(() => {
+    if (combo === 'piano') lastEditor.current = editorTab;
+  }, [combo, editorTab]);
+  const setCombo = (c: Combo) =>
+    useUiStore.getState().set({
+      editorTab: c === 'mixer' ? 'mixer' : c === 'synth' ? 'synth' : lastEditor.current,
+    });
   const [drawer, setDrawer] = useState<null | 'browser' | 'inspector'>(null);
   const { height } = useViewport();
   const maximized = useWorkspaceStore((s) => s.maximized);

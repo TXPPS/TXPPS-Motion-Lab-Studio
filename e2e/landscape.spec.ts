@@ -132,44 +132,54 @@ test.describe('nothing is drawn on top of anything else', () => {
   for (const form of MATRIX) {
     test(`${form.id}: no in-flow sibling overlaps, in any section`, async ({ browser }) => {
       /*
-       * Landscape is a known failure and is recorded here rather than skipped,
-       * with the measurement, so that fixing it turns this red.
+       * Landscape was a known failure and was recorded here rather than
+       * skipped, with the measurement, so that fixing it would turn this red.
+       * It did, and these two lines are what it turned red to say:
        *
-       * The rack is drawn through the fader: 7px on a phone in landscape, and
-       * 44px through the fader plus 16 through the buttons and 9 through the
-       * footer on a tablet in landscape, where the mixer shares the arrange view
-       * and no height tier matches. `min-height` on a grid item does not shrink
-       * to fit its area — it makes the item paint outside it — and the rack's
-       * floor is one whole device row plus the Insert button, plus another row
-       * on a channel that carries an instrument.
+       *   test.fail(form.id.endsWith('landscape'), 'the channel strip redesign, items 12-14');
        *
-       * Three fixes were tried and each traded the defect for another one.
-       * Setting the floor to zero stopped the overflow and started clipping: the
-       * inspector's rack sits in a short container too, and every device row
-       * fell half outside its box — forty-two options buttons at 21 x 8.5,
-       * caught by `devicewindow.spec.ts`. Lowering the floor to one whole row
-       * did the same from the other side, because the floor is a row *and* the
-       * button. Deriving `--dev-rack-h` from its parts on a coarse pointer fixed
-       * the tablet and left the phone.
+       * What was wrong was not a number. The strip was a grid of nine numbered
+       * tracks, and a grid item whose `min-height` exceeds its track neither
+       * shrinks nor overflows the grid — it paints outside its own track, over
+       * the row below. On a tablet in landscape that was 34 px of device rack
+       * drawn through the fader with the rows above it squeezed to 6 px, and on
+       * a phone in landscape 7 px of the same. Three caps were tried on the
+       * rack and each moved the collision to whichever row lost next, because
+       * the rack's floor was 140 px and the whole strip was 131.
        *
-       * That is the evidence rather than a shortfall of effort: the strip is
-       * being asked for nine rows of touch-sized controls in a space that holds
-       * four, and every cap moves the collision to whichever row loses next. It
-       * is the channel-strip redesign — items 12 to 14, the quick-EQ strip
-       * leaving the mixer and the rack becoming collapsible — and pre-empting it
-       * with a fourth cap would be the same trade again.
-       *
-       * `test.fail` rather than `fixme`: when the redesign lands these go red
-       * and say to delete these lines.
+       * The strip is a flex column now, and the ladder in `mixer.css` drops
+       * rows against floors derived from their measured heights rather than
+       * fractions of the rack's. A flex column cannot stack two rows in one
+       * row's space: it overflows the bottom, where `overflow: hidden` clips
+       * it. Clipping is wrong and visible; overlapping is wrong and invisible,
+       * and only a hit test ever finds it — which is why this sweep stays.
        */
-      test.fail(form.id.endsWith('landscape'), 'the channel strip redesign, items 12-14');
       const { page, close } = await open(browser, form);
       try {
         const found: string[] = [];
+        const skipped: string[] = [];
+        let sawConsole = false;
         for (const section of SECTIONS) {
-          if (!(await goTo(page, section.nav))) continue;
+          // A section this shell does not offer is skipped, and how much was
+          // skipped is reported rather than left to be inferred. The `return`
+          // in the case below this one was the same shape and had silently
+          // never run on a tablet.
+          if (!(await goTo(page, section.nav))) {
+            skipped.push(section.id);
+            continue;
+          }
+          if ((await page.locator('[data-strip="channel"]').count()) > 0) sawConsole = true;
           for (const hit of await overlaps(page)) found.push(`${section.id}: ${hit}`);
         }
+        // The console is the surface this file was written for, so a sweep that
+        // never had one on screen has not swept it — whichever section it
+        // turned up in. On a tablet that is the arrange view's bottom pane and
+        // there is no mixer section to reach at all.
+        expect(
+          sawConsole,
+          `${form.id}: no channel strip was on screen in any section, so the console was ` +
+            `not swept. Sections skipped for want of a control: ${skipped.join(', ') || 'none'}`,
+        ).toBe(true);
         expect(
           found,
           `${form.id} draws these on top of each other:\n  ${found.join('\n  ')}`,
@@ -207,7 +217,7 @@ test.describe('nothing is drawn on top of anything else', () => {
   });
 });
 
-test.describe('a short console can still show a whole device row', () => {
+test.describe('a short console still says what is on each channel', () => {
   /*
    * What the rack's floor was written to protect, stated as what it actually
    * requires.
@@ -225,18 +235,53 @@ test.describe('a short console can still show a whole device row', () => {
    * removed — and scrolling did not answer it, because the thing that did not
    * fit was a single row. So: the rack is at least one whole row tall, and every
    * row can be brought fully into view.
+   *
+   * Phase B added the other half. Below the tier where a 140 px rack fits a
+   * 131 px strip there is no rack on the console at all — a chain summary takes
+   * its row — so this waited ten seconds for an element the product had
+   * correctly stopped drawing and called that a failure. A test that asserts on
+   * a rack must first ask whether this tier has one, and the assertion that
+   * matters at every tier is the one below it: a console never draws NEITHER.
+   * That is what makes the substitution a substitution rather than a deletion.
    */
   for (const form of MATRIX.filter((f) => f.touch)) {
-    test(`${form.id}: the rack holds a whole row, and every row can be reached`, async ({
-      browser,
-    }) => {
+    test(`${form.id}: every strip says what is on it, and no row is cut`, async ({ browser }) => {
       const { page, close } = await open(browser, form);
       try {
-        if (!(await goTo(page, 'nav-mix'))) return;
-        await page.waitForSelector('.dev-rack', { timeout: 10000 });
+        /*
+         * Reached, or the case says so.
+         *
+         * This was `if (!(await goTo(page, 'nav-mix'))) return;` — and a tablet
+         * has no `nav-mix`, so on two of the five form factors it returned
+         * before asserting anything and reported a pass. Found by a mutation
+         * that took the chain summary away and did not turn it red. A console
+         * on a tablet is in the arrange view's bottom pane and needs no
+         * navigation at all, which is why nothing ever noticed.
+         */
+        await goTo(page, 'nav-mix');
+        await page.waitForSelector('[data-strip="channel"]', { timeout: 10000 });
         const bad = await page.evaluate(() => {
           const out: string[] = [];
+          const drawn = (el: Element | null) => !!el && getComputedStyle(el).display !== 'none';
+          const strips = '[data-strip="channel"], [data-strip="master"]';
+          for (const strip of document.querySelectorAll<HTMLElement>(strips)) {
+            const rack = drawn(strip.querySelector('.dev-rack'));
+            const chain = drawn(strip.querySelector('.strip-chain'));
+            const route = drawn(strip.querySelector('.strip-foot'));
+            const name = strip.getAttribute('data-testid');
+            // Both is the rack's floor back again, at every height.
+            if (rack && chain) out.push(`${name} draws both a rack and a chain summary`);
+            // Neither is the ladder's last rung, and it is only that where the
+            // route row has already gone: the summary is ranked below the route
+            // and is dropped after it. Neither, with a route still drawn, is a
+            // console that gave up saying what is on the channel while a row it
+            // ranks above was still costing it space.
+            if (!rack && !chain && route) {
+              out.push(`${name} draws no rack and no chain summary while it still draws a route`);
+            }
+          }
           for (const rack of document.querySelectorAll<HTMLElement>('.dev-rack')) {
+            if (getComputedStyle(rack).display === 'none') continue;
             const rows = [...rack.querySelectorAll<HTMLElement>('.dev-slot, .dev-instrument')];
             if (rows.length === 0) continue;
             const rowH = rows[0].getBoundingClientRect().height;
@@ -252,7 +297,7 @@ test.describe('a short console can still show a whole device row', () => {
           }
           return out;
         });
-        expect(bad, `racks that cannot show a whole device row: ${bad.join(', ')}`).toEqual([]);
+        expect(bad, `strips that cannot show their chain: ${bad.join(', ')}`).toEqual([]);
       } finally {
         await close();
       }

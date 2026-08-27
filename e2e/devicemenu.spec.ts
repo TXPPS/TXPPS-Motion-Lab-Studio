@@ -78,6 +78,34 @@ async function open(browser: Browser, form: Form): Promise<{ ctx: BrowserContext
   await page.waitForTimeout(500);
   await page.locator(form.nav).first().click();
   await page.waitForTimeout(500);
+
+  /*
+   * Every claim in this file is about the CONSOLE rack, so the console has to
+   * be showing one.
+   *
+   * At a tablet's default split the mixer gets 280.8 px and the rack's coarse
+   * floor is 290, so the tier ladder draws the chain summary in its place and
+   * a tablet's chain lives in the Channel view. Full screen is the product's
+   * own one-tap answer to "I want more console" — it gives the mixer 801 px
+   * and the rack comes back — so this is a fixture step and not a workaround.
+   *
+   * It is also what caught the failure late and confusingly the first time: a
+   * hidden row is still in the DOM, so `addDevice`'s `el.click()` on the
+   * Insert button went on working and the assertions failed three steps later
+   * against controls nobody could see. Asking for a *visible* one is the check.
+   */
+  const insert = page.locator('[data-testid^="device-add-"]:visible');
+  if ((await insert.count()) === 0) {
+    const maxi = page.locator('[data-testid="maximize-editor"]');
+    if (await maxi.isVisible().catch(() => false)) {
+      await maxi.click();
+      await page.waitForTimeout(600);
+    }
+  }
+  await expect(
+    insert.first(),
+    `${form.id}: no console rack on screen even at full screen, so this file has no subject`,
+  ).toBeVisible({ timeout: 10000 });
   return { ctx, page };
 }
 
@@ -94,7 +122,7 @@ async function addDevice(
   opts: { keepWindow?: boolean } = {},
 ): Promise<string> {
   const names = await page
-    .locator('[data-testid^="device-add-"]')
+    .locator('[data-testid^="device-add-"]:visible')
     .evaluateAll((els) =>
       els.map((e) => (e.getAttribute('data-testid') ?? '').replace('device-add-', '')),
     );

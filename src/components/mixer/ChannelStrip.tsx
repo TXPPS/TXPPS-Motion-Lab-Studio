@@ -24,6 +24,7 @@ import { useWorkspaceStore } from '../../state/workspaceStore';
 import { useUiStore } from '../../state/uiStore';
 import { Fader, PanKnob, PeakReadout, StereoMeter, panText } from '../common/widgets';
 import { DeviceRack, masterRack, trackRack } from './DeviceRack';
+import { ChainSummary } from './ChainSummary';
 import { cueSendOf, findCue } from '../../model/cueMix';
 
 /** The cue being monitored, if any. Null means the main mix, which is the norm. */
@@ -87,7 +88,18 @@ function SendRows({ track, busName }: { track: Track; busName: (id: string) => s
 export interface StripProps {
   track: Track;
   outputName: string;
+  /**
+   * Where this channel's whole signal can go. Buses only.
+   *
+   * It was `[...buses, ...fxChannels]` and it filled the output select, so the
+   * console offered an FX return as an output destination for as long as the
+   * type has existed — which erases the one distinction `fx` was created to
+   * make: fed by sends rather than by output routing. Item 14 names this
+   * exactly, and `Routing.tsx` is the same fix on the Channel view.
+   */
   buses: Track[];
+  /** Where a COPY of it can go: buses and FX returns. Naming, on this surface. */
+  sendTargets: Track[];
   /** For a bus or FX strip: names of the tracks routed or sending into it. */
   feeds?: string[];
   /** Resolved audibility, so a strip can show WHY it is silent. */
@@ -99,6 +111,7 @@ export const ChannelStrip = memo(function ChannelStrip({
   track,
   outputName,
   buses,
+  sendTargets,
   feeds,
   state,
   vcas,
@@ -110,7 +123,16 @@ export const ChannelStrip = memo(function ChannelStrip({
   const autoLanes = (track.automation ?? []).filter((l) => l.enabled && l.points.length > 0);
   const autoMode = track.automationMode ?? 'read';
   const trim = track.inputGainDb ?? 0;
+  // One rack for both, because both take the same one. Two calls meant two
+  // fresh objects per render and the `memo` on each was doing nothing.
+  const rack = trackRack(track);
   const vca = vcas.find((v) => v.id === track.vcaId);
+  // Not in `buses` and not `master`: an output this channel already has that
+  // the menu would otherwise be unable to show.
+  const stray =
+    track.output === 'master' || buses.some((b) => b.id === track.output)
+      ? null
+      : (sendTargets.find((t) => t.id === track.output) ?? null);
 
   // While a cue mix is being monitored, the fader, pan and mute belong to the
   // cue: what you hear is what you are adjusting. Everything else on the strip
@@ -203,8 +225,18 @@ export const ChannelStrip = memo(function ChannelStrip({
         </button>
       </div>
 
-      <DeviceRack rack={trackRack(track)} />
-      <SendRows track={track} busName={(id) => buses.find((b) => b.id === id)?.name ?? 'Bus'} />
+      {/* Both, and only one of them is ever drawn. Which is a tier decision and
+          therefore CSS's: the rack survives while its floor fits the strip, and
+          below that the summary takes the row. Rendering both and hiding one is
+          what keeps that decision in the place that can see the container's
+          height — a JS breakpoint would be a second opinion about the layout,
+          and the two would disagree the first time a token moved. */}
+      <DeviceRack rack={rack} />
+      <ChainSummary rack={rack} />
+      <SendRows
+        track={track}
+        busName={(id) => sendTargets.find((b) => b.id === id)?.name ?? 'Bus'}
+      />
 
       <div className="strip-pan">
         <PanKnob
@@ -318,6 +350,12 @@ export const ChannelStrip = memo(function ChannelStrip({
                 {b.name}
               </option>
             ))}
+            {/* A channel already routed to an FX return keeps that option, so
+                the control can still represent its own value. A select that
+                cannot re-routes somebody's mix on first render — the rule
+                `paramIdExists` follows, and the reason it is deliberately
+                wide. */}
+            {stray && <option value={stray.id}>{stray.name} (FX return)</option>}
           </select>
         ) : (
           <div className="strip-route static" title={outputName}>
@@ -351,6 +389,7 @@ export const MasterStrip = memo(function MasterStrip() {
   const masterVolume = useProjectStore((s) => s.project.master?.volume ?? s.project.masterVolume);
   const store = useProjectStore;
   const fx = master?.effects ?? [];
+  const rack = masterRack(fx);
 
   return (
     <div
@@ -385,7 +424,8 @@ export const MasterStrip = memo(function MasterStrip() {
         </button>
       </div>
 
-      <DeviceRack rack={masterRack(fx)} />
+      <DeviceRack rack={rack} />
+      <ChainSummary rack={rack} />
 
       <div className="strip-pan">
         <PanKnob
