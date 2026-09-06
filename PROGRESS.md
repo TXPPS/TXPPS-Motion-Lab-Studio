@@ -9,13 +9,14 @@ RESUME: F12 — the Granular Delay ships as the eighth unit: a transport whose
         is complete: thirteen of thirteen files, the damper included, and
         the Slipstream Sampler is under way on it.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
-Deployed commit: 9cdc69c, bundle index-Buj7ZIVp.js, sha256 9fed40d1cf5ec30d
+Deployed commit: 46cfa28, bundle index-DyfrcXtf.js, sha256 e5668e744d0238b4
                  over 450737 bytes - fetched from the live worker by
                  `npm run deploy:check` and compared byte-for-byte against the
-                 clean-tree build, not matched by name. e53d59c before it
-                 (index-DSGWwjaz.js, c78bae8077339498) and 3cdf869 before that
-                 (index-NMs_q7-T.js, 8764a17d72a32f4f), both verified the same
-                 way. This line names the tip at the moment it was written, so
+                 clean-tree build, not matched by name; it landed on the
+                 second poll, twenty seconds after the first. 8b44f3d before
+                 it (index-BCyzVgry.js, 45ac00f8d8c1480d) and 9cdc69c before
+                 that (index-Buj7ZIVp.js, 9fed40d1cf5ec30d), both verified the
+                 same way. This line names the tip at the moment it was written, so
                  the commit that edits it is by construction one ahead of what
                  it describes.
                  **`npm run deploy:check` is the procedure now**, and it takes
