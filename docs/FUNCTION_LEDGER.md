@@ -27,7 +27,7 @@ Coverage is counted as **rows with a state-asserting result**, never as rows
 that are not FAIL. Those are the same number only until somebody is tempted to
 make the column green.
 
-Coverage: **230 of 405 ledger rows** (56.8%) have a state-asserting result. Two instruments drive them: the functional soak against the running app (136 rows, measured on `index-SzbiKoyF.js`, `284df55ed4a0f5fa`) and the store sweep in `npm test` (161 rows). 108 rows have no case at all and are named under "Never driven" below.
+Coverage: **231 of 405 ledger rows** (57.0%) have a state-asserting result. Two instruments drive them: the functional soak against the running app (137 rows, measured on `index-BFS3-7sY.js`, `dcccecd8a0ba52e5`) and the store sweep in `npm test` (161 rows). 107 rows have no case at all and are named under "Never driven" below.
 
 | kind | count |
 | --- | --- |
@@ -48,18 +48,11 @@ together is what let the coverage figure read as half rather than a sixth.
 | kind | undriven | of | why |
 | --- | --- | --- | --- |
 | action | 87 | 87 | no case exists for any of them. `scripts/soak/cases.mjs` covers stores directly and reaches actions only where a shortcut happens to call one |
-| effect | 1 | 35 | driven — any listed here failed to instantiate |
 | surface | 20 | 20 | the functional sweep asserts state changes; reaching a surface is `npm run reachability`’s subject, and that sweep reports separately |
 
 <details><summary>action — 87 rows</summary>
 
 `action:audioEditActions.analyzeClip`, `action:audioEditActions.clipBufferReady`, `action:audioEditActions.crossfadeSelection`, `action:audioEditActions.ensureClipDecoded`, `action:audioEditActions.healSelection`, `action:audioEditActions.maxSlipOffset`, `action:audioEditActions.mediaDurationSec`, `action:audioEditActions.normalizeClip`, `action:audioEditActions.packSelectionIntoTakes`, `action:audioEditActions.rippleDeleteSelection`, `action:audioEditActions.zoomToSelection`, `action:automationActions.activeCaptureCount`, `action:automationActions.captureParamChange`, `action:automationActions.captureParamRelease`, `action:automationActions.copyAutomationSelection`, `action:automationActions.deleteAutomationSelection`, `action:automationActions.duplicateAutomationSelection`, `action:automationActions.hasAutomationClipboard`, `action:automationActions.pasteAutomation`, `action:automationActions.startAutomationRunners`, `action:chainActions.applyChainSteps`, `action:chainActions.captureChain`, `action:clipboardActions.clipboardCount`, `action:clipboardActions.copySelection`, `action:clipboardActions.cutSelection`, `action:clipboardActions.duplicateSelection`, `action:clipboardActions.pasteAtPlayhead`, `action:clipboardActions.resetClipboard`, `action:exportActions.cancelExport`, `action:exportActions.exportLoopRegion`, `action:exportActions.exportProject`, `action:exportActions.exportState`, `action:exportActions.exportWav`, `action:exportActions.normalizeInPlace`, `action:exportActions.onExportState`, `action:importActions.dragHasFiles`, `action:importActions.importDrop`, `action:importActions.importToNewTrack`, `action:importActions.isImporting`, `action:importActions.pickAndImport`, `action:importActions.runImport`, `action:midiFileActions.exportMidiFile`, `action:midiFileActions.importMidiFile`, `action:midiFileActions.isMidiFile`, `action:midiFileActions.pickMidiFile`, `action:monitorActions.inputDeviceOf`, `action:monitorActions.inputFormatOf`, `action:monitorActions.isInputOpen`, `action:monitorActions.isMonitoring`, `action:monitorActions.setArmed`, `action:monitorActions.setTrackInputDevice`, `action:monitorActions.setTrackInputFormat`, `action:monitorActions.syncTrackInput`, `action:monitorActions.toggleMonitoring`, `action:monitorActions.wantedInput`, `action:projectActions.bootProject`, `action:projectActions.deleteById`, `action:projectActions.duplicateById`, `action:projectActions.installAutosave`, `action:projectActions.mergeProjectById`, `action:projectActions.newProject`, `action:projectActions.newProjectFromTemplate`, `action:projectActions.openProject`, `action:projectActions.renameCurrent`, `action:projectActions.saveCurrent`, `action:projectActions.saveCurrentAs`, `action:rangeActions.hasRangeClipboard`, `action:rangeActions.rangeCopy`, `action:rangeActions.rangeCrop`, `action:rangeActions.rangeCut`, `action:rangeActions.rangeDelete`, `action:rangeActions.rangeDuplicate`, `action:rangeActions.rangeFade`, `action:rangeActions.rangeInsertSilence`, `action:rangeActions.rangePaste`, `action:rangeActions.rangeSplit`, `action:rangeActions.stripSilenceFromClip`, `action:recoveryActions.describeRecovery`, `action:recoveryActions.discardAllRecoveries`, `action:recoveryActions.discardRecovery`, `action:recoveryActions.recoverTake`, `action:recoveryActions.scanRecoveries`, `action:samplerImportActions.openSampleSourceMenu`, `action:samplerImportActions.pickSamplesInto`, `action:samplerImportActions.placeSamples`, `action:samplerImportActions.projectSamples`, `action:samplerImportActions.sampleSourceItems`
-
-</details>
-
-<details><summary>effect — 1 rows</summary>
-
-`effect:mw-granular-delay`
 
 </details>
 
@@ -174,11 +167,11 @@ together is what let the coverage figure read as half rather than a sixth.
 | `effect:flanger` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 3.29e-2 RMS |
 | `effect:gainMatch` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.94e-3 RMS |
 | `effect:gate` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.52e-2 RMS |
-| `effect:limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.73e-1 RMS |
+| `effect:limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.74e-1 RMS |
 | `effect:multiband` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.90e-1 RMS |
 | `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.18e-1 RMS |
-| `effect:mw-fet-limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.12e-1 RMS |
-| `effect:mw-granular-delay` | insert rack | effect | ? | ? | ? | none | FAIL | not attempted |
+| `effect:mw-fet-limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.13e-1 RMS |
+| `effect:mw-granular-delay` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.38e-2 RMS |
 | `effect:mw-granular-reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.12e-3 RMS |
 | `effect:mw-motion-shaper` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 7.40e-2 RMS |
 | `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.06e-1 RMS |
@@ -186,7 +179,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `effect:mw-variable-mu` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.09e-1 RMS |
 | `effect:phaser` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.91e-2 RMS |
 | `effect:pingpong` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.20e-2 RMS |
-| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.11e-2 RMS |
+| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 8.24e-3 RMS |
 | `effect:rotary` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.61e-2 RMS |
 | `effect:saturator` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.92e-1 RMS |
 | `effect:tremolo` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.27e-3 RMS |
@@ -295,7 +288,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.addRecordedClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | clip <id> — store sweep |
 | `store:projectStore.addSamplerZones` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | zones 1 — store sweep |
 | `store:projectStore.addSection` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | section <id> — store sweep |
-| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmtc0eym10e7vex |
+| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmtq2w6j40e7quo |
 | `store:projectStore.addVca` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | vca <id> — store sweep |
 | `store:projectStore.applyGrooveToClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | groove applied — store sweep |
 | `store:projectStore.applyPreset` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | synth preset Deep Saw Bass — store sweep |
@@ -337,7 +330,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.moveSection` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order Chorus,Verse — store sweep |
 | `store:projectStore.moveTake` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order <id>,<id> — store sweep |
 | `store:projectStore.moveTempoEvent` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | moved to 12 — store sweep |
-| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmtc0ersw06v0yx,tmtc0ersw06whgt,tmtc0ersw06xmjb,tmtc0ersw06ywqn,tmtc0ersw06zurw,tmtc0ersw070jns,tmtc0erxv0dpoqc,tmtc0erxw0dr3m1,tmtc0erxw0e0kze,tmtc0erxx0e1jq7,tmtc0ersw071sqe,tmtc0ersw072w4p,tmtc0erxx0e2jni -> tmtc0ersw06whgt,tmtc0ersw06xmjb,tmtc0ersw06v0yx,tmtc0ersw06ywqn,tmtc0ersw06zurw,tmtc0ersw070jns,tmtc0erxv0dpoqc,tmtc0erxw0dr3m1,tmtc0erxw0e0kze,tmtc0erxx0e1jq7,tmtc0ersw071sqe,tmtc0ersw072w4p,tmtc0erxx0e2jni |
+| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmtq2w06406veiu,tmtq2w06406wav6,tmtq2w06406xu20,tmtq2w06406yy4d,tmtq2w06406z7ri,tmtq2w064070c7l,tmtq2w0ab0dpmxg,tmtq2w0ac0drk46,tmtq2w0ac0e00ci,tmtq2w0ad0e1vbl,tmtq2w064071dmb,tmtq2w064072vew,tmtq2w0ad0e24nc -> tmtq2w06406wav6,tmtq2w06406xu20,tmtq2w06406veiu,tmtq2w06406yy4d,tmtq2w06406z7ri,tmtq2w064070c7l,tmtq2w0ab0dpmxg,tmtq2w0ac0drk46,tmtq2w0ac0e00ci,tmtq2w0ad0e1vbl,tmtq2w064071dmb,tmtq2w064072vew,tmtq2w0ad0e24nc |
 | `store:projectStore.packTakes` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | packed into <id> — store sweep |
 | `store:projectStore.promoteTake` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | promoted <id> — store sweep |
 | `store:projectStore.rackAddItem` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | rack item <id> — store sweep |
@@ -446,7 +439,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:uiStore.openEditorFor` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | editing clip-a on the piano tab — store sweep |
 | `store:uiStore.selectClip` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | primary clip-a, set 1 — store sweep |
 | `store:uiStore.selectClips` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | primary clip-c of 3 — store sweep |
-| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmtc0erxv0dpoqc -> tmtc0ersw06whgt |
+| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmtq2w0ab0dpmxg -> tmtq2w06406wav6 |
 | `store:uiStore.set` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — editorTab mixer -> piano |
 | `store:uiStore.showDialog` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | dialog Sweep — store sweep |
 | `store:uiStore.showMenu` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | menu of 1 — store sweep |

@@ -1,10 +1,10 @@
 {
   "bundle": {
-    "entry": "index-SzbiKoyF.js",
-    "hash": "284df55ed4a0f5fa"
+    "entry": "index-BFS3-7sY.js",
+    "hash": "dcccecd8a0ba52e5"
   },
-  "srcFingerprint": "a4565dd0f7463906",
-  "seed": 1787864580,
+  "srcFingerprint": "5769ea795f1e8c60",
+  "seed": 1788715270,
   "rows": [
     {
       "id": "shortcut:play",
@@ -1289,15 +1289,15 @@
       "forms": {
         "phone": {
           "state": "PASS",
-          "why": "project, undo changed — 13 -> 14 tracks, id tmtc0eym10e7vex"
+          "why": "project, undo changed — 13 -> 14 tracks, id tmtq2w6j40e7quo"
         },
         "tablet": {
           "state": "PASS",
-          "why": "project, undo changed — 13 -> 14 tracks, id tmtc0fbqg0e7eny"
+          "why": "project, undo changed — 13 -> 14 tracks, id tmtq2wioq0e7k4k"
         },
         "desktop": {
           "state": "PASS",
-          "why": "project, surfaces, undo changed — 13 -> 14 tracks, id tmtc0fosc0e7rk0"
+          "why": "project, surfaces, undo changed — 13 -> 14 tracks, id tmtq2wv0r0e70s9"
         }
       },
       "covered": true
@@ -1397,15 +1397,15 @@
       "forms": {
         "phone": {
           "state": "PASS",
-          "why": "project, undo changed — tmtc0ersw06v0yx,tmtc0ersw06whgt,tmtc0ersw06xmjb,tmtc0ersw06ywqn,tmtc0ersw06zurw,tmtc0ersw070jns,tmtc0erxv0dpoqc,tmtc0erxw0dr3m1,tmtc0erxw0e0kze,tmtc0erxx0e1jq7,tmtc0ersw071sqe,tmtc0ersw072w4p,tmtc0erxx0e2jni -> tmtc0ersw06whgt,tmtc0ersw06xmjb,tmtc0ersw06v0yx,tmtc0ersw06ywqn,tmtc0ersw06zurw,tmtc0ersw070jns,tmtc0erxv0dpoqc,tmtc0erxw0dr3m1,tmtc0erxw0e0kze,tmtc0erxx0e1jq7,tmtc0ersw071sqe,tmtc0ersw072w4p,tmtc0erxx0e2jni"
+          "why": "project, undo changed — tmtq2w06406veiu,tmtq2w06406wav6,tmtq2w06406xu20,tmtq2w06406yy4d,tmtq2w06406z7ri,tmtq2w064070c7l,tmtq2w0ab0dpmxg,tmtq2w0ac0drk46,tmtq2w0ac0e00ci,tmtq2w0ad0e1vbl,tmtq2w064071dmb,tmtq2w064072vew,tmtq2w0ad0e24nc -> tmtq2w06406wav6,tmtq2w06406xu20,tmtq2w06406veiu,tmtq2w06406yy4d,tmtq2w06406z7ri,tmtq2w064070c7l,tmtq2w0ab0dpmxg,tmtq2w0ac0drk46,tmtq2w0ac0e00ci,tmtq2w0ad0e1vbl,tmtq2w064071dmb,tmtq2w064072vew,tmtq2w0ad0e24nc"
         },
         "tablet": {
           "state": "PASS",
-          "why": "project, undo changed — tmtc0f4ne06vr88,tmtc0f4ne06w1sv,tmtc0f4ne06xwtz,tmtc0f4ne06yd8k,tmtc0f4ne06z2wv,tmtc0f4ne070t2p,tmtc0f4th0dp9eq,tmtc0f4tj0drmll,tmtc0f4tj0e0fhj,tmtc0f4tk0e1jod,tmtc0f4ne071i2j,tmtc0f4ne0723ls,tmtc0f4tk0e2nfo -> tmtc0f4ne06w1sv,tmtc0f4ne06xwtz,tmtc0f4ne06vr88,tmtc0f4ne06yd8k,tmtc0f4ne06z2wv,tmtc0f4ne070t2p,tmtc0f4th0dp9eq,tmtc0f4tj0drmll,tmtc0f4tj0e0fhj,tmtc0f4tk0e1jod,tmtc0f4ne071i2j,tmtc0f4ne0723ls,tmtc0f4tk0e2nfo"
+          "why": "project, undo changed — tmtq2wc5q06v64l,tmtq2wc5q06wyq3,tmtq2wc5q06xp77,tmtq2wc5q06ycb0,tmtq2wc5q06zcpf,tmtq2wc5q070hqx,tmtq2wcbb0dp1gn,tmtq2wcbc0drxma,tmtq2wcbc0e08z3,tmtq2wcbd0e15xt,tmtq2wc5q071zsp,tmtq2wc5q0727xj,tmtq2wcbd0e2b5r -> tmtq2wc5q06wyq3,tmtq2wc5q06xp77,tmtq2wc5q06v64l,tmtq2wc5q06ycb0,tmtq2wc5q06zcpf,tmtq2wc5q070hqx,tmtq2wcbb0dp1gn,tmtq2wcbc0drxma,tmtq2wcbc0e08z3,tmtq2wcbd0e15xt,tmtq2wc5q071zsp,tmtq2wc5q0727xj,tmtq2wcbd0e2b5r"
         },
         "desktop": {
           "state": "PASS",
-          "why": "project, undo changed — tmtc0fhqy06vwwm,tmtc0fhqy06w06l,tmtc0fhqy06x3xd,tmtc0fhqy06y0x3,tmtc0fhqy06za9d,tmtc0fhqy070f9e,tmtc0fhwn0dpqb7,tmtc0fhwo0drrru,tmtc0fhwp0e0mqj,tmtc0fhwp0e17we,tmtc0fhqy0718e4,tmtc0fhqy072oom,tmtc0fhwq0e2nhf -> tmtc0fhqy06w06l,tmtc0fhqy06x3xd,tmtc0fhqy06vwwm,tmtc0fhqy06y0x3,tmtc0fhqy06za9d,tmtc0fhqy070f9e,tmtc0fhwn0dpqb7,tmtc0fhwo0drrru,tmtc0fhwp0e0mqj,tmtc0fhwp0e17we,tmtc0fhqy0718e4,tmtc0fhqy072oom,tmtc0fhwq0e2nhf"
+          "why": "project, undo changed — tmtq2woco06vmti,tmtq2woco06wfbz,tmtq2woco06x9yw,tmtq2woco06yzjm,tmtq2woco06zvga,tmtq2woco07019s,tmtq2woie0dpddg,tmtq2woif0dr7ad,tmtq2woig0e0sf1,tmtq2woig0e13uu,tmtq2woco071t27,tmtq2woco072c4o,tmtq2woih0e23e2 -> tmtq2woco06wfbz,tmtq2woco06x9yw,tmtq2woco06vmti,tmtq2woco06yzjm,tmtq2woco06zvga,tmtq2woco07019s,tmtq2woie0dpddg,tmtq2woif0dr7ad,tmtq2woig0e0sf1,tmtq2woig0e13uu,tmtq2woco071t27,tmtq2woco072c4o,tmtq2woih0e23e2"
         }
       },
       "covered": true
@@ -1757,15 +1757,15 @@
       "forms": {
         "phone": {
           "state": "PASS",
-          "why": "ui changed — selection tmtc0erxv0dpoqc -> tmtc0ersw06whgt"
+          "why": "ui changed — selection tmtq2w0ab0dpmxg -> tmtq2w06406wav6"
         },
         "tablet": {
           "state": "PASS",
-          "why": "ui changed — selection tmtc0f4th0dp9eq -> tmtc0f4ne06w1sv"
+          "why": "ui changed — selection tmtq2wcbb0dp1gn -> tmtq2wc5q06wyq3"
         },
         "desktop": {
           "state": "PASS",
-          "why": "ui changed — selection tmtc0fhwn0dpqb7 -> tmtc0fhqy06w06l"
+          "why": "ui changed — selection tmtq2woie0dpddg -> tmtq2woco06wfbz"
         }
       },
       "covered": true
@@ -1795,7 +1795,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 1.73e-1 RMS"
+          "why": "rendered audio differs by 1.74e-1 RMS"
         }
       },
       "covered": true
@@ -1965,7 +1965,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 1.11e-2 RMS"
+          "why": "rendered audio differs by 8.24e-3 RMS"
         }
       },
       "covered": true
@@ -2075,7 +2075,7 @@
       "forms": {
         "desktop": {
           "state": "PASS",
-          "why": "rendered audio differs by 1.12e-1 RMS"
+          "why": "rendered audio differs by 1.13e-1 RMS"
         }
       },
       "covered": true
@@ -2106,6 +2106,16 @@
         "desktop": {
           "state": "PASS",
           "why": "rendered audio differs by 9.12e-3 RMS"
+        }
+      },
+      "covered": true
+    },
+    {
+      "id": "effect:mw-granular-delay",
+      "forms": {
+        "desktop": {
+          "state": "PASS",
+          "why": "rendered audio differs by 1.38e-2 RMS"
         }
       },
       "covered": true
