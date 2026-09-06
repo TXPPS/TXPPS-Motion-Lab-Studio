@@ -98,6 +98,8 @@ mw_add_test(envelope_shapes_linear_tests core/test/envelope_shapes_linear_tests.
 mw_add_test(lfo_tests core/test/lfo_tests.cpp)
 mw_add_test(lfo_behaviour_tests core/test/lfo_behaviour_tests.cpp)
 mw_add_test(mod_grid_tests core/test/mod_grid_tests.cpp)
+mw_add_test(mod_matrix_tests core/test/mod_matrix_tests.cpp)
+mw_add_test(mod_matrix_model_tests core/test/mod_matrix_model_tests.cpp)
 mw_add_test(mpe_tests core/test/mpe_tests.cpp)
 mw_add_test(portamento_tests core/test/portamento_tests.cpp)
 mw_add_test(portamento_stagger_tests core/test/portamento_stagger_tests.cpp)
