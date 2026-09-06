@@ -95,14 +95,14 @@ export function ChordAssistant() {
         quality: c.quality,
       }));
     });
-    useWorkspaceStore.getState().setSizes({ showChords: true });
+    useWorkspaceStore.getState().setLayout({ showChords: true });
     useUiStore.getState().toast('info', `Found ${found.length} chords.`);
   };
 
   const place = (root: number, quality: string) => {
     const beat = last ? last.beat + 4 : Math.max(0, Math.round(playhead));
     useProjectStore.getState().setChord(beat, root, quality);
-    useWorkspaceStore.getState().setSizes({ showChords: true });
+    useWorkspaceStore.getState().setLayout({ showChords: true });
   };
 
   const audition = (root: number, quality: string) => {
@@ -206,7 +206,7 @@ export function ChordAssistant() {
                 for (const e of progressionToChords(p, tonic, start)) {
                   useProjectStore.getState().setChord(e.beat, e.root, e.quality);
                 }
-                useWorkspaceStore.getState().setSizes({ showChords: true });
+                useWorkspaceStore.getState().setLayout({ showChords: true });
               }}
               data-testid={`progression-${p.id}`}
             >

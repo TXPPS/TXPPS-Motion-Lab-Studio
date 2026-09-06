@@ -212,7 +212,7 @@ export function createHugeAutomationProject(): ProjectData {
     metronome: false,
     createdAt: now,
     modifiedAt: now,
-    workspace: { pxPerBeat: 10, snap: 0.25 },
+    workspace: { pxPerBeat: 10, snap: 0.25, laneScale: 1 },
     tracks,
     clips,
     media: [],

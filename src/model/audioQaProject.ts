@@ -321,7 +321,7 @@ export function createAudioQaProject(): ProjectData {
     modifiedAt: now,
     // Zoomed in a little further than the layout fixture: these clips are
     // being inspected for waveform and fade detail, not for scroll range.
-    workspace: { pxPerBeat: 30, snap: 0.25 },
+    workspace: { pxPerBeat: 30, snap: 0.25, laneScale: 1 },
     tracks,
     clips,
     media: [],

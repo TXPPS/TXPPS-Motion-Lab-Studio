@@ -28,6 +28,7 @@ import { Suspense } from 'react';
 import { EDITORS } from '../../app/editors';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
+import { useWorkspaceStore } from '../../state/workspaceStore';
 import { Icon } from '../common/Icon';
 
 /**
@@ -38,7 +39,7 @@ import { Icon } from '../common/Icon';
  * desktop does with its maximise and collapse buttons.
  */
 export function EditorTabs({ exclude = [] }: { exclude?: readonly string[] }) {
-  const tab = useUiStore((s) => s.editorTab);
+  const tab = useWorkspaceStore((s) => s.editorTab);
   const project = useProjectStore((s) => s.project);
   const trackId = useUiStore((s) => s.selectedTrackId);
   const clipId = useUiStore((s) => s.editClipId);
@@ -57,7 +58,7 @@ export function EditorTabs({ exclude = [] }: { exclude?: readonly string[] }) {
             aria-controls="editor-panel"
             aria-selected={tab === e.id}
             title={ok ? e.hint : (e.unavailable ?? e.hint)}
-            onClick={() => useUiStore.getState().set({ editorTab: e.id })}
+            onClick={() => useWorkspaceStore.getState().showEditorTab(e.id)}
             data-testid={`editor-tab-${e.id}`}
           >
             <Icon name={e.icon} size={12} />
@@ -71,7 +72,7 @@ export function EditorTabs({ exclude = [] }: { exclude?: readonly string[] }) {
 
 /** The editor `editorTab` names, lazily loaded like every other. */
 export function EditorBody({ exclude = [] }: { exclude?: readonly string[] }) {
-  const tab = useUiStore((s) => s.editorTab);
+  const tab = useWorkspaceStore((s) => s.editorTab);
   const offered = EDITORS.filter((e) => !exclude.includes(e.id));
   const active = offered.find((e) => e.id === tab) ?? offered[0] ?? EDITORS[0];
   const Body = active.component;

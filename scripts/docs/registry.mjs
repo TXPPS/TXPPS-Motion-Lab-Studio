@@ -303,6 +303,25 @@ export const DOCS = Object.fromEntries([
     ['docs/design/lib-nonlinear.md', 'a design for code that does not exist yet'],
     ['docs/design/lib-voice-substrate.md', 'a design for code that does not exist yet'],
     ['docs/DESIGN-DIRECTION.md', 'the visual identity argument and the mechanisms behind it'],
+    /*
+     * The workspace design, and where each of its claims is checked.
+     *
+     * NARRATIVE rather than GUARDED because what it records is the *reasoning* —
+     * why panes are one model, why collapse is not a hide, what full screen maps
+     * to on a phone. Every sentence in it that says what the product does names
+     * the test that says so, which is the shape a narrative document has to take
+     * here: the state itself is checked in `tests/workspace.test.ts`,
+     * `tests/workspaceWired.test.ts` and `e2e/workspaces.spec.ts`, and this
+     * points at them rather than restating their verdicts.
+     *
+     * It exists because `LAYOUT-AUDIT.md` row 11 is stamped history — it
+     * measured one tree and its answer about that tree is still right, so the
+     * new answer needed somewhere that is not a rewrite of a measurement.
+     */
+    [
+      'docs/WORKSPACE-SYSTEM.md',
+      'the workspace design and the reasoning behind it; every claim about the product names the test that checks it',
+    ],
     ['docs/BUILD-PLAN-V2.md', 'the plan and the reasoning for its order'],
     ['docs/THIRD-PARTY-PLUGINS.md', 'research into what plugin support can mean for a browser DAW'],
     [

@@ -82,6 +82,7 @@ void (async () => {
     exportMix,
     demoProject,
     uiStoreMod,
+    workspaceStoreMod,
     encode,
     freeze,
     effects,
@@ -92,6 +93,7 @@ void (async () => {
     import('./audio/exportMix'),
     import('./model/demoProject'),
     import('./state/uiStore'),
+    import('./state/workspaceStore'),
     import('./audio/encode'),
     import('./audio/freeze'),
     import('./model/effects'),
@@ -116,6 +118,11 @@ void (async () => {
     engine,
     projectStore: useProjectStore,
     uiStore: uiStoreMod.useUiStore,
+    // The layout, for the sweeps that need to READ what is on screen rather
+    // than press their way to it. `editorTab` and `phoneMode` moved here from
+    // the ui store, so a probe that asked `uiStore` for either would now get
+    // `undefined` and report a product with no editor and no phone mode.
+    workspaceStore: workspaceStoreMod.useWorkspaceStore,
     // The axes the soak sweep enumerates over.
     //
     // Read from the same declarations the UI builds itself from, so a sweep

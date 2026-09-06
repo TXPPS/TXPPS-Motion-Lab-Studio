@@ -219,7 +219,10 @@ export async function replay(page, { seed, steps, only = null }) {
           const cl = pick(st().project.clips);
           ui().set({ editClipId: cl ? cl.id : null, selectedClipIds: cl ? [cl.id] : [] });
         },
-        setEditorTab: () => ui().set({ editorTab: pick(['mixer', 'piano', 'drums', 'synth']) }),
+        setEditorTab: () =>
+          window.__ml.workspaceStore
+            .getState()
+            .showEditorTab(pick(['mixer', 'piano', 'drums', 'synth'])),
         transportPlay: () => engine.play(),
         transportStop: () => engine.stop(),
         transportSeek: () => engine.seek(rnd() * 128),

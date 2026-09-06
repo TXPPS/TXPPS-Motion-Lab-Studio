@@ -16,7 +16,7 @@ function project(bpm = 120): ProjectData {
     masterVolume: 1,
     tracks: [],
     clips: [],
-    workspace: { pxPerBeat: 26, snap: 0.25 },
+    workspace: { pxPerBeat: 26, snap: 0.25, laneScale: 1 },
   };
 }
 

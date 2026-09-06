@@ -299,9 +299,9 @@ export const CASES = [
     'store:uiStore.set',
     ['ui'],
     `
-    const was = ui().editorTab;
-    ui().set({ editorTab: was === 'mixer' ? 'piano' : 'mixer' });
-    return \`editorTab \${was} -> \${ui().editorTab}\`;
+    const was = ui().selectedTrackId;
+    ui().set({ selectedTrackId: was ? null : audio.id });
+    return \`selectedTrackId \${was} -> \${ui().selectedTrackId}\`;
   `,
   ),
   c(

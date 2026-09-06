@@ -1,30 +1,60 @@
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { useWorkspaceStore } from '../../state/workspaceStore';
+import { PANE_LIMITS, useWorkspaceStore, type PaneId } from '../../state/workspaceStore';
 import { Arrangement } from '../arrangement/Arrangement';
 import { BrowserPanel } from '../browser/BrowserPanel';
 import { Inspector } from '../inspector/Inspector';
 import { TransportBar } from '../transport/TransportBar';
 import { BottomEditor } from './BottomEditor';
 import { MaximizeButton } from './MaximizeButton';
+import { CollapseButton, PaneRail } from './PaneRail';
 
 /**
- * Desktop workstation. Minimums are expressed in pixels so the arrangement
- * always keeps a usable central width — the side panels stop shrinking (and can
- * be collapsed from the project bar) before the centre becomes unusable.
+ * Desktop workstation.
+ *
+ * **Minimums come from `PANE_LIMITS` rather than from literals in this JSX.**
+ * They were written twice — `minSize="180px"` here and `10` in the store's
+ * clamp — and the two could disagree: a browser the store clamped to 40 % was
+ * pushed back to 34 by the panel library on the next resize, and the store wrote
+ * 34 back over the preference. One table, read by both.
  *
  * Any pane can go full screen (DAW-style): the docked layout's sizes and
  * visibility are left untouched while maximized, so restoring re-mounts the
- * exact previous arrangement of panels.
+ * exact previous arrangement of panels. A collapsed pane keeps a rail on screen
+ * — see `PaneRail` for why a hide is not a collapse.
  */
+
+/** A pane's panel props, all four of them derived from the one table. */
+function limitsOf(id: PaneId) {
+  const l = PANE_LIMITS[id];
+  return { minSize: `${l.minPx}px`, maxSize: `${l.maxPercent}%` };
+}
+
+/** The title row every side panel carries: name, maximise, collapse. */
+function SideTitle({ id, label }: { id: PaneId; label: string }) {
+  return (
+    <div className="panel-title">
+      {label}
+      <span className="spacer" style={{ flex: '1 1 auto' }} />
+      <MaximizeButton pane={id} label={label.toLowerCase()} />
+      <CollapseButton id={id} label={label.toLowerCase()} />
+    </div>
+  );
+}
+
 export function DesktopLayout() {
-  const showBrowser = useWorkspaceStore((s) => s.showBrowser);
-  const showInspector = useWorkspaceStore((s) => s.showInspector);
-  const showEditor = useWorkspaceStore((s) => s.showEditor);
-  const browserSize = useWorkspaceStore((s) => s.browserSize);
-  const inspectorSize = useWorkspaceStore((s) => s.inspectorSize);
-  const editorSize = useWorkspaceStore((s) => s.editorSize);
+  const panes = useWorkspaceStore((s) => s.panes);
   const maximized = useWorkspaceStore((s) => s.maximized);
-  const setSizes = useWorkspaceStore((s) => s.setSizes);
+  const setPaneSize = useWorkspaceStore((s) => s.setPaneSize);
+  /*
+   * The panel library reads `defaultSize` at mount and owns the size after
+   * that, so a recall that only wrote the store left every divider exactly where
+   * it was — measured, a workspace saved with the inspector at 486 px recalled
+   * to the 190 px it happened to be sitting at. Keying the group on the epoch
+   * remounts it, which makes each pane read its stored size as its default
+   * again. The store captures and restores the scroll positions across it, the
+   * same way it does for maximise.
+   */
+  const epoch = useWorkspaceStore((s) => s.layoutEpoch);
 
   if (maximized) {
     return (
@@ -36,21 +66,13 @@ export function DesktopLayout() {
             {maximized === 'editor' && <BottomEditor />}
             {maximized === 'browser' && (
               <aside className="side-panel maxi-panel" aria-label="Browser">
-                <div className="panel-title">
-                  Browser
-                  <span className="spacer" style={{ flex: '1 1 auto' }} />
-                  <MaximizeButton pane="browser" label="browser" />
-                </div>
+                <SideTitle id="browser" label="Browser" />
                 <BrowserPanel />
               </aside>
             )}
             {maximized === 'inspector' && (
               <aside className="side-panel maxi-panel" aria-label="Inspector">
-                <div className="panel-title">
-                  Inspector
-                  <span className="spacer" style={{ flex: '1 1 auto' }} />
-                  <MaximizeButton pane="inspector" label="inspector" />
-                </div>
+                <SideTitle id="inspector" label="Inspector" />
                 <Inspector />
               </aside>
             )}
@@ -64,29 +86,36 @@ export function DesktopLayout() {
     <>
       <TransportBar />
       <div className="workspace" data-testid="workspace">
-        <Group orientation="horizontal" id="pane-main" style={{ width: '100%', height: '100%' }}>
-          {showBrowser && (
-            <>
-              <Panel
-                id="pane-browser"
-                defaultSize={`${browserSize}%`}
-                minSize="180px"
-                maxSize="34%"
-                className="pane"
-                onResize={(size) => setSizes({ browserSize: size.asPercentage })}
-              >
-                <aside className="side-panel left" aria-label="Browser" data-testid="browser-side">
-                  <div className="panel-title">
-                    Browser
-                    <span className="spacer" style={{ flex: '1 1 auto' }} />
-                    <MaximizeButton pane="browser" label="browser" />
-                  </div>
-                  <BrowserPanel />
-                </aside>
-              </Panel>
-              <Separator className="resize-handle h" />
-            </>
-          )}
+        <Group
+          key={epoch}
+          orientation="horizontal"
+          id="pane-main"
+          style={{ width: '100%', height: '100%' }}
+        >
+          {panes.browser.visible &&
+            (panes.browser.collapsed ? (
+              <PaneRail id="browser" label="Browser" />
+            ) : (
+              <>
+                <Panel
+                  id="pane-browser"
+                  defaultSize={`${panes.browser.size}%`}
+                  {...limitsOf('browser')}
+                  className="pane"
+                  onResize={(size) => setPaneSize('browser', size.asPercentage)}
+                >
+                  <aside
+                    className="side-panel left"
+                    aria-label="Browser"
+                    data-testid="browser-side"
+                  >
+                    <SideTitle id="browser" label="Browser" />
+                    <BrowserPanel />
+                  </aside>
+                </Panel>
+                <Separator className="resize-handle h" />
+              </>
+            ))}
 
           <Panel id="pane-center" minSize="320px" className="pane">
             <Group
@@ -97,50 +126,50 @@ export function DesktopLayout() {
               <Panel id="pane-arrangement" minSize="180px" className="pane">
                 <Arrangement />
               </Panel>
-              {showEditor && (
-                <>
-                  <Separator className="resize-handle v" />
-                  <Panel
-                    id="pane-editor"
-                    defaultSize={`${editorSize}%`}
-                    minSize="150px"
-                    maxSize="68%"
-                    className="pane"
-                    onResize={(size) => setSizes({ editorSize: size.asPercentage })}
-                  >
-                    <BottomEditor />
-                  </Panel>
-                </>
-              )}
+              {panes.editor.visible &&
+                (panes.editor.collapsed ? (
+                  <PaneRail id="editor" label="Editor" />
+                ) : (
+                  <>
+                    <Separator className="resize-handle v" />
+                    <Panel
+                      id="pane-editor"
+                      defaultSize={`${panes.editor.size}%`}
+                      {...limitsOf('editor')}
+                      className="pane"
+                      onResize={(size) => setPaneSize('editor', size.asPercentage)}
+                    >
+                      <BottomEditor />
+                    </Panel>
+                  </>
+                ))}
             </Group>
           </Panel>
 
-          {showInspector && (
-            <>
-              <Separator className="resize-handle h" />
-              <Panel
-                id="pane-inspector"
-                defaultSize={`${inspectorSize}%`}
-                minSize="190px"
-                maxSize="34%"
-                className="pane"
-                onResize={(size) => setSizes({ inspectorSize: size.asPercentage })}
-              >
-                <aside
-                  className="side-panel right"
-                  aria-label="Inspector"
-                  data-testid="inspector-side"
+          {panes.inspector.visible &&
+            (panes.inspector.collapsed ? (
+              <PaneRail id="inspector" label="Inspector" />
+            ) : (
+              <>
+                <Separator className="resize-handle h" />
+                <Panel
+                  id="pane-inspector"
+                  defaultSize={`${panes.inspector.size}%`}
+                  {...limitsOf('inspector')}
+                  className="pane"
+                  onResize={(size) => setPaneSize('inspector', size.asPercentage)}
                 >
-                  <div className="panel-title">
-                    Inspector
-                    <span className="spacer" style={{ flex: '1 1 auto' }} />
-                    <MaximizeButton pane="inspector" label="inspector" />
-                  </div>
-                  <Inspector />
-                </aside>
-              </Panel>
-            </>
-          )}
+                  <aside
+                    className="side-panel right"
+                    aria-label="Inspector"
+                    data-testid="inspector-side"
+                  >
+                    <SideTitle id="inspector" label="Inspector" />
+                    <Inspector />
+                  </aside>
+                </Panel>
+              </>
+            ))}
         </Group>
       </div>
     </>

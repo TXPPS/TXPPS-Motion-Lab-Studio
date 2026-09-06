@@ -118,6 +118,11 @@ export async function snapshot(page) {
     };
     const ps = window.__ml.projectStore.getState();
     const us = window.__ml.uiStore.getState();
+    // The layout, which is where `editorTab` and `phoneMode` live now. Read
+    // from its own store rather than off `us`: asking the ui store for either
+    // returns `undefined`, and a snapshot field that is undefined on both sides
+    // of a comparison makes every assertion about it pass.
+    const ws = window.__ml.workspaceStore.getState();
     const project = JSON.stringify(ps.project);
     // Only the fields that are a user-visible position, not the whole ui store:
     // a store carrying transient render bookkeeping would make every snapshot
@@ -125,14 +130,13 @@ export async function snapshot(page) {
     const ui = JSON.stringify({
       selectedTrackId: us.selectedTrackId,
       editClipId: us.editClipId,
-      editorTab: us.editorTab,
+      editorTab: ws.editorTab,
       page: us.page,
       selectedClipIds: us.selectedClipIds,
       selectedNoteIds: us.selectedNoteIds,
-      showMixer: us.showMixer,
-      showBrowser: us.showBrowser,
-      showInspector: us.showInspector,
-      phoneMode: us.phoneMode,
+      panes: ws.panes,
+      maximized: ws.maximized,
+      phoneMode: ws.phoneMode,
       tool: us.tool,
       snap: us.snap,
       loopEnabled: us.loopEnabled,
@@ -223,7 +227,7 @@ export async function markBaseline(page) {
     window.__soakUiBaseline = {
       selectedTrackId: ui.selectedTrackId,
       editClipId: ui.editClipId,
-      editorTab: ui.editorTab,
+      editorTab: window.__ml.workspaceStore.getState().editorTab,
       selectedClipIds: ui.selectedClipIds ?? [],
       selectedNoteIds: ui.selectedNoteIds ?? [],
     };

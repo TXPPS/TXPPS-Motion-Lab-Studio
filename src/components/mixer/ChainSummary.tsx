@@ -43,8 +43,9 @@ const MAX_DOTS = 6;
 /** Open this channel end to end. The same navigation the cue bar's link makes. */
 export function openChannelView(channelId: string): void {
   useUiStore.getState().selectTrack(channelId);
-  useWorkspaceStore.getState().reveal('editor');
-  useUiStore.getState().set({ editorTab: 'channel', phoneMode: 'edit' });
+  const ws = useWorkspaceStore.getState();
+  ws.showEditorTab('channel');
+  ws.setPhoneMode('edit');
 }
 
 export const ChainSummary = memo(function ChainSummary({ rack }: { rack: RackHost }) {

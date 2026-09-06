@@ -73,7 +73,7 @@ function scaffold(id: string, name: string, tracks: Track[], clips: MidiClip[]):
     metronome: false,
     createdAt: now,
     modifiedAt: now,
-    workspace: { pxPerBeat: 26, snap: 0.25 },
+    workspace: { pxPerBeat: 26, snap: 0.25, laneScale: 1 },
     tracks,
     clips,
     media: [],

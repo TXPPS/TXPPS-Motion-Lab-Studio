@@ -14,7 +14,7 @@ import { usePrefsStore } from '../../../src/state/prefsStore';
 import { useRouteStore } from '../../../src/state/routeStore';
 import type { PageId, Route } from '../../../src/app/router';
 import { useTransportStore } from '../../../src/state/transportStore';
-import { useWorkspaceStore } from '../../../src/state/workspaceStore';
+import { BUILT_IN_WORKSPACES, useWorkspaceStore } from '../../../src/state/workspaceStore';
 import type { ChainStepLike } from '../../../src/app/chainActions';
 import type { Recipe } from '../harness';
 
@@ -145,26 +145,76 @@ const prefs: ShellStore = {
 const workspace: ShellStore = {
   name: 'workspaceStore',
   read: () => useWorkspaceStore.getState() as unknown as Record<string, unknown>,
-  reset: () => useWorkspaceStore.getState().reset(),
-  persistKey: 'txpps-motionlab-workspace-v1',
+  /*
+   * The layout AND the saved workspaces.
+   *
+   * `reset()` is the product's "Reset layout" and deliberately keeps the saved
+   * names — deleting somebody's screensets because they wanted the default panes
+   * back would be a command doing far more than it says. That makes it the wrong
+   * baseline for a sweep: four rows here save a workspace, `uniqueName` would
+   * append a "2" to the second row's, and the row asserting on a name would fail
+   * for the order the rows happened to run in rather than for the product.
+   */
+  reset: () => {
+    useWorkspaceStore.getState().reset();
+    useWorkspaceStore.setState({ workspaces: [...BUILT_IN_WORKSPACES], activeWorkspaceId: null });
+  },
+  persistKey: 'txpps-motionlab-workspace-v2',
   flush: () => window.dispatchEvent(new Event('pagehide')),
   recipes: () => {
     const s = () => useWorkspaceStore.getState();
     return [
       {
-        id: 'store:workspaceStore.setSizes',
+        id: 'store:workspaceStore.setLayout',
         undo: 'none',
         run: () => {
-          s().setSizes({ browserSize: 32 });
-          return `browser ${s().browserSize}`;
+          s().setLayout({ showTempoLane: true });
+          return `showTempoLane ${s().showTempoLane}`;
+        },
+      },
+      {
+        id: 'store:workspaceStore.setPane',
+        undo: 'none',
+        run: () => {
+          s().setPane('browser', { size: 32 });
+          return `browser ${s().panes.browser.size}`;
+        },
+      },
+      {
+        id: 'store:workspaceStore.setPaneSize',
+        undo: 'none',
+        run: () => {
+          s().setPaneSize('inspector', 25);
+          return `inspector ${s().panes.inspector.size}`;
         },
       },
       {
         id: 'store:workspaceStore.toggle',
         undo: 'none',
         run: () => {
-          s().toggle('showBrowser');
-          return `showBrowser ${s().showBrowser}`;
+          s().toggle('showChords');
+          return `showChords ${s().showChords}`;
+        },
+      },
+      {
+        id: 'store:workspaceStore.togglePane',
+        undo: 'none',
+        run: () => {
+          s().togglePane('browser');
+          return `browser visible ${s().panes.browser.visible}`;
+        },
+      },
+      {
+        id: 'store:workspaceStore.toggleCollapsed',
+        undo: 'none',
+        // From a size that is not the default, so the row says something about
+        // the memory rather than only about the flag: a collapse that forgot
+        // `lastSize` would return the same sentence with a different number.
+        arrange: () => s().setPaneSize('editor', 44),
+        run: () => {
+          s().toggleCollapsed('editor');
+          const p = s().panes.editor;
+          return `editor collapsed ${p.collapsed}, back to ${p.lastSize}`;
         },
       },
       {
@@ -179,20 +229,83 @@ const workspace: ShellStore = {
         id: 'store:workspaceStore.reveal',
         undo: 'none',
         arrange: () => {
-          if (useWorkspaceStore.getState().showInspector) s().toggle('showInspector');
+          if (useWorkspaceStore.getState().panes.inspector.visible) s().togglePane('inspector');
         },
         run: () => {
           s().reveal('inspector');
-          return `showInspector ${s().showInspector}`;
+          return `inspector visible ${s().panes.inspector.visible}`;
+        },
+      },
+      {
+        id: 'store:workspaceStore.showEditorTab',
+        undo: 'none',
+        arrange: () => {
+          if (useWorkspaceStore.getState().panes.editor.visible) s().togglePane('editor');
+        },
+        run: () => {
+          s().showEditorTab('channel');
+          return `tab ${s().editorTab}, pane ${s().panes.editor.visible}`;
+        },
+      },
+      {
+        id: 'store:workspaceStore.setPhoneMode',
+        undo: 'none',
+        run: () => {
+          s().setPhoneMode('mix');
+          return `phoneMode ${s().phoneMode}`;
+        },
+      },
+      {
+        id: 'store:workspaceStore.saveWorkspace',
+        undo: 'none',
+        run: () => {
+          const id = s().saveWorkspace('Sweep layout');
+          return `saved ${s().workspaces.find((w) => w.id === id)?.name}`;
+        },
+      },
+      {
+        id: 'store:workspaceStore.recallWorkspace',
+        undo: 'none',
+        // Saved at one size, changed, then recalled: a recall that did nothing
+        // would leave the store where `arrange` left it and phase 1 would say so.
+        arrange: () => {
+          s().setPaneSize('browser', 30);
+          s().saveWorkspace('Recall me');
+          s().setPaneSize('browser', 12);
+        },
+        run: () => {
+          const target = s().workspaces.find((w) => w.name === 'Recall me')!;
+          s().recallWorkspace(target.id);
+          return `browser back to ${s().panes.browser.size}`;
+        },
+      },
+      {
+        id: 'store:workspaceStore.renameWorkspace',
+        undo: 'none',
+        arrange: () => void s().saveWorkspace('Before'),
+        run: () => {
+          const target = s().workspaces.find((w) => w.name === 'Before')!;
+          s().renameWorkspace(target.id, 'After');
+          return `named ${s().workspaces.find((w) => w.id === target.id)?.name}`;
+        },
+      },
+      {
+        id: 'store:workspaceStore.deleteWorkspace',
+        undo: 'none',
+        arrange: () => void s().saveWorkspace('Doomed'),
+        run: () => {
+          const target = s().workspaces.find((w) => w.name === 'Doomed')!;
+          s().deleteWorkspace(target.id);
+          return `${s().workspaces.filter((w) => !w.builtIn).length} saved workspace(s) left`;
         },
       },
       {
         id: 'store:workspaceStore.reset',
         undo: 'none',
-        arrange: () => s().setSizes({ browserSize: 32 }),
+        arrange: () => s().setPaneSize('browser', 32),
         run: () => {
           s().reset();
-          return `browser ${s().browserSize}`;
+          return `browser ${s().panes.browser.size}`;
         },
       },
     ];

@@ -205,6 +205,6 @@ export function createStressProject(): ProjectData {
     masterVolume: 0.9,
     tracks,
     clips,
-    workspace: { pxPerBeat: 22, snap: 0.25 },
+    workspace: { pxPerBeat: 22, snap: 0.25, laneScale: 1 },
   };
 }

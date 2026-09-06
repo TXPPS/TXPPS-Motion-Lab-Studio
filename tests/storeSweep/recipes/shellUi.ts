@@ -7,6 +7,7 @@
  * of the phase that checks it.
  */
 import { useUiStore } from '../../../src/state/uiStore';
+import { useWorkspaceStore } from '../../../src/state/workspaceStore';
 import type { ShellStore } from './shell';
 import type { Recipe } from '../harness';
 
@@ -24,7 +25,6 @@ export const ui: ShellStore = {
       selectedClipIds: [],
       selectedNoteIds: [],
       editClipId: null,
-      editorTab: 'mixer',
       dialog: null,
       contextMenu: null,
       toasts: [],
@@ -64,7 +64,10 @@ export const ui: ShellStore = {
       transient: WHY,
       run: () => {
         s().openEditorFor('clip-a');
-        return `editing ${s().editClipId} on the ${s().editorTab} tab`;
+        // The tab it landed on comes from the WORKSPACE store: opening a clip
+        // reveals the pane and selects the editor in one call, and reading the
+        // tab back off `uiStore` would be reading a field that is not there.
+        return `editing ${s().editClipId} on the ${useWorkspaceStore.getState().editorTab} tab`;
       },
     },
     {

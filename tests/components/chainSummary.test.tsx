@@ -32,7 +32,8 @@ function setup(type: 'audio' | 'instrument' = 'audio') {
   useProjectStore.getState().setProject(createEmptyProject('Desk'), { markClean: true });
   const id = useProjectStore.getState().addTrack(type);
   useProjectStore.getState().setTrack(id, { name: 'Ch' });
-  useUiStore.getState().set({ selectedTrackId: null, editorTab: 'mixer', openDevice: null });
+  useUiStore.getState().set({ selectedTrackId: null, openDevice: null });
+  useWorkspaceStore.getState().setLayout({ editorTab: 'mixer' });
   return id;
 }
 
@@ -97,15 +98,15 @@ describe('the chain summary', () => {
 
   it('opens the channel end to end, on the channel it names', () => {
     useProjectStore.getState().addEffect(id, 'eq3');
-    useWorkspaceStore.setState({ showEditor: false });
+    useWorkspaceStore.getState().togglePane('editor');
     render(<ChainSummary rack={rackFor(id)} />);
     fireEvent.click(screen.getByTestId('chain-Ch'));
     expect(useUiStore.getState().selectedTrackId).toBe(id);
-    expect(useUiStore.getState().editorTab).toBe('channel');
+    expect(useWorkspaceStore.getState().editorTab).toBe('channel');
     // Revealed, not merely navigated to: the tab is useless behind a pane that
     // is switched off, and `reveal` is the one call that steps out of another
     // pane's full screen as well as turning this one on.
-    expect(useWorkspaceStore.getState().showEditor).toBe(true);
+    expect(useWorkspaceStore.getState().panes.editor.visible).toBe(true);
   });
 });
 
@@ -120,7 +121,7 @@ describe('the master is a channel like any other', () => {
     expect(screen.getByTestId('chain-Master').querySelectorAll('.chain-dot')).toHaveLength(1);
     fireEvent.click(screen.getByTestId('chain-Master'));
     expect(useUiStore.getState().selectedTrackId).toBe(MASTER_ID);
-    expect(useUiStore.getState().editorTab).toBe('channel');
+    expect(useWorkspaceStore.getState().editorTab).toBe('channel');
   });
 
   it('and the Channel view draws it, rather than asking which channel', () => {

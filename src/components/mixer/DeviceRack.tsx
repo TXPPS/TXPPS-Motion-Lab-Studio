@@ -86,8 +86,7 @@ export function trackRack(track: Track): RackHost {
           frozen: !!track.freeze,
           open: () => {
             useUiStore.getState().selectTrack(track.id);
-            useWorkspaceStore.getState().reveal('editor');
-            useUiStore.getState().set({ editorTab: 'synth' });
+            useWorkspaceStore.getState().showEditorTab('synth');
           },
         }
       : undefined,
@@ -100,7 +99,7 @@ export function trackRack(track: Track): RackHost {
           open: () => {
             useUiStore.getState().selectTrack(track.id);
             useWorkspaceStore.getState().reveal('inspector');
-            useUiStore.getState().set({ phoneMode: 'browse' });
+            useWorkspaceStore.getState().setPhoneMode('browse');
           },
         }
       : undefined,

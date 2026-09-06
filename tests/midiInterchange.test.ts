@@ -83,7 +83,7 @@ function project(over: Partial<ProjectData>): ProjectData {
     masterVolume: 1,
     tracks: [],
     clips: [],
-    workspace: { pxPerBeat: 40, snap: 0.25 },
+    workspace: { pxPerBeat: 40, snap: 0.25, laneScale: 1 },
     ...over,
   };
 }

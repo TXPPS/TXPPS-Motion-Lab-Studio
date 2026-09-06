@@ -42,42 +42,80 @@ function press(key: string, init: Partial<KeyboardEventInit> = {}) {
 const ws = () => useWorkspaceStore.getState();
 const ui = () => useUiStore.getState();
 
+/** Is this pane drawing its contents — visible and not folded to a rail? */
+const open = (id: 'browser' | 'editor' | 'inspector') => {
+  const p = ws().panes[id];
+  return p.visible && !p.collapsed;
+};
+
 beforeEach(() => {
   useWorkspaceStore.getState().reset();
-  useUiStore.getState().set({ browserTab: 'projects', editorTab: 'mixer' });
+  useUiStore.getState().set({ browserTab: 'projects' });
   render(<KeyboardHost />);
 });
 
 describe('the panel keys move the panels', () => {
   it('F2 shows and hides the editor', () => {
-    const before = ws().showEditor;
+    const before = ws().panes.editor.visible;
     press('F2');
-    expect(ws().showEditor).toBe(!before);
+    expect(ws().panes.editor.visible).toBe(!before);
     press('F2');
-    expect(ws().showEditor).toBe(before);
+    expect(ws().panes.editor.visible).toBe(before);
   });
 
   it('F3 opens the mixer, and opens the pane it lives in', () => {
-    useWorkspaceStore.getState().toggle('showEditor'); // start with it hidden
-    expect(ws().showEditor).toBe(false);
-    useUiStore.getState().set({ editorTab: 'piano' });
+    useWorkspaceStore.getState().togglePane('editor'); // start with it hidden
+    expect(ws().panes.editor.visible).toBe(false);
+    useWorkspaceStore.getState().setLayout({ editorTab: 'piano' });
     press('F3');
     // Both halves. Switching the tab of a hidden pane is a command that does
-    // nothing, which is what `reveal` exists to prevent.
-    expect(ws().showEditor).toBe(true);
-    expect(ui().editorTab).toBe('mixer');
+    // nothing, which is what `showEditorTab` exists to prevent.
+    expect(open('editor')).toBe(true);
+    expect(ws().editorTab).toBe('mixer');
+  });
+
+  it('F3 opens the pane even when it is collapsed to a rail rather than hidden', () => {
+    // The third way a pane can be out of the way, and the one `reveal` did not
+    // know about while collapse was still a synonym for hide: a rail IS visible,
+    // so a check on `visible` alone reads as "already open" and the command puts
+    // the mixer behind a 44px strip.
+    useWorkspaceStore.getState().toggleCollapsed('editor');
+    expect(ws().panes.editor.collapsed).toBe(true);
+    press('F3');
+    expect(open('editor')).toBe(true);
+    expect(ws().editorTab).toBe('mixer');
   });
 
   it('F4 shows and hides the inspector', () => {
-    const before = ws().showInspector;
+    const before = ws().panes.inspector.visible;
     press('F4');
-    expect(ws().showInspector).toBe(!before);
+    expect(ws().panes.inspector.visible).toBe(!before);
   });
 
   it('F5 shows and hides the browser', () => {
-    const before = ws().showBrowser;
+    const before = ws().panes.browser.visible;
     press('F5');
-    expect(ws().showBrowser).toBe(!before);
+    expect(ws().panes.browser.visible).toBe(!before);
+  });
+
+  it.each([
+    ['F2', 'editor'],
+    ['F4', 'inspector'],
+    ['F5', 'browser'],
+  ] as const)('Shift+%s collapses the %s to a rail and expands it back', (key, id) => {
+    // A pane a pointer can fold and a keyboard cannot is half a feature. The
+    // SIZE has to survive the round trip as well as the state: an expand that
+    // lands on the default has forgotten what the user set, which is exactly
+    // what the old boolean hide did.
+    useWorkspaceStore.getState().setPaneSize(id, 30);
+    expect(ws().panes[id].size).toBe(30);
+    press(key, { shiftKey: true });
+    expect(ws().panes[id].collapsed).toBe(true);
+    // Collapsed, not hidden — the rail is what carries the way back.
+    expect(ws().panes[id].visible).toBe(true);
+    press(key, { shiftKey: true });
+    expect(ws().panes[id].collapsed).toBe(false);
+    expect(ws().panes[id].size).toBe(30);
   });
 
   it.each([
@@ -87,10 +125,10 @@ describe('the panel keys move the panels', () => {
     ['F9', 'samples'],
     ['F10', 'pool'],
   ])('%s opens the browser on its %s tab', (key, tab) => {
-    useWorkspaceStore.getState().toggle('showBrowser');
-    expect(ws().showBrowser).toBe(false);
+    useWorkspaceStore.getState().togglePane('browser');
+    expect(ws().panes.browser.visible).toBe(false);
     press(key);
-    expect(ws().showBrowser).toBe(true);
+    expect(open('browser')).toBe(true);
     expect(ui().browserTab).toBe(tab);
   });
 
@@ -131,9 +169,9 @@ describe('the panel keys move the panels', () => {
     const input = document.createElement('input');
     document.body.appendChild(input);
     input.focus();
-    const before = ws().showEditor;
+    const before = ws().panes.editor.visible;
     fireEvent.keyDown(input, { key: 'F2', code: 'F2' });
-    expect(ws().showEditor).toBe(before);
+    expect(ws().panes.editor.visible).toBe(before);
     input.remove();
   });
 
@@ -141,9 +179,9 @@ describe('the panel keys move the panels', () => {
     // Taking it would break the key a web user relies on to escape a
     // full-screen page. This is the one place the reference's map is not
     // matched, and it is a platform constraint rather than a preference.
-    const snapshot = JSON.stringify([ws().showBrowser, ws().showEditor, ws().showInspector]);
+    const snapshot = JSON.stringify(ws().panes);
     press('F11');
-    expect(JSON.stringify([ws().showBrowser, ws().showEditor, ws().showInspector])).toBe(snapshot);
+    expect(JSON.stringify(ws().panes)).toBe(snapshot);
     expect(SHORTCUTS.some((s) => s.combo === 'f11')).toBe(false);
   });
 });
@@ -156,14 +194,17 @@ describe('what the shortcut list promises, the keyboard answers', () => {
     expect(advertised.sort()).toEqual(['f10', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9']);
   });
 
+  it('advertises the three collapse keys it binds', () => {
+    // The same rule one modifier over. `advertised` matches bare function keys
+    // only, so the collapse combos would have been in the help sheet with
+    // nothing checking that anything answered them — which is the shape of the
+    // transport's Home tooltip, and the reason this describe block exists.
+    const shifted = SHORTCUTS.filter((s) => /^shift[+]f\d+$/.test(s.combo)).map((s) => s.combo);
+    expect(shifted.sort()).toEqual(['shift+f2', 'shift+f4', 'shift+f5']);
+  });
+
   const paneState = () =>
-    JSON.stringify({
-      b: ws().showBrowser,
-      e: ws().showEditor,
-      i: ws().showInspector,
-      bt: ui().browserTab,
-      et: ui().editorTab,
-    });
+    JSON.stringify({ panes: ws().panes, bt: ui().browserTab, et: ws().editorTab });
 
   it.each(advertised)('%s does something', (combo) => {
     // Put the panes in a state every advertised key can move away from, and
@@ -172,9 +213,10 @@ describe('what the shortcut list promises, the keyboard answers', () => {
     // assertion would pass for an unbound key, which is the whole failure it
     // exists to catch.
     useWorkspaceStore.getState().reset();
-    useUiStore.getState().set({ browserTab: 'projects', editorTab: 'piano' });
-    useWorkspaceStore.getState().toggle('showBrowser');
-    useWorkspaceStore.getState().toggle('showEditor');
+    useUiStore.getState().set({ browserTab: 'projects' });
+    useWorkspaceStore.getState().setLayout({ editorTab: 'piano' });
+    useWorkspaceStore.getState().togglePane('browser');
+    useWorkspaceStore.getState().togglePane('editor');
     const before = paneState();
     press(combo.toUpperCase());
     expect(paneState(), `${combo} is in the shortcut list and changes nothing`).not.toBe(before);

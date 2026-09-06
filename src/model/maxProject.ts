@@ -129,7 +129,7 @@ export function createMaxProject(): ProjectData {
     metronome: false,
     createdAt: now,
     modifiedAt: now,
-    workspace: { pxPerBeat: 6, snap: 1 },
+    workspace: { pxPerBeat: 6, snap: 1, laneScale: 1 },
     tracks,
     clips,
     media: [],

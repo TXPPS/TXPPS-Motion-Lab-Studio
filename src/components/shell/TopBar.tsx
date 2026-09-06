@@ -8,6 +8,8 @@ import { Icon, type IconName } from '../common/Icon';
 import { useRouteStore } from '../../state/routeStore';
 import type { PageId } from '../../app/router';
 import type { Layout } from '../../hooks/useViewport';
+import type { PaneId } from '../../state/workspaceStore';
+import { WorkspaceButton, paneAndWorkspaceItems } from './WorkspaceMenu';
 
 const PAGES: { id: PageId; label: string; icon: IconName; hint: string }[] = [
   { id: 'start', label: 'Start', icon: 'home', hint: 'Recent work and templates' },
@@ -16,20 +18,24 @@ const PAGES: { id: PageId; label: string; icon: IconName; hint: string }[] = [
   { id: 'show', label: 'Live', icon: 'zap', hint: 'Setlist and stage view' },
 ];
 
+/** The three pane toggles, as the top bar draws them. One table, three uses. */
+const PANE_BUTTONS: { id: PaneId; label: string; icon: IconName }[] = [
+  { id: 'browser', label: 'browser panel', icon: 'panel-left' },
+  { id: 'editor', label: 'bottom editor', icon: 'panel-bottom' },
+  { id: 'inspector', label: 'inspector panel', icon: 'panel-right' },
+];
+
 export function TopBar({ layout }: { layout: Layout }) {
   const page = useRouteStore((s) => s.route.page);
   const name = useProjectStore((s) => s.project.name);
   const dirty = useProjectStore((s) => s.dirty);
   const canUndo = useProjectStore((s) => s.undoStack.length > 0);
   const canRedo = useProjectStore((s) => s.redoStack.length > 0);
-  const showBrowser = useWorkspaceStore((s) => s.showBrowser);
-  const showInspector = useWorkspaceStore((s) => s.showInspector);
-  const showEditor = useWorkspaceStore((s) => s.showEditor);
+  const panes = useWorkspaceStore((s) => s.panes);
   const store = useProjectStore.getState();
   const ui = useUiStore;
 
   const overflowMenu = (x: number, y: number) => {
-    const ws = useWorkspaceStore.getState();
     ui.getState().showMenu({
       x,
       y,
@@ -41,23 +47,26 @@ export function TopBar({ layout }: { layout: Layout }) {
               action: () => useRouteStore.getState().go(p.id),
             }))
           : []),
-        ...(layout === 'desktop'
-          ? [
-              {
-                label: `${showBrowser ? 'Hide' : 'Show'} browser`,
-                action: () => ws.toggle('showBrowser'),
-              },
-              {
-                label: `${showEditor ? 'Hide' : 'Show'} bottom editor`,
-                action: () => ws.toggle('showEditor'),
-              },
-              {
-                label: `${showInspector ? 'Hide' : 'Show'} inspector`,
-                action: () => ws.toggle('showInspector'),
-              },
-              { label: 'Reset layout', action: () => ws.reset() },
-            ]
-          : []),
+        /*
+         * The pane and workspace commands, as ONE entry that opens their own
+         * menu rather than as eleven entries folded into this one.
+         *
+         * Folding them in was the first shape and it was measured wrong: the
+         * overflow reached 26 items and wanted 1152 px in a menu capped at
+         * 70vh, so on a phone everything past the fold was a scroll away — and
+         * `reachableBox` correctly reported 0 for the Save item, because an item
+         * scrolled out of its own scroller is not something a finger has reached
+         * yet. The menu was right to clip and the ruler was right to refuse it.
+         *
+         * A submenu is also the truer shape. These eleven are one subject, they
+         * are what the desktop's own workspace button opens, and a phone opening
+         * the same list is one list rather than a copy of one.
+         */
+        {
+          label: 'Workspace…',
+          testId: 'menu-workspace',
+          action: () => ui.getState().showMenu({ x, y, items: paneAndWorkspaceItems() }),
+        },
         { label: 'Import MIDI file…', action: () => pickMidiFile() },
         {
           label: 'Export MIDI file',
@@ -180,35 +189,26 @@ export function TopBar({ layout }: { layout: Layout }) {
 
       {layout === 'desktop' && (
         <div className="topbar-group">
-          <button
-            className={`icon-btn${showBrowser ? ' on' : ''}`}
-            onClick={() => useWorkspaceStore.getState().toggle('showBrowser')}
-            title="Toggle browser panel"
-            aria-label="Toggle browser panel"
-            aria-pressed={showBrowser}
-          >
-            <Icon name="panel-left" size={15} />
-          </button>
-          <button
-            className={`icon-btn${showEditor ? ' on' : ''}`}
-            onClick={() => useWorkspaceStore.getState().toggle('showEditor')}
-            title="Toggle bottom editor"
-            aria-label="Toggle bottom editor"
-            aria-pressed={showEditor}
-          >
-            <Icon name="panel-bottom" size={15} />
-          </button>
-          <button
-            className={`icon-btn${showInspector ? ' on' : ''}`}
-            onClick={() => useWorkspaceStore.getState().toggle('showInspector')}
-            title="Toggle inspector panel"
-            aria-label="Toggle inspector panel"
-            aria-pressed={showInspector}
-          >
-            <Icon name="panel-right" size={15} />
-          </button>
+          {PANE_BUTTONS.map((b) => (
+            <button
+              key={b.id}
+              className={`icon-btn${panes[b.id].visible ? ' on' : ''}`}
+              onClick={() => useWorkspaceStore.getState().togglePane(b.id)}
+              title={`Toggle ${b.label}`}
+              aria-label={`Toggle ${b.label}`}
+              aria-pressed={panes[b.id].visible}
+              data-testid={`toggle-pane-${b.id}`}
+            >
+              <Icon name={b.icon} size={15} />
+            </button>
+          ))}
         </div>
       )}
+
+      {/* Named workspaces. The desktop has the room to name the one showing;
+          a tablet and a phone reach the same five commands through the overflow
+          menu, which is the route the Reachability Matrix records for them. */}
+      {layout === 'desktop' && <WorkspaceButton />}
 
       {/* On a phone these two live only in the overflow menu: the bar has to
           fit a brand, a project name, undo/redo and four page tabs first. */}

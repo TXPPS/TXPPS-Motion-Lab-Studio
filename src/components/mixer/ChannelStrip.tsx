@@ -49,8 +49,9 @@ const TYPE_ICON: Record<Track['type'], IconName> = {
 /** Open the inspector on this track — where there is room to edit a chain. */
 function focusTrack(id: string): void {
   useUiStore.getState().selectTrack(id);
-  useWorkspaceStore.getState().reveal('inspector');
-  useUiStore.getState().set({ phoneMode: 'browse' });
+  const ws = useWorkspaceStore.getState();
+  ws.reveal('inspector');
+  ws.setPhoneMode('browse');
 }
 
 /** Sends a strip shows before it summarises the rest. */

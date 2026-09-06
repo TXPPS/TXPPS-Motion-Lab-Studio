@@ -26,13 +26,14 @@ import { Icon } from '../common/Icon';
  * console in both of `CueBar`'s branches.
  */
 function ChannelViewLink() {
-  const here = useUiStore((s) => s.editorTab === 'channel');
+  const here = useWorkspaceStore((s) => s.editorTab === 'channel');
   return (
     <button
       className={`icon-btn chn-link${here ? ' on' : ''}`}
       onClick={() => {
-        useWorkspaceStore.getState().reveal('editor');
-        useUiStore.getState().set({ editorTab: 'channel', phoneMode: 'edit' });
+        const ws = useWorkspaceStore.getState();
+        ws.showEditorTab('channel');
+        ws.setPhoneMode('edit');
       }}
       title="Open the selected channel end to end"
       aria-label="Open the selected channel end to end"

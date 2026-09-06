@@ -198,8 +198,9 @@ export function ChannelEditor() {
             className="btn"
             data-testid="channel-goto-mixer"
             onClick={() => {
-              useWorkspaceStore.getState().reveal('editor');
-              useUiStore.getState().set({ editorTab: 'mixer', phoneMode: 'mix' });
+              const ws = useWorkspaceStore.getState();
+              ws.showEditorTab('mixer');
+              ws.setPhoneMode('mix');
             }}
           >
             Open the mixer

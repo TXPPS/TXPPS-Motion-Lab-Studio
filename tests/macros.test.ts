@@ -23,7 +23,7 @@ function project(tracks: Track[]): ProjectData {
     masterVolume: 1,
     tracks,
     clips: [],
-    workspace: { pxPerBeat: 26, snap: 0.25 },
+    workspace: { pxPerBeat: 26, snap: 0.25, laneScale: 1 },
   };
 }
 

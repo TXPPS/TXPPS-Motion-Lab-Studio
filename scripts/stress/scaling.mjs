@@ -144,7 +144,7 @@ export async function run(page) {
       const worst = [];
       for (const tab of ['mixer', 'arrange', 'mixer', 'arrange']) {
         const t = performance.now();
-        window.__ml.uiStore.getState().set({ editorTab: tab });
+        window.__ml.workspaceStore.getState().setLayout({ editorTab: tab });
         // Two frames: one to commit React's render, one to be sure it painted.
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         worst.push(performance.now() - t);

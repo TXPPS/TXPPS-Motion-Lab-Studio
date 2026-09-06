@@ -45,7 +45,7 @@ function baseProject(): ProjectData {
       },
     ],
     clips: [],
-    workspace: { pxPerBeat: 26, snap: 0.25 },
+    workspace: { pxPerBeat: 26, snap: 0.25, laneScale: 1 },
   };
 }
 

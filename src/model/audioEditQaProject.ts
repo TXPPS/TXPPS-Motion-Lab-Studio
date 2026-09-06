@@ -184,7 +184,7 @@ export function createAudioEditQaProject(): ProjectData {
     metronome: false,
     createdAt: now,
     modifiedAt: now,
-    workspace: { pxPerBeat: 14, snap: 0.25 },
+    workspace: { pxPerBeat: 14, snap: 0.25, laneScale: 1 },
     tracks,
     clips: clips as ProjectData['clips'],
     media: [],

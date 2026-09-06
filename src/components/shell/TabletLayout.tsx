@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useViewport } from '../../hooks/useViewport';
-import { useUiStore } from '../../state/uiStore';
 import type { EditorId } from '../../app/editorIds';
-import { useWorkspaceStore } from '../../state/workspaceStore';
+import { PANE_LIMITS, useWorkspaceStore } from '../../state/workspaceStore';
 import { Arrangement } from '../arrangement/Arrangement';
 import { BrowserPanel } from '../browser/BrowserPanel';
 import { Inspector } from '../inspector/Inspector';
@@ -14,6 +13,7 @@ import { TransportBar } from '../transport/TransportBar';
 import { Icon } from '../common/Icon';
 import { MaximizeButton } from './MaximizeButton';
 import { EditorSurface } from './EditorSurface';
+import { CollapseButton, PaneRail } from './PaneRail';
 
 type Combo = 'mixer' | 'piano' | 'synth';
 
@@ -27,6 +27,11 @@ const COMBOS: { id: Combo; label: string }[] = [
  * Tablet: the arrangement is primary, paired with exactly one bottom panel.
  * Side panels are drawers (one at a time) rather than persistent columns,
  * so browser + inspector + arrangement + editor never compete for width.
+ *
+ * The bottom panel **is the editor pane** — the same `panes.editor` a desktop
+ * sizes and collapses, not a `tabletBottomSize` of its own. Two fields for one
+ * pane is how the two came to be clamped and reset differently, and why the
+ * tablet was for a while the one layout that forgot its divider.
  *
  * Full screen removes the forced split: maximizing the editor gives a true
  * single-editor workflow (the combo bar stays, so Mixer/Piano/Instrument
@@ -99,17 +104,14 @@ export function TabletLayout() {
    * It was `useState`, local to this component, so nothing outside could reach
    * it — and a control that asked for an editor tab set the tab, revealed the
    * pane, and watched the pane go on drawing the mixer. The console's chain
-   * summary is one; the cue bar's link to the channel is another, and it has
-   * been that way since the Channel view shipped. On a phone and a desktop both
-   * work, which is exactly why nobody saw it.
+   * summary is one; the cue bar's link to the channel is another. On a phone and
+   * a desktop both work, which is exactly why nobody saw it.
    *
-   * `EditorSurface` already reads `editorTab` to decide *which* editor to draw,
-   * so the two were coupled in one direction. Deriving closes the loop: "which
-   * editor" and "is an editor showing" become one answer instead of two that
-   * can disagree. `editorTab` defaults to `'mixer'`, which is what this pane
-   * opened on before.
+   * The tab lives on the WORKSPACE store now, which closes the loop for good:
+   * "which editor" and "is an editor showing" are two fields of one model rather
+   * than two stores that can disagree.
    */
-  const editorTab = useUiStore((s) => s.editorTab);
+  const editorTab = useWorkspaceStore((s) => s.editorTab);
   const combo: Combo = editorTab === 'mixer' ? 'mixer' : editorTab === 'synth' ? 'synth' : 'piano';
   // Which editor the Piano Roll button goes back to. Somebody who was editing a
   // clip, looked at the mixer and came back expects that clip, not a default.
@@ -118,22 +120,32 @@ export function TabletLayout() {
     if (combo === 'piano') lastEditor.current = editorTab;
   }, [combo, editorTab]);
   const setCombo = (c: Combo) =>
-    useUiStore.getState().set({
-      editorTab: c === 'mixer' ? 'mixer' : c === 'synth' ? 'synth' : lastEditor.current,
-    });
+    useWorkspaceStore
+      .getState()
+      .showEditorTab(c === 'mixer' ? 'mixer' : c === 'synth' ? 'synth' : lastEditor.current);
   const [drawer, setDrawer] = useState<null | 'browser' | 'inspector'>(null);
   const { height } = useViewport();
   const maximized = useWorkspaceStore((s) => s.maximized);
   // Browser/inspector full screen only exists on desktop; tablet treats
   // those as the normal layout (its drawers already overlay everything).
   const maxi = maximized === 'arrange' || maximized === 'editor' ? maximized : null;
+  const editorPane = useWorkspaceStore((s) => s.panes.editor);
+  const setPaneSize = useWorkspaceStore((s) => s.setPaneSize);
+  // Same reason as the desktop: `defaultSize` is read at mount, so a recall has
+  // to remount the group or the divider stays where it was.
+  const epoch = useWorkspaceStore((s) => s.layoutEpoch);
   // On short tablet landscape the bottom panel starts smaller so the
-  // arrangement keeps a usable number of visible lanes.
-  // A stored size wins over the height heuristic: the heuristic is a starting
-  // guess, and a user who has moved the divider has already answered it.
-  const setSizes = useWorkspaceStore((s) => s.setSizes);
-  const storedBottom = useWorkspaceStore((s) => s.tabletBottomSize);
-  const defaultBottom = storedBottom > 0 ? storedBottom : height < 820 ? 32 : 40;
+  // arrangement keeps a usable number of visible lanes. A stored size wins over
+  // the height heuristic: the heuristic is a starting guess, and a user who has
+  // moved the divider has already answered it. `lastSize` being absent is what
+  // "never moved" means now — the `0` sentinel could not tell that apart from a
+  // divider dragged to the floor.
+  const defaultBottom =
+    editorPane.lastSize === undefined && editorPane.size === PANE_LIMITS.editor.defaultSize
+      ? height < 820
+        ? 32
+        : 40
+      : editorPane.size;
 
   const editor = (
     <div className="editor-panel" data-testid="bottom-editor">
@@ -171,6 +183,7 @@ export function TabletLayout() {
           ))}
         </div>
         <MaximizeButton pane="editor" label="editor" />
+        <CollapseButton id="editor" label="editor" />
         <span className="spacer" style={{ flex: '1 1 auto' }} />
         <button
           className="btn"
@@ -192,6 +205,7 @@ export function TabletLayout() {
           </div>
         ) : (
           <Group
+            key={epoch}
             orientation="vertical"
             id="pane-tablet-stack"
             style={{ width: '100%', height: '100%' }}
@@ -199,21 +213,27 @@ export function TabletLayout() {
             <Panel id="pane-arrangement" minSize="160px" className="pane">
               <Arrangement />
             </Panel>
-            <Separator className="resize-handle v" />
-            <Panel
-              id="pane-bottom"
-              defaultSize={`${defaultBottom}%`}
-              minSize="140px"
-              maxSize="62%"
-              className="pane"
-              // Persisted, as the desktop panes are. Without this the tablet
-              // was the one layout where dragging a divider was forgotten on
-              // every reload — the divider moved, and the next launch put it
-              // back where it started.
-              onResize={(size) => setSizes({ tabletBottomSize: size.asPercentage })}
-            >
-              {editor}
-            </Panel>
+            {editorPane.visible &&
+              (editorPane.collapsed ? (
+                <PaneRail id="editor" label="Editor" />
+              ) : (
+                <>
+                  <Separator className="resize-handle v" />
+                  <Panel
+                    id="pane-bottom"
+                    defaultSize={`${defaultBottom}%`}
+                    minSize={`${PANE_LIMITS.editor.minPx}px`}
+                    maxSize={`${PANE_LIMITS.editor.maxPercent}%`}
+                    className="pane"
+                    // Persisted onto the editor pane, which is what this is.
+                    // Without it the tablet was the one layout where dragging a
+                    // divider was forgotten on every reload.
+                    onResize={(size) => setPaneSize('editor', size.asPercentage)}
+                  >
+                    {editor}
+                  </Panel>
+                </>
+              ))}
           </Group>
         )}
 

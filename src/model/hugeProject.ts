@@ -130,7 +130,7 @@ export function createHugeProject(): ProjectData {
     metronome: false,
     createdAt: now,
     modifiedAt: now,
-    workspace: { pxPerBeat: 10, snap: 1 },
+    workspace: { pxPerBeat: 10, snap: 1, laneScale: 1 },
     tracks,
     clips,
     media: [],

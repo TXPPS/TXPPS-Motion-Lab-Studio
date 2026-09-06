@@ -364,7 +364,7 @@ export function createDemoProject(id?: string): ProjectData {
     masterVolume: 0.9,
     tracks: [drums, perc, bass, keys, lead, texture, drumBus, reverbBus],
     clips,
-    workspace: { pxPerBeat: 26, snap: 0.25 },
+    workspace: { pxPerBeat: 26, snap: 0.25, laneScale: 1 },
   };
 }
 
@@ -397,6 +397,6 @@ export function createEmptyProject(name: string): ProjectData {
     masterVolume: 0.9,
     tracks: [inst],
     clips: [],
-    workspace: { pxPerBeat: 26, snap: 0.25 },
+    workspace: { pxPerBeat: 26, snap: 0.25, laneScale: 1 },
   };
 }
