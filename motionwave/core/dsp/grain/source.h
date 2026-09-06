@@ -6,6 +6,7 @@
 // about which. The unit writes it; the engine only reads behind the write head.
 #pragma once
 
+#include "../interpolate.h"
 #include "sinc_table.gen.h"
 
 #include <cmath>
@@ -80,10 +81,9 @@ inline float readCubicFrom(const float* data, int mask, double position) noexcep
   const float y1 = data[index];
   const float y2 = data[(index + 1) & mask];
   const float y3 = data[(index + 2) & mask];
-  const float a = 0.5f * (-y0 + 3.0f * y1 - 3.0f * y2 + y3);
-  const float b = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
-  const float c = 0.5f * (-y0 + y2);
-  return ((a * fraction + b) * fraction + c) * fraction + y1;
+  // The arithmetic lives in `dsp/interpolate.h`, shared with the sampler's
+  // classic read head; only the mask-wrapped gathering is this engine's own.
+  return mw::dsp::hermite4(y0, y1, y2, y3, fraction);
 }
 
 inline float readCubic(const GrainSource& source, double position) noexcept {
@@ -193,7 +193,7 @@ inline float readLinearFrom(const float* data, int mask, double position) noexce
   const int index = static_cast<int>(static_cast<long long>(floored) & mask);
   const float y1 = data[index];
   const float y2 = data[(index + 1) & mask];
-  return y1 + (y2 - y1) * fraction;
+  return mw::dsp::linear2(y1, y2, fraction);
 }
 
 inline float readLinear(const GrainSource& source, double position) noexcept {

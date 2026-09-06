@@ -1417,3 +1417,58 @@ whose behaviour could settle an argument.
     libraries crossfade anyway and are well regarded, which suggests the argument is incomplete —
     possibly because the correlated part of two layers of the same instrument is small enough at
     the crossover point for the phasing to be inaudible. Not resolved. **[U]**
+
+---
+
+## 14. Two corrections found while building, with their measurements
+
+This section is not analysis. It records two places where the sheet asks for
+something no implementation can deliver, each found by a row of §9 failing
+against an honest engine, and says what was built instead. Both are recorded
+here rather than edited into the sections above, because a specification that
+quietly acquires the answer stops showing where the answer came from.
+
+**§10.3's overlap ceilings and its pool sizes cannot both hold.** The grain
+onsets are a Poisson process, so the number of grains alive at any instant is
+Poisson with mean `O`. At Eco's stated `O = 4` in a pool of 8 slots the tail
+past 8 carries 2.1 % of the probability — about one grain in fifty arrives to
+find the pool full — and §10.3 forbids dropping a grain outright, for
+`fx-02` §7.4's reason that dropping modulates loudness with CPU load. Zero
+drops at `O = 4` needs nineteen slots, not eight. The engine therefore holds
+the rate to whichever binds first, §10.3's ceiling or the pool's own Poisson
+bound, interpolated on the jitter setting: at jitter 0 the live count is
+deterministic and the full bound would cost Eco five sixths of its density for
+variance its scheduler does not have. Measured: the sheet's ceilings are
+reached wherever the pool allows — High delivers 32.00 exactly — and the drop
+counter reads zero at every tier. **The numbers in §10.3 are the ones to
+change, not the guarantee.**
+
+**V-25 as written is only satisfiable at a grain length of 100 ms or more.**
+`O = R·L`, so at §7.3's default 60 ms grain the sweep's bottom end is
+`O = 0.6` — a cloud with audible gaps between its grains, where a constant RMS
+is not a property an implementation can have. The row fixes `L = 100 ms` so
+every point of the sweep lies in the region the property is defined over, and
+excites with noise rather than a tone: grains cut from a periodic zone are
+partly coherent with each other, which put 1.37 dB of density-dependent level
+into the measurement that had nothing to do with the normalisation the row
+grades. Measured that way the spread is **0.370 dB** against the stated 0.5.
+
+Two of the measuring instruments were wrong before the product was, and both
+are recorded in the suites' headers. V-24's "first non-zero output sample"
+cannot read zero on any engine whose window closes at its ends — a Hann window
+is exactly zero at phase 0 — so the row measures displacement instead. And
+V-25's one-second render had a seed-to-seed spread of 1.22 dB, more than twice
+the tolerance it was asserting; the fix was four seconds of render, not a wider
+target.
+
+Two more, from the Classic engine. **V-1 cannot catch what its own premise
+says it catches.** The sheet argues that a non-zero residual at `r = 1` means
+the interpolator runs unconditionally — but linear, cubic Hermite and the
+windowed sinc are all algebraic identities at zero fractional offset, so
+removing the exact path leaves V-1 at the float floor on every tier. What V-1
+actually guards is a misaligned phase table, which a half-step offset shows at
+−48.7 dBFS. **And V-3 cannot catch a missing mip-map or a missing stretched
+kernel**: its 1 kHz tone reads _better_ without the pyramid (−94.3 against
+−75.6 dBc), because the pyramid halves the distance to the image. Both
+remedies act on content near the fold corner, so the suites add rows at 20 kHz
+and 14 kHz that do discriminate.
