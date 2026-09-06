@@ -6,7 +6,8 @@ RESUME: F12 — the Granular Delay ships as the eighth unit: a transport whose
         record and playback halves around one buffer, 139 controls behind a
         tab strip the framework now draws for any face, and the host's tempo
         reaching a Motion Wave unit for the first time. The voice substrate
-        stands at eight of twelve files.
+        is complete: thirteen of thirteen files, the damper included, and
+        the Slipstream Sampler is under way on it.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
 Deployed commit: 9cdc69c, bundle index-Buj7ZIVp.js, sha256 9fed40d1cf5ec30d
                  over 450737 bytes - fetched from the live worker by
@@ -105,19 +106,22 @@ Current section: F12 COMPLETE - fx-03 Granular Delay, SHIPPING with every
                  replace kept on the page.
                  §7 has `trigger_bus.h` and `envelope.h` - the envelope's
                  halves of VS-07, VS-08, VS-09, VS-11 and VS-12.
-Next action:     §7 continues. Eight of the substrate's twelve files are built
-                 (`note_id.h`, `note_registry.h`, `voice_set.h`,
+Next action:     §7 is complete: thirteen of the substrate's thirteen files are
+                 built (`note_id.h`, `note_registry.h`, `voice_set.h`,
                  `trigger_bus.h`, `envelope.h`, `envelope_shapes.h`, `lfo.h`,
-                 `mod_grid.h`) and `ledger-guard` derives that count from the
-                 design's own file table rather than trusting a sentence.
-                 `drift.h`, `mpe.h`, `portamento.h` and `specs.h` remain; then
-                 the Slipstream Sampler on the substrate, then SA-001, then the
-                 five synths in the ledger's order. In `src/`, the workspace
-                 system (§7 of the build directive), the arrangement's track
-                 heights and the responsive matrix follow the instruments.
-                 SA-001 stays open: the load route exists, and nothing
-                 analyses what it loads. See "Where SA-001 sits" below for the
-                 order and the argument for it.
+                 `mod_grid.h`, `drift.h`, `mpe.h`, `portamento.h`, `specs.h`,
+                 `damper.h`) and `ledger-guard` derives that count from the
+                 design's own file table. VS-03, VS-29 and VS-32 need an
+                 instrument and the Slipstream Sampler is it: its analysing
+                 importer (smp-01 §3, which closes SA-001), its Classic
+                 resampler tiers and the modulation matrix it shares with the
+                 five synths are being built now; then the voice layer on the
+                 substrate, the granular, spectral and hybrid engines, the
+                 unit's face and host integration, and its ledger row. Then
+                 the five synths in the ledger's order. In `src/`, the
+                 workspace system (§7 of the build directive), the
+                 arrangement's track heights and the responsive matrix follow
+                 the instruments.
 Function Ledger: 404 functions, **230 with a state-asserting test - 56.9%**.
                  Two instruments: the functional soak drives 136 against a
                  running browser on three form factors, and the store sweep

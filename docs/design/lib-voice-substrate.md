@@ -127,20 +127,21 @@ configuration in which sustaining is reachable, or it tests nothing.
 
 ## 3. Files
 
-| File                      | Contents                                        | Budget |
-| ------------------------- | ----------------------------------------------- | ------ |
-| `voice/note_id.h`         | `NoteId`, `VoiceId`, the sentinels              | 60     |
-| `voice/note_registry.h`   | `NoteRegistry` — the one press→identity map     | 190    |
-| `voice/voice_set.h`       | `VoiceSet`, the partition, allocation, stealing | 300    |
-| `voice/trigger_bus.h`     | single/multi pulses and the gate                | 110    |
-| `voice/envelope.h`        | `Envelope`, `EnvelopeShape`, segment maths      | 320    |
-| `voice/envelope_shapes.h` | the five measured shape families                | 220    |
-| `voice/lfo.h`             | `Lfo`, waveforms, delay+fade, retrigger         | 260    |
-| `voice/mod_grid.h`        | the control-rate grid and `ModFrame`            | 190    |
-| `voice/drift.h`           | `DriftModel`, the OU walk, tune events          | 210    |
-| `voice/mpe.h`             | zones, channel state, dimension routing         | 300    |
-| `voice/portamento.h`      | `Glide`, the duration law, the shapes, stagger  | 260    |
-| `voice/specs.h`           | `ParamSpec` writers and block binding           | 240    |
+| File                      | Contents                                               | Budget |
+| ------------------------- | ------------------------------------------------------ | ------ |
+| `voice/note_id.h`         | `NoteId`, `VoiceId`, the sentinels                     | 60     |
+| `voice/note_registry.h`   | `NoteRegistry` — the one press→identity map            | 190    |
+| `voice/voice_set.h`       | `VoiceSet`, the partition, allocation, stealing        | 300    |
+| `voice/trigger_bus.h`     | single/multi pulses and the gate                       | 110    |
+| `voice/envelope.h`        | `Envelope`, `EnvelopeShape`, segment maths             | 320    |
+| `voice/envelope_shapes.h` | the five measured shape families                       | 220    |
+| `voice/lfo.h`             | `Lfo`, waveforms, delay+fade, retrigger                | 260    |
+| `voice/mod_grid.h`        | the control-rate grid and `ModFrame`                   | 190    |
+| `voice/drift.h`           | `DriftModel`, the OU walk, tune events                 | 210    |
+| `voice/mpe.h`             | zones, channel state, dimension routing                | 300    |
+| `voice/portamento.h`      | `Glide`, the duration law, the shapes, stagger         | 260    |
+| `voice/specs.h`           | `ParamSpec` writers and block binding                  | 240    |
+| `voice/damper.h`          | the damper pedal: it defers the gate, never a lifetime | 80     |
 
 ---
 

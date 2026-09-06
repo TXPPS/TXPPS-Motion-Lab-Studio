@@ -1553,13 +1553,35 @@ segment boundary was a click. Corrected in §5.2 with the old form kept beside i
 and mutation-tested — the design's version fails the continuity case and only the
 continuity case.
 
-**8 of the 12** files in the substrate's table exist, and with the remaining
-four go VS-03, VS-06, VS-16 to VS-29 and VS-32. `envelope_shapes.h` closes VS-10
+**13 of the 13** files in the substrate's table exist — the twelve the design
+planned and `damper.h`, which §5.5 stated as a rule and VS-06 tests but the table
+had named no file for. What remains of the voice rows is VS-03, VS-29 and VS-32,
+and each needs an instrument to be constructible at all: the stuck-note fuzz runs
+over four instruments, the panic declick needs a voice's amplitude path, and the
+one-allocation rule is a claim about an instrument's `prepare`. The Slipstream
+Sampler is that instrument and closes them. `envelope_shapes.h` closes VS-10
 (the six-operator decibel decay at R = 50 fits a line in dB with R² = 1.000000
 over 89.4 dB, and the amplitude-linear construction of the same excursion reads
 0.7516), `lfo.h` closes VS-13, VS-14 and VS-15 and the LFO halves of VS-07 and
 VS-08, and `mod_grid.h` closes the grid's half of VS-07 at a peak difference of
-6e-8 across 16, 17, 64, 128 and 1024-frame splits. `ledger-guard` derives that count from
+6e-8 across 16, 17, 64, 128 and 1024-frame splits. `drift.h` closes VS-16 to
+VS-19: two renders from one seed are bit-identical over 12 800 comparisons and a
+render begun at bar 33 matches the tail of one begun at bar 1 exactly, because
+the walk is a position-addressed sum of stratified cosines rather than a
+recursion whose state is history; the ensemble reads σ 2.993 cents against a
+configured 3.0 with the autocorrelation crossing 1/e at 327.7 s against 300; and
+after a tune event the measured-range RMS is 0.329 cents with the bass 7.3 times
+wider. `mpe.h` and `damper.h` close VS-06 and VS-20 to VS-24: member ±48 and
+master ±2 sum to 50.00 semitones, a release tail is unreachable by its channel
+(0.000 change) while the next note on that channel starts at 48.00, and the
+lower and upper zones claim disjoint channel masks 0x001E and 0x7FE0.
+`portamento.h` closes VS-25 to VS-28: constant time 0.3998 / 0.4000 s, constant
+rate 0.0666 / 0.8000 s (ratio 12.003), the hybrid law 0.1632 / 0.5657 s (ratio
+3.465 against √12), every shape at exactly 72.00000 at its arrival, and the
+worked stagger example at 0.2000 / 0.3333 / 0.4667 / 0.6000 s in order with a
+0.4000 s spread. Thirty-one mutations were run across the five files and every
+one is recorded in its suite's header with the case that caught it. `specs.h`
+binds twenty-two `ParamSpec`s. `ledger-guard` derives that count from
 the design's own file table and the tree, because the sentence it replaced —
 "ten of the twelve remain, and the next is `voice_set.h`" — was true when it was
 written and false one directive later, with `voice_set.h` in the tree.
