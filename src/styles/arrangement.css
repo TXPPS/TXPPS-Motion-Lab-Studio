@@ -556,6 +556,28 @@
     width: 44px;
     height: 44px;
   }
+  /*
+   * The height grip goes on a finger, and the track menu carries what it did.
+   *
+   * There is no size it could be here. The touch header is 64 px — 2 padding,
+   * an 18 px name row, a 44 px control strip — so a grip with a 44 px press
+   * band would cover mute, arm and monitor completely and take every press
+   * meant for them. That is this codebase's most-repeated defect: a 44 px
+   * options button in a 16 px rack row, a 44 px area on a 5 px lamp, a
+   * `min-height: 44px` inside a 34 px toolbar, and a `::after` inset that ate
+   * the cue bar. Growing the row instead is what `LANE_H` already refuses on
+   * the devices showing the fewest tracks.
+   *
+   * So the row cannot hold it and the control goes — and WCAG 2.5.8 obliges
+   * the alternative to carry *every* command the small control offers, which
+   * the menu's Taller, Shorter and Reset track height do: the drag and the
+   * double-press reset both have a route. Left at a smaller size it would be a
+   * target under the minimum that also stole its neighbours' presses, which is
+   * the worst of the three outcomes.
+   */
+  .th-resize {
+    display: none;
+  }
 }
 
 /* Mute, solo and arm are the buttons a mix gets driven from; they have to
@@ -611,11 +633,133 @@
   min-width: 20px;
 }
 
+/*
+ * The track-height grip: the header's bottom edge, dragged.
+ *
+ * `inset: auto 0 0 0` and nothing negative. `.alh-resize` reaches 2 px past its
+ * own row and `.resize-handle::after` reached 3 px, and that second one took
+ * the mixer's cue bar down to 41 of the 44 it is drawn at — a hit area that
+ * overhangs its row takes its neighbour's presses. The row below this one is
+ * the next track's header, whose name row starts at its very first pixel, so
+ * there is nothing below to spend a grab zone on. Every pixel of it is inside
+ * the track it resizes.
+ *
+ * It is *drawn* as a 3 px lip and *pressed* as a taller band, which is the
+ * distinction the whole grip depends on: a 44 px visible bar along every header
+ * would be a second control strip. The band grows upward on a coarse pointer,
+ * into the header's own padding — the one direction with nothing to take.
+ */
+.th-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 5px;
+  cursor: ns-resize;
+  /* The drag is ours; a vertical swipe here must not scroll the arrangement
+     out from under the finger, exactly as with a fader. */
+  touch-action: none;
+  z-index: 2;
+}
+/* The lip is only visible when there is a reason to look for it — a header
+   under the pointer. On touch there is no hover, so it is always faintly
+   drawn: an invisible control is a control that does not exist. */
+.th-resize::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--border-strong);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.th:hover .th-resize::before,
+.th-resize:active::before {
+  opacity: 0.6;
+}
+
 .add-track {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 8px;
+}
+
+/*
+ * Track height on the toolbar: shorter, a readout, taller.
+ *
+ * A group rather than three loose buttons because the readout between them is
+ * what makes the pair a control — two unlabelled nudges say nothing about
+ * where they are in their range, and the range has ends.
+ */
+.arr-laneh {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.arr-laneh-val {
+  font-family: var(--font-num);
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  /* Fixed so the buttons either side do not shuffle between 60% and 250%. */
+  min-width: 32px;
+  text-align: center;
+}
+
+/*
+ * The pair is a touch target on a finger, and the row can hold it.
+ *
+ * `.icon-btn` is 36 px on a coarse pointer — measured 37 x 37 by `reachableBox`
+ * — against the 44 the rest of this product holds itself to. Growing a control
+ * is usually how a row gets over-subscribed, and that is the defect this
+ * codebase has hit five times, so the question was asked before the rule was
+ * written: `.arr-toolbar` is `flex-wrap: wrap` with `min-height` rather than a
+ * fixed height, and it already stands 122 px tall over three rows on a 390 px
+ * phone. So this grows its own line instead of overhanging one — the "the row
+ * grows" branch, which is available here precisely because the bar wraps.
+ *
+ * Only these two. The zoom pair beside them is 36 px and stays that way in this
+ * change: they are a view control with a wheel, a gesture and a keyboard behind
+ * them, and raising every icon button on the bar is a change to the whole
+ * toolbar's height budget on the shortest form factors — which is the sort of
+ * thing that puts the arrangement under a floor somewhere else. Track height
+ * has no other touch route at all, which is why it is the one that must be hit.
+ */
+@media (pointer: coarse) {
+  .arr-laneh .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/*
+ * And it gives the height back on a short viewport, because there the row
+ * cannot grow.
+ *
+ * Measured: on a 932x430 landscape phone the rule above took the toolbar from
+ * 34 px to 48 and the scroller from 320 to 306, and
+ * `orientation.spec.ts`'s rotation floor went from 4 whole track rows to 3 —
+ * red, on a case whose own comment says it "clears this floor exactly rather
+ * than comfortably". That is this codebase's other repeated shape: growing a
+ * control shrank the surface under it, exactly as raising the cue bar's link
+ * from 36 to 44 put the shortest console strip under the tier ladder's floor.
+ *
+ * The `max-height: 500px` block above turns this bar from a wrapping stack
+ * into one row that scrolls sideways — so there the row genuinely cannot grow,
+ * and the 44 px would be paid for out of the arrangement itself on the devices
+ * showing the fewest tracks. Below that height the pair goes back to the
+ * toolbar's own size, and the track menu is the touch route that carries the
+ * command — the same substitution the grip already makes on every coarse
+ * pointer, so nothing here is reachable in portrait and unreachable rotated.
+ */
+@media (pointer: coarse) and (max-height: 500px) {
+  .arr-laneh .icon-btn {
+    width: var(--control-h);
+    height: var(--control-h);
+  }
 }
 
 @media (pointer: coarse) {

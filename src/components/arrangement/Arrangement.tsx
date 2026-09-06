@@ -48,6 +48,7 @@ import {
   zoomAnchorScroll,
   zoomFactorFromDrag,
 } from '../../model/arrangeTools';
+import { LANE_SCALE_STEP, stepLaneScale, trackLaneHeight, useCoarsePointer } from './trackHeight';
 
 /**
  * The tool row. `ARRANGE_TOOLS` fixes the order and the number keys; this adds
@@ -67,34 +68,29 @@ export const TOOLS = [
 ] as const;
 
 const RULER_H = 42;
-const LANE_H = 64;
-const LANE_H_COLLAPSED = 30;
 const EDGE_ZONE = 48;
 const EDGE_MAX = 22;
 
 const clampLaneH = (h: number | undefined) => clamp(h ?? AUTO_LANE_H, 26, 120);
 
 /**
- * Track lane height at a vertical zoom, in whole pixels. Rounded once here so
- * the lane elements, the band totals and the Y hit-testing all use the same
- * integer — a fractional height that each of them rounds separately drifts a
- * pixel per track and lands a cross-track drag on the wrong lane.
- */
-const laneHeightAt = (scale: number) =>
-  Math.round(LANE_H * clamp(scale, MIN_LANE_SCALE, MAX_LANE_SCALE));
-
-/**
  * A track's vertical band: the clip lane plus its expanded automation lanes.
  * Everything that maps Y to a track (marquee rows, cross-track clip drags)
  * uses these totals so the two columns can never disagree.
+ *
+ * The clip lane's height is per-track now — `trackHeight.ts` combines the
+ * track's own height, the global scale and the collapsed flag, and applies the
+ * hand's floor. `laneScale` is passed rather than the resolved pixel height,
+ * because each track resolves to a different one.
  */
-function bandHeights(
+export function bandHeights(
   tracks: Track[],
   clips: Clip[],
-  laneH: number,
+  laneScale: number,
+  coarse?: boolean,
 ): { clip: number; total: number }[] {
   return tracks.map((t) => {
-    const clip = t.collapsed ? LANE_H_COLLAPSED : laneH;
+    const clip = trackLaneHeight(t, laneScale, coarse);
     const lanes =
       t.automationOpen && t.automation
         ? t.automation.reduce((a, l) => a + clampLaneH(l.height), 0)
@@ -146,7 +142,7 @@ export function Arrangement() {
   const timeSig = useProjectStore((s) => s.project.timeSig);
   const endBeat = useProjectStore((s) => projectEndBeat(s.project));
   const pxPerBeat = useUiStore((s) => s.pxPerBeat);
-  const laneScale = useUiStore((s) => s.laneScale);
+  const laneScale = useProjectStore((s) => s.project.workspace.laneScale);
   const snap = useUiStore((s) => s.snap);
   const selectedTrackId = useUiStore((s) => s.selectedTrackId);
   const tool = useUiStore((s) => s.tool);
@@ -224,8 +220,11 @@ export function Arrangement() {
   // Always span at least 72 bars so there is real horizontal range to scroll.
   const contentBeats = Math.max(endBeat + bpb * 4, loop.end + bpb, bpb * 72);
   const timelineW = Math.ceil(contentBeats * pxPerBeat);
-  const laneH = laneHeightAt(laneScale);
-  const bands = useMemo(() => bandHeights(tracks, clips, laneH), [tracks, clips, laneH]);
+  const coarse = useCoarsePointer();
+  const bands = useMemo(
+    () => bandHeights(tracks, clips, laneScale, coarse),
+    [tracks, clips, laneScale, coarse],
+  );
   const heights = useMemo(() => bands.map((b) => b.total), [bands]);
   /** Resolved automation lanes per track (only for expanded tracks). */
   const lanesByTrack = useMemo(() => tracks.map((t) => trackLanes(t, project)), [tracks, project]);
@@ -468,6 +467,16 @@ export function Arrangement() {
     [anchorOffset],
   );
 
+  /**
+   * Step the lane height by a ratio. Read from the store rather than from the
+   * render's `laneScale` so two fast presses compound instead of the second
+   * one recomputing from the value the first one replaced.
+   */
+  const laneScaleBy = useCallback((factor: number) => {
+    const store = useProjectStore.getState();
+    store.setLaneScale(stepLaneScale(store.project.workspace.laneScale, factor));
+  }, []);
+
   /** Zoom by a factor, keeping the beat under the anchor (or the centre) fixed. */
   const zoomBy = useCallback(
     (factor: number, anchorClientX?: number) => {
@@ -599,7 +608,11 @@ export function Arrangement() {
     const y = clientY - rect.top;
     const proj = useProjectStore.getState().project;
     const ts = proj.tracks;
-    const hs = bandHeights(ts, proj.clips, laneHeightAt(useUiStore.getState().laneScale));
+    // Read from the store rather than closed over: this runs inside a live
+    // cross-track drag, and a stale height here lands the clip on the wrong
+    // lane. The pointer type is left to default so it is read now, for the
+    // same reason.
+    const hs = bandHeights(ts, proj.clips, proj.workspace.laneScale);
     let acc = 0;
     for (let i = 0; i < ts.length; i++) {
       if (y >= acc && y < acc + hs[i].total) return ts[i];
@@ -780,7 +793,7 @@ export function Arrangement() {
         clientX: e.clientX,
         alt: e.altKey,
         px: ui.pxPerBeat,
-        scale: ui.laneScale,
+        scale: useProjectStore.getState().project.workspace.laneScale,
         scrollLeft: viewportRef.current?.scrollLeft ?? 0,
         offset: anchorOffset(e.clientX),
         axis: null,
@@ -791,7 +804,7 @@ export function Arrangement() {
         d.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
       }
       if (d.axis === 'y') {
-        useUiStore.getState().set({ laneScale: laneScaleFromDrag(d.scale, dy) });
+        useProjectStore.getState().setLaneScale(laneScaleFromDrag(d.scale, dy));
         return;
       }
       if (d.axis !== 'x') return;
@@ -863,7 +876,11 @@ export function Arrangement() {
       const id = store.addTrack(kind === 'drum' ? 'drum' : 'instrument');
       if (kind) store.setInstrument(id, kind);
       ui.selectTrack(id);
-      if (kind) ui.set({ editorTab: 'synth' });
+      // `showEditorTab` rather than setting a tab: the editor tab is layout and
+      // lives on the workspace store, and adding an instrument track that lands
+      // on a hidden editor pane shows the user nothing — which is what setting
+      // the tab alone did whenever the pane was off.
+      if (kind) useWorkspaceStore.getState().showEditorTab('synth');
     };
     ui.showMenu({
       x,
@@ -994,6 +1011,47 @@ export function Arrangement() {
         >
           <Icon name="maximize" size={14} />
         </button>
+        {/*
+          Track height, as controls rather than as a gesture.
+
+          It was reachable only by dragging downward with the zoom tool — no
+          button, no key, and no readout, on any form factor. A phone has the
+          gesture too, in principle, and in practice a vertical drag on the
+          lanes is how a phone scrolls, so the one route was a route a touch
+          user could not take. These three are the same shape the piano roll's
+          pitch zoom uses, for the same reason.
+        */}
+        <div className="arr-laneh" role="group" aria-label="Track height">
+          <button
+            className="icon-btn"
+            onClick={() => laneScaleBy(1 / LANE_SCALE_STEP)}
+            title="Shorter tracks (more of them on screen)"
+            aria-label="Shorter tracks"
+            data-testid="lane-shorter"
+            disabled={laneScale <= MIN_LANE_SCALE + 1e-9}
+          >
+            <Icon name="chevron-up" size={14} />
+          </button>
+          {/*
+            The readout is what makes the pair a control rather than two
+            nudges. `aria-live` is deliberately absent: it changes on every
+            press of a button the user is already looking at, and announcing
+            it would talk over the button's own label.
+          */}
+          <span className="arr-laneh-val" data-testid="lane-height-readout">
+            {Math.round(laneScale * 100)}%
+          </span>
+          <button
+            className="icon-btn"
+            onClick={() => laneScaleBy(LANE_SCALE_STEP)}
+            title="Taller tracks"
+            aria-label="Taller tracks"
+            data-testid="lane-taller"
+            disabled={laneScale >= MAX_LANE_SCALE - 1e-9}
+          >
+            <Icon name="chevron-down" size={14} />
+          </button>
+        </div>
         <button
           className="icon-btn"
           onClick={() => zoomBy(0.8)}

@@ -8,15 +8,15 @@ import {
 } from '../../model/automation';
 import { listAutoParams } from '../../model/paramRegistry';
 import { isFrozen } from '../../model/freeze';
-import { freezeTrack, unfreezeTrack } from '../../audio/freeze';
 import { useProjectStore } from '../../state/projectStore';
 import { useUiStore } from '../../state/uiStore';
-import { useWorkspaceStore } from '../../state/workspaceStore';
-import { longPress } from '../../hooks/usePointerDrag';
+import { longPress, usePointerDrag } from '../../hooks/usePointerDrag';
+import { useTapOrDouble } from '../../hooks/useTapOrDouble';
+import { clampTrackHeight, isCollapsedHeight } from './trackHeight';
+import { trackMenuItems } from './trackMenu';
 import { Icon, type IconName } from '../common/Icon';
 import { PanKnob } from '../common/widgets';
 import { captureParamChange, captureParamRelease } from '../../app/automationActions';
-import { usePrefsStore } from '../../state/prefsStore';
 import { isMonitoring, setArmed, toggleMonitoring } from '../../app/monitorActions';
 import { useTransportStore } from '../../state/transportStore';
 
@@ -54,6 +54,9 @@ export const TrackHeader = memo(function TrackHeader({
   // when monitoring is started or stopped from another surface.
   useTransportStore((s) => s.audioState);
   const monitoring = track.type === 'audio' && isMonitoring(track.id);
+  // The global multiplier, for the menu's height steps. A step has to be a step
+  // in *drawn* pixels, and what the track is drawn at depends on this.
+  const laneScale = useProjectStore((s) => s.project.workspace.laneScale);
   const toggleMonitor = () => toggleMonitoring(track.id);
   const store = useProjectStore;
   const ui = useUiStore;
@@ -86,132 +89,58 @@ export const TrackHeader = memo(function TrackHeader({
     });
   };
 
+  /**
+   * The track menu: every command the header cannot draw a control for.
+   *
+   * The list lives in `trackMenu.ts`. It is the destination for everything a
+   * small screen takes away — the fader, the pan knob, solo, and the height
+   * grip — so it grows whenever a control goes, and it was most of this file.
+   */
   const openMenu = (x: number, y: number) => {
     ui.getState().selectTrack(track.id);
-    const items = [
-      { label: 'Rename…', action: rename },
-      { label: 'Duplicate', action: () => store.getState().duplicateTrack(track.id) },
-      ...(track.type === 'folder'
-        ? [
-            {
-              label: track.folded ? 'Unfold' : 'Fold',
-              action: () => store.getState().setTrack(track.id, { folded: !track.folded }),
-            },
-            {
-              label: 'Ungroup (keep the tracks)',
-              action: () => store.getState().ungroupFolder(track.id),
-            },
-          ]
-        : [
-            {
-              label: 'Group into a new folder',
-              action: () => {
-                const id = store.getState().groupTracks([track.id]);
-                if (id) ui.getState().selectTrack(id);
-              },
-            },
-            ...(track.folderId
-              ? [
-                  {
-                    label: 'Remove from folder',
-                    action: () => store.getState().setFolderFor(track.id, undefined),
-                  },
-                ]
-              : []),
-          ]),
-      {
-        label: track.automationOpen ? 'Hide automation lanes' : 'Show automation lanes',
-        shortcut: 'A btn',
-        action: () =>
-          store.getState().setTrack(track.id, { automationOpen: !track.automationOpen }),
-      },
-      { label: 'Add automation lane…', action: () => openAddLaneMenu(x, y) },
-      {
-        label: track.locked ? 'Unlock track' : 'Lock track (blocks clip edits)',
-        action: () => store.getState().setTrack(track.id, { locked: !track.locked }),
-      },
-      ...[1, 2, 3, 4].map((g) => ({
-        label: `${track.editGroup === g ? '● ' : ''}Edit group ${g}`,
-        action: () =>
-          store.getState().setTrack(track.id, { editGroup: track.editGroup === g ? undefined : g }),
-      })),
-      ...(track.type === 'instrument' || track.type === 'drum'
-        ? [
-            {
-              label: 'Add MIDI clip',
-              action: () => {
-                const beat = Math.floor(useProjectStore.getState().project.loop.start);
-                const id = store.getState().addMidiClip(track.id, beat, 4);
-                ui.getState().selectClip(id, track.id);
-              },
-            },
-            {
-              label: track.freeze
-                ? 'Unfreeze — bring the instrument back'
-                : 'Freeze — render this track to audio',
-              testId: `freeze-menu-${track.name}`,
-              action: () => {
-                if (track.freeze) unfreezeTrack(track.id);
-                else void freezeTrack(track.id);
-              },
-            },
-          ]
-        : []),
-      // What the control strip gives up on a narrow or collapsed header has to
-      // be reachable, not gone: the strip drops the fader and the pan knob on
-      // touch, and drops everything when the track is collapsed.
-      {
-        label: track.automationOpen ? 'Hide automation lanes' : 'Show automation lanes',
-        action: () =>
-          store.getState().setTrack(track.id, { automationOpen: !track.automationOpen }),
-      },
-      {
-        label: track.mute ? 'Unmute' : 'Mute',
-        testId: `menu-mute-${track.name}`,
-        action: () => store.getState().setTrack(track.id, { mute: !track.mute }),
-      },
-      {
-        label: track.solo ? 'Unsolo' : 'Solo',
-        action: () => store.getState().setTrack(track.id, { solo: !track.solo }),
-      },
-      ...(track.type === 'audio'
-        ? [
-            {
-              label: monitoring ? 'Stop monitoring input' : 'Monitor input',
-              action: () => void toggleMonitoring(track.id),
-            },
-          ]
-        : []),
-      {
-        label: 'Level and pan…',
-        action: () => {
-          useWorkspaceStore.getState().reveal('inspector');
-          ui.getState().selectTrack(track.id);
-        },
-      },
-      {
-        label: 'Delete track',
-        danger: true,
-        // The preference decides. It is the one destructive edit worth asking
-        // about — a clip comes back with one undo, a track takes everything on
-        // it with it — and it was a setting that had never been read.
-        action: () =>
-          usePrefsStore.getState().confirmDestructive
-            ? ui.getState().showDialog({
-                kind: 'confirm',
-                title: `Delete "${track.name}"?`,
-                message: 'The track and all of its clips will be removed.',
-                confirmLabel: 'Delete',
-                danger: true,
-                onSubmit: () => store.getState().deleteTrack(track.id),
-              })
-            : store.getState().deleteTrack(track.id),
-      },
-    ];
-    ui.getState().showMenu({ x, y, items });
+    ui.getState().showMenu({
+      x,
+      y,
+      items: trackMenuItems({ track, monitoring, laneScale, rename, openAddLaneMenu }, x, y),
+    });
   };
 
-  const collapsed = height <= 32;
+  // Not `height <= 32`, which was a second constant that agreed with the 30 px
+  // collapsed lane by coincidence — and which the touch floor breaks in both
+  // directions at once, since it raises a collapsed lane to 44 and the
+  // shortest open one to 44 as well. `isCollapsedHeight` says why the flag has
+  // to be the input rather than the height.
+  const collapsed = isCollapsedHeight(height, track.collapsed);
+
+  /**
+   * Drag the bottom edge to set this track's height.
+   *
+   * The automation lane's grip, one row up. `h0` is captured at the press and
+   * every move is measured from it rather than from the move before, so a
+   * gesture that wanders cannot accumulate drift — the same reason the zoom
+   * drag does it that way.
+   */
+  const dragResize = usePointerDrag<{ h0: number }>({
+    onStart: () => ({ h0: height }),
+    onMove: (_dx, dy, _e, d) =>
+      store.getState().setTrackHeight(track.id, clampTrackHeight(d.h0 + dy)),
+  });
+
+  /**
+   * Two presses on the grip put the track back to the layout default.
+   *
+   * The grip's only other gesture is a drag, so a press that never moves is
+   * unambiguous and costs nothing — and without it there is no route back to
+   * "whatever the global height says" once a track has been resized, short of
+   * dragging until it looks right. `useTapOrDouble` reads the event's own
+   * timestamp, which is what a test can set and what a frozen clock cannot
+   * break.
+   */
+  const resetHeight = useTapOrDouble(
+    () => {},
+    () => store.getState().setTrackHeight(track.id, undefined),
+  );
+
   return (
     <div
       className={`th${selected ? ' selected' : ''}${track.type === 'folder' ? ' folder' : ''}${
@@ -441,6 +370,33 @@ export const TrackHeader = memo(function TrackHeader({
           )}
         </div>
       )}
+      {/*
+        The height grip.
+
+        Placed last so it paints over the strip's bottom edge, and given the
+        whole width of the header because there is nothing else along that
+        edge to take a press from.
+
+        **Its grab zone is spent upward only.** `.alh-resize` reaches 2 px past
+        its own row, and a hit area that overhangs its row takes its
+        neighbour's presses — the pane divider did exactly that to the mixer's
+        cue bar. The row below this one is the next track's header, whose own
+        name row and control strip start at its first pixel, so every pixel of
+        this grip is inside the track it resizes.
+      */}
+      <div
+        className="th-resize"
+        data-testid={`track-resize-${track.name}`}
+        title="Drag to set this track's height · press twice to reset it"
+        aria-label={`Resize ${track.name}`}
+        onPointerDown={(e) => {
+          // Both gestures, in order. `dragResize` stops propagation, so the
+          // header's own press handlers never see this — which is right: a
+          // press on the grip is not a press on the track.
+          resetHeight(e);
+          dragResize(e);
+        }}
+      />
     </div>
   );
 });

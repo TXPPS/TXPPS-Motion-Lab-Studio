@@ -923,9 +923,17 @@ other case."
 `welcomeOpen`, `settingsOpen`, `exportOpen`, `debugOverlay`, `forcedLayout`,
 `openDevice`.
 
-**Zoom lives in `uiStore` and is not persisted:** `pxPerBeat` (26), `laneScale`
-(1), `prPxPerBeat` (32). Driven from `Arrangement.tsx` (`zoomTo`,
-`nextPxPerBeat`, `laneScaleFromDrag`, wheel) and the zoom tool on `9`.
+**Horizontal zoom lives in `uiStore` and is not persisted:** `pxPerBeat` (26),
+`prPxPerBeat` (32). Driven from `Arrangement.tsx` (`zoomTo`, `nextPxPerBeat`,
+wheel) and the zoom tool on `9`.
+
+**The vertical zoom is saved with the song.** `laneScale` was in `uiStore` beside
+`pxPerBeat` and reset to 1 on every reload; it is
+`project.workspace.laneScale` now, validated in `projectRepo.ts` the way
+`pxPerBeat` is and clamped to 0.6–2.5. It is reached by the toolbar's
+taller/shorter pair as well as by `laneScaleFromDrag` on the zoom tool, and per
+track by `Track.height` — see `src/components/arrangement/trackHeight.ts` for
+how the two combine and for the touch floor under both.
 
 **Tablet-only local state**, lost on unmount and never persisted: `combo`
 (`mixer` | `piano` | `synth`) and `drawer` (`browser` | `inspector`) in
@@ -1264,8 +1272,10 @@ then one of three layouts off `useViewport().layout`.
   `Arrangement.tsx:979`.
 - **Global tracks** — markers, arranger sections, chords, tempo lane, each
   independently toggleable (`GlobalTracks.tsx:502–510`).
-- Track height via `laneScale`; free zoom via `pxPerBeat` and the wheel; nine
-  tools on `1`–`9`.
+- Track height per track via `Track.height` (a grip on the header) and globally
+  via `project.workspace.laneScale` (the toolbar's taller/shorter pair, the zoom
+  tool's vertical drag); free zoom via `pxPerBeat` and the wheel; nine tools on
+  `1`–`9`.
 
 ### Gap
 

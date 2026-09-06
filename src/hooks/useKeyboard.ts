@@ -21,11 +21,12 @@ import {
 } from '../app/automationActions';
 import { recording } from '../audio/recordingController';
 import { inScale } from '../model/scales';
+import { LANE_SCALE_STEP, stepLaneScale } from '../components/arrangement/trackHeight';
 import { repeatNotes } from '../model/midiTools';
 import type { MidiClip } from '../model/types';
 import { heldNotes } from '../audio/heldNotes';
 import { useRouteStore } from '../state/routeStore';
-import { useWorkspaceStore } from '../state/workspaceStore';
+import { useWorkspaceStore, type PaneId } from '../state/workspaceStore';
 import type { PageId } from '../app/router';
 import type { BrowserTab } from '../state/uiStore';
 
@@ -44,7 +45,8 @@ const KEYS_SURFACE = 'computer-keys';
 /** The piano roll is the active editing surface for note-level shortcuts. */
 function pianoContext(): { clip: MidiClip; noteIds: string[] } | null {
   const ui = useUiStore.getState();
-  const active = !!ui.editClipId && (ui.editorTab === 'piano' || ui.phoneMode === 'edit');
+  const ws = useWorkspaceStore.getState();
+  const active = !!ui.editClipId && (ws.editorTab === 'piano' || ws.phoneMode === 'edit');
   if (!active) return null;
   const clip = useProjectStore.getState().project.clips.find((c) => c.id === ui.editClipId);
   if (clip?.type !== 'midi') return null;
@@ -216,21 +218,29 @@ function revealBrowserTab(tab: BrowserTab): void {
  * "Home" tooltip came to describe a key that did nothing.
  */
 const PANEL_KEYS = new Map<string, () => void>([
-  ['f2', () => useWorkspaceStore.getState().toggle('showEditor')],
-  [
-    'f3',
-    () => {
-      useWorkspaceStore.getState().reveal('editor');
-      useUiStore.getState().set({ editorTab: 'mixer' });
-    },
-  ],
-  ['f4', () => useWorkspaceStore.getState().toggle('showInspector')],
-  ['f5', () => useWorkspaceStore.getState().toggle('showBrowser')],
+  ['f2', () => useWorkspaceStore.getState().togglePane('editor')],
+  ['f3', () => useWorkspaceStore.getState().showEditorTab('mixer')],
+  ['f4', () => useWorkspaceStore.getState().togglePane('inspector')],
+  ['f5', () => useWorkspaceStore.getState().togglePane('browser')],
   ['f6', () => revealBrowserTab('instruments')],
   ['f7', () => revealBrowserTab('effects')],
   ['f8', () => revealBrowserTab('loops')],
   ['f9', () => revealBrowserTab('samples')],
   ['f10', () => revealBrowserTab('pool')],
+]);
+
+/**
+ * The same three panes, collapsed rather than hidden, on the shifted key.
+ *
+ * A separate table rather than a branch inside `PANEL_KEYS` because the shortcut
+ * registry is checked against both: a combo the help sheet advertises and
+ * nothing binds is a shortcut list that lies, and that check reads these two
+ * maps.
+ */
+const COLLAPSE_KEYS = new Map<string, PaneId>([
+  ['f2', 'editor'],
+  ['f4', 'inspector'],
+  ['f5', 'browser'],
 ]);
 
 export function useGlobalKeyboard(): void {
@@ -277,6 +287,24 @@ export function useGlobalKeyboard(): void {
        *   and a DAW that swallows an accidental F5 in the middle of a take is
        *   protecting work rather than stealing a key.
        */
+      /*
+       * Shift plus a pane key COLLAPSES that pane rather than hiding it.
+       *
+       * Collapse is a real state now — a rail, and a remembered size — and a
+       * state a pointer can reach and a keyboard cannot is half a feature. The
+       * modifier rather than three more function keys because the pairing is
+       * what makes it learnable: F5 is the browser, and Shift+F5 is the browser
+       * folded away with its width kept.
+       *
+       * Checked before `PANEL_KEYS`, which is keyed on the bare function key and
+       * would otherwise swallow the shifted press and hide the pane instead.
+       */
+      if (e.shiftKey && COLLAPSE_KEYS.has(k)) {
+        e.preventDefault();
+        useWorkspaceStore.getState().toggleCollapsed(COLLAPSE_KEYS.get(k)!);
+        return;
+      }
+
       if (PANEL_KEYS.has(k)) {
         e.preventDefault();
         PANEL_KEYS.get(k)?.();
@@ -298,6 +326,33 @@ export function useGlobalKeyboard(): void {
         if (page) {
           e.preventDefault();
           useRouteStore.getState().go(page);
+        }
+        return;
+      }
+
+      /*
+       * Vertical zoom on the shifted letter keys, and a reset for one track.
+       *
+       * `stepLaneScale` quantises, so holding the key does not accumulate a
+       * scale whose readout says the same number twice while the lanes move a
+       * pixel each time. The reset passes `undefined` rather than the default
+       * in pixels: a track with no height of its own follows the default when
+       * the default changes, and a track written 64 does not.
+       */
+      if (e.shiftKey && (k === 'e' || k === 'w')) {
+        e.preventDefault();
+        const project = useProjectStore.getState();
+        const current = project.project.workspace.laneScale;
+        project.setLaneScale(
+          stepLaneScale(current, k === 'e' ? LANE_SCALE_STEP : 1 / LANE_SCALE_STEP),
+        );
+        return;
+      }
+      if (e.shiftKey && k === '0') {
+        const trackId = useUiStore.getState().selectedTrackId;
+        if (trackId) {
+          e.preventDefault();
+          useProjectStore.getState().setTrackHeight(trackId, undefined);
         }
         return;
       }

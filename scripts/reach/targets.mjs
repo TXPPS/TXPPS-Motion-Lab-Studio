@@ -99,6 +99,19 @@ const TARGETS = [
   { id: 'piano-roll', label: 'piano roll', selector: '[data-testid="piano-roll"]' },
   { id: 'mixer', label: 'mixer', selector: '[data-testid="mixer"]' },
   { id: 'arrangement', label: 'arrangement', selector: '[data-testid="arrangement"]' },
+  /*
+   * One row for both routes, because the grip and the toolbar pair are never
+   * both the answer: the grip is the desktop route and is deliberately not
+   * drawn on a coarse pointer, where a 44 px band along the header's bottom
+   * edge would sit on top of mute, arm and monitor and take their presses.
+   * The toolbar pair is on every form factor, so the row is reachable
+   * everywhere without a substitution.
+   */
+  {
+    id: 'track-height',
+    label: 'track height',
+    selector: '[data-testid="lane-taller"], [data-testid^="track-resize-"]',
+  },
   { id: 'browser', label: 'browser', selector: '[data-testid="browser-panel"]' },
   { id: 'inspector', label: 'inspector', selector: '[data-testid="inspector"]' },
   {
@@ -178,6 +191,49 @@ const TARGETS = [
     id: 'shortcuts',
     label: 'keyboard shortcuts',
     selector: '[data-testid="shortcuts-sheet"], [data-testid="key-commands"]',
+  },
+  /*
+   * The workspace system's own three surfaces.
+   *
+   * Added because the layout is a *function* now rather than a set of flags: a
+   * named workspace can be saved, recalled, renamed and deleted, and a pane can
+   * be folded to a rail. Directive 11 §5's rule applies to all of it — a
+   * workspace you can save on a desktop and cannot recall on a phone is a
+   * missing function on the phone, not a layout difference — and a surface with
+   * no row here is not a surface with a clean row.
+   */
+  {
+    id: 'workspaces',
+    label: 'named workspaces (save, recall, rename, delete)',
+    // Either the desktop's own button or the menu the overflow opens, because
+    // the two are the same five commands and the point of the row is whether a
+    // person can get to them at all.
+    selector: '[data-testid="workspace-menu"], [data-testid="workspace-save"]',
+  },
+  {
+    id: 'pane-collapse',
+    label: 'collapse a pane to a rail',
+    selector: '[data-testid^="collapse-"], [data-testid^="menu-collapse-"]',
+  },
+  {
+    id: 'pane-rail',
+    label: 'the rail a collapsed pane leaves behind',
+    /*
+     * Scoped to the pane rail's own class, not to the `rail-` id prefix.
+     *
+     * `[data-testid^="rail-"]` also matches the Channel view's device rail —
+     * `rail-card-*`, `rail-power-*`, `rail-open-*` — which is a different
+     * surface entirely, and the matrix recorded it as reached on all five form
+     * factors through `editor-tab-channel`. That is a row measuring the wrong
+     * thing while looking clean, which is worse than a row that says NO.
+     *
+     * A collapsed pane is only on screen while something IS collapsed, and the
+     * sweep navigates rather than collapsing, so this correctly reads NOT
+     * REACHED everywhere and belongs under "not reached anywhere".
+     * `e2e/workspaces.spec.ts` is what drives the collapse and measures the rail
+     * with a real pointer on each form factor.
+     */
+    selector: '.pane-rail [data-testid^="rail-expand-"], [data-testid="rail-immersive"]',
   },
 ];
 

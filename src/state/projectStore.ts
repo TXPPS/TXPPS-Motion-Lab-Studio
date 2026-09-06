@@ -40,6 +40,7 @@ import {
 } from '../model/controlLink';
 import { createNoteFx } from '../model/noteFx';
 import { MAX_MACROS, createMacro, macroWrites } from '../model/macros';
+import { MAX_LANE_SCALE, MIN_LANE_SCALE } from '../model/arrangeTools';
 import { MAX_SAVED_GROOVES, applyGroove, type Groove } from '../model/groove';
 import { MAX_CUE_MIXES } from '../model/cueMix';
 import type { NoteFxKind } from '../model/types';
@@ -110,6 +111,26 @@ export interface ProjectStore {
   duplicateTrack: (id: string) => string | null;
   deleteTrack: (id: string) => void;
   setTrack: (id: string, patch: Partial<Track>) => void;
+  /**
+   * One track's lane height in pixels, or `undefined` to return it to the
+   * layout default.
+   *
+   * Its own action rather than `setTrack({ height })` because the two differ on
+   * every axis that matters here: this is a continuous drag and so is not
+   * undoable, it is clamped to what the current hand can use, and `undefined`
+   * is a meaningful argument — `setTrack` would `Object.assign` an explicit
+   * `undefined` over the field, which is the same as deleting it only by luck
+   * of how the persistence layer happens to serialise. Resetting is the
+   * double-press gesture on the grip, so it needs to be a value this can take.
+   */
+  setTrackHeight: (id: string, px: number | undefined) => void;
+  /**
+   * The arrangement's vertical zoom: a multiplier on every lane.
+   *
+   * On the project rather than in `uiStore` because it is saved with the song.
+   * See `WorkspaceState.laneScale`.
+   */
+  setLaneScale: (scale: number) => void;
   setSynthParams: (trackId: string, patch: Partial<SynthParams>) => void;
   applyPreset: (trackId: string, presetName: string) => void;
 
@@ -742,6 +763,38 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
           if (t) Object.assign(t, patch);
         },
         { undoable: isUndoableTrackPatch(patch) },
+      ),
+
+    setTrackHeight: (id, px) =>
+      update(
+        (d) => {
+          const t = trackById(d, id);
+          if (!t) return;
+          // Deleted rather than set to undefined: `validateProject` carries the
+          // field across explicitly, and a track whose `height` is the literal
+          // undefined survives a save as `height: undefined`, which JSON drops
+          // on the way out and the store keeps in memory — so the reset would
+          // look different before and after a reload.
+          if (px === undefined) delete t.height;
+          // Clamped to the range the *file* allows, which is what
+          // `projectRepo.ts` enforces on load; the floor for the hand in use is
+          // applied on read in `trackHeight.ts`, because the hand can change
+          // after the value was stored. Not rounded: this is a base the global
+          // scale multiplies, so a rounding here is an error the scale
+          // amplifies — the pixels are rounded once, where they are drawn.
+          else t.height = clamp(px, 24, 400);
+        },
+        // A grip drag, like the automation lane's. One undo step per pixel of a
+        // drag makes Ctrl+Z useless for the edits either side of it.
+        { undoable: false },
+      ),
+
+    setLaneScale: (scale) =>
+      update(
+        (d) => {
+          d.workspace.laneScale = clamp(scale, MIN_LANE_SCALE, MAX_LANE_SCALE);
+        },
+        { undoable: false },
       ),
 
     setSynthParams: (trackId, patch) =>

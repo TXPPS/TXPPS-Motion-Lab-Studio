@@ -331,6 +331,60 @@ export const SHORTCUTS: Shortcut[] = [
     description: 'Full-screen the arrangement, and back again',
     category: 'View',
   },
+  // Collapse, on the shifted pane key. A pane that a pointer can fold to a rail
+  // and a keyboard cannot is half a feature, and the pairing with the unshifted
+  // key is what makes the three learnable as one rule.
+  {
+    id: 'collapse-editor',
+    combo: 'shift+f2',
+    display: 'Shift F2',
+    description: 'Collapse the editor to a rail, keeping its size',
+    category: 'View',
+  },
+  {
+    id: 'collapse-inspector',
+    combo: 'shift+f4',
+    display: 'Shift F4',
+    description: 'Collapse the inspector to a rail, keeping its width',
+    category: 'View',
+  },
+  {
+    id: 'collapse-browser',
+    combo: 'shift+f5',
+    display: 'Shift F5',
+    description: 'Collapse the browser to a rail, keeping its width',
+    category: 'View',
+  },
+  /*
+   * Vertical zoom, and the one control that resets a track's own height.
+   *
+   * The arrangement's height controls were a toolbar pair and a track menu,
+   * both of which a hand reaches and a keyboard could not. `Shift E` and
+   * `Shift W` are what the parity table records as the reference binding for
+   * vertical zoom, so a musician arriving from that host already knows them,
+   * and neither collides with anything here.
+   */
+  {
+    id: 'lane-taller',
+    combo: 'shift+e',
+    display: 'Shift E',
+    description: 'Taller tracks',
+    category: 'View',
+  },
+  {
+    id: 'lane-shorter',
+    combo: 'shift+w',
+    display: 'Shift W',
+    description: 'Shorter tracks',
+    category: 'View',
+  },
+  {
+    id: 'track-height-reset',
+    combo: 'shift+0',
+    display: 'Shift 0',
+    description: 'Reset the selected track to the default height',
+    category: 'View',
+  },
   {
     id: 'pages',
     combo: 'mod+1-4',

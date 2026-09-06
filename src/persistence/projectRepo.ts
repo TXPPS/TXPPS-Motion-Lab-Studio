@@ -18,6 +18,7 @@ import { normalizeTempoMap } from '../model/tempo';
 import { normalizeWarpMap } from '../model/warp';
 import type { WarpMap } from '../model/warp';
 import { normalizeChords, normalizeMarkers, normalizeSections } from '../model/arrangement';
+import { MAX_LANE_SCALE, MIN_LANE_SCALE } from '../model/arrangeTools';
 import { normalizeLinks } from '../model/controlLink';
 import { normalizeGrooves } from '../model/groove';
 import { normalizeCueMixes } from '../model/cueMix';
@@ -632,6 +633,12 @@ export function validateProject(raw: unknown): ProjectData {
     workspace: {
       pxPerBeat: typeof ws.pxPerBeat === 'number' ? ws.pxPerBeat : 26,
       snap: typeof ws.snap === 'number' ? ws.snap : 0.25,
+      // Clamped rather than merely defaulted, unlike the two above it. This one
+      // is a multiplier the arrangement applies to every lane, so a hand-edited
+      // or corrupted 400 would draw a 25,600 px track — where a nonsense
+      // `pxPerBeat` merely looks wrong and can be zoomed back. The range is the
+      // one `arrangeTools.ts` declares, so the file and the control agree.
+      laneScale: clampNum(ws.laneScale, MIN_LANE_SCALE, MAX_LANE_SCALE, 1),
     },
     // The return is a fresh object, so optional fields must be carried across
     // explicitly or a save/load cycle would silently drop them.

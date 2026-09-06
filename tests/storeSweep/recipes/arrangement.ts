@@ -1,6 +1,6 @@
 /** Tempo, signatures, markers, sections, chords and scratch pads. */
 import { useProjectStore } from '../../../src/state/projectStore';
-import type { Handles } from '../fixture';
+import { trackNow, type Handles } from '../fixture';
 import type { Recipe } from '../harness';
 
 const s = () => useProjectStore.getState();
@@ -210,6 +210,30 @@ export const arrangementRecipes = (h: Handles): Recipe[] => {
       run: () => {
         s().deleteScratchPad(padId);
         return `${p().scratchPads?.length ?? 0} pads left`;
+      },
+    },
+    {
+      id: 'store:projectStore.setTrackHeight',
+      undo: 'none',
+      // A grip drag on the track header, like the automation lane's. Phase 3
+      // is the load-bearing half here: `Track.height` was in the schema and
+      // clamped on load for two directives while nothing read or wrote it, so
+      // "does a save carry it back" had never once been asked of a value the
+      // product had actually written.
+      run: () => {
+        s().setTrackHeight(h.inst.id, 128);
+        return `height ${trackNow(h.inst.id).height}`;
+      },
+    },
+    {
+      id: 'store:projectStore.setLaneScale',
+      undo: 'none',
+      // The vertical zoom: a drag with the zoom tool, or the toolbar's
+      // taller/shorter pair. Not undoable for the same reason `setLoop` is
+      // not — it is where you are looking, not what the song is.
+      run: () => {
+        s().setLaneScale(1.6);
+        return `laneScale ${p().workspace.laneScale}`;
       },
     },
     {

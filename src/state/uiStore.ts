@@ -1,24 +1,20 @@
-import type { EditorId } from '../app/editorIds';
 import type { SnapMode } from '../model/snap';
 import { create } from 'zustand';
 import { useWorkspaceStore } from './workspaceStore';
 
 /**
- * Which editor the bottom panel is showing. The list of editors themselves
- * lives in `app/editors.ts`; this is only the persisted selection.
- */
-/**
- * The editor this store has selected.
+ * Which editor is showing, and which workspace a phone is on, live on the
+ * WORKSPACE store now — they are layout, and every shell has to derive its
+ * drawing from one copy of them.
  *
- * An alias rather than a second list. It *was* a second list, spelled out here
- * and again in `app/editors.ts`, and adding the Channel view broke in three
- * places at once because of it — which is the same defect the registry exists
- * to prevent, arriving from the side the registry did not cover. Type-only, so
- * nothing about the import survives compilation and there is no cycle to worry
- * about between a store and a component registry.
+ * Re-exported here because a dozen call sites name these types, and because the
+ * alternative is each of them importing a second module to say what a tab is.
+ * The values themselves are gone from this store: `TabletLayout` kept its own
+ * `useState` copy of "which editor" for a directive and six controls that asked
+ * for a tab were inert there while working on a phone and a desktop, which is
+ * what happens when two pieces of state can disagree about one question.
  */
-export type EditorTab = EditorId;
-export type PhoneMode = 'arrange' | 'record' | 'perform' | 'edit' | 'mix' | 'browse';
+export type { EditorTab, PhoneMode } from './workspaceStore';
 export type BrowserTab = 'projects' | 'instruments' | 'effects' | 'loops' | 'samples' | 'pool';
 /**
  * Arrangement editing tools, in the order the toolbar shows them and the
@@ -74,9 +70,7 @@ export interface Toast {
 }
 
 interface UiState {
-  editorTab: EditorTab;
   browserTab: BrowserTab;
-  phoneMode: PhoneMode;
   /** Forced layout via #/phone test route */
   forcedLayout: 'phone' | null;
   /** QA layout overlay via #/qa or #/debug — off in normal production use */
@@ -136,13 +130,14 @@ interface UiState {
   range: { fromBeat: number; toBeat: number; trackIds: string[] } | null;
 
   pxPerBeat: number;
-  /**
-   * Vertical arrangement zoom: a multiplier on the track lane height. One
-   * number for every track, because the zoom tool scales the view rather than
-   * resizing one lane — a per-track height would be project data, not view
-   * state, and would have to survive a save.
+  /*
+   * `laneScale` used to live here, next to `pxPerBeat`, with a comment saying a
+   * per-track height "would be project data, not view state, and would have to
+   * survive a save". That was the right reasoning and the wrong conclusion:
+   * `Track.height` was already in the schema, and how tall this song's tracks
+   * are drawn is exactly as much a property of the song as its zoom. It is
+   * `project.workspace.laneScale` now, and reopening a project restores it.
    */
-  laneScale: number;
   /** Grid size in beats. 0 means the grid itself is off. */
   snap: number;
   /**
@@ -204,9 +199,7 @@ interface UiState {
 let toastId = 0;
 
 export const useUiStore = create<UiState>((set, get) => ({
-  editorTab: 'mixer',
   browserTab: 'projects',
-  phoneMode: 'arrange',
   forcedLayout: null,
   debugOverlay: false,
   diagnosticsOpen: false,
@@ -228,7 +221,6 @@ export const useUiStore = create<UiState>((set, get) => ({
   range: null,
 
   pxPerBeat: 26,
-  laneScale: 1,
   snap: 0.25,
   snapMode: 'grid',
   prPxPerBeat: 32,
@@ -275,18 +267,20 @@ export const useUiStore = create<UiState>((set, get) => ({
     }),
   openEditorFor: (clipId, phone) => {
     // Opening a clip for editing has to open the editor. Which panes are on
-    // screen is the workspace's business, not this store's — the boolean that
-    // used to be set here was read by nothing, so double-clicking a clip while
-    // the bottom panel was hidden or another pane was full screen selected the
-    // clip and showed the user nothing.
-    useWorkspaceStore.getState().reveal('editor');
+    // screen — and which editor is in front of the pane — is the workspace's
+    // business, not this store's: the boolean that used to be set here was read
+    // by nothing, so double-clicking a clip while the bottom panel was hidden or
+    // another pane was full screen selected the clip and showed the user
+    // nothing. `showEditorTab` is the one call that does both halves, so a
+    // caller cannot get the tab without the pane.
+    const ws = useWorkspaceStore.getState();
+    ws.showEditorTab('piano');
+    if (phone) ws.setPhoneMode('edit');
     set({
       editClipId: clipId,
       selectedClipId: clipId,
       selectedClipIds: [clipId],
       selectedNoteIds: [],
-      editorTab: 'piano',
-      ...(phone ? { phoneMode: 'edit' } : {}),
     });
   },
   showDialog: (dialog) => set({ dialog }),

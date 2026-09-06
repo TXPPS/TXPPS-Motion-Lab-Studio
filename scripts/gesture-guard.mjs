@@ -72,6 +72,11 @@ const SCRIPTED = [
     what: 'a piano key pressed and released by dispatched pointer events',
     why: 'the note-off path is what is being asserted, and it needs the two events apart',
   },
+  {
+    file: 'e2e/trackheight.spec.ts',
+    what: 'a long press on the track header, held open, to reach the track menu on touch',
+    why: 'the same case as scripts/reach/menus.mjs: `longPress` needs the press held for 500ms and `touchscreen.tap()` is down and up in one call, while `page.mouse` sends a mouse and the handler returns unless pointerType is touch. It is a fixture step — the claim is what the menu carries and that its Taller command works, and that press goes through e2e/pointer.ts',
+  },
 ];
 
 /**

@@ -359,6 +359,16 @@ export interface WorkspaceState {
   pxPerBeat: number;
   /** grid snap in beats */
   snap: number;
+  /**
+   * Vertical arrangement zoom: a multiplier on every track's lane height.
+   *
+   * In the document rather than in `uiStore` beside `pxPerBeat`'s in-memory
+   * copy, because it is the same kind of thing `Track.height` is — how tall
+   * this song's tracks are drawn — and a session that reopens with every lane
+   * back at 64 px has thrown away a decision the user made about their project.
+   * `pxPerBeat` is here for the same reason and has been all along.
+   */
+  laneScale: number;
 }
 
 /** Per-track send into an effect bus. */

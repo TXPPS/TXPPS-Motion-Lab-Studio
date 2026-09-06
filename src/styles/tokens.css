@@ -136,8 +136,16 @@
   --topbar-h: calc(42px * var(--ui-scale));
   --transport-h: calc(52px * var(--ui-scale));
   --statusbar-h: calc(24px * var(--ui-scale));
+  /* The arrangement's lane heights. These mirror `LANE_H` and
+     `LANE_H_COLLAPSED` in `src/components/arrangement/trackHeight.ts`, which is
+     where the real decision lives: a lane's height is now per-track and carries
+     a floor that depends on the pointer, so it has to be computed rather than
+     declared. These stay because the header column's own chrome is laid out
+     against the default, and a unit test holds the two in step. */
   --track-h: calc(64px * var(--ui-scale));
   --track-h-collapsed: calc(30px * var(--ui-scale));
+  /* WCAG 2.5.8's minimum, as the arrangement's lane floor on a finger. */
+  --track-h-touch-min: calc(44px * var(--ui-scale));
   --header-w: calc(176px * var(--ui-scale));
   --bottomnav-h: calc(54px * var(--ui-scale));
   --ruler-h: calc(42px * var(--ui-scale));
