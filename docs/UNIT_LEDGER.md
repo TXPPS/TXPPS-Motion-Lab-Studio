@@ -1440,8 +1440,13 @@ segment boundary was a click. Corrected in §5.2 with the old form kept beside i
 and mutation-tested — the design's version fails the continuity case and only the
 continuity case.
 
-**5 of the 12** files in the substrate's table exist, and with the remaining
-seven go VS-03, VS-06, VS-10, VS-13 to VS-29 and VS-32. `ledger-guard` derives that count from
+**8 of the 12** files in the substrate's table exist, and with the remaining
+four go VS-03, VS-06, VS-16 to VS-29 and VS-32. `envelope_shapes.h` closes VS-10
+(the six-operator decibel decay at R = 50 fits a line in dB with R² = 1.000000
+over 89.4 dB, and the amplitude-linear construction of the same excursion reads
+0.7516), `lfo.h` closes VS-13, VS-14 and VS-15 and the LFO halves of VS-07 and
+VS-08, and `mod_grid.h` closes the grid's half of VS-07 at a peak difference of
+6e-8 across 16, 17, 64, 128 and 1024-frame splits. `ledger-guard` derives that count from
 the design's own file table and the tree, because the sentence it replaced —
 "ten of the twelve remain, and the next is `voice_set.h`" — was true when it was
 written and false one directive later, with `voice_set.h` in the tree.
