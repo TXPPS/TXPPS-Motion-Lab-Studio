@@ -33,6 +33,7 @@ That is the rule the directive sets: layout may differ, capability may not.
 | piano roll | yes | yes | yes | yes | yes |
 | mixer | yes | yes | yes | yes | yes |
 | arrangement | yes | yes | yes | yes | yes |
+| track height | yes | yes | yes | yes | yes |
 | browser | yes | yes | yes | yes | yes |
 | inspector | yes | yes | yes | yes | yes |
 | settings | yes | yes | yes | yes | yes |
@@ -47,6 +48,9 @@ That is the rule the directive sets: layout may differ, capability may not.
 | MIDI FX rack in the channel view | yes | yes | yes | yes | yes |
 | chain summary on the console strip | — | yes | yes | — | — |
 | keyboard shortcuts | yes | yes | yes | yes | yes |
+| named workspaces (save, recall, rename, delete) | yes | yes | — | — | yes |
+| collapse a pane to a rail | yes | yes | yes | yes | yes |
+| the rail a collapsed pane leaves behind | — | — | — | — | — |
 
 ## What the sweep managed, before any of it is read as a defect
 
@@ -66,6 +70,7 @@ list of the walk, not of the product.
 - **groove panel** — phone-portrait
 - **MIDI/note FX rack** — tablet-portrait, tablet-landscape
 - **add a note FX (arpeggiator)** — tablet-portrait, tablet-landscape
+- **named workspaces (save, recall, rename, delete)** — tablet-portrait, tablet-landscape
 
 ## Substituted below a tier
 
@@ -88,6 +93,7 @@ functional sweep rather than evidence of a missing feature.
 - sampler zone editor (`[data-testid="zone-map"]`)
 - a device editor (`[data-testid="plugin-window"]`)
 - take review (`[data-testid="take-review"]`)
+- the rail a collapsed pane leaves behind (`.pane-rail [data-testid^="rail-expand-"], [data-testid="rail-immersive"]`)
 
 ## How each was reached
 
@@ -106,6 +112,7 @@ functional sweep rather than evidence of a missing feature.
 | piano roll | phone-portrait | nav-edit |
 | mixer | phone-portrait | nav-mix |
 | arrangement | phone-portrait | nav-arrange |
+| track height | phone-portrait | nav-arrange |
 | browser | phone-portrait | nav-browse |
 | inspector | phone-portrait | nav-browse |
 | settings | phone-portrait | topbar-overflow > "Preferences…" |
@@ -117,6 +124,8 @@ functional sweep rather than evidence of a missing feature.
 | MIDI FX rack on the console strip | phone-portrait | nav-mix |
 | MIDI FX rack in the channel view | phone-portrait | nav-edit > editor-tab-channel · drum track selected by tapping its header |
 | keyboard shortcuts | phone-portrait | topbar-overflow > "Keyboard shortcuts…?" |
+| named workspaces (save, recall, rename, delete) | phone-portrait | topbar-overflow > "Workspace…" |
+| collapse a pane to a rail | phone-portrait | topbar-overflow > "Workspace…" |
 | MIDI/note FX rack | phone-landscape | nav-browse |
 | add a note FX (arpeggiator) | phone-landscape | nav-browse |
 | automation lane | phone-landscape | long-press on track-header-Drums > "Add automation lane…" > "Volume" |
@@ -130,6 +139,7 @@ functional sweep rather than evidence of a missing feature.
 | piano roll | phone-landscape | nav-edit |
 | mixer | phone-landscape | nav-mix |
 | arrangement | phone-landscape | nav-arrange |
+| track height | phone-landscape | nav-arrange |
 | browser | phone-landscape | nav-browse |
 | inspector | phone-landscape | nav-browse |
 | settings | phone-landscape | topbar-overflow > "Preferences…" |
@@ -142,6 +152,8 @@ functional sweep rather than evidence of a missing feature.
 | MIDI FX rack in the channel view | phone-landscape | nav-edit > editor-tab-channel · drum track selected by tapping its header |
 | chain summary on the console strip | phone-landscape | nav-mix |
 | keyboard shortcuts | phone-landscape | topbar-overflow > "Keyboard shortcuts…?" |
+| named workspaces (save, recall, rename, delete) | phone-landscape | topbar-overflow > "Workspace…" |
+| collapse a pane to a rail | phone-landscape | topbar-overflow > "Workspace…" |
 | automation lane | tablet-portrait | long-press on track-header-Drums > "Add automation lane…" > "Volume" |
 | sends rack | tablet-portrait | combo-piano > editor-tab-channel · with a MIDI clip open |
 | cue mixes | tablet-portrait | combo-mixer |
@@ -153,6 +165,7 @@ functional sweep rather than evidence of a missing feature.
 | piano roll | tablet-portrait | combo-piano |
 | mixer | tablet-portrait | combo-mixer |
 | arrangement | tablet-portrait | combo-mixer |
+| track height | tablet-portrait | combo-mixer |
 | browser | tablet-portrait | tablet-browser |
 | inspector | tablet-portrait | tablet-inspector |
 | settings | tablet-portrait | combo-mixer |
@@ -164,6 +177,7 @@ functional sweep rather than evidence of a missing feature.
 | MIDI FX rack in the channel view | tablet-portrait | combo-piano > editor-tab-channel · with a MIDI clip open |
 | chain summary on the console strip | tablet-portrait | combo-mixer |
 | keyboard shortcuts | tablet-portrait | open-settings |
+| collapse a pane to a rail | tablet-portrait | combo-mixer |
 | automation lane | tablet-landscape | long-press on track-header-Drums > "Add automation lane…" > "Volume" |
 | sends rack | tablet-landscape | combo-piano > editor-tab-channel · with a MIDI clip open |
 | cue mixes | tablet-landscape | combo-mixer |
@@ -175,6 +189,7 @@ functional sweep rather than evidence of a missing feature.
 | piano roll | tablet-landscape | combo-piano |
 | mixer | tablet-landscape | combo-mixer |
 | arrangement | tablet-landscape | combo-mixer |
+| track height | tablet-landscape | combo-mixer |
 | browser | tablet-landscape | tablet-browser |
 | inspector | tablet-landscape | tablet-inspector |
 | settings | tablet-landscape | combo-mixer |
@@ -185,6 +200,7 @@ functional sweep rather than evidence of a missing feature.
 | channel view (one channel end to end) | tablet-landscape | combo-piano > editor-tab-channel · with a MIDI clip open |
 | MIDI FX rack in the channel view | tablet-landscape | combo-piano > editor-tab-channel · with a MIDI clip open |
 | keyboard shortcuts | tablet-landscape | open-settings |
+| collapse a pane to a rail | tablet-landscape | combo-mixer |
 | MIDI/note FX rack | desktop | right-click on track-header-Drums |
 | add a note FX (arpeggiator) | desktop | right-click on track-header-Drums |
 | automation lane | desktop | right-click on track-header-Drums > "Add automation lane…" > "Volume" |
@@ -198,6 +214,7 @@ functional sweep rather than evidence of a missing feature.
 | piano roll | desktop | editor-tab-piano |
 | mixer | desktop | editor-tab-mixer |
 | arrangement | desktop | editor-tab-mixer |
+| track height | desktop | editor-tab-mixer |
 | browser | desktop | editor-tab-mixer |
 | inspector | desktop | editor-tab-mixer |
 | settings | desktop | editor-tab-mixer |
@@ -209,3 +226,5 @@ functional sweep rather than evidence of a missing feature.
 | MIDI FX rack on the console strip | desktop | editor-tab-mixer |
 | MIDI FX rack in the channel view | desktop | editor-tab-channel · with a MIDI clip open |
 | keyboard shortcuts | desktop | open-settings |
+| named workspaces (save, recall, rename, delete) | desktop | editor-tab-mixer |
+| collapse a pane to a rail | desktop | editor-tab-mixer |

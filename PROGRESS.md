@@ -1,13 +1,14 @@
 # Motion Wave — progress
 
 ```
-RESUME: F12 — the Granular Delay ships as the eighth unit: a transport whose
-        delay is integrated from its speed rather than set, two media as
-        record and playback halves around one buffer, 139 controls behind a
-        tab strip the framework now draws for any face, and the host's tempo
-        reaching a Motion Wave unit for the first time. The voice substrate
-        is complete: thirteen of thirteen files, the damper included, and
-        the Slipstream Sampler is under way on it.
+RESUME: F13 — the Slipstream Sampler's core is built on the finished voice
+        substrate: the analysing importer SA-001 has been waiting for, four
+        read paths (classic, granular, spectral and the filter they share),
+        and the modulation matrix the five synths will take. Ninety-one cases
+        green across thirteen suites; two red rows carry their measurements.
+        In the app, layout truth is one model again, panes collapse to a rail
+        that can bring them back, workspaces have names, and a track height
+        the schema had declared since it was written is finally drawn.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
 Deployed commit: 46cfa28, bundle index-DyfrcXtf.js, sha256 e5668e744d0238b4
                  over 450737 bytes - fetched from the live worker by
@@ -75,7 +76,21 @@ Bundle verified: every deploy is checked by fetching the live bundle and
                  This line names the tip at the moment it was written, so the
                  commit that edits it is by construction one ahead of what it
                  describes. Said plainly rather than left to be noticed.
-Current section: F12 COMPLETE - fx-03 Granular Delay, SHIPPING with every
+Current section: F13 COMPLETE - the Slipstream Sampler's core, the workspace
+                 system and the arrangement's track heights. Four findings
+                 worth carrying forward. `tests/schemaWired.test.ts` has been
+                 vacuous on Windows since it was written: its declarer
+                 exclusion compared `join()` paths against a forward-slash
+                 pattern, matched nothing, and left every field matching its
+                 own declaration - one of the three guards that catch a
+                 control doing nothing, passing by accident. `Track.height`
+                 was declared, validated and clamped on load and read by no
+                 renderer. The reachability sweep measures the built preview,
+                 so a new target reads NOT REACHED until `vite build` - the
+                 same line a real defect prints. And smp-01's own §9 carries
+                 four rows that cannot catch what they claim; §14 of that
+                 sheet now records them with the numbers.
+                 F12 before it - fx-03 Granular Delay, SHIPPING with every
                  applicable cell PASS and every one of §9's sixteen rows
                  measured; `envelope_shapes.h`, `lfo.h` and `mod_grid.h` built
                  and mutation-tested (VS-10, VS-13, VS-14, VS-15 closed, the
@@ -107,22 +122,20 @@ Current section: F12 COMPLETE - fx-03 Granular Delay, SHIPPING with every
                  replace kept on the page.
                  §7 has `trigger_bus.h` and `envelope.h` - the envelope's
                  halves of VS-07, VS-08, VS-09, VS-11 and VS-12.
-Next action:     §7 is complete: thirteen of the substrate's thirteen files are
-                 built (`note_id.h`, `note_registry.h`, `voice_set.h`,
-                 `trigger_bus.h`, `envelope.h`, `envelope_shapes.h`, `lfo.h`,
-                 `mod_grid.h`, `drift.h`, `mpe.h`, `portamento.h`, `specs.h`,
-                 `damper.h`) and `ledger-guard` derives that count from the
-                 design's own file table. VS-03, VS-29 and VS-32 need an
-                 instrument and the Slipstream Sampler is it: its analysing
-                 importer (smp-01 §3, which closes SA-001), its Classic
-                 resampler tiers and the modulation matrix it shares with the
-                 five synths are being built now; then the voice layer on the
-                 substrate, the granular, spectral and hybrid engines, the
-                 unit's face and host integration, and its ledger row. Then
-                 the five synths in the ledger's order. In `src/`, the
-                 workspace system (§7 of the build directive), the
-                 arrangement's track heights and the responsive matrix follow
-                 the instruments.
+Next action:     The sampler's core is built and its voice layer is not: the
+                 four read paths exist as read paths, and nothing yet
+                 allocates a voice, applies an envelope or a filter to one,
+                 switches an engine mid-note (§4.6's 20 ms crossfade) or
+                 declares a `ParamSpec` (V-30). That layer is what closes
+                 VS-03, VS-29 and VS-32, which need an instrument to be
+                 constructible at all, and then the unit's manifest, face,
+                 bridge exports and host registration follow the pattern
+                 fx-03 set. The Hybrid engine (§4.5) waits on the same layer;
+                 V-21's unity null across all three layers is the row that
+                 proves the decomposition is complementary. Then SA-001
+                 closes by putting the importer on the app's load route, and
+                 the five synths follow in the ledger's order on the
+                 substrate and the shared matrix.
 Function Ledger: 404 functions, **230 with a state-asserting test - 56.9%**.
                  Two instruments: the functional soak drives 136 against a
                  running browser on three form factors, and the store sweep

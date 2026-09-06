@@ -27,17 +27,17 @@ Coverage is counted as **rows with a state-asserting result**, never as rows
 that are not FAIL. Those are the same number only until somebody is tempted to
 make the column green.
 
-Coverage: **231 of 405 ledger rows** (57.0%) have a state-asserting result. Two instruments drive them: the functional soak against the running app (137 rows, measured on `index-BFS3-7sY.js`, `dcccecd8a0ba52e5`) and the store sweep in `npm test` (161 rows). 107 rows have no case at all and are named under "Never driven" below.
+Coverage: **247 of 423 ledger rows** (58.4%) have a state-asserting result. Two instruments drive them: the functional soak against the running app (143 rows, measured on `index-xuU3Hcd0.js`, `ff0dc6be15f11e55`) and the store sweep in `npm test` (173 rows). 107 rows have no case at all and are named under "Never driven" below.
 
 | kind | count |
 | --- | --- |
 | action | 87 |
 | effect | 35 |
 | instrument | 4 |
-| shortcut | 71 |
-| store | 188 |
+| shortcut | 77 |
+| store | 200 |
 | surface | 20 |
-| **total** | **405** |
+| **total** | **423** |
 
 ## Never driven
 
@@ -168,18 +168,18 @@ together is what let the coverage figure read as half rather than a sixth.
 | `effect:gainMatch` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.94e-3 RMS |
 | `effect:gate` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 2.52e-2 RMS |
 | `effect:limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.74e-1 RMS |
-| `effect:multiband` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.90e-1 RMS |
+| `effect:multiband` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.91e-1 RMS |
 | `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.18e-1 RMS |
 | `effect:mw-fet-limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.13e-1 RMS |
 | `effect:mw-granular-delay` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.38e-2 RMS |
 | `effect:mw-granular-reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.12e-3 RMS |
 | `effect:mw-motion-shaper` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 7.40e-2 RMS |
 | `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.06e-1 RMS |
-| `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.06e-1 RMS |
+| `effect:mw-program-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.07e-1 RMS |
 | `effect:mw-variable-mu` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.09e-1 RMS |
 | `effect:phaser` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.91e-2 RMS |
-| `effect:pingpong` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.20e-2 RMS |
-| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 8.24e-3 RMS |
+| `effect:pingpong` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.25e-2 RMS |
+| `effect:reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.92e-3 RMS |
 | `effect:rotary` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 5.61e-2 RMS |
 | `effect:saturator` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.92e-1 RMS |
 | `effect:tremolo` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.27e-3 RMS |
@@ -210,6 +210,9 @@ together is what let the coverage figure read as half rather than a sixth.
 | `shortcut:clip-select` | keyboard | shortcut | FAIL | FAIL | FAIL | clip-select | FAIL | combo "enter (clip)" has no keyboard spelling |
 | `shortcut:clip-trim-end` | keyboard | shortcut | FAIL | FAIL | FAIL | clip-trim-end | FAIL | combo "shift+[/] (clip)" has no keyboard spelling |
 | `shortcut:clip-trim-start` | keyboard | shortcut | FAIL | FAIL | FAIL | clip-trim-start | FAIL | combo "[/] (clip)" has no keyboard spelling |
+| `shortcut:collapse-browser` | keyboard | shortcut | FAIL | FAIL | FAIL | collapse-browser | FAIL | combo "shift+f5" has no keyboard spelling |
+| `shortcut:collapse-editor` | keyboard | shortcut | FAIL | FAIL | FAIL | collapse-editor | FAIL | combo "shift+f2" has no keyboard spelling |
+| `shortcut:collapse-inspector` | keyboard | shortcut | FAIL | FAIL | FAIL | collapse-inspector | FAIL | combo "shift+f4" has no keyboard spelling |
 | `shortcut:context-menu` | keyboard | shortcut | FAIL | FAIL | FAIL | context-menu | FAIL | combo "contextmenu" has no keyboard spelling |
 | `shortcut:copy` | keyboard | shortcut | FAIL | FAIL | FAIL | copy | FAIL | Control+C changed nothing |
 | `shortcut:crossfade` | keyboard | shortcut | FAIL | FAIL | FAIL | crossfade | FAIL | combo "menu (two audio clips)" has no keyboard spelling |
@@ -217,10 +220,12 @@ together is what let the coverage figure read as half rather than a sixth.
 | `shortcut:delete` | keyboard | shortcut | FAIL | FAIL | FAIL | delete | FAIL | Delete changed nothing |
 | `shortcut:duplicate` | keyboard | shortcut | FAIL | FAIL | FAIL | duplicate | FAIL | Control+D changed nothing |
 | `shortcut:escape` | keyboard | shortcut | FAIL | FAIL | FAIL | escape | FAIL | Escape changed nothing |
-| `shortcut:export` | keyboard | shortcut | PASS | PASS | PASS | export | PASS | surfaces changed |
+| `shortcut:export` | keyboard | shortcut | PASS | PASS | PASS | export | PASS | project changed |
 | `shortcut:help` | keyboard | shortcut | PASS | PASS | PASS | help | PASS | surfaces changed |
+| `shortcut:lane-shorter` | keyboard | shortcut | PASS | PASS | PASS | lane-shorter | PASS | project changed |
+| `shortcut:lane-taller` | keyboard | shortcut | PASS | PASS | PASS | lane-taller | PASS | project changed |
 | `shortcut:marquee` | keyboard | shortcut | FAIL | FAIL | FAIL | marquee | FAIL | combo "drag" has no keyboard spelling |
-| `shortcut:maximize-arrange` | keyboard | shortcut | PASS | PASS | FAIL | maximize-arrange | PASS | surfaces changed |
+| `shortcut:maximize-arrange` | keyboard | shortcut | PASS | PASS | PASS | maximize-arrange | PASS | ui changed |
 | `shortcut:octave-down` | keyboard | shortcut | FAIL | FAIL | FAIL | octave-down | FAIL | Z changed nothing |
 | `shortcut:octave-up` | keyboard | shortcut | FAIL | FAIL | FAIL | octave-up | FAIL | X changed nothing |
 | `shortcut:pages` | keyboard | shortcut | FAIL | FAIL | FAIL | pages | FAIL | combo "mod+1-4" has no keyboard spelling |
@@ -247,7 +252,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `shortcut:pr-transpose` | keyboard | shortcut | FAIL | FAIL | FAIL | pr-transpose | FAIL | combo "arrowup/down" has no keyboard spelling |
 | `shortcut:pr-velocity` | keyboard | shortcut | FAIL | FAIL | FAIL | pr-velocity | FAIL | combo "arrowup/down (velocity lane)" has no keyboard spelling |
 | `shortcut:preferences` | keyboard | shortcut | PASS | PASS | PASS | preferences | PASS | surfaces changed |
-| `shortcut:record` | keyboard | shortcut | FAIL | FAIL | FAIL | record | FAIL | R changed nothing |
+| `shortcut:record` | keyboard | shortcut | PASS | PASS | FAIL | record | PASS | ui changed |
 | `shortcut:redo` | keyboard | shortcut | FAIL | FAIL | FAIL | redo | FAIL | Control+Shift+Z changed nothing |
 | `shortcut:return` | keyboard | shortcut | FAIL | FAIL | FAIL | return | FAIL | Enter changed nothing |
 | `shortcut:return-home` | keyboard | shortcut | FAIL | FAIL | FAIL | return-home | FAIL | Home changed nothing |
@@ -261,6 +266,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `shortcut:tool-slip` | keyboard | shortcut | PASS | PASS | PASS | tool-slip | PASS | ui changed |
 | `shortcut:tool-zoom` | keyboard | shortcut | PASS | PASS | PASS | tool-zoom | PASS | ui changed |
 | `shortcut:tools` | keyboard | shortcut | FAIL | FAIL | FAIL | tools | FAIL | combo "1-9" has no keyboard spelling |
+| `shortcut:track-height-reset` | keyboard | shortcut | PASS | PASS | PASS | track-height-reset | PASS | project changed |
 | `shortcut:undo` | keyboard | shortcut | PASS | PASS | PASS | undo | PASS | project, undo, redo changed |
 | `store:chainStore.remove` | src/state/chainStore.ts | store | n/a | n/a | n/a | none | PASS | 0 chains left — store sweep |
 | `store:chainStore.reset` | src/state/chainStore.ts | store | n/a | n/a | n/a | none | PASS | 0 chains left — store sweep |
@@ -288,7 +294,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.addRecordedClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | clip <id> — store sweep |
 | `store:projectStore.addSamplerZones` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | zones 1 — store sweep |
 | `store:projectStore.addSection` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | section <id> — store sweep |
-| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmtq2w6j40e7quo |
+| `store:projectStore.addTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — 13 -> 14 tracks, id tmtqbfxdo0e7nkz |
 | `store:projectStore.addVca` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | vca <id> — store sweep |
 | `store:projectStore.applyGrooveToClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | groove applied — store sweep |
 | `store:projectStore.applyPreset` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | synth preset Deep Saw Bass — store sweep |
@@ -330,7 +336,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.moveSection` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order Chorus,Verse — store sweep |
 | `store:projectStore.moveTake` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | order <id>,<id> — store sweep |
 | `store:projectStore.moveTempoEvent` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | moved to 12 — store sweep |
-| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmtq2w06406veiu,tmtq2w06406wav6,tmtq2w06406xu20,tmtq2w06406yy4d,tmtq2w06406z7ri,tmtq2w064070c7l,tmtq2w0ab0dpmxg,tmtq2w0ac0drk46,tmtq2w0ac0e00ci,tmtq2w0ad0e1vbl,tmtq2w064071dmb,tmtq2w064072vew,tmtq2w0ad0e24nc -> tmtq2w06406wav6,tmtq2w06406xu20,tmtq2w06406veiu,tmtq2w06406yy4d,tmtq2w06406z7ri,tmtq2w064070c7l,tmtq2w0ab0dpmxg,tmtq2w0ac0drk46,tmtq2w0ac0e00ci,tmtq2w0ad0e1vbl,tmtq2w064071dmb,tmtq2w064072vew,tmtq2w0ad0e24nc |
+| `store:projectStore.moveTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — tmtqbfqb206vtla,tmtqbfqb206wc50,tmtqbfqb206x2a4,tmtqbfqb206y0io,tmtqbfqb206zzmm,tmtqbfqb2070vat,tmtqbfqfa0dpkzm,tmtqbfqfb0drjx3,tmtqbfqfb0e0b5o,tmtqbfqfc0e1m33,tmtqbfqb20719qz,tmtqbfqb2072i9z,tmtqbfqfc0e2nox -> tmtqbfqb206wc50,tmtqbfqb206x2a4,tmtqbfqb206vtla,tmtqbfqb206y0io,tmtqbfqb206zzmm,tmtqbfqb2070vat,tmtqbfqfa0dpkzm,tmtqbfqfb0drjx3,tmtqbfqfb0e0b5o,tmtqbfqfc0e1m33,tmtqbfqb20719qz,tmtqbfqb2072i9z,tmtqbfqfc0e2nox |
 | `store:projectStore.packTakes` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | packed into <id> — store sweep |
 | `store:projectStore.promoteTake` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | promoted <id> — store sweep |
 | `store:projectStore.rackAddItem` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | rack item <id> — store sweep |
@@ -386,6 +392,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.setFadeShape` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | in shape equalPower — store sweep |
 | `store:projectStore.setFolderFor` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | folder of audio <id> — store sweep |
 | `store:projectStore.setInstrument` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — instrument now undefined |
+| `store:projectStore.setLaneScale` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | laneScale 1.6 — store sweep |
 | `store:projectStore.setLoop` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | loop 8-24 true — store sweep |
 | `store:projectStore.setMacroTargetRange` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | range 0.2..0.9 — store sweep |
 | `store:projectStore.setMacroValue` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | value 0.7 — store sweep |
@@ -411,6 +418,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:projectStore.setTempoEvent` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 2 tempo events — store sweep |
 | `store:projectStore.setTimeSig` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | 3/4 — store sweep |
 | `store:projectStore.setTrack` | src/state/projectStore.ts | store | PASS | PASS | PASS | none | PASS | project, undo changed — name "Soak renamed", volume 0.42 |
+| `store:projectStore.setTrackHeight` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | height 128 — store sweep |
 | `store:projectStore.setZoneSample` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | zone name Renamed sample — store sweep |
 | `store:projectStore.setZoneSlices` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | slices 4 — store sweep |
 | `store:projectStore.sliceToMidiClip` | src/state/projectStore.ts | store | n/a | n/a | n/a | none | PASS | clip <id> — store sweep |
@@ -439,17 +447,27 @@ together is what let the coverage figure read as half rather than a sixth.
 | `store:uiStore.openEditorFor` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | editing clip-a on the piano tab — store sweep |
 | `store:uiStore.selectClip` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | primary clip-a, set 1 — store sweep |
 | `store:uiStore.selectClips` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | primary clip-c of 3 — store sweep |
-| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmtq2w0ab0dpmxg -> tmtq2w06406wav6 |
-| `store:uiStore.set` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — editorTab mixer -> piano |
+| `store:uiStore.selectTrack` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selection tmtqbfqfa0dpkzm -> tmtqbfqb206wc50 |
+| `store:uiStore.set` | src/state/uiStore.ts | store | PASS | PASS | PASS | none | PASS | ui changed — selectedTrackId tmtqbfqfa0dpkzm -> null |
 | `store:uiStore.showDialog` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | dialog Sweep — store sweep |
 | `store:uiStore.showMenu` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | menu of 1 — store sweep |
 | `store:uiStore.toast` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | 1 toasts — store sweep |
 | `store:uiStore.toggleClipSelection` | src/state/uiStore.ts | store | n/a | n/a | n/a | none | PASS | set clip-a,clip-b — store sweep |
+| `store:workspaceStore.deleteWorkspace` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | 0 saved workspace(s) left — store sweep |
+| `store:workspaceStore.recallWorkspace` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | browser back to 30 — store sweep |
+| `store:workspaceStore.renameWorkspace` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | named After — store sweep |
 | `store:workspaceStore.reset` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | browser 16 — store sweep |
-| `store:workspaceStore.reveal` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | showInspector true — store sweep |
+| `store:workspaceStore.reveal` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | inspector visible true — store sweep |
+| `store:workspaceStore.saveWorkspace` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | saved Sweep layout — store sweep |
+| `store:workspaceStore.setLayout` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | showTempoLane true — store sweep |
 | `store:workspaceStore.setMaximized` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | maximized editor — store sweep |
-| `store:workspaceStore.setSizes` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | browser 32 — store sweep |
-| `store:workspaceStore.toggle` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | showBrowser false — store sweep |
+| `store:workspaceStore.setPane` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | browser 32 — store sweep |
+| `store:workspaceStore.setPaneSize` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | inspector 25 — store sweep |
+| `store:workspaceStore.setPhoneMode` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | phoneMode mix — store sweep |
+| `store:workspaceStore.showEditorTab` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | tab channel, pane true — store sweep |
+| `store:workspaceStore.toggle` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | showChords true — store sweep |
+| `store:workspaceStore.toggleCollapsed` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | editor collapsed true, back to 44 — store sweep |
+| `store:workspaceStore.togglePane` | src/state/workspaceStore.ts | store | n/a | n/a | n/a | none | PASS | browser visible false — store sweep |
 | `surface:combo-mixer` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
 | `surface:combo-piano` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
 | `surface:combo-synth` | src/components/shell/TabletLayout.tsx | surface | ? | ? | ? | none | FAIL | not attempted |
