@@ -237,6 +237,31 @@ const PANEL = `
 .mw-panel-band {
   display: contents;
 }
+.mw-panel-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mw-control-gutter);
+}
+.mw-group-tab {
+  /* The touch floor on the element that receives the press, like every control. */
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--mw-panel-ink);
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--mw-panel-ink);
+  font: inherit;
+  cursor: pointer;
+}
+.mw-group-tab[aria-selected='true'] {
+  background: var(--mw-panel-ink);
+  color: var(--mw-fascia);
+}
+.mw-group-tab:focus-visible {
+  outline: 2px solid var(--mw-accent);
+  outline-offset: 2px;
+}
 `;
 
 /**

@@ -27,17 +27,17 @@ Coverage is counted as **rows with a state-asserting result**, never as rows
 that are not FAIL. Those are the same number only until somebody is tempted to
 make the column green.
 
-Coverage: **230 of 404 ledger rows** (56.9%) have a state-asserting result. Two instruments drive them: the functional soak against the running app (136 rows, measured on `index-SzbiKoyF.js`, `284df55ed4a0f5fa`) and the store sweep in `npm test` (161 rows). 107 rows have no case at all and are named under "Never driven" below.
+Coverage: **230 of 405 ledger rows** (56.8%) have a state-asserting result. Two instruments drive them: the functional soak against the running app (136 rows, measured on `index-SzbiKoyF.js`, `284df55ed4a0f5fa`) and the store sweep in `npm test` (161 rows). 108 rows have no case at all and are named under "Never driven" below.
 
 | kind | count |
 | --- | --- |
 | action | 87 |
-| effect | 34 |
+| effect | 35 |
 | instrument | 4 |
 | shortcut | 71 |
 | store | 188 |
 | surface | 20 |
-| **total** | **404** |
+| **total** | **405** |
 
 ## Never driven
 
@@ -48,11 +48,18 @@ together is what let the coverage figure read as half rather than a sixth.
 | kind | undriven | of | why |
 | --- | --- | --- | --- |
 | action | 87 | 87 | no case exists for any of them. `scripts/soak/cases.mjs` covers stores directly and reaches actions only where a shortcut happens to call one |
+| effect | 1 | 35 | driven — any listed here failed to instantiate |
 | surface | 20 | 20 | the functional sweep asserts state changes; reaching a surface is `npm run reachability`’s subject, and that sweep reports separately |
 
 <details><summary>action — 87 rows</summary>
 
 `action:audioEditActions.analyzeClip`, `action:audioEditActions.clipBufferReady`, `action:audioEditActions.crossfadeSelection`, `action:audioEditActions.ensureClipDecoded`, `action:audioEditActions.healSelection`, `action:audioEditActions.maxSlipOffset`, `action:audioEditActions.mediaDurationSec`, `action:audioEditActions.normalizeClip`, `action:audioEditActions.packSelectionIntoTakes`, `action:audioEditActions.rippleDeleteSelection`, `action:audioEditActions.zoomToSelection`, `action:automationActions.activeCaptureCount`, `action:automationActions.captureParamChange`, `action:automationActions.captureParamRelease`, `action:automationActions.copyAutomationSelection`, `action:automationActions.deleteAutomationSelection`, `action:automationActions.duplicateAutomationSelection`, `action:automationActions.hasAutomationClipboard`, `action:automationActions.pasteAutomation`, `action:automationActions.startAutomationRunners`, `action:chainActions.applyChainSteps`, `action:chainActions.captureChain`, `action:clipboardActions.clipboardCount`, `action:clipboardActions.copySelection`, `action:clipboardActions.cutSelection`, `action:clipboardActions.duplicateSelection`, `action:clipboardActions.pasteAtPlayhead`, `action:clipboardActions.resetClipboard`, `action:exportActions.cancelExport`, `action:exportActions.exportLoopRegion`, `action:exportActions.exportProject`, `action:exportActions.exportState`, `action:exportActions.exportWav`, `action:exportActions.normalizeInPlace`, `action:exportActions.onExportState`, `action:importActions.dragHasFiles`, `action:importActions.importDrop`, `action:importActions.importToNewTrack`, `action:importActions.isImporting`, `action:importActions.pickAndImport`, `action:importActions.runImport`, `action:midiFileActions.exportMidiFile`, `action:midiFileActions.importMidiFile`, `action:midiFileActions.isMidiFile`, `action:midiFileActions.pickMidiFile`, `action:monitorActions.inputDeviceOf`, `action:monitorActions.inputFormatOf`, `action:monitorActions.isInputOpen`, `action:monitorActions.isMonitoring`, `action:monitorActions.setArmed`, `action:monitorActions.setTrackInputDevice`, `action:monitorActions.setTrackInputFormat`, `action:monitorActions.syncTrackInput`, `action:monitorActions.toggleMonitoring`, `action:monitorActions.wantedInput`, `action:projectActions.bootProject`, `action:projectActions.deleteById`, `action:projectActions.duplicateById`, `action:projectActions.installAutosave`, `action:projectActions.mergeProjectById`, `action:projectActions.newProject`, `action:projectActions.newProjectFromTemplate`, `action:projectActions.openProject`, `action:projectActions.renameCurrent`, `action:projectActions.saveCurrent`, `action:projectActions.saveCurrentAs`, `action:rangeActions.hasRangeClipboard`, `action:rangeActions.rangeCopy`, `action:rangeActions.rangeCrop`, `action:rangeActions.rangeCut`, `action:rangeActions.rangeDelete`, `action:rangeActions.rangeDuplicate`, `action:rangeActions.rangeFade`, `action:rangeActions.rangeInsertSilence`, `action:rangeActions.rangePaste`, `action:rangeActions.rangeSplit`, `action:rangeActions.stripSilenceFromClip`, `action:recoveryActions.describeRecovery`, `action:recoveryActions.discardAllRecoveries`, `action:recoveryActions.discardRecovery`, `action:recoveryActions.recoverTake`, `action:recoveryActions.scanRecoveries`, `action:samplerImportActions.openSampleSourceMenu`, `action:samplerImportActions.pickSamplesInto`, `action:samplerImportActions.placeSamples`, `action:samplerImportActions.projectSamples`, `action:samplerImportActions.sampleSourceItems`
+
+</details>
+
+<details><summary>effect — 1 rows</summary>
+
+`effect:mw-granular-delay`
 
 </details>
 
@@ -171,6 +178,7 @@ together is what let the coverage figure read as half rather than a sixth.
 | `effect:multiband` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.90e-1 RMS |
 | `effect:mw-console-eq` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.18e-1 RMS |
 | `effect:mw-fet-limiter` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.12e-1 RMS |
+| `effect:mw-granular-delay` | insert rack | effect | ? | ? | ? | none | FAIL | not attempted |
 | `effect:mw-granular-reverb` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 9.12e-3 RMS |
 | `effect:mw-motion-shaper` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 7.40e-2 RMS |
 | `effect:mw-optical-leveller` | insert rack | effect | PASS | ? | ? | none | PASS | rendered audio differs by 1.06e-1 RMS |

@@ -20,13 +20,14 @@ sessions. **Read this first**, then the resume block at the top of
 
 ## Status
 
-**1 of 14 shipping.** Seven units are complete through cell 25 — their DSP is
-measured, their audio reaches a track and their state persists. Cell 26 dropped
-all seven: every control in the product was a slider and the seven panels were
-one panel. The control primitives now exist in the shared framework, and
-**Program EQ** is the first panel built end to end on them and the first back to
-`SHIPPING`. The other six are held at `NOT SHIPPING` until each has its own
-panel. See "Cell 26 — usability" below.
+**8 of 14 shipping.** Eight units are complete through every applicable cell —
+their DSP is measured, their audio reaches a track, their state persists, and
+each has a panel of its own on the shared primitives. The Granular Delay is the
+eighth and the first with more controls than a fascia can carry: a hundred and
+thirty-nine, behind a tab strip the framework now draws for any face that
+declares groups. Cell 26 once dropped all seven of the earlier units — every
+control in the product was a slider and the seven panels were one panel — and
+"Cell 26 — usability" below records how the primitives came to exist.
 
 ### How a sheet's V-numbers relate to the Ledger's cells
 
@@ -215,7 +216,7 @@ that reported PASS from jsdom would be reporting a layout nobody laid out.
 | Variable-Mu Limiter | `dyn-04` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | Console EQ          | `dyn-05` | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | Granular Reverb     | `fx-02`  | SHIPPING    | PASS | PASS | PASS | PASS | n/a  | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| Granular Delay      | `fx-03`  | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | n/a | n/a | n/a | n/a | n/a | n/a | —    | —    | —    | —    | —    | —    | —    | —    | —    |
+| Granular Delay      | `fx-03`  | SHIPPING    | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | n/a | n/a | n/a | n/a | n/a | n/a | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | Slipstream Sampler  | `smp-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    |
 | DCO Poly            | `syn-01` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    |
 | Phase Distortion    | `syn-02` | NOT STARTED | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —    | —   | —   | —   | —   | —   | —   | —    | —    | —    | —    | —    | —    | —    | —    | —    |
@@ -320,6 +321,7 @@ never the dev panel, which is the distinction the cell exists for.
 | Variable-Mu Limiter | 0.0958               | SHIPPING | PASS              | PASS      |
 | Console EQ          | 0.0958               | SHIPPING | PASS              | PASS      |
 | Granular Reverb     | 0.0640               | SHIPPING | PASS              | PASS      |
+| Granular Delay      | 0.0684               | SHIPPING | PASS              | PASS      |
 
 Three defects surfaced, and not one was visible to the twenty-four cells.
 
@@ -1166,6 +1168,117 @@ checked at a second flux before being used — it predicts 1.437× between −60
 term is additive rather than multiplicative, because a balanced pair's imbalance
 is zero by design and a factor applied to zero is inert on exactly the units the
 control exists for.
+
+### Granular Delay — a transport, not a modulated delay
+
+Every row of `fx-03` §9 measures, across `granular_delay_tests.cpp` (V1, V2,
+V4, V5, V6, V13, V14, V16), `delay_foundations_tests.cpp` (V3 and §3.2's
+conditions), `granular_delay_transport_tests.cpp` (V7 to V10) and
+`granular_delay_character_tests.cpp` (V11, V12). The cells are in
+`granular_delay_delta_tests.cpp` (D1, D7), `granular_delay_cell_tests.cpp`
+(D4, D6, D8, D9, D10, D12, V15) and `granular_delay_visual_tests.cpp` (V27,
+U20); D5 is V12; D2 and D11 are the manifest's, judged by the UI harness in
+`motionwave/ui/test/granular_delay_cells.test.ts`; X24 is
+`integration_granular_delay.test.ts`; U21, U22 and V27 run in Chromium from
+`motionwave/ui/e2e/`; X25 is every row of `e2e/motionwave.spec.ts`, which
+enumerates the registry.
+
+**The delay is integrated, not set.** §6.2 derives that a tape transport's
+pitch is `v(t) / v(t − D)`, and `delay_transport.h` implements exactly that:
+each tap keeps a speed and a decimated history of it, and its delay is the
+state `D[n] = D[n−1] + 1 − v[n] / v[n − D]`. The three rows that separate this
+from a delay-time LFO all hold. V8: through a one-second ramp from 500 to
+250 ms the audio's mean frequency over every 20 ms window is within 0.005
+cents of `1000·(1 − D′)` and of the ratio the frame publishes, the bend
+reaches 433 cents, and the transport settles at 11 999.9 samples with the ratio
+back at 1.000000 while its speed stays doubled — §6.2's first consequence, a
+constant speed error making no pitch. V10: with a 1 Hz sine for `ε` the
+deviation follows `2a·sin(πfD)` to 0.5 % of the peak across nine delays
+including both nulls, and through the whole unit on the Vintage preset the
+1.2 Hz wow line in the published ratio is −38.2 dB at the peak delay and
+−67.7 dB at the null. V9: the generator's weighted wow and flutter through a
+4 Hz, Q ½ weighting reads 0.0500, 0.3499 and 1.4998 % against nominals of
+0.05, 0.35 and 1.5 — after the amplitudes were re-derived: the first comment
+guessed the noise bands' weighted power and every preset read 86.6 % high.
+
+Three transport defects, each found by a row and each with its number. A
+change that landed mid-fade in Digital mode restarted the fade with head A at
+full gain, one click per block for as long as a knob moved — V7's every-block
+case was written to catch it and did; changes now queue behind a running fade
+and 500 changes at 5.3 ms flag nothing (Instant flags 85). `L` was
+renormalised to `D·s` on every Tape-mode call, which is the invariant only at
+rest, and a ramp arrived 9.7 % short; the spacing is now the tape between the
+heads and is never touched. And the history was read `delay + sinceWrite`
+back instead of `delay − sinceWrite`, a sawtooth of up to 254 samples that
+integrated into a tempo change landing 0.13 % away; D12 now lands all three
+modes on 32 000 samples exactly at 90 bpm.
+
+**The medium is two halves around the buffer.** `delay_character.h` puts the
+record head before the write and the playback head on the wet bus, so a
+bucket-brigade's darkness is on the first repeat (V11 measures the wet path)
+and the loop's own read passes through the playback half so a compander sees
+the same signal round the loop that it sees at the output. V11: −3 dB at
+13 088, 3 927 and 1 988 Hz for 50, 150 and 300 ms on 4096 stages, against
+`f_clk / 3` of 13 653, 4 551 and 2 276 — −4.1, −13.7 and −12.6 %, which is
+the twelfth-order cascade's 0.93 and the bucket hold's sinc droop, and is
+inside ±15 %. On tape the gap-loss corner at 100 ms is 2.77 times the corner at
+300 ms. V12: with a 5 kHz tone at −6 dBFS through 300 ms the worst product is
+−74.1 dBFS at 1 827 Hz and the whole residual bounds at −72.6 dBFS, which is
+the line's own noise floor at the −72 dBFS the model puts it. Two defects here
+too: the bucket held the host sample nearest the clock instant, up to a sample
+of timing jitter in a pattern at the beat between clock and host — sidebands
+twenty decibels under a 2 kHz tone — and now interpolates the input at the
+instant; and at 50 ms the 41 kHz clock's images all lie past Nyquist, where a
+hold on the host grid can only fold them back as a −19 dB partner at 12 kHz
+no bucket-brigade makes, so the hold stands down above three quarters of the
+host rate and V12 reads −112 dBFS there.
+
+**D1 has a base that knows which mode a control acts in.** Eleven of the
+hundred and thirty-nine controls do nothing outside a mode by design — Cross
+in Blend, Spacing and each tap's Ratio in Relative, Wear, Bias and Age on
+tape, Stages and the clock whine on a bucket-brigade, a tap's cutoff and Q
+with its filter on, the time-change mode while a time changes — and the sweep
+puts the unit in that mode before measuring the row rather than giving every
+control a job in every mode. The weakest live delta is Age at −37 dBFS against
+the −70 gate; the clock whine is −78 dBFS by design and reads −81 against a
+row-specific gate of −90. Tap 1 has no Ratio, because it is the reference the
+ratios multiply; id 103 is left unused rather than given a control that could
+do nothing.
+
+**Deviations, recorded.** Quality defaults to High rather than the sheet's
+Normal: the pool was sized against thirty-two streams per tap at full Smear
+and Normal's cap of 32 grains clips at exactly the setting §4 calls ordinary.
+Character defaults to Tape with Studio wear, which is §9.1's default case.
+Wow, flutter and the Tape-mode bend act on the plain heads; a smeared tap's
+grains read at fixed offsets and are not wobbled, which the sheet does not
+ask for and a real machine would do. The compander's time constants
+(1.5 / 25 ms in, 2.5 / 40 ms out), the tape gap width (a 25 kHz null at
+100 ms) and the noise floor and clock whine (−72 and −78 dBFS) are ours, per
+§11, and the file says so at each. Per-tap Solo and Mute exist beyond §7.2,
+with the 4 ms fade §7.2 gives Mute.
+
+**The panel is the transport.** `pitch-ratio` is `v(t) / v(t − D)` on the
+first tap averaged over the block, the same number the read position is
+integrated from: it strays 0.314 from one through a Tape-mode change over 389
+blocks and settles at 1.000000, and traces twenty decibels apart are
+bit-identical. The eight `tap-n-time` readouts are the delivered times —
+0.2500 s during a Digital fade and 0.4000 s after it. `clock` is `N / (2D)`,
+6 826.7 Hz at 300 ms and zero on the other media. `loop-level` is the signal
+recirculating and reaches 8e-9 six seconds after the input stops. The face
+declares groups — the eight defining controls on the fascia and twelve tabs
+behind them — and `render/faceGroups.ts` draws the strip for any face that
+does; the responsive cell brings each tab forward before it measures. V15
+fits `T × G` from 4 to 128 with R² = 0.9953, V16 rotates fourteen controls
+including Character, the sync switch, the divisions and the tempo with zero
+allocations, and D7 is bit-exact across 64, 97 and 1024-frame blocks on tape
+with wear and Smear at 50 %.
+
+One thing the unit found outside itself: **no Motion Wave unit had ever
+received the host's tempo.** `unit_worklet.js` called the Motion Shaper's own
+`_set_bpm` with a constant 120 and nothing else, and `node.ts` took the
+tempo in `update` and dropped it. A synced Motion Shaper followed a tempo the
+project did not have. The worklet now takes a `bpm` message for any unit that
+exports `_set_bpm`, and the host sends it when it changes.
 
 ## What each column is
 

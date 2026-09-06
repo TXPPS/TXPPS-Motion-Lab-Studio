@@ -3,6 +3,8 @@ interface MwPanelHarness {
   panel: { root: HTMLElement; paint(frame: ReadonlyMap<string, number>): void };
   breakpointsEm: readonly number[];
   minWidthRem: number;
+  groups(): readonly string[];
+  showGroup(id: string): void;
   start(): Promise<void>;
   stopEngine(): Promise<void>;
   paints(): number;

@@ -169,18 +169,33 @@ export function buildMotionWaveNode(ctx: BaseAudioContext, effect: Effect): Effe
   };
 
   let lastBypass: boolean | null = null;
+  let lastBpm: number | null = null;
   const node_: MotionWaveNode = {
     id: effect.id,
     kind: effect.kind,
     input: node,
     output: node,
-    update(next: Effect, _bpm: number, bypass: boolean) {
+    update(next: Effect, bpm: number, bypass: boolean) {
       for (const spec of specs) {
         const key = String(spec.id);
         const value = next.params[key];
         write(spec.id, value === undefined ? spec.def : value);
       }
       sendShapes(next);
+      /*
+       * The project's tempo, sent when it changes.
+       *
+       * `update` has always been handed the tempo and never passed it on: the
+       * worklet hard-coded 120 for the one unit that took one, so a synced
+       * Motion Shaper followed a tempo the project did not have, and the
+       * Granular Delay's whole sync table would have done the same. The
+       * worklet forwards it to any unit exporting `_set_bpm` and drops it for
+       * the rest, so sending it here costs a unit without a tempo nothing.
+       */
+      if (bpm !== lastBpm) {
+        lastBpm = bpm;
+        node.port.postMessage({ kind: 'bpm', bpm });
+      }
       if (bypass !== lastBypass) {
         lastBypass = bypass;
         /*

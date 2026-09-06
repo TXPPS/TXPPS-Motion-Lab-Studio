@@ -29,13 +29,29 @@
  * computes to silence a warning about a cast that is the point.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve, basename } from 'node:path';
 import { EMSDK, emsdkToolchain } from './emcxx.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const CORE = join(ROOT, 'motionwave', 'core');
-const OUT = join(ROOT, 'node_modules', '.cache', 'mw-core-tests');
+/*
+ * One output directory per filter, not one for the runner.
+ *
+ * It was one directory, wiped at the start of every run — so two runs at once
+ * wiped each other's compiled suites out from under them. That is exactly what
+ * happens when a sub-agent builds the substrate while the integrator builds a
+ * unit, and it presented as "Cannot find module granular_delay_tests.js" on a
+ * suite that had compiled seconds earlier. Keyed by the filter, two runs only
+ * collide when they are the same run.
+ */
+const OUT = join(
+  ROOT,
+  'node_modules',
+  '.cache',
+  'mw-core-tests',
+  (process.argv[2] ?? 'all').replace(/[^a-z0-9_-]/gi, '_') || 'all',
+);
 
 /*
  * Where emsdk is, and which Python drives it, now live in `scripts/emcxx.mjs`.
@@ -133,13 +149,20 @@ for (const suite of suites) {
     continue;
   }
   ran += 1;
+  // Everything a suite prints goes to a log beside its binary, whatever the
+  // verdict. The console shows the last twenty-five lines of a failure, and a
+  // row that prints its measurements before the row that failed loses them —
+  // which is the difference between a number and a shrug.
+  const log = join(OUT, `${name}.log`);
   try {
     const out = execFileSync(process.execPath, [js], { encoding: 'utf8' });
+    writeFileSync(log, out);
     const summary = out.trim().split('\n').at(-1);
     console.log(`  ok   ${name.padEnd(34)} ${summary}`);
   } catch (e) {
     failed += 1;
-    console.error(`\n=== ${name}: FAILED ===`);
+    writeFileSync(log, `${String(e.stdout ?? '')}\n${String(e.stderr ?? '')}`);
+    console.error(`\n=== ${name}: FAILED === (full output: ${log})`);
     console.error(
       String(e.stdout ?? '')
         .trim()

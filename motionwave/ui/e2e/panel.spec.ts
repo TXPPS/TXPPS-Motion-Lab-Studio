@@ -205,7 +205,7 @@ test.describe('U22 — the panel reflows where the face says, and stays touchabl
   // grown a special case for the face it was written against would pass for
   // that one and fail on the next, which is why this runs the *same* assertions
   // for each rather than a relaxed version of them.
-  for (const unit of ['dyn-01', 'dyn-02', 'dyn-03', 'dyn-04', 'dyn-05', 'fx-02']) {
+  for (const unit of ['dyn-01', 'dyn-02', 'dyn-03', 'dyn-04', 'dyn-05', 'fx-02', 'fx-03']) {
     test(`the ${unit} face is held to the same geometry`, async ({ page }) => {
       await boot(page, unit);
       const { breakpoints, rootFontPx, minWidthRem } = await page.evaluate(() => ({
@@ -227,26 +227,37 @@ test.describe('U22 — the panel reflows where the face says, and stays touchabl
         );
       }
 
+      // A face with tabs is measured one tab at a time, with that tab brought
+      // forward first: a hidden tab's controls measure zero by zero, which is
+      // not a defect and is not a measurement either. The tabs themselves are
+      // pressed, so they are measured with the controls.
+      const groups = await page.evaluate(() => window.__mwPanel.groups());
       for (const width of [Math.ceil(minWidthRem * rootFontPx), 500, 1000, 1600]) {
         await page.setViewportSize({ width, height: 900 });
-        const bad = await page.evaluate((limit) => {
-          const problems: string[] = [];
-          const targets = Array.from(
-            document.querySelectorAll<HTMLElement>('.mw-control-input, .mw-graph'),
-          );
-          for (const node of targets) {
-            const box = node.getBoundingClientRect();
-            const id =
-              node.dataset.mwElement ??
-              (node.parentElement as HTMLElement | null)?.dataset.mwElement ??
-              '?';
-            if (box.width < limit || box.height < limit) {
-              problems.push(`${id} is ${box.width.toFixed(1)}x${box.height.toFixed(1)}`);
+        for (const group of groups.length > 0 ? groups : [null]) {
+          if (group !== null) await page.evaluate((g) => window.__mwPanel.showGroup(g), group);
+          const bad = await page.evaluate((limit) => {
+            const problems: string[] = [];
+            const targets = Array.from(
+              document.querySelectorAll<HTMLElement>('.mw-control-input, .mw-graph, .mw-group-tab'),
+            ).filter((node) => node.closest('[hidden]') === null);
+            for (const node of targets) {
+              const box = node.getBoundingClientRect();
+              const id =
+                node.dataset.mwElement ??
+                node.dataset.mwGroup ??
+                (node.parentElement as HTMLElement | null)?.dataset.mwElement ??
+                '?';
+              if (box.width < limit || box.height < limit) {
+                problems.push(`${id} is ${box.width.toFixed(1)}x${box.height.toFixed(1)}`);
+              }
             }
-          }
-          return problems;
-        }, TOUCH_MIN);
-        expect(bad, `${unit} at ${width} px`).toEqual([]);
+            return problems;
+          }, TOUCH_MIN);
+          expect(bad, `${unit} at ${width} px${group === null ? '' : `, tab ${group}`}`).toEqual(
+            [],
+          );
+        }
         const overflow = await page.evaluate(() => ({
           scroll: document.documentElement.scrollWidth,
           client: document.documentElement.clientWidth,

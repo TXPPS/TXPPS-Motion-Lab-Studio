@@ -1,11 +1,12 @@
 # Motion Wave — progress
 
 ```
-RESUME: F11 — the console strip stopped being a grid, because a grid item
-        whose min-height exceeds its track paints over its neighbour rather
-        than overflowing; and its tier ladder is derived from measured row
-        heights and swept ten pixels at a time instead of sampled at six form
-        factors.
+RESUME: F12 — the Granular Delay ships as the eighth unit: a transport whose
+        delay is integrated from its speed rather than set, two media as
+        record and playback halves around one buffer, 139 controls behind a
+        tab strip the framework now draws for any face, and the host's tempo
+        reaching a Motion Wave unit for the first time. The voice substrate
+        stands at eight of twelve files.
 Live URL:        https://txpps-motionlab-studio.roan-crest.workers.dev
 Deployed commit: 9cdc69c, bundle index-Buj7ZIVp.js, sha256 9fed40d1cf5ec30d
                  over 450737 bytes - fetched from the live worker by
@@ -72,7 +73,18 @@ Bundle verified: every deploy is checked by fetching the live bundle and
                  This line names the tip at the moment it was written, so the
                  commit that edits it is by construction one ahead of what it
                  describes. Said plainly rather than left to be noticed.
-Current section: F11 COMPLETE - phase B of items 12-14. The console strip is a
+Current section: F12 COMPLETE - fx-03 Granular Delay, SHIPPING with every
+                 applicable cell PASS and every one of §9's sixteen rows
+                 measured; `envelope_shapes.h`, `lfo.h` and `mod_grid.h` built
+                 and mutation-tested (VS-10, VS-13, VS-14, VS-15 closed, the
+                 LFO and grid halves of VS-07 and VS-08 with them). Six defects
+                 found on the way and each has its number in the ledger: a
+                 mid-fade click, a head spacing renormalised mid-slew (9.7 %
+                 short), a history read off by up to 254 samples (0.13 %), a
+                 bucket sampled on the host grid (−20 dBc sidebands), bucket
+                 images folded from above Nyquist (−19 dB at 12 kHz), and a
+                 host tempo that had never reached any unit.
+                 F11 before it - phase B of items 12-14. The console strip is a
                  flex column with a derived tier ladder; the chain summary
                  stands where the rack's floor does not fit and opens the
                  channel end to end; the master is a channel in that view too;
@@ -93,16 +105,16 @@ Current section: F11 COMPLETE - phase B of items 12-14. The console strip is a
                  replace kept on the page.
                  §7 has `trigger_bus.h` and `envelope.h` - the envelope's
                  halves of VS-07, VS-08, VS-09, VS-11 and VS-12.
-Next action:     §7 continues. Five of the substrate's twelve files are built
+Next action:     §7 continues. Eight of the substrate's twelve files are built
                  (`note_id.h`, `note_registry.h`, `voice_set.h`,
-                 `trigger_bus.h`, `envelope.h`) and `ledger-guard` derives that
-                 count from the design's own file table rather than trusting a
-                 sentence. `envelope_shapes.h` is next - the five measured
-                 shape families, which is what turns VS-10, VS-11 and VS-12
-                 from envelope-engine claims into instrument ones. Then
-                 `lfo.h`, `mod_grid.h`, `drift.h`, `mpe.h`, `portamento.h` and
-                 `specs.h`; then the Slipstream Sampler on the substrate, then
-                 SA-001, then the five synths.
+                 `trigger_bus.h`, `envelope.h`, `envelope_shapes.h`, `lfo.h`,
+                 `mod_grid.h`) and `ledger-guard` derives that count from the
+                 design's own file table rather than trusting a sentence.
+                 `drift.h`, `mpe.h`, `portamento.h` and `specs.h` remain; then
+                 the Slipstream Sampler on the substrate, then SA-001, then the
+                 five synths in the ledger's order. In `src/`, the workspace
+                 system (§7 of the build directive), the arrangement's track
+                 heights and the responsive matrix follow the instruments.
                  SA-001 stays open: the load route exists, and nothing
                  analyses what it loads. See "Where SA-001 sits" below for the
                  order and the argument for it.

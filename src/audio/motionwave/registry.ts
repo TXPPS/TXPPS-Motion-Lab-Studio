@@ -18,6 +18,7 @@
 import { consoleEqUnit } from '../../../motionwave/ui/units/console_eq/unit';
 import { fetLimiterUnit } from '../../../motionwave/ui/units/fet_limiter/unit';
 import { granularReverbUnit } from '../../../motionwave/ui/units/granular_reverb/unit';
+import { granularDelayUnit } from '../../../motionwave/ui/units/granular_delay/unit';
 import { motionShaperUnit } from '../../../motionwave/ui/units/motion_shaper/unit';
 import { opticalLevellerUnit } from '../../../motionwave/ui/units/optical_leveller/unit';
 import { programEqUnit } from '../../../motionwave/ui/units/program_eq/unit';
@@ -100,6 +101,13 @@ export const MOTIONWAVE_UNITS: readonly MotionWaveUnitEntry[] = [
     label: 'Granular Reverb',
     blurb: 'Grain-cloud reverb with shimmer and freeze',
     unit: granularReverbUnit,
+  },
+  {
+    kind: 'mw-granular-delay',
+    unitId: 'fx-03',
+    label: 'Granular Delay',
+    blurb: 'Eight-tap tape and bucket-brigade delay with a grain smear',
+    unit: granularDelayUnit,
   },
 ];
 

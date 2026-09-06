@@ -218,9 +218,27 @@ export interface PanelSkin {
   readonly lampToken: string;
 }
 
+/**
+ * A tab's worth of controls, by element id.
+ *
+ * A face with a hundred and thirty-nine controls — eight taps of the Granular
+ * Delay — cannot draw them all at once and be a panel anybody can find a tap
+ * in. A group says which controls sit behind one tab; controls in no group
+ * stay on the fascia. It is declared here, as data, for the reason every other
+ * field is: the renderer draws a tab strip generically and does not know what
+ * a tap is, and the responsive cell walks every group before it measures.
+ */
+export interface FaceGroup {
+  readonly id: string;
+  readonly label: string;
+  readonly elementIds: readonly string[];
+}
+
 export interface UnitFace {
   readonly elements: readonly FaceElement[];
   readonly artwork: readonly ArtworkAsset[];
+  /** Tabs, for a face with more controls than a fascia can carry. */
+  readonly groups?: readonly FaceGroup[];
   /**
    * Absent only for a face written before cell 26. A face with no skin renders
    * as the framework's default panel, which is the appearance cell 26 fails.

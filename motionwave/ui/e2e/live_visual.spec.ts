@@ -93,6 +93,13 @@ const PANELS = [
     mechanism:
       'how far back in the buffer the live cloud is reading, which is the tail being cut out of what was played rather than modelled',
   },
+  {
+    unit: 'fx-03',
+    name: 'Granular Delay',
+    element: 'pitch-ratio',
+    mechanism:
+      'the transport’s own speed ratio v(t)/v(t − D), which the tape’s wow moves every block and which no control states',
+  },
 ] as const;
 
 const sampleValues = (page: Page, selector: string, frames: number) =>

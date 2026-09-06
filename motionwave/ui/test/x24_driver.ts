@@ -103,6 +103,18 @@ export class UnitDriver {
   }
 
   /**
+   * The host's tempo, by the unit's own export.
+   *
+   * Only a unit with a sync table exports one; asking a unit without it is
+   * the error `call` already raises, which is the right answer — a test that
+   * sent a tempo to a unit that cannot take one is testing something it
+   * misunderstood.
+   */
+  setTempo(bpm: number): void {
+    this.call<void>('set_bpm', bpm);
+  }
+
+  /**
    * Set a control the way the panel does: a normalised knob position, converted
    * to a real value by the parameter's own spec, sent under the parameter's own
    * id.

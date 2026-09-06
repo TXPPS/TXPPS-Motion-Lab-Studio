@@ -55,6 +55,7 @@ import { fetLimiterUnit } from '../units/fet_limiter/unit';
 import { variableMuUnit } from '../units/variable_mu/unit';
 import { consoleEqUnit } from '../units/console_eq/unit';
 import { granularReverbUnit } from '../units/granular_reverb/unit';
+import { granularDelayUnit } from '../units/granular_delay/unit';
 import { DEFAULT_SKIN } from '../render/facePanel';
 
 /** Hues at the corners and through the middle of the wheel, plus the shipped seven. */
@@ -305,6 +306,7 @@ describe('cell 26 — no two panels are the same panel', () => {
     variableMuUnit,
     consoleEqUnit,
     granularReverbUnit,
+    granularDelayUnit,
   ];
 
   /**

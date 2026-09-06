@@ -64,10 +64,11 @@ const UNITS = {
   'dyn-04': { prefix: 'mw_variable_mu', frame: 7, curve: false, bpm: false },
   'dyn-05': { prefix: 'mw_console_eq', frame: 9, curve: false, bpm: false },
   'fx-02': { prefix: 'mw_granular_reverb', frame: 9, curve: false, bpm: false },
+  'fx-03': { prefix: 'mw_granular_delay', frame: 18, curve: false, bpm: true },
 };
 
 /** The widest frame any unit publishes, which is what the shared buffer holds. */
-const MAX_FRAME_DOUBLES = 9;
+const MAX_FRAME_DOUBLES = 18;
 
 class UnitProcessor extends AudioWorkletProcessor {
   constructor(options) {
@@ -132,8 +133,18 @@ class UnitProcessor extends AudioWorkletProcessor {
       this.processCall = core[`_${p}_process`];
       this.visualPtr = core[`_${p}_visual`];
       this.setBypassCall = core[`_${p}_set_bypass`];
+      /*
+       * The tempo goes to whichever unit exports a tempo, by the unit's own
+       * prefix. It used to name the Motion Shaper's export directly, which
+       * meant the *only* unit that could ever hear the host's tempo was the
+       * Motion Shaper — and the value it heard was a constant 120, so its sync
+       * modes followed a tempo the project did not have. The host now sends
+       * its tempo as a message (below) and any unit with a `_set_bpm` takes
+       * it; 120 here is only what plays before the first message lands.
+       */
+      this.setBpmCall = this.spec.bpm ? core[`_${p}_set_bpm`] : undefined;
       this.prepare(sampleRate, 128, 2);
-      if (this.spec.bpm) core._mw_shaper_set_bpm(120);
+      if (this.setBpmCall) this.setBpmCall(120);
       // Drained in arrival order, after `prepare`, because a curve written
       // before the unit was prepared would be a curve written into a core that
       // then reinitialised over it.
@@ -165,6 +176,8 @@ class UnitProcessor extends AudioWorkletProcessor {
        * row that renders the same unit twice and requires the two to differ.
        */
       if (this.setBypassCall) this.setBypassCall(message.on ? 1 : 0);
+    } else if (message.kind === 'bpm') {
+      if (this.setBpmCall) this.setBpmCall(message.bpm);
     } else if (message.kind === 'curve' && this.spec.curve) {
       const bytes = message.nodes.length * 4 * 8;
       const ptr = this.core._malloc(bytes);

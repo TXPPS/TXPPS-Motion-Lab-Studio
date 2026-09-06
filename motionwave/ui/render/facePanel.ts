@@ -28,6 +28,7 @@ import { CONTROL_CSS } from './controlCss';
 import { PANEL_CSS } from './panelCss';
 import { skinVariables } from './skin';
 import { stepCount } from './primitive';
+import { buildGroupStrip } from './faceGroups';
 import { buildCurveEditor, type CurveEditorHandle } from './controls/curve';
 import type { CurveNode } from './controls/curve_model';
 import { buildKnob } from './controls/knob';
@@ -96,6 +97,10 @@ export interface PanelHandle {
   paramValue(paramId: number): number | undefined;
   setShape(index: number, nodes: readonly CurveNode[]): void;
   shapeNodes(index: number): readonly CurveNode[] | undefined;
+  /** The face's groups, in order; empty for a face with none. */
+  groups(): readonly string[];
+  /** Bring one group's controls to the front. Unknown ids are ignored. */
+  showGroup(id: string): void;
   dispose(): void;
 }
 
@@ -222,6 +227,8 @@ export function renderFace(options: PanelOptions): PanelHandle {
   const controls = doc.createElement('div');
   controls.className = 'mw-panel-controls';
 
+  const strip = buildGroupStrip(doc, options.face.groups ?? [], id, options.title);
+
   const painters: { handle: ReadoutHandle; channel: string }[] = [];
   const curves = new Map<number, CurveEditorHandle>();
   const curvePainters: { handle: CurveEditorHandle; channel: string }[] = [];
@@ -281,11 +288,12 @@ export function renderFace(options: PanelOptions): PanelHandle {
     identify(control.node, element);
     handles.push(control);
     byParam.set(spec.id, control);
-    controls.appendChild(control.node);
+    (strip.homeOf(element.id) ?? controls).appendChild(control.node);
   }
 
   body.appendChild(readouts);
-  body.appendChild(controls);
+  if (controls.childElementCount > 0) body.appendChild(controls);
+  strip.mount(body);
   root.appendChild(body);
   options.container.appendChild(style);
   options.container.appendChild(root);
@@ -317,6 +325,8 @@ export function renderFace(options: PanelOptions): PanelHandle {
       curves.get(index)?.setNodes(nodes);
     },
     shapeNodes: (index) => curves.get(index)?.nodes(),
+    groups: strip.ids,
+    showGroup: strip.show,
     dispose() {
       for (const handle of handles) handle.dispose();
       root.remove();

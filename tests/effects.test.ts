@@ -115,6 +115,7 @@ describe('effect catalogue', () => {
       'mw-variable-mu',
       'mw-console-eq',
       'mw-granular-reverb',
+      'mw-granular-delay',
     ];
     for (const kind of kinds) expect(effectSpec(kind), kind).toBeTruthy();
     expect(EFFECT_SPECS.length).toBe(kinds.length);

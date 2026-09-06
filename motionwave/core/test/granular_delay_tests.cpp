@@ -67,6 +67,9 @@ void configure(GranularDelay& unit) {
   unit.prepare(kRate, kBlock);
   unit.setMix(1.0);
   unit.setTapCount(1);
+  // Free times throughout: every row here states a delay in seconds, and §7.1's
+  // sync switch defaults to on, which would replace them with an eighth note.
+  unit.setSync(false);
   TapSettings tap;
   tap.delaySeconds = 0.250;
   tap.level = 1.0;
@@ -89,6 +92,33 @@ std::pair<float, float> noiseAt(int index, std::uint32_t* state) {
   (void)index;
   return {v, v};
 }
+
+/**
+ * Pink noise, which is what §9 V6 says to measure on — and the difference is
+ * not cosmetic.
+ *
+ * The first version of V6 used the white noise above and failed by 0.14 dB
+ * once the tap's always-on 18 kHz lowpass was removed, and the cause was not
+ * the normalisation it grades: a plain tap at an integer delay reads samples
+ * exactly, while every grain reads at a fractional offset through a cubic
+ * Hermite kernel, whose loss in the top octave costs white noise close to a
+ * decibel of RMS. Pink noise has a twentieth of its energy up there, so the
+ * measurement sees the level of the cloud rather than the roll-off of its
+ * interpolator. The three-pole approximation is the standard economy one.
+ */
+struct Pink {
+  double b0 = 0.0, b1 = 0.0, b2 = 0.0;
+  std::uint32_t state = 0x0BADF00Du;
+  std::pair<float, float> at() {
+    state = state * 1664525u + 1013904223u;
+    const double white = static_cast<double>(state >> 8) / 8388608.0 - 1.0;
+    b0 = 0.99765 * b0 + white * 0.0990460;
+    b1 = 0.96300 * b1 + white * 0.2965164;
+    b2 = 0.57000 * b2 + white * 1.0526913;
+    const float v = static_cast<float>((b0 + b1 + b2 + white * 0.1848) * 0.12);
+    return {v, v};
+  }
+};
 
 }  // namespace
 
@@ -175,9 +205,9 @@ MW_TEST("V2: at Smear zero the tap is a plain interpolated delay, exactly") {
   dsp::Biquad blocker;
   blocker.setCoeffs(dsp::onePoleHighpassCoeffs(20.0, kRate));
   blocker.reset();
-  dsp::Biquad filter;
-  filter.setCoeffs(dsp::lowpassCoeffs(18000.0, 0.707, kRate));
-  filter.reset();
+  // No tap filter in the reference: §7.2's default is Off, and an always-on
+  // 18 kHz lowpass — which the first version of the unit carried and this row
+  // reproduced — was a colour the plain delay never asked for.
   const double angle = 0.5 * kPi * 0.5;
   const double gainL = std::cos(angle);
   const double equalPower = 0.70710678118654752;
@@ -197,7 +227,7 @@ MW_TEST("V2: at Smear zero the tap is a plain interpolated delay, exactly") {
     const double blocked = blocker.process(static_cast<double>(input[static_cast<std::size_t>(i)]));
     reference.write(static_cast<float>(blocked * equalPower),
                     static_cast<float>(blocked * equalPower));
-    const double filtered = filter.process(0.5 * (rawL + rawR));
+    const double filtered = 0.5 * (rawL + rawR);
     const double side = 0.5 * (rawL - rawR);
     const double wet = filtered * gainL + side;
     peak = std::max(peak, std::fabs(wet));
@@ -324,9 +354,9 @@ MW_TEST("V6: Smear changes the texture without changing the level or the decay")
    * feedback tap it changes the loop gain, and therefore the decay time. A
    * texture control that retunes the delay is the defect.
    *
-   * Measured on steady pink noise so the level is a level rather than a
-   * transient, and with the decay read from the same interrupted-noise method
-   * `decay_harness.h` gives the reverb — the same discipline, one unit over.
+   * Measured on steady pink noise, as the sheet says, so the level is a level
+   * rather than a transient — and so that the cloud's interpolator is not what
+   * is being measured; see `Pink` above for the decibel that cost.
    */
   const double smears[5] = {0.0, 0.25, 0.50, 0.75, 1.00};
   double loudest = -1.0e9;
@@ -338,9 +368,9 @@ MW_TEST("V6: Smear changes the texture without changing the level or the decay")
     unit.setSmear(smear);
     unit.reset();
 
-    std::uint32_t state = 0x0BADF00Du;
+    Pink pink;
     const int frames = static_cast<int>(kRate) * 4;
-    const Rendered out = render(unit, frames, [&state](int i) { return noiseAt(i, &state); });
+    const Rendered out = render(unit, frames, [&pink](int) { return pink.at(); });
 
     // The last second, so the loop has settled rather than still filling.
     double sum = 0.0;
@@ -574,7 +604,7 @@ MW_TEST("V16: nothing on the audio path allocates, with every control moving") {
     // A different control every block, including the ones that resize things —
     // tap count, smear and the sync division are the candidates for a hidden
     // allocation, so they are in the rotation rather than left out of it.
-    const int which = b % 8;
+    const int which = b % 14;
     if (which == 0) unit.setSmear(next());
     if (which == 1) unit.setTapCount(1 + static_cast<int>(next() * 7.0));
     if (which == 2) unit.setFeedback(next() * 1.3);
@@ -591,6 +621,32 @@ MW_TEST("V16: nothing on the audio path allocates, with every control moving") {
       unit.setTap(static_cast<int>(next() * 7.99), tap);
     }
     if (which == 7) unit.setMix(next());
+    // §9 V16 names Character and the division explicitly; the medium, the
+    // quality tier and the time-change mode each rebuild filters and the
+    // sync switch re-resolves every tap, so they are in the rotation too.
+    if (which == 8) unit.setCharacter(static_cast<delay::Character>(static_cast<int>(next() * 2.99)));
+    if (which == 9) unit.setQuality(static_cast<delay::Quality>(static_cast<int>(next() * 2.99)));
+    if (which == 10) {
+      unit.setTimeChangeMode(static_cast<delay::TimeChangeMode>(static_cast<int>(next() * 2.99)));
+      unit.setWear(static_cast<delay::Wear>(static_cast<int>(next() * 3.99)));
+    }
+    if (which == 11) unit.setSync(next() > 0.5);
+    if (which == 12) {
+      TapSettings tap = unit.tap(static_cast<int>(next() * 7.99));
+      tap.division = static_cast<delay::Division>(static_cast<int>(next() * 9.99));
+      tap.modifier = static_cast<delay::Modifier>(static_cast<int>(next() * 2.99));
+      tap.filter = static_cast<delay::TapFilter>(static_cast<int>(next() * 3.99));
+      tap.cutoffHz = 100.0 + next() * 15000.0;
+      tap.solo = next() > 0.8;
+      tap.muted = next() > 0.8;
+      unit.setTap(static_cast<int>(next() * 7.99), tap);
+    }
+    if (which == 13) {
+      unit.setBbdStages(static_cast<int>(next() * 2.99));
+      unit.setBias(next());
+      unit.setAge(next());
+      unit.setFeedbackSource(static_cast<FeedbackSource>(static_cast<int>(next() * 2.99)));
+    }
 
     for (int i = 0; i < kBlock; ++i) {
       const std::pair<float, float> v = noiseAt(b * kBlock + i, &state);

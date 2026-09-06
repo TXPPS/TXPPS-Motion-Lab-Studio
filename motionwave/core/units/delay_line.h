@@ -79,6 +79,25 @@ class DelayBuffer {
     return dsp::grain::readCubic(source, static_cast<double>(writeIndex_) - delaySamples);
   }
 
+  /**
+   * The same read with linear interpolation, for §9.3's Eco tier.
+   *
+   * Permitted there on *static* taps only: §6.2 says linear interpolation's
+   * lowpass error varies with the fractional part, so a modulated read gets a
+   * modulated treble — "swishing" on top of the pitch effect. The unit chooses
+   * this only when nothing is moving the read, and cubic Hermite otherwise.
+   */
+  float readLinear(int channel, double delaySamples) const noexcept {
+    const float* data = channel == 0 ? left_.data() : right_.data();
+    const double position = static_cast<double>(writeIndex_) - delaySamples;
+    const double floored = std::floor(position);
+    const float fraction = static_cast<float>(position - floored);
+    const int index = static_cast<int>(static_cast<long long>(floored) & mask_);
+    const float a = data[static_cast<std::size_t>(index)];
+    const float b = data[static_cast<std::size_t>((index + 1) & mask_)];
+    return a + (b - a) * fraction;
+  }
+
  private:
   double sampleRate_ = 48000.0;
   int capacity_ = 0;

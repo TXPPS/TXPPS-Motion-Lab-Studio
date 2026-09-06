@@ -22,12 +22,14 @@
 #include "../core/render/offline_render.h"
 #include "../core/render/reference_graph.h"
 #include "../core/units/generated/console_eq_params.gen.h"
+#include "../core/units/generated/granular_delay_params.gen.h"
 #include "../core/units/generated/granular_reverb_params.gen.h"
 #include "../core/units/generated/fet_limiter_params.gen.h"
 #include "../core/units/generated/motion_shaper_params.gen.h"
 #include "../core/units/generated/optical_leveller_params.gen.h"
 #include "../core/units/generated/program_eq_params.gen.h"
 #include "../core/units/generated/variable_mu_params.gen.h"
+#include "../core/units/granular_delay.h"
 #include "../core/units/granular_reverb.h"
 #include "unit_bridge.h"
 
@@ -84,6 +86,7 @@ mw::wasm::UnitBridge<mw::units::FetLimiter> g_fetLimiter;
 mw::wasm::UnitBridge<mw::units::VariableMu> g_variableMu;
 mw::wasm::UnitBridge<mw::units::ConsoleEq> g_consoleEq;
 mw::wasm::UnitBridge<mw::units::GranularReverb> g_granularReverb;
+mw::wasm::UnitBridge<mw::units::GranularDelay> g_granularDelay;
 
 }  // namespace
 
@@ -398,6 +401,50 @@ const double* mw_granular_reverb_visual() {
   out[6] = static_cast<double>(frame.liveGrains);
   out[7] = static_cast<double>(frame.cloudDepthSeconds);
   out[8] = static_cast<double>(frame.cloudSpreadSeconds);
+  return out.data();
+}
+
+MW_UNIT_EXPORTS(mw_granular_delay, g_granularDelay, mw::units::applyGranularDelayParam)
+
+/**
+ * The tempo, which the sync table resolves every tap's division against.
+ *
+ * Its own export rather than a parameter, for the reason the Motion Shaper's
+ * is: a tempo is the host's and not the user's, it has no range a control
+ * could draw, and a project's tempo map changes it without touching a
+ * parameter. The worklet calls `_<prefix>_set_bpm` on any unit that exports
+ * one, which this unit does and the reverb does not.
+ */
+EMSCRIPTEN_KEEPALIVE
+void mw_granular_delay_set_bpm(double bpm) { g_granularDelay.unit().setBpm(bpm); }
+
+/**
+ * Eighteen doubles: three levels, then fifteen numbers no control states.
+ *
+ * The pitch ratio is the transport's `v(t) / v(t − D)` on the first tap; the
+ * eight tap times are the delivered ones after the transport; the clock is
+ * `N / (2D)` and is zero on the other media. The order is this file's and
+ * `motionwave/ui/units/granular_delay/unit.ts` names the doubles in it — the
+ * frame-packing test holds the two to the same width.
+ */
+EMSCRIPTEN_KEEPALIVE
+const double* mw_granular_delay_visual() {
+  mw::units::GranularDelayFrame frame;
+  g_granularDelay.unit().visual().read(frame);
+  std::vector<double>& out = g_granularDelay.visualScratch(18);
+  out[0] = static_cast<double>(frame.inputPeak);
+  out[1] = static_cast<double>(frame.outputPeak);
+  out[2] = static_cast<double>(frame.loopPeak);
+  out[3] = static_cast<double>(frame.pitchRatio);
+  for (int t = 0; t < 8; ++t) {
+    out[static_cast<std::size_t>(4 + t)] = static_cast<double>(frame.tapSeconds[t]);
+  }
+  out[12] = static_cast<double>(frame.overlap);
+  out[13] = static_cast<double>(frame.clockHz);
+  out[14] = static_cast<double>(frame.duckGain);
+  out[15] = static_cast<double>(frame.cloudDepthSeconds);
+  out[16] = static_cast<double>(frame.liveGrains);
+  out[17] = static_cast<double>(frame.activeTaps);
   return out.data();
 }
 

@@ -435,7 +435,8 @@ export type MotionWaveKind =
   | 'mw-fet-limiter'
   | 'mw-variable-mu'
   | 'mw-console-eq'
-  | 'mw-granular-reverb';
+  | 'mw-granular-reverb'
+  | 'mw-granular-delay';
 
 export type EffectKind =
   // dynamics

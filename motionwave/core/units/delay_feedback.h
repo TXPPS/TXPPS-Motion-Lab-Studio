@@ -131,8 +131,9 @@ class DelayFeedback {
     feedback_ = feedback < 0.0 ? 0.0 : (feedback > 1.3 ? 1.3 : feedback);
   }
   /// User drive, in addition to the floor. Never below it — see `driveNow`.
+  /// §7.1 maps the Drive control onto 1–12; the clamp is the control's range.
   void setDrive(double drive) noexcept {
-    drive_ = drive < 1.0 ? 1.0 : (drive > 8.0 ? 8.0 : drive);
+    drive_ = drive < 1.0 ? 1.0 : (drive > 12.0 ? 12.0 : drive);
   }
 
   double feedback() const noexcept { return feedback_; }

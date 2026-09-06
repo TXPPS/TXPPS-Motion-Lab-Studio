@@ -35,6 +35,7 @@ import { fetLimiterUnit } from '../units/fet_limiter/unit';
 import { variableMuUnit } from '../units/variable_mu/unit';
 import { consoleEqUnit } from '../units/console_eq/unit';
 import { granularReverbUnit } from '../units/granular_reverb/unit';
+import { granularDelayUnit } from '../units/granular_delay/unit';
 import type { UnitUnderTest } from '../harness/types';
 
 const ROOT = join(import.meta.dirname, '..', '..');
@@ -47,6 +48,7 @@ const UNITS: readonly UnitUnderTest[] = [
   variableMuUnit,
   consoleEqUnit,
   granularReverbUnit,
+  granularDelayUnit,
 ];
 
 /** `{ 'dyn-05': { prefix: 'mw_console_eq', frame: 7, … } }`, from the worklet. */
