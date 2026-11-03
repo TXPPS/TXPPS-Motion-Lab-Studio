@@ -282,7 +282,29 @@ inline std::vector<std::size_t> pickPeaks(const std::vector<double>& sf, double 
     const double background = bgMembers > 0 ? bgSum / static_cast<double>(bgMembers) : 0.0;
     const double localMean = sum / static_cast<double>(members);
     if (v < localMean + deltaOut) continue;
-    if (background > 0.0 && v < o.meanRatio * background) continue;
+    // A distinct second strike can be masked by the *previous* strike in the
+    // trailing background window. Do not lower the global meanRatio: that
+    // admits spectral ripple across sustained passages (V-4 regression).
+    //
+    // Instead, exempt only a genuine new peak after the refractory period:
+    // it must have a pronounced valley separating it from the preceding
+    // accepted attack, substantial strength relative to that attack, and
+    // arrive within 100 ms. A slow decay or detector ripple has no such
+    // isolated valley followed by a comparably strong second rise.
+    //
+    // The existing local-mean + delta test above is NOT exempted.
+    bool independentRepeat = false;
+    if (last >= 0 && static_cast<double>(m - last) >= refractoryFrames &&
+        static_cast<double>(m - last) <= 0.100 * rate / static_cast<double>(o.hop)) {
+      const double prev = sf[static_cast<std::size_t>(last)];
+      double valley = std::min(prev, v);
+      for (long j = last + 1; j < m; ++j) {
+        valley = std::min(valley, sf[static_cast<std::size_t>(j)]);
+      }
+      independentRepeat = v >= 0.33 * prev &&
+                          valley <= 0.40 * std::min(prev, v);
+    }
+    if (background > 0.0 && v < o.meanRatio * background && !independentRepeat) continue;
     if (last >= 0 && static_cast<double>(m - last) < refractoryFrames) continue;
     peaks.push_back(static_cast<std::size_t>(m));
     last = m;
