@@ -21,6 +21,13 @@ jobs:
       - run: npm ci
       - name: Validate non-production original source-art manifest
         run: node scripts/qa/check-ui-lock-art.mjs
+      - name: Exact-format diagnostics for v1 material sources
+        run: |
+          for file in design-assets/motionwave-ui-lock/manifest-v1.json scripts/qa/check-ui-lock-art-v1.mjs; do
+            echo "FORMAT DIFF: $file"
+            npx prettier "$file" > /tmp/cp04-formatted
+            diff -u "$file" /tmp/cp04-formatted || true
+          done
       - name: Validate photorealistic layered v1 SVG candidate masters
         run: node scripts/qa/check-ui-lock-art-v1.mjs
       - name: Validate all seven faces against generated ParamSpec
