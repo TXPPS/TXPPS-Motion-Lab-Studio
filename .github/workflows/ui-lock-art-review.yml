@@ -29,6 +29,8 @@ jobs:
           done
       - name: Validate non-production original source-art manifest
         run: node scripts/qa/check-ui-lock-art.mjs
+      - name: Validate all seven faces against generated ParamSpec
+        run: node scripts/qa/check-ui-lock-controls.mjs
       - name: Install Chromium for visual evidence
         run: npx playwright install --with-deps chromium
       - name: Render authored SVG at full pixel size
