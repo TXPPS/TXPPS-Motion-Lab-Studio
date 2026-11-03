@@ -237,6 +237,11 @@ const PANEL = `
   gap: var(--mw-control-gutter);
   align-items: start;
 }
+/* Author CSS display:grid overrides the user-agent [hidden] display:none.
+   A delay with eight tab grids therefore rendered ALL ~139 controls in a
+   6,449px phone panel despite the JavaScript setting hidden=true. Keep
+   inactive panels out of layout and the pointer/focus tree. */
+.mw-panel-controls[hidden] { display: none; }
 .mw-panel-band {
   display: contents;
 }
