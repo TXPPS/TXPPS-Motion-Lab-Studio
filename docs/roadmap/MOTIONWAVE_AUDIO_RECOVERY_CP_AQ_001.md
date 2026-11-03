@@ -184,6 +184,34 @@ before the following instrument starts.
 - Complete release notes, known-limitations inventory and manual QA.
 - Only then update owner-facing release readiness for affected units.
 
+## Reproducible first-listen baseline
+
+The browser's real C++/WASM granular processors can render fixed reference
+sounds to IEEE float32 WAV without changing any DSP code:
+
+```bash
+npm ci
+npm run wasm:check
+npm run audio:granular
+# Quick automated contract check, not an audio-quality verdict:
+npm run audio:granular -- --smoke
+```
+
+Outputs go to `audit-out/granular-captures/` (gitignored). Use
+`npm run audio:granular -- --out /path/to/captures` for a chosen folder.
+The output contains dry snare and chord fixtures, density 100/350/1500
+granular-reverb captures, smear 25%/50% granular-delay captures, and a JSON
+manifest with the exact source commit, parameter overrides, rate, peak, RMS,
+clip count and WAV SHA-256 for repeatability. All renders are stereo 48 kHz
+float32 with **no automatic gain normalisation**.
+
+The smoke mode renders one second and checks for NaN, infinity and unexpected
+silence; it is a tool health check rather than a test of sonic quality. These
+generated stimuli are deliberately simple. A real listening review must also
+include dry recorded snare, acoustic guitar, vocals, bass and music supplied
+with suitable usage rights. The owner still needs to judge level-matched
+before/after files. Never mark SOUND APPROVED from synthetic metrics alone.
+
 ## Audio review record template
 
 For every device and finding, save a record with:
