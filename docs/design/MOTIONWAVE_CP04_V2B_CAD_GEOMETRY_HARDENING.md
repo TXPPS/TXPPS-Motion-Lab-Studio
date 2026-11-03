@@ -6,11 +6,11 @@
 
 ## Actual changes, not proposed tasks
 
-| Asset | V2.0 limitation | V2.0B corrected geometry and evidence |
-| --- | --- | --- |
-| MW-CONTROL-001 primary knob | Ivory pointer was effectively an overlay, not a genuine cut | Removed an actual **0.50 mm**-deep rounded-capsule recess from the top cap mesh; cut removes **4.7159 mm³**; independent ivory inlay is fitted **0.085 mm below** cap top, with **0.085 mm nominal side gap**. The continuous 24-lobe molded skirt profile remains watertight. |
-| MW-CONTROL-006 toggle | Small unsupported-looking gaps between fixed washer, hex nut and pivot housing | Fixed parts are directly seated at Z boundaries **0.85 / 2.50 mm**. The moving shaft pivots at Z=**2.90 mm**, through **±21°**. Exact OpenCascade BRep intersection tested at **85 poses**: zero common solid volume, minimum radial clearance **0.8718 mm** at outer throw. |
-| MW-CONTROL-007 meter | Square-cornered frame and loosely placed dial/glass | Rebuilt bezel with a continuous rounded/filleted CAD ring and small top chamfers; card now seats in housing; true glass/aperture clearance **X=0.45, Y=0.40 mm**. Needle Z=2.50–3.18 remains between card top 2.40 and glass underside 3.57. |
+| Asset                       | V2.0 limitation                                                                | V2.0B corrected geometry and evidence                                                                                                                                                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| MW-CONTROL-001 primary knob | Ivory pointer was effectively an overlay, not a genuine cut                    | Removed an actual **0.50 mm**-deep rounded-capsule recess from the top cap mesh; cut removes **4.7159 mm³**; independent ivory inlay is fitted **0.085 mm below** cap top, with **0.085 mm nominal side gap**. The continuous 24-lobe molded skirt profile remains watertight. |
+| MW-CONTROL-006 toggle       | Small unsupported-looking gaps between fixed washer, hex nut and pivot housing | Fixed parts are directly seated at Z boundaries **0.85 / 2.50 mm**. The moving shaft pivots at Z=**2.90 mm**, through **±21°**. Exact OpenCascade BRep intersection tested at **85 poses**: zero common solid volume, minimum radial clearance **0.8718 mm** at outer throw.   |
+| MW-CONTROL-007 meter        | Square-cornered frame and loosely placed dial/glass                            | Rebuilt bezel with a continuous rounded/filleted CAD ring and small top chamfers; card now seats in housing; true glass/aperture clearance **X=0.45, Y=0.40 mm**. Needle Z=2.50–3.18 remains between card top 2.40 and glass underside 3.57.                                   |
 
 ## Verification executed
 
