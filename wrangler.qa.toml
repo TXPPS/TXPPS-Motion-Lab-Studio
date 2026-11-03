@@ -1,0 +1,8 @@
+# Isolated manual-QA build; intentionally does not use the live Worker name
+# or its account. No routes, KV, databases, or production secrets are bound.
+name = "txpps-motionlab-studio-ui-qa"
+compatibility_date = "2026-07-21"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
