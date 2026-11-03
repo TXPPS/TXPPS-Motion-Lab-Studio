@@ -12,11 +12,11 @@ The complete `MotionWave_CP04_V2_Geometry_Package.zip` is attached in the same d
 
 ## Asset-level construction
 
-| Asset | Editable mesh nodes | Grey-model changes |
-| --- | ---: | --- |
-| 001 knob | 3 | Separate washer and near-flush indicator; cap, shoulder, rounded skirt, and 24 smoothly tapered molded grip lobes form one continuous watertight shell |
-| 006 toggle OFF/ON | 5 in each state | Washer, true center-bored hex nut, hollow pivot socket, rotatable shaft, attached insulating tip; the fixed pivot and mount are identical in both throws |
-| 007 analog VU | 10 | Back housing, flat printed-card placeholder, needle, pivot hub, glass, continuous hollow bezel, four mounted screws; correct Z-order of card / needle / cover |
+| Asset             | Editable mesh nodes | Grey-model changes                                                                                                                                            |
+| ----------------- | ------------------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 001 knob          |                   3 | Separate washer and near-flush indicator; cap, shoulder, rounded skirt, and 24 smoothly tapered molded grip lobes form one continuous watertight shell        |
+| 006 toggle OFF/ON |     5 in each state | Washer, true center-bored hex nut, hollow pivot socket, rotatable shaft, attached insulating tip; the fixed pivot and mount are identical in both throws      |
+| 007 analog VU     |                  10 | Back housing, flat printed-card placeholder, needle, pivot hub, glass, continuous hollow bezel, four mounted screws; correct Z-order of card / needle / cover |
 
 **Shared convention:** nominal concept dimensions in millimeters, +Z toward viewer, panel Z=0, +Y up. These are geometric study dimensions, not validated physical manufacturing tolerances.
 
@@ -34,7 +34,7 @@ The workspace has no full mesh Boolean collision solver installed. Therefore the
 
 ## Baseline inspection
 
-The earlier, user-approved RFM-48 knob reference image was inspected. The ribbed molded surface and inlaid pointer inform the physical construction benchmark. Exact TM Frey reference artwork was **not verified** in this container. Do not claim an apples-to-apples material comparison between that finished photo-style reference and the V2 *grey clay* model.
+The earlier, user-approved RFM-48 knob reference image was inspected. The ribbed molded surface and inlaid pointer inform the physical construction benchmark. Exact TM Frey reference artwork was **not verified** in this container. Do not claim an apples-to-apples material comparison between that finished photo-style reference and the V2 _grey clay_ model.
 
 ## Next smallest correction — V2.0B geometry hardening
 
