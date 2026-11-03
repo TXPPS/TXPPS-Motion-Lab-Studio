@@ -1,0 +1,57 @@
+name: UI Lock source-art validation (review only)
+on:
+  push:
+    branches:
+      - feature/motionwave-vintage-control-library-cp03-04-20261103
+permissions:
+  contents: read
+concurrency:
+  group: ui-lock-source-art-cp04
+  cancel-in-progress: true
+jobs:
+  vector-source:
+    name: Check editable source and capture control-sheet pixels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate non-production original source-art manifest
+        run: node scripts/qa/check-ui-lock-art.mjs
+      - name: Validate photorealistic layered v1 SVG candidate masters
+        run: node scripts/qa/check-ui-lock-art-v1.mjs
+      - name: Validate all seven faces against generated ParamSpec
+        run: node scripts/qa/check-ui-lock-controls.mjs
+      - name: Install Chromium for visual evidence
+        run: npx playwright install --with-deps chromium
+      - name: Render authored SVG at full pixel size
+        shell: bash
+        run: |
+          mkdir -p audit-out/ui-lock-cp04
+          npx playwright screenshot --browser chromium --viewport-size="1600,920" "file://$GITHUB_WORKSPACE/design-assets/motionwave-ui-lock/controls-v0.svg" audit-out/ui-lock-cp04/controls-v0-desktop.png
+          test -s audit-out/ui-lock-cp04/controls-v0-desktop.png
+      - name: Render new premium source-vector study (not production)
+        shell: bash
+        run: |
+          npx playwright screenshot --browser chromium --viewport-size="1600,920" "file://$GITHUB_WORKSPACE/design-assets/motionwave-ui-lock/controls-v1-review.svg" audit-out/ui-lock-cp04/controls-v1-desktop.png
+          npx playwright screenshot --browser chromium --viewport-size="380,380" "file://$GITHUB_WORKSPACE/design-assets/motionwave-ui-lock/v1/MW-CONTROL-001.svg" audit-out/ui-lock-cp04/MW-CONTROL-001-transparent.png
+          npx playwright screenshot --browser chromium --viewport-size="600,350" "file://$GITHUB_WORKSPACE/design-assets/motionwave-ui-lock/v1/MW-CONTROL-007.svg" audit-out/ui-lock-cp04/MW-CONTROL-007-meter.png
+          test -s audit-out/ui-lock-cp04/controls-v1-desktop.png
+      - name: Upload only review artifacts (no production deployment)
+        uses: actions/upload-artifact@v4
+        with:
+          name: motionwave-ui-lock-cp04-vector-art-review
+          path: |
+            audit-out/ui-lock-cp04/controls-v0-desktop.png
+            design-assets/motionwave-ui-lock/controls-v0.svg
+            design-assets/motionwave-ui-lock/manifest.json
+            audit-out/ui-lock-cp04/controls-v1-desktop.png
+            audit-out/ui-lock-cp04/MW-CONTROL-001-transparent.png
+            audit-out/ui-lock-cp04/MW-CONTROL-007-meter.png
+            design-assets/motionwave-ui-lock/controls-v1-review.svg
+            design-assets/motionwave-ui-lock/manifest-v1.json
+            design-assets/motionwave-ui-lock/v1/*.svg
+          retention-days: 14
