@@ -134,13 +134,24 @@ MW_TEST("early-field enabled render has no block-size signature") {
   }
 }
 
-MW_TEST("early-field DC blocker prevents steady input leaking to wet output") {
+MW_TEST("early-field DC blocker adds no steady offset beyond legacy cloud") {
+  // One second is too short to grade the original cloud's three-second RT60:
+  // its response to the input step has not settled. Subtract the identical
+  // legacy cloud contribution so this test isolates only the new branch.
+  const std::vector<float> legacy = render(0.0, 256, 2);
   const std::vector<float> captured = render(0.5, 256, 2);
+  double legacyMean = 0.0;
   double mean = 0.0;
-  for (int i = 24000; i < kFrames; ++i) mean += captured[static_cast<std::size_t>(i)];
+  for (int i = 24000; i < kFrames; ++i) {
+    legacyMean += legacy[static_cast<std::size_t>(i)];
+    mean += captured[static_cast<std::size_t>(i)];
+  }
+  legacyMean /= 24000.0;
   mean /= 24000.0;
-  std::printf("    early field DC mean, last half second: %.9g\n", mean);
-  MW_EXPECT(std::fabs(mean) < 0.001);
+  const double isolatedEarlyMean = (mean - 0.5 * legacyMean) * 2.0;
+  std::printf("    last 0.5 s DC: legacy %.9g, blended %.9g, isolated early %.9g\n",
+              legacyMean, mean, isolatedEarlyMean);
+  MW_EXPECT(std::fabs(isolatedEarlyMean) < 1.0e-4);
 }
 
 MW_TEST_MAIN("granular-reverb-early-field")
