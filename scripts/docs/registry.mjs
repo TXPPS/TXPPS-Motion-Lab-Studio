@@ -300,6 +300,14 @@ export const DOCS = Object.fromEntries([
     ['docs/adr/0008-control-primitives.md', 'a locked decision and its rejected alternatives'],
     ['docs/design/channel-strip.md', 'the argument for a redesign, and what would falsify it'],
     [
+      'docs/design/MOTIONWAVE_COMMERCIAL_UI_LOCK_CP01.md',
+      'commercial UI redesign intent and acceptance criteria; future work, not a claim about the present product',
+    ],
+    [
+      'docs/design/MOTIONWAVE_FIRST_WAVE_APPROVAL_CP02.md',
+      'first-wave design direction and exact source-of-truth parameter contracts; design intent only',
+    ],
+    [
       'docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md',
       'the rationale and acceptance gates for Motion Wave GUI correction; verified outcomes live in CI and issue #9',
     ],
