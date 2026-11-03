@@ -145,8 +145,12 @@ export function attachDrag(node: HTMLElement, behaviour: DragBehaviour): () => v
     if (state === null || (event.pointerId ?? 0) !== state.pointerId) return;
     const here = bearing(node, event.clientX, event.clientY);
 
-    if (behaviour.circular && state.allowCircular && !state.circular &&
-        here.radius > CIRCULAR_RADIUS_FACTOR) {
+    if (
+      behaviour.circular &&
+      state.allowCircular &&
+      !state.circular &&
+      here.radius > CIRCULAR_RADIUS_FACTOR
+    ) {
       // Crossing into circular tracking must not move the value: only angle
       // *changes* from here on are applied, so wherever the finger is when it
       // crosses is simply where it now is.
