@@ -31,10 +31,6 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm test
-      # Motion Wave's own unit suite — 351 tests across 31 files that ran only
-      # when somebody remembered. `scripts/check-checks.mjs` is what found that.
-      - name: Motion Wave unit tests
-        run: npm run test:mw
       # Motion Wave's core is compiled to WebAssembly by `npm run build`, so the
       # runner needs the toolchain. Pinned to the version CLAUDE.md pins,
       # because the WASM boundary test asserts a bit-for-bit match against the
@@ -62,6 +58,11 @@ jobs:
       # verified here, where the toolchain does exist.
       - name: The tracked WebAssembly core matches its source
         run: npm run wasm:check
+      # The UI boundary suite imports motionwave/wasm/dist/motionwave.mjs.
+      # wasm:check creates this fresh build while proving that the tracked
+      # runtime matches the source; never run test:mw before that step.
+      - name: Motion Wave unit tests
+        run: npm run test:mw
       # The C++ core's own suites, compiled to WebAssembly and run under Node.
       # Forty-one of them, and nothing on a push had ever executed one.
       - name: Motion Wave core tests
