@@ -209,6 +209,7 @@ export function renderFace(options: PanelOptions): PanelHandle {
   root.dataset.mwFurniture = skin.furniture;
   root.dataset.mwLettering = skin.lettering;
   root.dataset.mwArrangement = skin.arrangement;
+  root.dataset.mwGrouped = options.face.groups?.length ? 'true' : 'false';
   root.dataset.mwEra = skin.era;
   root.setAttribute('aria-label', options.title);
   for (const [name, value] of Object.entries(skinVariables(skin))) {

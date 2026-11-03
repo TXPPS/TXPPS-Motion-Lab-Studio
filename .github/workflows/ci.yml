@@ -12,6 +12,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Run touch and visual checks independently of the hour-long C++ matrix.
+  # Two pre-existing sample-onset suites currently fail there; an unrelated
+  # sampler fault must not hide a mobile control regression.
+  motionwave-ui-touch:
+    name: Motion Wave phone controls and visual captures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type-check shared UI and browser tests
+        run: npm run typecheck
+      - name: Format check for new UI code and specs
+        run: npx prettier --check docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md motionwave/ui/render/controls/gesture.ts motionwave/ui/render/controlCss.ts motionwave/ui/render/panelCss.ts motionwave/ui/test/rotary_touch_gesture.test.ts motionwave/ui/test/rotary_visual_foundation.test.ts motionwave/ui/e2e/touch_rotary.spec.ts motionwave/ui/e2e/ui_capture.spec.ts motionwave/ui/e2e/granular_delay_tabs.spec.ts motionwave/ui/param/format.ts motionwave/ui/test/param.test.ts
+      - name: Shared touch direction and sizing regressions
+        run: npx vitest run --config motionwave/ui/vitest.config.ts rotary_touch_gesture rotary_visual_foundation param.test
+      - name: Compile the real Motion Wave panel
+        run: npm run build:panel
+      - name: Install browser for genuine touch events
+        run: npx playwright install --with-deps chromium
+      - name: Real touchscreen gestures and visual baselines
+        run: npx playwright test --config motionwave/ui/playwright.config.ts touch_rotary granular_delay_tabs ui_capture
+      - name: Upload phone and desktop plugin screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: motionwave-ui-visual-baseline
+          path: audit-out/motionwave-ui-screens/
+          retention-days: 7
+      - name: Upload failed touch test traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: motionwave-touch-playwright-failures
+          path: test-results/
+          retention-days: 7
+
   check:
     name: Types, lint, format, unit tests
     runs-on: ubuntu-latest

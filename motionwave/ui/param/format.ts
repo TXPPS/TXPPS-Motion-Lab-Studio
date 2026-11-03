@@ -95,7 +95,11 @@ export function formatReal(spec: ParamSpec, real: number): string {
     return spec.choices?.[index] ?? String(index);
   }
   if (spec.unit === Unit.Percent) {
-    const percent = real * 100;
+    // Older vintage units declare percentages as real fractions (0..1), while
+    // the granular manifests use explicit percent points (0..100, 0..130,
+    // 0..200). Multiplying both by 100 produced 3000% for a 30% Mix knob.
+    // Respect the parameter's real-value scale; never change its DSP range.
+    const percent = spec.max <= 1 ? real * 100 : real;
     return percent.toFixed(decimalsFor(Unit.Percent, Math.abs(percent)));
   }
   if (spec.unit === Unit.Hertz && usesKilohertz(real)) {
@@ -163,6 +167,7 @@ export function parseDisplay(spec: ParamSpec, text: string): number | null {
   // field accepts the text it printed itself and reads it as 1.2 Hz.
   const scaled =
     spec.unit === Unit.Hertz && (suffix === 'k' || suffix === 'khz') ? magnitude * 1000 : magnitude;
-  const real = spec.unit === Unit.Percent ? scaled / 100 : scaled;
+  // Parsing is the exact inverse of the displayed percentage scale.
+  const real = spec.unit === Unit.Percent && spec.max <= 1 ? scaled / 100 : scaled;
   return toNormalised(spec, real);
 }

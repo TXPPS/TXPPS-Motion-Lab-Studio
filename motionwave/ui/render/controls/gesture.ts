@@ -79,6 +79,8 @@ interface DragState {
   value: number;
   circular: boolean;
   lastAngle: number;
+  /** Fingers use vertical relative drag exclusively; only a mouse may orbit. */
+  allowCircular: boolean;
 }
 
 /**
@@ -90,7 +92,11 @@ interface DragState {
  * what stops them disagreeing about which way is up.
  */
 function bearing(node: HTMLElement, x: number, y: number): { deg: number; radius: number } {
-  const box = node.getBoundingClientRect();
+  // The hit target includes captions and values below the knob. Use the art,
+  // not the full target, for circular geometry so the angle and visible dial
+  // agree even when longer labels make one control taller than its neighbour.
+  const art = node.querySelector('.mw-ctl-art') ?? node;
+  const box = art.getBoundingClientRect();
   const dx = x - (box.left + box.width / 2);
   const dy = y - (box.top + box.height / 2);
   const unit = Math.max(box.width, box.height) / 2;
@@ -124,6 +130,11 @@ export function attachDrag(node: HTMLElement, behaviour: DragBehaviour): () => v
       value: behaviour.read(),
       circular: false,
       lastAngle: bearing(node, event.clientX, event.clientY).deg,
+      // A thumb has no useful orbital travel on a cramped 44px dial. Previous
+      // automatic switching at 1.4 radii made straight vertical touch drags
+      // abruptly become angular, causing apparent inversion and jumps.
+      // Pen is treated as direct touch for consistent tablet operation.
+      allowCircular: event.pointerType === 'mouse',
     };
     node.setPointerCapture?.(state.pointerId);
     node.dataset.mwDragging = 'true';
@@ -134,7 +145,12 @@ export function attachDrag(node: HTMLElement, behaviour: DragBehaviour): () => v
     if (state === null || (event.pointerId ?? 0) !== state.pointerId) return;
     const here = bearing(node, event.clientX, event.clientY);
 
-    if (behaviour.circular && !state.circular && here.radius > CIRCULAR_RADIUS_FACTOR) {
+    if (
+      behaviour.circular &&
+      state.allowCircular &&
+      !state.circular &&
+      here.radius > CIRCULAR_RADIUS_FACTOR
+    ) {
       // Crossing into circular tracking must not move the value: only angle
       // *changes* from here on are applied, so wherever the finger is when it
       // crosses is simply where it now is.

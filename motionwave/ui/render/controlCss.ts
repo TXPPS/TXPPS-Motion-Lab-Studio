@@ -56,16 +56,23 @@ const SHELL = `
 }
 .mw-ctl-label {
   display: block;
-  font-size: var(--mw-text-2xs);
+  font-size: var(--mw-text-xs);
   line-height: var(--mw-leading-tight);
+  font-weight: var(--mw-weight-medium);
   color: var(--mw-panel-ink);
 }
 .mw-ctl-value {
   display: block;
+  min-width: 3.25rem;
+  padding: var(--mw-space-1) var(--mw-space-2);
+  border-radius: var(--mw-radius-sm);
+  background: color-mix(in srgb, var(--mw-fascia-low) 75%, var(--mw-fascia));
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--mw-panel-ink) 12%, transparent);
   font-family: var(--mw-font-numeric);
-  font-size: var(--mw-text-2xs);
+  font-size: var(--mw-text-sm);
+  font-weight: var(--mw-weight-bold);
   font-variant-numeric: tabular-nums;
-  color: var(--mw-panel-ink-muted);
+  color: var(--mw-panel-ink);
 }
 `;
 
@@ -233,9 +240,11 @@ const MOTION = `
   .mw-fader-cap { transition-duration: var(--mw-motion-instant); }
 }
 @media (pointer: coarse) {
-  /* A finger, not a mouse. The art grows rather than the padding, so the thing
-     under the thumb is the control and not the space beside it. */
-  .mw-panel { --mw-ctl-size: max(3.25rem, var(--mw-ctl-size, 3.5rem)); }
+  /* Never define a custom property in terms of itself. The previous
+     --mw-ctl-size: max(... var(--mw-ctl-size)) formed a CSS variable cycle,
+     so every phone discarded the intended per-unit dial size. Apply the
+     touch floor directly to the rendered SVG container instead. */
+  .mw-panel .mw-ctl-art { width: max(3.75rem, var(--mw-ctl-size, 3.5rem)); }
   .mw-ctl { min-height: max(var(--mw-target-min), 3rem); }
 }
 `;

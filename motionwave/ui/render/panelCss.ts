@@ -156,10 +156,10 @@ const LETTERING = `
  */
 const ARRANGEMENTS = `
 .mw-panel[data-mw-arrangement='wide-banded'] { --mw-ctl-size: 4.5rem; --mw-ctl-min: 5.5rem; }
-.mw-panel[data-mw-arrangement='centre-stage'] { --mw-ctl-size: 3.5rem; --mw-ctl-min: 4.5rem; }
-.mw-panel[data-mw-arrangement='strip'] { --mw-ctl-size: 3rem; --mw-ctl-min: 3.75rem; }
-.mw-panel[data-mw-arrangement='console'] { --mw-ctl-size: 2.75rem; --mw-ctl-min: 3.5rem; }
-.mw-panel[data-mw-arrangement='field'] { --mw-ctl-size: 3.75rem; --mw-ctl-min: 4.75rem; }
+.mw-panel[data-mw-arrangement='centre-stage'] { --mw-ctl-size: 3.75rem; --mw-ctl-min: 4.75rem; }
+.mw-panel[data-mw-arrangement='strip'] { --mw-ctl-size: 3.75rem; --mw-ctl-min: 4.75rem; }
+.mw-panel[data-mw-arrangement='console'] { --mw-ctl-size: 3.5rem; --mw-ctl-min: 4.5rem; }
+.mw-panel[data-mw-arrangement='field'] { --mw-ctl-size: 4rem; --mw-ctl-min: 5rem; }
 .mw-panel[data-mw-arrangement='centre-stage'] .mw-panel-readouts {
   justify-content: center;
 }
@@ -218,7 +218,10 @@ const PANEL = `
 .mw-panel-title {
   margin: 0;
   font-size: var(--mw-text-xl);
-  font-weight: var(--mw-weight-medium);
+  font-weight: var(--mw-weight-bold);
+  letter-spacing: 0.02em;
+  padding-bottom: var(--mw-space-4);
+  border-bottom: var(--mw-hairline) solid var(--mw-fascia-low);
   color: var(--mw-panel-ink);
 }
 .mw-panel-body { display: flex; flex-direction: column; gap: var(--mw-space-5); }
@@ -233,6 +236,24 @@ const PANEL = `
   grid-template-columns: repeat(auto-fit, minmax(var(--mw-ctl-min, 4.5rem), 1fr));
   gap: var(--mw-control-gutter);
   align-items: start;
+}
+/* Author CSS display:grid overrides the user-agent [hidden] display:none.
+   A delay with eight tab grids therefore rendered ALL ~139 controls in a
+   6,449px phone panel despite the JavaScript setting hidden=true. Keep
+   inactive panels out of layout and the pointer/focus tree. */
+.mw-panel-controls[hidden] { display: none; }
+/* A tabbed plug-in is several workspaces, not a row of four tiny columns.
+   The generic wide breakpoint gives every direct body child flex:1 1 0;
+   for a grouped face this squeezes controls and the entire tap editor beside
+   the readout rail. Preserve a full-width stack on desktop as on phone.
+   Specificity intentionally wins over the later per-face breakpoint rule. */
+.mw-panel[data-mw-grouped='true'] .mw-panel-body {
+  flex-direction: column;
+}
+.mw-panel[data-mw-grouped='true'] .mw-panel-body > * {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
 }
 .mw-panel-band {
   display: contents;
