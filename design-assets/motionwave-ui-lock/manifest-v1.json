@@ -205,12 +205,7 @@
       "light": "warm studio key from upper-left",
       "accent": "turquoise",
       "color": "#49AFA6",
-      "layers": [
-        "contact-ao",
-        "machined-metal-rim",
-        "static-grid",
-        "safe-glass-light"
-      ],
+      "layers": ["contact-ao", "machined-metal-rim", "static-grid", "safe-glass-light"],
       "editable": true,
       "transparentBackground": true,
       "visualReview": false,
