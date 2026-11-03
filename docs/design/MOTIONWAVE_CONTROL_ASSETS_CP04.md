@@ -8,20 +8,20 @@
 
 The first source master is `design-assets/motionwave-ui-lock/controls-v0.svg`: hand-authored procedural SVG paths/shapes, full resolution-independent vector, grouped layers, no embedded raster photos, no extracted commercial art and no custom distributed font files. Control classes (pointer skirts, flutes, detents, industrial toggles, VU frames) are generalized mechanical forms. Source art is original to Motion Wave and must be reviewed for accidental lookalike trade dress before distribution.
 
-The SVG *overview* is static design art and not a functional knob, meter or plugin. Its meter needle value is decorative sample state **only for artwork inspection**. Production metering must be wired to actual published DSP channels; never reuse the static needle as a live display.
+The SVG _overview_ is static design art and not a functional knob, meter or plugin. Its meter needle value is decorative sample state **only for artwork inspection**. Production metering must be wired to actual published DSP channels; never reuse the static needle as a live display.
 
 ## Geometry / export contract
 
-| Asset ID | Source geometry | Production intent | Minimum display size |
-| --- | --- | --- | --- |
-| MW-CONTROL-001 | Large pointer/skirt knob, tick ring, indicator, conical edge, separate face and shadow | Program EQ main boost/atten, Input/Output on dynamic units | 84px desktop, 72px phone visible |
-| MW-CONTROL-002 | Compact machined collet knob with crisp pointer | Secondary inputs, output trims, granular macro small | 52px desktop, 56px touch when primary |
-| MW-CONTROL-003 | Fluted cap / fine ridges, insulated highlight | Texture/space granular engine, optional second knob skin | 72px desktop, 64px phone |
-| MW-CONTROL-004 | Chicken-head/detented selector pointer with cut angles | Program EQ frequency, ratio/step selectors where semantically correct | 74px desktop, 64px phone |
-| MW-CONTROL-005 | Five mutually exclusive ratio buttons | FET 4:1 / 8:1 / 12:1 / 20:1 / All In (never dummy missing choice) | each target >=44×44 CSS px |
-| MW-CONTROL-006 | Two-state mechanical toggle with explicit legend | Compress/Limit, Eq In, Limiting on/off when source manifest allows | target >=44×44 |
-| MW-CONTROL-007 | Analog meter frame/glass/scale with separate needle layer | GR or VU with actual DSP channel/ballistics only | 280×140 desktop, 300×145 phone (can adapt) |
-| MW-CONTROL-008 | Inset digital display housing, baseline and grid | Granular live data, delivered tap timeline, EQ readouts | content-dependent; should not hide labels |
+| Asset ID       | Source geometry                                                                        | Production intent                                                     | Minimum display size                       |
+| -------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------ |
+| MW-CONTROL-001 | Large pointer/skirt knob, tick ring, indicator, conical edge, separate face and shadow | Program EQ main boost/atten, Input/Output on dynamic units            | 84px desktop, 72px phone visible           |
+| MW-CONTROL-002 | Compact machined collet knob with crisp pointer                                        | Secondary inputs, output trims, granular macro small                  | 52px desktop, 56px touch when primary      |
+| MW-CONTROL-003 | Fluted cap / fine ridges, insulated highlight                                          | Texture/space granular engine, optional second knob skin              | 72px desktop, 64px phone                   |
+| MW-CONTROL-004 | Chicken-head/detented selector pointer with cut angles                                 | Program EQ frequency, ratio/step selectors where semantically correct | 74px desktop, 64px phone                   |
+| MW-CONTROL-005 | Five mutually exclusive ratio buttons                                                  | FET 4:1 / 8:1 / 12:1 / 20:1 / All In (never dummy missing choice)     | each target >=44×44 CSS px                 |
+| MW-CONTROL-006 | Two-state mechanical toggle with explicit legend                                       | Compress/Limit, Eq In, Limiting on/off when source manifest allows    | target >=44×44                             |
+| MW-CONTROL-007 | Analog meter frame/glass/scale with separate needle layer                              | GR or VU with actual DSP channel/ballistics only                      | 280×140 desktop, 300×145 phone (can adapt) |
+| MW-CONTROL-008 | Inset digital display housing, baseline and grid                                       | Granular live data, delivered tap timeline, EQ readouts               | content-dependent; should not hide labels  |
 
 Values above are **art direction targets**, not hardcoded component rules. Actual responsive unit geometry and parameter mapping require separate acceptance.
 
@@ -54,6 +54,6 @@ Values above are **art direction targets**, not hardcoded component rules. Actua
 
 ## Current artifact state and next handoff
 
-A source SVG proof and machine-readable manifest are stored in `design-assets/motionwave-ui-lock/`, under this feature branch. This supplies editable original geometry and documented interfaces, *not* production-ready final faces.
+A source SVG proof and machine-readable manifest are stored in `design-assets/motionwave-ui-lock/`, under this feature branch. This supplies editable original geometry and documented interfaces, _not_ production-ready final faces.
 
 Next step: capture per-unit desktop/phone variants using genuine generated parameters, review the VU/knob/caption consistency, refine against the owner’s selected concepts, then implement a single Program EQ vertical slice under CP-UI-LOCK-005. Performance/DSP issue #10 remains deferred.
