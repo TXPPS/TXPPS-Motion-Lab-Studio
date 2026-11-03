@@ -1,0 +1,18 @@
+name: CP04 V2.1A experimental material contract
+on:
+  push:
+    branches:
+      - feature/motionwave-cp04-v21a-material-studies-20261103
+permissions:
+  contents: read
+jobs:
+  material-contract:
+    name: Check unapproved material recipe and V2C hash declarations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Guard distinct materials and original geometry references
+        run: node scripts/qa/check-cp04-v21a-materials.mjs
