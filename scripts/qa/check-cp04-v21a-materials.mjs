@@ -2,7 +2,6 @@
 // JSON is a design target; source Python renderer and binary GLBs are in the
 // accompanying chat ZIP and are deliberately NOT claimed to be in this repo.
 import { readFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 
 const path = new URL('../../design-assets/motionwave-ui-lock/v21a/materials.json', import.meta.url);
 const spec = JSON.parse(readFileSync(path, 'utf8'));
