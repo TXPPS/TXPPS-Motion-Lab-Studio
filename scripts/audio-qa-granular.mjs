@@ -1,3 +1,4 @@
+// @clone: working-tree — only the current HEAD hash is used to identify captures.
 // Deterministic, unnormalised WAV captures of the same WASM DSP the browser runs.
 // A synthetic snare and plucked chord reveal transient flutter and feedback
 // without using copyrighted source recordings. These are listening fixtures,
