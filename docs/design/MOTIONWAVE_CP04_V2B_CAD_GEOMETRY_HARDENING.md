@@ -15,6 +15,7 @@
 ## Verification executed
 
 **18 named geometry assertions pass:**
+
 - 5 knob topological, pocket volume and inlay fit checks (K-B01–K-B05).
 - 4 toggle CAD-mounted component, state registration and moving-throw checks (T-B01–T-B04).
 - 4 meter CAD/part thickness, seating, bezel and needle/glass checks (M-B01–M-B04).
@@ -27,6 +28,7 @@ Independent verification reloads the 4 GLB files, confirms **3/5/5/10 independen
 ## Visual evidence and reproducibility
 
 All included in downloadable chat ZIP:
+
 - `source/base_v20.py` — baseline scene/VTK renderer with corrected normal splitting on sharp boundaries.
 - `source/build_cp04_v2b.py` — pocket mesh surgery, CAD-rounded VU frame, tolerance changes, CAD intersection sweep, 16 views.
 - `source/verify_cp04_v2b.py` — independent positive checks and deliberate negative/fault-injection test.
