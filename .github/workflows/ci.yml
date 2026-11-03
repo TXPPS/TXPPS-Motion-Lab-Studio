@@ -69,12 +69,6 @@ jobs:
       - name: Type-check (all four projects)
         run: npm run typecheck
       - run: npm run lint
-      - name: Diagnose CP04 geometry Markdown formatting (temporary)
-        run: |
-          for file in docs/design/MOTIONWAVE_CP04_V2_PHYSICAL_REALISM_IMPLEMENTATION_BRIEF.md docs/design/MOTIONWAVE_CP04_V2_GREY_GEOMETRY_CHECKPOINT.md; do
-            npx prettier "$file" > /tmp/cp04-formatted.md
-            diff -u "$file" /tmp/cp04-formatted.md || true
-          done
       - run: npm run format:check
       - run: npm test
       # Motion Wave's own unit suite — 351 tests across 31 files that ran only
