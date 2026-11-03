@@ -29,6 +29,10 @@ jobs:
       - name: Type-check (all four projects)
         run: npm run typecheck
       - run: npm run lint
+      - name: Diagnose FET audit formatting (temporary)
+        run: |
+          npx prettier scripts/audio-qa-vintage.mjs > /tmp/vintage-fmt.mjs
+          diff -u scripts/audio-qa-vintage.mjs /tmp/vintage-fmt.mjs || true
       - run: npm run format:check
       - run: npm test
       # Motion Wave's core is compiled to WebAssembly by `npm run build`, so the
