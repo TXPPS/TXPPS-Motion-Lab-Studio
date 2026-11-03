@@ -5,11 +5,7 @@
   "purpose": "Original editable SVG industrial control assets; static proof only",
   "source": "controls-v0.svg",
   "runtimeImported": false,
-  "deviceScaleTests": [
-    "1x",
-    "2x",
-    "3x"
-  ],
+  "deviceScaleTests": ["1x", "2x", "3x"],
   "provenance": {
     "author": "Motion Wave design study; original vector geometry authored for this project",
     "sourceType": "original-procedural-vector",
@@ -39,14 +35,7 @@
       "phoneVisiblePx": 72,
       "focusVisibleRequired": true,
       "touchTargetMinPx": 44,
-      "states": [
-        "default",
-        "focus",
-        "hover",
-        "active",
-        "disabled",
-        "automation-touch"
-      ],
+      "states": ["default", "focus", "hover", "active", "disabled", "automation-touch"],
       "notes": "Rebind through real generated ParamSpec, never through SVG geometry"
     },
     {
@@ -61,14 +50,7 @@
       "phoneVisiblePx": 56,
       "focusVisibleRequired": true,
       "touchTargetMinPx": 44,
-      "states": [
-        "default",
-        "focus",
-        "hover",
-        "active",
-        "disabled",
-        "automation-touch"
-      ],
+      "states": ["default", "focus", "hover", "active", "disabled", "automation-touch"],
       "notes": "Rebind through real generated ParamSpec, never through SVG geometry"
     },
     {
@@ -83,14 +65,7 @@
       "phoneVisiblePx": 64,
       "focusVisibleRequired": true,
       "touchTargetMinPx": 44,
-      "states": [
-        "default",
-        "focus",
-        "hover",
-        "active",
-        "disabled",
-        "automation-touch"
-      ],
+      "states": ["default", "focus", "hover", "active", "disabled", "automation-touch"],
       "notes": "Rebind through real generated ParamSpec, never through SVG geometry"
     },
     {
@@ -105,14 +80,7 @@
       "phoneVisiblePx": 64,
       "focusVisibleRequired": true,
       "touchTargetMinPx": 44,
-      "states": [
-        "default",
-        "focus",
-        "hover",
-        "active",
-        "disabled",
-        "automation-touch"
-      ],
+      "states": ["default", "focus", "hover", "active", "disabled", "automation-touch"],
       "notes": "Rebind through real generated ParamSpec, never through SVG geometry"
     },
     {
@@ -127,14 +95,7 @@
       "phoneVisiblePx": 44,
       "focusVisibleRequired": true,
       "touchTargetMinPx": 44,
-      "states": [
-        "default",
-        "focus",
-        "hover",
-        "active",
-        "disabled",
-        "automation-touch"
-      ],
+      "states": ["default", "focus", "hover", "active", "disabled", "automation-touch"],
       "notes": "Rebind through real generated ParamSpec, never through SVG geometry"
     },
     {
@@ -149,14 +110,7 @@
       "phoneVisiblePx": 44,
       "focusVisibleRequired": true,
       "touchTargetMinPx": 44,
-      "states": [
-        "default",
-        "focus",
-        "hover",
-        "active",
-        "disabled",
-        "automation-touch"
-      ],
+      "states": ["default", "focus", "hover", "active", "disabled", "automation-touch"],
       "notes": "Rebind through real generated ParamSpec, never through SVG geometry"
     },
     {
@@ -171,11 +125,7 @@
       "phoneVisiblePx": 300,
       "focusVisibleRequired": false,
       "touchTargetMinPx": 44,
-      "states": [
-        "no-data",
-        "live",
-        "bypassed"
-      ],
+      "states": ["no-data", "live", "bypassed"],
       "notes": "Needle in source sheet is a labelled static illustration; only real DSP meter frames animate production needle"
     },
     {
@@ -190,11 +140,7 @@
       "phoneVisiblePx": 300,
       "focusVisibleRequired": false,
       "touchTargetMinPx": 44,
-      "states": [
-        "no-data",
-        "live",
-        "bypassed"
-      ],
+      "states": ["no-data", "live", "bypassed"],
       "notes": "Waveform/curve in source sheet is labelled illustrative; no fake audio analysis permitted"
     }
   ]
