@@ -30,7 +30,7 @@ jobs:
       - name: Format check for new UI code and specs
         run: npx prettier --check docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md motionwave/ui/render/controls/gesture.ts motionwave/ui/render/controlCss.ts motionwave/ui/render/panelCss.ts motionwave/ui/test/rotary_touch_gesture.test.ts motionwave/ui/test/rotary_visual_foundation.test.ts motionwave/ui/e2e/touch_rotary.spec.ts motionwave/ui/e2e/ui_capture.spec.ts
       - name: Shared touch direction and sizing regressions
-        run: npx vitest run --config motionwave/ui/vitest.config.ts rotary_touch_gesture rotary_visual_foundation
+        run: npx vitest run --config motionwave/ui/vitest.config.ts rotary_touch_gesture rotary_visual_foundation param.test
       - name: Compile the real Motion Wave panel
         run: npm run build:panel
       - name: Install browser for genuine touch events
