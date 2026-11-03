@@ -6,9 +6,7 @@ describe('phone control visual foundation', () => {
   it('never redefines a dial size custom property in terms of itself', () => {
     // Such a definition is a CSS variable cycle: mobile Chrome/WebKit discard
     // the entire custom property and collapse every unit-specific dial size.
-    expect(CONTROL_CSS).not.toMatch(
-      /--mw-ctl-size\s*:\s*max\([^;]*var\(--mw-ctl-size/,
-    );
+    expect(CONTROL_CSS).not.toMatch(/--mw-ctl-size\s*:\s*max\([^;]*var\(--mw-ctl-size/);
     expect(CONTROL_CSS).toContain(
       '.mw-panel .mw-ctl-art { width: max(3.75rem, var(--mw-ctl-size, 3.5rem)); }',
     );
