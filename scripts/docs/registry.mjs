@@ -324,6 +324,10 @@ export const DOCS = Object.fromEntries([
       'measured grey geometry proof and remaining collision/recess defects; does not assert owner approval',
     ],
     [
+      'docs/design/MOTIONWAVE_CP04_V2B_CAD_GEOMETRY_HARDENING.md',
+      'documented V2B CAD and actual exported mesh clearance evidence with unapproved physical geometry status',
+    ],
+    [
       'docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md',
       'the rationale and acceptance gates for Motion Wave GUI correction; verified outcomes live in CI and issue #9',
     ],
