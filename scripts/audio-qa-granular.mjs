@@ -54,7 +54,8 @@ function stimulus(kind) {
     if (time >= 0) {
       if (kind === 'snare') {
         const tail = Math.exp(-time * 23);
-        sample = 0.19 * tail * noise() + 0.11 * Math.exp(-time * 37) * Math.sin(2 * Math.PI * 180 * time);
+        sample =
+          0.19 * tail * noise() + 0.11 * Math.exp(-time * 37) * Math.sin(2 * Math.PI * 180 * time);
       } else {
         const attack = 1 - Math.exp(-time * 350);
         const envelope = attack * Math.exp(-time * 1.5);
@@ -106,7 +107,8 @@ function render(unit, input, overrides) {
     const out = outputPtr() / Float32Array.BYTES_PER_ELEMENT;
     const values = core.HEAPF32.subarray(out, out + count * 2);
     for (let i = 0; i < values.length; i++) {
-      if (!Number.isFinite(values[i])) throw new Error(unit + ': non-finite audio at ' + (at * 2 + i));
+      if (!Number.isFinite(values[i]))
+        throw new Error(unit + ': non-finite audio at ' + (at * 2 + i));
     }
     result.set(values, at * 2);
   }
@@ -146,9 +148,21 @@ function stats(samples) {
 }
 
 const cases = [
-  { label: 'reverb-density100-wet', unit: 'reverb', params: { Mix: 100, Density: 100, Damping: 0 } },
-  { label: 'reverb-density350-wet', unit: 'reverb', params: { Mix: 100, Density: 350, Damping: 0 } },
-  { label: 'reverb-density1500-wet', unit: 'reverb', params: { Mix: 100, Density: 1500, Damping: 0 } },
+  {
+    label: 'reverb-density100-wet',
+    unit: 'reverb',
+    params: { Mix: 100, Density: 100, Damping: 0 },
+  },
+  {
+    label: 'reverb-density350-wet',
+    unit: 'reverb',
+    params: { Mix: 100, Density: 350, Damping: 0 },
+  },
+  {
+    label: 'reverb-density1500-wet',
+    unit: 'reverb',
+    params: { Mix: 100, Density: 1500, Damping: 0 },
+  },
   { label: 'delay-smear25-wet', unit: 'delay', params: { Mix: 100, Smear: 25 } },
   { label: 'delay-smear50-wet', unit: 'delay', params: { Mix: 100, Smear: 50 } },
 ];
