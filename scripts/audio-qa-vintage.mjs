@@ -278,8 +278,12 @@ for (const name of ['snare', 'chord']) {
       const neutralRms = metrics(neutral, dry).rms;
       const compressionRelativeToLineAmpDb = 20 * Math.log10(neutralRms / lineRms);
       console.log(
-        name + ' FET: active vs detector-off ' + compressionRelativeToLineAmpDb.toFixed(2) +
-          ' dB; maximum metered reduction ' + neutralMeter.maxGainReductionDb.toFixed(2) + ' dB',
+        name +
+          ' FET: active vs detector-off ' +
+          compressionRelativeToLineAmpDb.toFixed(2) +
+          ' dB; maximum metered reduction ' +
+          neutralMeter.maxGainReductionDb.toFixed(2) +
+          ' dB',
       );
       if (!Number.isFinite(compressionRelativeToLineAmpDb)) {
         throw new Error('Nonfinite FET detector-on/off comparison');
