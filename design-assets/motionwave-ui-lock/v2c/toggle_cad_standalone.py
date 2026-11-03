@@ -28,6 +28,8 @@ def stem(angle):
     sphere=cq.Workplane('XY').sphere(BALL_R).translate((0,0,PIVOT_Z))
     shaft=cq.Solid.makeCylinder(SHAFT_R,14.15,pivot+direction.multiply(1.05),direction)
     joined=sphere.union(cq.Workplane('XY').newObject([shaft]))
+    # Real 0.30mm manufactured fillet at the pivot-ball/shaft seam.
+    joined=joined.edges().filter(lambda e:e.geomType()=='CIRCLE' and 9.2<e.Length()<9.3).fillet(.30)
     assert len(joined.solids().vals())==1
     return joined
 
