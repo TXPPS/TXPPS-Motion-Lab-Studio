@@ -160,7 +160,10 @@ class GranularReverb : public Node {
     const double next = clamp01(amount);
     // Clear a previously suspended tank on a true 0 -> nonzero transition.
     // reset() clears only buffers allocated at prepare(), with no allocations.
-    if (earlyField_ == 0.0 && next > 0.0) earlyTank_.reset();
+    if (earlyField_ == 0.0 && next > 0.0) {
+      earlyTank_.reset();
+      earlyBlocker_.reset();
+    }
     earlyField_ = next;
   }
 
@@ -261,12 +264,14 @@ class GranularReverb : public Node {
      * meaningless in any case; this keeps it out.
      */
     inputBlocker_.setCoeffs(dsp::onePoleHighpassCoeffs(20.0, sampleRate_));
+    earlyBlocker_.setCoeffs(dsp::onePoleHighpassCoeffs(20.0, sampleRate_));
     rebuild();
     reset();
   }
 
   void reset() override {
     inputBlocker_.reset();
+    earlyBlocker_.reset();
     for (float& v : buffer_) v = 0.0f;
     for (float& v : preDelay_) v = 0.0f;
     writeIndex_ = 0;
@@ -413,7 +418,10 @@ class GranularReverb : public Node {
       float firstL = 0.0f;
       float firstR = 0.0f;
       if (earlyField_ > 0.0) {
-        const float admitted = delayed * freezeGain_;
+        // The separate input high-pass prevents a new parallel DC path around
+        // the original feedback's mandatory DC blocker.
+        const float admitted =
+            static_cast<float>(earlyBlocker_.process(delayed)) * freezeGain_;
         earlyTank_.process(admitted, admitted, &firstL, &firstR);
       }
       const float cloudL = wetL_[static_cast<std::size_t>(i)];
@@ -610,6 +618,7 @@ class GranularReverb : public Node {
   dsp::Biquad inputBlocker_;
   dsp::Diffuser loopDiffuser_;
   dsp::DiffusionTank earlyTank_;
+  dsp::Biquad earlyBlocker_;
   dsp::FeedbackChain chain_;
   GranularReverbPublisher visual_;
   std::vector<float> buffer_;
