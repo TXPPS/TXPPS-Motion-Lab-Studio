@@ -29,6 +29,11 @@ jobs:
       - name: Type-check (all four projects)
         run: npm run typecheck
       - run: npm run lint
+      # Temporary: print the exact formatter correction without changing the tree.
+      - name: Diagnose roadmap Markdown formatting (remove after repair)
+        run: |
+          npx prettier docs/roadmap/MOTIONWAVE_AUDIO_RECOVERY_CP_AQ_001.md > /tmp/motionwave-roadmap-formatted.md
+          diff -u docs/roadmap/MOTIONWAVE_AUDIO_RECOVERY_CP_AQ_001.md /tmp/motionwave-roadmap-formatted.md || true
       - run: npm run format:check
       - run: npm test
       # Motion Wave's core is compiled to WebAssembly by `npm run build`, so the
