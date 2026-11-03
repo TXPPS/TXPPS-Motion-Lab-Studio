@@ -163,6 +163,11 @@ const cases = [
     unit: 'reverb',
     params: { Mix: 100, Density: 1500, Damping: 0 },
   },
+  {
+    label: 'reverb-earlyfield50-density350-wet',
+    unit: 'reverb',
+    params: { Mix: 100, Density: 350, Damping: 0, EarlyField: 50 },
+  },
   { label: 'delay-smear25-wet', unit: 'delay', params: { Mix: 100, Smear: 25 } },
   { label: 'delay-smear50-wet', unit: 'delay', params: { Mix: 100, Smear: 50 } },
 ];
