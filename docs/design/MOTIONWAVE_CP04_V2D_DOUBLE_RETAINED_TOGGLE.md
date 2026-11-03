@@ -25,9 +25,13 @@ The V2.0C eyelet included a metal pivot ball and a smaller _upper_ lip, but lack
 - An 85-position analytical shaft clearance sweep, plus exact fused/filleted CAD solid checks at **OFF, center and ON**.
 - A negative fault test for an oversized pivot ball and a negative test for a handle ball with no axial bore.
 
-**Review package:** `MotionWave_CP04_V2D_G1_Geometry_Review.zip` is supplied directly in the development chat. It contains 37 original files: the standalone CAD generator above, additional full clay render/measurement source, STEP and GLB assemblies, independent QA outputs, high-resolution PNGs and SHA-256 manifest.
+**Review package:** `MotionWave_CP04_V2D_G1_Geometry_Review.zip` is supplied directly in the development chat. It contains 42 original files: the standalone CAD generator above, additional full clay render/measurement source, STEP and GLB assemblies, independent QA outputs, high-resolution PNGs, transparent isolated previews, 64/96/160/256px silhouette checks, and SHA-256 manifest.
 
 In the same development environment, independent verification also passed **13 checks** including 30 installed CAD part-pair solid-overlap comparisons across OFF and ON, STEP/GLB per-part counts (six each), watertightness and unchanged fixed geometry, negative-fault sensitivity, alpha channel and OFF/ON visual difference. These test sets have overlapping purposes and should not be treated as 27 fully independent safety claims.
+
+**Physical-size visual result:** in the native-size QA board, the pivot hardware becomes difficult to distinguish at 64–96 CSS-pixel-wide asset boxes. The 44×44 CSS-pixel touch target requirement does not guarantee adequate visible mechanical detail. Treat the miniature version as a G1 visual-review blocker pending a larger layout footprint or intentionally simplified small-size drawing.
+
+**Dedicated GitHub CAD verification:** [Actions run 41725048876](https://github.com/TXPPS/TXPPS-Motion-Lab-Studio/actions/runs/41725048876) passed, regenerated both six-part STEP/GLB assemblies and published a review artifact. The DAW's generic integration CI remains a separate gate.
 
 **Important:** the complete rendered binary review ZIP is **not** stored in GitHub; only the standalone reproducible CAD source and this authoritative report are committed. Do not claim full mesh source and PNGs were pushed.
 
