@@ -67,15 +67,15 @@ The next three heroes become the master quality bar before adapting the remainin
 
 Choose **one coherent physically-based lighting / color-management setup** and make materials differ through roughness, microgeometry and diffuse/specular balance. Values are exploratory Blender Principled BSDF starting points and must be judged by actual renders; they are **not fixed industrial material measurements**.
 
-| Surface | Approx. roughness | Metallic | Required response / forbidden look |
-| --- | --- | --- | --- |
-| Molded phenolic/polymer | 0.48–0.72 | 0 | Soft broad highlight; subtle nonperiodic microvariation; never wet plastic |
-| Rubberized/grip inserts | 0.65–0.88 | 0 | Light-absorbing fine relief; no uniform glossy ring |
-| Brushed nickel/aluminum | 0.30–0.55 | 1 if exposed bare metal | Directional grain, broad controlled highlight; not chrome |
-| Powder-coated chassis | 0.60–0.85 | 0 | Very fine matte particulate texture, rounded edge response |
-| Ivory/painted pointer/tip | 0.52–0.76 | 0 | Warm diffuse material, low-gloss insert rather than glowing plastic |
-| Glass cover | 0.08–0.22 | 0 | Real glass Fresnel; subtle room reflection, not a high-contrast glare bar |
-| Printed legends/dial ink | 0.70–0.90 | 0 | Matte/surface-bound pigment, not extruded glossy type |
+| Surface                   | Approx. roughness | Metallic                | Required response / forbidden look                                         |
+| ------------------------- | ----------------- | ----------------------- | -------------------------------------------------------------------------- |
+| Molded phenolic/polymer   | 0.48–0.72         | 0                       | Soft broad highlight; subtle nonperiodic microvariation; never wet plastic |
+| Rubberized/grip inserts   | 0.65–0.88         | 0                       | Light-absorbing fine relief; no uniform glossy ring                        |
+| Brushed nickel/aluminum   | 0.30–0.55         | 1 if exposed bare metal | Directional grain, broad controlled highlight; not chrome                  |
+| Powder-coated chassis     | 0.60–0.85         | 0                       | Very fine matte particulate texture, rounded edge response                 |
+| Ivory/painted pointer/tip | 0.52–0.76         | 0                       | Warm diffuse material, low-gloss insert rather than glowing plastic        |
+| Glass cover               | 0.08–0.22         | 0                       | Real glass Fresnel; subtle room reflection, not a high-contrast glare bar  |
+| Printed legends/dial ink  | 0.70–0.90         | 0                       | Matte/surface-bound pigment, not extruded glossy type                      |
 
 **Texture rule:** use restrained, mask-confined, mostly stochastic microtexture. No repeated obvious vector dots, full-sheet grain, heavy scratches, rust, artificial patina or identical “clean chrome” highlights on polymer/metal/glass. Surface imperfections must affect roughness and micro-normal more than base color. At final 1x displayed size, texture should read as material presence without becoming noise.
 
