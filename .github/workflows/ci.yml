@@ -27,10 +27,6 @@ jobs:
       - run: npm ci
       - name: Type-check shared UI and browser tests
         run: npm run typecheck
-      - name: Diagnose Granular Delay browser spec format (temporary)
-        run: |
-          npx prettier motionwave/ui/e2e/granular_delay_tabs.spec.ts > /tmp/granular-delay-tabs-formatted.ts
-          diff -u motionwave/ui/e2e/granular_delay_tabs.spec.ts /tmp/granular-delay-tabs-formatted.ts || true
       - name: Format check for new UI code and specs
         run: npx prettier --check docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md motionwave/ui/render/controls/gesture.ts motionwave/ui/render/controlCss.ts motionwave/ui/render/panelCss.ts motionwave/ui/test/rotary_touch_gesture.test.ts motionwave/ui/test/rotary_visual_foundation.test.ts motionwave/ui/e2e/touch_rotary.spec.ts motionwave/ui/e2e/ui_capture.spec.ts motionwave/ui/e2e/granular_delay_tabs.spec.ts motionwave/ui/param/format.ts motionwave/ui/test/param.test.ts
       - name: Shared touch direction and sizing regressions
