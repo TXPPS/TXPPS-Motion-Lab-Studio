@@ -316,6 +316,10 @@ export const DOCS = Object.fromEntries([
       'original editable control artwork specification; design study not production state',
     ],
     [
+      'docs/design/MOTIONWAVE_CP04_V2_PHYSICAL_REALISM_IMPLEMENTATION_BRIEF.md',
+      'physical realism and collision-first review instructions for unapproved CP04 V2 hero control assets',
+    ],
+    [
       'docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md',
       'the rationale and acceptance gates for Motion Wave GUI correction; verified outcomes live in CI and issue #9',
     ],
