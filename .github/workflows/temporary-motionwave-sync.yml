@@ -40,6 +40,8 @@ jobs:
         run: |
           npm run params
           npm run build:wasm
+      - name: Check native early-field regression before accepting generated binary
+        run: npm run test:core granular_reverb_early_field
       - name: Commit only generated files to this recovery branch
         run: |
           set -euo pipefail
