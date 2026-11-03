@@ -308,6 +308,14 @@ export const DOCS = Object.fromEntries([
       'first-wave design direction and exact source-of-truth parameter contracts; design intent only',
     ],
     [
+      'docs/design/MOTIONWAVE_VINTAGE_CP03_FOUR_UNIT_DESIGNS.md',
+      'unapproved layout and real control-fidelity contracts for four vintage processors',
+    ],
+    [
+      'docs/design/MOTIONWAVE_CONTROL_ASSETS_CP04.md',
+      'original editable control artwork specification; design study not production state',
+    ],
+    [
       'docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md',
       'the rationale and acceptance gates for Motion Wave GUI correction; verified outcomes live in CI and issue #9',
     ],
