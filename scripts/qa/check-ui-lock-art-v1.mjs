@@ -23,7 +23,7 @@ for (const asset of m.assets) {
   assert((board.match(rx) || []).length === 1, 'sheet must show the same source group ' + asset.id);
   assert(src.includes('<svg ') && src.trimEnd().endsWith('</svg>'), 'invalid standalone SVG ' + asset.id);
   assert(src.includes('viewBox="0 0 ' + asset.viewBox + '"'), 'wrong standalone art dimensions ' + asset.id);
-  assert(!/\<image\b|\<script\b|\<foreignObject\b|\b@import\b/i.test(src), 'inlined photo or script ' + asset.id);
+  assert(!/<image\b|<script\b|<foreignObject\b|\b@import\b/i.test(src), 'inlined photo or script ' + asset.id);
   assert(!/\b(?:href|src)\s*=\s*["']https?:/i.test(src), 'external image or font ref ' + asset.id);
   assert(!/<rect[^>]*\b(?:x="0"\s+y="0"\s+)?width="(300|580)"\s+height="(300|280)"/i.test(src),
     'standalone backdrop may have been baked into the source ' + asset.id);
