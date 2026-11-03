@@ -33,6 +33,7 @@ export const GranularReverbParam = {
   Quality: 21,
   Bypass: 22,
   PreDelaySync: 23,
+  EarlyField: 24,
 } as const;
 
 export type GranularReverbParamId = (typeof GranularReverbParam)[keyof typeof GranularReverbParam];
@@ -283,6 +284,16 @@ export const granularReverbSpecs: readonly ParamSpec[] = [
     choices: ['Off', '1/32', '1/16', '1/8 T', '1/8', '1/4 T', '1/4', '1/2', '1 bar'],
     smoothingMs: 0,
   }),
+  defineParam({
+    id: GranularReverbParam.EarlyField,
+    name: 'Early field',
+    unit: Unit.Percent,
+    min: 0,
+    max: 60,
+    def: 0,
+    taper: Taper.Linear,
+    smoothingMs: 20,
+  }),
 ];
 
 /**
@@ -431,5 +442,11 @@ export const granularReverbControls = [
     role: 'knob',
     paramId: GranularReverbParam.PreDelaySync,
     accessibleName: 'Pre-delay tempo sync',
+  },
+  {
+    id: 'early-field',
+    role: 'knob',
+    paramId: GranularReverbParam.EarlyField,
+    accessibleName: 'Early diffuse reflections',
   },
 ] as const;

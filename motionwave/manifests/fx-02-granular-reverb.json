@@ -407,6 +407,22 @@
       "note": "Quarter notes; zero leaves Pre-delay in milliseconds, which is what every row written before this one used. §6 lists the option and the tempo comes from the host per block rather than from the map, so the unit keeps no second opinion about where the song is.",
       "apply": "u.setPreDelayQuarters(v);",
       "delta": [0, 4]
+    },
+    {
+      "id": 24,
+      "symbol": "EarlyField",
+      "name": "Early field",
+      "control": "knob",
+      "accessibleName": "Early diffuse reflections",
+      "unit": "Percent",
+      "min": 0,
+      "max": 60,
+      "def": 0,
+      "taper": "Linear",
+      "smoothingMs": 20,
+      "note": "Optional short diffuse wet path before the cloud tail. Off exactly preserves prior renders, presets, feedback and RT60. Requires listening approval before changing the default.",
+      "apply": "u.setEarlyField(v * 0.01);",
+      "delta": [0, 60]
     }
   ]
 }

@@ -13,6 +13,7 @@
 #pragma once
 
 #include "../dsp/diffuser.h"
+#include "../dsp/tank.h"
 #include "../dsp/feedback_chain.h"
 #include "../dsp/grain/engine.h"
 #include "../dsp/visual_state.h"
@@ -151,6 +152,21 @@ class GranularReverb : public Node {
     pitchSpreadCents_ = clampRange(cents, 0.0, 100.0);
     dirty_ = true;
   }
+  // Optional wet-only early diffusion, entirely outside the feedback loop.
+  // Zero retains the existing sound exactly, including saved legacy projects.
+  // The tank is intentionally short-lived; it does not replace the long
+  // granular tail or modify its measured feedback/RT60 calibration.
+  void setEarlyField(double amount) noexcept {
+    const double next = clamp01(amount);
+    // Clear a previously suspended tank on a true 0 -> nonzero transition.
+    // reset() clears only buffers allocated at prepare(), with no allocations.
+    if (earlyField_ == 0.0 && next > 0.0) {
+      earlyTank_.reset();
+      earlyBlocker_.reset();
+    }
+    earlyField_ = next;
+  }
+
   void setDiffusion(double amount) noexcept {
     diffusion_ = clamp01(amount);
     dirty_ = true;
@@ -232,6 +248,9 @@ class GranularReverb : public Node {
                     arena_.size() * sizeof(float));
 
     loopDiffuser_.prepare(sampleRate_);
+    earlyTank_.prepare(sampleRate_);
+    earlyTank_.setSettleSeconds(0.080);
+    earlyTank_.setAmount(1.0);
     chain_.prepare(sampleRate_);
     /*
      * A second high-pass, on the way *into* the buffer.
@@ -245,12 +264,14 @@ class GranularReverb : public Node {
      * meaningless in any case; this keeps it out.
      */
     inputBlocker_.setCoeffs(dsp::onePoleHighpassCoeffs(20.0, sampleRate_));
+    earlyBlocker_.setCoeffs(dsp::onePoleHighpassCoeffs(20.0, sampleRate_));
     rebuild();
     reset();
   }
 
   void reset() override {
     inputBlocker_.reset();
+    earlyBlocker_.reset();
     for (float& v : buffer_) v = 0.0f;
     for (float& v : preDelay_) v = 0.0f;
     writeIndex_ = 0;
@@ -259,6 +280,7 @@ class GranularReverb : public Node {
     freezeGain_ = 1.0f;
     engine_.reset();
     loopDiffuser_.reset();
+    earlyTank_.reset();
     chain_.reset();
   }
 
@@ -384,13 +406,32 @@ class GranularReverb : public Node {
         ++writeIndex_;
       }
 
-      // §6: width is mid/side on the wet bus only, so a mono dry stays mono.
-      const float mid = 0.5f * (wetL_[static_cast<std::size_t>(i)] +
-                                wetR_[static_cast<std::size_t>(i)]);
-      const float side = 0.5f *
-                         (wetL_[static_cast<std::size_t>(i)] -
-                          wetR_[static_cast<std::size_t>(i)]) *
-                         static_cast<float>(width_);
+      // An optional, short early field feeds from the *pre-delayed input*.
+      // A grain cloud reading a single transient can miss the transient for
+      // tens of milliseconds; this independent causal path guarantees early
+      // arrivals without destabilising the granular feedback/decay path.
+      //
+      // Never add this short tank to the feedback input: that would modify
+      // every calibrated decay and create an unmeasured second feedback loop.
+      // Freeze fades fresh injection with the existing 10 ms write fade so
+      // the early field drains instead of leaking newly played audio.
+      float firstL = 0.0f;
+      float firstR = 0.0f;
+      if (earlyField_ > 0.0) {
+        // The separate input high-pass prevents a new parallel DC path around
+        // the original feedback's mandatory DC blocker.
+        const float admitted =
+            static_cast<float>(earlyBlocker_.process(delayed)) * freezeGain_;
+        earlyTank_.process(admitted, admitted, &firstL, &firstR);
+      }
+      const float cloudL = wetL_[static_cast<std::size_t>(i)];
+      const float cloudR = wetR_[static_cast<std::size_t>(i)];
+      const float early = static_cast<float>(earlyField_);
+      const float combinedL = cloudL * (1.0f - early) + firstL * early;
+      const float combinedR = cloudR * (1.0f - early) + firstR * early;
+      // §6: width is mid/side on the wet bus only, so mono dry remains mono.
+      const float mid = 0.5f * (combinedL + combinedR);
+      const float side = 0.5f * (combinedL - combinedR) * static_cast<float>(width_);
       const float wetLeft = mid + side;
       const float wetRight = mid - side;
 
@@ -576,6 +617,8 @@ class GranularReverb : public Node {
   grain::GrainEngine engine_;
   dsp::Biquad inputBlocker_;
   dsp::Diffuser loopDiffuser_;
+  dsp::DiffusionTank earlyTank_;
+  dsp::Biquad earlyBlocker_;
   dsp::FeedbackChain chain_;
   GranularReverbPublisher visual_;
   std::vector<float> buffer_;
@@ -609,6 +652,8 @@ class GranularReverb : public Node {
   double windowShape_ = 0.0;
   double pitchSpreadCents_ = 0.0;
   double diffusion_ = 0.60;
+  // Default OFF until measured and owner-approved; does not alter old patches.
+  double earlyField_ = 0.0;
   double damping_ = 0.45;
   double tiltDb_ = 0.0;
   double width_ = 1.0;

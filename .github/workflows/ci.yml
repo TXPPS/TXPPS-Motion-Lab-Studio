@@ -31,10 +31,6 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm test
-      # Motion Wave's own unit suite — 351 tests across 31 files that ran only
-      # when somebody remembered. `scripts/check-checks.mjs` is what found that.
-      - name: Motion Wave unit tests
-        run: npm run test:mw
       # Motion Wave's core is compiled to WebAssembly by `npm run build`, so the
       # runner needs the toolchain. Pinned to the version CLAUDE.md pins,
       # because the WASM boundary test asserts a bit-for-bit match against the
@@ -62,8 +58,36 @@ jobs:
       # verified here, where the toolchain does exist.
       - name: The tracked WebAssembly core matches its source
         run: npm run wasm:check
+      # The UI boundary suite imports motionwave/wasm/dist/motionwave.mjs.
+      # wasm:check creates this fresh build while proving that the tracked
+      # runtime matches the source; never run test:mw before that step.
+      - name: Motion Wave unit tests
+        run: npm run test:mw
+      # Render the actual C++/WASM granular units to inspectable WAV evidence,
+      # not a simulated plugin or a software-only claim about musical quality.
+      # Smoke mode checks the ABI and rejects silent/non-finite renders.
+      - name: Granular WAV baseline smoke
+        run: npm run audio:granular -- --smoke
+      # The smoke test proves the engine works, not that a one-second
+      # clip represents a reverb tail. Provide complete four-second A/B WAVs
+      # for human owner audition on every pull request.
+      - name: Full-length granular listening captures
+        if: github.event_name == 'pull_request'
+        run: npm run audio:granular
+      - name: Upload granular listening captures
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: granular-baseline-wav
+          path: audit-out/granular-captures/
+          retention-days: 7
       # The C++ core's own suites, compiled to WebAssembly and run under Node.
       # Forty-one of them, and nothing on a push had ever executed one.
+      # The full C++ matrix takes close to an hour in CI. Run the two
+      # previously failing sampler suites first so a regression is discovered
+      # before the expensive matrix, with original V-4/V-5 thresholds intact.
+      - name: Sampler onset targeted regression
+        run: npm run test:core sample_onset
       - name: Motion Wave core tests
         run: npm run test:core
       # The golden curve table against the C++ law it mirrors. Needs a host

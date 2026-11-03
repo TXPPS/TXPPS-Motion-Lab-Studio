@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:mw": "vitest run --config motionwave/ui/vitest.config.ts",
+    "audio:granular": "node scripts/audio-qa-granular.mjs",
     "build:panel": "vite build --config motionwave/ui/dev/vite.config.ts",
     "e2e:mw": "npm run build:panel && playwright test --config motionwave/ui/playwright.config.ts",
     "e2e": "playwright test",

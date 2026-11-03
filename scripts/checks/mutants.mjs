@@ -59,6 +59,10 @@ export const CHECKS = {
   functions: { kind: 'tool', why: 'writes the Function Ledger; the build runs it with --check' },
   shot: { kind: 'tool', why: 'takes screenshots' },
   'build:wasm': { kind: 'tool', why: 'compiles the core; `wasm:check` is the check' },
+  'audio:granular': {
+    kind: 'tool',
+    why: 'writes deterministic WAV listening fixtures; CI runs --smoke to check output health, while owner sound approval remains separate',
+  },
   'build:panel': { kind: 'tool', why: 'builds the panel harness `e2e:mw` runs against' },
   'motionwave:assets': {
     kind: 'tool',

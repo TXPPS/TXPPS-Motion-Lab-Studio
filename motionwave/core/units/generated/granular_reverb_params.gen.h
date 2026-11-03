@@ -41,6 +41,7 @@ enum class GranularReverbParam : int {
   Quality = 21,
   Bypass = 22,
   PreDelaySync = 23,
+  EarlyField = 24,
 };
 
 /// One row of the parameter table, for tests that sweep every parameter.
@@ -75,7 +76,7 @@ struct GranularReverbParamRow {
   double deltaFloorDb;
 };
 
-inline constexpr int kGranularReverbParamCount = 23;
+inline constexpr int kGranularReverbParamCount = 24;
 
 inline constexpr GranularReverbParamRow kGranularReverbParams[kGranularReverbParamCount] = {
     {1, "Mix", "Mix", 0.0, 100.0, 35.0, 0.0, 100.0, -70.0},
@@ -101,6 +102,7 @@ inline constexpr GranularReverbParamRow kGranularReverbParams[kGranularReverbPar
     {21, "Quality", "Quality", 0.0, 2.0, 1.0, 0.0, 2.0, -70.0},
     {22, "Bypass", "Bypass", 0.0, 1.0, 0.0, 0.0, 1.0, -70.0},
     {23, "PreDelaySync", "Pre-delay sync", 0.0, 4.0, 0.0, 0.0, 4.0, -70.0},
+    {24, "EarlyField", "Early field", 0.0, 60.0, 0.0, 0.0, 60.0, -70.0},
 };
 
 /**
@@ -244,6 +246,12 @@ inline void applyGranularReverbParam(GranularReverb& u, int id, double v) noexce
       // before this one used. §6 lists the option and the tempo comes from the host per block
       // rather than from the map, so the unit keeps no second opinion about where the song is.
       u.setPreDelayQuarters(v);
+      break;
+    }
+    case GranularReverbParam::EarlyField: {
+      // Optional short diffuse wet path before the cloud tail. Off exactly preserves prior renders,
+      // presets, feedback and RT60. Requires listening approval before changing the default.
+      u.setEarlyField(v * 0.01);
       break;
     }
   }

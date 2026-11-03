@@ -17,6 +17,25 @@ long-term engine and will be replaced by the shared core compiled to WASM.
 Do not let them bleed into each other. `motionwave/core/` may not depend on
 anything in `src/`, and `src/` may not depend on `motionwave/`.
 
+## Current priority — audio-quality recovery CP-AQ-001
+
+The owner reports unacceptable behavior from the granular effect and
+vintage-style processor collection. Treat this as an active quality issue.
+The existing `SHIPPING` cells in `docs/UNIT_LEDGER.md` are **technical
+verification**, not evidence of owner sound approval.
+
+- Read `docs/roadmap/MOTIONWAVE_AUDIO_RECOVERY_CP_AQ_001.md` before changing
+  DSP, approval status, or the stock-instrument roadmap.
+- Track CI and security in issue #1; granular reproduction/correction in #2;
+  five vintage-style processors in #3; first stock synth DCO Poly in #4.
+- Fix the blocked CI first. Then reproduce faults with actual audio, preserve
+  original DSP for A/B, measure and listen independently, and request explicit
+  owner sound approval. Never infer approval from a passing automated test.
+- Do not start five synths at once or replace the generic host adapter. Keep
+  the existing planned synthesis order `syn-01` through `syn-05`.
+- No merge, release label, deployment or completion claim until the actual
+  commit has full relevant evidence.
+
 ## Build and test
 
 ```bash
