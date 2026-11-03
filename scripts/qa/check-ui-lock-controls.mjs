@@ -57,10 +57,7 @@ const contracts = [
 ];
 
 for (const contract of contracts) {
-  const file = new URL(
-    `../../motionwave/ui/units/${contract.dir}/params.gen.ts`,
-    import.meta.url,
-  );
+  const file = new URL(`../../motionwave/ui/units/${contract.dir}/params.gen.ts`, import.meta.url);
   const source = readFileSync(file, 'utf8');
   // Parameter definitions are always written by the manifest generator
   // as defineParam({ name: '...', ... }). Extract only within each block,
