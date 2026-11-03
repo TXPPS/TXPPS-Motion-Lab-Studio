@@ -14,11 +14,11 @@
 
 ## Human visual findings (recorded as defects, not hidden)
 
-| Asset | Improvement seen | Remaining blocker |
-| --- | --- | --- |
-| MW-CONTROL-001 vintage knob | Matte phenolic surface, softer lighting, true inset pointer, no black triangular normal artifact | **FAIL quality gate**: compared with user-provided RFM-48 master, grip ribs are still rounded/scalloped and much less convincingly molded, sidewall/part profile is simplified, physical texture lacks subtle individual tooth edges |
-| MW-CONTROL-006 toggle | Metallic socket no longer has unrealistic radial shading streaks; ivory distal ball, true spherical pivot/shaft and matte nut/washer distinct | Owner eyelet ball visibility/proportion approval still outstanding; closeup metal/spherical transition quality needs a final reference review |
-| MW-CONTROL-007 VU | Muted powdercoat bezel, porous warm dial, low-gloss glass, printed card and independent static needle | **Concept-only dial, deliberately uncalibrated**; real meter response, scale labels, ballistics and hardware host placement have not been implemented |
+| Asset                       | Improvement seen                                                                                                                              | Remaining blocker                                                                                                                                                                                                                    |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| MW-CONTROL-001 vintage knob | Matte phenolic surface, softer lighting, true inset pointer, no black triangular normal artifact                                              | **FAIL quality gate**: compared with user-provided RFM-48 master, grip ribs are still rounded/scalloped and much less convincingly molded, sidewall/part profile is simplified, physical texture lacks subtle individual tooth edges |
+| MW-CONTROL-006 toggle       | Metallic socket no longer has unrealistic radial shading streaks; ivory distal ball, true spherical pivot/shaft and matte nut/washer distinct | Owner eyelet ball visibility/proportion approval still outstanding; closeup metal/spherical transition quality needs a final reference review                                                                                        |
+| MW-CONTROL-007 VU           | Muted powdercoat bezel, porous warm dial, low-gloss glass, printed card and independent static needle                                         | **Concept-only dial, deliberately uncalibrated**; real meter response, scale labels, ballistics and hardware host placement have not been implemented                                                                                |
 
 No owner approval has been inferred. The G1 geometry gate remains **open**. G2 material exploration can proceed in isolation, but **no asset replacement, UI lock, merge or audio changes** until explicit source-art/geometry approval.
 
