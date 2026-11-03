@@ -249,9 +249,8 @@ inline void applyGranularReverbParam(GranularReverb& u, int id, double v) noexce
       break;
     }
     case GranularReverbParam::EarlyField: {
-      // Optional short diffuse wet path before the cloud tail. Off exactly preserves prior
-      // renders, presets, feedback and RT60. Requires listening approval before changing the
-      // default.
+      // Optional short diffuse wet path before the cloud tail. Off exactly preserves prior renders,
+      // presets, feedback and RT60. Requires listening approval before changing the default.
       u.setEarlyField(v * 0.01);
       break;
     }
