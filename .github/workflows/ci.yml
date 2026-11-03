@@ -83,6 +83,11 @@ jobs:
           retention-days: 7
       # The C++ core's own suites, compiled to WebAssembly and run under Node.
       # Forty-one of them, and nothing on a push had ever executed one.
+      # The full C++ matrix takes close to an hour in CI. Run the two
+      # previously failing sampler suites first so a regression is discovered
+      # before the expensive matrix, with original V-4/V-5 thresholds intact.
+      - name: Sampler onset targeted regression
+        run: npm run test:core sample_onset
       - name: Motion Wave core tests
         run: npm run test:core
       # The golden curve table against the C++ law it mirrors. Needs a host
