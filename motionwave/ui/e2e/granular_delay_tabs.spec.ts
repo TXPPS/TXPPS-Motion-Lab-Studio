@@ -52,8 +52,8 @@ for (const layout of [
     await expect(panel.locator('[role="tabpanel"][data-mw-group="tap-8"]')).toBeVisible();
     await expect(panel.locator('[role="tabpanel"][data-mw-group="loop"]')).toBeHidden();
     await expect(panel.locator('[role="tabpanel"][data-mw-group="tap-1"]')).toBeHidden();
-    const after = await grids.evaluateAll((nodes) =>
-      nodes.filter((node) => getComputedStyle(node).display !== 'none').length,
+    const after = await grids.evaluateAll(
+      (nodes) => nodes.filter((node) => getComputedStyle(node).display !== 'none').length,
     );
     expect(after).toBe(1);
   });
