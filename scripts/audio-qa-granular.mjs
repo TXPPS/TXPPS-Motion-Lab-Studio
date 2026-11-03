@@ -2,6 +2,7 @@
 // A synthetic snare and plucked chord reveal transient flutter and feedback
 // without using copyrighted source recordings. These are listening fixtures,
 // not proof of hardware fidelity or an automated sound-approval verdict.
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -153,23 +154,33 @@ const cases = [
 ];
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 const records = [];
+const writeCapture = (name, samples) => {
+  const bytes = wave(samples);
+  writeFileSync(join(directory, name), bytes);
+  return createHash('sha256').update(bytes).digest('hex');
+};
 for (const name of ['snare', 'chord']) {
   const dry = stimulus(name);
   const dryFile = name + '-dry.wav';
-  writeFileSync(join(directory, dryFile), wave(dry));
-  records.push({ file: dryFile, stimulus: name, unit: 'dry', stats: stats(dry) });
+  const dryHash = writeCapture(dryFile, dry);
+  records.push({ file: dryFile, stimulus: name, unit: 'dry', sha256: dryHash, stats: stats(dry) });
   for (const candidate of cases) {
     const output = render(candidate.unit, dry, candidate.params);
     const file = name + '-' + candidate.label + '.wav';
-    writeFileSync(join(directory, file), wave(output));
+    const measured = stats(output);
+    if (measured.rms <= 1e-8) {
+      throw new Error('Unexpected silent render: ' + file);
+    }
+    const sha256 = writeCapture(file, output);
     records.push({
       file,
       stimulus: name,
       unit: candidate.unit,
       params: candidate.params,
-      stats: stats(output),
+      sha256,
+      stats: measured,
     });
-    console.log(file + ': peak ' + stats(output).peak.toFixed(4));
+    console.log(file + ': peak ' + measured.peak.toFixed(4));
   }
 }
 writeFileSync(
