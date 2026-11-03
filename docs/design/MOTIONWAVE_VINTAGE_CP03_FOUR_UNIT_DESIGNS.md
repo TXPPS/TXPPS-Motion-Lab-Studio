@@ -18,7 +18,7 @@ The five vintage units share an original industrial art family: precision engrav
 - Main lower-face horizontal sequence: **Peak Reduction** large 140px analogue dial at x≈160; **honest gain-reduction meter** large 330x175 analogue window at x≈330; **Gain** large 140px at x≈855. A small Compress/Limit mechanical toggle has its own strong visible state beside the meter.
 - Input and Emphasis are smaller second-row adjustments, but not fictional attack/release/threshold/ratio controls.
 - Cell Wear, Variance, Noise, Oversampling are behind an obviously accessible `Advanced` fold. Do not bury the main Mode toggle.
-- Meter must use actual GR frame data and the renderer's truthful ballistics. The concept art needle is static and *_not_* runtime metering.
+- Meter must use actual GR frame data and the renderer's truthful ballistics. The concept art needle is static and cannot be treated as runtime metering.
 
 **390px phone:** header/primary bypass, one prominent honest VU, two same-sized primary knobs side by side (Peak Reduction / Gain), mode toggle, then Input/Emphasis, followed by Advanced drawer. No desktop-face shrinking or all controls in one 2-column grid.
 
