@@ -68,7 +68,13 @@ jobs:
       # Smoke mode checks the ABI and rejects silent/non-finite renders.
       - name: Granular WAV baseline smoke
         run: npm run audio:granular -- --smoke
-      - name: Granular listening captures
+      # The smoke test proves the engine works, not that a one-second
+      # clip represents a reverb tail. Provide complete four-second A/B WAVs
+      # for human owner audition on every pull request.
+      - name: Full-length granular listening captures
+        if: github.event_name == 'pull_request'
+        run: npm run audio:granular
+      - name: Upload granular listening captures
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
