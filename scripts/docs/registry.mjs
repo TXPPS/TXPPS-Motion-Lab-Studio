@@ -336,6 +336,10 @@ export const DOCS = Object.fromEntries([
       'double-retained six-part toggle CAD correction and tests, still pending owner G1 approval',
     ],
     [
+      'docs/design/MOTIONWAVE_CP04_G21B_TOGGLE_MATERIAL_STUDY.md',
+      'unapproved satin PBR toggle material review with seam rejection and size QA',
+    ],
+    [
       'docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md',
       'the rationale and acceptance gates for Motion Wave GUI correction; verified outcomes live in CI and issue #9',
     ],
