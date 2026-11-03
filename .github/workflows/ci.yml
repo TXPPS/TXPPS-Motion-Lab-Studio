@@ -36,7 +36,7 @@ jobs:
       - name: Install browser for genuine touch events
         run: npx playwright install --with-deps chromium
       - name: Real touchscreen gestures and visual baselines
-        run: npx playwright test --config motionwave/ui/playwright.config.ts touch_rotary ui_capture
+        run: npx playwright test --config motionwave/ui/playwright.config.ts touch_rotary granular_delay_tabs ui_capture
       - name: Upload phone and desktop plugin screenshots
         if: always()
         uses: actions/upload-artifact@v4
