@@ -46,29 +46,62 @@ if [ -z "${EMSDK_DIR:-}" ] || [ ! -f "$EMSDK_DIR/.emscripten" ]; then
   exit 1
 fi
 
-# The environment is built here rather than by sourcing `emsdk_env.sh`.
+# Resolve executables by checking the files that actually exist, not by
+# assuming a particular textual representation of .emscripten. Emsdk's
+# configuration may contain literal absolute paths, while older installs
+# expressed them as "emsdk_path + '/...'". A sed parser for only the latter
+# returned an empty string on GitHub Actions; concatenating EMSDK_DIR with it
+# set EMSDK_PYTHON to a directory, and emcc failed with "Permission denied".
 #
-# That script calls bare `python`, and on Windows that name is an App Execution
-# Alias which prints "Python was not found" and exits — so sourcing it silently
-# left `emcc` off the PATH and the build failed one line later with a message
-# about the wrong thing. Every value it would have set is already written in
-# `.emscripten` by `emsdk activate`, so they are read from there instead: one
-# source of truth, and no shell-out to a python that may not be the SDK's own.
-emsdk_field() {
-  sed -n "s|^$1 = emsdk_path + '\(.*\)'.*|\1|p" "$EMSDK_DIR/.emscripten" | head -1
-}
-EM_NODE="$EMSDK_DIR$(emsdk_field NODE_JS)"
-EM_PYTHON="$EMSDK_DIR$(emsdk_field PYTHON)"
-EM_ROOT="$EMSDK_DIR$(emsdk_field EMSCRIPTEN_ROOT)"
-if [ ! -d "$EM_ROOT" ]; then
-  echo "emsdk at $EMSDK_DIR is not activated — run: emsdk activate 4.0.7" >&2
+# Do not source emsdk_env.sh: on Windows it can invoke the Windows App Execution
+# Alias for bare "python" instead of the SDK's bundled interpreter. Use
+# emsdk's Python when present, otherwise the real python3 on POSIX.
+EM_ROOT="$EMSDK_DIR/upstream/emscripten"
+if [ ! -f "$EM_ROOT/emcc" ]; then
+  echo "emsdk at $EMSDK_DIR has no emcc. Activate the pinned SDK (4.0.7)." >&2
   exit 1
 fi
+
+EM_PYTHON=""
+for candidate in "$EMSDK_DIR"/python/*/python.exe "$EMSDK_DIR"/python/*/bin/python3; do
+  if [ -f "$candidate" ]; then
+    EM_PYTHON="$candidate"
+    break
+  fi
+done
+if [ -z "$EM_PYTHON" ]; then
+  if command -v python3 >/dev/null 2>&1; then
+    EM_PYTHON="$(command -v python3)"
+  else
+    echo "No usable Python found for emcc; install python3 or activate emsdk." >&2
+    exit 1
+  fi
+fi
+if [ ! -f "$EM_PYTHON" ]; then
+  echo "Resolved Emscripten Python is not a file: $EM_PYTHON" >&2
+  exit 1
+fi
+
+# The Emscripten driver reads Node's path from the activated .emscripten
+# configuration. Only set a Node override when an executable was actually
+# located; never pass EMSDK_DIR itself as an executable path.
+EM_NODE=""
+for candidate in "$EMSDK_DIR"/node/*/bin/node "$EMSDK_DIR"/node/*/bin/node.exe; do
+  if [ -f "$candidate" ]; then
+    EM_NODE="$candidate"
+    break
+  fi
+done
+
 export EM_CONFIG="$EMSDK_DIR/.emscripten"
 export EMSDK="$EMSDK_DIR"
-export EMSDK_NODE="$EM_NODE"
 export EMSDK_PYTHON="$EM_PYTHON"
-export PATH="$EMSDK_DIR:$EM_ROOT:$(dirname "$EM_NODE"):$(dirname "$EM_PYTHON"):$PATH"
+if [ -n "$EM_NODE" ]; then
+  export EMSDK_NODE="$EM_NODE"
+else
+  unset EMSDK_NODE
+fi
+export PATH="$EMSDK_DIR:$EM_ROOT:$PATH"
 
 mkdir -p "$OUT"
 
