@@ -9,7 +9,7 @@
 
 ### Technical root causes found in source
 
-- `render/controls/gesture.ts` automatically entered circular tracking whenever a pointer moved beyond 1.4 times a knob's radius. Straight vertical **touch** movement could cross that threshold and then be interpreted as an angle. The angular origin was also calculated against the *entire control*, including its label and readout, rather than the actual SVG dial.
+- `render/controls/gesture.ts` automatically entered circular tracking whenever a pointer moved beyond 1.4 times a knob's radius. Straight vertical **touch** movement could cross that threshold and then be interpreted as an angle. The angular origin was also calculated against the _entire control_, including its label and readout, rather than the actual SVG dial.
 - `render/controlCss.ts` redefined `--mw-ctl-size` on coarse pointers as `max(..., var(--mw-ctl-size))`. This self-reference is a **CSS custom-property cycle**, invalidating the size override on mobile.
 - `render/panelCss.ts` used physical dial sizes as small as 2.75–3rem in dense panels. Because the visible circular body occupies only part of a 100-unit SVG, the perceived knob is smaller still. Control captions and values were both 11px.
 - A generic `UnitFace` renderer applies shared controls and a handful of skin/arrangement variants to every effect. The architecture is good for maintaining DSP-independent parameter binding; it is not a substitute for a deliberately designed panel composition or well-made individual assets.
@@ -21,7 +21,7 @@
 - On touch/pen, drag **up increases normalized value**, down decreases, including when the finger goes far outside the visible knob.
 - Do not switch to circular mode on touch/pen; desktop mouse angular mode is optional and its center follows the visible knob, not the caption box.
 - Works for continuous knobs and stepped rotary selectors, including minimum/maximum clamping, pointer capture, secondary touches, parameter automation, undo and preset reloads.
-- Some hardware-inspired values deliberately have inverse *meaning* (e.g., faster ATTACK at a clockwise position on the FET). Keep their circuit parameter semantics and clearly label speed/direction; do not invert the whole DSP mapping to mask a UI gesture bug.
+- Some hardware-inspired values deliberately have inverse _meaning_ (e.g., faster ATTACK at a clockwise position on the FET). Keep their circuit parameter semantics and clearly label speed/direction; do not invert the whole DSP mapping to mask a UI gesture bug.
 - Gesture tests run at the shared layer; real browser touch tests run at 390px on **all seven vintage/granular faces**.
 - No touch-induced page scrolling, pinch zoom, stuck drags or horizontal overflow.
 
