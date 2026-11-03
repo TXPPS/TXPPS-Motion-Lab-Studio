@@ -332,6 +332,10 @@ export const DOCS = Object.fromEntries([
       'verified V2C spherical pivot-ball and retaining eyelet construction; owner review still required',
     ],
     [
+      'docs/design/MOTIONWAVE_CP04_V21A_MATERIAL_LOOKDEV.md',
+      'experimental material and lighting prototype with explicitly unapproved visual defects',
+    ],
+    [
       'docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md',
       'the rationale and acceptance gates for Motion Wave GUI correction; verified outcomes live in CI and issue #9',
     ],

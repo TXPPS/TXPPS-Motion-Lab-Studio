@@ -1,0 +1,125 @@
+{
+  "schema": "motionwave.cp04-v21a.lookdev.v1",
+  "checkpoint": "CP04-V2.1A",
+  "approval": "NOT_APPROVED",
+  "phase": "G2 experimental material preview; G1 owner geometry review still pending",
+  "productionImported": false,
+  "renderer": "VTK Phong soft-studio preview, NOT calibrated PBR/Cycles",
+  "license": "Original material settings and generic system fonts; no hardware artwork traced",
+  "geometrySources": [
+    {
+      "unit": "MW-CONTROL-001",
+      "file": "MW-CONTROL-001_clay_knob_V2C_geometry_unchanged.glb",
+      "sha256": "f0cef4f0e7cb35e3779f12f2740db8acdb02aa6d255dbcc185b102fb8eb9fcee",
+      "nodes": 3
+    },
+    {
+      "unit": "MW-CONTROL-006-OFF",
+      "file": "MW-CONTROL-006_clay_toggle_OFF_V2C.glb",
+      "sha256": "e662dc247f58583aa163891a95e53d034eda5054651fcab6127ca2c5e305758e",
+      "nodes": 5
+    },
+    {
+      "unit": "MW-CONTROL-006-ON",
+      "file": "MW-CONTROL-006_clay_toggle_ON_V2C.glb",
+      "sha256": "c7140490a4b655ec60eda11db86fdaaebebb8944f4a81468f83d4288a9ae4354",
+      "nodes": 5
+    },
+    {
+      "unit": "MW-CONTROL-007",
+      "file": "MW-CONTROL-007_clay_VU_meter_V2C_geometry_unchanged.glb",
+      "sha256": "b701b76944cb9b40f40402a5be40a5f811dfe4a2a14bbb55e47a9bcc859844fe",
+      "nodes": 10
+    }
+  ],
+  "softbox": {
+    "principalKey": "upper-left, broad warm neutral",
+    "fill": "muted cool right",
+    "bounce": "low warm back",
+    "softSpecularOnly": true
+  },
+  "materials": {
+    "phenolic": {
+      "base": [0.255, 0.258, 0.256],
+      "roughnessTarget": 0.67,
+      "metallic": 0,
+      "texture": "subtle polymer-only stochastic, no repeated dots"
+    },
+    "ivory": {
+      "base": [0.8, 0.745, 0.637],
+      "roughnessTarget": 0.7,
+      "metallic": 0,
+      "texture": "very subtle nonreflective pigment"
+    },
+    "nickel": {
+      "base": [0.59, 0.59, 0.565],
+      "roughnessTarget": 0.47,
+      "metallic": 1,
+      "texture": "restrained directional brush"
+    },
+    "satinMetal": {
+      "base": [0.51, 0.53, 0.535],
+      "roughnessTarget": 0.49,
+      "metallic": 1,
+      "texture": "restrained fine directional variation"
+    },
+    "bronze": {
+      "base": [0.49, 0.45, 0.395],
+      "roughnessTarget": 0.53,
+      "metallic": 1,
+      "texture": "muted satin tone"
+    },
+    "powdercoat": {
+      "base": [0.31, 0.325, 0.335],
+      "roughnessTarget": 0.76,
+      "metallic": 0,
+      "texture": "matte micrograin, no chrome"
+    },
+    "paper": {
+      "base": [0.89, 0.825, 0.69],
+      "roughnessTarget": 0.82,
+      "metallic": 0,
+      "texture": "subtle porous stock"
+    },
+    "ink": {
+      "base": [0.21, 0.215, 0.215],
+      "roughnessTarget": 0.86,
+      "metallic": 0,
+      "texture": "matte surface print"
+    },
+    "glass": {
+      "base": [0.87, 0.9, 0.91],
+      "roughnessTarget": 0.14,
+      "metallic": 0,
+      "texture": "subtle reflection only on actual meter cover"
+    },
+    "bolt": {
+      "base": [0.48, 0.49, 0.485],
+      "roughnessTarget": 0.42,
+      "metallic": 1,
+      "texture": "controlled machined metal"
+    },
+    "back": {
+      "base": [0.36, 0.38, 0.385],
+      "roughnessTarget": 0.72,
+      "metallic": 0,
+      "texture": "matte painted enclosure"
+    }
+  },
+  "proof": {
+    "inputMeshHashesPreserved": true,
+    "namedInputNodes": "3 / 5 / 5 / 10",
+    "nativeWidthStudiesPx": [72, 84, 300, 350],
+    "fourRGBAReviewExports": true,
+    "independentSourceAndAlphaChecks": 25
+  },
+  "criticalDefects": [
+    "MW-CONTROL-001 molded side/grip lobes still visibly too shallow and uniform relative to owner-supplied RFM-48 master",
+    "G1 geometry visual acceptance not granted",
+    "VTK lighting and noise are preliminary appearance only, not full physically-based texturing",
+    "Static uncalibrated meter has no DSP telemetry",
+    "Phone/desktop size tests are simulated asset footprints, not host captures",
+    "Full render scripts and source GLBs are delivered in chat ZIP, not mirrored as GitHub binaries"
+  ],
+  "package": "MotionWave_CP04_V21A_Material_Trial_Complete.zip"
+}
