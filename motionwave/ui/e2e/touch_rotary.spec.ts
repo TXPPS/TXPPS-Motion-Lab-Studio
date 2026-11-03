@@ -52,12 +52,12 @@ test.describe('native touch gestures across vintage and granular faces', () => {
 
       await drag(75);
       const lowered = Number(await input.inputValue());
-      expect(lowered, 'dragging downward must decrease the normalised value').toBeLessThan(
-        raised,
-      );
+      expect(lowered, 'dragging downward must decrease the normalised value').toBeLessThan(raised);
       expect(Number.isFinite(lowered)).toBe(true);
 
-      const overflow = await page.locator('.mw-panel').evaluate((el) => el.scrollWidth - el.clientWidth);
+      const overflow = await page
+        .locator('.mw-panel')
+        .evaluate((el) => el.scrollWidth - el.clientWidth);
       expect(overflow, 'touch knob sizing must not overflow the panel').toBeLessThanOrEqual(1);
       await client.detach();
     });
