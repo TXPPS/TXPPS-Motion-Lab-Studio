@@ -22,7 +22,7 @@ jobs:
       - name: Diagnose CP03 and CP04 formatting (temporary)
         shell: bash
         run: |
-          for path in docs/design/MOTIONWAVE_VINTAGE_CP03_FOUR_UNIT_DESIGNS.md docs/design/MOTIONWAVE_CONTROL_ASSETS_CP04.md design-assets/motionwave-ui-lock/manifest.json; do
+          for path in docs/design/MOTIONWAVE_VINTAGE_CP03_FOUR_UNIT_DESIGNS.md docs/design/MOTIONWAVE_CONTROL_ASSETS_CP04.md design-assets/motionwave-ui-lock/manifest.json scripts/qa/check-ui-lock-controls.mjs; do
             printf '\n==== FORMATTING %s ====\n' "$path"
             npx prettier "$path" > /tmp/ui-lock-art-formatted
             diff -u "$path" /tmp/ui-lock-art-formatted || true
