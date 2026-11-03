@@ -79,12 +79,11 @@ function excitation(name) {
           0.18 * Math.exp(-t * 20) * rand() +
           0.09 * Math.exp(-t * 24) * Math.sin(2 * Math.PI * 180 * t);
       } else {
-        const envelope = (1 - Math.exp(-t * 230)) * Math.exp(-t * 0.80);
+        const envelope = (1 - Math.exp(-t * 230)) * Math.exp(-t * 0.8);
         for (const hz of [110, 164.8138, 220, 329.6276]) {
           signal +=
             envelope *
-            (0.052 * Math.sin(2 * Math.PI * hz * t) +
-              0.016 * Math.sin(2 * Math.PI * hz * 2 * t));
+            (0.052 * Math.sin(2 * Math.PI * hz * t) + 0.016 * Math.sin(2 * Math.PI * hz * 2 * t));
         }
       }
     }
@@ -249,7 +248,8 @@ writeFileSync(
       stimuli: 'deterministic synthetic snare and chord',
       noiseDisabledForComparison: true,
       soundApproved: false,
-      notes: 'Technical sanity and audibility fixtures only. No microphone, hardware, or human reference matching performed.',
+      notes:
+        'Technical sanity and audibility fixtures only. No microphone, hardware, or human reference matching performed.',
       records,
     },
     null,
