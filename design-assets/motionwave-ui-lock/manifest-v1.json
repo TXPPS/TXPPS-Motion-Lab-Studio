@@ -44,6 +44,7 @@
         "panel-reference-ticks",
         "soft-contact-ao",
         "machined-sidewalls",
+        "individually-molded-grip-ribs",
         "molded-polymer",
         "inlaid-ivory-pointer"
       ],
@@ -52,7 +53,8 @@
       "visualReview": false,
       "productionReady": false,
       "unrelatedDSPChanges": false,
-      "staticDemoOnly": false
+      "staticDemoOnly": false,
+      "revisionNote": "Ribbed molded grip, 30 distinct extruded segments, no cheap glossy polygon facets; tuned against earlier RFM-48 physical-control realism benchmark"
     },
     {
       "id": "MW-CONTROL-002",
