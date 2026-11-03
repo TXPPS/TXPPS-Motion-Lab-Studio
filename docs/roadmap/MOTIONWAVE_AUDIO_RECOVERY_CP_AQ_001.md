@@ -2,6 +2,10 @@
 
 Date: 2026-11-02
 
+**Describes commit `62744e0b1a819a0ba6602368b5ccf53612786484`.**
+This is the recovery plan as opened against that baseline; live task status is
+tracked in GitHub issues #1–#4 and draft PR #5, not inferred from this snapshot.
+
 Status: **IN PROGRESS — verification and audio acceptance not complete**
 
 Baseline: `62744e0b1a819a0ba6602368b5ccf53612786484`
