@@ -11,7 +11,7 @@ V2.0B contained a rounded **distal insulating ball** at the far end of the toggl
 
 V2.0C now constructs the two independent ends correctly:
 
-- **Proximal metal pivot joint:** radius **2.30 mm**, centered on the fixed pivot at **Z=2.90 mm**. The metal ball and shaft are fused as **one watertight CAD solid** rather than stacked intersecting mesh shells.
+- **Proximal metal pivot joint:** radius **2.30 mm**, centered on the fixed pivot at **Z=2.90 mm**. The metal ball and shaft are fused as **one watertight CAD solid** with a **0.30 mm true junction fillet**, rather than stacked intersecting mesh shells or a blurred visual seam.
 - **Real retaining eyelet:** lathed/revolved CAD ring with variable inner bore; outer radius **4.75 mm** and upper retaining mouth radius **2.12 mm**. The upper mouth is smaller than the pivot ball so the ball remains visually captured within its socket.
 - **Distal handle ball:** retains the separate insulating cap already present in V2.0B; it was not the part identified as missing.
 - **Pivot travel:** ±21° about the same stationary joint in OFF and ON; fixed washer, nut and eyelet meshes are identical between the two positions.
@@ -37,13 +37,13 @@ The latest build and **independent** verifier completed in this development chat
 ## Source, evidence and provenance
 
 - **GitHub-tracked:** `design-assets/motionwave-ui-lock/v2c/toggle_cad_standalone.py`, a standalone toggle CAD source generator that produces OFF/ON named GLBs and replays the 85-position intersection and negative fault checks with CadQuery, NumPy and trimesh.
-- **Conversation package:** `MotionWave_CP04_V2C_Eyelet_Ball_Pivot_Complete.zip`, containing 40 files: full inherited baseline + V2C geometry and verification scripts, four named editable GLB scenes, 16 construction views, additional high-resolution toggle views, real V2.0B-versus-V2.0C closeups, test JSON and SHA-256 manifest. ZIP checked and manifest hashes verified after packaging.
+- **Conversation package:** `MotionWave_CP04_V2C_Eyelet_Ball_Pivot_Complete.zip`, containing 43 files: full inherited baseline + V2C geometry and verification scripts, four named editable GLB scenes, 16 construction views, additional high-resolution toggle views, real V2.0B-versus-V2.0C closeups, test JSON and SHA-256 manifest. ZIP checked and manifest hashes verified after packaging.
 - **Key review image:** `review/CP04_V2C_Toggle_Eyelet_Pivot_Closeup_Comparison.png`, a close-up comparison of the former open eyelet and the new OFF/ON ball-in-socket assembly. All images are **real geometric renders**, not AI-styled images. The model package is supplied in the ongoing ChatGPT development conversation and is **not yet mirrored to GitHub as binary assets**.
 
 ## Remaining G1 owner-approval blockers
 
 - Independently review new eyelet-ball visual proportions and readibility at actual plugin display sizes. The ball is deliberately visible above the retaining lip; owner approval is **not inferred** from test passes.
-- Improve remaining geometry shading artifacts and visually inspect the spherical-to-shaft transition. A technically valid Boolean fusion may still require a **blended manufactured fillet** to look convincing.
+- The spherical-to-shaft transition now has a real **0.30 mm CAD fillet**. Remaining faceted shading on the socket/metal surfaces must still be inspected and refined before G1 aesthetic approval; smoothing a rendering artifact must not hide actual geometry errors.
 - Complete all-pairs collision/containment and, if the source is intended as true hardware CAD, inspect tolerance under motion and load. Keep separate from DAW GUI concerns.
 - Realistic satin materials, brushed finish, subtle microtexture, glass, and soft highlight rolloff are **G2/G3**, not implemented in V2.0C.
 - Do not merge to production or declare UI Lock completed. The existing DAW remains functional and unaffected.
