@@ -6,7 +6,7 @@
 
 ## Physical mistake discovered in the previous revision
 
-The V2.0C eyelet included a metal pivot ball and a smaller *upper* lip, but lacked a complete lower captured bearing. The cutaway demonstrated that the ball appeared insufficiently supported from underneath. A visually attractive spherical joint is not enough: it must have a coherent retaining assembly and correctly attached terminal handle.
+The V2.0C eyelet included a metal pivot ball and a smaller _upper_ lip, but lacked a complete lower captured bearing. The cutaway demonstrated that the ball appeared insufficiently supported from underneath. A visually attractive spherical joint is not enough: it must have a coherent retaining assembly and correctly attached terminal handle.
 
 ## Actual V2.0D geometry implemented
 
