@@ -53,4 +53,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "build: regenerate verified Motion Wave WASM core [skip ci]"
+          # The repository's pre-push guard requires a clean, reproducible
+          # production build of exactly the committed tree.
+          npm run build
           git push origin HEAD:chore/motionwave-audio-quality-recovery-cp01-20261102
