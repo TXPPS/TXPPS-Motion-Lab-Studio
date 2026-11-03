@@ -69,12 +69,6 @@ jobs:
       - name: Type-check (all four projects)
         run: npm run typecheck
       - run: npm run lint
-      - name: Diagnose new visual-spec Markdown formatting (temporary)
-        run: |
-          for p in docs/design/MOTIONWAVE_COMMERCIAL_UI_LOCK_CP01.md docs/design/MOTIONWAVE_FIRST_WAVE_APPROVAL_CP02.md; do
-            npx prettier "$p" > /tmp/mw-ui-lock-fmt.md
-            diff -u "$p" /tmp/mw-ui-lock-fmt.md || true
-          done
       - run: npm run format:check
       - run: npm test
       # Motion Wave's own unit suite — 351 tests across 31 files that ran only
