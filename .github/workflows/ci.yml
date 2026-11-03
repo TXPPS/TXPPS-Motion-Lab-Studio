@@ -69,12 +69,6 @@ jobs:
       - name: Type-check (all four projects)
         run: npm run typecheck
       - run: npm run lint
-      - name: Show CP04 V2.1A exact Prettier diffs (temporary)
-        run: |
-          for file in design-assets/motionwave-ui-lock/v21a/materials.json scripts/qa/check-cp04-v21a-materials.mjs; do
-            npx prettier "$file" >/tmp/mw-cp04-formatted
-            diff -u "$file" /tmp/mw-cp04-formatted || true
-          done
       - run: npm run format:check
       - run: npm test
       # Motion Wave's own unit suite — 351 tests across 31 files that ran only
