@@ -204,6 +204,15 @@ MW_TEST("V-5 every matched detection lies in [label - 2 ms, label]: early is all
       ++matched;
       if (det[best] > label) {
         ++late;
+        // Preserve the strict V-5 assertion below. This diagnostic names the
+        // exact file and frame of each surviving late event, to distinguish
+        // a misplaced spectral anchor from an insufficient foot search.
+        const Onset& misplaced = a.onsets.onsets[best];
+        std::printf("    V-5 late %s: label %zu, result %zu (+%.3f ms), "
+                    "anchor %zu, flux frame %zu\\n",
+                    s.name.c_str(), label, det[best],
+                    static_cast<double>(det[best] - label) * 1000.0 / s.rate,
+                    misplaced.anchor, misplaced.frameStart);
         worstLateMs = std::max(worstLateMs, static_cast<double>(det[best] - label) * 1000.0 / s.rate);
       } else if (label - det[best] > allowed) {
         ++tooEarly;
