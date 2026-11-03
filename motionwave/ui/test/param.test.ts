@@ -51,6 +51,33 @@ const CHOICE = defineParam({
   unit: Unit.Choice,
   choices: ['Low', 'Band', 'High', 'Notch'],
 });
+// The vintage generators encode percentages as fractions (0..1); granular
+// processors encode percentage points (0..100/130/200). Both are valid DSP
+// ranges. The shared UI must display, parse and announce each without drift.
+const VINTAGE_PERCENT = defineParam({
+  id: 6,
+  name: 'Vintage Wear',
+  unit: Unit.Percent,
+  min: 0,
+  max: 1,
+  def: 0.3,
+});
+const GRANULAR_PERCENT = defineParam({
+  id: 7,
+  name: 'Granular Mix',
+  unit: Unit.Percent,
+  min: 0,
+  max: 100,
+  def: 30,
+});
+const EXTENDED_PERCENT = defineParam({
+  id: 8,
+  name: 'Feedback',
+  unit: Unit.Percent,
+  min: 0,
+  max: 130,
+  def: 35,
+});
 
 describe('normalise and denormalise are exact inverses across all four laws', () => {
   const positions = Array.from({ length: 101 }, (_, index) => index / 100);
@@ -185,6 +212,28 @@ describe('a control says the same thing to every reader', () => {
 
   it('announces the control by name and value together', () => {
     expect(accessibleValue(LOG, toNormalised(LOG, 440))).toBe('Frequency, 440 Hz');
+  });
+
+  it('renders and parses the two real percentage scales used by vintage and granular units', () => {
+    expect(formatValue(VINTAGE_PERCENT, toNormalised(VINTAGE_PERCENT, 0.3))).toBe('30 %');
+    expect(formatValue(GRANULAR_PERCENT, toNormalised(GRANULAR_PERCENT, 30))).toBe('30 %');
+    expect(formatValue(EXTENDED_PERCENT, toNormalised(EXTENDED_PERCENT, 35))).toBe('35 %');
+    expect(formatValue(EXTENDED_PERCENT, toNormalised(EXTENDED_PERCENT, 125))).toBe('125 %');
+    expect(accessibleValue(GRANULAR_PERCENT, toNormalised(GRANULAR_PERCENT, 30))).toBe(
+      'Granular Mix, 30 %',
+    );
+    expect(toReal(VINTAGE_PERCENT, parseDisplay(VINTAGE_PERCENT, '45 %') ?? -1)).toBeCloseTo(
+      0.45,
+      9,
+    );
+    expect(toReal(GRANULAR_PERCENT, parseDisplay(GRANULAR_PERCENT, '45 %') ?? -1)).toBeCloseTo(
+      45,
+      9,
+    );
+    expect(toReal(EXTENDED_PERCENT, parseDisplay(EXTENDED_PERCENT, '115 %') ?? -1)).toBeCloseTo(
+      115,
+      9,
+    );
   });
 
   it('moves the suffix with the value where the unit does', () => {
