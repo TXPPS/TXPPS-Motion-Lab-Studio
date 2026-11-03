@@ -63,6 +63,18 @@ jobs:
       # runtime matches the source; never run test:mw before that step.
       - name: Motion Wave unit tests
         run: npm run test:mw
+      # Render the actual C++/WASM granular units to inspectable WAV evidence,
+      # not a simulated plugin or a software-only claim about musical quality.
+      # Smoke mode checks the ABI and rejects silent/non-finite renders.
+      - name: Granular WAV baseline smoke
+        run: npm run audio:granular -- --smoke
+      - name: Granular listening captures
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: granular-baseline-wav
+          path: audit-out/granular-captures/
+          retention-days: 7
       # The C++ core's own suites, compiled to WebAssembly and run under Node.
       # Forty-one of them, and nothing on a push had ever executed one.
       - name: Motion Wave core tests
