@@ -93,7 +93,7 @@ function excitation(name) {
   return samples;
 }
 
-function render(unit, dry, characteristic, bypass) {
+function render(unit, dry, characteristic, bypass, extra = {}, meter = null) {
   const prefix = '_' + unit.prefix;
   const prepare = core[prefix + '_prepare'];
   const set = core[prefix + '_set_param'];
@@ -126,8 +126,19 @@ function render(unit, dry, characteristic, bypass) {
     }
     set(p.id, value);
   }
+  for (const [symbol, value] of Object.entries(extra)) {
+    const param = unit.bySymbol.get(symbol);
+    if (!param || value < param.min || value > param.max) {
+      throw new Error(unit.label + ': invalid override ' + symbol);
+    }
+    set(param.id, value);
+  }
   setBypass(bypass ? 1 : 0);
 
+  const visual = unit.label === 'fet-limiter' && !bypass ? core[prefix + '_visual'] : null;
+  if (visual && typeof visual !== 'function') {
+    throw new Error('FET limiter gain reduction meter export missing');
+  }
   const result = new Float32Array(dry.length);
   for (let offset = 0; offset < frames; offset += block) {
     const n = Math.min(block, frames - offset);
@@ -140,6 +151,13 @@ function render(unit, dry, characteristic, bypass) {
       }
     }
     result.set(rendered, offset * 2);
+    if (visual && meter) {
+      const ptr = visual() / Float64Array.BYTES_PER_ELEMENT;
+      const gainReduction = core.HEAPF64[ptr + 2];
+      if (!Number.isFinite(gainReduction)) throw new Error('Nonfinite FET gain reduction');
+      meter.maxGainReductionDb = Math.max(meter.maxGainReductionDb ?? 0, gainReduction);
+      meter.finalGainReductionDb = gainReduction;
+    }
   }
   return result;
 }
@@ -205,18 +223,26 @@ for (const name of ['snare', 'chord']) {
   const dry = excitation(name);
   capture(name + '-dry.wav', dry, dry, { stimulus: name, mode: 'dry' });
   for (const unit of units) {
-    const neutral = render(unit, dry, false, false);
-    const character = render(unit, dry, true, false);
+    const neutralMeter = {};
+    const characterMeter = {};
+    const neutral = render(unit, dry, false, false, {}, neutralMeter);
+    const character = render(unit, dry, true, false, {}, characterMeter);
     const bypassed = render(unit, dry, true, true);
     const neutralFile = name + '-' + unit.label + '-neutral.wav';
     const characterFile = name + '-' + unit.label + '-character.wav';
     const bypassFile = name + '-' + unit.label + '-bypass.wav';
-    capture(neutralFile, neutral, dry, { stimulus: name, unit: unit.slug, mode: 'neutral' });
+    capture(neutralFile, neutral, dry, {
+      stimulus: name,
+      unit: unit.slug,
+      mode: 'neutral',
+      ...neutralMeter,
+    });
     capture(characterFile, character, dry, {
       stimulus: name,
       unit: unit.slug,
       mode: 'character',
       overrides: unit.characteristic,
+      ...characterMeter,
     });
     capture(bypassFile, bypassed, dry, {
       stimulus: name,
@@ -233,6 +259,31 @@ for (const name of ['snare', 'chord']) {
     }
     if (off.maxAbsDifferenceFromDry > 1e-6) {
       throw new Error(unit.slug + ' bypass deviated from dry: ' + off.maxAbsDifferenceFromDry);
+    }
+    if (unit.label === 'fet-limiter') {
+      // The neutral FET is a *compressor*, not a unity-gain reference: its
+      // default threshold is below many normal musical input levels. Print
+      // a real detector-off render before attributing any loss to insertion
+      // gain, or changing the saved preset's output control.
+      const lineMeter = {};
+      const line = render(unit, dry, false, false, { Limiting: 0 }, lineMeter);
+      capture(name + '-fet-limiter-detector-off.wav', line, dry, {
+        stimulus: name,
+        unit: unit.slug,
+        mode: 'detector-off',
+        overrides: { Limiting: 0 },
+        ...lineMeter,
+      });
+      const lineRms = metrics(line, dry).rms;
+      const neutralRms = metrics(neutral, dry).rms;
+      const compressionRelativeToLineAmpDb = 20 * Math.log10(neutralRms / lineRms);
+      console.log(
+        name + ' FET: active vs detector-off ' + compressionRelativeToLineAmpDb.toFixed(2) +
+          ' dB; maximum metered reduction ' + neutralMeter.maxGainReductionDb.toFixed(2) + ' dB',
+      );
+      if (!Number.isFinite(compressionRelativeToLineAmpDb)) {
+        throw new Error('Nonfinite FET detector-on/off comparison');
+      }
     }
   }
 }
