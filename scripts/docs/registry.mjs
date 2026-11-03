@@ -332,6 +332,10 @@ export const DOCS = Object.fromEntries([
       'verified V2C spherical pivot-ball and retaining eyelet construction; owner review still required',
     ],
     [
+      'docs/design/MOTIONWAVE_CP04_V2D_DOUBLE_RETAINED_TOGGLE.md',
+      'double-retained six-part toggle CAD correction and tests, still pending owner G1 approval',
+    ],
+    [
       'docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md',
       'the rationale and acceptance gates for Motion Wave GUI correction; verified outcomes live in CI and issue #9',
     ],
