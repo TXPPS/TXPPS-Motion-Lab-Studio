@@ -299,6 +299,10 @@ export const DOCS = Object.fromEntries([
     ['docs/adr/0007-motionlab-as-host.md', 'a locked decision and its rejected alternatives'],
     ['docs/adr/0008-control-primitives.md', 'a locked decision and its rejected alternatives'],
     ['docs/design/channel-strip.md', 'the argument for a redesign, and what would falsify it'],
+    [
+      'docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md',
+      'the rationale and acceptance gates for Motion Wave GUI correction; verified outcomes live in CI and issue #9',
+    ],
     ['docs/design/lib-grain-engine.md', 'a design for code that does not exist yet'],
     ['docs/design/lib-nonlinear.md', 'a design for code that does not exist yet'],
     ['docs/design/lib-voice-substrate.md', 'a design for code that does not exist yet'],
