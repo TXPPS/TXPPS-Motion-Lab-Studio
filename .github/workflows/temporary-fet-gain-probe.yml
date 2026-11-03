@@ -1,0 +1,45 @@
+# Temporary read-only probe for CP-AQ-003 FET gain staging.
+# Delete after comparing the evidence; it never writes to the repository.
+name: Temporary FET gain-stage probe
+on:
+  push:
+    branches:
+      - feature/motionwave-vintage-audio-qa-cpaq03-20261102
+permissions:
+  contents: read
+concurrency:
+  group: temporary-fet-audio-probe
+  cancel-in-progress: true
+jobs:
+  fet-calibration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Cache emsdk
+        id: emsdk-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/emsdk
+          key: emsdk-4.0.7
+      - name: Install pinned emsdk
+        if: steps.emsdk-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git ~/emsdk
+          ~/emsdk/emsdk install 4.0.7
+          ~/emsdk/emsdk activate 4.0.7
+      - run: echo "EMSDK_DIR=$HOME/emsdk" >> "$GITHUB_ENV"
+      - name: Verify and compile native C++/WASM core
+        run: npm run wasm:check
+      - name: Render FET detector-on and off measurements
+        run: npm run audio:vintage -- --smoke
+      - name: Save exact WAVs and metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: fet-gain-stage-smoke
+          path: audit-out/vintage-captures/
+          retention-days: 7
