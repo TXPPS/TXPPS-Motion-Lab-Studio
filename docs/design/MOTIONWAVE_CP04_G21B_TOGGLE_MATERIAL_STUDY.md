@@ -14,14 +14,14 @@ The renderer reads the **unchanged** six-part V2D GLB meshes (OFF and ON). It ou
 
 ## Material study profile (tentative VTK PBR inputs)
 
-| Part | Visual target | PBR roughness | Metallic factor |
-| --- | --- | ---: | ---: |
-| Mount washer | matte powder-coated metal | 0.81 | 0.00 |
-| Hex mounting nut | subdued satin brushed metal | 0.60 | 0.68 |
-| Eyelet | satin nickel, rolled edge highlight | 0.55 | 0.80 |
-| Pivot ball and stem | restrained machined satin metal | 0.47 | 0.72 |
-| Free-end handle tip | warm matte phenolic polymer | 0.76 | 0.00 |
-| Lower cup | low-sheen bearing housing | 0.77 | 0.35 |
+| Part                | Visual target                       | PBR roughness | Metallic factor |
+| ------------------- | ----------------------------------- | ------------: | --------------: |
+| Mount washer        | matte powder-coated metal           |          0.81 |            0.00 |
+| Hex mounting nut    | subdued satin brushed metal         |          0.60 |            0.68 |
+| Eyelet              | satin nickel, rolled edge highlight |          0.55 |            0.80 |
+| Pivot ball and stem | restrained machined satin metal     |          0.47 |            0.72 |
+| Free-end handle tip | warm matte phenolic polymer         |          0.76 |            0.00 |
+| Lower cup           | low-sheen bearing housing           |          0.77 |            0.35 |
 
 These are **shader study parameters**, not measured physical material properties. Partly metallic shader factors are deliberate appearance studies in a point-lit scene with no calibrated image-based environment; they are **not certified PBR measurements**. They are insufficient to declare authentic machined metal, phenolic pore structure or installed-glass optics.
 
@@ -29,7 +29,7 @@ These are **shader study parameters**, not measured physical material properties
 
 - The first G2.0 pass reduced excessive gloss but looked too uniform and dark. It is retained as an A/B baseline.
 - Experimental G2.1 tangent-space normal maps produced visible **black UV/tangent-seam artifacts** on the spherical handle and the eyelet. That attempt was **REJECTED**, and its output must not be used as a candidate master.
-- **G2.1B** replaces that fragile tangent-UV method with deterministic, low-amplitude 3D normal variation assigned *only to renderer normals*. It does not displace, repaint, or alter CAD geometry. In the inspected OFF/ON candidate board, the prior black seam artifacts were not apparent.
+- **G2.1B** replaces that fragile tangent-UV method with deterministic, low-amplitude 3D normal variation assigned _only to renderer normals_. It does not displace, repaint, or alter CAD geometry. In the inspected OFF/ON candidate board, the prior black seam artifacts were not apparent.
 - Fine material realism is **still incomplete**: the phenolic is not yet a calibrated molded-polymer microtexture, metal machining direction is not fully physically anchored, and the scene has no measured HDRI studio environment. These remain explicit G2 blockers.
 
 ## Physical-size verdict
