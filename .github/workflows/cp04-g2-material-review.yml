@@ -1,0 +1,70 @@
+name: CP04 G2 satin material render review (not production)
+
+on:
+  push:
+    branches:
+      - feature/motionwave-cp04-v2-grey-geometry-20261103
+    paths:
+      - design-assets/motionwave-ui-lock/g2/**
+      - design-assets/motionwave-ui-lock/v2d/cp04_v2d_repo_generator.py
+      - .github/workflows/cp04-g2-material-review.yml
+
+permissions:
+  contents: read
+
+jobs:
+  material-study:
+    name: Rebuild V2D CAD then render isolated G2 satin review
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install isolated CAD and render dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install 'cadquery>=2.6,<3' 'numpy>=1.26,<3' 'trimesh>=4,<5' 'vtk>=9.3,<10' 'pillow>=10,<13'
+      - name: Rebuild authoritative V2D CAD (not live DAW)
+        run: |
+          python design-assets/motionwave-ui-lock/v2d/cp04_v2d_repo_generator.py audit-out/cp04-g2/cad
+      - name: Prepare reliable headless studio renderer
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq xvfb
+          fi
+      - name: Render satin material candidates from regenerated CAD
+        run: |
+          xvfb-run -a -s "-screen 0 1600x1200x24" python design-assets/motionwave-ui-lock/g2/cp04_g2_repo_renderer.py audit-out/cp04-g2/cad audit-out/cp04-g2/materials
+      - name: Independently verify transparent art and geometry integrity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from PIL import Image
+          base=Path('audit-out/cp04-g2')
+          report=json.loads((base/'materials/G2_REVIEW_REPORT.json').read_text())
+          assert report['status']=='MATERIAL STUDY ONLY / NOT APPROVED'
+          assert report['source_cad_unchanged'] is True
+          assert len(report['material_parameters']) == 6
+          assert len(report['images']) == 11
+          for state in ('OFF','ON'):
+              png=base/'materials'/f'MW006_G2_{state}_isolated_1024.png'
+              image=Image.open(png)
+              assert image.size==(1024,1024) and image.mode=='RGBA'
+              assert image.getchannel('A').getextrema()==(0,255)
+              for sz in (96,160,256):
+                  file=base/'materials'/f'MW006_G2_{state}_{sz}px.png'
+                  art=Image.open(file)
+                  assert art.size==(sz,sz) and art.getchannel('A').getbbox()
+          assert (base/'materials/CP04_G2_Satin_And_Native_Size_Review.png').exists()
+          print('G2 review PNGs, PBR parameters, alpha and CAD hash preservation verified')
+          PY
+      - name: Upload G2 study evidence (expires, not deployed)
+        uses: actions/upload-artifact@v4
+        with:
+          name: motionwave-cp04-g2-satin-study-only
+          path: audit-out/cp04-g2/materials/
+          retention-days: 14

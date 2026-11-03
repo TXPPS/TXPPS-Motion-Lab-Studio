@@ -1,0 +1,51 @@
+name: CP04 V2D toggle CAD evidence (review only)
+
+on:
+  push:
+    branches:
+      - feature/motionwave-cp04-v2-grey-geometry-20261103
+    paths:
+      - design-assets/motionwave-ui-lock/v2d/**
+      - .github/workflows/cp04-v2d-toggle-cad.yml
+
+permissions:
+  contents: read
+
+jobs:
+  g1-toggle-cad:
+    name: Verify CAD solids and export editable STEP and GLB
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install isolated geometry dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install 'cadquery>=2.6,<3' 'numpy>=1.26,<3' 'trimesh>=4,<5'
+      - name: Build six-part OFF / ON models and verify geometry
+        run: |
+          python design-assets/motionwave-ui-lock/v2d/cp04_v2d_repo_generator.py audit-out/cp04-v2d
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("audit-out/cp04-v2d")
+          x = json.loads((root / "verification.json").read_text())
+          assert x["owner_approved"] is False
+          assert x["part_counts"] == {"OFF": 6, "ON": 6}
+          assert len(x["checks"]) == 14
+          assert all(c["pass"] for c in x["checks"])
+          for name in ("OFF", "ON"):
+              for ext in ("glb", "step"):
+                  f = root / ("MW_CONTROL_006_V2D_" + name + "." + ext)
+                  assert f.exists() and f.stat().st_size > 1000, f
+          print("V2D review-only CAD gates passed, no production deployment")
+          PY
+      - name: Upload reproducible design proof (never production)
+        uses: actions/upload-artifact@v4
+        with:
+          name: motionwave-cp04-v2d-toggle-step-glb-review
+          path: audit-out/cp04-v2d/
+          retention-days: 14

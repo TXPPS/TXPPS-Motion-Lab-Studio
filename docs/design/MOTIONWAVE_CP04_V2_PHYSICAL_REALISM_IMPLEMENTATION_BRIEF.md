@@ -27,6 +27,7 @@ The next three heroes become the master quality bar before adapting the remainin
 **Functional assembly:** panel-printed tick ring (fixed, outside moving master) → mounting washer/base → outer skirt with real height → molded radial grip/ribbed sidewall → top cap with shallow curvature → physically recessed ivory indicator insert (moves with knob) → shallow contact shadow at panel interface.
 
 **Starting normalized geometry (adjust against approved hardware references):**
+
 - Let **D = finished outer knob diameter** and model from D, not random absolute pixel dimensions.
 - Outer skirt radius ~0.50D. Top-cap visible radius ~0.39–0.44D; transition is a continuous fillet, not a hard nested-disc step.
 - Visible sidewall/height ~0.12–0.19D in 3/4 view, with a clear seat and downward taper. Ensure the sidewall stays **behind** the cap silhouette.
@@ -43,13 +44,14 @@ The next three heroes become the master quality bar before adapting the remainin
 **Assembly:** panel plane → threaded/bushed mounting hardware → face washer and nut (if exposed) → pivot socket/gimbal → metal lever shaft → distinct insulated or ivory ball tip → clearance shadow where lever enters the socket. Do not draw the shaft over the mounting plate as though it lacks a pivot.
 
 **Geometry / positions:**
+
 - Shaft axis originates inside the pivot, visible at every state; ball tip is attached, with a coherent taper and transition.
 - Separate **OFF and ON geometry**; angle and height change about one physical pivot, not by free translation. A neutral/middle position is forbidden for a two-state source control unless its generated parameter has that third state.
 - At either throw extreme, the lever, ball and surrounding recess must not intersect. Preserve believable space at the socket opening.
 - Keep fixed plate shadows and screw locations unchanged between states; only the moving lever assembly changes.
 - Provide installed front, 3/4, side and two-state overlay views. Diagram the pivot center and motion arc.
 
-**Material identity:** muted brushed nickel/chrome shaft with *controlled* specular response; low-gloss satin mounted plate; warm matte porcelain-like or phenolic tip. The shaft may catch a narrow highlight, but the entire plate must not look polished like a mirror. Preserve a little metal machining variance without random scratches.
+**Material identity:** muted brushed nickel/chrome shaft with _controlled_ specular response; low-gloss satin mounted plate; warm matte porcelain-like or phenolic tip. The shaft may catch a narrow highlight, but the entire plate must not look polished like a mirror. Preserve a little metal machining variance without random scratches.
 
 ## 4. Hero C — MW-CONTROL-007 analog VU / gain-reduction meter
 
@@ -80,6 +82,7 @@ Choose **one coherent physically-based lighting / color-management setup** and m
 **Texture rule:** use restrained, mask-confined, mostly stochastic microtexture. No repeated obvious vector dots, full-sheet grain, heavy scratches, rust, artificial patina or identical “clean chrome” highlights on polymer/metal/glass. Surface imperfections must affect roughness and micro-normal more than base color. At final 1x displayed size, texture should read as material presence without becoming noise.
 
 **Initial palette study, subject to real reference and owner review:**
+
 - Polymer charcoal `#24282A`, shadow `#151A1C`, warm black `#343533`.
 - Warm champagne aluminum `#B8B1A2`, nickel midtone `#858A89`, deep metal `#474E51`.
 - Ivory/polymer insert `#D8CCB4`, printed warm white `#E4DECF`.
@@ -157,6 +160,7 @@ No source document should claim V2 files already exist merely because this brief
 ## 10. Agent reporting contract
 
 For each substep, report:
+
 - Commit SHA and branch; exact created/modified files.
 - What was physically wrong in V1 and how the construction changed.
 - Clay/front/3/4/side and final lit image references, with genuine dimensions.

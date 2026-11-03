@@ -320,6 +320,26 @@ export const DOCS = Object.fromEntries([
       'physical realism and collision-first review instructions for unapproved CP04 V2 hero control assets',
     ],
     [
+      'docs/design/MOTIONWAVE_CP04_V2_GREY_GEOMETRY_CHECKPOINT.md',
+      'measured grey geometry proof and remaining collision/recess defects; does not assert owner approval',
+    ],
+    [
+      'docs/design/MOTIONWAVE_CP04_V2B_CAD_GEOMETRY_HARDENING.md',
+      'documented V2B CAD and actual exported mesh clearance evidence with unapproved physical geometry status',
+    ],
+    [
+      'docs/design/MOTIONWAVE_CP04_V2C_EYELET_PIVOT_GEOMETRY.md',
+      'verified V2C spherical pivot-ball and retaining eyelet construction; owner review still required',
+    ],
+    [
+      'docs/design/MOTIONWAVE_CP04_V2D_DOUBLE_RETAINED_TOGGLE.md',
+      'double-retained six-part toggle CAD correction and tests, still pending owner G1 approval',
+    ],
+    [
+      'docs/design/MOTIONWAVE_CP04_G21B_TOGGLE_MATERIAL_STUDY.md',
+      'unapproved satin PBR toggle material review with seam rejection and size QA',
+    ],
+    [
       'docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md',
       'the rationale and acceptance gates for Motion Wave GUI correction; verified outcomes live in CI and issue #9',
     ],
