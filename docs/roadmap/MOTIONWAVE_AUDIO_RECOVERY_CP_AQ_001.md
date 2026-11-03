@@ -41,7 +41,7 @@ Each device has four independently recorded states:
 
 None implies a later state. An existing `SHIPPING` ledger label is not
 automatically sound approval. A marked deviation needs an explicit technical
-waiver *and* an independent audible check.
+waiver _and_ an independent audible check.
 
 ### Current owner-approval register
 
@@ -70,7 +70,7 @@ broken. It means the release gate has not been satisfied.
 Tracking: [issue #1](https://github.com/TXPPS/TXPPS-Motion-Lab-Studio/issues/1)
 
 - Restore `npm run format:check` on the actual committed files.
-- Run Motion Wave unit tests *after* `wasm:check`: that check builds
+- Run Motion Wave unit tests _after_ `wasm:check`: that check builds
   `motionwave/wasm/dist/motionwave.mjs` and validates the tracked worklet.
 - Require one uncancelled, complete green run for typecheck, lint, format,
   both unit suites, WASM, native core, production build and browser E2E.
@@ -119,7 +119,7 @@ for flutter/stutter. That listening check is **not recorded as owner-approved**.
 - Investigate early-field density, sparse-grain stutter, pre-delay, wet/dry
   loudness and tail continuity before redesigning controls or artwork.
 - Consider a dense foundational reverb with optional granular texture as a
-  *hypothesis*, not a predetermined rewrite.
+  _hypothesis_, not a predetermined rewrite.
 - Check `fx-02` freeze, shimmer and density at 100, 350 and 1500 grains/s.
 - Check `fx-03` smear at 25% and 50%; clean/tape/BBD character, timing
   changes, sync, feedback stability and tonal consistency.
