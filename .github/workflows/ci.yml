@@ -69,10 +69,6 @@ jobs:
       - name: Type-check (all four projects)
         run: npm run typecheck
       - run: npm run lint
-      - name: Diagnose V2B document style difference (temporary)
-        run: |
-          npx prettier docs/design/MOTIONWAVE_CP04_V2B_CAD_GEOMETRY_HARDENING.md > /tmp/mw-format.md
-          diff -u docs/design/MOTIONWAVE_CP04_V2B_CAD_GEOMETRY_HARDENING.md /tmp/mw-format.md || true
       - run: npm run format:check
       - run: npm test
       # Motion Wave's own unit suite — 351 tests across 31 files that ran only
