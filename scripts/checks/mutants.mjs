@@ -63,6 +63,10 @@ export const CHECKS = {
     kind: 'tool',
     why: 'writes deterministic WAV listening fixtures; CI runs --smoke to check output health, while owner sound approval remains separate',
   },
+  'audio:vintage': {
+    kind: 'tool',
+    why: 'writes reproducible vintage effect A/B WAVs and a bypass/finite sanity report; only a human may approve the musical sound',
+  },
   'build:panel': { kind: 'tool', why: 'builds the panel harness `e2e:mw` runs against' },
   'motionwave:assets': {
     kind: 'tool',
