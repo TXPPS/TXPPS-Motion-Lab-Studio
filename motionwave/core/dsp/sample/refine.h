@@ -175,7 +175,17 @@ inline std::size_t refineOnset(const std::vector<double>& x, const std::vector<d
   const bool coarseUsable = anchor >= spanBegin + coarseWindow;
   const std::vector<double>& walkEnv = coarseUsable ? coarse : env;
   const double floorStop = floorAmp * kFloorStopFactor;
-  const std::size_t limit = anchor > frameStart + attackSpan ? anchor - attackSpan : frameStart;
+  // The spectral-flux *peak* frame is not the start of the audio event. In
+  // particular, a sustained/ramping note can begin a few samples before the
+  // frame where flux reaches its maximum. Bounding the backward walk by
+  // frameStart makes it mathematically impossible to recover that onset:
+  // V-5's melodic-0 and melodic-4 cases had labels BEFORE frameStart.
+  //
+  // Bound instead by the actual conditioned signal start and the 30 ms attack
+  // search budget. The existing floor and sustained-turn rules still stop at
+  // the *local* attack's foot, not at arbitrary earlier room-tone minima.
+  const std::size_t limit =
+      anchor > spanBegin + attackSpan ? anchor - attackSpan : spanBegin;
   std::size_t foot = anchor;
   for (std::size_t n = anchor; n > limit; --n) {
     if (walkEnv[n - 1] <= floorStop) break;
