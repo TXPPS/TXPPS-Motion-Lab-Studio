@@ -57,3 +57,71 @@ Values above are **art direction targets**, not hardcoded component rules. Actua
 A source SVG proof and machine-readable manifest are stored in `design-assets/motionwave-ui-lock/`, under this feature branch. This supplies editable original geometry and documented interfaces, _not_ production-ready final faces.
 
 Next step: capture per-unit desktop/phone variants using genuine generated parameters, review the VU/knob/caption consistency, refine against the owner’s selected concepts, then implement a single Program EQ vertical slice under CP-UI-LOCK-005. Performance/DSP issue #10 remains deferred.
+
+## V1 visual inspection — the RFM-48 / TM Frey quality benchmark
+
+The original eight-control v0 sheet was too generic: untextured round faces,
+weak three-dimensional sidewalls, inconsistent physical scale and material
+response, and insufficient control-specific styling. The isolated **v1 study**
+adds eight transparent independently editable SVG masters, restrained colors,
+contact AO, machined rims, molded-polymer texture, glass, screws and separate
+material/pointer layers. Its source is in
+`design-assets/motionwave-ui-lock/v1/` and its unapproved review board is
+`controls-v1-review.svg`.
+
+**Critical acceptance finding:** The actual Chromium-rendered v1 board is
+better, but it still falls short of the previously approved RFM-48 rotary
+master and the material/typography finish demonstrated by TM Frey. The
+approved RFM-48 knob is a full-resolution transparent manufactured-looking
+master with real molded grip sections and fine surface roughness; v1's
+synthetic SVG facets and repeated texture dots are not a substitute. It is
+not correct to mark v1 as commercially approved.
+
+### Mandatory next asset pass — original, layered hybrid masters
+
+1. Model individual silhouettes in real 3D or equivalent geometry where
+   necessary. Define face radius, raised sidewall thickness, chamfer width,
+   knurl/rib depth, pointer slot and physical detent. No floating pointer
+   atop an unconvincing circle.
+2. Bake or render truly material-dependent physical texture into **separate
+   transparent 1024–2048+ px PNG masters** (not entire flattened panels).
+   Keep editable SVG/3D sources, precise indicator masks and control state
+   layers; PNG material pixels may be used underneath vector interaction
+   and legible text.
+3. Keep one plausible softbox key at upper-left, weaker opposite fill and
+   realistic ambient occlusion at the control/panel contact only. Bakelite,
+   hard rubber, powder-coated steel, brushed nickel and glass must **not**
+   have identical roughness and specular sharpness.
+4. Bakelite/rubber: nonuniform subpixel molded stipple, individual raised
+   grip segments, low-gloss edges, fine abrasion and controlled rim
+   compression. Metal: anisotropic machining/brushing restricted to
+   metallic regions and real highlights on cut/chamfered edges. Glass:
+   recessed internal aperture, restrained edge reflection and legitimate
+   depth; no animated fake data.
+5. Color: natural near-black and warm ivory/metal for broadcast-era
+   controls, dark graphite and pewter for FET, muted bronze for Variable-Mu,
+   restrained family-correct frequency accents for console EQ. Granular
+   controls may use limited turquoise (#49AFA6) or iris accents in the
+   indicator **only**; avoid RGB neon around every edge.
+6. Colorable indicators, printed legends, selected-state lights and
+   value labels remain independent of baked material textures. Printed
+   legends should look like surface ink, not embossed glowing glyphs.
+   Never bake the chassis, whole-plugin shading or generic full-frame
+   grunge into a control master.
+7. Verify transparent alpha edges (no white halos), normal shape at
+   44–120 CSS px and true 1x/2x/3x device pixel ratio. Inspect at both
+   390px phone and 1440px desktop and compare against the approved physical
+   control reference before approving.
+8. Retain native C++ DSP/parameter mapping, host automation and
+   touchscreen direction. A more expensive visual master must not add
+   audio-thread work or synchronous DOM geometry reads.
+
+### V1 candidate review status
+
+- V1 source art: **8 editable standalone masters**; source/manifest validated.
+- V1 Chrome render: recorded and inspected; the quality gap remains open.
+- Owner-approved final vintage or granular asset catalog: **0 of 8**.
+- No production UI imports, no main-branch merge and no change to sound.
+- Next legitimate checkpoint: a genuinely photoreal knob, switch and
+  meter at full resolution plus approved phone/desktop renders before
+  converting the remaining collection.
