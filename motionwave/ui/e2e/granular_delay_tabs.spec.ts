@@ -14,6 +14,9 @@ for (const layout of [
     await page.goto('/?unit=fx-03');
 
     const panel = page.locator('.mw-panel');
+    // The shared formatter must not turn a real 30-percent Mix into 3000%.
+    await expect(panel.locator('[data-mw-element="mix"] .mw-ctl-value')).toHaveText('30 %');
+    await expect(panel.locator('[data-mw-element="feedback"] .mw-ctl-value')).toHaveText('35 %');
     const grids = panel.locator('.mw-panel-controls[role="tabpanel"]');
     await expect(grids).toHaveCount(12);
     await expect(panel.locator('[role="tab"][aria-selected="true"]')).toHaveCount(1);
@@ -37,7 +40,9 @@ for (const layout of [
     expect(bbox).not.toBeNull();
     expect(bbox!.height, 'hidden grids must not produce a 6,449px tall panel').toBeLessThan(2200);
 
-    const layoutMode = await panel.locator('.mw-panel-body').evaluate((node) => getComputedStyle(node).flexDirection);
+    const layoutMode = await panel
+      .locator('.mw-panel-body')
+      .evaluate((node) => getComputedStyle(node).flexDirection);
     expect(layoutMode, 'grouped face sections must retain full width').toBe('column');
     await panel.locator('[role="tab"][data-mw-group="tap-8"]').click();
     await expect(panel.locator('[role="tab"][data-mw-group="tap-8"]')).toHaveAttribute(
