@@ -35,10 +35,10 @@ for (const layout of [
 
     const bbox = await panel.boundingBox();
     expect(bbox).not.toBeNull();
-    expect(bbox!.height, 'hidden grids must not produce a 6,449px tall panel').toBeLessThan(
-      2200,
-    );
+    expect(bbox!.height, 'hidden grids must not produce a 6,449px tall panel').toBeLessThan(2200);
 
+    const layoutMode = await panel.locator('.mw-panel-body').evaluate((node) => getComputedStyle(node).flexDirection);
+    expect(layoutMode, 'grouped face sections must retain full width').toBe('column');
     await panel.locator('[role="tab"][data-mw-group="tap-8"]').click();
     await expect(panel.locator('[role="tab"][data-mw-group="tap-8"]')).toHaveAttribute(
       'aria-selected',
