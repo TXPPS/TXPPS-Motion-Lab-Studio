@@ -257,6 +257,10 @@ export const DOCS = Object.fromEntries([
   // to describe the present, and three of them were superseded years of
   // directives ago while still reading as current.
   ...[
+    [
+      'docs/roadmap/MOTIONWAVE_AUDIO_RECOVERY_CP_AQ_001.md',
+      'a dated recovery plan and baseline-state snapshot; live execution status belongs in the linked GitHub issues',
+    ],
     ['docs/AUDIT-DEVICE-FUNCTION.md', 'a device audit, superseded by audit/PLUGIN_AUDIT.md'],
     ['docs/AUDIT-RESPONSIVE.md', 'a responsive audit, superseded by audit/RESPONSIVE_AUDIT.md'],
     ['docs/LAYOUT-AUDIT.md', 'a layout audit at a named commit, superseded'],
