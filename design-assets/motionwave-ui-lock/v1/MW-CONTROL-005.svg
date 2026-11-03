@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 280" role="img" aria-label="Motion Wave original physical control source master RATIO BANK / FET; not functional and unapproved"><title>MW CONTROL 005 / RATIO BANK / FET</title><desc>Separate transparent editable master. All layers and lighting are geometry and materials; no panel background baked in. Example states are static and do not claim actual DSP telemetry.</desc><defs>
+  <linearGradient id="mwx-rim" x1=".12" y1=".05" x2=".91" y2=".94"><stop offset="0" stop-color="#f5eee2"/><stop offset=".105" stop-color="#888a86"/><stop offset=".22" stop-color="#283038"/><stop offset=".42" stop-color="#adb2b3"/><stop offset=".59" stop-color="#282e33"/><stop offset=".78" stop-color="#a3a7a6"/><stop offset="1" stop-color="#1b2228"/></linearGradient>
+  <linearGradient id="mwx-side" x1=".14" y1="0" x2=".82" y2="1"><stop stop-color="#909497"/><stop offset=".17" stop-color="#161d24"/><stop offset=".56" stop-color="#343b44"/><stop offset=".83" stop-color="#0c1219"/><stop offset="1" stop-color="#121921"/></linearGradient>
+  <radialGradient id="mwx-bakelite" cx=".32" cy=".19" r=".94"><stop stop-color="#54585a"/><stop offset=".26" stop-color="#2b3034"/><stop offset=".62" stop-color="#171c20"/><stop offset=".88" stop-color="#0b1015"/><stop offset="1" stop-color="#070a0e"/></radialGradient>
+  <linearGradient id="mwx-facet" x1=".05" y1=".05" x2=".92" y2=".91"><stop stop-color="#5a5d5a"/><stop offset=".2" stop-color="#35393a"/><stop offset=".65" stop-color="#12171b"/><stop offset=".87" stop-color="#080d11"/><stop offset="1" stop-color="#333638"/></linearGradient>
+  <radialGradient id="mwx-machined" cx=".27" cy=".19" r=".9"><stop stop-color="#fffaf1"/><stop offset=".11" stop-color="#c3c7c7"/><stop offset=".27" stop-color="#6a737a"/><stop offset=".53" stop-color="#cbd0cb"/><stop offset=".75" stop-color="#5b6870"/><stop offset=".93" stop-color="#222b32"/><stop offset="1" stop-color="#adb2af"/></radialGradient>
+  <radialGradient id="mwx-gunmetal" cx=".28" cy=".14" r=".96"><stop stop-color="#7f8b8d"/><stop offset=".16" stop-color="#48555e"/><stop offset=".4" stop-color="#27333f"/><stop offset=".72" stop-color="#111c28"/><stop offset=".95" stop-color="#050a12"/><stop offset="1" stop-color="#6a7880"/></radialGradient>
+  <linearGradient id="mwx-ivory" x1=".07" y1=".02" x2=".97" y2="1"><stop stop-color="#fff4de"/><stop offset=".28" stop-color="#e8dac2"/><stop offset=".67" stop-color="#c4b293"/><stop offset=".96" stop-color="#7c6d5a"/><stop offset="1" stop-color="#ddc9a5"/></linearGradient>
+  <linearGradient id="mwx-glass" x1="0" y1="0" x2=".93" y2=".97"><stop stop-color="#fff" stop-opacity=".31"/><stop offset=".26" stop-color="#eef6fd" stop-opacity=".07"/><stop offset=".44" stop-color="#fff" stop-opacity="0"/><stop offset=".78" stop-color="#4b6476" stop-opacity=".14"/><stop offset="1" stop-color="#fff" stop-opacity=".19"/></linearGradient>
+  <linearGradient id="mwx-key" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#77808a"/><stop offset=".12" stop-color="#353b43"/><stop offset=".69" stop-color="#171d24"/><stop offset=".95" stop-color="#090f15"/><stop offset="1" stop-color="#51585d"/></linearGradient>
+  <linearGradient id="mwx-gold" x1="0" y1="0" x2=".94" y2=".96"><stop stop-color="#f9e7bf"/><stop offset=".13" stop-color="#b88b51"/><stop offset=".48" stop-color="#675039"/><stop offset=".83" stop-color="#c99e68"/><stop offset="1" stop-color="#6e563b"/></linearGradient>
+  <linearGradient id="mwx-active" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f0b972"/><stop offset=".17" stop-color="#ad6936"/><stop offset=".56" stop-color="#6b351d"/><stop offset=".96" stop-color="#381c14"/><stop offset="1" stop-color="#a36a3d"/></linearGradient>
+  <linearGradient id="mwx-led" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#65e9e1"/><stop offset=".26" stop-color="#1d837f"/><stop offset=".8" stop-color="#0a383c"/><stop offset="1" stop-color="#276c69"/></linearGradient>
+  <radialGradient id="mwx-meter" cx=".49" cy=".23" r=".9"><stop stop-color="#fef0cf"/><stop offset=".6" stop-color="#ead7ac"/><stop offset=".91" stop-color="#a99068"/><stop offset="1" stop-color="#63503a"/></radialGradient>
+  <pattern id="mwx-polymer-pores" width="9" height="9" patternUnits="userSpaceOnUse"><circle cx="1.6" cy="2.1" r=".65" fill="#b7c4c0" opacity=".12"/><circle cx="6.6" cy="6.4" r=".5" fill="#05090b" opacity=".25"/><path d="M3 7l1 -.4" stroke="#d4c4ad" opacity=".07" stroke-width=".55"/></pattern>
+  <pattern id="mwx-metal-grain" width="8" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(-22)"><path d="M0 1h8M0 5h8" stroke="#fff" stroke-opacity=".13" stroke-width=".27"/><path d="M0 2.8h8" stroke="#0b1013" stroke-opacity=".17" stroke-width=".35"/></pattern>
+  <pattern id="mwx-scan" width="10" height="5" patternUnits="userSpaceOnUse"><path d="M0 1h10" stroke="#8de3df" stroke-opacity=".06" stroke-width=".5"/></pattern>
+  <filter id="mwx-contact" x="-40%" y="-40%" width="180%" height="200%"><feGaussianBlur stdDeviation="6.4"/></filter>
+  <filter id="mwx-fine" x="-15%" y="-15%" width="130%" height="160%"><feGaussianBlur stdDeviation="1.2"/></filter>
+  <clipPath id="mwx-meter-clip"><rect x="49" y="64" width="432" height="174" rx="10"/></clipPath>
+  <clipPath id="mwx-display-clip"><rect x="47" y="59" width="436" height="183" rx="11"/></clipPath>
+</defs><g id="MW-CONTROL-005" aria-label="Five independent raised molded hardware ratio buttons"><g data-layer="mechanical-banked-frame"><rect x="12" y="62" width="556" height="132" rx="16" fill="#03070a" opacity=".46" filter="url(#mwx-contact)"/><rect x="8" y="47" width="564" height="137" rx="17" fill="url(#mwx-rim)" stroke="#0a1219" stroke-width="3.4"/><rect x="17" y="56" width="546" height="117" rx="12" fill="#12191e" stroke="#6c7779" stroke-opacity=".47"/><rect x="20" y="60" width="540" height="108" rx="9" fill="url(#mwx-metal-grain)" opacity=".23"/></g><g data-layer="ratio-choice-1">
+<rect x="31" y="77" width="99" height="99" rx="12" fill="#05090d" opacity=".77"/>
+<rect x="28" y="69" width="99" height="95" rx="11" fill="url(#mwx-rim)" stroke="#171f22" stroke-width="2.5"/>
+<rect x="33" y="73" width="89" height="85" rx="9" fill="url(#mwx-key)" stroke="#4e565a" stroke-width="1.5"/>
+<rect x="38" y="78" width="79" height="72" rx="7" fill="url(#mwx-polymer-pores)" opacity=".21"/>
+<path d="M41 84H114" stroke="#b6c7c9" stroke-opacity="0.36" stroke-width="1.4" stroke-linecap="round"/>
+<path d="M41 149H114" stroke="#03060a" opacity=".6" stroke-width="3"/>
+<text x="77.5" y="127" font-size="21" font-family="Arial,Helvetica,sans-serif" font-weight="700" letter-spacing=".5" text-anchor="middle" fill="#ddd9cf">4:1</text>
+</g><g data-layer="ratio-choice-2">
+<rect x="138" y="77" width="99" height="99" rx="12" fill="#05090d" opacity=".77"/>
+<rect x="135" y="69" width="99" height="95" rx="11" fill="url(#mwx-rim)" stroke="#171f22" stroke-width="2.5"/>
+<rect x="140" y="73" width="89" height="85" rx="9" fill="url(#mwx-active)" stroke="#dbac79" stroke-width="1.5"/>
+<rect x="145" y="78" width="79" height="72" rx="7" fill="url(#mwx-polymer-pores)" opacity=".21"/>
+<path d="M148 84H221" stroke="#ffdeb0" stroke-opacity="0.6" stroke-width="1.4" stroke-linecap="round"/>
+<path d="M148 149H221" stroke="#03060a" opacity=".6" stroke-width="3"/>
+<text x="184.5" y="127" font-size="21" font-family="Arial,Helvetica,sans-serif" font-weight="700" letter-spacing=".5" text-anchor="middle" fill="#fff0d2">8:1</text>
+</g><g data-layer="ratio-choice-3">
+<rect x="245" y="77" width="99" height="99" rx="12" fill="#05090d" opacity=".77"/>
+<rect x="242" y="69" width="99" height="95" rx="11" fill="url(#mwx-rim)" stroke="#171f22" stroke-width="2.5"/>
+<rect x="247" y="73" width="89" height="85" rx="9" fill="url(#mwx-key)" stroke="#4e565a" stroke-width="1.5"/>
+<rect x="252" y="78" width="79" height="72" rx="7" fill="url(#mwx-polymer-pores)" opacity=".21"/>
+<path d="M255 84H328" stroke="#b6c7c9" stroke-opacity="0.36" stroke-width="1.4" stroke-linecap="round"/>
+<path d="M255 149H328" stroke="#03060a" opacity=".6" stroke-width="3"/>
+<text x="291.5" y="127" font-size="15" font-family="Arial,Helvetica,sans-serif" font-weight="700" letter-spacing=".5" text-anchor="middle" fill="#ddd9cf">12:1</text>
+</g><g data-layer="ratio-choice-4">
+<rect x="352" y="77" width="99" height="99" rx="12" fill="#05090d" opacity=".77"/>
+<rect x="349" y="69" width="99" height="95" rx="11" fill="url(#mwx-rim)" stroke="#171f22" stroke-width="2.5"/>
+<rect x="354" y="73" width="89" height="85" rx="9" fill="url(#mwx-key)" stroke="#4e565a" stroke-width="1.5"/>
+<rect x="359" y="78" width="79" height="72" rx="7" fill="url(#mwx-polymer-pores)" opacity=".21"/>
+<path d="M362 84H435" stroke="#b6c7c9" stroke-opacity="0.36" stroke-width="1.4" stroke-linecap="round"/>
+<path d="M362 149H435" stroke="#03060a" opacity=".6" stroke-width="3"/>
+<text x="398.5" y="127" font-size="15" font-family="Arial,Helvetica,sans-serif" font-weight="700" letter-spacing=".5" text-anchor="middle" fill="#ddd9cf">20:1</text>
+</g><g data-layer="ratio-choice-5">
+<rect x="459" y="77" width="99" height="99" rx="12" fill="#05090d" opacity=".77"/>
+<rect x="456" y="69" width="99" height="95" rx="11" fill="url(#mwx-rim)" stroke="#171f22" stroke-width="2.5"/>
+<rect x="461" y="73" width="89" height="85" rx="9" fill="url(#mwx-key)" stroke="#4e565a" stroke-width="1.5"/>
+<rect x="466" y="78" width="79" height="72" rx="7" fill="url(#mwx-polymer-pores)" opacity=".21"/>
+<path d="M469 84H542" stroke="#b6c7c9" stroke-opacity="0.36" stroke-width="1.4" stroke-linecap="round"/>
+<path d="M469 149H542" stroke="#03060a" opacity=".6" stroke-width="3"/>
+<text x="505.5" y="127" font-size="15" font-family="Arial,Helvetica,sans-serif" font-weight="700" letter-spacing=".5" text-anchor="middle" fill="#ddd9cf">ALL IN</text>
+</g></g></svg>
