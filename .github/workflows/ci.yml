@@ -83,6 +83,21 @@ jobs:
           retention-days: 7
       # The C++ core's own suites, compiled to WebAssembly and run under Node.
       # Forty-one of them, and nothing on a push had ever executed one.
+      # The five vintage-inspired C++ processors must render finite,
+      # non-silent audio, respond to their character settings, and bypass
+      # transparently. This is an engineering smoke gate, not sonic approval.
+      - name: Vintage processor audio sanity
+        run: npm run audio:vintage -- --smoke
+      - name: Full-length vintage processor A/B captures
+        if: github.event_name == 'pull_request'
+        run: npm run audio:vintage
+      - name: Upload vintage processor listening files
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vintage-processor-ab-wav
+          path: audit-out/vintage-captures/
+          retention-days: 7
       - name: Motion Wave core tests
         run: npm run test:core
       # The golden curve table against the C++ law it mirrors. Needs a host
