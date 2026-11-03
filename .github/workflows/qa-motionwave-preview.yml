@@ -1,0 +1,95 @@
+name: Manual QA preview (isolated temporary Worker)
+on:
+  push:
+    branches:
+      - qa/motionwave-ui-iphone-preview-20261103
+permissions:
+  contents: read
+concurrency:
+  group: isolated-motionwave-qa-preview
+  cancel-in-progress: true
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Cache pinned Emscripten SDK
+        id: emsdk-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/emsdk
+          key: emsdk-4.0.7
+      - name: Install pinned Emscripten SDK
+        if: steps.emsdk-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git "$HOME/emsdk"
+          "$HOME/emsdk/emsdk" install 4.0.7
+          "$HOME/emsdk/emsdk" activate 4.0.7
+      - name: Point build at Emscripten
+        run: echo "EMSDK_DIR=$HOME/emsdk" >> "$GITHUB_ENV"
+      - name: Compile/check native Motion Wave code
+        run: npm run wasm:check
+      - name: Build full DAW
+        run: npm run build
+      - name: Deploy only to disposable QA Worker (never production)
+        shell: bash
+        run: |
+          # All credentials and claim URLs are deliberately kept out of
+          # public GitHub Actions logs. --temporary is a separate Cloudflare
+          # account, NOT a deploy to txpps-motionlab-studio.
+          set +e
+          output="$(npx wrangler deploy --temporary --config wrangler.qa.toml 2>&1)"
+          status=$?
+          set -e
+          filtered="$(printf '%s\n' "$output" | sed -E '/claim-preview|Claim URL:|claimToken|Claim within:|Temporary account ready:/Id')"
+          printf '%s\n' "$filtered" | tail -n 75
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Preview deployment failed (exit $status)."
+            exit "$status"
+          fi
+          url="$(printf '%s\n' "$filtered" | grep -Eo 'https://[a-zA-Z0-9.-]+\.workers\.dev' | tail -n 1 || true)"
+          if [ -z "$url" ]; then
+            echo "::error::No verified workers.dev URL in deploy output."
+            exit 1
+          fi
+          echo "QA_URL=$url" >> "$GITHUB_ENV"
+          {
+            echo "### Isolated, disposable Motion Wave manual QA"
+            echo ""
+            echo "QA URL: $url"
+            echo ""
+            echo "Source revision: ${GITHUB_SHA}"
+            echo ""
+            echo "This Cloudflare temporary preview expires after approximately 60 minutes unless claimed."
+            echo "No production Worker, repository default branch, or existing live link was updated."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "QA_URL=$url"
+      - name: Verify QA deployment responds with an app shell
+        shell: bash
+        run: |
+          code="$(curl -sS --retry 4 --retry-delay 2 -o /tmp/qa-index.html -w '%{http_code}' "$QA_URL/?qa=${GITHUB_SHA}")"
+          echo "HTTP status: $code"
+          if [ "$code" != "200" ]; then
+            echo "::error::Preview returned HTTP $code"
+            exit 1
+          fi
+          if ! grep -q 'assets/' /tmp/qa-index.html; then
+            echo "::error::Preview did not serve a compiled Vite application shell."
+            exit 1
+          fi
+          echo "Isolated QA Worker is reachable."
+      - name: Upload exact built QA bundle for verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: motionwave-qa-preview-dist
+          path: dist/
+          retention-days: 3
