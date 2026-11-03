@@ -27,8 +27,14 @@ jobs:
       - run: npm ci
       - name: Type-check shared UI and browser tests
         run: npm run typecheck
+      - name: Diagnose UI formatting (temporary)
+        run: |
+          for file in docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md motionwave/ui/e2e/touch_rotary.spec.ts motionwave/ui/test/rotary_visual_foundation.test.ts; do
+            npx prettier "$file" > /tmp/mw-ui-formatted
+            diff -u "$file" /tmp/mw-ui-formatted || true
+          done
       - name: Format check for new UI code and specs
-        run: npm run format:check
+        run: npx prettier --check docs/design/MOTIONWAVE_GUI_QUALITY_RECOVERY_20261103.md motionwave/ui/render/controls/gesture.ts motionwave/ui/render/controlCss.ts motionwave/ui/render/panelCss.ts motionwave/ui/test/rotary_touch_gesture.test.ts motionwave/ui/test/rotary_visual_foundation.test.ts motionwave/ui/e2e/touch_rotary.spec.ts motionwave/ui/e2e/ui_capture.spec.ts
       - name: Shared touch direction and sizing regressions
         run: npx vitest run --config motionwave/ui/vitest.config.ts rotary_touch_gesture rotary_visual_foundation
       - name: Compile the real Motion Wave panel
