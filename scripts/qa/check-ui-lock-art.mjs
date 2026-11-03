@@ -25,7 +25,8 @@ if (!svg.startsWith('<svg ') || !svg.trimEnd().endsWith('</svg>')) {
 if (!svg.includes('viewBox="0 0 1600 920"')) {
   fail('source master viewBox unexpectedly changed');
 }
-if (/\b(?:https?:)?\/\//i.test(svg) && !svg.includes('http://www.w3.org/2000/svg')) {
+const svgWithoutNamespace = svg.replace('http://www.w3.org/2000/svg', '');
+if (/\b(?:https?:)?\/\//i.test(svgWithoutNamespace)) {
   fail('unexpected network reference');
 }
 if (/<script\b|<image\b|<foreignObject\b|<iframe\b|@import|url\(https?:/i.test(svg)) {
