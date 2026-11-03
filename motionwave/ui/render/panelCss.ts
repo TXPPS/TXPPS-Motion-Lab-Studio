@@ -242,6 +242,19 @@ const PANEL = `
    6,449px phone panel despite the JavaScript setting hidden=true. Keep
    inactive panels out of layout and the pointer/focus tree. */
 .mw-panel-controls[hidden] { display: none; }
+/* A tabbed plug-in is several workspaces, not a row of four tiny columns.
+   The generic wide breakpoint gives every direct body child flex:1 1 0;
+   for a grouped face this squeezes controls and the entire tap editor beside
+   the readout rail. Preserve a full-width stack on desktop as on phone.
+   Specificity intentionally wins over the later per-face breakpoint rule. */
+.mw-panel[data-mw-grouped='true'] .mw-panel-body {
+  flex-direction: column;
+}
+.mw-panel[data-mw-grouped='true'] .mw-panel-body > * {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+}
 .mw-panel-band {
   display: contents;
 }
