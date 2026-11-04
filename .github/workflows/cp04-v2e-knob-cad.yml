@@ -1,0 +1,64 @@
+name: CP04 V2E molded knob CAD verification (review only)
+
+on:
+  push:
+    branches:
+      - feature/motionwave-cp04-v2e-molded-knob-20261103
+    paths:
+      - design-assets/motionwave-ui-lock/v2e/**
+      - .github/workflows/cp04-v2e-knob-cad.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  g1-knob:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned-major CAD dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install 'cadquery>=2.6,<3' 'numpy>=1.26,<3' 'trimesh>=4,<5'
+      - name: Rebuild editable three-state models and run penetration guard
+        run: |
+          python design-assets/motionwave-ui-lock/v2e/cp04_v2e_knob_cad.py audit-out/cp04-v2e
+      - name: Independently verify written STEP, GLB and manifest
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          import trimesh
+          base=Path('audit-out/cp04-v2e')
+          data=json.loads((base/'cad-verification.json').read_text())
+          assert data['approval']=='NOT_APPROVED'
+          assert data['productionImported'] is False
+          assert data['gripChannels']==40
+          assert 35<data['gripVolumeRemovedMm3']<100
+          assert abs(data['pointerRecessMm']-.19)<1e-8
+          assert len(data['checks'])==14
+          required={'fixed_mount_washer','moving_molded_knob_body','moving_recessed_ivory_inlay'}
+          for state in ('MIN','MID','MAX'):
+              name=f'MW_CONTROL_001_V2E_{state}'
+              glb=base/(name+'.glb')
+              step=base/(name+'.step')
+              assert step.stat().st_size>1000 and glb.stat().st_size>1000
+              scene=trimesh.load(glb, force='scene')
+              assert set(scene.geometry)==required
+              assert all(mesh.is_watertight and mesh.is_winding_consistent and mesh.volume>0 for mesh in scene.geometry.values())
+          assert len(data['files'])==6
+          for filename, digest in data['files'].items():
+              assert hashlib.sha256((base/filename).read_bytes()).hexdigest()==digest
+          print('CP04 V2E independent STEP/GLB, 14 CAD assertions pass')
+          PY
+      - name: Upload temporary CAD review files only
+        uses: actions/upload-artifact@v4
+        with:
+          name: motionwave-cp04-v2e-knob-step-glb-review-only
+          path: audit-out/cp04-v2e/
+          retention-days: 14
