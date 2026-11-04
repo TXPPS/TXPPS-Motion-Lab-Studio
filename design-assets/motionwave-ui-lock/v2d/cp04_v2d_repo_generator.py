@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MotionWave CP04 V2.0D: independently reproducible six-part toggle CAD.
+"""MotionWave CP04 V2H: front-face vertical throw correction of six-part V2D CAD.
 
 A design/review asset only. No VST, parameter, automation, project, or DSP code.
 Usage: python cp04_v2d_repo_generator.py [output_dir]
@@ -54,12 +54,29 @@ def nut():
 
 def axis(degrees):
     a = math.radians(degrees)
+    # Physical front camera is above +Z, screen-up is +Y.
+    # ON (+angle) moves UP; OFF (-angle) moves DOWN; never sideways.
+    return cq.Vector(0, math.sin(a), math.cos(a))
+
+
+def _construction_axis(degrees):
+    """Build the proven filleted pivot in its canonical OpenCascade XZ plane.
+
+    The sphere/shaft fillet crosses a kernel seam when constructed directly
+    in YZ. A rigid +90-degree Z rotation preserves the validated manufactured
+    solid while changing the *actual exported CAD*, not merely its camera.
+    """
+    a = math.radians(degrees)
     return cq.Vector(math.sin(a), 0, math.cos(a))
+
+
+def _orient_to_front_vertical(solid):
+    return solid.rotate((0, 0, 0), (0, 0, 1), 90)
 
 
 def moving_joint(degrees):
     origin = cq.Vector(0, 0, PIVOT_Z)
-    d = axis(degrees)
+    d = _construction_axis(degrees)
     sphere = cq.Workplane('XY').sphere(PIVOT_RADIUS).translate((0, 0, PIVOT_Z))
     shaft = cq.Solid.makeCylinder(SHAFT_RADIUS, 14.15, origin + d.multiply(1.05), d)
     combined = sphere.union(cq.Workplane('XY').newObject([shaft]))
@@ -70,19 +87,19 @@ def moving_joint(degrees):
     assert seam.size() == 1, 'missing or ambiguous shaft-to-ball fillet seam'
     combined = seam.fillet(.30)
     assert len(combined.solids().vals()) == 1 and combined.val().isValid()
-    return combined
+    return _orient_to_front_vertical(combined)
 
 
 def insulating_tip(degrees):
     origin = cq.Vector(0, 0, PIVOT_Z)
-    d = axis(degrees)
+    d = _construction_axis(degrees)
     center = origin + d.multiply(16.2)
     cap = cq.Workplane('XY').sphere(3.35).translate((center.x, center.y, center.z))
     bore = cq.Solid.makeCylinder(HANDLE_BORE_RADIUS, 4.45,
                                   origin + d.multiply(11.6), d)
     part = cap.cut(cq.Workplane('XY').newObject([bore]))
     assert part.val().isValid()
-    return part
+    return _orient_to_front_vertical(part)
 
 
 def parts(degrees):
@@ -155,13 +172,26 @@ def validate():
              overlap(joint, fixed['eyelet']) < 1e-7 and
              overlap(joint, fixed['lower']) < 1e-7 and
              overlap(joint, cap) < 1e-7)
+    # Lock physical UP/DOWN displacement: this fails if X-axis motion returns.
+    off_axis, on_axis = axis(-MAX_THROW), axis(MAX_THROW)
+    test('vertical Y-axis throw with no X-axis lateral component',
+         abs(off_axis.x) < 1e-12 and abs(on_axis.x) < 1e-12 and
+         off_axis.y < 0 < on_axis.y)
+    off_tip, on_tip = insulating_tip(-MAX_THROW).val().Center(), insulating_tip(MAX_THROW).val().Center()
+    test('OFF tip physically DOWN and ON tip physically UP',
+         off_tip.y < -4 and on_tip.y > 4)
+    test('symmetric vertical travel and no left/right shift',
+         abs(off_tip.y + on_tip.y) < 1e-5 and
+         abs(off_tip.x) < 1e-5 and abs(on_tip.x) < 1e-5)
+    test('OFF and ON keep identical forward protrusion',
+         abs(off_tip.z - on_tip.z) < 1e-5)
     test('oversized pivot is correctly rejected',
          overlap(fixed['eyelet'],
                  cq.Workplane('XY').sphere(2.65).translate((0, 0, PIVOT_Z))) > .001)
     test('unbored handle tip is correctly rejected',
          overlap(moving_joint(-MAX_THROW),
                  cq.Workplane('XY').sphere(3.35).translate((
-                    -16.2*math.sin(math.radians(MAX_THROW)), 0,
+                    0, -16.2*math.sin(math.radians(MAX_THROW)),
                     PIVOT_Z+16.2*math.cos(math.radians(MAX_THROW))))) > .001)
     return tests
 
@@ -172,11 +202,13 @@ def main():
     checks = validate()
     n_off = save_parts(parts(-MAX_THROW), output, 'MW_CONTROL_006_V2D_OFF')
     n_on = save_parts(parts(MAX_THROW), output, 'MW_CONTROL_006_V2D_ON')
-    report = {'checkpoint':'CP04 V2.0D', 'owner_approved':False,
+    report = {'checkpoint':'CP04 V2H', 'owner_approved':False,
+              'front_view_axis':'+Y screen up / +Z toward viewer',
+              'throw':{'OFF':'DOWN -21 degrees','ON':'UP +21 degrees'},
               'part_counts':{'OFF':n_off,'ON':n_on}, 'checks':checks,
               'limits':'No real manufacturing/stress certification; no plugin integration.'}
     (output/'verification.json').write_text(json.dumps(report, indent=2)+'\n')
-    print('V2D CAD PASS:',len(checks),'checks,',n_off,'named STEP/GLB parts per state')
+    print('V2H VERTICAL CAD PASS:',len(checks),'checks,',n_off,'named STEP/GLB parts per state')
 
 
 if __name__ == '__main__': main()
