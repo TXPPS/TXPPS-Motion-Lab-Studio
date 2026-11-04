@@ -1,0 +1,35 @@
+name: CP04 V2G front orthographic design source guard (unapproved)
+
+on:
+  push:
+    branches:
+      - feature/motionwave-cp04-v2g-front-orthographic-cad-20261103
+    paths:
+      - design-assets/motionwave-ui-lock/v2g/**
+      - docs/design/MOTIONWAVE_CP04_V2G_FRONT_ORTHOGRAPHIC_RESTORE.md
+      - scripts/qa/check-cp04-v2g-front.mjs
+      - .github/workflows/cp04-v2g-front-source-review.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-camera:
+    name: Verify Blender Python syntax and exact front-CAD camera contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Python syntax-check only (does not install Blender)
+        run: python -m py_compile design-assets/motionwave-ui-lock/v2g/blender_cp04_front.py
+      - name: Independent source policy guard
+        run: node scripts/qa/check-cp04-v2g-front.mjs
+      - name: Evidence boundary
+        run: echo "PASS means source syntax and camera guard only. No Blender render, production UI substitution, performance QA or owner signoff."
