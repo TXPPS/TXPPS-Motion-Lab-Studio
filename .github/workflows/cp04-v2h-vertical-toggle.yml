@@ -1,0 +1,41 @@
+name: CP04 V2H real CAD vertical toggle geometry (review only)
+
+on:
+  push:
+    branches:
+      - feature/motionwave-cp04-v2h-vertical-toggle-20261103
+    paths:
+      - design-assets/motionwave-ui-lock/v2d/cp04_v2d_repo_generator.py
+      - scripts/qa/verify-cp04-v2h-vertical.py
+      - .github/workflows/cp04-v2h-vertical-toggle.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cad-regression:
+    name: Build six-part STEP/GLB with vertical Y-axis throw and inspect geometry
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CAD stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install 'cadquery>=2.6,<3' 'numpy>=1.26,<3' 'trimesh>=4,<5'
+      - name: Regenerate physical OFF/down and ON/up STEP/GLB
+        run: |
+          python design-assets/motionwave-ui-lock/v2d/cp04_v2d_repo_generator.py audit-out/cp04-v2h
+      - name: Verify geometry and exported motion axis independently
+        run: |
+          python scripts/qa/verify-cp04-v2h-vertical.py audit-out/cp04-v2h
+      - name: Upload real CAD files only, not images or app assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: motionwave-cp04-v2h-vertical-six-part-cad-review
+          path: audit-out/cp04-v2h/
+          retention-days: 14
